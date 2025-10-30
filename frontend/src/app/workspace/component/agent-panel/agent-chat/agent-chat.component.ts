@@ -2,14 +2,9 @@
 import { Component, OnDestroy, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TexeraCopilot, AgentResponse, CopilotState } from "../../../service/copilot/texera-copilot";
-import { AgentInfo } from "../../../service/copilot/texera-copilot-manager.service";
+import { AgentInfo, ChatMessage } from "../../../service/copilot/texera-copilot-manager.service";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
-
-interface ChatMessage {
-  role: "user" | "ai";
-  text: string;
-}
 
 @UntilDestroy()
 @Component({
@@ -49,11 +44,21 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    // Add initial greeting message
-    this.messages.push({
-      role: "ai",
-      text: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
-    });
+    // Load existing message history or add initial greeting
+    if (this.agentInfo.messageHistory && this.agentInfo.messageHistory.length > 0) {
+      // Restore existing messages
+      this.messages = [...this.agentInfo.messageHistory];
+      this.shouldScrollToBottom = true;
+    } else {
+      // Add initial greeting message for new agent
+      const greeting: ChatMessage = {
+        role: "ai",
+        text: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
+      };
+      this.messages.push(greeting);
+      // Save the greeting to the persistent history
+      this.agentInfo.messageHistory.push(greeting);
+    }
 
     // Subscribe to pending action plans
     this.actionPlanService
@@ -111,11 +116,13 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     const userMessage = this.currentMessage.trim();
     this.currentMessage = "";
 
-    // Add user message to chat
-    this.messages.push({
+    // Add user message to chat and persistent history
+    const userMsg: ChatMessage = {
       role: "user",
       text: userMessage,
-    });
+    };
+    this.messages.push(userMsg);
+    this.agentInfo.messageHistory.push(userMsg);
     this.shouldScrollToBottom = true;
 
     // Send to copilot
@@ -129,38 +136,46 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
             // Format and add trace message
             const traceText = this.formatToolTrace(response);
             if (traceText) {
-              this.messages.push({
+              const traceMsg: ChatMessage = {
                 role: "ai",
                 text: traceText,
-              });
+              };
+              this.messages.push(traceMsg);
+              this.agentInfo.messageHistory.push(traceMsg);
               this.shouldScrollToBottom = true;
             }
           } else if (response.type === "response") {
             currentAiMessage = response.content;
             if (response.isDone && currentAiMessage) {
-              this.messages.push({
+              const aiMsg: ChatMessage = {
                 role: "ai",
                 text: currentAiMessage,
-              });
+              };
+              this.messages.push(aiMsg);
+              this.agentInfo.messageHistory.push(aiMsg);
               this.shouldScrollToBottom = true;
             }
           }
         },
         error: (error: unknown) => {
           console.error("Error sending message:", error);
-          this.messages.push({
+          const errorMsg: ChatMessage = {
             role: "ai",
             text: `Error: ${error || "Unknown error occurred"}`,
-          });
+          };
+          this.messages.push(errorMsg);
+          this.agentInfo.messageHistory.push(errorMsg);
           this.shouldScrollToBottom = true;
         },
         complete: () => {
           const currentState = this.copilotService.getState();
           if (currentState === CopilotState.STOPPING) {
-            this.messages.push({
+            const stoppedMsg: ChatMessage = {
               role: "ai",
               text: "_Generation stopped._",
-            });
+            };
+            this.messages.push(stoppedMsg);
+            this.agentInfo.messageHistory.push(stoppedMsg);
             this.shouldScrollToBottom = true;
           }
         },
@@ -246,11 +261,14 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public clearMessages(): void {
     this.copilotService.clearMessages();
     this.messages = [];
+    this.agentInfo.messageHistory = []; // Clear persistent history
     // Add greeting message back
-    this.messages.push({
+    const greeting: ChatMessage = {
       role: "ai",
-      text: "Hi! I'm Texera Agent. I can help you build and modify workflows.",
-    });
+      text: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
+    };
+    this.messages.push(greeting);
+    this.agentInfo.messageHistory.push(greeting);
   }
 
   /**
@@ -286,10 +304,12 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   public onUserDecision(decision: { accepted: boolean; message: string }): void {
     // Add the user's decision as a user message in the chat
-    this.messages.push({
+    const decisionMsg: ChatMessage = {
       role: "user",
       text: decision.message,
-    });
+    };
+    this.messages.push(decisionMsg);
+    this.agentInfo.messageHistory.push(decisionMsg);
     this.shouldScrollToBottom = true;
 
     // Clear the pending action plan since user has made a decision

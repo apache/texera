@@ -21,6 +21,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from "@angu
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActionPlan, ActionPlanStatus, ActionPlanService } from "../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 import * as joint from "jointjs";
 
 @UntilDestroy()
@@ -35,6 +36,7 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   @Output() userDecision = new EventEmitter<{ accepted: boolean; message: string }>();
 
   public rejectMessage: string = "";
+  public runInNewAgent: boolean = false; // Toggle for running in new agent
   public ActionPlanStatus = ActionPlanStatus; // Expose enum to template
 
   // Track task completion states
@@ -42,7 +44,8 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
 
   constructor(
     private actionPlanService: ActionPlanService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private copilotManagerService: TexeraCopilotManagerService
   ) {}
 
   ngOnInit(): void {
@@ -67,12 +70,63 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   /**
    * User accepted the action plan
    */
-  public onAccept(): void {
-    // Emit user decision event for chat component to show as user message
-    this.userDecision.emit({
-      accepted: true,
-      message: `✅ Accepted action plan: "${this.actionPlan.summary}"`,
-    });
+  public async onAccept(): Promise<void> {
+    // If user chose to run in new agent, create one
+    if (this.runInNewAgent) {
+      try {
+        // Create new agent with Claude 3.7
+        const newAgent = await this.copilotManagerService.createAgent(
+          "claude-3.7",
+          `Actor for: ${this.actionPlan.summary}`
+        );
+
+        // Build initial message with action plan details
+        const initialMessage = `Execute the following action plan:
+
+**${this.actionPlan.summary}**
+
+Tasks to complete:
+${this.actionPlan.tasks
+  .map((task, index) => `${index + 1}. ${task.description} (Operator: ${task.operatorId})`)
+  .join("\n")}
+
+Please proceed with implementing these tasks in order.`;
+
+        // Send the initial message to the new agent
+        setTimeout(() => {
+          // Send message to the new agent
+          newAgent.instance
+            .sendMessage(initialMessage)
+            .subscribe({
+              next: (response) => {
+                console.log("Actor agent started with plan:", this.actionPlan.summary);
+              },
+              error: (error) => {
+                console.error("Error starting actor agent:", error);
+              },
+            });
+        }, 500);
+
+        // Emit user decision with note about new agent
+        this.userDecision.emit({
+          accepted: true,
+          message: `✅ Accepted action plan: "${this.actionPlan.summary}" (Running in new agent: ${newAgent.name})`,
+        });
+      } catch (error) {
+        console.error("Failed to create actor agent:", error);
+        // Fall back to regular acceptance
+        this.userDecision.emit({
+          accepted: true,
+          message: `✅ Accepted action plan: "${this.actionPlan.summary}"`,
+        });
+      }
+    } else {
+      // Regular acceptance without new agent
+      this.userDecision.emit({
+        accepted: true,
+        message: `✅ Accepted action plan: "${this.actionPlan.summary}"`,
+      });
+    }
 
     // Trigger the feedback to resolve the tool's promise
     this.actionPlanService.acceptPlan(this.actionPlan.id);
