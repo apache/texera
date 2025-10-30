@@ -104,7 +104,8 @@
         <div class="message-content">
           <texera-action-plan-view
             [actionPlan]="pendingActionPlan"
-            [showFeedbackControls]="true"></texera-action-plan-view>
+            [showFeedbackControls]="true"
+            (userDecision)="onUserDecision($event)"></texera-action-plan-view>
         </div>
       </div>
     </div>

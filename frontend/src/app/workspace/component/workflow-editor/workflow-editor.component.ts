@@ -96,12 +96,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private removeButton!: new () => joint.linkTools.Button;
   private breakpointButton!: new () => joint.linkTools.Button;
 
-  // Action plan feedback panel state
-  public showActionPlanFeedback: boolean = false;
-  public actionPlanSummary: string = "";
-  public actionPlanPanelLeft: number = 0;
-  public actionPlanPanelTop: number = 0;
-
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -458,24 +452,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         // Update the highlight to wrap around operators
         this.updateActionPlanElement(currentElement, operators);
 
-        // Calculate panel position (to the right of the highlighted area)
-        const bbox = this.getOperatorsBoundingBox(operators);
-        const panelPosition = this.calculatePanelPosition(bbox);
-        this.actionPlanPanelLeft = panelPosition.x;
-        this.actionPlanPanelTop = panelPosition.y;
-        this.actionPlanSummary = actionPlan.summary;
-        this.showActionPlanFeedback = true;
-
-        // Listen to operator position changes to update the highlight and panel
+        // Listen to operator position changes to update the highlight
         currentPositionHandler = (operator: joint.dia.Cell) => {
           if (operators.includes(operator) && currentElement) {
             this.updateActionPlanElement(currentElement, operators);
-            // Update panel position when operators move
-            const newBbox = this.getOperatorsBoundingBox(operators);
-            const newPosition = this.calculatePanelPosition(newBbox);
-            this.actionPlanPanelLeft = newPosition.x;
-            this.actionPlanPanelTop = newPosition.y;
-            this.changeDetectorRef.detectChanges();
           }
         };
         this.paper.model.on("change:position", currentPositionHandler);
@@ -497,10 +477,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           this.paper.model.off("change:position", currentPositionHandler);
           currentPositionHandler = null;
         }
-
-        // Hide panel
-        this.showActionPlanFeedback = false;
-        this.changeDetectorRef.detectChanges();
       });
   }
 

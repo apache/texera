@@ -60,7 +60,10 @@
       [nzDataSource]="actionPlan.tasks"
       nzSize="small">
       <nz-list-item *ngFor="let task of actionPlan.tasks">
-        <div class="task-item">
+        <div
+          class="task-item"
+          (click)="highlightOperator(task.operatorId)"
+          style="cursor: pointer">
           <div class="task-checkbox">
             <i
               *ngIf="taskCompletionStates[task.operatorId]"

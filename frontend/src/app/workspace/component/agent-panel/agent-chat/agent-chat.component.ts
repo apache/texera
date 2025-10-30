@@ -29,7 +29,10 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   private copilotService!: TexeraCopilot;
   private shouldScrollToBottom = false;
 
-  constructor(private sanitizer: DomSanitizer, private actionPlanService: ActionPlanService) {}
+  constructor(
+    private sanitizer: DomSanitizer,
+    private actionPlanService: ActionPlanService
+  ) {}
 
   ngOnInit(): void {
     console.log("AgentChatComponent ngOnInit - agentInfo:", this.agentInfo);
@@ -276,5 +279,20 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   public isConnected(): boolean {
     return this.copilotService?.isConnected() ?? false;
+  }
+
+  /**
+   * Handle user decision on action plan
+   */
+  public onUserDecision(decision: { accepted: boolean; message: string }): void {
+    // Add the user's decision as a user message in the chat
+    this.messages.push({
+      role: "user",
+      text: decision.message,
+    });
+    this.shouldScrollToBottom = true;
+
+    // Clear the pending action plan since user has made a decision
+    this.pendingActionPlan = null;
   }
 }

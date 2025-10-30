@@ -402,9 +402,7 @@ export class TexeraCopilot {
         this.agentName
       )
     );
-    const updateActionPlanProgressTool = toolWithTimeout(
-      createUpdateActionPlanProgressTool(this.actionPlanService)
-    );
+    const updateActionPlanProgressTool = toolWithTimeout(createUpdateActionPlanProgressTool(this.actionPlanService));
     const listOperatorsTool = toolWithTimeout(
       createListOperatorsTool(this.workflowActionService, this.copilotCoeditorService)
     );
