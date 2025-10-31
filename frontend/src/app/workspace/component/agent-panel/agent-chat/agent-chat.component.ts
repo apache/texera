@@ -43,6 +43,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       .getMessagesObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(messages => {
+        console.log(`AgentChatComponent for ${this.agentInfo.id} received ${messages.length} messages`);
         this.messages = messages;
         this.shouldScrollToBottom = true;
       });

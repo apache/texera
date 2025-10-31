@@ -21,6 +21,17 @@ import { Injectable, Injector } from "@angular/core";
 import { TexeraCopilot } from "./texera-copilot";
 import { Observable, Subject } from "rxjs";
 import { ModelMessage } from "ai";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
+import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
+import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { CopilotCoeditorService } from "./copilot-coeditor.service";
+import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
+import { ValidationWorkflowService } from "../validation/validation-workflow.service";
+import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
+import { ActionPlanService } from "../action-plan/action-plan.service";
 
 /**
  * Agent info for tracking created agents
@@ -180,6 +191,7 @@ export class TexeraCopilotManagerService {
     if (!agent) {
       throw new Error(`Agent with ID ${agentId} not found`);
     }
+    console.log(`getMessagesObservable for agent ${agentId}`);
     return agent.instance.messages$;
   }
 
@@ -241,15 +253,40 @@ export class TexeraCopilotManagerService {
   /**
    * Create a copilot instance with proper dependency injection
    * Uses Angular's Injector to dynamically create instances
+   * Creates a child injector to ensure each agent gets a unique instance
    */
   private createCopilotInstance(modelType: string): TexeraCopilot {
-    // Create a new instance using Angular's Injector
-    // This automatically injects all required dependencies
-    const copilotInstance = this.injector.get(TexeraCopilot);
+    // Create a child injector that provides TexeraCopilot with all its dependencies
+    // This ensures each call creates a NEW instance instead of reusing a singleton
+    const childInjector = Injector.create({
+      providers: [
+        {
+          provide: TexeraCopilot,
+          deps: [
+            WorkflowActionService,
+            WorkflowUtilService,
+            OperatorMetadataService,
+            DynamicSchemaService,
+            ExecuteWorkflowService,
+            WorkflowResultService,
+            CopilotCoeditorService,
+            WorkflowCompilingService,
+            ValidationWorkflowService,
+            DataInconsistencyService,
+            ActionPlanService,
+          ],
+        },
+      ],
+      parent: this.injector,
+    });
+
+    // Get a fresh instance from the child injector
+    const copilotInstance = childInjector.get(TexeraCopilot);
 
     // Set the model type for this instance
     copilotInstance.setModelType(modelType);
 
+    console.log(`Created new TexeraCopilot instance for model ${modelType}`);
     return copilotInstance;
   }
 }

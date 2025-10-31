@@ -98,6 +98,10 @@ export enum CopilotState {
  */
 @Injectable()
 export class TexeraCopilot {
+  // Unique instance identifier for debugging
+  private static instanceCounter = 0;
+  private readonly instanceId: number;
+
   private mcpClient?: Client;
   private mcpTools: any[] = [];
   private model: any;
@@ -128,6 +132,10 @@ export class TexeraCopilot {
     private dataInconsistencyService: DataInconsistencyService,
     private actionPlanService: ActionPlanService
   ) {
+    // Assign unique instance ID
+    this.instanceId = ++TexeraCopilot.instanceCounter;
+    console.log(`TexeraCopilot instance #${this.instanceId} created`);
+
     // Default model type
     this.modelType = DEFAULT_AGENT_MODEL_ID;
   }
@@ -138,6 +146,7 @@ export class TexeraCopilot {
   public setAgentInfo(agentId: string, agentName: string): void {
     this.agentId = agentId;
     this.agentName = agentName;
+    console.log(`TexeraCopilot instance #${this.instanceId} assigned to agent ${agentId} (${agentName})`);
   }
 
   /**
@@ -234,6 +243,7 @@ export class TexeraCopilot {
   public sendMessage(message: string): Observable<void> {
     return from(
       (async () => {
+        console.log(`TexeraCopilot instance #${this.instanceId} (${this.agentId}) processing message`);
         if (!this.model) {
           throw new Error("Copilot not initialized");
         }
@@ -245,6 +255,7 @@ export class TexeraCopilot {
         const userMessage: UserModelMessage = { role: "user", content: message };
         this.messages.push(userMessage);
         this.messagesSubject.next([...this.messages]);
+        console.log(`TexeraCopilot instance #${this.instanceId} now has ${this.messages.length} messages`);
 
         try {
           // 2) define tools
@@ -270,26 +281,6 @@ export class TexeraCopilot {
             onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
               // Log each step for debugging
               console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
-
-              // Check if any tool result was an action plan rejection
-              if (toolResults && toolResults.length > 0) {
-                for (const result of toolResults) {
-                  // Check if this was an actionPlan tool that was rejected
-                  const toolCall = toolCalls?.find(tc => tc.toolCallId === result.toolCallId);
-                  if (toolCall?.toolName === "actionPlan" && result.result) {
-                    const parsedResult = typeof result.result === "string" ? JSON.parse(result.result) : result.result;
-                    if (parsedResult.rejected) {
-                      // Add user's rejection feedback as a user message
-                      const userFeedbackMessage: UserModelMessage = {
-                        role: "user",
-                        content: parsedResult.userFeedback || "I rejected the action plan",
-                      };
-                      this.messages.push(userFeedbackMessage);
-                      console.log("Action plan rejected, added user feedback to messages");
-                    }
-                  }
-                }
-              }
             },
           });
 
