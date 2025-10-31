@@ -139,6 +139,7 @@ import { InconsistencyListComponent } from "./workspace/component/left-panel/inc
 import { AddInconsistencyModalComponent } from "./workspace/component/add-inconsistency-modal/add-inconsistency-modal.component";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { NzDescriptionsModule } from "ng-zorro-antd/descriptions";
 import { OverlayModule } from "@angular/cdk/overlay";
 import { HighlightSearchTermsPipe } from "./dashboard/component/user/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
@@ -325,6 +326,7 @@ registerLocaleData(en);
     NgxJsonViewerModule,
     NzMessageModule,
     NzModalModule,
+    NzDescriptionsModule,
     NzCardModule,
     NzTagModule,
     NzPopconfirmModule,

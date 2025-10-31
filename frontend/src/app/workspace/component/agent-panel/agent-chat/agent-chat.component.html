@@ -67,49 +67,32 @@
           <span class="message-role">{{ agentInfo.name }}</span>
         </div>
 
-        <!-- Message content with markdown and tool calls -->
-        <div class="message-content">
+        <!-- Message content with hover button -->
+        <div
+          class="message-content"
+          (mouseenter)="setHoveredMessage(i)"
+          (mouseleave)="setHoveredMessage(null)"
+          style="position: relative">
           <!-- Markdown content -->
           <div
             *ngIf="response.content"
             [innerHTML]="renderMarkdown(response.content)"></div>
 
-          <!-- Tool calls list (expandable) -->
-          <div
-            *ngIf="response.toolCalls && response.toolCalls.length > 0"
-            class="tool-calls-section"
-            style="margin-top: 8px">
-            <div
-              *ngFor="let call of response.toolCalls; let callIndex = index"
-              class="tool-call-item">
-              <div
-                class="tool-call-header"
-                (click)="toggleToolCall(i, callIndex)"
-                style="cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px">
-                <i
-                  nz-icon
-                  [nzType]="isToolCallExpanded(i, callIndex) ? 'down' : 'right'"
-                  nzTheme="outline"
-                  style="font-size: 12px"></i>
-                <strong>{{ call.toolName }}</strong>
-              </div>
-              <div
-                *ngIf="isToolCallExpanded(i, callIndex)"
-                class="tool-call-details"
-                style="margin-left: 20px; margin-top: 4px">
-                <div class="tool-call-args">
-                  <small><strong>Arguments:</strong></small>
-                  <pre><code class="language-json">{{ formatJson(call.input || call.args) }}</code></pre>
-                </div>
-                <div
-                  class="tool-call-result"
-                  *ngIf="getToolResult(response, callIndex)">
-                  <small><strong>Result:</strong></small>
-                  <pre><code class="language-json">{{ formatJson(getToolResult(response, callIndex)) }}</code></pre>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- Details button (shown on hover) -->
+          <button
+            *ngIf="hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
+            nz-button
+            nzType="text"
+            nzSize="small"
+            (click)="showResponseDetails(response)"
+            style="position: absolute; top: 0; right: 0; opacity: 0.7"
+            nz-tooltip
+            nzTooltipTitle="View details">
+            <i
+              nz-icon
+              nzType="info-circle"
+              nzTheme="outline"></i>
+          </button>
         </div>
       </div>
 
@@ -197,3 +180,109 @@
     <span>Agent is disconnected. Please check your connection.</span>
   </div>
 </div>
+
+<!-- Response Details Modal -->
+<nz-modal
+  [(nzVisible)]="isDetailsModalVisible"
+  nzTitle="Response Details"
+  nzWidth="800px"
+  (nzOnCancel)="closeDetailsModal()"
+  [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <div
+      *ngIf="selectedResponse"
+      style="max-height: 600px; overflow-y: auto">
+      <!-- Token Usage Section -->
+      <div
+        *ngIf="selectedResponse.usage"
+        style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="bar-chart"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Token Usage
+        </h4>
+        <nz-descriptions
+          nzBordered
+          nzSize="small"
+          [nzColumn]="2">
+          <nz-descriptions-item nzTitle="Input Tokens">
+            {{ selectedResponse.usage.inputTokens || 0 }}
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Output Tokens">
+            {{ selectedResponse.usage.outputTokens || 0 }}
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Total Tokens">
+            {{ selectedResponse.usage.totalTokens || 0 }}
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Cached Tokens">
+            {{ selectedResponse.usage.cachedInputTokens || 0 }}
+          </nz-descriptions-item>
+        </nz-descriptions>
+      </div>
+
+      <!-- Tool Calls Section -->
+      <div *ngIf="selectedResponse.toolCalls && selectedResponse.toolCalls.length > 0">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="tool"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Tool Calls ({{ selectedResponse.toolCalls.length }})
+        </h4>
+        <nz-collapse style="margin-bottom: 16px">
+          <nz-collapse-panel
+            *ngFor="let call of selectedResponse.toolCalls; let idx = index"
+            [nzHeader]="call.toolName"
+            [nzActive]="false">
+            <div style="background: #fafafa; padding: 12px; border-radius: 4px; margin-bottom: 12px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Arguments:</strong>
+              </div>
+              <pre
+                style="
+                  background: #fff;
+                  padding: 12px;
+                  border: 1px solid #d9d9d9;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin: 0;
+                "><code class="language-json">{{ formatJson(call.input || call.args) }}</code></pre>
+            </div>
+            <div
+              *ngIf="getToolResult(selectedResponse, idx)"
+              style="background: #fafafa; padding: 12px; border-radius: 4px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Result:</strong>
+              </div>
+              <pre
+                style="
+                  background: #fff;
+                  padding: 12px;
+                  border: 1px solid #d9d9d9;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin: 0;
+                "><code class="language-json">{{ formatJson(getToolResult(selectedResponse, idx)) }}</code></pre>
+            </div>
+          </nz-collapse-panel>
+        </nz-collapse>
+      </div>
+
+      <!-- No Data Message -->
+      <div
+        *ngIf="!selectedResponse.usage && (!selectedResponse.toolCalls || selectedResponse.toolCalls.length === 0)"
+        style="text-align: center; padding: 40px; color: #8c8c8c">
+        <i
+          nz-icon
+          nzType="info-circle"
+          nzTheme="outline"
+          style="font-size: 32px; margin-bottom: 8px"></i>
+        <div>No additional details available for this response.</div>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>
