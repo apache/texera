@@ -3,7 +3,6 @@ import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } fro
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CopilotState, AgentResponse } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
-import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 
@@ -23,8 +22,10 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public pendingActionPlan: ActionPlan | null = null;
   private shouldScrollToBottom = false;
 
+  // Track expanded state of tool calls: Map<responseIndex, Set<toolCallIndex>>
+  private expandedToolCalls = new Map<number, Set<number>>();
+
   constructor(
-    private sanitizer: DomSanitizer,
     private actionPlanService: ActionPlanService,
     private copilotManagerService: TexeraCopilotManagerService,
     private workflowActionService: WorkflowActionService
@@ -75,47 +76,42 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Format message content to display markdown-like text
+   * Toggle expanded state of a tool call
    */
-  public formatMessageContent(content: string): SafeHtml {
-    const text = content || "";
-
-    // Simple markdown-like formatting
-    let formatted = text
-      // Bold: **text**
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      // Code: `code`
-      .replace(/`(.+?)`/g, "<code>$1</code>")
-      // Line breaks
-      .replace(/\n/g, "<br>");
-
-    return this.sanitizer.sanitize(1, formatted) || "";
+  public toggleToolCall(responseIndex: number, toolCallIndex: number): void {
+    if (!this.expandedToolCalls.has(responseIndex)) {
+      this.expandedToolCalls.set(responseIndex, new Set());
+    }
+    const expanded = this.expandedToolCalls.get(responseIndex)!;
+    if (expanded.has(toolCallIndex)) {
+      expanded.delete(toolCallIndex);
+    } else {
+      expanded.add(toolCallIndex);
+    }
   }
 
   /**
-   * Format tool calls to show name and args
+   * Check if a tool call is expanded
    */
-  public formatToolCalls(toolCalls: any[]): string {
-    return toolCalls
-      .map(call => {
-        const name = call.toolName || "unknown";
-        const args = JSON.stringify(call.args || {}, null, 2);
-        return `Tool: ${name}\nArgs: ${args}`;
-      })
-      .join("\n\n");
+  public isToolCallExpanded(responseIndex: number, toolCallIndex: number): boolean {
+    return this.expandedToolCalls.get(responseIndex)?.has(toolCallIndex) ?? false;
   }
 
   /**
-   * Format tool results to show name and result
+   * Format any data as JSON string
    */
-  public formatToolResults(toolResults: any[]): string {
-    return toolResults
-      .map(result => {
-        const name = result.toolName || "unknown";
-        const resultData = JSON.stringify(result.result || result, null, 2);
-        return `Tool: ${name}\nResult: ${resultData}`;
-      })
-      .join("\n\n");
+  public formatJson(data: any): string {
+    return JSON.stringify(data, null, 2);
+  }
+
+  /**
+   * Get tool result for a specific tool call index
+   */
+  public getToolResult(response: AgentResponse, toolCallIndex: number): any {
+    if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
+      return null;
+    }
+    return response.toolResults[toolCallIndex];
   }
 
   /**
