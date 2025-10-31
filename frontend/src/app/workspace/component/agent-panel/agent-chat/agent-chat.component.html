@@ -58,27 +58,35 @@
         *ngFor="let response of agentResponses"
         class="message"
         [class.ai-message]="true">
-        <div class="message-header">
+        <div
+          class="message-header"
+          *ngIf="response.isBegin">
           <i
             nz-icon
             nzType="robot"
             nzTheme="outline"></i>
           <span class="message-role">{{ agentInfo.name }}</span>
-          <span *ngIf="!response.isDone" class="generating-badge">Generating...</span>
         </div>
         <div
           class="message-content"
           [innerHTML]="formatMessageContent(response.content)"></div>
 
         <!-- Show tool information if available -->
-        <div *ngIf="showToolResults && response.toolCalls && response.toolCalls.length > 0" class="tool-info">
-          <div class="tool-calls">
-            <strong>Tool Calls:</strong> {{ response.toolCalls.length }}
-          </div>
+        <div
+          *ngIf="showToolResults && response.toolCalls && response.toolCalls.length > 0"
+          class="tool-info">
+          <pre><code>{{ formatToolCalls(response.toolCalls) }}</code></pre>
+        </div>
+        <div
+          *ngIf="showToolResults && response.toolResults && response.toolResults.length > 0"
+          class="tool-info">
+          <pre><code>{{ formatToolResults(response.toolResults) }}</code></pre>
         </div>
 
         <!-- Show usage statistics if available -->
-        <div *ngIf="response.usage" class="usage-info">
+        <div
+          *ngIf="response.usage"
+          class="usage-info">
           <small>Tokens: {{ response.usage.totalTokens || 0 }}</small>
         </div>
       </div>
