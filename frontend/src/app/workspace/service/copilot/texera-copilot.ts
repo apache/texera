@@ -91,6 +91,24 @@ export enum CopilotState {
 }
 
 /**
+ * Agent response for UI display
+ * Represents a step or final response from the agent
+ */
+export interface AgentResponse {
+  content: string;
+  isDone: boolean;
+  // Raw data for subscribers to process
+  toolCalls?: any[];
+  toolResults?: any[];
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    cachedInputTokens?: number;
+  };
+}
+
+/**
  * Texera Copilot - An AI assistant for workflow manipulation
  * Uses Vercel AI SDK for chat completion and MCP SDK for tool discovery
  *
@@ -111,10 +129,13 @@ export class TexeraCopilot {
   private agentId: string = "";
   private agentName: string = "";
 
-  // Message history using AI SDK's ModelMessage type
+  // PRIVATE message history for AI conversation (not exposed to UI)
   private messages: ModelMessage[] = [];
-  private messagesSubject = new BehaviorSubject<ModelMessage[]>([]);
-  public messages$ = this.messagesSubject.asObservable();
+
+  // PUBLIC agent responses for UI display
+  private agentResponses: AgentResponse[] = [];
+  private agentResponsesSubject = new BehaviorSubject<AgentResponse[]>([]);
+  public agentResponses$ = this.agentResponsesSubject.asObservable();
 
   // Copilot state management
   private state: CopilotState = CopilotState.UNAVAILABLE;
@@ -251,10 +272,9 @@ export class TexeraCopilot {
         // Set state to Generating
         this.state = CopilotState.GENERATING;
 
-        // 1) push the user message
+        // 1) push the user message to PRIVATE history
         const userMessage: UserModelMessage = { role: "user", content: message };
         this.messages.push(userMessage);
-        this.messagesSubject.next([...this.messages]);
         console.log(`TexeraCopilot instance #${this.instanceId} now has ${this.messages.length} messages`);
 
         try {
@@ -281,13 +301,32 @@ export class TexeraCopilot {
             onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
               // Log each step for debugging
               console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
+
+              // Emit AgentResponse for this step (not done yet)
+              const stepResponse: AgentResponse = {
+                content: text || "",
+                isDone: false,
+                toolCalls: toolCalls,
+                toolResults: toolResults,
+                usage: usage as any,
+              };
+              this.agentResponses.push(stepResponse);
+              this.agentResponsesSubject.next([...this.agentResponses]);
             },
           });
 
           // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
           //    This keeps your history perfectly aligned with the SDK's internal state.
           this.messages.push(...response.messages);
-          this.messagesSubject.next([...this.messages]);
+
+          // 5) Emit final AgentResponse with complete content
+          const finalResponse: AgentResponse = {
+            content: text || "",
+            isDone: true,
+            usage: (response as any).usage as any,
+          };
+          this.agentResponses.push(finalResponse);
+          this.agentResponsesSubject.next([...this.agentResponses]);
 
           // 5) optional diagnostics
           if (steps?.length) {
@@ -307,11 +346,18 @@ export class TexeraCopilot {
           // Set state back to Available
           this.state = CopilotState.AVAILABLE;
 
-          // For errors, add to message history and propagate error
+          // For errors, add to PRIVATE message history
           const errorText = `Error: ${err?.message ?? String(err)}`;
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
-          this.messagesSubject.next([...this.messages]);
+
+          // Emit error as AgentResponse
+          const errorResponse: AgentResponse = {
+            content: errorText,
+            isDone: true,
+          };
+          this.agentResponses.push(errorResponse);
+          this.agentResponsesSubject.next([...this.agentResponses]);
 
           throw err;
         }
@@ -478,18 +524,10 @@ export class TexeraCopilot {
   }
 
   /**
-   * Get conversation history as ModelMessage array
+   * Get agent responses for UI display
    */
-  public getMessages(): ModelMessage[] {
-    return [...this.messages];
-  }
-
-  /**
-   * Add a message to the conversation history
-   */
-  public addMessage(message: ModelMessage): void {
-    this.messages.push(message);
-    this.messagesSubject.next([...this.messages]);
+  public getAgentResponses(): AgentResponse[] {
+    return [...this.agentResponses];
   }
 
   /**
@@ -509,12 +547,13 @@ export class TexeraCopilot {
   }
 
   /**
-   * Clear message history
+   * Clear message history and agent responses
    */
   public clearMessages(): void {
     this.messages = [];
-    this.messagesSubject.next([...this.messages]);
-    console.log("Message history cleared");
+    this.agentResponses = [];
+    this.agentResponsesSubject.next([...this.agentResponses]);
+    console.log("Message history and agent responses cleared");
   }
 
   /**

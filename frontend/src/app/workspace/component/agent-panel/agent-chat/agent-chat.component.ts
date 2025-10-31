@@ -1,11 +1,10 @@
 // agent-chat.component.ts
 import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CopilotState } from "../../../service/copilot/texera-copilot";
+import { CopilotState, AgentResponse } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
-import { ModelMessage } from "ai";
 
 @UntilDestroy()
 @Component({
@@ -19,7 +18,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
   public showToolResults = false;
-  public messages: ModelMessage[] = []; // Populated from observable subscription
+  public agentResponses: AgentResponse[] = []; // Populated from observable subscription
   public currentMessage = "";
   public pendingActionPlan: ActionPlan | null = null;
   private shouldScrollToBottom = false;
@@ -38,13 +37,13 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       return;
     }
 
-    // Subscribe to message stream from the manager service
+    // Subscribe to agent responses stream from the manager service
     this.copilotManagerService
-      .getMessagesObservable(this.agentInfo.id)
+      .getAgentResponsesObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
-      .subscribe(messages => {
-        console.log(`AgentChatComponent for ${this.agentInfo.id} received ${messages.length} messages`);
-        this.messages = messages;
+      .subscribe(responses => {
+        console.log(`AgentChatComponent for ${this.agentInfo.id} received ${responses.length} responses`);
+        this.agentResponses = responses;
         this.shouldScrollToBottom = true;
       });
 
@@ -76,18 +75,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   /**
    * Format message content to display markdown-like text
    */
-  public formatMessageContent(content: string | any[]): SafeHtml {
-    // Handle array content (from ModelMessage)
-    let text: string;
-    if (Array.isArray(content)) {
-      // Extract text from content array (handle text parts)
-      text = content
-        .filter((part: any) => part.type === "text" || typeof part === "string")
-        .map((part: any) => (typeof part === "string" ? part : part.text || ""))
-        .join(" ");
-    } else {
-      text = content || "";
-    }
+  public formatMessageContent(content: string): SafeHtml {
+    const text = content || "";
 
     // Simple markdown-like formatting
     let formatted = text

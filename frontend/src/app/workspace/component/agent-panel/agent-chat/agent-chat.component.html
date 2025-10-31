@@ -55,20 +55,32 @@
       #messageContainer
       class="messages-container">
       <div
-        *ngFor="let message of messages"
+        *ngFor="let response of agentResponses"
         class="message"
-        [class.user-message]="message.role === 'user'"
-        [class.ai-message]="message.role === 'assistant'">
+        [class.ai-message]="true">
         <div class="message-header">
           <i
             nz-icon
-            [nzType]="message.role === 'user' ? 'user' : 'robot'"
+            nzType="robot"
             nzTheme="outline"></i>
-          <span class="message-role">{{ message.role === 'user' ? 'You' : agentInfo.name }}</span>
+          <span class="message-role">{{ agentInfo.name }}</span>
+          <span *ngIf="!response.isDone" class="generating-badge">Generating...</span>
         </div>
         <div
           class="message-content"
-          [innerHTML]="formatMessageContent(message.content)"></div>
+          [innerHTML]="formatMessageContent(response.content)"></div>
+
+        <!-- Show tool information if available -->
+        <div *ngIf="showToolResults && response.toolCalls && response.toolCalls.length > 0" class="tool-info">
+          <div class="tool-calls">
+            <strong>Tool Calls:</strong> {{ response.toolCalls.length }}
+          </div>
+        </div>
+
+        <!-- Show usage statistics if available -->
+        <div *ngIf="response.usage" class="usage-info">
+          <small>Tokens: {{ response.usage.totalTokens || 0 }}</small>
+        </div>
       </div>
 
       <!-- Loading indicator -->
