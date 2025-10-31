@@ -23,8 +23,10 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public pendingActionPlan: ActionPlan | null = null;
   private shouldScrollToBottom = false;
 
-  // Track expanded state of tool calls: Map<responseIndex, Set<toolCallIndex>>
-  private expandedToolCalls = new Map<number, Set<number>>();
+  // Modal state for response details
+  public isDetailsModalVisible = false;
+  public selectedResponse: AgentResponse | null = null;
+  public hoveredMessageIndex: number | null = null;
 
   constructor(
     private actionPlanService: ActionPlanService,
@@ -97,25 +99,26 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Toggle expanded state of a tool call
+   * Set the hovered message index
    */
-  public toggleToolCall(responseIndex: number, toolCallIndex: number): void {
-    if (!this.expandedToolCalls.has(responseIndex)) {
-      this.expandedToolCalls.set(responseIndex, new Set());
-    }
-    const expanded = this.expandedToolCalls.get(responseIndex)!;
-    if (expanded.has(toolCallIndex)) {
-      expanded.delete(toolCallIndex);
-    } else {
-      expanded.add(toolCallIndex);
-    }
+  public setHoveredMessage(index: number | null): void {
+    this.hoveredMessageIndex = index;
   }
 
   /**
-   * Check if a tool call is expanded
+   * Show response details modal
    */
-  public isToolCallExpanded(responseIndex: number, toolCallIndex: number): boolean {
-    return this.expandedToolCalls.get(responseIndex)?.has(toolCallIndex) ?? false;
+  public showResponseDetails(response: AgentResponse): void {
+    this.selectedResponse = response;
+    this.isDetailsModalVisible = true;
+  }
+
+  /**
+   * Close response details modal
+   */
+  public closeDetailsModal(): void {
+    this.isDetailsModalVisible = false;
+    this.selectedResponse = null;
   }
 
   /**
