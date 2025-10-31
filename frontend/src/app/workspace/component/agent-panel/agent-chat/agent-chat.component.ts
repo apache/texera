@@ -1,8 +1,8 @@
 // agent-chat.component.ts
-import { Component, OnDestroy, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
+import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { TexeraCopilot, AgentResponse, CopilotState } from "../../../service/copilot/texera-copilot";
-import { AgentInfo } from "../../../service/copilot/texera-copilot-manager.service";
+import { CopilotState } from "../../../service/copilot/texera-copilot";
+import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { ModelMessage } from "ai";
@@ -13,21 +13,21 @@ import { ModelMessage } from "ai";
   templateUrl: "agent-chat.component.html",
   styleUrls: ["agent-chat.component.scss"],
 })
-export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class AgentChatComponent implements OnInit, AfterViewChecked {
   @Input() agentInfo!: AgentInfo;
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
   public showToolResults = false;
-  public messages: ModelMessage[] = [];
+  public messages: ModelMessage[] = []; // Populated from observable subscription
   public currentMessage = "";
   public pendingActionPlan: ActionPlan | null = null;
-  private copilotService!: TexeraCopilot;
   private shouldScrollToBottom = false;
 
   constructor(
     private sanitizer: DomSanitizer,
-    private actionPlanService: ActionPlanService
+    private actionPlanService: ActionPlanService,
+    private copilotManagerService: TexeraCopilotManagerService
   ) {}
 
   ngOnInit(): void {
@@ -38,28 +38,14 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    this.copilotService = this.agentInfo.instance;
-
-    if (!this.copilotService) {
-      console.error("CopilotService instance is not available!");
-      return;
-    }
-
-    // Load existing message history or add initial greeting
-    if (this.agentInfo.messageHistory && this.agentInfo.messageHistory.length > 0) {
-      // Restore existing messages
-      this.messages = [...this.agentInfo.messageHistory];
-      this.shouldScrollToBottom = true;
-    } else {
-      // Add initial greeting message for new agent
-      const greeting: ModelMessage = {
-        role: "assistant",
-        content: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
-      };
-      this.messages.push(greeting);
-      // Save the greeting to the persistent history
-      this.agentInfo.messageHistory.push(greeting);
-    }
+    // Subscribe to message stream from the manager service
+    this.copilotManagerService
+      .getMessagesObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(messages => {
+        this.messages = messages;
+        this.shouldScrollToBottom = true;
+      });
 
     // Subscribe to pending action plans
     this.actionPlanService
@@ -84,10 +70,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
-  }
-
-  ngOnDestroy(): void {
-    // Cleanup when component is destroyed
   }
 
   /**
@@ -120,6 +102,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   /**
    * Send a message to the agent
+   * Messages are automatically updated via the messages$ observable
    */
   public sendMessage(): void {
     if (!this.currentMessage.trim() || this.isGenerating()) {
@@ -129,68 +112,14 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     const userMessage = this.currentMessage.trim();
     this.currentMessage = "";
 
-    // Add user message to chat and persistent history
-    const userMsg: ModelMessage = {
-      role: "user",
-      content: userMessage,
-    };
-    this.messages.push(userMsg);
-    this.agentInfo.messageHistory.push(userMsg);
-    this.shouldScrollToBottom = true;
-
-    // Send to copilot
-    let currentAiMessage = "";
-    this.copilotService
-      .sendMessage(userMessage)
+    // Send to copilot via manager service
+    // Messages are automatically updated via the observable subscription
+    this.copilotManagerService
+      .sendMessage(this.agentInfo.id, userMessage)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (response: AgentResponse) => {
-          if (response.type === "trace") {
-            // Format and add trace message
-            const traceText = this.formatToolTrace(response);
-            if (traceText) {
-              const traceMsg: ModelMessage = {
-                role: "assistant",
-                content: traceText,
-              };
-              this.messages.push(traceMsg);
-              this.agentInfo.messageHistory.push(traceMsg);
-              this.shouldScrollToBottom = true;
-            }
-          } else if (response.type === "response") {
-            currentAiMessage = response.content;
-            if (response.isDone && currentAiMessage) {
-              const aiMsg: ModelMessage = {
-                role: "assistant",
-                content: currentAiMessage,
-              };
-              this.messages.push(aiMsg);
-              this.agentInfo.messageHistory.push(aiMsg);
-              this.shouldScrollToBottom = true;
-            }
-          }
-        },
         error: (error: unknown) => {
           console.error("Error sending message:", error);
-          const errorMsg: ModelMessage = {
-            role: "assistant",
-            content: `Error: ${error || "Unknown error occurred"}`,
-          };
-          this.messages.push(errorMsg);
-          this.agentInfo.messageHistory.push(errorMsg);
-          this.shouldScrollToBottom = true;
-        },
-        complete: () => {
-          const currentState = this.copilotService.getState();
-          if (currentState === CopilotState.STOPPING) {
-            const stoppedMsg: ModelMessage = {
-              role: "assistant",
-              content: "_Generation stopped._",
-            };
-            this.messages.push(stoppedMsg);
-            this.agentInfo.messageHistory.push(stoppedMsg);
-            this.shouldScrollToBottom = true;
-          }
         },
       });
   }
@@ -203,52 +132,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       event.preventDefault();
       this.sendMessage();
     }
-  }
-
-  /**
-   * Format tool trace for display
-   */
-  private formatToolTrace(response: AgentResponse): string {
-    if (!response.toolCalls || response.toolCalls.length === 0) {
-      return "";
-    }
-
-    let output = "";
-    if (response.content && response.content.trim()) {
-      output += `💭 **Agent:** ${response.content}\n\n`;
-    }
-
-    const traces = response.toolCalls.map((tc: any, index: number) => {
-      const args = tc.args || tc.arguments || tc.parameters || tc.input || {};
-      let argsDisplay = "";
-      if (Object.keys(args).length > 0) {
-        argsDisplay = Object.entries(args)
-          .map(([key, value]) => `  **${key}:** \`${JSON.stringify(value)}\``)
-          .join("\n");
-      } else {
-        argsDisplay = "  *(no parameters)*";
-      }
-
-      let toolTrace = `🔧 **${tc.toolName}**\n${argsDisplay}`;
-
-      if (this.showToolResults && response.toolResults && response.toolResults[index]) {
-        const result = response.toolResults[index];
-        const resultOutput = result.output || result.result || {};
-
-        if (resultOutput.success === false) {
-          toolTrace += `\n  ❌ **Error:** ${resultOutput.error || "Unknown error"}`;
-        } else if (resultOutput.success === true) {
-          toolTrace += `\n  ✅ **Success:** ${resultOutput.message || "Operation completed"}`;
-        } else {
-          toolTrace += `\n  **Result:** \`${JSON.stringify(resultOutput)}\``;
-        }
-      }
-
-      return toolTrace;
-    });
-
-    output += traces.join("\n\n");
-    return output;
   }
 
   /**
@@ -265,67 +148,94 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Stop the current generation
    */
   public stopGeneration(): void {
-    this.copilotService.stopGeneration();
+    this.copilotManagerService.stopGeneration(this.agentInfo.id);
   }
 
   /**
    * Clear message history
    */
   public clearMessages(): void {
-    this.copilotService.clearMessages();
-    this.messages = [];
-    this.agentInfo.messageHistory = []; // Clear persistent history
-    // Add greeting message back
-    const greeting: ModelMessage = {
-      role: "assistant",
-      content: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
-    };
-    this.messages.push(greeting);
-    this.agentInfo.messageHistory.push(greeting);
+    this.copilotManagerService.clearMessages(this.agentInfo.id);
   }
 
   /**
    * Check if copilot is currently generating
    */
   public isGenerating(): boolean {
-    return this.copilotService.getState() === CopilotState.GENERATING;
+    return this.copilotManagerService.getAgentState(this.agentInfo.id) === CopilotState.GENERATING;
   }
 
   /**
    * Check if copilot is currently stopping
    */
   public isStopping(): boolean {
-    return this.copilotService.getState() === CopilotState.STOPPING;
+    return this.copilotManagerService.getAgentState(this.agentInfo.id) === CopilotState.STOPPING;
   }
 
   /**
    * Check if copilot is available (can send messages)
    */
   public isAvailable(): boolean {
-    return this.copilotService.getState() === CopilotState.AVAILABLE;
+    return this.copilotManagerService.getAgentState(this.agentInfo.id) === CopilotState.AVAILABLE;
   }
 
   /**
    * Check if agent is connected
    */
   public isConnected(): boolean {
-    return this.copilotService?.isConnected() ?? false;
+    return this.copilotManagerService.isAgentConnected(this.agentInfo.id);
   }
 
   /**
    * Handle user decision on action plan
    */
-  public onUserDecision(decision: { accepted: boolean; message: string }): void {
-    // Add the user's decision as a user message in the chat
-    const decisionMsg: ModelMessage = {
-      role: "user",
-      content: decision.message,
-    };
-    this.messages.push(decisionMsg);
-    this.agentInfo.messageHistory.push(decisionMsg);
-    this.shouldScrollToBottom = true;
-
+  public onUserDecision(decision: {
+    accepted: boolean;
+    message: string;
+    createNewActor?: boolean;
+    planId?: string;
+  }): void {
     // Clear the pending action plan since user has made a decision
     this.pendingActionPlan = null;
+
+    // Handle plan acceptance or rejection
+    if (decision.planId) {
+      if (decision.accepted) {
+        // If user chose to run in new agent, create one (non-blocking)
+        if (decision.createNewActor) {
+          // Fire and forget - don't await, let it run in background
+          this.copilotManagerService
+            .createAgent("claude-3.7", `Actor for Plan ${decision.planId}`)
+            .then(newAgent => {
+              // Send the initial message to the new agent (also non-blocking)
+              const initialMessage = `Please work on action plan with id: ${decision.planId}`;
+              this.copilotManagerService
+                .sendMessage(newAgent.id, initialMessage)
+                .pipe(untilDestroyed(this))
+                .subscribe({
+                  next: () => {
+                    console.log(`Actor agent started for plan: ${decision.planId}`);
+                  },
+                  error: (error: unknown) => {
+                    console.error("Error starting actor agent:", error);
+                  },
+                });
+            })
+            .catch(error => {
+              console.error("Failed to create actor agent:", error);
+            });
+        }
+
+        // Register plan acceptance
+        this.actionPlanService.acceptPlan(decision.planId);
+      } else {
+        // Extract feedback from rejection message
+        const feedbackMatch = decision.message.match(/Feedback: (.+)$/);
+        const userFeedback = feedbackMatch ? feedbackMatch[1] : "I don't want this action plan.";
+
+        // Register plan rejection
+        this.actionPlanService.rejectPlan(userFeedback, decision.planId);
+      }
+    }
   }
 }

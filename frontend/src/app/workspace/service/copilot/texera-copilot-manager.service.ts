@@ -19,7 +19,7 @@
 
 import { Injectable, Injector } from "@angular/core";
 import { TexeraCopilot } from "./texera-copilot";
-import { Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { ModelMessage } from "ai";
 
 /**
@@ -31,7 +31,6 @@ export interface AgentInfo {
   modelType: string;
   instance: TexeraCopilot;
   createdAt: Date;
-  messageHistory: ModelMessage[]; // Persist conversation history using AI SDK format
 }
 
 /**
@@ -103,7 +102,6 @@ export class TexeraCopilotManagerService {
         modelType,
         instance: agentInstance,
         createdAt: new Date(),
-        messageHistory: [], // Initialize empty message history
       };
 
       this.agents.set(agentId, agentInfo);
@@ -159,6 +157,85 @@ export class TexeraCopilotManagerService {
    */
   public getAgentCount(): number {
     return this.agents.size;
+  }
+
+  /**
+   * Send a message to a specific agent by ID
+   * Messages are automatically updated via the messages$ observable
+   */
+  public sendMessage(agentId: string, message: string): Observable<void> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.sendMessage(message);
+  }
+
+  /**
+   * Get the message history observable for a specific agent
+   * Emits the full message list on subscribe and updates on new messages
+   */
+  public getMessagesObservable(agentId: string): Observable<ModelMessage[]> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.messages$;
+  }
+
+  /**
+   * Get current message snapshot for a specific agent
+   */
+  public getMessages(agentId: string): ModelMessage[] {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.getMessages();
+  }
+
+  /**
+   * Clear message history for a specific agent
+   */
+  public clearMessages(agentId: string): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    agent.instance.clearMessages();
+  }
+
+  /**
+   * Stop generation for a specific agent
+   */
+  public stopGeneration(agentId: string): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    agent.instance.stopGeneration();
+  }
+
+  /**
+   * Get agent state
+   */
+  public getAgentState(agentId: string) {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.getState();
+  }
+
+  /**
+   * Check if agent is connected
+   */
+  public isAgentConnected(agentId: string): boolean {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      return false;
+    }
+    return agent.instance.isConnected();
   }
 
   /**

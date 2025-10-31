@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { BehaviorSubject, Observable, from } from "rxjs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -91,24 +91,6 @@ export enum CopilotState {
 }
 
 /**
- * Agent response structure for streaming intermediate and final results
- */
-export interface AgentResponse {
-  type: "trace" | "response";
-  content: string;
-  isDone: boolean;
-  // Raw data for subscribers to process
-  toolCalls?: any[];
-  toolResults?: any[];
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-    cachedInputTokens?: number;
-  };
-}
-
-/**
  * Texera Copilot - An AI assistant for workflow manipulation
  * Uses Vercel AI SDK for chat completion and MCP SDK for tool discovery
  *
@@ -127,6 +109,8 @@ export class TexeraCopilot {
 
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
+  private messagesSubject = new BehaviorSubject<ModelMessage[]>([]);
+  public messages$ = this.messagesSubject.asObservable();
 
   // Copilot state management
   private state: CopilotState = CopilotState.UNAVAILABLE;
@@ -247,84 +231,72 @@ export class TexeraCopilot {
     return tools;
   }
 
-  public sendMessage(message: string): Observable<AgentResponse> {
-    return new Observable<AgentResponse>(observer => {
-      if (!this.model) {
-        observer.error(new Error("Copilot not initialized"));
-        return;
-      }
+  public sendMessage(message: string): Observable<void> {
+    return from(
+      (async () => {
+        if (!this.model) {
+          throw new Error("Copilot not initialized");
+        }
 
-      // Set state to Generating
-      this.state = CopilotState.GENERATING;
+        // Set state to Generating
+        this.state = CopilotState.GENERATING;
 
-      // 1) push the user message (don't emit to stream - already handled by UI)
-      const userMessage: UserModelMessage = { role: "user", content: message };
-      this.messages.push(userMessage);
+        // 1) push the user message
+        const userMessage: UserModelMessage = { role: "user", content: message };
+        this.messages.push(userMessage);
+        this.messagesSubject.next([...this.messages]);
 
-      // 2) define tools (your existing helpers)
-      const tools = this.createWorkflowTools();
+        try {
+          // 2) define tools
+          const tools = this.createWorkflowTools();
 
-      // 3) run multi-step with stopWhen to check for user stop request
-      generateText({
-        model: this.model,
-        messages: this.messages, // full history
-        tools,
-        system: COPILOT_SYSTEM_PROMPT,
-        // Stop when: user requested stop OR reached 50 steps
-        stopWhen: ({ steps }) => {
-          // Check if user requested stop
-          if (this.state === CopilotState.STOPPING) {
-            console.log("Stopping generation due to user request");
-            return true;
-          }
-          // Otherwise use the default step count limit
-          return stepCountIs(50)({ steps });
-        },
-        // optional: observe every completed step (tool calls + results available)
-        onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-          // Log each step for debugging
-          console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
+          // 3) run multi-step with stopWhen to check for user stop request
+          const { text, steps, response } = await generateText({
+            model: this.model,
+            messages: this.messages, // full history
+            tools,
+            system: COPILOT_SYSTEM_PROMPT,
+            // Stop when: user requested stop OR reached 50 steps
+            stopWhen: ({ steps }) => {
+              // Check if user requested stop
+              if (this.state === CopilotState.STOPPING) {
+                console.log("Stopping generation due to user request");
+                return true;
+              }
+              // Otherwise use the default step count limit
+              return stepCountIs(50)({ steps });
+            },
+            // optional: observe every completed step (tool calls + results available)
+            onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
+              // Log each step for debugging
+              console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
 
-          // Check if any tool result was an action plan rejection
-          if (toolResults && toolResults.length > 0) {
-            for (const result of toolResults) {
-              // Check if this was an actionPlan tool that was rejected
-              const toolCall = toolCalls?.find(tc => tc.toolCallId === result.toolCallId);
-              if (toolCall?.toolName === "actionPlan" && result.result) {
-                const parsedResult = typeof result.result === "string" ? JSON.parse(result.result) : result.result;
-                if (parsedResult.rejected) {
-                  // Add user's rejection feedback as a user message
-                  const userFeedbackMessage: UserModelMessage = {
-                    role: "user",
-                    content: parsedResult.userFeedback || "I rejected the action plan",
-                  };
-                  this.messages.push(userFeedbackMessage);
-                  console.log("Action plan rejected, added user feedback to messages");
+              // Check if any tool result was an action plan rejection
+              if (toolResults && toolResults.length > 0) {
+                for (const result of toolResults) {
+                  // Check if this was an actionPlan tool that was rejected
+                  const toolCall = toolCalls?.find(tc => tc.toolCallId === result.toolCallId);
+                  if (toolCall?.toolName === "actionPlan" && result.result) {
+                    const parsedResult = typeof result.result === "string" ? JSON.parse(result.result) : result.result;
+                    if (parsedResult.rejected) {
+                      // Add user's rejection feedback as a user message
+                      const userFeedbackMessage: UserModelMessage = {
+                        role: "user",
+                        content: parsedResult.userFeedback || "I rejected the action plan",
+                      };
+                      this.messages.push(userFeedbackMessage);
+                      console.log("Action plan rejected, added user feedback to messages");
+                    }
+                  }
                 }
               }
-            }
-          }
+            },
+          });
 
-          // If there are tool calls, emit raw trace data
-          if (toolCalls && toolCalls.length > 0) {
-            const traceResponse: AgentResponse = {
-              type: "trace",
-              content: text || "",
-              isDone: false,
-              toolCalls,
-              toolResults,
-              usage,
-            };
-
-            // Emit raw trace data
-            observer.next(traceResponse);
-          }
-        },
-      })
-        .then(({ text, steps, response }) => {
           // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
           //    This keeps your history perfectly aligned with the SDK's internal state.
           this.messages.push(...response.messages);
+          this.messagesSubject.next([...this.messages]);
 
           // 5) optional diagnostics
           if (steps?.length) {
@@ -337,17 +309,7 @@ export class TexeraCopilot {
 
           // Set state back to Available
           this.state = CopilotState.AVAILABLE;
-
-          // Emit final response with raw data
-          const finalResponse: AgentResponse = {
-            type: "response",
-            content: text,
-            isDone: true,
-          };
-          observer.next(finalResponse);
-          observer.complete();
-        })
-        .catch((err: any) => {
+        } catch (err: any) {
           // Clear all copilot presence indicators on error
           this.copilotCoeditorService.clearAll();
 
@@ -358,10 +320,12 @@ export class TexeraCopilot {
           const errorText = `Error: ${err?.message ?? String(err)}`;
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
+          this.messagesSubject.next([...this.messages]);
 
-          observer.error(err);
-        });
-    });
+          throw err;
+        }
+      })()
+    );
   }
 
   /**
@@ -534,6 +498,7 @@ export class TexeraCopilot {
    */
   public addMessage(message: ModelMessage): void {
     this.messages.push(message);
+    this.messagesSubject.next([...this.messages]);
   }
 
   /**
@@ -557,6 +522,7 @@ export class TexeraCopilot {
    */
   public clearMessages(): void {
     this.messages = [];
+    this.messagesSubject.next([...this.messages]);
     console.log("Message history cleared");
   }
 
