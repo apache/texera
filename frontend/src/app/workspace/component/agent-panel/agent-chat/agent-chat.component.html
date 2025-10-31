@@ -23,12 +23,10 @@
   <div class="chat-toolbar">
     <div class="chat-toolbar-controls">
       <!-- Agent model info on the leftmost -->
-      <small style="color: #888;">
-        Model: <strong>{{ agentInfo.modelType }}</strong>
-      </small>
-      <div style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
+      <small style="color: #888"> Model: <strong>{{ agentInfo.modelType }}</strong> </small>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 16px">
         <!-- Token counts -->
-        <small style="color: #888;">
+        <small style="color: #888">
           Tokens: <strong>{{ getTotalInputTokens() }}</strong> in / <strong>{{ getTotalOutputTokens() }}</strong> out
         </small>
         <!-- Clear button (when available) -->
@@ -69,43 +67,46 @@
           <span class="message-role">{{ agentInfo.name }}</span>
         </div>
 
-        <!-- Message content as markdown -->
-        <div
-          class="message-content"
-          *ngIf="response.content">
-          <pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ response.content }}</pre>
-        </div>
-
-        <!-- Tool calls list (expandable) -->
-        <div
-          *ngIf="response.toolCalls && response.toolCalls.length > 0"
-          class="tool-calls-section">
+        <!-- Message content with markdown and tool calls -->
+        <div class="message-content">
+          <!-- Markdown content -->
           <div
-            *ngFor="let call of response.toolCalls; let callIndex = index"
-            class="tool-call-item">
+            *ngIf="response.content"
+            [innerHTML]="renderMarkdown(response.content)"></div>
+
+          <!-- Tool calls list (expandable) -->
+          <div
+            *ngIf="response.toolCalls && response.toolCalls.length > 0"
+            class="tool-calls-section"
+            style="margin-top: 8px">
             <div
-              class="tool-call-header"
-              (click)="toggleToolCall(i, callIndex)"
-              style="cursor: pointer; padding: 4px 0;">
-              <i
-                nz-icon
-                [nzType]="isToolCallExpanded(i, callIndex) ? 'down' : 'right'"
-                nzTheme="outline"></i>
-              <strong>{{ call.toolName }}</strong>
-            </div>
-            <div
-              *ngIf="isToolCallExpanded(i, callIndex)"
-              class="tool-call-details"
-              style="margin-left: 20px;">
-              <div class="tool-call-args">
-                <small><strong>Arguments:</strong></small>
-                <pre><code class="language-json">{{ formatJson(call.args) }}</code></pre>
+              *ngFor="let call of response.toolCalls; let callIndex = index"
+              class="tool-call-item">
+              <div
+                class="tool-call-header"
+                (click)="toggleToolCall(i, callIndex)"
+                style="cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px">
+                <i
+                  nz-icon
+                  [nzType]="isToolCallExpanded(i, callIndex) ? 'down' : 'right'"
+                  nzTheme="outline"
+                  style="font-size: 12px"></i>
+                <strong>{{ call.toolName }}</strong>
               </div>
               <div
-                class="tool-call-result"
-                *ngIf="getToolResult(response, callIndex)">
-                <small><strong>Result:</strong></small>
-                <pre><code class="language-json">{{ formatJson(getToolResult(response, callIndex)) }}</code></pre>
+                *ngIf="isToolCallExpanded(i, callIndex)"
+                class="tool-call-details"
+                style="margin-left: 20px; margin-top: 4px">
+                <div class="tool-call-args">
+                  <small><strong>Arguments:</strong></small>
+                  <pre><code class="language-json">{{ formatJson(call.input || call.args) }}</code></pre>
+                </div>
+                <div
+                  class="tool-call-result"
+                  *ngIf="getToolResult(response, callIndex)">
+                  <small><strong>Result:</strong></small>
+                  <pre><code class="language-json">{{ formatJson(getToolResult(response, callIndex)) }}</code></pre>
+                </div>
               </div>
             </div>
           </div>
