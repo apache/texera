@@ -22,14 +22,15 @@
   <!-- Toolbar -->
   <div class="chat-toolbar">
     <div class="chat-toolbar-controls">
-      <nz-switch
-        [(ngModel)]="showToolResults"
-        nzSize="small"
-        nz-tooltip
-        nzTooltipTitle="Show tool results">
-      </nz-switch>
-      <span class="toggle-label">Show Results</span>
-      <div class="chat-toolbar-buttons">
+      <!-- Agent model info on the leftmost -->
+      <small style="color: #888;">
+        Model: <strong>{{ agentInfo.modelType }}</strong>
+      </small>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
+        <!-- Token counts -->
+        <small style="color: #888;">
+          Tokens: <strong>{{ getTotalInputTokens() }}</strong> in / <strong>{{ getTotalOutputTokens() }}</strong> out
+        </small>
         <!-- Clear button (when available) -->
         <button
           *ngIf="isAvailable()"
@@ -73,21 +74,14 @@
 
         <!-- Show tool information if available -->
         <div
-          *ngIf="showToolResults && response.toolCalls && response.toolCalls.length > 0"
+          *ngIf="response.toolCalls && response.toolCalls.length > 0"
           class="tool-info">
           <pre><code>{{ formatToolCalls(response.toolCalls) }}</code></pre>
         </div>
         <div
-          *ngIf="showToolResults && response.toolResults && response.toolResults.length > 0"
+          *ngIf="response.toolResults && response.toolResults.length > 0"
           class="tool-info">
           <pre><code>{{ formatToolResults(response.toolResults) }}</code></pre>
-        </div>
-
-        <!-- Show usage statistics if available -->
-        <div
-          *ngIf="response.usage"
-          class="usage-info">
-          <small>Tokens: {{ response.usage.totalTokens || 0 }}</small>
         </div>
       </div>
 

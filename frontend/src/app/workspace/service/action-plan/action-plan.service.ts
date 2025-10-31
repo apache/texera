@@ -167,6 +167,9 @@ export class ActionPlanService {
     this.emitActionPlans();
     this.pendingActionPlanSubject.next(actionPlan);
 
+    // Emit highlight event for the workflow editor
+    this.actionPlanHighlightSubject.next({ operatorIds, linkIds, summary });
+
     return actionPlan;
   }
 
@@ -233,6 +236,9 @@ export class ActionPlanService {
    * User accepted the action plan
    */
   public acceptPlan(planId?: string): void {
+    // Trigger cleanup (remove highlight)
+    this.cleanupSubject.next();
+
     // Update plan status if planId provided
     if (planId) {
       this.updateActionPlanStatus(planId, ActionPlanStatus.ACCEPTED);
@@ -244,6 +250,9 @@ export class ActionPlanService {
    * User rejected the action plan with optional feedback message
    */
   public rejectPlan(message?: string, planId?: string): void {
+    // Trigger cleanup (remove highlight)
+    this.cleanupSubject.next();
+
     // Update plan status if planId provided
     if (planId) {
       const plan = this.actionPlans.get(planId);
