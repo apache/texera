@@ -78,7 +78,7 @@
             *ngIf="response.content"
             [innerHTML]="renderMarkdown(response.content)"></div>
           <div
-            *ngIf="!response.content && response.toolCalls && response.toolCalls.length > 0"
+            *ngIf="response.toolCalls && response.toolCalls.length > 0"
             style="color: #8c8c8c; font-style: italic">
             Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
           </div>

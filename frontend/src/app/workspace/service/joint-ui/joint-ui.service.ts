@@ -695,23 +695,26 @@ export class JointUIService {
       },
       ".texera-operator-agent-action-progress": {
         text: "",
-        "font-size": "12px",
-        "font-weight": "bold",
+        "font-size": "11px",
+        "font-weight": "500",
+        "font-family": "'Inter', 'SF Pro Display', -apple-system, sans-serif",
+        "letter-spacing": "0.3px",
         visibility: "hidden",
         "ref-x": 0.5,
-        "ref-y": -30,
+        "ref-y": -35,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
-        fill: "#9333ea", // Purple color for AI agents
+        fill: "#7c3aed", // Elegant violet color for AI agents
       },
       ".texera-operator-agent-action-icon": {
         "xlink:href": "",
-        width: 16,
-        height: 16,
+        width: 14,
+        height: 14,
         visibility: "hidden",
         "ref-x": 0.5,
-        "ref-y": -45,
+        "ref-y": -35, // Same vertical position as text
+        "ref-dx": 45, // Offset to the right of the text
         ref: "rect.body",
         "x-alignment": "middle",
         "y-alignment": "middle",
