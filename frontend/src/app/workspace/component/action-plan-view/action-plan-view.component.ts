@@ -19,9 +19,8 @@
 
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { ActionPlan, ActionPlanStatus, ActionPlanService } from "../../service/action-plan/action-plan.service";
+import { ActionPlan, ActionPlanStatus } from "../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 import * as joint from "jointjs";
 
 @UntilDestroy()
@@ -33,7 +32,12 @@ import * as joint from "jointjs";
 export class ActionPlanViewComponent implements OnInit, OnDestroy {
   @Input() actionPlan!: ActionPlan;
   @Input() showFeedbackControls: boolean = false; // Show accept/reject buttons
-  @Output() userDecision = new EventEmitter<{ accepted: boolean; message: string }>();
+  @Output() userDecision = new EventEmitter<{
+    accepted: boolean;
+    message: string;
+    createNewActor?: boolean;
+    planId?: string;
+  }>();
 
   public rejectMessage: string = "";
   public runInNewAgent: boolean = false; // Toggle for running in new agent
@@ -42,11 +46,7 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   // Track task completion states
   public taskCompletionStates: { [operatorId: string]: boolean } = {};
 
-  constructor(
-    private actionPlanService: ActionPlanService,
-    private workflowActionService: WorkflowActionService,
-    private copilotManagerService: TexeraCopilotManagerService
-  ) {}
+  constructor(private workflowActionService: WorkflowActionService) {}
 
   ngOnInit(): void {
     if (!this.actionPlan) {
@@ -70,62 +70,14 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   /**
    * User accepted the action plan
    */
-  public async onAccept(): Promise<void> {
-    // If user chose to run in new agent, create one
-    if (this.runInNewAgent) {
-      try {
-        // Create new agent with Claude 3.7
-        const newAgent = await this.copilotManagerService.createAgent(
-          "claude-3.7",
-          `Actor for Plan ${this.actionPlan.id}`
-        );
-
-        // Simple message for the actor to work on the plan
-        const initialMessage = `Please work on action plan with id: ${this.actionPlan.id}`;
-
-        // Add the message to the new agent's history as a user message
-        const userMessage = {
-          role: "user" as const,
-          content: initialMessage,
-        };
-        newAgent.messageHistory.push(userMessage);
-
-        // Send the initial message to the new agent
-        setTimeout(() => {
-          // Send message to the new agent
-          newAgent.instance.sendMessage(initialMessage).subscribe({
-            next: response => {
-              console.log(`Actor agent started for plan: ${this.actionPlan.id}`);
-            },
-            error: (error: unknown) => {
-              console.error("Error starting actor agent:", error);
-            },
-          });
-        }, 500);
-
-        // Emit user decision with note about new agent
-        this.userDecision.emit({
-          accepted: true,
-          message: `✅ Accepted action plan: "${this.actionPlan.summary}" (Running in ${newAgent.name})`,
-        });
-      } catch (error) {
-        console.error("Failed to create actor agent:", error);
-        // Fall back to regular acceptance
-        this.userDecision.emit({
-          accepted: true,
-          message: `✅ Accepted action plan: "${this.actionPlan.summary}"`,
-        });
-      }
-    } else {
-      // Regular acceptance without new agent
-      this.userDecision.emit({
-        accepted: true,
-        message: `✅ Accepted action plan: "${this.actionPlan.summary}"`,
-      });
-    }
-
-    // Trigger the feedback to resolve the tool's promise
-    this.actionPlanService.acceptPlan(this.actionPlan.id);
+  public onAccept(): void {
+    // Emit user decision with information about whether to create a new actor
+    this.userDecision.emit({
+      accepted: true,
+      message: `✅ Accepted action plan: "${this.actionPlan.summary}"${this.runInNewAgent ? " (will run in new agent)" : ""}`,
+      createNewActor: this.runInNewAgent,
+      planId: this.actionPlan.id,
+    });
   }
 
   /**
@@ -134,15 +86,12 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   public onReject(): void {
     const userFeedback = this.rejectMessage.trim() || "I don't want this action plan.";
 
-    // Emit user decision event for chat component to show as user message
+    // Emit user decision event for chat component to handle
     this.userDecision.emit({
       accepted: false,
       message: `❌ Rejected action plan: "${this.actionPlan.summary}". Feedback: ${userFeedback}`,
+      planId: this.actionPlan.id,
     });
-
-    // Trigger the feedback to resolve the tool's promise
-    // Note: Operators will be deleted by workflow-tools.ts when it receives the rejection
-    this.actionPlanService.rejectPlan(userFeedback, this.actionPlan.id);
 
     this.rejectMessage = "";
   }
