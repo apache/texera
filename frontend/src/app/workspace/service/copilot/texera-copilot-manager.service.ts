@@ -18,9 +18,8 @@
  */
 
 import { Injectable, Injector } from "@angular/core";
-import { TexeraCopilot } from "./texera-copilot";
+import { TexeraCopilot, AgentResponse } from "./texera-copilot";
 import { Observable, Subject } from "rxjs";
-import { ModelMessage } from "ai";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -183,27 +182,27 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Get the message history observable for a specific agent
-   * Emits the full message list on subscribe and updates on new messages
+   * Get the agent responses observable for a specific agent
+   * Emits the agent response list on subscribe and updates with new responses
    */
-  public getMessagesObservable(agentId: string): Observable<ModelMessage[]> {
+  public getAgentResponsesObservable(agentId: string): Observable<AgentResponse[]> {
     const agent = this.agents.get(agentId);
     if (!agent) {
       throw new Error(`Agent with ID ${agentId} not found`);
     }
-    console.log(`getMessagesObservable for agent ${agentId}`);
-    return agent.instance.messages$;
+    console.log(`getAgentResponsesObservable for agent ${agentId}`);
+    return agent.instance.agentResponses$;
   }
 
   /**
-   * Get current message snapshot for a specific agent
+   * Get current agent responses snapshot for a specific agent
    */
-  public getMessages(agentId: string): ModelMessage[] {
+  public getAgentResponses(agentId: string): AgentResponse[] {
     const agent = this.agents.get(agentId);
     if (!agent) {
       throw new Error(`Agent with ID ${agentId} not found`);
     }
-    return agent.instance.getMessages();
+    return agent.instance.getAgentResponses();
   }
 
   /**
