@@ -1027,8 +1027,8 @@ export class JointGraphWrapper {
    */
   public setAgentActionProgress(operatorId: string, agentName: string, isCompleted: boolean): void {
     const iconUrl = isCompleted
-      ? "assets/svg/checkmark-green.svg" // Green check mark for completed
-      : "assets/svg/spinner-yellow.svg"; // Yellow spinner for in-progress
+      ? "assets/svg/done.svg" // Green check mark for completed
+      : "assets/gif/loading.gif"; // Yellow spinner for in-progress
 
     const progressText = agentName;
 
