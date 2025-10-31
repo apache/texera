@@ -5,6 +5,7 @@ import { CopilotState, AgentResponse } from "../../../service/copilot/texera-cop
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 
 @UntilDestroy()
 @Component({
@@ -17,7 +18,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
-  public showToolResults = false;
   public agentResponses: AgentResponse[] = []; // Populated from observable subscription
   public currentMessage = "";
   public pendingActionPlan: ActionPlan | null = null;
@@ -26,7 +26,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   constructor(
     private sanitizer: DomSanitizer,
     private actionPlanService: ActionPlanService,
-    private copilotManagerService: TexeraCopilotManagerService
+    private copilotManagerService: TexeraCopilotManagerService,
+    private workflowActionService: WorkflowActionService
   ) {}
 
   ngOnInit(): void {
@@ -43,6 +44,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       .pipe(untilDestroyed(this))
       .subscribe(responses => {
         console.log(`AgentChatComponent for ${this.agentInfo.id} received ${responses.length} responses`);
+        console.log(responses);
         this.agentResponses = responses;
         this.shouldScrollToBottom = true;
       });
@@ -91,17 +93,49 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Format tool calls as JSON string
+   * Format tool calls to show name and args
    */
   public formatToolCalls(toolCalls: any[]): string {
-    return JSON.stringify(toolCalls, null, 2);
+    return toolCalls
+      .map(call => {
+        const name = call.toolName || "unknown";
+        const args = JSON.stringify(call.args || {}, null, 2);
+        return `Tool: ${name}\nArgs: ${args}`;
+      })
+      .join("\n\n");
   }
 
   /**
-   * Format tool results as JSON string
+   * Format tool results to show name and result
    */
   public formatToolResults(toolResults: any[]): string {
-    return JSON.stringify(toolResults, null, 2);
+    return toolResults
+      .map(result => {
+        const name = result.toolName || "unknown";
+        const resultData = JSON.stringify(result.result || result, null, 2);
+        return `Tool: ${name}\nResult: ${resultData}`;
+      })
+      .join("\n\n");
+  }
+
+  /**
+   * Get total input tokens across all responses
+   */
+  public getTotalInputTokens(): number {
+    return this.agentResponses.reduce((total, response) => {
+      const inputTokens = response.usage?.inputTokens || 0;
+      return total + inputTokens;
+    }, 0);
+  }
+
+  /**
+   * Get total output tokens across all responses
+   */
+  public getTotalOutputTokens(): number {
+    return this.agentResponses.reduce((total, response) => {
+      const outputTokens = response.usage?.outputTokens || 0;
+      return total + outputTokens;
+    }, 0);
   }
 
   /**
@@ -247,6 +281,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
         // Extract feedback from rejection message
         const feedbackMatch = decision.message.match(/Feedback: (.+)$/);
         const userFeedback = feedbackMatch ? feedbackMatch[1] : "I don't want this action plan.";
+
+        // Get the action plan to find operators to delete
+        const actionPlan = this.actionPlanService.getActionPlan(decision.planId);
+        if (actionPlan) {
+          // Delete the created operators and links
+          this.workflowActionService.deleteOperatorsAndLinks(actionPlan.operatorIds);
+          console.log(`Deleted ${actionPlan.operatorIds.length} operators from rejected action plan`);
+        }
 
         // Register plan rejection
         this.actionPlanService.rejectPlan(userFeedback, decision.planId);
