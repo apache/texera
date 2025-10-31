@@ -51,7 +51,9 @@
     class="action-plans-list">
     <div
       *ngFor="let plan of actionPlans"
-      class="action-plan-container">
+      class="action-plan-container"
+      (mouseenter)="onPlanHover(plan)"
+      (mouseleave)="onPlanUnhover()">
       <div class="plan-header-bar">
         <button
           nz-button

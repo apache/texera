@@ -25,7 +25,12 @@ import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
-import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
+import {
+  operatorCoeditorChangedPropertyClass,
+  operatorCoeditorEditingClass,
+  operatorAgentActionProgressClass,
+  operatorAgentActionIconClass,
+} from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
 import * as _ from "lodash";
 import Selectors = dia.Cell.Selectors;
@@ -1009,6 +1014,52 @@ export class JointGraphWrapper {
       .attr({
         [`.${operatorCoeditorChangedPropertyClass}`]: {
           text: "",
+          visibility: "hidden",
+        },
+      });
+  }
+
+  /**
+   * Set agent action progress indicator on an operator
+   * @param operatorId The operator ID
+   * @param agentName Name of the agent working on this operator
+   * @param isCompleted Whether the action is completed
+   */
+  public setAgentActionProgress(operatorId: string, agentName: string, isCompleted: boolean): void {
+    const iconUrl = isCompleted
+      ? "assets/svg/checkmark-green.svg" // Green check mark for completed
+      : "assets/svg/spinner-yellow.svg"; // Yellow spinner for in-progress
+
+    const progressText = agentName;
+
+    this.getMainJointPaper()
+      ?.getModelById(operatorId)
+      .attr({
+        [`.${operatorAgentActionProgressClass}`]: {
+          text: progressText,
+          visibility: "visible",
+        },
+        [`.${operatorAgentActionIconClass}`]: {
+          "xlink:href": iconUrl,
+          visibility: "visible",
+        },
+      });
+  }
+
+  /**
+   * Clear agent action progress indicator from an operator
+   * @param operatorId The operator ID
+   */
+  public clearAgentActionProgress(operatorId: string): void {
+    this.getMainJointPaper()
+      ?.getModelById(operatorId)
+      .attr({
+        [`.${operatorAgentActionProgressClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+        [`.${operatorAgentActionIconClass}`]: {
+          "xlink:href": "",
           visibility: "hidden",
         },
       });
