@@ -20,6 +20,7 @@
 import { Component, OnInit, OnDestroy } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
+import { AgentActionProgressDisplayService } from "../../../service/copilot/agent-action-progress-display.service";
 
 @UntilDestroy()
 @Component({
@@ -30,7 +31,10 @@ import { ActionPlan, ActionPlanService } from "../../../service/action-plan/acti
 export class ActionPlansTabComponent implements OnInit, OnDestroy {
   public actionPlans: ActionPlan[] = [];
 
-  constructor(private actionPlanService: ActionPlanService) {}
+  constructor(
+    private actionPlanService: ActionPlanService,
+    private agentActionProgressDisplayService: AgentActionProgressDisplayService
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to action plans updates
@@ -64,5 +68,21 @@ export class ActionPlansTabComponent implements OnInit, OnDestroy {
     if (confirm("Are you sure you want to clear all action plans?")) {
       this.actionPlanService.clearAllActionPlans();
     }
+  }
+
+  /**
+   * Handle hovering over an action plan
+   */
+  public onPlanHover(plan: ActionPlan): void {
+    // Show temporary progress for the hovered plan
+    this.agentActionProgressDisplayService.showTemporaryPlanProgress(plan);
+  }
+
+  /**
+   * Handle unhovering from an action plan
+   */
+  public onPlanUnhover(): void {
+    // Restore the current in-progress plan (if any)
+    this.agentActionProgressDisplayService.restoreCurrentPlanProgress();
   }
 }

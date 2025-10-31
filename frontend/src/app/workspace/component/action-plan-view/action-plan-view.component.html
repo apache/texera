@@ -57,9 +57,9 @@
   <div class="tasks-section">
     <h5>Tasks:</h5>
     <nz-list
-      [nzDataSource]="actionPlan.tasks"
+      [nzDataSource]="tasksArray"
       nzSize="small">
-      <nz-list-item *ngFor="let task of actionPlan.tasks">
+      <nz-list-item *ngFor="let task of tasksArray">
         <div
           class="task-item"
           (click)="highlightOperator(task.operatorId)"

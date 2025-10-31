@@ -69,7 +69,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { CopilotCoeditorService } from "./copilot-coeditor.service";
+// import { CopilotCoeditorService } from "./copilot-coeditor.service"; // Removed - will be replaced
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
@@ -151,7 +151,7 @@ export class TexeraCopilot {
     private dynamicSchemaService: DynamicSchemaService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private copilotCoeditorService: CopilotCoeditorService,
+    // private copilotCoeditorService: CopilotCoeditorService, // Removed - will be replaced
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
     private dataInconsistencyService: DataInconsistencyService,
@@ -361,13 +361,13 @@ export class TexeraCopilot {
           }
 
           // Clear all copilot presence indicators when generation completes
-          this.copilotCoeditorService.clearAll();
+          // this.copilotCoeditorService.clearAll();
 
           // Set state back to Available
           this.state = CopilotState.AVAILABLE;
         } catch (err: any) {
           // Clear all copilot presence indicators on error
-          this.copilotCoeditorService.clearAll();
+          // this.copilotCoeditorService.clearAll();
 
           // Set state back to Available
           this.state = CopilotState.AVAILABLE;
@@ -400,8 +400,8 @@ export class TexeraCopilot {
       createAddOperatorTool(
         this.workflowActionService,
         this.workflowUtilService,
-        this.operatorMetadataService,
-        this.copilotCoeditorService
+        this.operatorMetadataService
+        // this.copilotCoeditorService // Removed
       )
     );
     const addLinkTool = toolWithTimeout(createAddLinkTool(this.workflowActionService));
@@ -410,7 +410,7 @@ export class TexeraCopilot {
         this.workflowActionService,
         this.workflowUtilService,
         this.operatorMetadataService,
-        this.copilotCoeditorService,
+        // this.copilotCoeditorService, // Removed
         this.actionPlanService,
         this.agentId,
         this.agentName
@@ -421,55 +421,47 @@ export class TexeraCopilot {
     const listActionPlansTool = toolWithTimeout(createListActionPlansTool(this.actionPlanService));
     const deleteActionPlanTool = toolWithTimeout(createDeleteActionPlanTool(this.actionPlanService));
     const updateActionPlanTool = toolWithTimeout(createUpdateActionPlanTool(this.actionPlanService));
-    const listOperatorsTool = toolWithTimeout(
-      createListOperatorsTool(this.workflowActionService, this.copilotCoeditorService)
-    );
+    const listOperatorsTool = toolWithTimeout(createListOperatorsTool(this.workflowActionService));
     const listLinksTool = toolWithTimeout(createListLinksTool(this.workflowActionService));
     const listOperatorTypesTool = toolWithTimeout(createListOperatorTypesTool(this.workflowUtilService));
-    const getOperatorTool = toolWithTimeout(
-      createGetOperatorTool(this.workflowActionService, this.copilotCoeditorService)
-    );
-    const deleteOperatorTool = toolWithTimeout(
-      createDeleteOperatorTool(this.workflowActionService, this.copilotCoeditorService)
-    );
+    const getOperatorTool = toolWithTimeout(createGetOperatorTool(this.workflowActionService));
+    const deleteOperatorTool = toolWithTimeout(createDeleteOperatorTool(this.workflowActionService));
     const deleteLinkTool = toolWithTimeout(createDeleteLinkTool(this.workflowActionService));
     const setOperatorPropertyTool = toolWithTimeout(
       createSetOperatorPropertyTool(
         this.workflowActionService,
-        this.copilotCoeditorService,
+        // this.copilotCoeditorService, // Removed
         this.validationWorkflowService
       )
     );
     const setPortPropertyTool = toolWithTimeout(
-      createSetPortPropertyTool(this.workflowActionService, this.copilotCoeditorService, this.validationWorkflowService)
+      createSetPortPropertyTool(this.workflowActionService, this.validationWorkflowService)
     );
     const getOperatorSchemaTool = toolWithTimeout(
-      createGetOperatorSchemaTool(this.workflowActionService, this.operatorMetadataService, this.copilotCoeditorService)
+      createGetOperatorSchemaTool(this.workflowActionService, this.operatorMetadataService)
     );
     const getOperatorPropertiesSchemaTool = toolWithTimeout(
       createGetOperatorPropertiesSchemaTool(
         this.workflowActionService,
-        this.operatorMetadataService,
-        this.copilotCoeditorService
+        this.operatorMetadataService
+        // this.copilotCoeditorService // Removed
       )
     );
     const getOperatorPortsInfoTool = toolWithTimeout(
       createGetOperatorPortsInfoTool(
         this.workflowActionService,
-        this.operatorMetadataService,
-        this.copilotCoeditorService
+        this.operatorMetadataService
+        // this.copilotCoeditorService // Removed
       )
     );
     const getOperatorMetadataTool = toolWithTimeout(
       createGetOperatorMetadataTool(
         this.workflowActionService,
-        this.operatorMetadataService,
-        this.copilotCoeditorService
+        this.operatorMetadataService
+        // this.copilotCoeditorService // Removed
       )
     );
-    const getOperatorInputSchemaTool = toolWithTimeout(
-      createGetOperatorInputSchemaTool(this.workflowCompilingService, this.copilotCoeditorService)
-    );
+    const getOperatorInputSchemaTool = toolWithTimeout(createGetOperatorInputSchemaTool(this.workflowCompilingService));
     const getWorkflowCompilationStateTool = toolWithTimeout(
       createGetWorkflowCompilationStateTool(this.workflowCompilingService)
     );
@@ -477,24 +469,20 @@ export class TexeraCopilot {
     const getExecutionStateTool = toolWithTimeout(createGetExecutionStateTool(this.executeWorkflowService));
     const killWorkflowTool = toolWithTimeout(createKillWorkflowTool(this.executeWorkflowService));
     const hasOperatorResultTool = toolWithTimeout(
-      createHasOperatorResultTool(this.workflowResultService, this.workflowActionService, this.copilotCoeditorService)
+      createHasOperatorResultTool(this.workflowResultService, this.workflowActionService)
     );
-    const getOperatorResultTool = toolWithTimeout(
-      createGetOperatorResultTool(this.workflowResultService, this.copilotCoeditorService)
-    );
+    const getOperatorResultTool = toolWithTimeout(createGetOperatorResultTool(this.workflowResultService));
     const getOperatorResultInfoTool = toolWithTimeout(
       createGetOperatorResultInfoTool(
         this.workflowResultService,
-        this.workflowActionService,
-        this.copilotCoeditorService
+        this.workflowActionService
+        // this.copilotCoeditorService // Removed
       )
     );
     const getWorkflowValidationErrorsTool = toolWithTimeout(
       createGetWorkflowValidationErrorsTool(this.validationWorkflowService)
     );
-    const validateOperatorTool = toolWithTimeout(
-      createValidateOperatorTool(this.validationWorkflowService, this.copilotCoeditorService)
-    );
+    const validateOperatorTool = toolWithTimeout(createValidateOperatorTool(this.validationWorkflowService));
     const getValidOperatorsTool = toolWithTimeout(
       createGetValidOperatorsTool(this.validationWorkflowService, this.workflowActionService)
     );

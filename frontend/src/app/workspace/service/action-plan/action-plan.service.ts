@@ -53,6 +53,7 @@ export enum ActionPlanStatus {
 export interface ActionPlanTask {
   operatorId: string;
   description: string;
+  agentId: string | null; // ID of the agent assigned to this task, null if no agent assigned
   completed$: BehaviorSubject<boolean>;
 }
 
@@ -65,7 +66,7 @@ export interface ActionPlan {
   agentName: string; // Name of the agent
   executorAgentId: string; // ID of the agent that will execute/handle feedback for this plan (can be different from creator)
   summary: string; // Overall summary of the action plan
-  tasks: ActionPlanTask[]; // List of operator tasks
+  tasks: Map<string, ActionPlanTask>; // Map of operatorId to task
   status$: BehaviorSubject<ActionPlanStatus>; // Current status
   createdAt: Date; // Creation timestamp
   userFeedback?: string; // User's feedback message (if rejected)
@@ -140,23 +141,31 @@ export class ActionPlanService {
     agentId: string,
     agentName: string,
     summary: string,
-    tasks: Array<{ operatorId: string; description: string }>,
+    tasks: Array<{ operatorId: string; description: string; agentId?: string | null }>,
     operatorIds: string[],
     linkIds: string[],
     executorAgentId?: string // Optional: defaults to agentId if not specified
   ): ActionPlan {
     const id = this.generateId();
+
+    // Create tasks map
+    const tasksMap = new Map<string, ActionPlanTask>();
+    tasks.forEach(task => {
+      tasksMap.set(task.operatorId, {
+        operatorId: task.operatorId,
+        description: task.description,
+        agentId: task.agentId !== undefined ? task.agentId : agentId, // Default to plan's agentId if not specified
+        completed$: new BehaviorSubject<boolean>(false),
+      });
+    });
+
     const actionPlan: ActionPlan = {
       id,
       agentId,
       agentName,
       executorAgentId: executorAgentId || agentId, // Default to creator if not specified
       summary,
-      tasks: tasks.map(task => ({
-        operatorId: task.operatorId,
-        description: task.description,
-        completed$: new BehaviorSubject<boolean>(false),
-      })),
+      tasks: tasksMap,
       status$: new BehaviorSubject<ActionPlanStatus>(ActionPlanStatus.PENDING),
       createdAt: new Date(),
       operatorIds,
@@ -190,13 +199,13 @@ export class ActionPlanService {
   public updateTaskCompletion(planId: string, operatorId: string, completed: boolean): void {
     const plan = this.actionPlans.get(planId);
     if (plan) {
-      const task = plan.tasks.find(t => t.operatorId === operatorId);
+      const task = plan.tasks.get(operatorId);
       if (task) {
         task.completed$.next(completed);
         this.emitActionPlans();
 
         // Check if all tasks are completed
-        const allCompleted = plan.tasks.every(t => t.completed$.value);
+        const allCompleted = Array.from(plan.tasks.values()).every(t => t.completed$.value);
         if (allCompleted && plan.status$.value === ActionPlanStatus.ACCEPTED) {
           this.updateActionPlanStatus(planId, ActionPlanStatus.COMPLETED);
         }

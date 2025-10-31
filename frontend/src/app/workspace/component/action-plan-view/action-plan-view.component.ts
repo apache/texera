@@ -19,7 +19,7 @@
 
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { ActionPlan, ActionPlanStatus } from "../../service/action-plan/action-plan.service";
+import { ActionPlan, ActionPlanStatus, ActionPlanTask } from "../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import * as joint from "jointjs";
 
@@ -55,10 +55,10 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
     }
 
     // Subscribe to task completion changes
-    this.actionPlan.tasks.forEach(task => {
-      this.taskCompletionStates[task.operatorId] = task.completed$.value;
+    this.actionPlan.tasks.forEach((task, operatorId) => {
+      this.taskCompletionStates[operatorId] = task.completed$.value;
       task.completed$.pipe(untilDestroyed(this)).subscribe(completed => {
-        this.taskCompletionStates[task.operatorId] = completed;
+        this.taskCompletionStates[operatorId] = completed;
       });
     });
   }
@@ -185,11 +185,19 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Get tasks as array for template iteration
+   */
+  public get tasksArray(): ActionPlanTask[] {
+    return Array.from(this.actionPlan.tasks.values());
+  }
+
+  /**
    * Get progress percentage
    */
   public getProgressPercentage(): number {
-    if (this.actionPlan.tasks.length === 0) return 0;
-    const completedCount = this.actionPlan.tasks.filter(t => t.completed$.value).length;
-    return Math.round((completedCount / this.actionPlan.tasks.length) * 100);
+    if (this.actionPlan.tasks.size === 0) return 0;
+    const tasksArray = Array.from(this.actionPlan.tasks.values());
+    const completedCount = tasksArray.filter(t => t.completed$.value).length;
+    return Math.round((completedCount / this.actionPlan.tasks.size) * 100);
   }
 }
