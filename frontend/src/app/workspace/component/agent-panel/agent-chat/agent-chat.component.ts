@@ -5,6 +5,7 @@ import { CopilotState, AgentResponse } from "../../../service/copilot/texera-cop
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 
 @UntilDestroy()
 @Component({
@@ -28,7 +29,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   constructor(
     private actionPlanService: ActionPlanService,
     private copilotManagerService: TexeraCopilotManagerService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -76,6 +78,25 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
+   * Render markdown content to HTML
+   */
+  public renderMarkdown(content: string): SafeHtml {
+    if (!content) return "";
+
+    let html = content
+      // Bold: **text**
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      // Italic: *text* (but not **)
+      .replace(/\*([^\*]+?)\*/g, "<em>$1</em>")
+      // Code: `code`
+      .replace(/`([^`]+?)`/g, "<code>$1</code>")
+      // Line breaks
+      .replace(/\n/g, "<br>");
+
+    return this.sanitizer.sanitize(1, html) || "";
+  }
+
+  /**
    * Toggle expanded state of a tool call
    */
   public toggleToolCall(responseIndex: number, toolCallIndex: number): void {
@@ -111,7 +132,9 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
       return null;
     }
-    return response.toolResults[toolCallIndex];
+    const toolResult = response.toolResults[toolCallIndex];
+    // Extract the output field if it exists, otherwise return the whole result
+    return toolResult.output || toolResult.result || toolResult;
   }
 
   /**
