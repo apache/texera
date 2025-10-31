@@ -82,7 +82,6 @@ export interface ActionPlan {
 })
 export class ActionPlanService {
   private actionPlanHighlightSubject = new Subject<ActionPlanHighlight>();
-  private feedbackSubject: Subject<ActionPlanFeedback> | null = null;
   private cleanupSubject = new Subject<void>();
 
   // Action plan storage
@@ -231,37 +230,9 @@ export class ActionPlanService {
   }
 
   /**
-   * Show an action plan and wait for user feedback (accept/reject)
-   * Returns an Observable that emits when user makes a decision
-   */
-  public showActionPlanAndWaitForFeedback(
-    operatorIds: string[],
-    linkIds: string[],
-    summary: string
-  ): Observable<ActionPlanFeedback> {
-    // Create new feedback subject for this plan
-    this.feedbackSubject = new Subject<ActionPlanFeedback>();
-
-    // Emit highlight event
-    this.actionPlanHighlightSubject.next({ operatorIds, linkIds, summary });
-
-    // Return observable that will emit when user accepts/rejects
-    return this.feedbackSubject.asObservable();
-  }
-
-  /**
    * User accepted the action plan
    */
   public acceptPlan(planId?: string): void {
-    if (this.feedbackSubject) {
-      this.feedbackSubject.next({ accepted: true });
-      this.feedbackSubject.complete();
-      this.feedbackSubject = null;
-
-      // Trigger cleanup (remove highlight and panel)
-      this.cleanupSubject.next();
-    }
-
     // Update plan status if planId provided
     if (planId) {
       this.updateActionPlanStatus(planId, ActionPlanStatus.ACCEPTED);
@@ -273,15 +244,6 @@ export class ActionPlanService {
    * User rejected the action plan with optional feedback message
    */
   public rejectPlan(message?: string, planId?: string): void {
-    if (this.feedbackSubject) {
-      this.feedbackSubject.next({ accepted: false, message });
-      this.feedbackSubject.complete();
-      this.feedbackSubject = null;
-
-      // Trigger cleanup (remove highlight and panel)
-      this.cleanupSubject.next();
-    }
-
     // Update plan status if planId provided
     if (planId) {
       const plan = this.actionPlans.get(planId);

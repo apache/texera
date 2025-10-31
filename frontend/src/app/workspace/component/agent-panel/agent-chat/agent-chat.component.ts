@@ -91,6 +91,20 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
+   * Format tool calls as JSON string
+   */
+  public formatToolCalls(toolCalls: any[]): string {
+    return JSON.stringify(toolCalls, null, 2);
+  }
+
+  /**
+   * Format tool results as JSON string
+   */
+  public formatToolResults(toolResults: any[]): string {
+    return JSON.stringify(toolResults, null, 2);
+  }
+
+  /**
    * Send a message to the agent
    * Messages are automatically updated via the messages$ observable
    */
@@ -191,9 +205,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     // Handle plan acceptance or rejection
     if (decision.planId) {
       if (decision.accepted) {
+        // Register plan acceptance
+        this.actionPlanService.acceptPlan(decision.planId);
+
         // If user chose to run in new agent, create one (non-blocking)
         if (decision.createNewActor) {
-          // Fire and forget - don't await, let it run in background
+          // Create new actor agent
           this.copilotManagerService
             .createAgent("claude-3.7", `Actor for Plan ${decision.planId}`)
             .then(newAgent => {
@@ -214,10 +231,18 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
             .catch(error => {
               console.error("Failed to create actor agent:", error);
             });
+        } else {
+          // If NOT creating new actor, send feedback and trigger execution on current agent
+          const executionMessage = "I have accepted your action plan. Please proceed with executing it.";
+          this.copilotManagerService
+            .sendMessage(this.agentInfo.id, executionMessage)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              error: (error: unknown) => {
+                console.error("Error sending acceptance message:", error);
+              },
+            });
         }
-
-        // Register plan acceptance
-        this.actionPlanService.acceptPlan(decision.planId);
       } else {
         // Extract feedback from rejection message
         const feedbackMatch = decision.message.match(/Feedback: (.+)$/);
@@ -225,6 +250,17 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
 
         // Register plan rejection
         this.actionPlanService.rejectPlan(userFeedback, decision.planId);
+
+        // Send rejection feedback to planner agent as a new message
+        const rejectionMessage = `I have rejected your action plan. Feedback: ${userFeedback}`;
+        this.copilotManagerService
+          .sendMessage(this.agentInfo.id, rejectionMessage)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            error: (error: unknown) => {
+              console.error("Error sending rejection feedback:", error);
+            },
+          });
       }
     }
   }

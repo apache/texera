@@ -326,15 +326,6 @@ export function createActionPlanTool(
           description: operatorSpec.description || operatorSpec.customDisplayName || operatorSpec.operatorType,
         }));
 
-        const actionPlan = actionPlanService.createActionPlan(
-          agentId,
-          agentName || "AI Agent",
-          args.summary,
-          tasks,
-          createdOperatorIds,
-          [] // linkIds will be added after links are created
-        );
-
         // Create all links using the operator IDs
         const createdLinkIds: string[] = [];
         for (let i = 0; i < args.links.length; i++) {
@@ -377,52 +368,28 @@ export function createActionPlanTool(
           createdLinkIds.push(link.linkID);
         }
 
-        // Update action plan with link IDs
-        actionPlan.linkIds = createdLinkIds;
+        const actionPlan = actionPlanService.createActionPlan(
+          agentId,
+          agentName || "AI Agent",
+          args.summary,
+          tasks,
+          createdOperatorIds,
+          createdLinkIds
+        );
 
         // Show copilot is adding these operators (after they're added to graph)
         setTimeout(() => {
           copilotCoeditor.highlightOperators(createdOperatorIds);
         }, 100);
 
-        // Show action plan and wait for user feedback
-        const feedback = await new Promise<any>((resolve, reject) => {
-          setTimeout(() => {
-            actionPlanService
-              .showActionPlanAndWaitForFeedback(createdOperatorIds, createdLinkIds, args.summary)
-              .subscribe({
-                next: feedback => resolve(feedback),
-                error: (err: unknown) => reject(err),
-              });
-          }, 150);
-        });
-
-        // Handle user feedback
-        if (!feedback.accepted) {
-          // User rejected - remove the created operators and links
-          workflowActionService.deleteOperatorsAndLinks(createdOperatorIds);
-
-          // Update action plan status to rejected
-          actionPlanService.rejectPlan(feedback.message, actionPlan.id);
-
-          return {
-            success: false,
-            rejected: true,
-            userFeedback: feedback.message || "User rejected this action plan",
-            message: `User rejected the action plan. Feedback: "${feedback.message || "No specific feedback provided"}"`,
-          };
-        }
-
-        // User accepted - update action plan status
-        actionPlanService.acceptPlan(actionPlan.id);
-
+        // Return the action plan info - user feedback will be handled via messages
         return {
           success: true,
           summary: args.summary,
           operatorIds: createdOperatorIds,
           linkIds: createdLinkIds,
           actionPlanId: actionPlan.id,
-          message: "User accepted the action plan. Proceeding with execution.",
+          message: `Created action plan with ${createdOperatorIds.length} operators and ${createdLinkIds.length} links. Waiting for user feedback.`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };

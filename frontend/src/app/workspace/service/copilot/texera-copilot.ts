@@ -96,7 +96,8 @@ export enum CopilotState {
  */
 export interface AgentResponse {
   content: string;
-  isDone: boolean;
+  isBegin: boolean;
+  isEnd: boolean;
   // Raw data for subscribers to process
   toolCalls?: any[];
   toolResults?: any[];
@@ -139,6 +140,9 @@ export class TexeraCopilot {
 
   // Copilot state management
   private state: CopilotState = CopilotState.UNAVAILABLE;
+
+  // Flag to stop generation after action plan is created
+  private shouldStopAfterActionPlan: boolean = false;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -272,6 +276,9 @@ export class TexeraCopilot {
         // Set state to Generating
         this.state = CopilotState.GENERATING;
 
+        // Reset action plan stop flag for this generation
+        this.shouldStopAfterActionPlan = false;
+
         // 1) push the user message to PRIVATE history
         const userMessage: UserModelMessage = { role: "user", content: message };
         this.messages.push(userMessage);
@@ -281,17 +288,25 @@ export class TexeraCopilot {
           // 2) define tools
           const tools = this.createWorkflowTools();
 
+          // Track if this is the first step in this generation
+          let isFirstStep = true;
+
           // 3) run multi-step with stopWhen to check for user stop request
           const { text, steps, response } = await generateText({
             model: this.model,
             messages: this.messages, // full history
             tools,
             system: COPILOT_SYSTEM_PROMPT,
-            // Stop when: user requested stop OR reached 50 steps
+            // Stop when: user requested stop OR action plan created OR reached 50 steps
             stopWhen: ({ steps }) => {
               // Check if user requested stop
               if (this.state === CopilotState.STOPPING) {
                 console.log("Stopping generation due to user request");
+                return true;
+              }
+              // Check if action plan was just created
+              if (this.shouldStopAfterActionPlan) {
+                console.log("Stopping generation after action plan creation");
                 return true;
               }
               // Otherwise use the default step count limit
@@ -302,16 +317,26 @@ export class TexeraCopilot {
               // Log each step for debugging
               console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
 
+              // Check if actionPlan tool was called in this step
+              if (toolCalls && toolCalls.some((call: any) => call.toolName === "actionPlan")) {
+                console.log("Action plan tool detected - will stop generation after this step");
+                this.shouldStopAfterActionPlan = true;
+              }
+
               // Emit AgentResponse for this step (not done yet)
               const stepResponse: AgentResponse = {
                 content: text || "",
-                isDone: false,
+                isBegin: isFirstStep,
+                isEnd: false,
                 toolCalls: toolCalls,
                 toolResults: toolResults,
                 usage: usage as any,
               };
               this.agentResponses.push(stepResponse);
               this.agentResponsesSubject.next([...this.agentResponses]);
+
+              // Mark that we've processed the first step
+              isFirstStep = false;
             },
           });
 
@@ -322,7 +347,8 @@ export class TexeraCopilot {
           // 5) Emit final AgentResponse with complete content
           const finalResponse: AgentResponse = {
             content: text || "",
-            isDone: true,
+            isBegin: false,
+            isEnd: true,
             usage: (response as any).usage as any,
           };
           this.agentResponses.push(finalResponse);
@@ -354,7 +380,8 @@ export class TexeraCopilot {
           // Emit error as AgentResponse
           const errorResponse: AgentResponse = {
             content: errorText,
-            isDone: true,
+            isBegin: false,
+            isEnd: true,
           };
           this.agentResponses.push(errorResponse);
           this.agentResponsesSubject.next([...this.agentResponses]);
