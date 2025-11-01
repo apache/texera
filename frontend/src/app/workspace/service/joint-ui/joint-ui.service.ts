@@ -695,7 +695,15 @@ export class JointUIService {
       },
       ".texera-operator-agent-action-progress": {
         text: "",
+        "font-size": "11px",
+        "font-weight": "500",
+        "font-family": "'Inter', 'SF Pro Display', -apple-system, sans-serif",
         visibility: "hidden",
+        "ref-x": 64, // Right next to icon (outside operator box)
+        "ref-y": 12, // Same vertical position as icon
+        ref: "rect.body",
+        "text-anchor": "start", // Left-align text from this point
+        "y-alignment": "middle",
       },
       ".texera-operator-agent-action-icon": {
         "xlink:href": "",
