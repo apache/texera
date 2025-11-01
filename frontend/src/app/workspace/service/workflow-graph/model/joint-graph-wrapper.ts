@@ -1030,20 +1030,18 @@ export class JointGraphWrapper {
       ? "assets/svg/done.svg" // Green check mark for completed
       : "assets/gif/loading.gif"; // Yellow spinner for in-progress
 
-    const progressText = agentName;
+    const tooltipText = isCompleted ? `${agentName} finished` : `${agentName} is working`;
 
-    this.getMainJointPaper()
-      ?.getModelById(operatorId)
-      .attr({
-        [`.${operatorAgentActionProgressClass}`]: {
-          text: progressText,
-          visibility: "visible",
-        },
+    const element = this.getMainJointPaper()?.getModelById(operatorId);
+    if (element) {
+      element.attr({
         [`.${operatorAgentActionIconClass}`]: {
           "xlink:href": iconUrl,
           visibility: "visible",
+          title: tooltipText,
         },
       });
+    }
   }
 
   /**
@@ -1054,13 +1052,10 @@ export class JointGraphWrapper {
     this.getMainJointPaper()
       ?.getModelById(operatorId)
       .attr({
-        [`.${operatorAgentActionProgressClass}`]: {
-          text: "",
-          visibility: "hidden",
-        },
         [`.${operatorAgentActionIconClass}`]: {
           "xlink:href": "",
           visibility: "hidden",
+          title: "",
         },
       });
   }

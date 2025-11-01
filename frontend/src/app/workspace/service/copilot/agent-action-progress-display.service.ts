@@ -59,11 +59,11 @@ export class AgentActionProgressDisplayService {
 
       // Update or add plans
       plans.forEach(plan => {
-        // Show progress for all plans except rejected/completed
-        if (plan.status$.value === ActionPlanStatus.REJECTED || plan.status$.value === ActionPlanStatus.COMPLETED) {
-          this.clearPlanProgress(plan.id);
-        } else {
+        // Only show progress for accepted plans
+        if (plan.status$.value === ActionPlanStatus.ACCEPTED) {
           this.showPlanProgress(plan);
+        } else {
+          this.clearPlanProgress(plan.id);
         }
       });
     });
