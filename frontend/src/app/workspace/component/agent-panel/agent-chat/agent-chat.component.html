@@ -56,15 +56,17 @@
       <div
         *ngFor="let response of agentResponses; let i = index"
         class="message"
-        [class.ai-message]="true">
+        [class.user-message]="response.role === 'user'"
+        [class.ai-message]="response.role === 'agent'">
+        <!-- Show header for user messages or when isBegin is true for agent messages -->
         <div
           class="message-header"
-          *ngIf="response.isBegin">
+          *ngIf="response.role === 'user' || response.isBegin">
           <i
             nz-icon
-            nzType="robot"
+            [nzType]="response.role === 'user' ? 'user' : 'robot'"
             nzTheme="outline"></i>
-          <span class="message-role">{{ agentInfo.name }}</span>
+          <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
         </div>
 
         <!-- Message content with hover button -->
@@ -83,9 +85,9 @@
             Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
           </div>
 
-          <!-- Details button (shown on hover) -->
+          <!-- Details button (shown on hover) - only for agent messages with details -->
           <button
-            *ngIf="hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
+            *ngIf="response.role === 'agent' && hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
             nz-button
             nzType="text"
             nzSize="small"

@@ -63,7 +63,7 @@ import {
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UserModelMessage } from "ai";
+import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UIMessage, UserModelMessage } from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
@@ -94,7 +94,8 @@ export enum CopilotState {
  * Agent response for UI display
  * Represents a step or final response from the agent
  */
-export interface AgentResponse {
+export interface AgentUIMessage {
+  role: "user" | "agent";
   content: string;
   isBegin: boolean;
   isEnd: boolean;
@@ -134,8 +135,8 @@ export class TexeraCopilot {
   private messages: ModelMessage[] = [];
 
   // PUBLIC agent responses for UI display
-  private agentResponses: AgentResponse[] = [];
-  private agentResponsesSubject = new BehaviorSubject<AgentResponse[]>([]);
+  private agentResponses: AgentUIMessage[] = [];
+  private agentResponsesSubject = new BehaviorSubject<AgentUIMessage[]>([]);
   public agentResponses$ = this.agentResponsesSubject.asObservable();
 
   // Copilot state management
@@ -284,6 +285,16 @@ export class TexeraCopilot {
         this.messages.push(userMessage);
         console.log(`TexeraCopilot instance #${this.instanceId} now has ${this.messages.length} messages`);
 
+        // Add user message to UI responses
+        const userUIMessage: AgentUIMessage = {
+          role: "user",
+          content: message,
+          isBegin: true,
+          isEnd: true,
+        };
+        this.agentResponses.push(userUIMessage);
+        this.agentResponsesSubject.next([...this.agentResponses]);
+
         try {
           // 2) define tools
           const tools = this.createWorkflowTools();
@@ -324,7 +335,8 @@ export class TexeraCopilot {
               }
 
               // Emit AgentResponse for this step (not done yet)
-              const stepResponse: AgentResponse = {
+              const stepResponse: AgentUIMessage = {
+                role: "agent",
                 content: text || "",
                 isBegin: isFirstStep,
                 isEnd: false,
@@ -345,7 +357,8 @@ export class TexeraCopilot {
           this.messages.push(...response.messages);
 
           // 5) Emit final AgentResponse with complete content
-          const finalResponse: AgentResponse = {
+          const finalResponse: AgentUIMessage = {
+            role: "agent",
             content: text || "",
             isBegin: false,
             isEnd: true,
@@ -378,7 +391,8 @@ export class TexeraCopilot {
           this.messages.push(assistantError);
 
           // Emit error as AgentResponse
-          const errorResponse: AgentResponse = {
+          const errorResponse: AgentUIMessage = {
+            role: "agent",
             content: errorText,
             isBegin: false,
             isEnd: true,
@@ -541,7 +555,7 @@ export class TexeraCopilot {
   /**
    * Get agent responses for UI display
    */
-  public getAgentResponses(): AgentResponse[] {
+  public getAgentResponses(): AgentUIMessage[] {
     return [...this.agentResponses];
   }
 

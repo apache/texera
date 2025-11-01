@@ -18,7 +18,7 @@
  */
 
 import { Injectable, Injector } from "@angular/core";
-import { TexeraCopilot, AgentResponse } from "./texera-copilot";
+import { TexeraCopilot, AgentUIMessage } from "./texera-copilot";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
@@ -185,7 +185,7 @@ export class TexeraCopilotManagerService {
    * Get the agent responses observable for a specific agent
    * Emits the agent response list on subscribe and updates with new responses
    */
-  public getAgentResponsesObservable(agentId: string): Observable<AgentResponse[]> {
+  public getAgentResponsesObservable(agentId: string): Observable<AgentUIMessage[]> {
     const agent = this.agents.get(agentId);
     if (!agent) {
       throw new Error(`Agent with ID ${agentId} not found`);
@@ -197,7 +197,7 @@ export class TexeraCopilotManagerService {
   /**
    * Get current agent responses snapshot for a specific agent
    */
-  public getAgentResponses(agentId: string): AgentResponse[] {
+  public getAgentResponses(agentId: string): AgentUIMessage[] {
     const agent = this.agents.get(agentId);
     if (!agent) {
       throw new Error(`Agent with ID ${agentId} not found`);
