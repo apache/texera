@@ -42,6 +42,7 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { AgentActionProgressDisplayService } from "../service/copilot/agent-action-progress-display.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -70,11 +71,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   constructor(
     private userService: UserService,
-    // list additional 3 services in constructor so they are initialized even if no one use them directly
+    // list additional services in constructor so they are initialized even if no one use them directly
     // TODO: make their lifecycle better
     private workflowCompilingService: WorkflowCompilingService,
     private workflowConsoleService: WorkflowConsoleService,
     private operatorReuseCacheStatusService: OperatorReuseCacheStatusService,
+    private agentActionProgressDisplayService: AgentActionProgressDisplayService,
     // end of additional services
     private undoRedoService: UndoRedoService,
     private workflowPersistService: WorkflowPersistService,
