@@ -23,6 +23,14 @@ import { ActionPlan, ActionPlanStatus, ActionPlanService } from "../action-plan/
 import { Subscription } from "rxjs";
 
 /**
+ * Stores subscriptions and operator IDs for a plan
+ */
+interface PlanProgressTracking {
+  subscriptions: Subscription[];
+  operatorIds: string[];
+}
+
+/**
  * Service to display agent action progress on operators
  * Shows agent names and progress indicators on operators during action plan execution
  */
@@ -30,8 +38,8 @@ import { Subscription } from "rxjs";
   providedIn: "root",
 })
 export class AgentActionProgressDisplayService {
-  // Track subscriptions per plan ID
-  private planSubscriptions: Map<string, Subscription[]> = new Map();
+  // Track subscriptions and operator IDs per plan ID
+  private planTracking: Map<string, PlanProgressTracking> = new Map();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -47,7 +55,7 @@ export class AgentActionProgressDisplayService {
   private initializeMonitoring(): void {
     this.actionPlanService.getActionPlansStream().subscribe(plans => {
       // Get all plan IDs currently being tracked
-      const currentPlanIds = new Set(this.planSubscriptions.keys());
+      const currentPlanIds = new Set(this.planTracking.keys());
       const newPlanIds = new Set(plans.map(p => p.id));
 
       // Remove plans that no longer exist
@@ -78,6 +86,7 @@ export class AgentActionProgressDisplayService {
 
     const jointWrapper = this.workflowActionService.getJointGraphWrapper();
     const subscriptions: Subscription[] = [];
+    const operatorIds: string[] = [];
 
     // Display progress for each task in the plan
     plan.tasks.forEach((task, operatorId) => {
@@ -90,34 +99,34 @@ export class AgentActionProgressDisplayService {
         });
 
         subscriptions.push(subscription);
+        operatorIds.push(operatorId);
 
         // Set initial state
         jointWrapper.setAgentActionProgress(operatorId, agentName, task.completed$.value);
       }
     });
 
-    // Store subscriptions for this plan
-    this.planSubscriptions.set(plan.id, subscriptions);
+    // Store subscriptions and operator IDs for this plan
+    this.planTracking.set(plan.id, { subscriptions, operatorIds });
   }
 
   /**
    * Clear progress indicators for a specific plan
    */
   private clearPlanProgress(planId: string): void {
-    const subscriptions = this.planSubscriptions.get(planId);
-    if (subscriptions) {
+    const tracking = this.planTracking.get(planId);
+    if (tracking) {
       // Unsubscribe from all task completion observables
-      subscriptions.forEach(sub => sub.unsubscribe());
-      this.planSubscriptions.delete(planId);
-    }
+      tracking.subscriptions.forEach(sub => sub.unsubscribe());
 
-    // Clear the visual indicators on operators
-    const plan = this.actionPlanService.getActionPlan(planId);
-    if (plan) {
+      // Clear the visual indicators on operators using stored operator IDs
       const jointWrapper = this.workflowActionService.getJointGraphWrapper();
-      plan.tasks.forEach((_task, operatorId) => {
+      tracking.operatorIds.forEach(operatorId => {
         jointWrapper.clearAgentActionProgress(operatorId);
       });
+
+      // Remove tracking for this plan
+      this.planTracking.delete(planId);
     }
   }
 

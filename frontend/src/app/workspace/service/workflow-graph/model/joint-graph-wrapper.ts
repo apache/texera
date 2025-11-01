@@ -1030,15 +1030,19 @@ export class JointGraphWrapper {
       ? "assets/svg/done.svg" // Green check mark for completed
       : "assets/gif/loading.gif"; // Yellow spinner for in-progress
 
-    const tooltipText = isCompleted ? `${agentName} finished` : `${agentName} is working`;
+    const textColor = isCompleted ? "green" : "orange"; // Same colors as operator states
 
     const element = this.getMainJointPaper()?.getModelById(operatorId);
     if (element) {
       element.attr({
+        [`.${operatorAgentActionProgressClass}`]: {
+          text: agentName,
+          fill: textColor,
+          visibility: "visible",
+        },
         [`.${operatorAgentActionIconClass}`]: {
           "xlink:href": iconUrl,
           visibility: "visible",
-          title: tooltipText,
         },
       });
     }
@@ -1052,10 +1056,13 @@ export class JointGraphWrapper {
     this.getMainJointPaper()
       ?.getModelById(operatorId)
       .attr({
+        [`.${operatorAgentActionProgressClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
         [`.${operatorAgentActionIconClass}`]: {
           "xlink:href": "",
           visibility: "hidden",
-          title: "",
         },
       });
   }
