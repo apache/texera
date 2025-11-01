@@ -1,7 +1,7 @@
 // agent-chat.component.ts
 import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CopilotState, AgentResponse } from "../../../service/copilot/texera-copilot";
+import { CopilotState, AgentUIMessage } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -18,14 +18,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
-  public agentResponses: AgentResponse[] = []; // Populated from observable subscription
+  public agentResponses: AgentUIMessage[] = []; // Populated from observable subscription
   public currentMessage = "";
   public pendingActionPlan: ActionPlan | null = null;
   private shouldScrollToBottom = false;
 
   // Modal state for response details
   public isDetailsModalVisible = false;
-  public selectedResponse: AgentResponse | null = null;
+  public selectedResponse: AgentUIMessage | null = null;
   public hoveredMessageIndex: number | null = null;
 
   constructor(
@@ -108,7 +108,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   /**
    * Show response details modal
    */
-  public showResponseDetails(response: AgentResponse): void {
+  public showResponseDetails(response: AgentUIMessage): void {
     this.selectedResponse = response;
     this.isDetailsModalVisible = true;
   }
@@ -131,7 +131,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   /**
    * Get tool result for a specific tool call index
    */
-  public getToolResult(response: AgentResponse, toolCallIndex: number): any {
+  public getToolResult(response: AgentUIMessage, toolCallIndex: number): any {
     if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
       return null;
     }
