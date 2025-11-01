@@ -19,9 +19,8 @@
 
 import { Injectable } from "@angular/core";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { ActionPlan, ActionPlanTask, ActionPlanStatus, ActionPlanService } from "../action-plan/action-plan.service";
-import { Subject, Subscription } from "rxjs";
-import { untilDestroyed } from "@ngneat/until-destroy";
+import { ActionPlan, ActionPlanStatus, ActionPlanService } from "../action-plan/action-plan.service";
+import { Subscription } from "rxjs";
 
 /**
  * Service to display agent action progress on operators
@@ -31,52 +30,54 @@ import { untilDestroyed } from "@ngneat/until-destroy";
   providedIn: "root",
 })
 export class AgentActionProgressDisplayService {
-  private currentlyDisplayedPlan: ActionPlan | null = null;
-  private hideProgressTimeout: NodeJS.Timeout | null = null;
-  private subscriptions: Subscription[] = [];
+  // Track subscriptions per plan ID
+  private planSubscriptions: Map<string, Subscription[]> = new Map();
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private actionPlanService: ActionPlanService
   ) {
-    this.initializeStatusMonitoring();
+    this.initializeMonitoring();
   }
 
   /**
-   * Initialize monitoring of action plan statuses
-   * Automatically shows/hides progress based on plan status
+   * Initialize monitoring of all action plans
+   * Shows progress for all active plans
    */
-  private initializeStatusMonitoring(): void {
-    // Monitor for any accepted plans to show progress
+  private initializeMonitoring(): void {
     this.actionPlanService.getActionPlansStream().subscribe(plans => {
-      const acceptedPlan = plans.find(plan => plan.status$.value === ActionPlanStatus.ACCEPTED);
+      // Get all plan IDs currently being tracked
+      const currentPlanIds = new Set(this.planSubscriptions.keys());
+      const newPlanIds = new Set(plans.map(p => p.id));
 
-      if (acceptedPlan && this.currentlyDisplayedPlan?.id !== acceptedPlan.id) {
-        this.showPlanProgress(acceptedPlan);
-      } else if (!acceptedPlan && this.currentlyDisplayedPlan) {
-        // Check if current plan is completed
-        const currentPlan = plans.find(p => p.id === this.currentlyDisplayedPlan?.id);
-        if (currentPlan && currentPlan.status$.value === ActionPlanStatus.COMPLETED) {
-          this.scheduleHideProgress(5000);
+      // Remove plans that no longer exist
+      currentPlanIds.forEach(planId => {
+        if (!newPlanIds.has(planId)) {
+          this.clearPlanProgress(planId);
         }
-      }
+      });
+
+      // Update or add plans
+      plans.forEach(plan => {
+        // Show progress for all plans except rejected/completed
+        if (plan.status$.value === ActionPlanStatus.REJECTED || plan.status$.value === ActionPlanStatus.COMPLETED) {
+          this.clearPlanProgress(plan.id);
+        } else {
+          this.showPlanProgress(plan);
+        }
+      });
     });
   }
 
   /**
    * Show progress indicators for a specific action plan
    */
-  public showPlanProgress(plan: ActionPlan): void {
-    // Clear any existing display
-    this.clearProgressDisplay();
+  private showPlanProgress(plan: ActionPlan): void {
+    // Clear existing subscriptions for this plan if any
+    this.clearPlanProgress(plan.id);
 
-    if (this.hideProgressTimeout) {
-      clearTimeout(this.hideProgressTimeout);
-      this.hideProgressTimeout = null;
-    }
-
-    this.currentlyDisplayedPlan = plan;
     const jointWrapper = this.workflowActionService.getJointGraphWrapper();
+    const subscriptions: Subscription[] = [];
 
     // Display progress for each task in the plan
     plan.tasks.forEach((task, operatorId) => {
@@ -88,74 +89,36 @@ export class AgentActionProgressDisplayService {
           jointWrapper.setAgentActionProgress(operatorId, agentName, isCompleted);
         });
 
-        this.subscriptions.push(subscription);
+        subscriptions.push(subscription);
 
         // Set initial state
         jointWrapper.setAgentActionProgress(operatorId, agentName, task.completed$.value);
       }
     });
+
+    // Store subscriptions for this plan
+    this.planSubscriptions.set(plan.id, subscriptions);
   }
 
   /**
-   * Show a temporary plan progress (e.g., on hover)
+   * Clear progress indicators for a specific plan
    */
-  public showTemporaryPlanProgress(plan: ActionPlan): void {
-    // Cancel any scheduled hide
-    if (this.hideProgressTimeout) {
-      clearTimeout(this.hideProgressTimeout);
-      this.hideProgressTimeout = null;
+  private clearPlanProgress(planId: string): void {
+    const subscriptions = this.planSubscriptions.get(planId);
+    if (subscriptions) {
+      // Unsubscribe from all task completion observables
+      subscriptions.forEach(sub => sub.unsubscribe());
+      this.planSubscriptions.delete(planId);
     }
 
-    this.showPlanProgress(plan);
-  }
-
-  /**
-   * Restore the current in-progress plan display
-   */
-  public restoreCurrentPlanProgress(): void {
-    // Find any accepted plan
-    const plans = this.actionPlanService.getAllActionPlans();
-    const acceptedPlan = plans.find(plan => plan.status$.value === ActionPlanStatus.ACCEPTED);
-
-    if (acceptedPlan) {
-      this.showPlanProgress(acceptedPlan);
-    } else {
-      this.clearProgressDisplay();
-    }
-  }
-
-  /**
-   * Clear all progress indicators
-   */
-  public clearProgressDisplay(): void {
-    const jointWrapper = this.workflowActionService.getJointGraphWrapper();
-
-    // Clear all subscriptions
-    this.subscriptions.forEach(sub => sub.unsubscribe());
-    this.subscriptions = [];
-
-    // Clear all agent progress indicators
-    if (this.currentlyDisplayedPlan) {
-      this.currentlyDisplayedPlan.tasks.forEach((task, operatorId) => {
+    // Clear the visual indicators on operators
+    const plan = this.actionPlanService.getActionPlan(planId);
+    if (plan) {
+      const jointWrapper = this.workflowActionService.getJointGraphWrapper();
+      plan.tasks.forEach((_task, operatorId) => {
         jointWrapper.clearAgentActionProgress(operatorId);
       });
     }
-
-    this.currentlyDisplayedPlan = null;
-  }
-
-  /**
-   * Schedule hiding the progress after a delay
-   */
-  private scheduleHideProgress(delayMs: number): void {
-    if (this.hideProgressTimeout) {
-      clearTimeout(this.hideProgressTimeout);
-    }
-
-    this.hideProgressTimeout = setTimeout(() => {
-      this.clearProgressDisplay();
-      this.hideProgressTimeout = null;
-    }, delayMs);
   }
 
   /**
