@@ -23,61 +23,70 @@
   height: 100%;
   position: fixed;
   z-index: 3;
-  pointer-events: none;
 }
 
-.agent-panel-box {
+#agent-container {
   position: absolute;
   top: calc(-100% + 80px);
   right: 0;
   z-index: 3;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  pointer-events: auto;
-  overflow: hidden;
 }
 
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #1890ff;
-  color: white;
-  cursor: move;
-  user-select: none;
+#title {
+  padding: 5px 9px;
+  border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  background: white;
+  width: 100%;
+  z-index: 2;
 }
 
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 16px;
-
-  i {
-    font-size: 18px;
-  }
+#agent-docked-button {
+  position: fixed;
+  bottom: 40px; // Position above the mini-map button
+  right: 10px;
+  z-index: 4;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
 }
 
-.header-actions {
+#return-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
   display: flex;
-  gap: 4px;
+}
 
-  button {
-    color: white;
+#content {
+  width: 100%;
+  height: 100%;
+  padding-top: 32px;
+  display: inline-block;
+  overflow-y: auto;
+}
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-  }
+.shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
 }
 
 .agent-tabs {
-  flex: 1;
+  height: calc(100% - 32px); // Account for the title bar
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -87,6 +96,10 @@
       height: 100%;
       display: flex;
       flex-direction: column;
+    }
+
+    .ant-tabs-nav {
+      margin-bottom: 0;
     }
 
     .ant-tabs-content-holder {
@@ -130,25 +143,6 @@
     opacity: 1;
     color: #ff4d4f !important;
     background: rgba(255, 77, 79, 0.1) !important;
-  }
-
-  i {
-    font-size: 12px;
-  }
-}
-
-.delete-agent-btn {
-  padding: 0;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.6;
-
-  &:hover {
-    opacity: 1;
-    color: #ff4d4f;
   }
 
   i {

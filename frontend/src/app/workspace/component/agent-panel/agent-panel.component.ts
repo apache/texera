@@ -21,6 +21,7 @@ import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { TexeraCopilotManagerService, AgentInfo } from "../../service/copilot/texera-copilot-manager.service";
+import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 
 @UntilDestroy()
 @Component({
@@ -34,7 +35,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
   private static readonly MIN_PANEL_HEIGHT = 450;
 
   // Panel dimensions and position
-  width = AgentPanelComponent.MIN_PANEL_WIDTH;
+  width: number = 0; // Start with 0 to show docked button
   height = Math.max(AgentPanelComponent.MIN_PANEL_HEIGHT, window.innerHeight * 0.7);
   id = -1;
   dragPosition = { x: 0, y: 0 };
@@ -52,8 +53,13 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
     const savedWidth = localStorage.getItem("agent-panel-width");
     const savedHeight = localStorage.getItem("agent-panel-height");
     const savedStyle = localStorage.getItem("agent-panel-style");
+    const savedDocked = localStorage.getItem("agent-panel-docked");
 
-    if (savedWidth) this.width = Number(savedWidth);
+    // Only restore width if the panel was not docked
+    if (savedDocked === "false" && savedWidth) {
+      this.width = Number(savedWidth);
+    }
+
     if (savedHeight) this.height = Number(savedHeight);
 
     if (savedStyle) {
@@ -61,7 +67,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
       if (container) {
         container.style.cssText = savedStyle;
         const translates = container.style.transform;
-        const [xOffset, yOffset] = this.calculateTotalTranslate3d(translates);
+        const [xOffset, yOffset] = calculateTotalTranslate3d(translates);
         this.returnPosition = { x: -xOffset, y: -yOffset };
         this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
       }
@@ -81,10 +87,25 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
     // Save panel state
     localStorage.setItem("agent-panel-width", String(this.width));
     localStorage.setItem("agent-panel-height", String(this.height));
+    localStorage.setItem("agent-panel-docked", String(this.width === 0));
 
     const container = document.getElementById("agent-container");
     if (container) {
       localStorage.setItem("agent-panel-style", container.style.cssText);
+    }
+  }
+
+  /**
+   * Open the panel from docked state
+   */
+  public openPanel(): void {
+    if (this.width === 0) {
+      // Open panel
+      this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
+    } else {
+      // Close panel (dock it)
+      this.width = 0;
+      this.isDocked = true;
     }
   }
 
@@ -145,26 +166,5 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
    */
   handleDragStart(): void {
     this.isDocked = false;
-  }
-
-  /**
-   * Calculate total translate3d from transform string
-   */
-  private calculateTotalTranslate3d(transformString: string): [number, number, number] {
-    if (!transformString) return [0, 0, 0];
-
-    const regex = /translate3d\(([^,]+),\s*([^,]+),\s*([^)]+)\)/g;
-    let match;
-    let totalX = 0,
-      totalY = 0,
-      totalZ = 0;
-
-    while ((match = regex.exec(transformString)) !== null) {
-      totalX += parseFloat(match[1]);
-      totalY += parseFloat(match[2]);
-      totalZ += parseFloat(match[3]);
-    }
-
-    return [totalX, totalY, totalZ];
   }
 }
