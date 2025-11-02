@@ -19,8 +19,6 @@
 
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, from } from "rxjs";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import {
   createAddOperatorTool,
@@ -31,9 +29,6 @@ import {
   createListActionPlansTool,
   createDeleteActionPlanTool,
   createUpdateActionPlanTool,
-  createListOperatorsTool,
-  createListLinksTool,
-  createListOperatorTypesTool,
   createGetOperatorTool,
   createDeleteOperatorTool,
   createDeleteLinkTool,
@@ -51,15 +46,17 @@ import {
   createHasOperatorResultTool,
   createGetOperatorResultTool,
   createGetOperatorResultInfoTool,
-  createGetWorkflowValidationErrorsTool,
+  createGetValidationInfoOfCurrentWorkflowTool,
   createValidateOperatorTool,
-  createGetValidOperatorsTool,
   createAddInconsistencyTool,
   createListInconsistenciesTool,
   createUpdateInconsistencyTool,
   createDeleteInconsistencyTool,
   createClearInconsistenciesTool,
   toolWithTimeout,
+  createListAllOperatorTypesTool,
+  createListLinksTool,
+  createListOperatorIdsTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -69,15 +66,14 @@ import { AppSettings } from "../../../common/app-setting";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
-// import { CopilotCoeditorService } from "./copilot-coeditor.service"; // Removed - will be replaced
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 // API endpoints as constants
-export const COPILOT_MCP_URL = "mcp";
 export const DEFAULT_AGENT_MODEL_ID = "claude-3.7";
 
 /**
@@ -118,12 +114,6 @@ export interface AgentUIMessage {
  */
 @Injectable()
 export class TexeraCopilot {
-  // Unique instance identifier for debugging
-  private static instanceCounter = 0;
-  private readonly instanceId: number;
-
-  private mcpClient?: Client;
-  private mcpTools: any[] = [];
   private model: any;
   private modelType: string;
 
@@ -146,22 +136,18 @@ export class TexeraCopilot {
   private shouldStopAfterActionPlan: boolean = false;
 
   constructor(
+    private notificationService: NotificationService,
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
     private operatorMetadataService: OperatorMetadataService,
     private dynamicSchemaService: DynamicSchemaService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    // private copilotCoeditorService: CopilotCoeditorService, // Removed - will be replaced
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
     private dataInconsistencyService: DataInconsistencyService,
     private actionPlanService: ActionPlanService
   ) {
-    // Assign unique instance ID
-    this.instanceId = ++TexeraCopilot.instanceCounter;
-    console.log(`TexeraCopilot instance #${this.instanceId} created`);
-
     // Default model type
     this.modelType = DEFAULT_AGENT_MODEL_ID;
   }
@@ -172,7 +158,6 @@ export class TexeraCopilot {
   public setAgentInfo(agentId: string, agentName: string): void {
     this.agentId = agentId;
     this.agentName = agentName;
-    console.log(`TexeraCopilot instance #${this.instanceId} assigned to agent ${agentId} (${agentName})`);
   }
 
   /**
@@ -187,16 +172,13 @@ export class TexeraCopilot {
    */
   public async initialize(): Promise<void> {
     try {
-      // 1. Connect to MCP server
-      await this.connectMCP();
-
-      // 2. Initialize OpenAI model with the configured model type
+      // Initialize OpenAI model with the configured model type
       this.model = createOpenAI({
         baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
         apiKey: "dummy",
       }).chat(this.modelType);
 
-      // 3. Set state to Available
+      // Set state to Available
       this.state = CopilotState.AVAILABLE;
 
       console.log("Texera Copilot initialized successfully");
@@ -207,69 +189,9 @@ export class TexeraCopilot {
     }
   }
 
-  /**
-   * Connect to MCP server and retrieve tools
-   */
-  private async connectMCP(): Promise<void> {
-    try {
-      // Create MCP client with SSE transport for HTTP streaming
-      const transport = new StreamableHTTPClientTransport(
-        new URL(`${AppSettings.getApiEndpoint()}/${COPILOT_MCP_URL}`, document.baseURI)
-      );
-
-      this.mcpClient = new Client(
-        {
-          name: "texera-copilot-client",
-          version: "1.0.0",
-        },
-        {
-          capabilities: {},
-        }
-      );
-
-      await this.mcpClient.connect(transport);
-
-      // Get all available MCP tools
-      const toolsResponse = await this.mcpClient.listTools();
-      this.mcpTools = toolsResponse.tools || [];
-
-      console.log(`Connected to MCP server. Retrieved ${this.mcpTools.length} tools.`);
-    } catch (error) {
-      console.error("Failed to connect to MCP:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Convert MCP tools to AI SDK tool format
-   */
-  private getMCPToolsForAI(): Record<string, any> {
-    const tools: Record<string, any> = {};
-
-    for (const mcpTool of this.mcpTools) {
-      tools[mcpTool.name] = {
-        description: mcpTool.description || "",
-        parameters: mcpTool.inputSchema || {},
-        execute: async (args: any) => {
-          if (!this.mcpClient) {
-            throw new Error("MCP client not connected");
-          }
-          const result = await this.mcpClient.callTool({
-            name: mcpTool.name,
-            arguments: args,
-          });
-          return result.content;
-        },
-      };
-    }
-
-    return tools;
-  }
-
   public sendMessage(message: string): Observable<void> {
     return from(
       (async () => {
-        console.log(`TexeraCopilot instance #${this.instanceId} (${this.agentId}) processing message`);
         if (!this.model) {
           throw new Error("Copilot not initialized");
         }
@@ -283,7 +205,6 @@ export class TexeraCopilot {
         // 1) push the user message to PRIVATE history
         const userMessage: UserModelMessage = { role: "user", content: message };
         this.messages.push(userMessage);
-        console.log(`TexeraCopilot instance #${this.instanceId} now has ${this.messages.length} messages`);
 
         // Add user message to UI responses
         const userUIMessage: AgentUIMessage = {
@@ -312,12 +233,11 @@ export class TexeraCopilot {
             stopWhen: ({ steps }) => {
               // Check if user requested stop
               if (this.state === CopilotState.STOPPING) {
-                console.log("Stopping generation due to user request");
+                this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
                 return true;
               }
               // Check if action plan was just created
               if (this.shouldStopAfterActionPlan) {
-                console.log("Stopping generation after action plan creation");
                 return true;
               }
               // Otherwise use the default step count limit
@@ -325,12 +245,8 @@ export class TexeraCopilot {
             },
             // optional: observe every completed step (tool calls + results available)
             onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-              // Log each step for debugging
-              console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
-
               // Check if actionPlan tool was called in this step
               if (toolCalls && toolCalls.some((call: any) => call.toolName === "actionPlan")) {
-                console.log("Action plan tool detected - will stop generation after this step");
                 this.shouldStopAfterActionPlan = true;
               }
 
@@ -367,21 +283,9 @@ export class TexeraCopilot {
           this.agentResponses.push(finalResponse);
           this.agentResponsesSubject.next([...this.agentResponses]);
 
-          // 5) optional diagnostics
-          if (steps?.length) {
-            const totalToolCalls = steps.flatMap(s => s.toolCalls || []).length;
-            console.log(`Agent loop finished in ${steps.length} step(s), ${totalToolCalls} tool call(s).`);
-          }
-
-          // Clear all copilot presence indicators when generation completes
-          // this.copilotCoeditorService.clearAll();
-
           // Set state back to Available
           this.state = CopilotState.AVAILABLE;
         } catch (err: any) {
-          // Clear all copilot presence indicators on error
-          // this.copilotCoeditorService.clearAll();
-
           // Set state back to Available
           this.state = CopilotState.AVAILABLE;
 
@@ -411,12 +315,7 @@ export class TexeraCopilot {
    */
   private createWorkflowTools(): Record<string, any> {
     const addOperatorTool = toolWithTimeout(
-      createAddOperatorTool(
-        this.workflowActionService,
-        this.workflowUtilService,
-        this.operatorMetadataService
-        // this.copilotCoeditorService // Removed
-      )
+      createAddOperatorTool(this.workflowActionService, this.workflowUtilService, this.operatorMetadataService)
     );
     const addLinkTool = toolWithTimeout(createAddLinkTool(this.workflowActionService));
     const actionPlanTool = toolWithTimeout(
@@ -424,7 +323,6 @@ export class TexeraCopilot {
         this.workflowActionService,
         this.workflowUtilService,
         this.operatorMetadataService,
-        // this.copilotCoeditorService, // Removed
         this.actionPlanService,
         this.agentId,
         this.agentName
@@ -435,45 +333,26 @@ export class TexeraCopilot {
     const listActionPlansTool = toolWithTimeout(createListActionPlansTool(this.actionPlanService));
     const deleteActionPlanTool = toolWithTimeout(createDeleteActionPlanTool(this.actionPlanService));
     const updateActionPlanTool = toolWithTimeout(createUpdateActionPlanTool(this.actionPlanService));
-    const listOperatorsTool = toolWithTimeout(createListOperatorsTool(this.workflowActionService));
+    const listOperatorIdsTool = toolWithTimeout(createListOperatorIdsTool(this.workflowActionService));
     const listLinksTool = toolWithTimeout(createListLinksTool(this.workflowActionService));
-    const listOperatorTypesTool = toolWithTimeout(createListOperatorTypesTool(this.workflowUtilService));
+    const listAllOperatorTypesTool = toolWithTimeout(createListAllOperatorTypesTool(this.workflowUtilService));
     const getOperatorTool = toolWithTimeout(createGetOperatorTool(this.workflowActionService));
     const deleteOperatorTool = toolWithTimeout(createDeleteOperatorTool(this.workflowActionService));
     const deleteLinkTool = toolWithTimeout(createDeleteLinkTool(this.workflowActionService));
     const setOperatorPropertyTool = toolWithTimeout(
-      createSetOperatorPropertyTool(
-        this.workflowActionService,
-        // this.copilotCoeditorService, // Removed
-        this.validationWorkflowService
-      )
+      createSetOperatorPropertyTool(this.workflowActionService, this.validationWorkflowService)
     );
     const setPortPropertyTool = toolWithTimeout(
       createSetPortPropertyTool(this.workflowActionService, this.validationWorkflowService)
     );
-    const getOperatorSchemaTool = toolWithTimeout(
-      createGetOperatorSchemaTool(this.workflowActionService, this.operatorMetadataService)
-    );
     const getOperatorPropertiesSchemaTool = toolWithTimeout(
-      createGetOperatorPropertiesSchemaTool(
-        this.workflowActionService,
-        this.operatorMetadataService
-        // this.copilotCoeditorService // Removed
-      )
+      createGetOperatorPropertiesSchemaTool(this.workflowActionService, this.operatorMetadataService)
     );
     const getOperatorPortsInfoTool = toolWithTimeout(
-      createGetOperatorPortsInfoTool(
-        this.workflowActionService,
-        this.operatorMetadataService
-        // this.copilotCoeditorService // Removed
-      )
+      createGetOperatorPortsInfoTool(this.workflowActionService, this.operatorMetadataService)
     );
     const getOperatorMetadataTool = toolWithTimeout(
-      createGetOperatorMetadataTool(
-        this.workflowActionService,
-        this.operatorMetadataService
-        // this.copilotCoeditorService // Removed
-      )
+      createGetOperatorMetadataTool(this.workflowActionService, this.operatorMetadataService)
     );
     const getOperatorInputSchemaTool = toolWithTimeout(createGetOperatorInputSchemaTool(this.workflowCompilingService));
     const getWorkflowCompilationStateTool = toolWithTimeout(
@@ -487,19 +366,12 @@ export class TexeraCopilot {
     );
     const getOperatorResultTool = toolWithTimeout(createGetOperatorResultTool(this.workflowResultService));
     const getOperatorResultInfoTool = toolWithTimeout(
-      createGetOperatorResultInfoTool(
-        this.workflowResultService,
-        this.workflowActionService
-        // this.copilotCoeditorService // Removed
-      )
+      createGetOperatorResultInfoTool(this.workflowResultService, this.workflowActionService)
     );
-    const getWorkflowValidationErrorsTool = toolWithTimeout(
-      createGetWorkflowValidationErrorsTool(this.validationWorkflowService)
+    const getValidationInfoOfCurrentWorkflowTool = toolWithTimeout(
+      createGetValidationInfoOfCurrentWorkflowTool(this.validationWorkflowService, this.workflowActionService)
     );
     const validateOperatorTool = toolWithTimeout(createValidateOperatorTool(this.validationWorkflowService));
-    const getValidOperatorsTool = toolWithTimeout(
-      createGetValidOperatorsTool(this.validationWorkflowService, this.workflowActionService)
-    );
 
     // Inconsistency tools
     const addInconsistencyTool = toolWithTimeout(createAddInconsistencyTool(this.dataInconsistencyService));
@@ -508,41 +380,41 @@ export class TexeraCopilot {
     const deleteInconsistencyTool = toolWithTimeout(createDeleteInconsistencyTool(this.dataInconsistencyService));
     const clearInconsistenciesTool = toolWithTimeout(createClearInconsistenciesTool(this.dataInconsistencyService));
 
-    // Get MCP tools in AI SDK format
-    // const mcpToolsForAI = this.getMCPToolsForAI();
-
     return {
-      // ...mcpToolsForAI,
+      // workflow editing
       addOperator: addOperatorTool,
       addLink: addLinkTool,
+      deleteOperator: deleteOperatorTool,
+      deleteLink: deleteLinkTool,
+      setOperatorProperty: setOperatorPropertyTool,
+      setPortProperty: setPortPropertyTool,
+      // workflow validation
+      getValidationInfoOfCurrentWorkflow: getValidationInfoOfCurrentWorkflowTool,
+      validateOperator: validateOperatorTool,
+      // workflow inspecting
+      listOperatorIds: listOperatorIdsTool,
+      listLinks: listLinksTool,
+      listAllOperatorTypes: listAllOperatorTypesTool,
+      getOperator: getOperatorTool,
+      getOperatorPropertiesSchema: getOperatorPropertiesSchemaTool,
+      getOperatorPortsInfo: getOperatorPortsInfoTool,
+      getOperatorMetadata: getOperatorMetadataTool,
+      getOperatorInputSchema: getOperatorInputSchemaTool,
+      getWorkflowCompilationState: getWorkflowCompilationStateTool,
+      // workflow execution
+      executeWorkflow: executeWorkflowTool,
+      getExecutionStateTool: getExecutionStateTool,
+      killWorkflow: killWorkflowTool,
+      hasOperatorResult: hasOperatorResultTool,
+      getOperatorResult: getOperatorResultTool,
+      getOperatorResultInfo: getOperatorResultInfoTool,
+      // workflow action plan CRUD
       actionPlan: actionPlanTool,
       updateActionPlanProgress: updateActionPlanProgressTool,
       getActionPlan: getActionPlanTool,
       listActionPlans: listActionPlansTool,
       deleteActionPlan: deleteActionPlanTool,
       updateActionPlan: updateActionPlanTool,
-      listOperators: listOperatorsTool,
-      listLinks: listLinksTool,
-      listOperatorTypes: listOperatorTypesTool,
-      getOperator: getOperatorTool,
-      deleteOperator: deleteOperatorTool,
-      deleteLink: deleteLinkTool,
-      setOperatorProperty: setOperatorPropertyTool,
-      setPortProperty: setPortPropertyTool,
-      // getOperatorSchema: getOperatorSchemaTool,
-      getOperatorPropertiesSchema: getOperatorPropertiesSchemaTool,
-      getOperatorPortsInfo: getOperatorPortsInfoTool,
-      getOperatorMetadata: getOperatorMetadataTool,
-      getOperatorInputSchema: getOperatorInputSchemaTool,
-      getWorkflowCompilationState: getWorkflowCompilationStateTool,
-      executeWorkflow: executeWorkflowTool,
-      // killWorkflow: killWorkflowTool,
-      hasOperatorResult: hasOperatorResultTool,
-      getOperatorResult: getOperatorResultTool,
-      getOperatorResultInfo: getOperatorResultInfoTool,
-      getWorkflowValidationErrors: getWorkflowValidationErrorsTool,
-      validateOperator: validateOperatorTool,
-      getValidOperators: getValidOperatorsTool,
       // Data inconsistency tools
       addInconsistency: addInconsistencyTool,
       listInconsistencies: listInconsistenciesTool,
@@ -564,15 +436,9 @@ export class TexeraCopilot {
    */
   public stopGeneration(): void {
     if (this.state !== CopilotState.GENERATING) {
-      console.log("Not generating, nothing to stop");
       return;
     }
-
-    // Set state to Stopping - stopWhen callback will detect this and stop generation
     this.state = CopilotState.STOPPING;
-    console.log("Stopping generation...");
-
-    // State will be set back to Available when the generation completes via stopWhen
   }
 
   /**
@@ -582,7 +448,6 @@ export class TexeraCopilot {
     this.messages = [];
     this.agentResponses = [];
     this.agentResponsesSubject.next([...this.agentResponses]);
-    console.log("Message history and agent responses cleared");
   }
 
   /**
@@ -603,17 +468,9 @@ export class TexeraCopilot {
 
     // Clear message history
     this.clearMessages();
-
-    // Disconnect the MCP client if it exists
-    if (this.mcpClient) {
-      await this.mcpClient.close();
-      this.mcpClient = undefined;
-    }
-
     // Set state to Unavailable
     this.state = CopilotState.UNAVAILABLE;
-
-    console.log("Copilot disconnected");
+    this.notificationService.info(`Agent ${this.agentName} is removed successfully`);
   }
 
   /**
