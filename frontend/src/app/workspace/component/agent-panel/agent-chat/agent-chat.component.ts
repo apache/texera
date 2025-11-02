@@ -120,23 +120,31 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Get total input tokens across all responses
+   * Get input tokens from the latest agent response with usage data
    */
   public getTotalInputTokens(): number {
-    return this.agentResponses.reduce((total, response) => {
-      const inputTokens = response.usage?.inputTokens || 0;
-      return total + inputTokens;
-    }, 0);
+    // Find the last response with usage data (from most recent to oldest)
+    for (let i = this.agentResponses.length - 1; i >= 0; i--) {
+      const response = this.agentResponses[i];
+      if (response.usage?.inputTokens !== undefined) {
+        return response.usage.inputTokens;
+      }
+    }
+    return 0;
   }
 
   /**
-   * Get total output tokens across all responses
+   * Get output tokens from the latest agent response with usage data
    */
   public getTotalOutputTokens(): number {
-    return this.agentResponses.reduce((total, response) => {
-      const outputTokens = response.usage?.outputTokens || 0;
-      return total + outputTokens;
-    }, 0);
+    // Find the last response with usage data (from most recent to oldest)
+    for (let i = this.agentResponses.length - 1; i >= 0; i--) {
+      const response = this.agentResponses[i];
+      if (response.usage?.outputTokens !== undefined) {
+        return response.usage.outputTokens;
+      }
+    }
+    return 0;
   }
 
   /**

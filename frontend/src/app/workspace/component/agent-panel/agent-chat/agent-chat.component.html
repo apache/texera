@@ -75,11 +75,10 @@
           (mouseenter)="setHoveredMessage(i)"
           (mouseleave)="setHoveredMessage(null)"
           style="position: relative">
-          <!-- Message content - displayed as plain text with preserved whitespace -->
           <div
             *ngIf="response.content"
             class="message-content">
-            {{ response.content }}
+            <markdown [data]="response.content"></markdown>
           </div>
           <div
             *ngIf="response.toolCalls && response.toolCalls.length > 0"
