@@ -15,12 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[flake8]
-extend-ignore =
-    F403,
-    F405,
-    E203,
-exclude =
-    proto,
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311", "py312"]
+extend-exclude = '''
+/(
+  proto
+)/
+'''
+
+[tool.flake8]
+extend-ignore = ["F403", "F405", "E203"]
+exclude = ["proto"]
 max-complexity = 10
 max-line-length = 88
