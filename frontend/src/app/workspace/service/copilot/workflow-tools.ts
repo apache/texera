@@ -26,13 +26,12 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
-// import { CopilotCoeditorService } from "./copilot-coeditor.service"; // Removed - will be replaced with AgentActionProgressDisplayService
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 
-// Tool execution timeout in milliseconds (5 seconds)
+// Tool execution timeout in milliseconds (2 minutes)
 const TOOL_TIMEOUT_MS = 120000;
 
 // Maximum token limit for operator result data to prevent overwhelming LLM context
@@ -83,7 +82,7 @@ export function toolWithTimeout(toolConfig: any): any {
         if (error.message === "timeout") {
           return {
             success: false,
-            error: "Tool execution timeout - operation took longer than 5 seconds. Please try again later.",
+            error: "Tool execution timeout - operation took longer than 2 minutes. Please try again later.",
           };
         }
         // Re-throw other errors to be handled by the original error handler
@@ -100,7 +99,6 @@ export function createAddOperatorTool(
   workflowActionService: WorkflowActionService,
   workflowUtilService: WorkflowUtilService,
   operatorMetadataService: OperatorMetadataService
-  // copilotCoeditor: CopilotCoeditorService // Removed - will be replaced
 ) {
   return tool({
     name: "addOperator",
@@ -115,13 +113,12 @@ export function createAddOperatorTool(
     execute: async (args: { operatorType: string; customDisplayName?: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Validate operator type exists
         if (!operatorMetadataService.operatorTypeExists(args.operatorType)) {
           return {
             success: false,
-            error: `Unknown operator type: ${args.operatorType}. Use listOperatorTypes tool to see available types.`,
+            error: `Unknown operator type: ${args.operatorType}.Use tools to see available types.`,
           };
         }
 
@@ -138,10 +135,7 @@ export function createAddOperatorTool(
         workflowActionService.addOperator(operator, position);
 
         // Show copilot is adding this operator (after it's added to graph)
-        setTimeout(() => {
-          // copilotCoeditor.showEditingOperator(operator.operatorID);
-          // copilotCoeditor.highlightOperators([operator.operatorID]);
-        }, 100);
+        setTimeout(() => {}, 100);
 
         return {
           success: true,
@@ -265,7 +259,6 @@ export function createActionPlanTool(
     }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Validate all operator types exist
         for (let i = 0; i < args.operators.length; i++) {
@@ -377,9 +370,7 @@ export function createActionPlanTool(
         );
 
         // Show copilot is adding these operators (after they're added to graph)
-        setTimeout(() => {
-          // copilotCoeditor.highlightOperators(createdOperatorIds);
-        }, 100);
+        setTimeout(() => {}, 100);
 
         // Return the action plan info - user feedback will be handled via messages
         return {
@@ -609,31 +600,24 @@ export function createUpdateActionPlanTool(actionPlanService: ActionPlanService)
 }
 
 /**
- * Create listOperators tool for getting all operators in the workflow
+ * Create listOperatorIds tool for getting all operator IDs in the workflow
  */
-export function createListOperatorsTool(workflowActionService: WorkflowActionService) {
+export function createListOperatorIdsTool(workflowActionService: WorkflowActionService) {
   return tool({
-    name: "listOperators",
-    description: "Get all operators in the current workflow",
+    name: "listOperatorIds",
+    description: "Get all operator IDs in the current workflow",
     inputSchema: z.object({}),
     execute: async () => {
       try {
-        // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
-
         const operators = workflowActionService.getTexeraGraph().getAllOperators();
-
-        // Highlight all operators to show copilot is inspecting them
         const operatorIds = operators.map(op => op.operatorID);
-        // copilotCoeditor.highlightOperators(operatorIds);
 
         return {
           success: true,
-          operators: operators,
-          count: operators.length,
+          operatorIds: operatorIds,
+          count: operatorIds.length,
         };
       } catch (error: any) {
-        // Can't clear highlights without operator IDs
         return { success: false, error: error.message };
       }
     },
@@ -664,11 +648,11 @@ export function createListLinksTool(workflowActionService: WorkflowActionService
 }
 
 /**
- * Create listOperatorTypes tool for getting all available operator types
+ * Create listAllOperatorTypes tool for getting all available operator types
  */
-export function createListOperatorTypesTool(workflowUtilService: WorkflowUtilService) {
+export function createListAllOperatorTypesTool(workflowUtilService: WorkflowUtilService) {
   return tool({
-    name: "listOperatorTypes",
+    name: "listAllOperatorTypes",
     description: "Get all available operator types in the system",
     inputSchema: z.object({}),
     execute: async () => {
@@ -699,11 +683,8 @@ export function createGetOperatorTool(workflowActionService: WorkflowActionServi
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Show copilot is viewing this operator
-        // copilotCoeditor.showEditingOperator(args.operatorId);
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
 
@@ -735,10 +716,8 @@ export function createDeleteOperatorTool(workflowActionService: WorkflowActionSe
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Show copilot is editing this operator before deletion
-        // copilotCoeditor.showEditingOperator(args.operatorId);
 
         workflowActionService.deleteOperator(args.operatorId);
 
@@ -795,10 +774,8 @@ export function createSetOperatorPropertyTool(
     execute: async (args: { operatorId: string; properties: Record<string, any> }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Show copilot is editing this operator
-        // copilotCoeditor.showEditingOperator(args.operatorId);
 
         // Set the properties first
         workflowActionService.setOperatorProperty(args.operatorId, args.properties);
@@ -808,7 +785,6 @@ export function createSetOperatorPropertyTool(
 
         if (!validation.isValid) {
           // Properties are set but invalid - return error with details
-          // copilotCoeditor.clearEditingOperator();
           return {
             success: false,
             error: "Property validation failed",
@@ -818,7 +794,6 @@ export function createSetOperatorPropertyTool(
         }
 
         // Show property was changed
-        // copilotCoeditor.showPropertyChanged(args.operatorId);
 
         return {
           success: true,
@@ -826,7 +801,6 @@ export function createSetOperatorPropertyTool(
           properties: args.properties,
         };
       } catch (error: any) {
-        // copilotCoeditor.clearEditingOperator();
         return { success: false, error: error.message };
       }
     },
@@ -852,10 +826,8 @@ export function createSetPortPropertyTool(
     execute: async (args: { operatorId: string; portId: string; properties: Record<string, any> }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Show copilot is editing this operator
-        // copilotCoeditor.showEditingOperator(args.operatorId);
 
         // Create LogicalPort object
         const logicalPort = {
@@ -871,7 +843,6 @@ export function createSetPortPropertyTool(
 
         if (!validation.isValid) {
           // Properties are set but invalid - return error with details
-          // copilotCoeditor.clearEditingOperator();
           return {
             success: false,
             error: "Port property validation failed",
@@ -881,7 +852,6 @@ export function createSetPortPropertyTool(
         }
 
         // Show property was changed
-        // copilotCoeditor.showPropertyChanged(args.operatorId);
 
         return {
           success: true,
@@ -889,7 +859,6 @@ export function createSetPortPropertyTool(
           properties: args.properties,
         };
       } catch (error: any) {
-        // copilotCoeditor.clearEditingOperator();
         return { success: false, error: error.message };
       }
     },
@@ -914,10 +883,8 @@ export function createGetOperatorSchemaTool(
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Highlight the operator being inspected
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         // Get the operator to find its type
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
@@ -958,10 +925,8 @@ export function createGetOperatorPropertiesSchemaTool(
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Highlight the operator being inspected
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         // Get the operator to find its type
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
@@ -1010,10 +975,8 @@ export function createGetOperatorPortsInfoTool(
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Highlight the operator being inspected
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         // Get the operator to find its type
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
@@ -1108,10 +1071,8 @@ export function createGetOperatorInputSchemaTool(workflowCompilingService: Workf
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Highlight the operator being inspected
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(args.operatorId);
 
@@ -1261,10 +1222,8 @@ export function createHasOperatorResultTool(
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Highlight operator being checked
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         const hasResult = workflowResultService.hasAnyResult(args.operatorId);
 
@@ -1296,10 +1255,8 @@ export function createGetOperatorResultTool(workflowResultService: WorkflowResul
     execute: async (args: { operatorId: string; signal?: AbortSignal }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Highlight operator being inspected
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         // First, try pagination mode (for table results)
         const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
@@ -1413,7 +1370,6 @@ export function createGetOperatorResultTool(workflowResultService: WorkflowResul
           error: `No results available for operator ${args.operatorId}. The operator may not have been executed yet, or it may not produce viewable results.`,
         };
       } catch (error: any) {
-        // copilotCoeditor.clearEditingOperator();
         return { success: false, error: error.message };
       }
     },
@@ -1436,10 +1392,8 @@ export function createGetOperatorResultInfoTool(
     execute: async (args: { operatorId: string }) => {
       try {
         // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
 
         // Highlight operator being inspected
-        // copilotCoeditor.highlightOperators([args.operatorId]);
 
         const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
         if (!paginatedResultService) {
@@ -1468,27 +1422,41 @@ export function createGetOperatorResultInfoTool(
 }
 
 /**
- * Create getWorkflowValidationErrors tool for getting workflow validation errors
+ * Create getValidationInfoOfCurrentWorkflow tool for getting workflow validation information
  */
-export function createGetWorkflowValidationErrorsTool(validationWorkflowService: ValidationWorkflowService) {
+export function createGetValidationInfoOfCurrentWorkflowTool(
+  validationWorkflowService: ValidationWorkflowService,
+  workflowActionService: WorkflowActionService
+) {
   return tool({
-    name: "getWorkflowValidationErrors",
+    name: "getValidationInfoOfCurrentWorkflow",
     description:
-      "Get all current validation errors in the workflow. This shows which operators have validation issues and what the errors are. Use this to check if operators are properly configured before execution.",
+      "Get all current validation errors in the workflow. This shows which operators have validation issues and what the errors are. Also returns lists of valid and invalid operator IDs. Use this to check if operators are properly configured before execution.",
     inputSchema: z.object({}),
     execute: async () => {
       try {
         const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
         const errorCount = Object.keys(validationOutput.errors).length;
 
+        const validGraph = validationWorkflowService.getValidTexeraGraph();
+        const validOperators = validGraph.getAllOperators();
+        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+
+        const validOperatorIds = validOperators.map(op => op.operatorID);
+        const invalidCount = allOperators.length - validOperators.length;
+
         return {
           success: true,
           errors: validationOutput.errors,
           errorCount: errorCount,
+          validOperatorIds: validOperatorIds,
+          validCount: validOperators.length,
+          totalCount: allOperators.length,
+          invalidCount: invalidCount,
           message:
             errorCount === 0
               ? "No validation errors in the workflow"
-              : `Found ${errorCount} operator(s) with validation errors`,
+              : `Found ${errorCount} operator(s) with validation errors. ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
@@ -1510,12 +1478,6 @@ export function createValidateOperatorTool(validationWorkflowService: Validation
     }),
     execute: async (args: { operatorId: string }) => {
       try {
-        // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
-
-        // Highlight operator being validated
-        // copilotCoeditor.highlightOperators([args.operatorId]);
-
         const validation = validationWorkflowService.validateOperator(args.operatorId);
 
         if (validation.isValid) {
@@ -1532,42 +1494,6 @@ export function createValidateOperatorTool(validationWorkflowService: Validation
             message: `Operator ${args.operatorId} has validation errors`,
           };
         }
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getValidOperators tool for getting list of valid operators
- */
-export function createGetValidOperatorsTool(
-  validationWorkflowService: ValidationWorkflowService,
-  workflowActionService: WorkflowActionService
-) {
-  return tool({
-    name: "getValidOperators",
-    description:
-      "Get a list of all valid operators in the workflow. This filters out operators with validation errors and returns only properly configured operators.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const validGraph = validationWorkflowService.getValidTexeraGraph();
-        const validOperators = validGraph.getAllOperators();
-        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-
-        const validOperatorIds = validOperators.map(op => op.operatorID);
-        const invalidCount = allOperators.length - validOperators.length;
-
-        return {
-          success: true,
-          validOperatorIds: validOperatorIds,
-          validCount: validOperators.length,
-          totalCount: allOperators.length,
-          invalidCount: invalidCount,
-          message: `Found ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
-        };
       } catch (error: any) {
         return { success: false, error: error.message };
       }
