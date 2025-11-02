@@ -75,10 +75,12 @@
           (mouseenter)="setHoveredMessage(i)"
           (mouseleave)="setHoveredMessage(null)"
           style="position: relative">
-          <!-- Markdown content or tool execution message -->
+          <!-- Message content - displayed as plain text with preserved whitespace -->
           <div
             *ngIf="response.content"
-            [innerHTML]="renderMarkdown(response.content)"></div>
+            class="message-content">
+            {{ response.content }}
+          </div>
           <div
             *ngIf="response.toolCalls && response.toolCalls.length > 0"
             style="color: #8c8c8c; font-style: italic">

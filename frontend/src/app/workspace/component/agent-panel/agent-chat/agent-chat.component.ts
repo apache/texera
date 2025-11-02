@@ -5,7 +5,6 @@ import { CopilotState, AgentUIMessage } from "../../../service/copilot/texera-co
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 
 @UntilDestroy()
 @Component({
@@ -31,8 +30,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   constructor(
     private actionPlanService: ActionPlanService,
     private copilotManagerService: TexeraCopilotManagerService,
-    private workflowActionService: WorkflowActionService,
-    private sanitizer: DomSanitizer
+    private workflowActionService: WorkflowActionService
   ) {}
 
   ngOnInit(): void {
@@ -77,25 +75,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
-  }
-
-  /**
-   * Render markdown content to HTML
-   */
-  public renderMarkdown(content: string): SafeHtml {
-    if (!content) return "";
-
-    let html = content
-      // Bold: **text**
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      // Italic: *text* (but not **)
-      .replace(/\*([^\*]+?)\*/g, "<em>$1</em>")
-      // Code: `code`
-      .replace(/`([^`]+?)`/g, "<code>$1</code>")
-      // Line breaks
-      .replace(/\n/g, "<br>");
-
-    return this.sanitizer.sanitize(1, html) || "";
   }
 
   /**
