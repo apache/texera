@@ -26,7 +26,6 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
-// import { CopilotCoeditorService } from "./copilot-coeditor.service"; // Removed - will be replaced
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
@@ -268,7 +267,6 @@ export class TexeraCopilotManagerService {
             DynamicSchemaService,
             ExecuteWorkflowService,
             WorkflowResultService,
-            // CopilotCoeditorService, // Removed - will be replaced
             WorkflowCompilingService,
             ValidationWorkflowService,
             DataInconsistencyService,
