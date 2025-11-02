@@ -136,7 +136,6 @@ export class TexeraCopilot {
   private shouldStopAfterActionPlan: boolean = false;
 
   constructor(
-    private notificationService: NotificationService,
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
     private operatorMetadataService: OperatorMetadataService,
@@ -146,7 +145,8 @@ export class TexeraCopilot {
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
     private dataInconsistencyService: DataInconsistencyService,
-    private actionPlanService: ActionPlanService
+    private actionPlanService: ActionPlanService,
+    private notificationService: NotificationService
   ) {
     // Default model type
     this.modelType = DEFAULT_AGENT_MODEL_ID;
@@ -217,13 +217,10 @@ export class TexeraCopilot {
         this.agentResponsesSubject.next([...this.agentResponses]);
 
         try {
-          // 2) define tools
           const tools = this.createWorkflowTools();
 
-          // Track if this is the first step in this generation
           let isFirstStep = true;
 
-          // 3) run multi-step with stopWhen to check for user stop request
           const { text, steps, response } = await generateText({
             model: this.model,
             messages: this.messages, // full history
@@ -267,34 +264,16 @@ export class TexeraCopilot {
               isFirstStep = false;
             },
           });
-
-          // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
-          //    This keeps your history perfectly aligned with the SDK's internal state.
           this.messages.push(...response.messages);
-
-          // 5) Emit final AgentResponse with complete content
-          const finalResponse: AgentUIMessage = {
-            role: "agent",
-            content: text || "",
-            isBegin: false,
-            isEnd: true,
-            usage: (response as any).usage as any,
-          };
-          this.agentResponses.push(finalResponse);
           this.agentResponsesSubject.next([...this.agentResponses]);
 
-          // Set state back to Available
           this.state = CopilotState.AVAILABLE;
         } catch (err: any) {
-          // Set state back to Available
           this.state = CopilotState.AVAILABLE;
-
-          // For errors, add to PRIVATE message history
           const errorText = `Error: ${err?.message ?? String(err)}`;
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
 
-          // Emit error as AgentResponse
           const errorResponse: AgentUIMessage = {
             role: "agent",
             content: errorText,
