@@ -249,6 +249,17 @@ export class TexeraCopilotManagerService {
   }
 
   /**
+   * Set planning mode for a specific agent
+   */
+  public setPlanningMode(agentId: string, planningMode: boolean): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    agent.instance.setPlanningMode(planningMode);
+  }
+
+  /**
    * Create a copilot instance with proper dependency injection
    * Uses Angular's Injector to dynamically create instances
    * Creates a child injector to ensure each agent gets a unique instance

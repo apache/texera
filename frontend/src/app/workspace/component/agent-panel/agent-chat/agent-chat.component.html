@@ -25,6 +25,14 @@
       <!-- Agent model info on the leftmost -->
       <small style="color: #888"> Model: <strong>{{ agentInfo.modelType }}</strong> </small>
       <div style="margin-left: auto; display: flex; align-items: center; gap: 16px">
+        <!-- Planning mode toggle -->
+        <div style="display: flex; align-items: center; gap: 8px">
+          <small style="color: #888">Planning Mode</small>
+          <nz-switch
+            [(ngModel)]="planningMode"
+            (ngModelChange)="togglePlanningMode()"
+            nzSize="small"></nz-switch>
+        </div>
         <!-- Token counts -->
         <small style="color: #888">
           Tokens: <strong>{{ getTotalInputTokens() }}</strong> in / <strong>{{ getTotalOutputTokens() }}</strong> out

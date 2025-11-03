@@ -21,6 +21,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public currentMessage = "";
   public pendingActionPlan: ActionPlan | null = null;
   private shouldScrollToBottom = false;
+  public planningMode = false; // Toggle for planning mode
 
   // Modal state for response details
   public isDetailsModalVisible = false;
@@ -231,6 +232,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
    */
   public isConnected(): boolean {
     return this.copilotManagerService.isAgentConnected(this.agentInfo.id);
+  }
+
+  /**
+   * Toggle planning mode
+   */
+  public togglePlanningMode(): void {
+    this.planningMode = !this.planningMode;
+    this.copilotManagerService.setPlanningMode(this.agentInfo.id, this.planningMode);
   }
 
   /**
