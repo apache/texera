@@ -260,6 +260,23 @@ export class TexeraCopilotManagerService {
   }
 
   /**
+   * Get system information (prompt and available tools) for a specific agent
+   */
+  public getSystemInfo(agentId: string): {
+    systemPrompt: string;
+    tools: Array<{ name: string; description: string; inputSchema: any }>;
+  } {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return {
+      systemPrompt: agent.instance.getSystemPrompt(),
+      tools: agent.instance.getToolsInfo(),
+    };
+  }
+
+  /**
    * Create a copilot instance with proper dependency injection
    * Uses Angular's Injector to dynamically create instances
    * Creates a child injector to ensure each agent gets a unique instance
