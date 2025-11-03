@@ -139,7 +139,7 @@
   <!-- Delete option for links only -->
   <li
     nz-menu-item
-    *ngIf="hasHighlightedLinks() && 
+    *ngIf="hasHighlightedLinks() &&
   operatorMenuService.highlightedOperators.value.length === 0 &&
   operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
   isWorkflowModifiable"
@@ -163,19 +163,6 @@
       nzType="play-circle"
       nzTheme="outline"></span>
     execute to this operator
-  </li>
-
-  <li
-    nz-menu-item
-    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 &&
-  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
-  !hasHighlightedLinks()"
-    (click)="onAddToInconsistency()">
-    <span
-      nz-icon
-      nzType="warning"
-      nzTheme="outline"></span>
-    Add to Inconsistency
   </li>
 
   <li
