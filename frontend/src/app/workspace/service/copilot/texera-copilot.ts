@@ -68,7 +68,7 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
+import { COPILOT_SYSTEM_PROMPT, PLANNING_MODE_PROMPT } from "./copilot-prompts";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -135,6 +135,9 @@ export class TexeraCopilot {
   // Flag to stop generation after action plan is created
   private shouldStopAfterActionPlan: boolean = false;
 
+  // Planning mode - controls which tools are available
+  private planningMode: boolean = false;
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
@@ -165,6 +168,13 @@ export class TexeraCopilot {
    */
   public setModelType(modelType: string): void {
     this.modelType = modelType;
+  }
+
+  /**
+   * Set the planning mode for this agent
+   */
+  public setPlanningMode(planningMode: boolean): void {
+    this.planningMode = planningMode;
   }
 
   /**
@@ -221,11 +231,16 @@ export class TexeraCopilot {
 
           let isFirstStep = true;
 
+          // Conditionally append planning mode instructions to system prompt
+          const systemPrompt = this.planningMode
+            ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT
+            : COPILOT_SYSTEM_PROMPT;
+
           const { text, steps, response } = await generateText({
             model: this.model,
             messages: this.messages, // full history
             tools,
-            system: COPILOT_SYSTEM_PROMPT,
+            system: systemPrompt,
             // Stop when: user requested stop OR action plan created OR reached 50 steps
             stopWhen: ({ steps }) => {
               // Check if user requested stop
@@ -359,7 +374,8 @@ export class TexeraCopilot {
     const deleteInconsistencyTool = toolWithTimeout(createDeleteInconsistencyTool(this.dataInconsistencyService));
     const clearInconsistenciesTool = toolWithTimeout(createClearInconsistenciesTool(this.dataInconsistencyService));
 
-    return {
+    // Base tools available in both modes
+    const baseTools: Record<string, any> = {
       // workflow editing
       addOperator: addOperatorTool,
       addLink: addLinkTool,
@@ -387,13 +403,6 @@ export class TexeraCopilot {
       hasOperatorResult: hasOperatorResultTool,
       getOperatorResult: getOperatorResultTool,
       getOperatorResultInfo: getOperatorResultInfoTool,
-      // workflow action plan CRUD
-      actionPlan: actionPlanTool,
-      updateActionPlanProgress: updateActionPlanProgressTool,
-      getActionPlan: getActionPlanTool,
-      listActionPlans: listActionPlansTool,
-      deleteActionPlan: deleteActionPlanTool,
-      updateActionPlan: updateActionPlanTool,
       // Data inconsistency tools
       addInconsistency: addInconsistencyTool,
       listInconsistencies: listInconsistenciesTool,
@@ -401,6 +410,23 @@ export class TexeraCopilot {
       deleteInconsistency: deleteInconsistencyTool,
       clearInconsistencies: clearInconsistenciesTool,
     };
+
+    // Conditionally add action plan tools based on planning mode
+    if (this.planningMode) {
+      // In planning mode: include action plan tools
+      return {
+        ...baseTools,
+        actionPlan: actionPlanTool,
+        updateActionPlanProgress: updateActionPlanProgressTool,
+        getActionPlan: getActionPlanTool,
+        listActionPlans: listActionPlansTool,
+        deleteActionPlan: deleteActionPlanTool,
+        updateActionPlan: updateActionPlanTool,
+      };
+    } else {
+      // Not in planning mode: exclude action plan tools
+      return baseTools;
+    }
   }
 
   /**
