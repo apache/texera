@@ -28,8 +28,8 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 /**
  * Agent info for tracking created agents
@@ -297,8 +297,8 @@ export class TexeraCopilotManagerService {
             WorkflowResultService,
             WorkflowCompilingService,
             ValidationWorkflowService,
-            DataInconsistencyService,
             ActionPlanService,
+            NotificationService,
           ],
         },
       ],

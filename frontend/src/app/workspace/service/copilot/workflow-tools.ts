@@ -23,12 +23,10 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorLink } from "../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 
 // Tool execution timeout in milliseconds (2 minutes)
@@ -1496,165 +1494,6 @@ export function createValidateOperatorTool(validationWorkflowService: Validation
         }
       } catch (error: any) {
         return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Tool to add a data inconsistency to the list
- */
-export function createAddInconsistencyTool(service: DataInconsistencyService) {
-  return tool({
-    name: "addInconsistency",
-    description:
-      "Add a data inconsistency finding to the inconsistency list. Use this when you find data errors or anomalies in the workflow results.",
-    inputSchema: z.object({
-      name: z.string().describe("Short name for the inconsistency (e.g., 'Negative Prices', 'Missing Values')"),
-      description: z.string().describe("Detailed description of the inconsistency found"),
-      operatorId: z.string().describe("ID of the operator that revealed this inconsistency"),
-    }),
-    execute: async (args: { name: string; description: string; operatorId: string }) => {
-      try {
-        const inconsistency = service.addInconsistency(args.name, args.description, args.operatorId);
-        return {
-          success: true,
-          message: `Added inconsistency: ${args.name}`,
-          inconsistency,
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || String(error),
-        };
-      }
-    },
-  });
-}
-
-/**
- * Tool to list all data inconsistencies
- */
-export function createListInconsistenciesTool(service: DataInconsistencyService) {
-  return tool({
-    name: "listInconsistencies",
-    description: "Get all data inconsistencies found so far",
-    inputSchema: z.object({}),
-    execute: async (args: {}) => {
-      try {
-        const inconsistencies = service.getAllInconsistencies();
-        return {
-          success: true,
-          count: inconsistencies.length,
-          inconsistencies,
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || String(error),
-        };
-      }
-    },
-  });
-}
-
-/**
- * Tool to update an existing data inconsistency
- */
-export function createUpdateInconsistencyTool(service: DataInconsistencyService) {
-  return tool({
-    name: "updateInconsistency",
-    description: "Update an existing data inconsistency",
-    inputSchema: z.object({
-      id: z.string().describe("ID of the inconsistency to update"),
-      name: z.string().optional().describe("New name for the inconsistency"),
-      description: z.string().optional().describe("New description"),
-      operatorId: z.string().optional().describe("New operator ID"),
-    }),
-    execute: async (args: { id: string; name?: string; description?: string; operatorId?: string }) => {
-      try {
-        const updates: any = {};
-        if (args.name !== undefined) updates.name = args.name;
-        if (args.description !== undefined) updates.description = args.description;
-        if (args.operatorId !== undefined) updates.operatorId = args.operatorId;
-
-        const updated = service.updateInconsistency(args.id, updates);
-        if (!updated) {
-          return {
-            success: false,
-            error: `Inconsistency not found: ${args.id}`,
-          };
-        }
-
-        return {
-          success: true,
-          message: `Updated inconsistency: ${args.id}`,
-          inconsistency: updated,
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || String(error),
-        };
-      }
-    },
-  });
-}
-
-/**
- * Tool to delete a data inconsistency
- */
-export function createDeleteInconsistencyTool(service: DataInconsistencyService) {
-  return tool({
-    name: "deleteInconsistency",
-    description: "Delete a data inconsistency from the list",
-    inputSchema: z.object({
-      id: z.string().describe("ID of the inconsistency to delete"),
-    }),
-    execute: async (args: { id: string }) => {
-      try {
-        const deleted = service.deleteInconsistency(args.id);
-        if (!deleted) {
-          return {
-            success: false,
-            error: `Inconsistency not found: ${args.id}`,
-          };
-        }
-
-        return {
-          success: true,
-          message: `Deleted inconsistency: ${args.id}`,
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || String(error),
-        };
-      }
-    },
-  });
-}
-
-/**
- * Tool to clear all data inconsistencies
- */
-export function createClearInconsistenciesTool(service: DataInconsistencyService) {
-  return tool({
-    name: "clearInconsistencies",
-    description: "Clear all data inconsistencies from the list",
-    inputSchema: z.object({}),
-    execute: async (args: {}) => {
-      try {
-        service.clearAll();
-        return {
-          success: true,
-          message: "Cleared all inconsistencies",
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || String(error),
-        };
       }
     },
   });

@@ -48,11 +48,6 @@ import {
   createGetOperatorResultInfoTool,
   createGetValidationInfoOfCurrentWorkflowTool,
   createValidateOperatorTool,
-  createAddInconsistencyTool,
-  createListInconsistenciesTool,
-  createUpdateInconsistencyTool,
-  createDeleteInconsistencyTool,
-  createClearInconsistenciesTool,
   toolWithTimeout,
   createListAllOperatorTypesTool,
   createListLinksTool,
@@ -69,7 +64,6 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { COPILOT_SYSTEM_PROMPT, PLANNING_MODE_PROMPT } from "./copilot-prompts";
-import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 
@@ -147,7 +141,6 @@ export class TexeraCopilot {
     private workflowResultService: WorkflowResultService,
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
-    private dataInconsistencyService: DataInconsistencyService,
     private actionPlanService: ActionPlanService,
     private notificationService: NotificationService
   ) {
@@ -373,13 +366,6 @@ export class TexeraCopilot {
     );
     const validateOperatorTool = toolWithTimeout(createValidateOperatorTool(this.validationWorkflowService));
 
-    // Inconsistency tools
-    const addInconsistencyTool = toolWithTimeout(createAddInconsistencyTool(this.dataInconsistencyService));
-    const listInconsistenciesTool = toolWithTimeout(createListInconsistenciesTool(this.dataInconsistencyService));
-    const updateInconsistencyTool = toolWithTimeout(createUpdateInconsistencyTool(this.dataInconsistencyService));
-    const deleteInconsistencyTool = toolWithTimeout(createDeleteInconsistencyTool(this.dataInconsistencyService));
-    const clearInconsistenciesTool = toolWithTimeout(createClearInconsistenciesTool(this.dataInconsistencyService));
-
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // workflow editing
@@ -409,12 +395,6 @@ export class TexeraCopilot {
       hasOperatorResult: hasOperatorResultTool,
       getOperatorResult: getOperatorResultTool,
       getOperatorResultInfo: getOperatorResultInfoTool,
-      // Data inconsistency tools
-      addInconsistency: addInconsistencyTool,
-      listInconsistencies: listInconsistenciesTool,
-      updateInconsistency: updateInconsistencyTool,
-      deleteInconsistency: deleteInconsistencyTool,
-      clearInconsistencies: clearInconsistenciesTool,
     };
 
     // Conditionally add action plan tools based on planning mode
