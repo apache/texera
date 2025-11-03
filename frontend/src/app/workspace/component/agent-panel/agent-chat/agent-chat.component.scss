@@ -36,14 +36,16 @@
 
 .chat-toolbar-controls {
   display: flex;
-  gap: 8px;
+  width: 100%;
   align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
 
-  .toggle-label {
-    font-size: 12px;
-    margin-left: 4px;
-    color: #666;
-  }
+.toolbar-item {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .chat-toolbar-buttons {
