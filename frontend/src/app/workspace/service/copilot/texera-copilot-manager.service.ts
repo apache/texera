@@ -260,6 +260,17 @@ export class TexeraCopilotManagerService {
   }
 
   /**
+   * Get planning mode for a specific agent
+   */
+  public getPlanningMode(agentId: string): boolean {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.getPlanningMode();
+  }
+
+  /**
    * Get system information (prompt and available tools) for a specific agent
    */
   public getSystemInfo(agentId: string): {
