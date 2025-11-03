@@ -179,6 +179,13 @@ export class TexeraCopilot {
   }
 
   /**
+   * Get the current planning mode
+   */
+  public getPlanningMode(): boolean {
+    return this.planningMode;
+  }
+
+  /**
    * Initialize the copilot with MCP and AI model
    */
   public async initialize(): Promise<void> {
