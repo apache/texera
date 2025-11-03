@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+{{- if .Values.litellm.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.litellm.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.litellm.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.litellm.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.litellm.name }}
+    spec:
+      containers:
+        - name: litellm
+          image: {{ .Values.litellm.image.repository }}:{{ .Values.litellm.image.tag }}
+          imagePullPolicy: {{ .Values.litellm.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.litellm.service.port }}
+              name: http
+          envFrom:
+            - secretRef:
+                name: litellm-secret
+          command:
+            - litellm
+            - --config
+            - /etc/litellm/config.yaml
+            - --port
+            - "{{ .Values.litellm.service.port }}"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/litellm
+              readOnly: true
+          resources:
+            {{- toYaml .Values.litellm.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.litellm.service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.litellm.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
+{{- end }}

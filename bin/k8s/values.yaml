@@ -293,6 +293,30 @@ pythonLanguageServer:
       cpu: "100m"
       memory: "100Mi"
 
+# LiteLLM Proxy configuration
+litellm:
+  enabled: true
+  name: litellm
+  replicaCount: 1
+  image:
+    repository: ghcr.io/berriai/litellm
+    tag: main-v1.30.3
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 4000
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+  apiKeys:
+    # Set your Anthropic API key here
+    # IMPORTANT: In production, use external secrets management (e.g., sealed-secrets, external-secrets)
+    anthropic: ""  # Replace with your actual API key or use external secret
+
 # Metrics Server configuration
 metrics-server:
   enabled: true # set to false if metrics-server is already installed
@@ -338,6 +362,9 @@ ingressPaths:
     - path: /api/config
       serviceName: config-service-svc
       servicePort: 9094
+    - path: /api/chat
+      serviceName: litellm-svc
+      servicePort: 4000
     - path: /wsapi/workflow-websocket
       serviceName: envoy-svc
       servicePort: 10000
