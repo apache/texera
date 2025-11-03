@@ -28,6 +28,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public selectedResponse: AgentUIMessage | null = null;
   public hoveredMessageIndex: number | null = null;
 
+  // Modal state for system info
+  public isSystemInfoModalVisible = false;
+  public systemPrompt: string = "";
+  public availableTools: Array<{ name: string; description: string; inputSchema: any }> = [];
+
   constructor(
     private actionPlanService: ActionPlanService,
     private copilotManagerService: TexeraCopilotManagerService,
@@ -99,6 +104,23 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public closeDetailsModal(): void {
     this.isDetailsModalVisible = false;
     this.selectedResponse = null;
+  }
+
+  /**
+   * Show system info modal with current prompt and tools
+   */
+  public showSystemInfo(): void {
+    const systemInfo = this.copilotManagerService.getSystemInfo(this.agentInfo.id);
+    this.systemPrompt = systemInfo.systemPrompt;
+    this.availableTools = systemInfo.tools;
+    this.isSystemInfoModalVisible = true;
+  }
+
+  /**
+   * Close system info modal
+   */
+  public closeSystemInfoModal(): void {
+    this.isSystemInfoModalVisible = false;
   }
 
   /**
@@ -235,11 +257,10 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Toggle planning mode
+   * Handle planning mode change
    */
-  public togglePlanningMode(): void {
-    this.planningMode = !this.planningMode;
-    this.copilotManagerService.setPlanningMode(this.agentInfo.id, this.planningMode);
+  public onPlanningModeChange(value: boolean): void {
+    this.copilotManagerService.setPlanningMode(this.agentInfo.id, value);
   }
 
   /**

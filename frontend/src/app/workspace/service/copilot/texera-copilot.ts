@@ -175,6 +175,7 @@ export class TexeraCopilot {
    */
   public setPlanningMode(planningMode: boolean): void {
     this.planningMode = planningMode;
+    console.log(`[${this.agentId}] Planning mode set to: ${planningMode}`);
   }
 
   /**
@@ -414,6 +415,7 @@ export class TexeraCopilot {
     // Conditionally add action plan tools based on planning mode
     if (this.planningMode) {
       // In planning mode: include action plan tools
+      console.log(`[${this.agentId}] Creating tools WITH action plan tools (planning mode ON)`);
       return {
         ...baseTools,
         actionPlan: actionPlanTool,
@@ -425,6 +427,7 @@ export class TexeraCopilot {
       };
     } else {
       // Not in planning mode: exclude action plan tools
+      console.log(`[${this.agentId}] Creating tools WITHOUT action plan tools (planning mode OFF)`);
       return baseTools;
     }
   }
@@ -483,5 +486,24 @@ export class TexeraCopilot {
    */
   public isConnected(): boolean {
     return this.state !== CopilotState.UNAVAILABLE;
+  }
+
+  /**
+   * Get system prompt based on current planning mode
+   */
+  public getSystemPrompt(): string {
+    return this.planningMode ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT : COPILOT_SYSTEM_PROMPT;
+  }
+
+  /**
+   * Get available tools information (name, description, input schema)
+   */
+  public getToolsInfo(): Array<{ name: string; description: string; inputSchema: any }> {
+    const tools = this.createWorkflowTools();
+    return Object.entries(tools).map(([name, tool]) => ({
+      name: name,
+      description: tool.description || "No description available",
+      inputSchema: tool.parameters || {},
+    }));
   }
 }
