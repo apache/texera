@@ -14,30 +14,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-gui:
+frontend:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/gui/**'
+          - 'frontend/**'
 
-backend:
-  - all:
-      - changed-files:
-          - any-glob-to-any-file:
-              - 'core/**'
-          - all-globs-to-all-files:
-              - '!core/gui/**'
-              - '!core/log/**'
-              - '!core/scripts/**'
+common:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'common/**'
+
+service:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*-service/**'
 
 engine:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/amber/**'
+          - 'amber/**'
 
 python:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/amber/src/main/python/**'
+          - 'amber/src/main/python/**'
           - '**/*.py'
 
 docs:
@@ -56,7 +56,7 @@ ci:
 build:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/scripts/**'
+          - 'bin/**'
           - 'deployment/**'
 
 dependencies:
@@ -74,8 +74,8 @@ ddl-change:
 
 feature:
   - head-branch:
-    - '^feat'
-    - 'feature'
+      - '^feat'
+      - 'feature'
 
 fix:
   - head-branch: '^fix'

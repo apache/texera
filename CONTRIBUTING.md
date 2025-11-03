@@ -61,10 +61,10 @@ Do not include any of the following in your PR:
 - To check format, under `core` run command `sbt scalafmtCheckAll`; to fix format, run `sbt scalafmtAll`. 
 - When you need to execute both, scalafmt is supposed to be executed after scalafix.
 #### Testing the backend
-1. The test framework is `scalatest`, for the amber engine, tests are located under `core/amber/src/test`; for `WorkflowCompilingService`, tests are located under `core/workflow-compiling-service`. You can find unit tests and e2e tests.
+1. The test framework is `scalatest`, for the amber engine, tests are located under `amber/src/test`; for `WorkflowCompilingService`, tests are located under `core/workflow-compiling-service`. You can find unit tests and e2e tests.
 2. To execute it, navigate to `core` directory in the command line and execute `sbt test`.
 3. If using IntelliJ to execute the test cases please make sure to be at the correct working directory.
-* For the amber engine's tests, the working directory should be `core/amber`
+* For the amber engine's tests, the working directory should be `amber`
 * For the other services' tests, the working directory should be `core`
 #### Testing the frontend 
 Before merging your code to the master branch, you need to pass the existing unit tests first.
