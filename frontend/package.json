@@ -40,7 +40,6 @@
     "@codingame/monaco-vscode-r-default-extension": "8.0.4",
     "@loaders.gl/core": "3.4.2",
     "@luma.gl/core": "8.5.20",
-    "@modelcontextprotocol/sdk": "^1.20.1",
     "@ngneat/until-destroy": "8.1.4",
     "@ngx-formly/core": "6.3.12",
     "@ngx-formly/ng-zorro-antd": "6.3.12",

@@ -1,10 +1,4 @@
 {
-  "/api/mcp": {
-    "target": "http://localhost:9098",
-    "secure": false,
-    "changeOrigin": true,
-    "ws": true
-  },
   "/api/chat/completion": {
     "target": "http://0.0.0.0:4000",
     "secure": false,

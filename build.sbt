@@ -74,31 +74,6 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
     )
   )
 
-lazy val McpService = (project in file("mcp-service"))
-  .dependsOn(WorkflowOperator, Auth, Config, DAO)
-  .settings(
-    dependencyOverrides ++= Seq(
-      // Force Jackson 2.17.0 for compatibility with jackson-module-scala 2.17.0
-      // Dropwizard 4.0.7 may pull in newer versions that are incompatible
-      "com.fasterxml.jackson.core" % "jackson-core" % "2.17.0",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.17.0",
-      "com.fasterxml.jackson.core" % "jackson-annotations" % "2.17.0",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0",
-      "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.17.0",
-      "com.fasterxml.jackson.module" % "jackson-module-blackbird" % "2.17.0",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.17.0",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.17.0",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.17.0",
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.17.0",
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.17.0",
-      "com.fasterxml.jackson.jakarta.rs" % "jackson-jakarta-rs-base" % "2.17.0",
-      "com.fasterxml.jackson.jakarta.rs" % "jackson-jakarta-rs-json-provider" % "2.17.0",
-      "com.fasterxml.jackson.module" % "jackson-module-jakarta-xmlbind-annotations" % "2.17.0"
-    )
-  )
-  .configs(Test)
-  .dependsOn(DAO % "test->test", Auth % "test->test")
-
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
   .settings(
@@ -136,7 +111,6 @@ lazy val TexeraProject = (project in file("."))
     FileService,
     WorkflowOperator,
     WorkflowCompilingService,
-    McpService,
     WorkflowExecutionService
   )
   .settings(
