@@ -258,6 +258,11 @@ export class TexeraCopilot {
             },
             // optional: observe every completed step (tool calls + results available)
             onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
+              // If stopped by user, skip processing this step
+              if (this.state === CopilotState.STOPPING) {
+                return;
+              }
+
               // Check if actionPlan tool was called in this step
               if (toolCalls && toolCalls.some((call: any) => call.toolName === "actionPlan")) {
                 this.shouldStopAfterActionPlan = true;
