@@ -21,7 +21,6 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from "@angu
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActionPlan, ActionPlanStatus, ActionPlanTask } from "../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import * as joint from "jointjs";
 
 @UntilDestroy()
 @Component({
@@ -106,26 +105,22 @@ export class ActionPlanViewComponent implements OnInit {
     const operatorElement = paper.getModelById(operatorId);
 
     if (operatorElement) {
-      const operatorView = paper.findViewByModel(operatorElement);
-      if (operatorView) {
-        const highlighterNamespace = joint.highlighters;
-
-        if (isHovering) {
-          // Add halo effect on hover
-          highlighterNamespace.mask.add(operatorView, "body", "action-plan-hover", {
-            padding: 10,
-            deep: true,
-            attrs: {
-              stroke: "#69b7ff",
-              "stroke-width": 3,
-              "stroke-opacity": 0.8,
-              fill: "transparent",
-            },
-          });
-        } else {
-          // Remove halo effect when hover ends
-          highlighterNamespace.mask.remove(operatorView, "action-plan-hover");
-        }
+      if (isHovering) {
+        // Add highlight effect by changing stroke attributes
+        operatorElement.attr({
+          "rect.body": {
+            stroke: "#69b7ff",
+            "stroke-width": 4,
+          },
+        });
+      } else {
+        // Restore default stroke attributes
+        operatorElement.attr({
+          "rect.body": {
+            stroke: "#CFCFCF",
+            "stroke-width": 2,
+          },
+        });
       }
     }
   }
