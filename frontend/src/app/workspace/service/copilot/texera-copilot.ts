@@ -39,6 +39,7 @@ import {
   createGetOperatorPortsInfoTool,
   createGetOperatorMetadataTool,
   createGetOperatorInputSchemaTool,
+  createGetOperatorOutputSchemaTool,
   createGetWorkflowCompilationStateTool,
   createExecuteWorkflowTool,
   createGetExecutionStateTool,
@@ -362,6 +363,9 @@ export class TexeraCopilot {
       createGetOperatorMetadataTool(this.workflowActionService, this.operatorMetadataService)
     );
     const getOperatorInputSchemaTool = toolWithTimeout(createGetOperatorInputSchemaTool(this.workflowCompilingService));
+    const getOperatorOutputSchemaTool = toolWithTimeout(
+      createGetOperatorOutputSchemaTool(this.workflowCompilingService)
+    );
     const getWorkflowCompilationStateTool = toolWithTimeout(
       createGetWorkflowCompilationStateTool(this.workflowCompilingService)
     );
@@ -408,6 +412,7 @@ export class TexeraCopilot {
       getOperatorPortsInfo: getOperatorPortsInfoTool,
       getOperatorMetadata: getOperatorMetadataTool,
       getOperatorInputSchema: getOperatorInputSchemaTool,
+      getOperatorOutputSchema: getOperatorOutputSchemaTool,
       getWorkflowCompilationState: getWorkflowCompilationStateTool,
       // workflow execution
       executeWorkflow: executeWorkflowTool,
