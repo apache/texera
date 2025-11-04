@@ -60,6 +60,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       return;
     }
 
+    this.planningMode = this.copilotManagerService.getPlanningMode(this.agentInfo.id);
+
     // Subscribe to agent responses
     this.copilotManagerService
       .getAgentResponsesObservable(this.agentInfo.id)
