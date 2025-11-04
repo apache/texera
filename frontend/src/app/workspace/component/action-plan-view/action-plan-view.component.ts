@@ -29,9 +29,9 @@ import * as joint from "jointjs";
   templateUrl: "./action-plan-view.component.html",
   styleUrls: ["./action-plan-view.component.scss"],
 })
-export class ActionPlanViewComponent implements OnInit, OnDestroy {
+export class ActionPlanViewComponent implements OnInit {
   @Input() actionPlan!: ActionPlan;
-  @Input() showFeedbackControls: boolean = false; // Show accept/reject buttons
+  @Input() showFeedbackControls: boolean = false;
   @Output() userDecision = new EventEmitter<{
     accepted: boolean;
     message: string;
@@ -40,17 +40,14 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   }>();
 
   public rejectMessage: string = "";
-  public runInNewAgent: boolean = false; // Toggle for running in new agent
-  public ActionPlanStatus = ActionPlanStatus; // Expose enum to template
-
-  // Track task completion states
+  public runInNewAgent: boolean = false;
+  public ActionPlanStatus = ActionPlanStatus;
   public taskCompletionStates: { [operatorId: string]: boolean } = {};
 
   constructor(private workflowActionService: WorkflowActionService) {}
 
   ngOnInit(): void {
     if (!this.actionPlan) {
-      console.error("ActionPlan is not provided!");
       return;
     }
 
@@ -63,33 +60,28 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    // Cleanup handled by UntilDestroy decorator
-  }
-
   /**
-   * User accepted the action plan
+   * Handle user acceptance of the action plan.
    */
   public onAccept(): void {
-    // Emit user decision with information about whether to create a new actor
+    const userFeedback = this.rejectMessage.trim();
     this.userDecision.emit({
       accepted: true,
-      message: `✅ Accepted action plan: "${this.actionPlan.summary}"${this.runInNewAgent ? " (will run in new agent)" : ""}`,
+      message: `Action plan ${this.actionPlan.id} accepted. Feedback: ${userFeedback}`,
       createNewActor: this.runInNewAgent,
       planId: this.actionPlan.id,
     });
   }
 
   /**
-   * User rejected the action plan with optional feedback
+   * Handle user rejection with optional feedback message.
    */
   public onReject(): void {
-    const userFeedback = this.rejectMessage.trim() || "I don't want this action plan.";
+    const userFeedback = this.rejectMessage.trim();
 
-    // Emit user decision event for chat component to handle
     this.userDecision.emit({
       accepted: false,
-      message: `❌ Rejected action plan: "${this.actionPlan.summary}". Feedback: ${userFeedback}`,
+      message: `Action plan ${this.actionPlan.id} rejected. Feedback: ${userFeedback}`,
       planId: this.actionPlan.id,
     });
 
@@ -97,16 +89,14 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Highlight an operator when clicking on its task
+   * Highlight an operator on the workflow canvas when its task is clicked.
    */
   public highlightOperator(operatorId: string): void {
-    // Get the operator from workflow
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
     if (!operator) {
       return;
     }
 
-    // Get the joint graph wrapper to access the paper
     const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
     if (!jointGraphWrapper) {
       return;
@@ -116,16 +106,11 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
     const operatorElement = paper.getModelById(operatorId);
 
     if (operatorElement) {
-      // Create a temporary highlight using Joint.js highlight API
       const operatorView = paper.findViewByModel(operatorElement);
       if (operatorView) {
-        // Add light blue halo effect using joint.highlighters
         const highlighterNamespace = joint.highlighters;
 
-        // Remove any existing highlight with same name
         highlighterNamespace.mask.remove(operatorView, "action-plan-click");
-
-        // Add new highlight with light blue color
         highlighterNamespace.mask.add(operatorView, "body", "action-plan-click", {
           padding: 10,
           deep: true,
@@ -138,7 +123,6 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
           },
         });
 
-        // Remove the highlight after 2 seconds
         setTimeout(() => {
           highlighterNamespace.mask.remove(operatorView, "action-plan-click");
         }, 2000);
@@ -147,7 +131,7 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Get status label for display
+   * Get display label for current plan status.
    */
   public getStatusLabel(): string {
     const status = this.actionPlan.status$.value;
@@ -166,7 +150,7 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Get status color for display
+   * Get display color for current plan status.
    */
   public getStatusColor(): string {
     const status = this.actionPlan.status$.value;
@@ -185,14 +169,14 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Get tasks as array for template iteration
+   * Get tasks as array for template iteration.
    */
   public get tasksArray(): ActionPlanTask[] {
     return Array.from(this.actionPlan.tasks.values());
   }
 
   /**
-   * Get progress percentage
+   * Calculate completion percentage based on finished tasks.
    */
   public getProgressPercentage(): number {
     if (this.actionPlan.tasks.size === 0) return 0;

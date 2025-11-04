@@ -19,6 +19,7 @@
 
 import { Component, EventEmitter, Output } from "@angular/core";
 import { TexeraCopilotManagerService, ModelType } from "../../../service/copilot/texera-copilot-manager.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 @Component({
   selector: "texera-agent-registration",
@@ -26,19 +27,19 @@ import { TexeraCopilotManagerService, ModelType } from "../../../service/copilot
   styleUrls: ["agent-registration.component.scss"],
 })
 export class AgentRegistrationComponent {
-  @Output() agentCreated = new EventEmitter<string>(); // Emit agent ID when created
+  @Output() agentCreated = new EventEmitter<string>();
 
   public modelTypes: ModelType[] = [];
   public selectedModelType: string | null = null;
   public customAgentName: string = "";
 
-  constructor(private copilotManagerService: TexeraCopilotManagerService) {
+  constructor(
+    private copilotManagerService: TexeraCopilotManagerService,
+    private notificationService: NotificationService
+  ) {
     this.modelTypes = this.copilotManagerService.getModelTypes();
   }
 
-  /**
-   * Select a model type
-   */
   public selectModelType(modelTypeId: string): void {
     this.selectedModelType = modelTypeId;
   }
@@ -46,7 +47,7 @@ export class AgentRegistrationComponent {
   public isCreating: boolean = false;
 
   /**
-   * Create a new agent with the selected model type
+   * Create a new agent with the selected model type.
    */
   public async createAgent(): Promise<void> {
     if (!this.selectedModelType || this.isCreating) {
@@ -61,24 +62,16 @@ export class AgentRegistrationComponent {
         this.customAgentName || undefined
       );
 
-      // Emit event with agent ID
       this.agentCreated.emit(agentInfo.id);
-
-      // Reset selection
       this.selectedModelType = null;
       this.customAgentName = "";
     } catch (error) {
-      console.error("Failed to create agent:", error);
-      // TODO: Show error notification
-      alert("Failed to create agent. Please check the console for details.");
+      this.notificationService.error(`Failed to create agent: ${error}`);
     } finally {
       this.isCreating = false;
     }
   }
 
-  /**
-   * Check if create button should be enabled
-   */
   public canCreate(): boolean {
     return this.selectedModelType !== null && !this.isCreating;
   }
