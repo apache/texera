@@ -1095,6 +1095,41 @@ export function createGetOperatorInputSchemaTool(workflowCompilingService: Workf
 }
 
 /**
+ * Create getOperatorOutputSchema tool for getting operator's output schema from compilation
+ */
+export function createGetOperatorOutputSchemaTool(workflowCompilingService: WorkflowCompilingService) {
+  return tool({
+    name: "getOperatorOutputSchema",
+    description:
+      "Get the output schema for an operator, which shows what columns/attributes this operator produces. This is determined by workflow compilation and shows the schema that will be available to downstream operators.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get output schema for"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(args.operatorId);
+
+        if (!outputSchemaMap) {
+          return {
+            success: true,
+            outputSchema: null,
+            message: `Operator ${args.operatorId} has no output schema (workflow may not be compiled yet or operator has errors)`,
+          };
+        }
+
+        return {
+          success: true,
+          outputSchema: outputSchemaMap,
+          message: `Retrieved output schema for operator ${args.operatorId}`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
  * Create getWorkflowCompilationState tool for checking compilation status and errors
  */
 export function createGetWorkflowCompilationStateTool(workflowCompilingService: WorkflowCompilingService) {
