@@ -37,10 +37,10 @@
             nzTheme="outline"></i>
           {{ actionPlan.createdAt | date : "short" }}
         </span>
+        <span class="plan-status">
+          <nz-tag [nzColor]="getStatusColor()">{{ getStatusLabel() }}</nz-tag>
+        </span>
       </div>
-    </div>
-    <div class="plan-status">
-      <nz-tag [nzColor]="getStatusColor()">{{ getStatusLabel() }}</nz-tag>
     </div>
   </div>
 
