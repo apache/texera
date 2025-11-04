@@ -150,6 +150,66 @@ export class TexeraCopilot {
   }
 
   /**
+   * Type guard to check if a message is a valid ModelMessage.
+   * Uses TypeScript's type predicate for compile-time type safety.
+   */
+  private isValidModelMessage(message: unknown): message is ModelMessage {
+    if (!message || typeof message !== "object") {
+      return false;
+    }
+
+    const msg = message as Record<string, unknown>;
+
+    // Check if role property exists and is a string
+    if (typeof msg.role !== "string") {
+      return false;
+    }
+
+    // Validate based on role using type narrowing
+    switch (msg.role) {
+      case "user":
+        // UserModelMessage: { role: "user", content: string }
+        return typeof msg.content === "string";
+
+      case "assistant":
+        // AssistantModelMessage: { role: "assistant", content: string | array }
+        return typeof msg.content === "string" || Array.isArray(msg.content);
+
+      case "tool":
+        // ToolModelMessage: { role: "tool", content: array }
+        return Array.isArray(msg.content);
+
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Validate all messages in the conversation history.
+   * Throws an error if any message doesn't conform to ModelMessage type.
+   */
+  private validateMessages(): void {
+    const invalidMessages: Array<{ index: number; message: unknown }> = [];
+
+    this.messages.forEach((message, index) => {
+      if (!this.isValidModelMessage(message)) {
+        invalidMessages.push({ index, message });
+      }
+    });
+
+    if (invalidMessages.length > 0) {
+      const indices = invalidMessages.map(m => m.index).join(", ");
+      const details = invalidMessages.map(m => `[${m.index}]: ${JSON.stringify(m.message)}`).join("; ");
+      const errorMessage = `Invalid ModelMessage(s) found at indices: ${indices}. Details: ${details}`;
+
+      this.notificationService.error(
+        `Message validation failed: ${invalidMessages.length} invalid message(s). Please disconnect current agent and create a new agent`
+      );
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
    * Initialize the copilot with the AI model.
    */
   public async initialize(): Promise<void> {
@@ -196,7 +256,10 @@ export class TexeraCopilot {
             ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT
             : COPILOT_SYSTEM_PROMPT;
 
-          const { text, steps, response } = await generateText({
+          // Validate messages before calling generateText
+          this.validateMessages();
+
+          const { response } = await generateText({
             model: this.model,
             messages: this.messages,
             tools,
@@ -211,7 +274,7 @@ export class TexeraCopilot {
               }
               return stepCountIs(50)({ steps });
             },
-            onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
+            onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
               if (this.state === CopilotState.STOPPING) {
                 return;
               }
