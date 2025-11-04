@@ -62,7 +62,8 @@
       <nz-list-item *ngFor="let task of tasksArray">
         <div
           class="task-item"
-          (click)="highlightOperator(task.operatorId)"
+          (mouseenter)="onTaskHover(task.operatorId, true)"
+          (mouseleave)="onTaskHover(task.operatorId, false)"
           style="cursor: pointer">
           <div class="task-checkbox">
             <i
@@ -81,7 +82,6 @@
           </div>
           <div class="task-content">
             <div class="task-description">{{ task.description }}</div>
-            <div class="task-operator-id">Operator: {{ task.operatorId }}</div>
           </div>
         </div>
       </nz-list-item>

@@ -89,9 +89,9 @@ export class ActionPlanViewComponent implements OnInit {
   }
 
   /**
-   * Highlight an operator on the workflow canvas when its task is clicked.
+   * Show halo effect on operator when hovering over its task.
    */
-  public highlightOperator(operatorId: string): void {
+  public onTaskHover(operatorId: string, isHovering: boolean): void {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
     if (!operator) {
       return;
@@ -110,22 +110,22 @@ export class ActionPlanViewComponent implements OnInit {
       if (operatorView) {
         const highlighterNamespace = joint.highlighters;
 
-        highlighterNamespace.mask.remove(operatorView, "action-plan-click");
-        highlighterNamespace.mask.add(operatorView, "body", "action-plan-click", {
-          padding: 10,
-          deep: true,
-          attrs: {
-            stroke: "#69b7ff",
-            "stroke-width": 3,
-            "stroke-opacity": 0.8,
-            fill: "#69b7ff",
-            "fill-opacity": 0.1,
-          },
-        });
-
-        setTimeout(() => {
-          highlighterNamespace.mask.remove(operatorView, "action-plan-click");
-        }, 2000);
+        if (isHovering) {
+          // Add halo effect on hover
+          highlighterNamespace.mask.add(operatorView, "body", "action-plan-hover", {
+            padding: 10,
+            deep: true,
+            attrs: {
+              stroke: "#69b7ff",
+              "stroke-width": 3,
+              "stroke-opacity": 0.8,
+              fill: "transparent",
+            },
+          });
+        } else {
+          // Remove halo effect when hover ends
+          highlighterNamespace.mask.remove(operatorView, "action-plan-hover");
+        }
       }
     }
   }

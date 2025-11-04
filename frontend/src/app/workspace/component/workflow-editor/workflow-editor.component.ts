@@ -409,13 +409,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private handleActionPlanHighlight(): void {
-    // Define ActionPlan JointJS element with blue color
+    // Define ActionPlan JointJS element with transparent fill and border only
     const ActionPlan = joint.dia.Element.define(
       "action-plan",
       {
         attrs: {
           body: {
-            fill: "rgba(79,195,255,0.2)",
+            fill: "transparent",
             stroke: "rgba(79,195,255,0.6)",
             strokeWidth: 2,
             strokeDasharray: "5,5",
