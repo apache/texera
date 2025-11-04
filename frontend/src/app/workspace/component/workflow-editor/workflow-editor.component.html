@@ -26,4 +26,30 @@
     #menu="nzDropdownMenu">
     <texera-context-menu></texera-context-menu>
   </nz-dropdown-menu>
+
+  <!-- Operator Task Hover Panel -->
+  <div
+    *ngIf="operatorTasksHoverInfo"
+    class="operator-tasks-hover-panel"
+    [style.left.px]="operatorTasksHoverInfo.x"
+    [style.top.px]="operatorTasksHoverInfo.y">
+    <div class="panel-header">Action Plan Tasks</div>
+    <div
+      *ngFor="let taskInfo of operatorTasksHoverInfo.tasks"
+      class="task-item">
+      <div class="task-description">{{ taskInfo.task.description }}</div>
+      <div class="task-agent-info">
+        <span class="agent-name">{{ taskInfo.agentName }}</span>
+        <img
+          [src]="taskInfo.isCompleted ? 'assets/svg/done.svg' : 'assets/gif/loading.gif'"
+          class="status-icon"
+          [alt]="taskInfo.isCompleted ? 'Completed' : 'In Progress'" />
+      </div>
+    </div>
+    <div
+      *ngIf="operatorTasksHoverInfo.tasks.length === 0"
+      class="no-tasks">
+      No action plan tasks for this operator
+    </div>
+  </div>
 </div>

@@ -96,6 +96,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private removeButton!: new () => joint.linkTools.Button;
   private breakpointButton!: new () => joint.linkTools.Button;
 
+  // Operator tasks hover panel state
+  public operatorTasksHoverInfo: {
+    x: number;
+    y: number;
+    tasks: Array<{ task: any; planId: string; agentName: string; isCompleted: boolean }>;
+  } | null = null;
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -178,6 +185,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       this.handleLinkBreakpoint();
     }
     this.handlePointerEvents();
+    this.handleOperatorTasksHover();
     this.handleURLFragment();
     this.invokeResize();
     this.handleCenterEvent();
@@ -1483,6 +1491,55 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);
+      });
+  }
+
+  /**
+   * Handles operator hover to show action plan tasks panel.
+   */
+  private handleOperatorTasksHover(): void {
+    // Show panel on mouseenter
+    fromJointPaperEvent(this.paper, "cell:mouseenter")
+      .pipe(
+        filter(event => event[0].model.isElement()),
+        filter(event => this.workflowActionService.getTexeraGraph().hasOperator(event[0].model.id.toString())),
+        untilDestroyed(this)
+      )
+      .subscribe(event => {
+        const operatorId = event[0].model.id.toString();
+        const tasks = this.actionPlanService.getTasksByOperatorId(operatorId);
+
+        // Only show panel if there are tasks
+        if (tasks.length > 0) {
+          // Get operator element to position panel directly below it
+          const operatorElement = event[0].model;
+          const bbox = operatorElement.getBBox();
+
+          // Panel width is 180px, center it below the operator
+          const panelWidth = 180;
+          const panelX = bbox.x + bbox.width / 2 - panelWidth / 2; // Center horizontally
+          const panelY = bbox.y + bbox.height + 20; // 10px gap below operator
+
+          // Convert paper coordinates to client coordinates
+          const clientPoint = this.paper.localToClientPoint({ x: panelX, y: panelY });
+
+          this.operatorTasksHoverInfo = {
+            x: clientPoint.x,
+            y: clientPoint.y,
+            tasks: tasks,
+          };
+        }
+      });
+
+    // Hide panel on mouseleave
+    fromJointPaperEvent(this.paper, "cell:mouseleave")
+      .pipe(
+        filter(event => event[0].model.isElement()),
+        filter(event => this.workflowActionService.getTexeraGraph().hasOperator(event[0].model.id.toString())),
+        untilDestroyed(this)
+      )
+      .subscribe(() => {
+        this.operatorTasksHoverInfo = null;
       });
   }
 

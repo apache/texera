@@ -281,6 +281,36 @@ export class ActionPlanService {
   }
 
   /**
+   * Get all tasks associated with a specific operator ID across all action plans
+   * Returns an array of tasks with their plan ID, agent name, and completion status
+   */
+  public getTasksByOperatorId(operatorId: string): Array<{
+    task: ActionPlanTask;
+    planId: string;
+    agentName: string;
+    isCompleted: boolean;
+  }> {
+    const results: Array<{ task: ActionPlanTask; planId: string; agentName: string; isCompleted: boolean }> = [];
+
+    this.actionPlans.forEach((plan, planId) => {
+      const task = plan.tasks.get(operatorId);
+      if (task) {
+        // Check if all tasks in the plan are completed
+        const allCompleted = Array.from(plan.tasks.values()).every(t => t.completed$.value);
+
+        results.push({
+          task,
+          planId,
+          agentName: plan.agentName,
+          isCompleted: allCompleted,
+        });
+      }
+    });
+
+    return results;
+  }
+
+  /**
    * Emit the current list of action plans
    */
   private emitActionPlans(): void {
