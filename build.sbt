@@ -88,11 +88,6 @@ lazy val WorkflowExecutionService = (project in file("amber"))
     ),
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
-    ),
-    // Java 17+ compatibility: Apache Arrow requires reflective access to java.nio internals
-    // See: https://arrow.apache.org/docs/java/install.html
-    Universal / javaOptions ++= Seq(
-      "--add-opens=java.base/java.nio=ALL-UNNAMED"
     )
   )
   .configs(Test)

@@ -22,6 +22,7 @@ package org.apache.amber.core.tuple
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull
 import org.apache.amber.core.tuple.Tuple.checkSchemaMatchesFields
+import org.ehcache.sizeof.SizeOf
 
 import java.util
 import scala.collection.mutable
@@ -51,22 +52,7 @@ case class Tuple @JsonCreator() (
   checkNotNull(fieldVals)
   checkSchemaMatchesFields(schema.getAttributes, fieldVals)
 
-  // Fast approximation of in-memory size for statistics tracking
-  // Avoids expensive reflection and Java 17 module system issues
-  override val inMemSize: Long = {
-    val fieldSize = fieldVals.map {
-      case s: String            => 40 + (s.length * 2) // String overhead + UTF-16 chars
-      case _: Int | _: Float    => 4
-      case _: Long | _: Double  => 8
-      case _: Boolean | _: Byte => 1
-      case _: Short             => 2
-      case arr: Array[Byte]     => 24 + arr.length // Array overhead + data
-      case arr: Array[_]        => 24 + (arr.length * 8) // Array overhead + references
-      case null                 => 4 // null reference
-      case _                    => 16 // Generic object reference estimate
-    }.sum
-    fieldSize + 64 // Tuple object overhead (object header + schema reference + array reference)
-  }
+  override val inMemSize: Long = SizeOf.newInstance().deepSizeOf(this)
 
   @JsonIgnore def length: Int = fieldVals.length
 
