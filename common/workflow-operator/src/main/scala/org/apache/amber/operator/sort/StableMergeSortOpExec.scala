@@ -225,9 +225,17 @@ class StableMergeSortOpExec(descString: String) extends OperatorExecutor {
   /**
     * Compare two non-null values using their attribute type.
     *
-    * For DOUBLE:
-    *  - Uses java.lang.Double.compare (orders -Inf < ... < +Inf < NaN).
-    *  - Callers if desired should define how NaN interacts with ASC/DESC and null policy.
+    * Type semantics:
+    *  - INTEGER, LONG: numeric ascending via Java primitive compares.
+    *  - DOUBLE: java.lang.Double.compare (orders -Inf < ... < +Inf < NaN).
+    *  - BOOLEAN: false < true.
+    *  - TIMESTAMP: java.sql.Timestamp#compareTo.
+    *  - STRING: String#compareTo (UTF-16, lexicographic).
+    *  - BINARY: unsigned lexicographic order over byte arrays:
+    *        - Compare byte-by-byte treating each as 0..255 (mask 0xff).
+    *        - The first differing byte decides the order.
+    *        - If all compared bytes are equal, the shorter array sorts first.
+    *        - Example: [] < [0x00] < [0x00,0x00] < [0x00,0x01] < [0x7F] < [0x80] < [0xFF].
     */
   private def compareTypedNonNullValues(
       leftValue: Any,
@@ -258,6 +266,11 @@ class StableMergeSortOpExec(descString: String) extends OperatorExecutor {
           .compareTo(rightValue.asInstanceOf[java.sql.Timestamp])
       case AttributeType.STRING =>
         leftValue.asInstanceOf[String].compareTo(rightValue.asInstanceOf[String])
+      case AttributeType.BINARY =>
+        java.util.Arrays.compareUnsigned(
+          leftValue.asInstanceOf[Array[Byte]],
+          rightValue.asInstanceOf[Array[Byte]]
+        )
       case other =>
         throw new IllegalStateException(s"Unsupported attribute type $other in StableMergeSort")
     }
