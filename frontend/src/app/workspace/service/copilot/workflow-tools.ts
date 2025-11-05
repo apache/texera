@@ -1533,3 +1533,50 @@ export function createValidateOperatorTool(validationWorkflowService: Validation
     },
   });
 }
+
+/**
+ * Create getComputingUnitStatus tool for checking computing unit connection status
+ */
+export function createGetComputingUnitStatusTool(computingUnitStatusService: any) {
+  return tool({
+    name: "getComputingUnitStatus",
+    description:
+      "Check the status of the computing unit connection. This is important before workflow execution - if the unit is disconnected, workflows cannot be executed. Use this when execution fails or to verify readiness for execution.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      try {
+        const selectedUnit = computingUnitStatusService.getSelectedComputingUnitValue();
+
+        if (!selectedUnit) {
+          return {
+            success: true,
+            status: "No Computing Unit",
+            isConnected: false,
+            message:
+              "No computing unit is selected. Workflow execution is not available. Please remind the user to connect to a computing unit.",
+          };
+        }
+
+        const unitStatus = selectedUnit.status;
+        const isConnected = unitStatus === "Running";
+
+        return {
+          success: true,
+          status: unitStatus,
+          isConnected: isConnected,
+          computingUnit: {
+            cuid: selectedUnit.computingUnit.cuid,
+            name: selectedUnit.computingUnit.name,
+          },
+          message: isConnected
+            ? `Computing unit "${selectedUnit.computingUnit.name}" is running and ready for workflow execution`
+            : unitStatus === "Pending"
+              ? `Computing unit "${selectedUnit.computingUnit.name}" is pending/starting. Workflow execution may not be available yet.`
+              : `Computing unit is in state: ${unitStatus}. Workflow execution may not be available.`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
