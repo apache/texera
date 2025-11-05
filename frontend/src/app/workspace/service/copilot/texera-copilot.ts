@@ -58,6 +58,7 @@ import {
   createListAllOperatorTypesTool,
   createListLinksTool,
   createListOperatorIdsTool,
+  createGetComputingUnitStatusTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -73,6 +74,7 @@ import { COPILOT_SYSTEM_PROMPT, PLANNING_MODE_PROMPT } from "./copilot-prompts";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
+import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 
 export const DEFAULT_AGENT_MODEL_ID = "claude-3.7";
 
@@ -134,7 +136,8 @@ export class TexeraCopilot {
     private validationWorkflowService: ValidationWorkflowService,
     private dataInconsistencyService: DataInconsistencyService,
     private actionPlanService: ActionPlanService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {
     this.modelType = DEFAULT_AGENT_MODEL_ID;
   }
@@ -395,6 +398,7 @@ export class TexeraCopilot {
       createGetValidationInfoOfCurrentWorkflowTool(this.validationWorkflowService, this.workflowActionService)
     );
     const validateOperatorTool = toolWithTimeout(createValidateOperatorTool(this.validationWorkflowService));
+    const getComputingUnitStatusTool = toolWithTimeout(createGetComputingUnitStatusTool(this.computingUnitStatusService));
 
     // Inconsistency tools
     const addInconsistencyTool = toolWithTimeout(createAddInconsistencyTool(this.dataInconsistencyService));
@@ -433,6 +437,7 @@ export class TexeraCopilot {
       hasOperatorResult: hasOperatorResultTool,
       getOperatorResult: getOperatorResultTool,
       getOperatorResultInfo: getOperatorResultInfoTool,
+      getComputingUnitStatus: getComputingUnitStatusTool,
       // Data inconsistency tools
       addInconsistency: addInconsistencyTool,
       listInconsistencies: listInconsistenciesTool,
