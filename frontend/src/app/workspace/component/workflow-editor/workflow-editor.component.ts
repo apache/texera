@@ -1516,19 +1516,16 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           const bbox = operatorElement.getBBox();
 
           // Panel width is 180px, center it below the operator
-          const panelWidth = 250;
+          const panelWidth = 180;
           const panelX = bbox.x + bbox.width / 2 - panelWidth / 2; // Center horizontally
-          const panelY = bbox.y + bbox.height + 20; // 20px gap below operator
+          const panelY = bbox.y + bbox.height + 20; // 10px gap below operator
 
           // Convert paper coordinates to client coordinates
           const clientPoint = this.paper.localToClientPoint({ x: panelX, y: panelY });
 
-          // Get editor wrapper position to adjust for absolute positioning
-          const editorRect = this.editorWrapper.getBoundingClientRect();
-
           this.operatorTasksHoverInfo = {
-            x: clientPoint.x - editorRect.left,
-            y: clientPoint.y - editorRect.top,
+            x: clientPoint.x,
+            y: clientPoint.y,
             tasks: tasks,
           };
         }
