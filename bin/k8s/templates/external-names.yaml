@@ -76,6 +76,16 @@ to access services in the main namespace using the same service names.
 
 ---
 {{- end }}
+{{/* LiteLLM service ExternalName */}}
+{{- if .Values.litellm.enabled }}
+{{- include "external-name-service" (dict
+  "name" (printf "%s-svc" .Values.litellm.name)
+  "namespace" $workflowComputingUnitPoolNamespace
+  "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.litellm.name $namespace)
+) | nindent 0 }}
+
+---
+{{- end }}
 {{/* Webserver ExternalName */}}
 {{- include "external-name-service" (dict 
   "name" (printf "%s-svc" .Values.webserver.name)

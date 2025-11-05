@@ -299,7 +299,7 @@ litellm:
   name: litellm
   replicaCount: 1
   image:
-    repository: ghcr.io/berriai/litellm
+    repository: ghcr.io/berriai/litellm-database
     tag: main-stable
     pullPolicy: IfNotPresent
   service:
@@ -307,11 +307,11 @@ litellm:
     port: 4000
   resources:
     limits:
-      cpu: "500m"
-      memory: "512Mi"
+      cpu: "2"
+      memory: "2Gi"
     requests:
-      cpu: "200m"
-      memory: "256Mi"
+      cpu: "500m"
+      memory: "1Gi"
   # Database persistence configuration
   persistence:
     enabled: true
@@ -328,6 +328,10 @@ litellm:
 
 # PostgreSQL database for LiteLLM persistence
 postgresql-litellm:
+  image:
+    repository: texera/postgres17-pgroonga
+    tag: latest
+    debug: true
   auth:
     postgresPassword: litellm_root_password  # Change this in production
     username: litellm
@@ -396,9 +400,6 @@ ingressPaths:
     - path: /api/config
       serviceName: config-service-svc
       servicePort: 9094
-    - path: /api/chat
-      serviceName: litellm-svc
-      servicePort: 4000
     - path: /wsapi/workflow-websocket
       serviceName: envoy-svc
       servicePort: 10000
@@ -410,6 +411,9 @@ ingressPaths:
       pathType: ImplementationSpecific
       serviceName: envoy-svc
       servicePort: 10000
+    - path: /api/chat
+      serviceName: texera-access-control-service-svc
+      servicePort: 9096
     - path: /api
       serviceName: webserver-svc
       servicePort: 8080

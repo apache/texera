@@ -32,4 +32,11 @@ data:
         litellm_params:
           model: claude-sonnet-4-5-20250929
           api_key: "os.environ/ANTHROPIC_API_KEY"
+
+    general_settings:
+      {{- if .Values.litellm.persistence.enabled }}
+      master_key: "os.environ/LITELLM_MASTER_KEY"
+      {{- end }}
+      # Disable spend tracking and key management for simpler setup
+      disable_spend_logs: {{ not .Values.litellm.persistence.enabled }}
 {{- end }}

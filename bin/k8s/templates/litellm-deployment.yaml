@@ -70,13 +70,13 @@ spec:
             {{- toYaml .Values.litellm.resources | nindent 12 }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/liveliness
               port: {{ .Values.litellm.service.port }}
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/readiness
               port: {{ .Values.litellm.service.port }}
             initialDelaySeconds: 10
             periodSeconds: 5

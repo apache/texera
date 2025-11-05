@@ -46,6 +46,15 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
+{{- if .Values.litellm.enabled }}
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: LITELLM_MASTER_KEY
+            - name: LITELLM_BASE_URL
+              value: "http://{{ .Values.litellm.name }}-svc:{{ .Values.litellm.service.port }}"
+{{- end }}
           livenessProbe:
             httpGet:
               path: /api/healthcheck
