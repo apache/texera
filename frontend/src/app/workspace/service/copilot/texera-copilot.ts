@@ -116,6 +116,8 @@ export class TexeraCopilot {
   private agentResponsesSubject = new BehaviorSubject<AgentUIMessage[]>([]);
   public agentResponses$ = this.agentResponsesSubject.asObservable();
   private state: CopilotState = CopilotState.UNAVAILABLE;
+  private stateSubject = new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE);
+  public state$ = this.stateSubject.asObservable();
   private shouldStopAfterActionPlan: boolean = false;
   private planningMode: boolean = false;
 
@@ -153,8 +155,22 @@ export class TexeraCopilot {
   }
 
   /**
+   * Update the state and emit to the observable.
+   */
+  private setState(newState: CopilotState): void {
+    this.state = newState;
+    this.stateSubject.next(newState);
+  }
+
+  /**
    * Type guard to check if a message is a valid ModelMessage.
    * Uses TypeScript's type predicate for compile-time type safety.
+   *
+   * Validates messages according to Vercel AI SDK ModelMessage types:
+   * - UserModelMessage: { role: "user", content: string | ContentPart[] }
+   * - AssistantModelMessage: { role: "assistant", content: string | ContentPart[] }
+   * - ToolModelMessage: { role: "tool", content: ToolResultPart[] }
+   * - SystemModelMessage: { role: "system", content: string }
    */
   private isValidModelMessage(message: unknown): message is ModelMessage {
     if (!message || typeof message !== "object") {
@@ -171,16 +187,41 @@ export class TexeraCopilot {
     // Validate based on role using type narrowing
     switch (msg.role) {
       case "user":
-        // UserModelMessage: { role: "user", content: string }
-        return typeof msg.content === "string";
+      case "system":
+        // UserModelMessage/SystemModelMessage: { role: "user"/"system", content: string | array }
+        return typeof msg.content === "string" || Array.isArray(msg.content);
 
       case "assistant":
         // AssistantModelMessage: { role: "assistant", content: string | array }
-        return typeof msg.content === "string" || Array.isArray(msg.content);
+        // Array content must contain valid content parts (text, tool-call, tool-result, etc.)
+        if (typeof msg.content === "string") {
+          return true;
+        }
+        if (Array.isArray(msg.content)) {
+          // Verify all parts have the required 'type' field
+          return msg.content.every((part: any) => part && typeof part === "object" && typeof part.type === "string");
+        }
+        return false;
 
       case "tool":
-        // ToolModelMessage: { role: "tool", content: array }
-        return Array.isArray(msg.content);
+        // ToolModelMessage: { role: "tool", content: ToolResultPart[] }
+        // Content must be array of tool result parts
+        if (!Array.isArray(msg.content)) {
+          return false;
+        }
+        // Each part must have type='tool-result', toolCallId, toolName, and output with type/value
+        return msg.content.every(
+          (part: any) =>
+            part &&
+            typeof part === "object" &&
+            part.type === "tool-result" &&
+            typeof part.toolCallId === "string" &&
+            typeof part.toolName === "string" &&
+            part.output &&
+            typeof part.output === "object" &&
+            typeof part.output.type === "string" &&
+            "value" in part.output
+        );
 
       default:
         return false;
@@ -222,9 +263,9 @@ export class TexeraCopilot {
         apiKey: "dummy",
       }).chat(this.modelType);
 
-      this.state = CopilotState.AVAILABLE;
+      this.setState(CopilotState.AVAILABLE);
     } catch (error: unknown) {
-      this.state = CopilotState.UNAVAILABLE;
+      this.setState(CopilotState.UNAVAILABLE);
       throw error;
     }
   }
@@ -236,12 +277,16 @@ export class TexeraCopilot {
           throw new Error("Copilot not initialized");
         }
 
-        this.state = CopilotState.GENERATING;
+        // Guard against sending messages when not available
+        if (this.state !== CopilotState.AVAILABLE) {
+          throw new Error(`Cannot send message: agent is ${this.state}`);
+        }
+
+        this.setState(CopilotState.GENERATING);
         this.shouldStopAfterActionPlan = false;
 
         const userMessage: UserModelMessage = { role: "user", content: message };
         this.messages.push(userMessage);
-
         const userUIMessage: AgentUIMessage = {
           role: "user",
           content: message,
@@ -258,9 +303,6 @@ export class TexeraCopilot {
           const systemPrompt = this.planningMode
             ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT
             : COPILOT_SYSTEM_PROMPT;
-
-          // Validate messages before calling generateText
-          this.validateMessages();
 
           const { response } = await generateText({
             model: this.model,
@@ -304,9 +346,9 @@ export class TexeraCopilot {
           this.messages.push(...response.messages);
           this.agentResponsesSubject.next([...this.agentResponses]);
 
-          this.state = CopilotState.AVAILABLE;
+          this.setState(CopilotState.AVAILABLE);
         } catch (err: any) {
-          this.state = CopilotState.AVAILABLE;
+          this.setState(CopilotState.AVAILABLE);
           const errorText = `Error: ${err?.message ?? String(err)}`;
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
@@ -391,7 +433,9 @@ export class TexeraCopilot {
       createGetValidationInfoOfCurrentWorkflowTool(this.validationWorkflowService, this.workflowActionService)
     );
     const validateOperatorTool = toolWithTimeout(createValidateOperatorTool(this.validationWorkflowService));
-    const getComputingUnitStatusTool = toolWithTimeout(createGetComputingUnitStatusTool(this.computingUnitStatusService));
+    const getComputingUnitStatusTool = toolWithTimeout(
+      createGetComputingUnitStatusTool(this.computingUnitStatusService)
+    );
 
     const baseTools: Record<string, any> = {
       addOperator: addOperatorTool,
@@ -444,7 +488,7 @@ export class TexeraCopilot {
     if (this.state !== CopilotState.GENERATING) {
       return;
     }
-    this.state = CopilotState.STOPPING;
+    this.setState(CopilotState.STOPPING);
   }
 
   public clearMessages(): void {
@@ -463,7 +507,7 @@ export class TexeraCopilot {
     }
 
     this.clearMessages();
-    this.state = CopilotState.UNAVAILABLE;
+    this.setState(CopilotState.UNAVAILABLE);
     this.notificationService.info(`Agent ${this.agentName} is removed successfully`);
   }
 

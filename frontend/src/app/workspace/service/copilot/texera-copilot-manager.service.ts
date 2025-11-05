@@ -18,7 +18,7 @@
  */
 
 import { Injectable, Injector } from "@angular/core";
-import { TexeraCopilot, AgentUIMessage } from "./texera-copilot";
+import { TexeraCopilot, AgentUIMessage, CopilotState } from "./texera-copilot";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
@@ -185,6 +185,14 @@ export class TexeraCopilotManagerService {
       throw new Error(`Agent with ID ${agentId} not found`);
     }
     return agent.instance.getState();
+  }
+
+  public getAgentStateObservable(agentId: string): Observable<CopilotState> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.state$;
   }
 
   public isAgentConnected(agentId: string): boolean {
