@@ -26,6 +26,7 @@ import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
+import org.apache.texera.config.LLMConfig
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 
 import java.net.URLDecoder
@@ -211,11 +212,8 @@ class AccessControlResource extends LazyLogging {
 class LiteLLMProxyResource extends LazyLogging {
 
   private val client: Client = ClientBuilder.newClient()
-  private val litellmBaseUrl: String = sys.env.getOrElse(
-    "LITELLM_BASE_URL",
-    "http://litellm-svc:4000"
-  )
-  private val litellmApiKey: String = sys.env.getOrElse("LITELLM_MASTER_KEY", "")
+  private val litellmBaseUrl: String = LLMConfig.baseUrl
+  private val litellmApiKey: String = LLMConfig.masterKey
 
   @POST
   @Path("/{path:.*}")

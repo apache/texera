@@ -315,10 +315,6 @@ litellm:
   # Database persistence configuration
   persistence:
     enabled: true
-    database:
-      name: litellm
-      username: litellm
-      password: litellm_password  # Change this in production
   # Master key for LiteLLM admin API (must start with "sk-")
   masterKey: "sk-texera-litellm-masterkey"  # Change this in production
   apiKeys:
