@@ -47,6 +47,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public isSystemInfoModalVisible = false;
   public systemPrompt: string = "";
   public availableTools: Array<{ name: string; description: string; inputSchema: any }> = [];
+  public agentState: CopilotState = CopilotState.UNAVAILABLE;
 
   constructor(
     private actionPlanService: ActionPlanService,
@@ -82,6 +83,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
         } else if (plan === null || (plan && plan.agentId !== this.agentInfo.id)) {
           this.pendingActionPlan = null;
         }
+      });
+
+    // Subscribe to agent state changes
+    this.copilotManagerService
+      .getAgentStateObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(state => {
+        this.agentState = state;
       });
   }
 
@@ -153,7 +162,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
    * Send a message to the agent via the copilot manager service.
    */
   public sendMessage(): void {
-    if (!this.currentMessage.trim() || this.isGenerating()) {
+    if (!this.currentMessage.trim() || !this.canSendMessage()) {
       return;
     }
 
@@ -169,6 +178,39 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
           this.notificationService.error(`Error sending message: ${error}`);
         },
       });
+  }
+
+  /**
+   * Check if messages can be sent (only when agent is available).
+   */
+  public canSendMessage(): boolean {
+    return this.agentState === CopilotState.AVAILABLE;
+  }
+
+  /**
+   * Get the state icon URL based on current agent state.
+   * Uses the same icons as workflow operators for consistency.
+   */
+  public getStateIconUrl(): string {
+    return this.agentState === CopilotState.AVAILABLE ? "assets/svg/done.svg" : "assets/gif/loading.gif";
+  }
+
+  /**
+   * Get the tooltip text for the state icon.
+   */
+  public getStateTooltip(): string {
+    switch (this.agentState) {
+      case CopilotState.AVAILABLE:
+        return "Agent is ready";
+      case CopilotState.GENERATING:
+        return "Agent is generating response...";
+      case CopilotState.STOPPING:
+        return "Agent is stopping...";
+      case CopilotState.UNAVAILABLE:
+        return "Agent is unavailable";
+      default:
+        return "Agent status unknown";
+    }
   }
 
   public onEnterPress(event: KeyboardEvent): void {

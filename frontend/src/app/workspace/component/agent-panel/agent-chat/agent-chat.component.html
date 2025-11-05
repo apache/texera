@@ -22,8 +22,14 @@
   <!-- Toolbar -->
   <div class="chat-toolbar">
     <div class="chat-toolbar-controls">
-      <!-- Agent model info -->
+      <!-- Agent model info with state icon -->
       <div class="toolbar-item">
+        <img
+          [src]="getStateIconUrl()"
+          [alt]="getStateTooltip()"
+          nz-tooltip
+          [nzTooltipTitle]="getStateTooltip()"
+          style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle" />
         <small style="color: #888"> Model: <strong>{{ agentInfo.modelType }}</strong> </small>
         <button
           nz-button
@@ -181,11 +187,11 @@
         placeholder="Ask me anything about workflows..."
         [nzAutosize]="{ minRows: 1, maxRows: 4 }"
         (keydown.enter)="onEnterPress($any($event))"
-        [disabled]="isGenerating()"></textarea>
+        [disabled]="!canSendMessage()"></textarea>
       <button
         nz-button
         nzType="primary"
-        [disabled]="!currentMessage.trim() || isGenerating()"
+        [disabled]="!currentMessage.trim() || !canSendMessage()"
         (click)="sendMessage()">
         <i
           nz-icon
