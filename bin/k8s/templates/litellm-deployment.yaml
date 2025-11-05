@@ -38,9 +38,24 @@ spec:
           ports:
             - containerPort: {{ .Values.litellm.service.port }}
               name: http
-          envFrom:
-            - secretRef:
-                name: litellm-secret
+          env:
+            {{- if .Values.litellm.persistence.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: DATABASE_URL
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: LITELLM_MASTER_KEY
+            {{- end }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: ANTHROPIC_API_KEY
           command:
             - litellm
             - --config

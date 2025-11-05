@@ -300,7 +300,7 @@ litellm:
   replicaCount: 1
   image:
     repository: ghcr.io/berriai/litellm
-    tag: main-v1.30.3
+    tag: main-stable
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -312,10 +312,44 @@ litellm:
     requests:
       cpu: "200m"
       memory: "256Mi"
+  # Database persistence configuration
+  persistence:
+    enabled: true
+    database:
+      name: litellm
+      username: litellm
+      password: litellm_password  # Change this in production
+  # Master key for LiteLLM admin API (must start with "sk-")
+  masterKey: "sk-texera-litellm-masterkey"  # Change this in production
   apiKeys:
     # Set your Anthropic API key here
     # IMPORTANT: In production, use external secrets management (e.g., sealed-secrets, external-secrets)
     anthropic: ""  # Replace with your actual API key or use external secret
+
+# PostgreSQL database for LiteLLM persistence
+postgresql-litellm:
+  auth:
+    postgresPassword: litellm_root_password  # Change this in production
+    username: litellm
+    password: litellm_password  # Should match litellm.persistence.database.password
+    database: litellm
+  primary:
+    livenessProbe:
+      initialDelaySeconds: 30
+    readinessProbe:
+      initialDelaySeconds: 30
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClass: local-path
+      existingClaim: "postgresql-litellm-data-pvc"
 
 # Metrics Server configuration
 metrics-server:
