@@ -600,31 +600,6 @@ export function createUpdateActionPlanTool(actionPlanService: ActionPlanService)
 }
 
 /**
- * Create listOperatorIds tool for getting all operator IDs in the workflow
- */
-export function createListOperatorIdsTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: "listOperatorIds",
-    description: "Get all operator IDs in the current workflow",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const operators = workflowActionService.getTexeraGraph().getAllOperators();
-        const operatorIds = operators.map(op => op.operatorID);
-
-        return {
-          success: true,
-          operatorIds: operatorIds,
-          count: operatorIds.length,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
  * Create listLinks tool for getting all links in the workflow
  */
 export function createListLinksTool(workflowActionService: WorkflowActionService) {
@@ -1731,6 +1706,72 @@ export function createClearInconsistenciesTool(service: DataInconsistencyService
         return {
           success: true,
           message: "Cleared all inconsistencies",
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || String(error),
+        };
+      }
+    },
+  });
+}
+
+/**
+ * Tool to find operators by output schema
+ * This helps the agent identify relevant operators that produce data matching a specific schema
+ */
+export function createListRelevantOperatorIdsTool(
+  workflowActionService: WorkflowActionService,
+  workflowCompilingService: WorkflowCompilingService
+) {
+  return tool({
+    name: "listRelevantOperatorIds",
+    description:
+      "Find all operators in the workflow that are relevant context when working with specific data schemas. " +
+      "Please use this method when you want to work on certain columns in the data. " +
+      "If you don't have a specific scope to work on, provide an empty schema array to get all operator IDs.",
+    inputSchema: z.object({
+      targetSchema: z
+        .array(
+          z.object({
+            attributeName: z.string().describe("Name of the attribute to match"),
+            attributeType: z
+              .enum(["string", "integer", "double", "boolean", "long", "timestamp", "binary"])
+              .describe("Type of the attribute"),
+          })
+        )
+        .describe(
+          "Array of schema attributes to match. Operators whose output contains all these attributes (in any order) will be returned. " +
+            "Pass an empty array to get all operator IDs in the workflow."
+        ),
+    }),
+    execute: async (args: { targetSchema: Array<{ attributeName: string; attributeType: string }> }) => {
+      try {
+        // If no schema provided (empty array), return all operator IDs
+        if (!args.targetSchema || args.targetSchema.length === 0) {
+          const allOperatorIds = workflowActionService
+            .getTexeraGraph()
+            .getAllOperators()
+            .map(op => op.operatorID);
+          return {
+            success: true,
+            operatorIds: allOperatorIds,
+            count: allOperatorIds.length,
+            message: `No specific schema provided. Returning all ${allOperatorIds.length} operator(s) in the workflow.`,
+          };
+        }
+
+        const matchingOperatorIds = workflowActionService.findOperatorsByOutputSchema(
+          args.targetSchema,
+          workflowCompilingService
+        );
+
+        return {
+          success: true,
+          operatorIds: matchingOperatorIds,
+          count: matchingOperatorIds.length,
+          message: `Found ${matchingOperatorIds.length} operator(s) with output schema matching the target attributes: ${args.targetSchema.map(attr => attr.attributeName).join(", ")}`,
         };
       } catch (error: any) {
         return {

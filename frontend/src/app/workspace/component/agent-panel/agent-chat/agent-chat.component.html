@@ -56,6 +56,22 @@
           style="margin-left: 8px"></nz-switch>
       </div>
 
+      <!-- Show Context toggle -->
+      <div class="toolbar-item">
+        <small style="color: #888">Show Context</small>
+        <nz-switch
+          [(ngModel)]="showContext"
+          (ngModelChange)="onShowContextChange($event)"
+          nzSize="small"
+          style="margin-left: 8px"
+          nz-tooltip
+          [nzTooltipTitle]="
+            relevantOperators.length > 0
+              ? 'Highlight ' + relevantOperators.length + ' relevant operator(s) in workflow'
+              : 'No context operators available'
+          "></nz-switch>
+      </div>
+
       <!-- Token counts -->
       <div class="toolbar-item">
         <small style="color: #888">

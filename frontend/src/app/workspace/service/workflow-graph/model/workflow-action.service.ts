@@ -971,4 +971,78 @@ export class WorkflowActionService {
       links: Array.from(allLinksOnPaths),
     };
   }
+
+  /**
+   * Find all operators whose output schema on any port contains all attributes from the target schema.
+   * Uses BFS to traverse the workflow (handles multiple DAGs).
+   * @param targetSchema The schema to match against operator output schemas
+   * @param workflowCompilingService Service to access operator output schemas
+   * @returns Array of operator IDs that have matching output schemas
+   */
+  public findOperatorsByOutputSchema(
+    targetSchema: ReadonlyArray<{ attributeName: string; attributeType: string }>,
+    workflowCompilingService: any
+  ): string[] {
+    if (!targetSchema || targetSchema.length === 0) {
+      return [];
+    }
+
+    const allOperators = this.getTexeraGraph().getAllOperators();
+    const matchingOperators: string[] = [];
+
+    // Helper function to check if a schema contains all target attributes
+    const schemaContainsTarget = (
+      portSchema: ReadonlyArray<{ attributeName: string; attributeType: string }>
+    ): boolean => {
+      if (!portSchema || portSchema.length === 0) {
+        return false;
+      }
+
+      // Create a map of the port schema for quick lookup
+      const schemaMap = new Map<string, string>();
+      portSchema.forEach(attr => {
+        schemaMap.set(attr.attributeName, attr.attributeType);
+      });
+
+      // Check if all target attributes exist in the port schema with matching types
+      return targetSchema.every(targetAttr => {
+        const portAttrType = schemaMap.get(targetAttr.attributeName);
+        return portAttrType !== undefined && portAttrType === targetAttr.attributeType;
+      });
+    };
+
+    // BFS traversal across all operators (handles multiple DAGs)
+    const visited = new Set<string>();
+    const queue: string[] = [];
+
+    // Start BFS from all operators (since we might have multiple disconnected DAGs)
+    allOperators.forEach(op => {
+      queue.push(op.operatorID);
+    });
+
+    while (queue.length > 0) {
+      const operatorId = queue.shift()!;
+
+      if (visited.has(operatorId)) {
+        continue;
+      }
+      visited.add(operatorId);
+
+      // Get output schema for this operator
+      const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorId);
+
+      if (outputSchemaMap) {
+        // Check all output ports
+        const hasMatchingPort = Object.values(outputSchemaMap).some((portSchema: any) => {
+          return schemaContainsTarget(portSchema);
+        });
+
+        if (hasMatchingPort) {
+          matchingOperators.push(operatorId);
+        }
+      }
+    }
+
+    return matchingOperators;
+  }
 }

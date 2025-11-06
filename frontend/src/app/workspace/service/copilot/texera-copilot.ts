@@ -57,8 +57,8 @@ import {
   toolWithTimeout,
   createListAllOperatorTypesTool,
   createListLinksTool,
-  createListOperatorIdsTool,
   createGetComputingUnitStatusTool,
+  createListRelevantOperatorIdsTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -126,6 +126,9 @@ export class TexeraCopilot {
   public state$ = this.stateSubject.asObservable();
   private shouldStopAfterActionPlan: boolean = false;
   private planningMode: boolean = false;
+  private relevantOperators: string[] = [];
+  private relevantOperatorsSubject = new BehaviorSubject<string[]>([]);
+  public relevantOperators$ = this.relevantOperatorsSubject.asObservable();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -335,6 +338,23 @@ export class TexeraCopilot {
                 this.shouldStopAfterActionPlan = true;
               }
 
+              // Track relevant operators from listRelevantOperatorIds tool calls
+              if (toolCalls && toolResults) {
+                for (let i = 0; i < toolCalls.length; i++) {
+                  const toolCall = toolCalls[i];
+                  if (toolCall.toolName === "listRelevantOperatorIds") {
+                    const toolResult = toolResults[i];
+                    console.log("result of context switching: ", toolResult);
+                    // The actual result is in toolResult.output, not toolResult.result
+                    if (toolResult && toolResult.output && toolResult.output.success && toolResult.output.operatorIds) {
+                      this.relevantOperators = toolResult.output.operatorIds;
+                      this.relevantOperatorsSubject.next([...this.relevantOperators]);
+                      console.log("emit: ", this.relevantOperators);
+                    }
+                  }
+                }
+              }
+
               const stepResponse: AgentUIMessage = {
                 role: "agent",
                 content: text || "",
@@ -398,7 +418,6 @@ export class TexeraCopilot {
     const listActionPlansTool = toolWithTimeout(createListActionPlansTool(this.actionPlanService));
     const deleteActionPlanTool = toolWithTimeout(createDeleteActionPlanTool(this.actionPlanService));
     const updateActionPlanTool = toolWithTimeout(createUpdateActionPlanTool(this.actionPlanService));
-    const listOperatorIdsTool = toolWithTimeout(createListOperatorIdsTool(this.workflowActionService));
     const listLinksTool = toolWithTimeout(createListLinksTool(this.workflowActionService));
     const listAllOperatorTypesTool = toolWithTimeout(createListAllOperatorTypesTool(this.workflowUtilService));
     const getOperatorTool = toolWithTimeout(createGetOperatorTool(this.workflowActionService));
@@ -451,6 +470,11 @@ export class TexeraCopilot {
     const deleteInconsistencyTool = toolWithTimeout(createDeleteInconsistencyTool(this.dataInconsistencyService));
     const clearInconsistenciesTool = toolWithTimeout(createClearInconsistenciesTool(this.dataInconsistencyService));
 
+    // Context adjustment tool
+    const listRelevantOperatorIdsTool = toolWithTimeout(
+      createListRelevantOperatorIdsTool(this.workflowActionService, this.workflowCompilingService)
+    );
+
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // workflow editing
@@ -464,7 +488,7 @@ export class TexeraCopilot {
       getValidationInfoOfCurrentWorkflow: getValidationInfoOfCurrentWorkflowTool,
       validateOperator: validateOperatorTool,
       // workflow inspecting
-      listOperatorIds: listOperatorIdsTool,
+      listRelevantOperatorIds: listRelevantOperatorIdsTool,
       listLinks: listLinksTool,
       listAllOperatorTypes: listAllOperatorTypesTool,
       getOperator: getOperatorTool,
@@ -520,10 +544,16 @@ export class TexeraCopilot {
     this.messages = [];
     this.agentResponses = [];
     this.agentResponsesSubject.next([...this.agentResponses]);
+    this.relevantOperators = [];
+    this.relevantOperatorsSubject.next([]);
   }
 
   public getState(): CopilotState {
     return this.state;
+  }
+
+  public getRelevantOperators(): string[] {
+    return [...this.relevantOperators];
   }
 
   public async disconnect(): Promise<void> {

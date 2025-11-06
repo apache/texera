@@ -234,6 +234,22 @@ export class TexeraCopilotManagerService {
     };
   }
 
+  public getRelevantOperators(agentId: string): string[] {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.getRelevantOperators();
+  }
+
+  public getRelevantOperatorsObservable(agentId: string): Observable<string[]> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.relevantOperators$;
+  }
+
   /**
    * Create a copilot instance using Angular's dependency injection.
    * Each agent receives a unique instance via a child injector.

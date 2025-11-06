@@ -44,6 +44,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
 import { ActionPlanService } from "../../service/action-plan/action-plan.service";
+import { ContextHighlightService } from "../../service/context-highlight/context-highlight.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -114,7 +115,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private actionPlanService: ActionPlanService
+    private actionPlanService: ActionPlanService,
+    private contextHighlightService: ContextHighlightService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -167,6 +169,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
     this.handleActionPlanHighlight();
+    this.handleContextHighlight();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -539,6 +542,193 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const points = operators.flatMap(op => {
       const { x, y, width, height } = op.getBBox(),
         padding = 20; // Slightly larger padding than regions
+      return [
+        [x - padding, y - padding],
+        [x + width + padding, y - padding],
+        [x - padding, y + height + padding + 10],
+        [x + width + padding, y + height + padding + 10],
+      ];
+    });
+    element.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
+  }
+
+  /**
+   * Handle context highlighting for relevant operators.
+   * Similar to action plan highlighting but uses a different color (light blue).
+   * Supports multiple disconnected components by creating separate highlight regions.
+   */
+  private handleContextHighlight(): void {
+    // Define ContextHighlight JointJS element with light blue stroke
+    const ContextHighlight = joint.dia.Element.define(
+      "context-highlight",
+      {
+        attrs: {
+          body: {
+            fill: "rgba(135,206,250,0.1)", // Light blue fill with low opacity
+            stroke: "rgba(135,206,250,0.8)", // Light blue stroke
+            strokeWidth: 3,
+            strokeDasharray: "8,4",
+            pointerEvents: "none",
+            class: "context-highlight",
+          },
+        },
+      },
+      {
+        markup: [{ tagName: "path", selector: "body" }],
+      }
+    );
+
+    // Track current highlight elements (can be multiple for disconnected components)
+    const currentElements: joint.dia.Element[] = [];
+    let currentPositionHandler: ((cell: joint.dia.Cell) => void) | null = null;
+
+    // Subscribe to context highlight events
+    this.contextHighlightService
+      .getContextHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(operatorIds => {
+        // Clear any existing highlights first
+        this.clearContextHighlightElements(currentElements, currentPositionHandler);
+
+        if (operatorIds.length === 0) {
+          return;
+        }
+
+        // Get operator elements from IDs
+        const operators = operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
+
+        if (operators.length === 0) {
+          return; // No valid operators found
+        }
+
+        // Group operators into connected components
+        const connectedComponents = this.findConnectedComponents(operators);
+
+        // Create a highlight region for each connected component
+        connectedComponents.forEach(component => {
+          if (component.length > 0) {
+            const highlightElement = new ContextHighlight();
+            this.paper.model.addCell(highlightElement);
+            currentElements.push(highlightElement);
+
+            // Update the highlight to wrap around operators in this component
+            this.updateContextHighlightElement(highlightElement, component);
+          }
+        });
+
+        // Listen to operator position changes to update all highlights
+        currentPositionHandler = (cell: joint.dia.Cell) => {
+          if (operators.includes(cell)) {
+            // Re-group and update all highlights
+            const updatedComponents = this.findConnectedComponents(operators);
+            updatedComponents.forEach((component, index) => {
+              if (index < currentElements.length) {
+                this.updateContextHighlightElement(currentElements[index], component);
+              }
+            });
+          }
+        };
+        this.paper.model.on("change:position", currentPositionHandler);
+      });
+
+    // Subscribe to cleanup stream
+    this.contextHighlightService
+      .getClearHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.clearContextHighlightElements(currentElements, currentPositionHandler);
+        currentPositionHandler = null;
+      });
+  }
+
+  /**
+   * Clear all context highlight elements and remove position handler.
+   */
+  private clearContextHighlightElements(
+    elements: joint.dia.Element[],
+    positionHandler: ((cell: joint.dia.Cell) => void) | null
+  ): void {
+    // Remove all highlight elements
+    elements.forEach(element => element.remove());
+    elements.length = 0; // Clear the array
+
+    // Remove position handler
+    if (positionHandler) {
+      this.paper.model.off("change:position", positionHandler);
+    }
+  }
+
+  /**
+   * Find connected components among operators based on workflow links.
+   * Returns array of operator groups where each group is a connected component.
+   */
+  private findConnectedComponents(operators: joint.dia.Cell[]): joint.dia.Cell[][] {
+    const operatorIds = new Set(operators.map(op => op.id));
+    const visited = new Set<string>();
+    const components: joint.dia.Cell[][] = [];
+
+    // Get all links in the workflow
+    const allLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
+
+    // Build adjacency map
+    const adjacencyMap = new Map<string, Set<string>>();
+    allLinks.forEach(link => {
+      const source = link.source.operatorID;
+      const target = link.target.operatorID;
+
+      if (!adjacencyMap.has(source)) {
+        adjacencyMap.set(source, new Set());
+      }
+      if (!adjacencyMap.has(target)) {
+        adjacencyMap.set(target, new Set());
+      }
+
+      adjacencyMap.get(source)!.add(target);
+      adjacencyMap.get(target)!.add(source);
+    });
+
+    // DFS to find connected component starting from a node
+    const dfs = (operatorId: string, component: joint.dia.Cell[]) => {
+      if (visited.has(operatorId)) {
+        return;
+      }
+
+      visited.add(operatorId);
+      const operator = operators.find(op => op.id === operatorId);
+      if (operator) {
+        component.push(operator);
+      }
+
+      const neighbors = adjacencyMap.get(operatorId) || new Set();
+      neighbors.forEach(neighborId => {
+        if (operatorIds.has(neighborId) && !visited.has(neighborId)) {
+          dfs(neighborId, component);
+        }
+      });
+    };
+
+    // Find all connected components
+    operators.forEach(operator => {
+      if (!visited.has(operator.id as string)) {
+        const component: joint.dia.Cell[] = [];
+        dfs(operator.id as string, component);
+        if (component.length > 0) {
+          components.push(component);
+        }
+      }
+    });
+
+    return components;
+  }
+
+  /**
+   * Update context highlight element to wrap around operators.
+   * Similar to updateActionPlanElement but for context highlights.
+   */
+  private updateContextHighlightElement(element: joint.dia.Element, operators: joint.dia.Cell[]) {
+    const points = operators.flatMap(op => {
+      const { x, y, width, height } = op.getBBox();
+      const padding = 25; // Slightly larger padding for context highlights
       return [
         [x - padding, y - padding],
         [x + width + padding, y - padding],
