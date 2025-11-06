@@ -59,7 +59,6 @@ import {
   createListLinksTool,
   createGetComputingUnitStatusTool,
   createListRelevantOperatorIdsTool,
-  createGetOperatorConsoleLogsTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -449,7 +448,9 @@ export class TexeraCopilot {
       createGetWorkflowCompilationStateTool(this.workflowCompilingService)
     );
     const executeWorkflowTool = toolWithTimeout(createExecuteWorkflowTool(this.executeWorkflowService));
-    const getExecutionStateTool = toolWithTimeout(createGetExecutionStateTool(this.executeWorkflowService));
+    const getExecutionStateTool = toolWithTimeout(
+      createGetExecutionStateTool(this.executeWorkflowService, this.workflowActionService, this.workflowConsoleService)
+    );
     const killWorkflowTool = toolWithTimeout(createKillWorkflowTool(this.executeWorkflowService));
     const hasOperatorResultTool = toolWithTimeout(
       createHasOperatorResultTool(this.workflowResultService, this.workflowActionService)
@@ -478,8 +479,6 @@ export class TexeraCopilot {
       createListRelevantOperatorIdsTool(this.workflowActionService, this.workflowCompilingService)
     );
 
-    // Console logs tool
-    const getOperatorConsoleLogsTool = toolWithTimeout(createGetOperatorConsoleLogsTool(this.workflowConsoleService));
 
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
@@ -512,7 +511,6 @@ export class TexeraCopilot {
       getOperatorResult: getOperatorResultTool,
       getOperatorResultInfo: getOperatorResultInfoTool,
       getComputingUnitStatus: getComputingUnitStatusTool,
-      getOperatorConsoleLogs: getOperatorConsoleLogsTool,
       // Data inconsistency tools
       addInconsistency: addInconsistencyTool,
       listInconsistencies: listInconsistenciesTool,
