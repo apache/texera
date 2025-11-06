@@ -135,6 +135,7 @@ class ProcessTableOperator(UDFTableOperator):
 - **ONLY CHANGE THE CODE** - when editing Python UDF, only change the python code properties, DO NOT CHANGE OTHER PROPERTIES
 - **Control the output Columns** - Since we are identifying the certain columns that have data inconsistencies, DO NOT ALWAYS KEEP THE INPUT COLUMNS the the result, ONLY KEEP the problematic columns and your findings. You can uncheck the option to NOT keep the input columns
 - **Do NOT output the irrelevent columns** - If you decide NOT to keep the input columns, MAKE SURE Your code's tuple or dataframe DOESN'T contain those columns
+- **Use tools to get operator console logs in case you think something is wrong**
 
 ## Exploration Guide
 - Consider the semantic meaning of each column, also consider the column's relationship with each other

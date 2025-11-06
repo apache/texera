@@ -59,6 +59,7 @@ import {
   createListLinksTool,
   createGetComputingUnitStatusTool,
   createListRelevantOperatorIdsTool,
+  createGetOperatorConsoleLogsTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -75,6 +76,7 @@ import { DataInconsistencyService } from "../data-inconsistency/data-inconsisten
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 
 export const DEFAULT_AGENT_MODEL_ID = "claude-3.7";
 
@@ -142,7 +144,8 @@ export class TexeraCopilot {
     private dataInconsistencyService: DataInconsistencyService,
     private actionPlanService: ActionPlanService,
     private notificationService: NotificationService,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private workflowConsoleService: WorkflowConsoleService
   ) {
     this.modelType = DEFAULT_AGENT_MODEL_ID;
   }
@@ -475,6 +478,9 @@ export class TexeraCopilot {
       createListRelevantOperatorIdsTool(this.workflowActionService, this.workflowCompilingService)
     );
 
+    // Console logs tool
+    const getOperatorConsoleLogsTool = toolWithTimeout(createGetOperatorConsoleLogsTool(this.workflowConsoleService));
+
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // workflow editing
@@ -506,6 +512,7 @@ export class TexeraCopilot {
       getOperatorResult: getOperatorResultTool,
       getOperatorResultInfo: getOperatorResultInfoTool,
       getComputingUnitStatus: getComputingUnitStatusTool,
+      getOperatorConsoleLogs: getOperatorConsoleLogsTool,
       // Data inconsistency tools
       addInconsistency: addInconsistencyTool,
       listInconsistencies: listInconsistenciesTool,
