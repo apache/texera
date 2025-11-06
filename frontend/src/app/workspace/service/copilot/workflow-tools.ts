@@ -28,6 +28,7 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
+import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 
 // Tool execution timeout in milliseconds (2 minutes)
 const TOOL_TIMEOUT_MS = 120000;
@@ -1576,6 +1577,75 @@ export function createGetComputingUnitStatusTool(computingUnitStatusService: any
         };
       } catch (error: any) {
         return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Tool to retrieve console logs for UDF operators during workflow execution.
+ * This is particularly useful for debugging Python UDF errors that appear in the console
+ * but may not be captured in the execution state.
+ */
+export function createGetOperatorConsoleLogsTool(workflowConsoleService: WorkflowConsoleService) {
+  return tool({
+    name: "getOperatorConsoleLogs",
+    description:
+      "Retrieve console logs of UDF operators during workflow execution. " +
+      "This tool helps retrieve console logs (including print statements and errors) from UDF operators " +
+      "when executing, which is especially useful for debugging execution issues. " +
+      "Python UDF errors and debug output often appear in console logs.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("The ID of the operator to retrieve console logs from"),
+    }),
+    execute: async args => {
+      try {
+        // Check if operator has console messages
+        const hasMessages = workflowConsoleService.hasConsoleMessages(args.operatorId);
+        if (!hasMessages) {
+          return {
+            success: true,
+            operatorId: args.operatorId,
+            hasLogs: false,
+            message:
+              "No console logs available for this operator. The operator may not have executed yet or produced no console output.",
+          };
+        }
+
+        // Retrieve console messages
+        const messages = workflowConsoleService.getConsoleMessages(args.operatorId);
+        if (!messages || messages.length === 0) {
+          return {
+            success: true,
+            operatorId: args.operatorId,
+            hasLogs: false,
+            message: "No console logs available for this operator.",
+          };
+        }
+
+        // Format messages for readability
+        const formattedMessages = messages.map(msg => ({
+          timestamp: new Date(msg.timestamp.seconds * 1000 + msg.timestamp.nanos / 1000000).toISOString(),
+          type: msg.msgType.name, // PRINT, ERROR, DEBUGGER, COMMAND
+          source: msg.source,
+          workerId: msg.workerId,
+          title: msg.title,
+          message: msg.message,
+        }));
+
+        return {
+          success: true,
+          operatorId: args.operatorId,
+          hasLogs: true,
+          messageCount: messages.length,
+          messages: formattedMessages,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message,
+          operatorId: args.operatorId,
+        };
       }
     },
   });

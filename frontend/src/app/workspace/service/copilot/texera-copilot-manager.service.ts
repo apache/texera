@@ -31,6 +31,7 @@ import { ValidationWorkflowService } from "../validation/validation-workflow.ser
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 
 /**
  * Agent information for tracking created agents.
@@ -254,6 +255,7 @@ export class TexeraCopilotManagerService {
             ActionPlanService,
             NotificationService,
             ComputingUnitStatusService,
+            WorkflowConsoleService,
           ],
         },
       ],
