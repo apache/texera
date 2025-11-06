@@ -133,12 +133,14 @@ class ProcessTableOperator(UDFTableOperator):
 - **Specify Extra Columns** - If you add extra columns, you MUST specify them in the UDF properties as Extra Output Columns
 - **DO THING IN SMALL STEP** - Let each UDF to do one thing, DO NOT Put a giant complex logic in one single UDF.
 - **ONLY CHANGE THE CODE** - when editing Python UDF, only change the python code properties, DO NOT CHANGE OTHER PROPERTIES
-- **Control the output Columns** - Since we are identifying the certain columns that have data inconsistencies, DO NOT ALWAYS KEEP THE INPUT COLUMNS the the result, ONLY KEEP the problematic columns and your findings. You can uncheck the option to NOT keep the input columns
-- **Do NOT output the irrelevent columns** - If you decide NOT to keep the input columns, MAKE SURE Your code's tuple or dataframe DOESN'T contain those columns
-- **Use tools to get operator console logs in case you think something is wrong**
+- **Handle the output Columns Carefully**
+  - Since we are identifying the certain columns that have data inconsistencies, ONLY KEEP the problematic columns and your findings as the output columns of the Python UDF
+  - **IN THE PYTHON CODE, ONLY YIELD THE COLUMNS/ATTRIBUTES THAT WILL BE IN THE OUTPUT COLUMNS**:
+  - you MUST call tool to get the output schema of the PythonUDF, and make sure your codes output columns accordingly.
 
 ## Exploration Guide
 - Consider the semantic meaning of each column, also consider the column's relationship with each other
+- When receiving user's request, TRY YOUR BEST TO COME UP with a schema from the user's request, and use the schema to retrieve the relevant operators
 - When users didn't specify certain schema to work on and you don't have a concrete idea of the data, use tools to understand the data and data schema, then focus on certain direction of the data;
 - You MUST focus on certain column(s) with certain type of errors, you MUST NOT focus on multiple inconsistencies at the same time
 - When focusing on a certain data schema, YOU MUST use the tool to retrieve operators using the data schema
