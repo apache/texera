@@ -54,7 +54,6 @@ import {
   createListLinksTool,
   createListOperatorIdsTool,
   createGetComputingUnitStatusTool,
-  createGetOperatorConsoleLogsTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -423,7 +422,9 @@ export class TexeraCopilot {
       createGetWorkflowCompilationStateTool(this.workflowCompilingService)
     );
     const executeWorkflowTool = toolWithTimeout(createExecuteWorkflowTool(this.executeWorkflowService));
-    const getExecutionStateTool = toolWithTimeout(createGetExecutionStateTool(this.executeWorkflowService));
+    const getExecutionStateTool = toolWithTimeout(
+      createGetExecutionStateTool(this.executeWorkflowService, this.workflowActionService, this.workflowConsoleService)
+    );
     const killWorkflowTool = toolWithTimeout(createKillWorkflowTool(this.executeWorkflowService));
     const hasOperatorResultTool = toolWithTimeout(
       createHasOperatorResultTool(this.workflowResultService, this.workflowActionService)
@@ -440,8 +441,6 @@ export class TexeraCopilot {
       createGetComputingUnitStatusTool(this.computingUnitStatusService)
     );
 
-    const getOperatorConsoleLogsTool = toolWithTimeout(createGetOperatorConsoleLogsTool(this.workflowConsoleService));
-
     const baseTools: Record<string, any> = {
       addOperator: addOperatorTool,
       addLink: addLinkTool,
@@ -452,7 +451,6 @@ export class TexeraCopilot {
       getValidationInfoOfCurrentWorkflow: getValidationInfoOfCurrentWorkflowTool,
       validateOperator: validateOperatorTool,
       listOperatorIds: listOperatorIdsTool,
-      getOperatorConsoleLogs: getOperatorConsoleLogsTool,
       listLinks: listLinksTool,
       listAllOperatorTypes: listAllOperatorTypesTool,
       getOperator: getOperatorTool,
