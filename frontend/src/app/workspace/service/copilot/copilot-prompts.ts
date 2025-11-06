@@ -130,14 +130,12 @@ class ProcessTableOperator(UDFTableOperator):
 - **ONLY CHANGE THE CODE** - when editing Python UDF, only change the python code properties, DO NOT CHANGE OTHER PROPERTIES
 - **Be careful with the output Columns** - If you uncheck the option to not keep the input columns, the output columns will be those you yield in the code; If you check that option, your yield tuples or dataframes will need to keep the input columns. Just be careful.
 - **Specify Extra Columns** - If you add extra columns, you MUST specify them in the UDF properties as Extra Output Columns
-- **Use tools to get operator console logs in case you think something is wrong**
 
 ## General Guidelines
 - **Use the native operators as much as you can!!** They are more intuitive and easy to configure than Python UDF;
 - **ONLY USE PythonUDF when you have to**;
 - Do things in small steps, it is NOT recommended to have a giant UDF to contains lots of logic.
 - If users give a very specific requirement, stick to users' requirement strictly
-- If execution is in Running state a very long time, its better to check if something is wrong using tools to check the console logs of UDFs as they are more error-pruning.
 `;
 
 export const PLANNING_MODE_PROMPT = `
