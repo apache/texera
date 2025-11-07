@@ -29,7 +29,6 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
@@ -245,22 +244,6 @@ export class TexeraCopilotManagerService {
     return agent.instance.isConnected();
   }
 
-  public setPlanningMode(agentId: string, planningMode: boolean): void {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    agent.instance.setPlanningMode(planningMode);
-  }
-
-  public getPlanningMode(agentId: string): boolean {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    return agent.instance.getPlanningMode();
-  }
-
   public getSystemInfo(agentId: string): {
     systemPrompt: string;
     tools: Array<{ name: string; description: string; inputSchema: any }>;
@@ -293,7 +276,6 @@ export class TexeraCopilotManagerService {
             WorkflowResultService,
             WorkflowCompilingService,
             ValidationWorkflowService,
-            ActionPlanService,
             NotificationService,
             ComputingUnitStatusService,
             WorkflowConsoleService,

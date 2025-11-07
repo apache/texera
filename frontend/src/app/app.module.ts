@@ -103,9 +103,6 @@ import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-u
 import { AgentPanelComponent } from "./workspace/component/agent-panel/agent-panel.component";
 import { AgentChatComponent } from "./workspace/component/agent-panel/agent-chat/agent-chat.component";
 import { AgentRegistrationComponent } from "./workspace/component/agent-panel/agent-registration/agent-registration.component";
-import { ActionPlanFeedbackComponent } from "./workspace/component/action-plan-feedback/action-plan-feedback.component";
-import { ActionPlanViewComponent } from "./workspace/component/action-plan-view/action-plan-view.component";
-import { ActionPlansTabComponent } from "./workspace/component/agent-panel/action-plans-tab/action-plans-tab.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { TexeraCopilot } from "./workspace/service/copilot/texera-copilot";
@@ -254,9 +251,6 @@ registerLocaleData(en);
     AgentPanelComponent,
     AgentChatComponent,
     AgentRegistrationComponent,
-    ActionPlanFeedbackComponent,
-    ActionPlanViewComponent,
-    ActionPlansTabComponent,
     InputAutoCompleteComponent,
     FileSelectionComponent,
     CollabWrapperComponent,

@@ -23,12 +23,6 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import {
   createAddOperatorTool,
   createAddLinkTool,
-  createActionPlanTool,
-  createUpdateActionPlanProgressTool,
-  createGetActionPlanTool,
-  createListActionPlansTool,
-  createDeleteActionPlanTool,
-  createUpdateActionPlanTool,
   createGetOperatorTool,
   createDeleteOperatorTool,
   createDeleteLinkTool,
@@ -65,8 +59,7 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { COPILOT_SYSTEM_PROMPT, PLANNING_MODE_PROMPT } from "./copilot-prompts";
-import { ActionPlanService } from "../action-plan/action-plan.service";
+import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
@@ -117,8 +110,6 @@ export class TexeraCopilot {
   private state: CopilotState = CopilotState.UNAVAILABLE;
   private stateSubject = new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE);
   public state$ = this.stateSubject.asObservable();
-  private shouldStopAfterActionPlan: boolean = false;
-  private planningMode: boolean = false;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -129,7 +120,6 @@ export class TexeraCopilot {
     private workflowResultService: WorkflowResultService,
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
-    private actionPlanService: ActionPlanService,
     private notificationService: NotificationService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowConsoleService: WorkflowConsoleService
@@ -144,14 +134,6 @@ export class TexeraCopilot {
 
   public setModelType(modelType: string): void {
     this.modelType = modelType;
-  }
-
-  public setPlanningMode(planningMode: boolean): void {
-    this.planningMode = planningMode;
-  }
-
-  public getPlanningMode(): boolean {
-    return this.planningMode;
   }
 
   /**
@@ -283,7 +265,6 @@ export class TexeraCopilot {
         }
 
         this.setState(CopilotState.GENERATING);
-        this.shouldStopAfterActionPlan = false;
 
         const userMessage: UserModelMessage = { role: "user", content: message };
         this.messages.push(userMessage);
@@ -300,21 +281,14 @@ export class TexeraCopilot {
           const tools = this.createWorkflowTools();
           let isFirstStep = true;
 
-          const systemPrompt = this.planningMode
-            ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT
-            : COPILOT_SYSTEM_PROMPT;
-
           const { response } = await generateText({
             model: this.model,
             messages: this.messages,
             tools,
-            system: systemPrompt,
+            system: COPILOT_SYSTEM_PROMPT,
             stopWhen: ({ steps }) => {
               if (this.state === CopilotState.STOPPING) {
                 this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
-                return true;
-              }
-              if (this.shouldStopAfterActionPlan) {
                 return true;
               }
               return stepCountIs(50)({ steps });
@@ -322,10 +296,6 @@ export class TexeraCopilot {
             onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
               if (this.state === CopilotState.STOPPING) {
                 return;
-              }
-
-              if (toolCalls && toolCalls.some((call: any) => call.toolName === "actionPlan")) {
-                this.shouldStopAfterActionPlan = true;
               }
 
               const stepResponse: AgentUIMessage = {
@@ -376,21 +346,6 @@ export class TexeraCopilot {
       createAddOperatorTool(this.workflowActionService, this.workflowUtilService, this.operatorMetadataService)
     );
     const addLinkTool = toolWithTimeout(createAddLinkTool(this.workflowActionService));
-    const actionPlanTool = toolWithTimeout(
-      createActionPlanTool(
-        this.workflowActionService,
-        this.workflowUtilService,
-        this.operatorMetadataService,
-        this.actionPlanService,
-        this.agentId,
-        this.agentName
-      )
-    );
-    const updateActionPlanProgressTool = toolWithTimeout(createUpdateActionPlanProgressTool(this.actionPlanService));
-    const getActionPlanTool = toolWithTimeout(createGetActionPlanTool(this.actionPlanService));
-    const listActionPlansTool = toolWithTimeout(createListActionPlansTool(this.actionPlanService));
-    const deleteActionPlanTool = toolWithTimeout(createDeleteActionPlanTool(this.actionPlanService));
-    const updateActionPlanTool = toolWithTimeout(createUpdateActionPlanTool(this.actionPlanService));
     const listOperatorIdsTool = toolWithTimeout(createListOperatorIdsTool(this.workflowActionService));
     const listLinksTool = toolWithTimeout(createListLinksTool(this.workflowActionService));
     const listAllOperatorTypesTool = toolWithTimeout(createListAllOperatorTypesTool(this.workflowUtilService));
@@ -439,7 +394,7 @@ export class TexeraCopilot {
       createGetComputingUnitStatusTool(this.computingUnitStatusService)
     );
 
-    const baseTools: Record<string, any> = {
+    return {
       addOperator: addOperatorTool,
       addLink: addLinkTool,
       deleteOperator: deleteOperatorTool,
@@ -466,20 +421,6 @@ export class TexeraCopilot {
       getOperatorResultInfo: getOperatorResultInfoTool,
       getComputingUnitStatus: getComputingUnitStatusTool,
     };
-
-    if (this.planningMode) {
-      return {
-        ...baseTools,
-        actionPlan: actionPlanTool,
-        updateActionPlanProgress: updateActionPlanProgressTool,
-        getActionPlan: getActionPlanTool,
-        listActionPlans: listActionPlansTool,
-        deleteActionPlan: deleteActionPlanTool,
-        updateActionPlan: updateActionPlanTool,
-      };
-    } else {
-      return baseTools;
-    }
   }
 
   public getAgentResponses(): AgentUIMessage[] {
@@ -518,7 +459,7 @@ export class TexeraCopilot {
   }
 
   public getSystemPrompt(): string {
-    return this.planningMode ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT : COPILOT_SYSTEM_PROMPT;
+    return COPILOT_SYSTEM_PROMPT;
   }
 
   public getToolsInfo(): Array<{ name: string; description: string; inputSchema: any }> {

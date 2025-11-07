@@ -43,7 +43,6 @@ import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
-import { ActionPlanService } from "../../service/action-plan/action-plan.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -113,8 +112,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private router: Router,
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
-    private config: GuiConfigService,
-    private actionPlanService: ActionPlanService
+    private config: GuiConfigService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -166,7 +164,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
-    this.handleActionPlanHighlight();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -406,147 +403,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       ];
     });
     regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
-  }
-
-  private handleActionPlanHighlight(): void {
-    // Define ActionPlan JointJS element with transparent fill and border only
-    const ActionPlan = joint.dia.Element.define(
-      "action-plan",
-      {
-        attrs: {
-          body: {
-            fill: "transparent",
-            stroke: "rgba(79,195,255,0.6)",
-            strokeWidth: 2,
-            strokeDasharray: "5,5",
-            pointerEvents: "none",
-            class: "action-plan",
-          },
-        },
-      },
-      {
-        markup: [{ tagName: "path", selector: "body" }],
-      }
-    );
-
-    // Track current highlight element and cleanup handler
-    let currentElement: joint.dia.Element | null = null;
-    let currentPositionHandler: ((operator: joint.dia.Cell) => void) | null = null;
-
-    // Subscribe to action plan highlight events
-    this.actionPlanService
-      .getActionPlanHighlightStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(actionPlan => {
-        // Get operator elements from IDs
-        const operators = actionPlan.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
-
-        if (operators.length === 0) {
-          return; // No valid operators found
-        }
-
-        // Create action plan highlight element
-        currentElement = new ActionPlan();
-        this.paper.model.addCell(currentElement);
-
-        // Update the highlight to wrap around operators
-        this.updateActionPlanElement(currentElement, operators);
-
-        // Listen to operator position changes to update the highlight
-        currentPositionHandler = (operator: joint.dia.Cell) => {
-          if (operators.includes(operator) && currentElement) {
-            this.updateActionPlanElement(currentElement, operators);
-          }
-        };
-        this.paper.model.on("change:position", currentPositionHandler);
-      });
-
-    // Subscribe to cleanup stream - triggered when user accepts/rejects
-    this.actionPlanService
-      .getCleanupStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        // Remove highlight element
-        if (currentElement) {
-          currentElement.remove();
-          currentElement = null;
-        }
-
-        // Remove position handler
-        if (currentPositionHandler) {
-          this.paper.model.off("change:position", currentPositionHandler);
-          currentPositionHandler = null;
-        }
-      });
-  }
-
-  /**
-   * Calculate bounding box that encompasses all operators
-   */
-  private getOperatorsBoundingBox(operators: joint.dia.Cell[]): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } {
-    const bboxes = operators.map(op => op.getBBox());
-    const minX = Math.min(...bboxes.map(b => b.x));
-    const minY = Math.min(...bboxes.map(b => b.y));
-    const maxX = Math.max(...bboxes.map(b => b.x + b.width));
-    const maxY = Math.max(...bboxes.map(b => b.y + b.height));
-
-    return {
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY,
-    };
-  }
-
-  /**
-   * Calculate panel position to the right of the operators, considering canvas boundaries
-   */
-  private calculatePanelPosition(bbox: { x: number; y: number; width: number; height: number }): {
-    x: number;
-    y: number;
-  } {
-    const panelWidth = 400;
-    const panelOffset = 40; // Space between operators and panel
-
-    // Try to position to the right of operators
-    let x = bbox.x + bbox.width + panelOffset;
-    let y = bbox.y;
-
-    // If panel would go off the right edge, position it to the left
-    const paperWidth = this.paper.getComputedSize().width;
-    if (x + panelWidth > paperWidth) {
-      x = bbox.x - panelWidth - panelOffset;
-    }
-
-    // Ensure panel stays within vertical bounds
-    const paperHeight = this.paper.getComputedSize().height;
-    if (y < 20) {
-      y = 20;
-    } else if (y + 300 > paperHeight) {
-      // Approximate panel height
-      y = paperHeight - 320;
-    }
-
-    return { x, y };
-  }
-
-  private updateActionPlanElement(element: joint.dia.Element, operators: joint.dia.Cell[]) {
-    const points = operators.flatMap(op => {
-      const { x, y, width, height } = op.getBBox(),
-        padding = 20; // Slightly larger padding than regions
-      return [
-        [x - padding, y - padding],
-        [x + width + padding, y - padding],
-        [x - padding, y + height + padding + 10],
-        [x + width + padding, y + height + padding + 10],
-      ];
-    });
-    element.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
   }
 
   /**

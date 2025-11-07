@@ -137,12 +137,3 @@ class ProcessTableOperator(UDFTableOperator):
 - Do things in small steps, it is NOT recommended to have a giant UDF to contains lots of logic.
 - If users give a very specific requirement, stick to users' requirement strictly
 `;
-
-export const PLANNING_MODE_PROMPT = `
-## PLANNING MODE IS ENABLED
-
-**IMPORTANT:** You are currently in PLANNING MODE. This means:
-1. **You MUST use the actionPlan tool to generate an action plan FIRST** before making any workflow modifications
-2. Do NOT directly add, delete, or modify operators without creating an action plan first
-3. The plan should be small and atomic, focusing on either user's request of certain dimension
-`;
