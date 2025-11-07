@@ -407,6 +407,9 @@ ingressPaths:
       pathType: ImplementationSpecific
       serviceName: envoy-svc
       servicePort: 10000
+    - path: /api/models
+      serviceName: texera-access-control-service-svc
+      servicePort: 9096
     - path: /api/chat
       serviceName: texera-access-control-service-svc
       servicePort: 9096
