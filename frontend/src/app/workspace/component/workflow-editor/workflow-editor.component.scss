@@ -29,12 +29,6 @@
   display: none;
 }
 
-::ng-deep .action-plan {
-  // Action plan highlights - temporary 5-second visual indicators
-  // Styles are defined inline in JointJS element, but this provides a hook for customization
-  pointer-events: none;
-}
-
 ::ng-deep .hide-worker-count .operator-worker-count {
   display: none;
 }
