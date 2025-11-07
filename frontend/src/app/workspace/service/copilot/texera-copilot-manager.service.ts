@@ -267,19 +267,6 @@ export class TexeraCopilotManagerService {
       providers: [
         {
           provide: TexeraCopilot,
-          deps: [
-            WorkflowActionService,
-            WorkflowUtilService,
-            OperatorMetadataService,
-            DynamicSchemaService,
-            ExecuteWorkflowService,
-            WorkflowResultService,
-            WorkflowCompilingService,
-            ValidationWorkflowService,
-            NotificationService,
-            ComputingUnitStatusService,
-            WorkflowConsoleService,
-          ],
         },
       ],
       parent: this.injector,

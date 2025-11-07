@@ -115,7 +115,6 @@ export class TexeraCopilot {
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
     private operatorMetadataService: OperatorMetadataService,
-    private dynamicSchemaService: DynamicSchemaService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
     private workflowCompilingService: WorkflowCompilingService,
