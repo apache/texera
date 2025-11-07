@@ -71,8 +71,6 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 
-export const DEFAULT_AGENT_MODEL_ID = "claude-3.7";
-
 /**
  * Copilot state enum.
  */
@@ -136,7 +134,7 @@ export class TexeraCopilot {
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowConsoleService: WorkflowConsoleService
   ) {
-    this.modelType = DEFAULT_AGENT_MODEL_ID;
+    this.modelType = "";
   }
 
   public setAgentInfo(agentId: string, agentName: string): void {

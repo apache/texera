@@ -25,7 +25,27 @@
 
   <div class="model-type-selection">
     <h4>Select Model Type</h4>
-    <div class="model-cards">
+    <div
+      *ngIf="isLoadingModels"
+      style="text-align: center; padding: 40px">
+      <nz-spin
+        nzSimple
+        nzSize="large"></nz-spin>
+      <p style="margin-top: 16px; color: #8c8c8c">Loading available models...</p>
+    </div>
+    <div
+      *ngIf="!isLoadingModels && modelTypes.length === 0"
+      style="text-align: center; padding: 40px">
+      <i
+        nz-icon
+        nzType="warning"
+        nzTheme="outline"
+        style="font-size: 48px; color: #faad14"></i>
+      <p style="margin-top: 16px; color: #8c8c8c">No models available</p>
+    </div>
+    <div
+      *ngIf="!isLoadingModels && modelTypes.length > 0"
+      class="model-cards">
       <div
         *ngFor="let modelType of modelTypes"
         class="model-card"

@@ -28,6 +28,7 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
   AccessControlResource,
   HealthCheckResource,
+  LiteLLMModelsResource,
   LiteLLMProxyResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
@@ -59,6 +60,7 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(classOf[HealthCheckResource])
     environment.jersey.register(classOf[AccessControlResource])
     environment.jersey.register(classOf[LiteLLMProxyResource])
+    environment.jersey.register(classOf[LiteLLMModelsResource])
 
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))

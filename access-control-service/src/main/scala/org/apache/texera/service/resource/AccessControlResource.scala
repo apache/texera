@@ -270,3 +270,48 @@ class LiteLLMProxyResource extends LazyLogging {
     }
   }
 }
+
+@Path("/models")
+@Produces(Array(MediaType.APPLICATION_JSON))
+class LiteLLMModelsResource extends LazyLogging {
+
+  private val client: Client = ClientBuilder.newClient()
+  private val litellmBaseUrl: String = LLMConfig.baseUrl
+  private val litellmApiKey: String = LLMConfig.masterKey
+
+  @GET
+  def getModels: Response = {
+    val targetUrl = s"$litellmBaseUrl/models"
+
+    logger.info(s"Fetching models from LiteLLM: $targetUrl")
+
+    try {
+      val response = client
+        .target(targetUrl)
+        .request(MediaType.APPLICATION_JSON)
+        .header("Authorization", s"Bearer $litellmApiKey")
+        .get()
+
+      // Build response with same status and body from LiteLLM
+      val responseBody = response.readEntity(classOf[String])
+      val responseBuilder = Response
+        .status(response.getStatus)
+        .entity(responseBody)
+
+      // Forward response headers
+      response.getHeaders.asScala.foreach {
+        case (key, values) =>
+          values.asScala.foreach(value => responseBuilder.header(key, value))
+      }
+
+      responseBuilder.build()
+    } catch {
+      case e: Exception =>
+        logger.error(s"Error fetching models from LiteLLM: ${e.getMessage}", e)
+        Response
+          .status(Response.Status.BAD_GATEWAY)
+          .entity(s"""{"error": "Failed to fetch models from LiteLLM: ${e.getMessage}"}""")
+          .build()
+    }
+  }
+}

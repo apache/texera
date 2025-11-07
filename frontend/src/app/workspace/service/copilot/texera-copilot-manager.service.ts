@@ -18,8 +18,9 @@
  */
 
 import { Injectable, Injector } from "@angular/core";
+import { HttpClient } from "@angular/common/http";
 import { TexeraCopilot, AgentUIMessage, CopilotState } from "./texera-copilot";
-import { Observable, Subject } from "rxjs";
+import { Observable, Subject, catchError, map, of, shareReplay, tap } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -32,6 +33,7 @@ import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
+import { AppSettings } from "../../../common/app-setting";
 
 /**
  * Agent information for tracking created agents.
@@ -55,6 +57,21 @@ export interface ModelType {
 }
 
 /**
+ * LiteLLM Model API response.
+ */
+interface LiteLLMModel {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+}
+
+interface LiteLLMModelsResponse {
+  data: LiteLLMModel[];
+  object: string;
+}
+
+/**
  * Service to manage multiple copilot agents.
  * Supports multi-agent workflows and agent lifecycle management.
  */
@@ -67,22 +84,12 @@ export class TexeraCopilotManagerService {
   private agentChangeSubject = new Subject<void>();
   public agentChange$ = this.agentChangeSubject.asObservable();
 
-  private modelTypes: ModelType[] = [
-    {
-      id: "claude-3.7",
-      name: "Claude Sonnet 3.7",
-      description: "Balanced performance for workflow editing",
-      icon: "thunderbolt",
-    },
-    {
-      id: "claude-sonnet-4-5",
-      name: "Claude Sonnet 4.5",
-      description: "Most capable model for complex planning",
-      icon: "star",
-    },
-  ];
+  private modelTypes$: Observable<ModelType[]> | null = null;
 
-  constructor(private injector: Injector) {}
+  constructor(
+    private injector: Injector,
+    private http: HttpClient
+  ) {}
 
   /**
    * Create a new agent with the specified model type.
@@ -132,8 +139,42 @@ export class TexeraCopilotManagerService {
     return false;
   }
 
-  public getModelTypes(): ModelType[] {
-    return this.modelTypes;
+  /**
+   * Fetch available models from the API.
+   * Returns an Observable that emits the list of available models.
+   * Uses shareReplay to cache the result and avoid multiple API calls.
+   */
+  public fetchModelTypes(): Observable<ModelType[]> {
+    if (!this.modelTypes$) {
+      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`).pipe(
+        map(response =>
+          response.data.map((model: LiteLLMModel) => ({
+            id: model.id,
+            name: this.formatModelName(model.id),
+            description: `Model: ${model.id}`,
+            icon: "robot",
+          }))
+        ),
+        catchError((error: unknown) => {
+          console.error("Failed to fetch models from API:", error);
+          // Return empty array on error
+          return of([]);
+        }),
+        shareReplay(1) // Cache the result
+      );
+    }
+    return this.modelTypes$;
+  }
+
+  /**
+   * Format model ID into a human-readable name.
+   * Example: "claude-3.7" -> "Claude 3.7"
+   */
+  private formatModelName(modelId: string): string {
+    return modelId
+      .split("-")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   }
 
   public getAgentCount(): number {
