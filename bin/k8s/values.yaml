@@ -321,6 +321,8 @@ litellm:
     # Set your Anthropic API key here
     # IMPORTANT: In production, use external secrets management (e.g., sealed-secrets, external-secrets)
     anthropic: ""  # Replace with your actual API key or use external secret
+    # Set your OpenAI API key here
+    openai: ""  # Replace with your actual API key or use external secret
 
 # PostgreSQL database for LiteLLM persistence
 postgresql-litellm:
