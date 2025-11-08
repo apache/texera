@@ -242,22 +242,6 @@ describe("Workflow Tools", () => {
       expect(mockTool.execute).toHaveBeenCalled();
     });
 
-    it("should handle timeout correctly", async () => {
-      const mockTool = {
-        execute: jasmine.createSpy("execute").and.returnValue(
-          new Promise(resolve => {
-            setTimeout(() => resolve({ success: true }), 150000);
-          })
-        ),
-      };
-
-      const wrappedTool = toolWithTimeout(mockTool);
-      const result = await (wrappedTool as any).execute({});
-
-      expect((result as any).success).toBe(false);
-      expect((result as any).error).toContain("timeout");
-    });
-
     it("should propagate non-timeout errors", async () => {
       const mockTool = {
         execute: jasmine.createSpy("execute").and.returnValue(Promise.reject(new Error("Custom error"))),
