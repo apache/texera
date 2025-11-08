@@ -20,46 +20,7 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, from } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import {
-  createAddOperatorTool,
-  createAddLinkTool,
-  createActionPlanTool,
-  createUpdateActionPlanProgressTool,
-  createGetActionPlanTool,
-  createListActionPlansTool,
-  createDeleteActionPlanTool,
-  createUpdateActionPlanTool,
-  createGetOperatorTool,
-  createDeleteOperatorTool,
-  createDeleteLinkTool,
-  createSetOperatorPropertyTool,
-  createSetPortPropertyTool,
-  createGetOperatorSchemaTool,
-  createGetOperatorPropertiesSchemaTool,
-  createGetOperatorPortsInfoTool,
-  createGetOperatorMetadataTool,
-  createGetOperatorInputSchemaTool,
-  createGetOperatorOutputSchemaTool,
-  createGetWorkflowCompilationStateTool,
-  createExecuteWorkflowTool,
-  createGetExecutionStateTool,
-  createKillWorkflowTool,
-  createHasOperatorResultTool,
-  createGetOperatorResultTool,
-  createGetOperatorResultInfoTool,
-  createGetValidationInfoOfCurrentWorkflowTool,
-  createValidateOperatorTool,
-  createAddInconsistencyTool,
-  createListInconsistenciesTool,
-  createUpdateInconsistencyTool,
-  createDeleteInconsistencyTool,
-  createClearInconsistenciesTool,
-  toolWithTimeout,
-  createListAllOperatorTypesTool,
-  createListLinksTool,
-  createGetComputingUnitStatusTool,
-  createListRelevantOperatorIdsTool,
-} from "./workflow-tools";
+import {*} from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UIMessage, UserModelMessage } from "ai";
@@ -169,97 +130,6 @@ export class TexeraCopilot {
   private setState(newState: CopilotState): void {
     this.state = newState;
     this.stateSubject.next(newState);
-  }
-
-  /**
-   * Type guard to check if a message is a valid ModelMessage.
-   * Uses TypeScript's type predicate for compile-time type safety.
-   *
-   * Validates messages according to Vercel AI SDK ModelMessage types:
-   * - UserModelMessage: { role: "user", content: string | ContentPart[] }
-   * - AssistantModelMessage: { role: "assistant", content: string | ContentPart[] }
-   * - ToolModelMessage: { role: "tool", content: ToolResultPart[] }
-   * - SystemModelMessage: { role: "system", content: string }
-   */
-  private isValidModelMessage(message: unknown): message is ModelMessage {
-    if (!message || typeof message !== "object") {
-      return false;
-    }
-
-    const msg = message as Record<string, unknown>;
-
-    // Check if role property exists and is a string
-    if (typeof msg.role !== "string") {
-      return false;
-    }
-
-    // Validate based on role using type narrowing
-    switch (msg.role) {
-      case "user":
-      case "system":
-        // UserModelMessage/SystemModelMessage: { role: "user"/"system", content: string | array }
-        return typeof msg.content === "string" || Array.isArray(msg.content);
-
-      case "assistant":
-        // AssistantModelMessage: { role: "assistant", content: string | array }
-        // Array content must contain valid content parts (text, tool-call, tool-result, etc.)
-        if (typeof msg.content === "string") {
-          return true;
-        }
-        if (Array.isArray(msg.content)) {
-          // Verify all parts have the required 'type' field
-          return msg.content.every((part: any) => part && typeof part === "object" && typeof part.type === "string");
-        }
-        return false;
-
-      case "tool":
-        // ToolModelMessage: { role: "tool", content: ToolResultPart[] }
-        // Content must be array of tool result parts
-        if (!Array.isArray(msg.content)) {
-          return false;
-        }
-        // Each part must have type='tool-result', toolCallId, toolName, and output with type/value
-        return msg.content.every(
-          (part: any) =>
-            part &&
-            typeof part === "object" &&
-            part.type === "tool-result" &&
-            typeof part.toolCallId === "string" &&
-            typeof part.toolName === "string" &&
-            part.output &&
-            typeof part.output === "object" &&
-            typeof part.output.type === "string" &&
-            "value" in part.output
-        );
-
-      default:
-        return false;
-    }
-  }
-
-  /**
-   * Validate all messages in the conversation history.
-   * Throws an error if any message doesn't conform to ModelMessage type.
-   */
-  private validateMessages(): void {
-    const invalidMessages: Array<{ index: number; message: unknown }> = [];
-
-    this.messages.forEach((message, index) => {
-      if (!this.isValidModelMessage(message)) {
-        invalidMessages.push({ index, message });
-      }
-    });
-
-    if (invalidMessages.length > 0) {
-      const indices = invalidMessages.map(m => m.index).join(", ");
-      const details = invalidMessages.map(m => `[${m.index}]: ${JSON.stringify(m.message)}`).join("; ");
-      const errorMessage = `Invalid ModelMessage(s) found at indices: ${indices}. Details: ${details}`;
-
-      this.notificationService.error(
-        `Message validation failed: ${invalidMessages.length} invalid message(s). Please disconnect current agent and create a new agent`
-      );
-      throw new Error(errorMessage);
-    }
   }
 
   /**
@@ -398,78 +268,19 @@ export class TexeraCopilot {
    * Create workflow manipulation tools with timeout protection.
    */
   private createWorkflowTools(): Record<string, any> {
-    const addOperatorTool = toolWithTimeout(
-      createAddOperatorTool(this.workflowActionService, this.workflowUtilService, this.operatorMetadataService)
+    const listOperatorsInCurrentWorkflowTool = toolWithTimeout(
+      createListOperatorsInCurrentWorkflowTool(this.workflowActionService)
     );
-    const addLinkTool = toolWithTimeout(createAddLinkTool(this.workflowActionService));
-    const actionPlanTool = toolWithTimeout(
-      createActionPlanTool(
-        this.workflowActionService,
-        this.workflowUtilService,
-        this.operatorMetadataService,
-        this.actionPlanService,
-        this.agentId,
-        this.agentName
-      )
-    );
-    const updateActionPlanProgressTool = toolWithTimeout(createUpdateActionPlanProgressTool(this.actionPlanService));
-    const getActionPlanTool = toolWithTimeout(createGetActionPlanTool(this.actionPlanService));
-    const listActionPlansTool = toolWithTimeout(createListActionPlansTool(this.actionPlanService));
-    const deleteActionPlanTool = toolWithTimeout(createDeleteActionPlanTool(this.actionPlanService));
-    const updateActionPlanTool = toolWithTimeout(createUpdateActionPlanTool(this.actionPlanService));
-    const listLinksTool = toolWithTimeout(createListLinksTool(this.workflowActionService));
+    const listLinksTool = toolWithTimeout(createListLinksInCurrentWorkflowTool(this.workflowActionService));
     const listAllOperatorTypesTool = toolWithTimeout(createListAllOperatorTypesTool(this.workflowUtilService));
-    const getOperatorTool = toolWithTimeout(createGetOperatorTool(this.workflowActionService));
-    const deleteOperatorTool = toolWithTimeout(createDeleteOperatorTool(this.workflowActionService));
-    const deleteLinkTool = toolWithTimeout(createDeleteLinkTool(this.workflowActionService));
-    const setOperatorPropertyTool = toolWithTimeout(
-      createSetOperatorPropertyTool(this.workflowActionService, this.validationWorkflowService)
-    );
-    const setPortPropertyTool = toolWithTimeout(
-      createSetPortPropertyTool(this.workflowActionService, this.validationWorkflowService)
+    const getOperatorTool = toolWithTimeout(
+      createGetOperatorInCurrentWorkflowTool(this.workflowActionService, this.workflowCompilingService)
     );
     const getOperatorPropertiesSchemaTool = toolWithTimeout(
-      createGetOperatorPropertiesSchemaTool(this.workflowActionService, this.operatorMetadataService)
+      createGetOperatorPropertiesSchemaTool(this.operatorMetadataService)
     );
-    const getOperatorPortsInfoTool = toolWithTimeout(
-      createGetOperatorPortsInfoTool(this.workflowActionService, this.operatorMetadataService)
-    );
-    const getOperatorMetadataTool = toolWithTimeout(
-      createGetOperatorMetadataTool(this.workflowActionService, this.operatorMetadataService)
-    );
-    const getOperatorInputSchemaTool = toolWithTimeout(createGetOperatorInputSchemaTool(this.workflowCompilingService));
-    const getOperatorOutputSchemaTool = toolWithTimeout(
-      createGetOperatorOutputSchemaTool(this.workflowCompilingService)
-    );
-    const getWorkflowCompilationStateTool = toolWithTimeout(
-      createGetWorkflowCompilationStateTool(this.workflowCompilingService)
-    );
-    const executeWorkflowTool = toolWithTimeout(createExecuteWorkflowTool(this.executeWorkflowService));
-    const getExecutionStateTool = toolWithTimeout(
-      createGetExecutionStateTool(this.executeWorkflowService, this.workflowActionService, this.workflowConsoleService)
-    );
-    const killWorkflowTool = toolWithTimeout(createKillWorkflowTool(this.executeWorkflowService));
-    const hasOperatorResultTool = toolWithTimeout(
-      createHasOperatorResultTool(this.workflowResultService, this.workflowActionService)
-    );
-    const getOperatorResultTool = toolWithTimeout(createGetOperatorResultTool(this.workflowResultService));
-    const getOperatorResultInfoTool = toolWithTimeout(
-      createGetOperatorResultInfoTool(this.workflowResultService, this.workflowActionService)
-    );
-    const getValidationInfoOfCurrentWorkflowTool = toolWithTimeout(
-      createGetValidationInfoOfCurrentWorkflowTool(this.validationWorkflowService, this.workflowActionService)
-    );
-    const validateOperatorTool = toolWithTimeout(createValidateOperatorTool(this.validationWorkflowService));
-    const getComputingUnitStatusTool = toolWithTimeout(
-      createGetComputingUnitStatusTool(this.computingUnitStatusService)
-    );
-
-    // Inconsistency tools
-    const addInconsistencyTool = toolWithTimeout(createAddInconsistencyTool(this.dataInconsistencyService));
-    const listInconsistenciesTool = toolWithTimeout(createListInconsistenciesTool(this.dataInconsistencyService));
-    const updateInconsistencyTool = toolWithTimeout(createUpdateInconsistencyTool(this.dataInconsistencyService));
-    const deleteInconsistencyTool = toolWithTimeout(createDeleteInconsistencyTool(this.dataInconsistencyService));
-    const clearInconsistenciesTool = toolWithTimeout(createClearInconsistenciesTool(this.dataInconsistencyService));
+    const getOperatorPortsInfoTool = toolWithTimeout(createGetOperatorPortsInfoTool(this.operatorMetadataService));
+    const getOperatorMetadataTool = toolWithTimeout(createGetOperatorMetadataTool(this.operatorMetadataService));
 
     // Context adjustment tool
     const listRelevantOperatorIdsTool = toolWithTimeout(
