@@ -73,3 +73,4 @@ to access services in the main namespace using the same service names.
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.webserver.name $namespace)
 ) | nindent 0 }}
 
+
