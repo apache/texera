@@ -43,7 +43,7 @@ to access services in the main namespace using the same service names.
 */}}
 
 {{/* File service ExternalName */}}
-{{- include "external-name-service" (dict
+{{- include "external-name-service" (dict 
   "name" (printf "%s-svc" .Values.fileService.name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.fileService.name $namespace)
@@ -51,7 +51,7 @@ to access services in the main namespace using the same service names.
 
 ---
 {{/* Config service ExternalName */}}
-{{- include "external-name-service" (dict
+{{- include "external-name-service" (dict 
   "name" (printf "%s-svc" .Values.configService.name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.configService.name $namespace)
@@ -59,7 +59,7 @@ to access services in the main namespace using the same service names.
 
 ---
 {{/* PostgreSQL ExternalName */}}
-{{- include "external-name-service" (dict
+{{- include "external-name-service" (dict 
   "name" (printf "%s-postgresql" .Release.Name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-postgresql.%s.svc.cluster.local" .Release.Name $namespace)
@@ -67,7 +67,7 @@ to access services in the main namespace using the same service names.
 
 ---
 {{/* Webserver ExternalName */}}
-{{- include "external-name-service" (dict
+{{- include "external-name-service" (dict 
   "name" (printf "%s-svc" .Values.webserver.name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.webserver.name $namespace)
