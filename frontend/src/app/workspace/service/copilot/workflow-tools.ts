@@ -21,185 +21,42 @@ import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
-import { OperatorLink } from "../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
-import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 
-// Tool execution timeout in milliseconds (2 minutes)
 const TOOL_TIMEOUT_MS = 120000;
 
-// Maximum token limit for operator result data to prevent overwhelming LLM context
-// Estimated as characters / 4 (common approximation for token counting)
-const MAX_OPERATOR_RESULT_TOKEN_LIMIT = 1000;
-
-/**
- * Estimates the number of tokens in a JSON-serializable object
- * Uses a common approximation: tokens ≈ characters / 4
- */
-function estimateTokenCount(data: any): number {
-  try {
-    const jsonString = JSON.stringify(data);
-    return Math.ceil(jsonString.length / 4);
-  } catch (error) {
-    // Fallback if JSON.stringify fails
-    return 0;
-  }
-}
-
-/**
- * Wraps a tool definition to add timeout protection to its execute function
- * Uses AbortController to properly cancel operations on timeout
- */
 export function toolWithTimeout(toolConfig: any): any {
   const originalExecute = toolConfig.execute;
 
   return {
     ...toolConfig,
     execute: async (args: any) => {
-      // Create an AbortController for this execution
       const abortController = new AbortController();
 
-      // Create a timeout promise that will abort the controller
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          abortController.abort(); // Signal cancellation to the operation
+          abortController.abort();
           reject(new Error("timeout"));
         }, TOOL_TIMEOUT_MS);
       });
 
       try {
-        // Pass the abort signal in args so tools can check it
         const argsWithSignal = { ...args, signal: abortController.signal };
         return await Promise.race([originalExecute(argsWithSignal), timeoutPromise]);
       } catch (error: any) {
-        // If it's a timeout error, return a properly formatted error response
         if (error.message === "timeout") {
           return {
             success: false,
             error: "Tool execution timeout - operation took longer than 2 minutes. Please try again later.",
           };
         }
-        // Re-throw other errors to be handled by the original error handler
         throw error;
       }
     },
   };
 }
 
-/**
- * Create addOperator tool for adding a new operator to the workflow
- */
-export function createAddOperatorTool(
-  workflowActionService: WorkflowActionService,
-  workflowUtilService: WorkflowUtilService,
-  operatorMetadataService: OperatorMetadataService
-) {
-  return tool({
-    name: "addOperator",
-    description: "Add a new operator to the workflow",
-    inputSchema: z.object({
-      operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
-      customDisplayName: z
-        .string()
-        .optional()
-        .describe("Brief custom name summarizing what this operator does in one sentence"),
-    }),
-    execute: async (args: { operatorType: string; customDisplayName?: string }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Validate operator type exists
-        if (!operatorMetadataService.operatorTypeExists(args.operatorType)) {
-          return {
-            success: false,
-            error: `Unknown operator type: ${args.operatorType}.Use tools to see available types.`,
-          };
-        }
-
-        // Get a new operator predicate with default settings and optional custom display name
-        const operator = workflowUtilService.getNewOperatorPredicate(args.operatorType, args.customDisplayName);
-
-        // Calculate a default position (can be adjusted by auto-layout later)
-        const existingOperators = workflowActionService.getTexeraGraph().getAllOperators();
-        const defaultX = 100 + (existingOperators.length % 5) * 200;
-        const defaultY = 100 + Math.floor(existingOperators.length / 5) * 150;
-        const position = { x: defaultX, y: defaultY };
-
-        // Add the operator to the workflow first
-        workflowActionService.addOperator(operator, position);
-
-        // Show copilot is adding this operator (after it's added to graph)
-        setTimeout(() => {}, 100);
-
-        return {
-          success: true,
-          operatorId: operator.operatorID,
-          message: `Added ${args.operatorType} operator to workflow`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create addLink tool for connecting two operators
- */
-export function createAddLinkTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: "addLink",
-    description: "Connect two operators with a link",
-    inputSchema: z.object({
-      sourceOperatorId: z.string().describe("ID of the source operator"),
-      sourcePortId: z.string().optional().describe("Port ID on source operator (e.g., 'output-0')"),
-      targetOperatorId: z.string().describe("ID of the target operator"),
-      targetPortId: z.string().optional().describe("Port ID on target operator (e.g., 'input-0')"),
-    }),
-    execute: async (args: {
-      sourceOperatorId: string;
-      sourcePortId?: string;
-      targetOperatorId: string;
-      targetPortId?: string;
-    }) => {
-      try {
-        // Default port IDs if not specified
-        const sourcePId = args.sourcePortId || "output-0";
-        const targetPId = args.targetPortId || "input-0";
-
-        const link: OperatorLink = {
-          linkID: `link_${Date.now()}`,
-          source: {
-            operatorID: args.sourceOperatorId,
-            portID: sourcePId,
-          },
-          target: {
-            operatorID: args.targetOperatorId,
-            portID: targetPId,
-          },
-        };
-
-        workflowActionService.addLink(link);
-
-        return {
-          success: true,
-          linkId: link.linkID,
-          message: `Connected ${args.sourceOperatorId}:${sourcePId} to ${args.targetOperatorId}:${targetPId}`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create listOperatorIds tool for getting all operator IDs in the workflow
- */
 export function createListOperatorIdsTool(workflowActionService: WorkflowActionService) {
   return tool({
     name: "listOperatorIds",
@@ -222,9 +79,6 @@ export function createListOperatorIdsTool(workflowActionService: WorkflowActionS
   });
 }
 
-/**
- * Create listLinks tool for getting all links in the workflow
- */
 export function createListLinksTool(workflowActionService: WorkflowActionService) {
   return tool({
     name: "listLinks",
@@ -245,9 +99,6 @@ export function createListLinksTool(workflowActionService: WorkflowActionService
   });
 }
 
-/**
- * Create listAllOperatorTypes tool for getting all available operator types
- */
 export function createListAllOperatorTypesTool(workflowUtilService: WorkflowUtilService) {
   return tool({
     name: "listAllOperatorTypes",
@@ -268,9 +119,6 @@ export function createListAllOperatorTypesTool(workflowUtilService: WorkflowUtil
   });
 }
 
-/**
- * Create getOperator tool for getting detailed information about a specific operator
- */
 export function createGetOperatorTool(workflowActionService: WorkflowActionService) {
   return tool({
     name: "getOperator",
@@ -280,10 +128,6 @@ export function createGetOperatorTool(workflowActionService: WorkflowActionServi
     }),
     execute: async (args: { operatorId: string }) => {
       try {
-        // Clear previous highlights at start of tool execution
-
-        // Show copilot is viewing this operator
-
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
 
         return {
@@ -301,214 +145,6 @@ export function createGetOperatorTool(workflowActionService: WorkflowActionServi
   });
 }
 
-/**
- * Create deleteOperator tool for removing an operator from the workflow
- */
-export function createDeleteOperatorTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: "deleteOperator",
-    description: "Delete an operator from the workflow",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to delete"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Show copilot is editing this operator before deletion
-
-        workflowActionService.deleteOperator(args.operatorId);
-
-        return {
-          success: true,
-          message: `Deleted operator ${args.operatorId}`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create deleteLink tool for removing a link from the workflow
- */
-export function createDeleteLinkTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: "deleteLink",
-    description: "Delete a link between two operators in the workflow by link ID",
-    inputSchema: z.object({
-      linkId: z.string().describe("ID of the link to delete"),
-    }),
-    execute: async (args: { linkId: string }) => {
-      try {
-        workflowActionService.deleteLinkWithID(args.linkId);
-        return {
-          success: true,
-          message: `Deleted link ${args.linkId}`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create setOperatorProperty tool for modifying operator properties
- */
-export function createSetOperatorPropertyTool(
-  workflowActionService: WorkflowActionService,
-  validationWorkflowService: ValidationWorkflowService
-) {
-  return tool({
-    name: "setOperatorProperty",
-    description:
-      "Set or update properties of an operator in the workflow. Properties must match the operator's schema. Use getOperatorPropertiesSchema first to understand required properties and their types.",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to modify"),
-      properties: z.record(z.any()).describe("Properties object to set on the operator"),
-    }),
-    execute: async (args: { operatorId: string; properties: Record<string, any> }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Show copilot is editing this operator
-
-        // Set the properties first
-        workflowActionService.setOperatorProperty(args.operatorId, args.properties);
-
-        // Validate the operator after setting properties
-        const validation = validationWorkflowService.validateOperator(args.operatorId);
-
-        if (!validation.isValid) {
-          // Properties are set but invalid - return error with details
-          return {
-            success: false,
-            error: "Property validation failed",
-            validationErrors: validation.messages,
-            hint: "Use getOperatorPropertiesSchema tool to see the expected schema structure for this operator",
-          };
-        }
-
-        // Show property was changed
-
-        return {
-          success: true,
-          message: `Updated properties for operator ${args.operatorId}`,
-          properties: args.properties,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create setPortProperty tool for modifying port properties
- */
-export function createSetPortPropertyTool(
-  workflowActionService: WorkflowActionService,
-  validationWorkflowService: ValidationWorkflowService
-) {
-  return tool({
-    name: "setPortProperty",
-    description:
-      "Set or update properties of a port on an operator (e.g., partition information, dependencies). Use getOperatorPortsInfo first to see available ports.",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator that owns the port"),
-      portId: z.string().describe("ID of the port to modify (e.g., 'input-0', 'output-0')"),
-      properties: z.record(z.any()).describe("Port properties to set (partitionInfo, dependencies)"),
-    }),
-    execute: async (args: { operatorId: string; portId: string; properties: Record<string, any> }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Show copilot is editing this operator
-
-        // Create LogicalPort object
-        const logicalPort = {
-          operatorID: args.operatorId,
-          portID: args.portId,
-        };
-
-        // Set the port properties using the high-level service method
-        workflowActionService.setPortProperty(logicalPort, args.properties);
-
-        // Validate the operator after setting port properties
-        const validation = validationWorkflowService.validateOperator(args.operatorId);
-
-        if (!validation.isValid) {
-          // Properties are set but invalid - return error with details
-          return {
-            success: false,
-            error: "Port property validation failed",
-            validationErrors: validation.messages,
-            hint: "Use getOperatorPortsInfo tool to see the available ports and their current configuration",
-          };
-        }
-
-        // Show property was changed
-
-        return {
-          success: true,
-          message: `Updated port ${args.portId} properties for operator ${args.operatorId}`,
-          properties: args.properties,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getOperatorSchema tool for getting operator schema information
- * Returns the original operator schema (not the dynamic one) to save tokens
- */
-export function createGetOperatorSchemaTool(
-  workflowActionService: WorkflowActionService,
-  operatorMetadataService: OperatorMetadataService
-) {
-  return tool({
-    name: "getOperatorSchema",
-    description:
-      "Get the original schema of an operator, which includes properties of this operator. Use this to understand what properties can be edited on an operator before modifying it.",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to get schema for"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Highlight the operator being inspected
-
-        // Get the operator to find its type
-        const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
-        if (!operator) {
-          return { success: false, error: `Operator ${args.operatorId} not found` };
-        }
-
-        // Get the original operator schema from metadata
-        const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
-
-        return {
-          success: true,
-          schema: schema,
-          message: `Retrieved original schema for operator ${args.operatorId} (type: ${operator.operatorType})`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getOperatorPropertiesSchema tool for getting just the properties schema
- * More token-efficient than getOperatorSchema for property-focused queries
- */
 export function createGetOperatorPropertiesSchemaTool(
   workflowActionService: WorkflowActionService,
   operatorMetadataService: OperatorMetadataService
@@ -516,30 +152,22 @@ export function createGetOperatorPropertiesSchemaTool(
   return tool({
     name: "getOperatorPropertiesSchema",
     description:
-      "Get just the properties schema for an operator. This is more token-efficient than getOperatorSchema and returns only the properties structure and required fields. Use this before setting operator properties.",
+      "Get only the properties schema for an operator. Use this before setting operator properties.",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to get properties schema for"),
     }),
     execute: async (args: { operatorId: string }) => {
       try {
-        // Clear previous highlights at start of tool execution
-
-        // Highlight the operator being inspected
-
-        // Get the operator to find its type
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
         if (!operator) {
           return { success: false, error: `Operator ${args.operatorId} not found` };
         }
 
-        // Get the original operator schema from metadata
         const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
-
-        // Extract just the properties and required fields from the JSON schema
         const propertiesSchema = {
           properties: schema.jsonSchema.properties,
           required: schema.jsonSchema.required,
-          definitions: schema.jsonSchema.definitions, // Include definitions for $ref resolution
+          definitions: schema.jsonSchema.definitions,
         };
 
         return {
@@ -555,10 +183,6 @@ export function createGetOperatorPropertiesSchemaTool(
   });
 }
 
-/**
- * Create getOperatorPortsInfo tool for getting just the port information
- * More token-efficient than getOperatorSchema for port-focused queries
- */
 export function createGetOperatorPortsInfoTool(
   workflowActionService: WorkflowActionService,
   operatorMetadataService: OperatorMetadataService
@@ -572,20 +196,12 @@ export function createGetOperatorPortsInfoTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
-        // Clear previous highlights at start of tool execution
-
-        // Highlight the operator being inspected
-
-        // Get the operator to find its type
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
         if (!operator) {
           return { success: false, error: `Operator ${args.operatorId} not found` };
         }
 
-        // Get the original operator schema from metadata
         const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
-
-        // Extract just the port information from the additional metadata
         const portsInfo = {
           inputPorts: schema.additionalMetadata.inputPorts,
           outputPorts: schema.additionalMetadata.outputPorts,
@@ -606,10 +222,6 @@ export function createGetOperatorPortsInfoTool(
   });
 }
 
-/**
- * Create getOperatorMetadata tool for getting operator's semantic metadata
- * Returns information about what the operator does, its description, and capabilities
- */
 export function createGetOperatorMetadataTool(
   workflowActionService: WorkflowActionService,
   operatorMetadataService: OperatorMetadataService
@@ -623,24 +235,13 @@ export function createGetOperatorMetadataTool(
     }),
     execute: async (args: { operatorId: string; signal?: AbortSignal }) => {
       try {
-        // Clear previous highlights at start of tool execution
-        // copilotCoeditor.clearAll();
-
-        // Highlight the operator being inspected
-        // copilotCoeditor.highlightOperators([args.operatorId]);
-
-        // Get the operator to find its type
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
         if (!operator) {
           return { success: false, error: `Operator ${args.operatorId} not found` };
         }
-
-        // Get the original operator schema from metadata
         const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
 
-        // Return the additional metadata which contains semantic information
         const metadata = schema.additionalMetadata;
-
         return {
           success: true,
           metadata: metadata,
@@ -655,9 +256,6 @@ export function createGetOperatorMetadataTool(
   });
 }
 
-/**
- * Create getOperatorInputSchema tool for getting operator's input schema from compilation
- */
 export function createGetOperatorInputSchemaTool(workflowCompilingService: WorkflowCompilingService) {
   return tool({
     name: "getOperatorInputSchema",
@@ -668,10 +266,6 @@ export function createGetOperatorInputSchemaTool(workflowCompilingService: Workf
     }),
     execute: async (args: { operatorId: string }) => {
       try {
-        // Clear previous highlights at start of tool execution
-
-        // Highlight the operator being inspected
-
         const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(args.operatorId);
 
         if (!inputSchemaMap) {
@@ -694,9 +288,6 @@ export function createGetOperatorInputSchemaTool(workflowCompilingService: Workf
   });
 }
 
-/**
- * Create getOperatorOutputSchema tool for getting operator's output schema from compilation
- */
 export function createGetOperatorOutputSchemaTool(workflowCompilingService: WorkflowCompilingService) {
   return tool({
     name: "getOperatorOutputSchema",
@@ -729,474 +320,3 @@ export function createGetOperatorOutputSchemaTool(workflowCompilingService: Work
   });
 }
 
-/**
- * Create getWorkflowCompilationState tool for checking compilation status and errors
- */
-export function createGetWorkflowCompilationStateTool(workflowCompilingService: WorkflowCompilingService) {
-  return tool({
-    name: "getWorkflowCompilationState",
-    description:
-      "Get the current workflow compilation state and any compilation errors. Use this to check if the workflow is valid and identify any operator configuration issues.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const compilationState = workflowCompilingService.getWorkflowCompilationState();
-        const compilationErrors = workflowCompilingService.getWorkflowCompilationErrors();
-
-        const hasErrors = Object.keys(compilationErrors).length > 0;
-
-        return {
-          success: true,
-          state: compilationState,
-          hasErrors: hasErrors,
-          errors: hasErrors ? compilationErrors : undefined,
-          message: hasErrors
-            ? `Workflow compilation failed with ${Object.keys(compilationErrors).length} error(s)`
-            : `Workflow compilation state: ${compilationState}`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create executeWorkflow tool for running the workflow
- */
-export function createExecuteWorkflowTool(executeWorkflowService: ExecuteWorkflowService) {
-  return tool({
-    name: "executeWorkflow",
-    description: "Execute the current workflow",
-    inputSchema: z.object({
-      executionName: z.string().optional().describe("Name for this execution (default: 'Copilot Execution')"),
-      targetOperatorId: z
-        .string()
-        .optional()
-        .describe("Optional operator ID to execute up to (executes entire workflow if not specified)"),
-    }),
-    execute: async (args: { executionName?: string; targetOperatorId?: string }) => {
-      try {
-        const name = args.executionName || "Copilot Execution";
-        executeWorkflowService.executeWorkflow(name, args.targetOperatorId);
-        return {
-          success: true,
-          message: args.targetOperatorId
-            ? `Started workflow execution up to operator ${args.targetOperatorId}`
-            : "Started workflow execution",
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getExecutionState tool for checking workflow execution status
- */
-export function createGetExecutionStateTool(
-  executeWorkflowService: ExecuteWorkflowService,
-  workflowActionService: WorkflowActionService,
-  workflowConsoleService: WorkflowConsoleService
-) {
-  return tool({
-    name: "getExecutionState",
-    description: "Get the current execution state of the workflow, including console logs from operators",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const stateInfo = executeWorkflowService.getExecutionState();
-
-        // Get console logs for all operators in the workflow
-        const consoleLogs: { [operatorId: string]: ReadonlyArray<any> } = {};
-        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-
-        for (const operator of allOperators) {
-          const operatorId = operator.operatorID;
-          if (workflowConsoleService.hasConsoleMessages(operatorId)) {
-            const messages = workflowConsoleService.getConsoleMessages(operatorId);
-            if (messages && messages.length > 0) {
-              consoleLogs[operatorId] = messages;
-            }
-          }
-        }
-
-        // Only include essential information, not the entire stateInfo which can be very large
-        const result: any = {
-          success: true,
-          state: stateInfo,
-          consoleLogs: consoleLogs,
-        };
-        return result;
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create killWorkflow tool for stopping workflow execution
- */
-export function createKillWorkflowTool(executeWorkflowService: ExecuteWorkflowService) {
-  return tool({
-    name: "killWorkflow",
-    description:
-      "Kill the currently running workflow execution. Use this when the workflow is stuck or you need to stop it. Cannot kill if workflow is uninitialized or already completed.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        executeWorkflowService.killWorkflow();
-        return {
-          success: true,
-          message: "Workflow execution killed successfully",
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create hasOperatorResult tool for checking if an operator has results
- */
-export function createHasOperatorResultTool(
-  workflowResultService: WorkflowResultService,
-  workflowActionService: WorkflowActionService
-) {
-  return tool({
-    name: "hasOperatorResult",
-    description: "Check if an operator has any execution results available",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to check"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Highlight operator being checked
-
-        const hasResult = workflowResultService.hasAnyResult(args.operatorId);
-
-        return {
-          success: true,
-          hasResult: hasResult,
-          message: hasResult
-            ? `Operator ${args.operatorId} has results available`
-            : `Operator ${args.operatorId} has no results`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create unified getOperatorResult tool that automatically handles both pagination and snapshot modes
- */
-export function createGetOperatorResultTool(workflowResultService: WorkflowResultService) {
-  return tool({
-    name: "getOperatorResult",
-    description:
-      "Get result data for an operator. Automatically detects and uses the appropriate mode (pagination for tables, snapshot for visualizations). Returns rows limited by token count (~3000 tokens) to avoid overwhelming LLM context.",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to get results for"),
-    }),
-    execute: async (args: { operatorId: string; signal?: AbortSignal }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Highlight operator being inspected
-
-        // First, try pagination mode (for table results)
-        const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
-        if (paginatedResultService) {
-          try {
-            // Request first page with reasonable size (200 rows)
-            // We'll filter by token limit after receiving
-            const pageSize = 200;
-            const resultEvent: any = await new Promise((resolve, reject) => {
-              const subscription = paginatedResultService.selectPage(1, pageSize).subscribe({
-                next: event => {
-                  subscription.unsubscribe();
-                  resolve(event);
-                },
-                error: (err: unknown) => {
-                  subscription.unsubscribe();
-                  reject(err);
-                },
-              });
-
-              // Handle abort signal
-              if (args.signal) {
-                args.signal.addEventListener("abort", () => {
-                  subscription.unsubscribe();
-                  reject(new Error("Operation aborted"));
-                });
-              }
-            });
-
-            // Filter results by token limit
-            const limitedResult: any[] = [];
-            let currentTokenCount = 0;
-
-            for (const row of resultEvent.table || []) {
-              const rowTokens = estimateTokenCount(row);
-              if (currentTokenCount + rowTokens > MAX_OPERATOR_RESULT_TOKEN_LIMIT) {
-                break; // Stop if adding this row exceeds limit
-              }
-              limitedResult.push(row);
-              currentTokenCount += rowTokens;
-            }
-
-            const totalRows = paginatedResultService.getCurrentTotalNumTuples();
-            const wasLimited = limitedResult.length < (resultEvent.table?.length || 0);
-
-            return {
-              success: true,
-              operatorId: args.operatorId,
-              mode: "pagination",
-              totalRows: totalRows,
-              displayedRows: limitedResult.length,
-              estimatedTokens: currentTokenCount,
-              truncated: wasLimited,
-              result: { ...resultEvent, table: limitedResult },
-              message: wasLimited
-                ? `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, limited by token count ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`
-                : `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`,
-            };
-          } catch (error: any) {
-            return {
-              success: false,
-              error: `Failed to fetch paginated results: ${error.message}. This may be due to backend storage issues or results not being ready yet.`,
-            };
-          }
-        }
-
-        // If pagination mode is not available, try snapshot mode (for visualization results)
-        const resultService = workflowResultService.getResultService(args.operatorId);
-        if (resultService) {
-          const snapshot = resultService.getCurrentResultSnapshot();
-          if (!snapshot || snapshot.length === 0) {
-            return {
-              success: false,
-              error: `Result snapshot is empty for operator ${args.operatorId}. Results might not be ready yet.`,
-            };
-          }
-
-          // Filter by token limit
-          const limitedResult: any[] = [];
-          let currentTokenCount = 0;
-
-          for (const row of snapshot) {
-            const rowTokens = estimateTokenCount(row);
-            if (currentTokenCount + rowTokens > MAX_OPERATOR_RESULT_TOKEN_LIMIT) {
-              break; // Stop if adding this row exceeds limit
-            }
-            limitedResult.push(row);
-            currentTokenCount += rowTokens;
-          }
-
-          const wasLimited = limitedResult.length < snapshot.length;
-
-          return {
-            success: true,
-            operatorId: args.operatorId,
-            mode: "snapshot",
-            totalRows: snapshot.length,
-            displayedRows: limitedResult.length,
-            estimatedTokens: currentTokenCount,
-            truncated: wasLimited,
-            result: limitedResult,
-            message: wasLimited
-              ? `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, limited by token count ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`
-              : `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`,
-          };
-        }
-
-        // No results available at all
-        return {
-          success: false,
-          error: `No results available for operator ${args.operatorId}. The operator may not have been executed yet, or it may not produce viewable results.`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getOperatorResultInfo tool for getting operator result information
- */
-export function createGetOperatorResultInfoTool(
-  workflowResultService: WorkflowResultService,
-  workflowActionService: WorkflowActionService
-) {
-  return tool({
-    name: "getOperatorResultInfo",
-    description: "Get information about an operator's results, including total count and pagination details",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to get result info for"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        // Clear previous highlights at start of tool execution
-
-        // Highlight operator being inspected
-
-        const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
-        if (!paginatedResultService) {
-          return {
-            success: false,
-            error: `No paginated results available for operator ${args.operatorId}`,
-          };
-        }
-        const totalTuples = paginatedResultService.getCurrentTotalNumTuples();
-        const currentPage = paginatedResultService.getCurrentPageIndex();
-        const schema = paginatedResultService.getSchema();
-
-        return {
-          success: true,
-          operatorId: args.operatorId,
-          totalTuples: totalTuples,
-          currentPage: currentPage,
-          schema: schema,
-          message: `Operator ${args.operatorId} has ${totalTuples} result tuples`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getValidationInfoOfCurrentWorkflow tool for getting workflow validation information
- */
-export function createGetValidationInfoOfCurrentWorkflowTool(
-  validationWorkflowService: ValidationWorkflowService,
-  workflowActionService: WorkflowActionService
-) {
-  return tool({
-    name: "getValidationInfoOfCurrentWorkflow",
-    description:
-      "Get all current validation errors in the workflow. This shows which operators have validation issues and what the errors are. Also returns lists of valid and invalid operator IDs. Use this to check if operators are properly configured before execution.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
-        const errorCount = Object.keys(validationOutput.errors).length;
-
-        const validGraph = validationWorkflowService.getValidTexeraGraph();
-        const validOperators = validGraph.getAllOperators();
-        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-
-        const validOperatorIds = validOperators.map(op => op.operatorID);
-        const invalidCount = allOperators.length - validOperators.length;
-
-        return {
-          success: true,
-          errors: validationOutput.errors,
-          errorCount: errorCount,
-          validOperatorIds: validOperatorIds,
-          validCount: validOperators.length,
-          totalCount: allOperators.length,
-          invalidCount: invalidCount,
-          message:
-            errorCount === 0
-              ? "No validation errors in the workflow"
-              : `Found ${errorCount} operator(s) with validation errors. ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create validateOperator tool for validating a specific operator
- */
-export function createValidateOperatorTool(validationWorkflowService: ValidationWorkflowService) {
-  return tool({
-    name: "validateOperator",
-    description:
-      "Validate a specific operator to check if it's properly configured. Returns validation status and any error messages if invalid.",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to validate"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        const validation = validationWorkflowService.validateOperator(args.operatorId);
-
-        if (validation.isValid) {
-          return {
-            success: true,
-            isValid: true,
-            message: `Operator ${args.operatorId} is valid`,
-          };
-        } else {
-          return {
-            success: true,
-            isValid: false,
-            errors: validation.messages,
-            message: `Operator ${args.operatorId} has validation errors`,
-          };
-        }
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getComputingUnitStatus tool for checking computing unit connection status
- */
-export function createGetComputingUnitStatusTool(computingUnitStatusService: any) {
-  return tool({
-    name: "getComputingUnitStatus",
-    description:
-      "Check the status of the computing unit connection. This is important before workflow execution - if the unit is disconnected, workflows cannot be executed. Use this when execution fails or to verify readiness for execution.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const selectedUnit = computingUnitStatusService.getSelectedComputingUnitValue();
-
-        if (!selectedUnit) {
-          return {
-            success: true,
-            status: "No Computing Unit",
-            isConnected: false,
-            message:
-              "No computing unit is selected. Workflow execution is not available. Please remind the user to connect to a computing unit.",
-          };
-        }
-
-        const unitStatus = selectedUnit.status;
-        const isConnected = unitStatus === "Running";
-
-        return {
-          success: true,
-          status: unitStatus,
-          isConnected: isConnected,
-          computingUnit: {
-            cuid: selectedUnit.computingUnit.cuid,
-            name: selectedUnit.computingUnit.name,
-          },
-          message: isConnected
-            ? `Computing unit "${selectedUnit.computingUnit.name}" is running and ready for workflow execution`
-            : unitStatus === "Pending"
-              ? `Computing unit "${selectedUnit.computingUnit.name}" is pending/starting. Workflow execution may not be available yet.`
-              : `Computing unit is in state: ${unitStatus}. Workflow execution may not be available.`,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
