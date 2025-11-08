@@ -49,6 +49,24 @@ interface LiteLLMModelsResponse {
   data: LiteLLMModel[];
   object: string;
 }
+
+/**
+ * Texera Copilot Manager Service manages multiple AI agent instances for workflow assistance.
+ *
+ * This service provides centralized management for multiple copilot agents, allowing users to:
+ * 1. Create and delete multiple agent instances with different LLM models
+ * 2. Route messages to specific agents
+ * 3. Track agent states and conversation history
+ * 4. Query available LLM models from the backend
+ *
+ * Each agent is a separate TexeraCopilot instance with its own:
+ * - Model configuration (e.g., GPT-4, Claude, etc.)
+ * - Conversation history
+ * - State (available, generating, stopping, unavailable)
+ *
+ * The service acts as a registry and coordinator, ensuring proper lifecycle management
+ * and providing observable streams for agent changes and state updates.
+ */
 @Injectable({
   providedIn: "root",
 })

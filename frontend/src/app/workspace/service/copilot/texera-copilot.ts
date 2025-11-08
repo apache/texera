@@ -61,6 +61,25 @@ export interface AgentUIMessage {
     cachedInputTokens?: number;
   };
 }
+
+/**
+ * Texera Copilot Service provides AI-powered assistance for workflow creation and manipulation.
+ *
+ * This service manages a single AI agent instance that can:
+ * 1. Interact with users through natural language messages
+ * 2. Execute workflow operations using specialized tools
+ * 3. Maintain conversation history and state
+ *
+ * The service communicates with an LLM backend (via LiteLLM) to generate responses and uses
+ * workflow tools to perform actions like listing operators, getting operator schemas, and
+ * manipulating workflow components.
+ *
+ * State management includes:
+ * - UNAVAILABLE: Agent not initialized
+ * - AVAILABLE: Agent ready to receive messages
+ * - GENERATING: Agent currently processing and generating response
+ * - STOPPING: Agent in the process of stopping generation
+ */
 @Injectable()
 export class TexeraCopilot {
   private model: any;
