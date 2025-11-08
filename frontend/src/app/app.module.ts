@@ -181,7 +181,6 @@ import { AdminSettingsComponent } from "./dashboard/component/admin/settings/adm
 import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
-import "deep-chat";
 
 registerLocaleData(en);
 
