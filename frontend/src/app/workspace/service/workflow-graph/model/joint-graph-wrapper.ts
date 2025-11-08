@@ -25,12 +25,7 @@ import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
-import {
-  operatorCoeditorChangedPropertyClass,
-  operatorCoeditorEditingClass,
-  operatorAgentActionProgressClass,
-  operatorAgentActionIconClass,
-} from "../../joint-ui/joint-ui.service";
+import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
 import * as _ from "lodash";
 import Selectors = dia.Cell.Selectors;
@@ -1014,54 +1009,6 @@ export class JointGraphWrapper {
       .attr({
         [`.${operatorCoeditorChangedPropertyClass}`]: {
           text: "",
-          visibility: "hidden",
-        },
-      });
-  }
-
-  /**
-   * Set agent action progress indicator on an operator
-   * @param operatorId The operator ID
-   * @param agentName Name of the agent working on this operator
-   * @param isCompleted Whether the action is completed
-   */
-  public setAgentActionProgress(operatorId: string, agentName: string, isCompleted: boolean): void {
-    const iconUrl = isCompleted
-      ? "assets/svg/done.svg" // Green check mark for completed
-      : "assets/gif/loading.gif"; // Yellow spinner for in-progress
-
-    const textColor = isCompleted ? "green" : "orange"; // Same colors as operator states
-
-    const element = this.getMainJointPaper()?.getModelById(operatorId);
-    if (element) {
-      element.attr({
-        [`.${operatorAgentActionProgressClass}`]: {
-          text: agentName,
-          fill: textColor,
-          visibility: "visible",
-        },
-        [`.${operatorAgentActionIconClass}`]: {
-          "xlink:href": iconUrl,
-          visibility: "visible",
-        },
-      });
-    }
-  }
-
-  /**
-   * Clear agent action progress indicator from an operator
-   * @param operatorId The operator ID
-   */
-  public clearAgentActionProgress(operatorId: string): void {
-    this.getMainJointPaper()
-      ?.getModelById(operatorId)
-      .attr({
-        [`.${operatorAgentActionProgressClass}`]: {
-          text: "",
-          visibility: "hidden",
-        },
-        [`.${operatorAgentActionIconClass}`]: {
-          "xlink:href": "",
           visibility: "hidden",
         },
       });
