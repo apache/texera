@@ -115,6 +115,36 @@ export class TexeraCopilot {
   }
 
   /**
+   * Add an agent UI message and emit to subscribers.
+   */
+  private emitAgentUIMessage(
+    role: "user" | "agent",
+    content: string,
+    isBegin: boolean,
+    isEnd: boolean,
+    toolCalls?: any[],
+    toolResults?: any[],
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+      cachedInputTokens?: number;
+    }
+  ): void {
+    const message: AgentUIMessage = {
+      role,
+      content,
+      isBegin,
+      isEnd,
+      toolCalls,
+      toolResults,
+      usage,
+    };
+    this.agentResponses.push(message);
+    this.agentResponsesSubject.next([...this.agentResponses]);
+  }
+
+  /**
    * Initialize the copilot with the AI model.
    * Returns an Observable that completes when initialization is done.
    */
@@ -137,7 +167,6 @@ export class TexeraCopilot {
 
   public sendMessage(message: string): Observable<void> {
     return defer(() => {
-      // Validation
       if (!this.model) {
         return throwError(() => new Error("Copilot not initialized"));
       }
@@ -146,25 +175,18 @@ export class TexeraCopilot {
         return throwError(() => new Error(`Cannot send message: agent is ${this.state}`));
       }
 
-      // Set state to generating
       this.setState(CopilotState.GENERATING);
 
-      // Add user message
+      // Add user message to UI
+      this.emitAgentUIMessage("user", message, true, true);
+
+      // Add user message to the message history
       const userMessage: UserModelMessage = { role: "user", content: message };
       this.messages.push(userMessage);
-      const userUIMessage: AgentUIMessage = {
-        role: "user",
-        content: message,
-        isBegin: true,
-        isEnd: true,
-      };
-      this.agentResponses.push(userUIMessage);
-      this.agentResponsesSubject.next([...this.agentResponses]);
 
       const tools = this.createWorkflowTools();
       let isFirstStep = true;
 
-      // Generate text using AI
       return from(
         generateText({
           model: this.model,
@@ -183,17 +205,7 @@ export class TexeraCopilot {
               return;
             }
 
-            const stepResponse: AgentUIMessage = {
-              role: "agent",
-              content: text || "",
-              isBegin: isFirstStep,
-              isEnd: false,
-              toolCalls: toolCalls,
-              toolResults: toolResults,
-              usage: usage as any,
-            };
-            this.agentResponses.push(stepResponse);
-            this.agentResponsesSubject.next([...this.agentResponses]);
+            this.emitAgentUIMessage("agent", text || "", isFirstStep, false, toolCalls, toolResults, usage as any);
 
             isFirstStep = false;
           },
@@ -209,19 +221,11 @@ export class TexeraCopilot {
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
 
-          const errorResponse: AgentUIMessage = {
-            role: "agent",
-            content: errorText,
-            isBegin: false,
-            isEnd: true,
-          };
-          this.agentResponses.push(errorResponse);
-          this.agentResponsesSubject.next([...this.agentResponses]);
+          this.emitAgentUIMessage("agent", errorText, false, true);
 
           return throwError(() => err);
         }),
         finalize(() => {
-          // Always set state back to available when done
           this.setState(CopilotState.AVAILABLE);
         })
       );
