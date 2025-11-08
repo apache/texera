@@ -137,7 +137,6 @@ export class TexeraCopilot {
           throw new Error("Copilot not initialized");
         }
 
-        // Guard against sending messages when not available
         if (this.state !== CopilotState.AVAILABLE) {
           throw new Error(`Cannot send message: agent is ${this.state}`);
         }
