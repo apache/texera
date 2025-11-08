@@ -18,22 +18,45 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { CopilotChatComponent } from "./copilot-chat.component";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { AgentChatComponent } from "./agent-chat.component";
+import { TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 
-describe("CopilotChatComponent", () => {
-  let component: CopilotChatComponent;
-  let fixture: ComponentFixture<CopilotChatComponent>;
+describe("AgentChatComponent", () => {
+  let component: AgentChatComponent;
+  let fixture: ComponentFixture<AgentChatComponent>;
+  let mockCopilotManagerService: jasmine.SpyObj<TexeraCopilotManagerService>;
+  let mockNotificationService: jasmine.SpyObj<NotificationService>;
 
   beforeEach(async () => {
+    mockCopilotManagerService = jasmine.createSpyObj("TexeraCopilotManagerService", [
+      "getAgentResponsesObservable",
+      "getAgentStateObservable",
+      "sendMessage",
+      "stopGeneration",
+      "clearMessages",
+      "getSystemInfo",
+    ]);
+    mockNotificationService = jasmine.createSpyObj("NotificationService", ["info", "error", "success"]);
+
     await TestBed.configureTestingModule({
-      declarations: [CopilotChatComponent],
+      declarations: [AgentChatComponent],
+      imports: [HttpClientTestingModule],
+      providers: [
+        { provide: TexeraCopilotManagerService, useValue: mockCopilotManagerService },
+        { provide: NotificationService, useValue: mockNotificationService },
+        ...commonTestProviders,
+      ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(CopilotChatComponent);
+    fixture = TestBed.createComponent(AgentChatComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
   it("should create", () => {

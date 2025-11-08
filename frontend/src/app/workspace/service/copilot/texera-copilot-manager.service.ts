@@ -23,9 +23,6 @@ import { TexeraCopilot, AgentUIMessage, CopilotState } from "./texera-copilot";
 import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError, switchMap } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 
-/**
- * Agent information for tracking created agents.
- */
 export interface AgentInfo {
   id: string;
   name: string;
@@ -34,9 +31,6 @@ export interface AgentInfo {
   createdAt: Date;
 }
 
-/**
- * Available model types for agent creation.
- */
 export interface ModelType {
   id: string;
   name: string;
@@ -44,9 +38,6 @@ export interface ModelType {
   icon: string;
 }
 
-/**
- * LiteLLM Model API response.
- */
 interface LiteLLMModel {
   id: string;
   object: string;
@@ -58,11 +49,6 @@ interface LiteLLMModelsResponse {
   data: LiteLLMModel[];
   object: string;
 }
-
-/**
- * Service to manage multiple copilot agents.
- * Supports multi-agent workflows and agent lifecycle management.
- */
 @Injectable({
   providedIn: "root",
 })
@@ -79,17 +65,13 @@ export class TexeraCopilotManagerService {
     private http: HttpClient
   ) {}
 
-  /**
-   * Create a new agent with the specified model type.
-   * Returns an Observable that emits the created AgentInfo.
-   */
   public createAgent(modelType: string, customName?: string): Observable<AgentInfo> {
     return defer(() => {
       const agentId = `agent-${++this.agentCounter}`;
       const agentName = customName || `Agent ${this.agentCounter}`;
 
       const agentInstance = this.createCopilotInstance(modelType);
-      agentInstance.setAgentInfo(agentId, agentName);
+      agentInstance.setAgentInfo(agentName);
 
       return agentInstance.initialize().pipe(
         map(() => {
@@ -113,10 +95,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Get an agent by ID.
-   * Returns an Observable that emits the AgentInfo or throws if not found.
-   */
   public getAgent(agentId: string): Observable<AgentInfo> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -127,18 +105,9 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Get all agents.
-   * Returns an Observable that emits the array of all AgentInfo.
-   */
   public getAllAgents(): Observable<AgentInfo[]> {
     return of(Array.from(this.agents.values()));
   }
-
-  /**
-   * Delete an agent by ID.
-   * Returns an Observable that emits true if deleted, false if not found.
-   */
   public deleteAgent(agentId: string): Observable<boolean> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -156,11 +125,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Fetch available models from the API.
-   * Returns an Observable that emits the list of available models.
-   * Uses shareReplay to cache the result and avoid multiple API calls.
-   */
   public fetchModelTypes(): Observable<ModelType[]> {
     if (!this.modelTypes$) {
       this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`).pipe(
@@ -174,19 +138,14 @@ export class TexeraCopilotManagerService {
         ),
         catchError((error: unknown) => {
           console.error("Failed to fetch models from API:", error);
-          // Return empty array on error
           return of([]);
         }),
-        shareReplay(1) // Cache the result
+        shareReplay(1)
       );
     }
     return this.modelTypes$;
   }
 
-  /**
-   * Format model ID into a human-readable name.
-   * Example: "claude-3.7" -> "Claude 3.7"
-   */
   private formatModelName(modelId: string): string {
     return modelId
       .split("-")
@@ -194,18 +153,9 @@ export class TexeraCopilotManagerService {
       .join(" ");
   }
 
-  /**
-   * Get the count of active agents.
-   * Returns an Observable that emits the count.
-   */
   public getAgentCount(): Observable<number> {
     return of(this.agents.size);
   }
-
-  /**
-   * Send a message to an agent.
-   * Returns an Observable that completes when the message is processed.
-   */
   public sendMessage(agentId: string, message: string): Observable<void> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -216,10 +166,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Get the agent responses observable stream.
-   * Returns an Observable that emits arrays of AgentUIMessage.
-   */
   public getAgentResponsesObservable(agentId: string): Observable<AgentUIMessage[]> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -230,10 +176,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Get the current agent responses.
-   * Returns an Observable that emits the current array of AgentUIMessage.
-   */
   public getAgentResponses(agentId: string): Observable<AgentUIMessage[]> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -244,10 +186,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Clear all messages for an agent.
-   * Returns an Observable that completes when done.
-   */
   public clearMessages(agentId: string): Observable<void> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -259,10 +197,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Stop generation for an agent.
-   * Returns an Observable that completes when done.
-   */
   public stopGeneration(agentId: string): Observable<void> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -274,10 +208,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Get the current state of an agent.
-   * Returns an Observable that emits the CopilotState.
-   */
   public getAgentState(agentId: string): Observable<CopilotState> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -288,10 +218,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Get the state observable stream for an agent.
-   * Returns an Observable that emits CopilotState changes.
-   */
   public getAgentStateObservable(agentId: string): Observable<CopilotState> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -302,10 +228,6 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Check if an agent is connected.
-   * Returns an Observable that emits a boolean.
-   */
   public isAgentConnected(agentId: string): Observable<boolean> {
     return defer(() => {
       const agent = this.agents.get(agentId);
@@ -316,14 +238,9 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  /**
-   * Get system information for an agent.
-   * Returns an Observable that emits the system prompt and tools.
-   */
-  public getSystemInfo(agentId: string): Observable<{
-    systemPrompt: string;
-    tools: Array<{ name: string; description: string; inputSchema: any }>;
-  }> {
+  public getSystemInfo(
+    agentId: string
+  ): Observable<{ systemPrompt: string; tools: Array<{ name: string; description: string; inputSchema: any }> }> {
     return defer(() => {
       const agent = this.agents.get(agentId);
       if (!agent) {
@@ -335,11 +252,6 @@ export class TexeraCopilotManagerService {
       });
     });
   }
-
-  /**
-   * Create a copilot instance using Angular's dependency injection.
-   * Each agent receives a unique instance via a child injector.
-   */
   private createCopilotInstance(modelType: string): TexeraCopilot {
     const childInjector = Injector.create({
       providers: [

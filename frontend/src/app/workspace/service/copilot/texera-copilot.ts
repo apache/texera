@@ -33,16 +33,13 @@ import {
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UIMessage, UserModelMessage } from "ai";
+import { generateText, type ModelMessage, stepCountIs } from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 
-/**
- * Copilot state enum.
- */
 export enum CopilotState {
   UNAVAILABLE = "Unavailable",
   AVAILABLE = "Available",
@@ -50,9 +47,6 @@ export enum CopilotState {
   STOPPING = "Stopping",
 }
 
-/**
- * Agent response for UI display.
- */
 export interface AgentUIMessage {
   role: "user" | "agent";
   content: string;
@@ -67,23 +61,16 @@ export interface AgentUIMessage {
     cachedInputTokens?: number;
   };
 }
-
-/**
- * Texera Copilot - An AI assistant for workflow manipulation.
- * Uses Vercel AI SDK for chat completion.
- * Note: Not a singleton - each agent has its own instance.
- */
 @Injectable()
 export class TexeraCopilot {
   private model: any;
-  private modelType: string;
-  private agentId: string = "";
-  private agentName: string = "";
+  private modelType = "";
+  private agentName = "";
   private messages: ModelMessage[] = [];
   private agentResponses: AgentUIMessage[] = [];
   private agentResponsesSubject = new BehaviorSubject<AgentUIMessage[]>([]);
   public agentResponses$ = this.agentResponsesSubject.asObservable();
-  private state: CopilotState = CopilotState.UNAVAILABLE;
+  private state = CopilotState.UNAVAILABLE;
   private stateSubject = new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE);
   public state$ = this.stateSubject.asObservable();
 
@@ -93,12 +80,9 @@ export class TexeraCopilot {
     private operatorMetadataService: OperatorMetadataService,
     private workflowCompilingService: WorkflowCompilingService,
     private notificationService: NotificationService
-  ) {
-    this.modelType = "";
-  }
+  ) {}
 
-  public setAgentInfo(agentId: string, agentName: string): void {
-    this.agentId = agentId;
+  public setAgentInfo(agentName: string): void {
     this.agentName = agentName;
   }
 
@@ -106,17 +90,10 @@ export class TexeraCopilot {
     this.modelType = modelType;
   }
 
-  /**
-   * Update the state and emit to the observable.
-   */
   private setState(newState: CopilotState): void {
     this.state = newState;
     this.stateSubject.next(newState);
   }
-
-  /**
-   * Add an agent UI message and emit to subscribers.
-   */
   private emitAgentUIMessage(
     role: "user" | "agent",
     content: string,
@@ -124,30 +101,11 @@ export class TexeraCopilot {
     isEnd: boolean,
     toolCalls?: any[],
     toolResults?: any[],
-    usage?: {
-      inputTokens?: number;
-      outputTokens?: number;
-      totalTokens?: number;
-      cachedInputTokens?: number;
-    }
+    usage?: AgentUIMessage["usage"]
   ): void {
-    const message: AgentUIMessage = {
-      role,
-      content,
-      isBegin,
-      isEnd,
-      toolCalls,
-      toolResults,
-      usage,
-    };
-    this.agentResponses.push(message);
+    this.agentResponses.push({ role, content, isBegin, isEnd, toolCalls, toolResults, usage });
     this.agentResponsesSubject.next([...this.agentResponses]);
   }
-
-  /**
-   * Initialize the copilot with the AI model.
-   * Returns an Observable that completes when initialization is done.
-   */
   public initialize(): Observable<void> {
     return defer(() => {
       try {
@@ -177,12 +135,8 @@ export class TexeraCopilot {
 
       this.setState(CopilotState.GENERATING);
 
-      // Add user message to UI
       this.emitAgentUIMessage("user", message, true, true);
-
-      // Add user message to the message history
-      const userMessage: UserModelMessage = { role: "user", content: message };
-      this.messages.push(userMessage);
+      this.messages.push({ role: "user", content: message });
 
       const tools = this.createWorkflowTools();
       let isFirstStep = true;
@@ -218,11 +172,8 @@ export class TexeraCopilot {
         map(() => undefined),
         catchError((err: unknown) => {
           const errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
-          const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
-          this.messages.push(assistantError);
-
+          this.messages.push({ role: "assistant", content: errorText });
           this.emitAgentUIMessage("agent", errorText, false, true);
-
           return throwError(() => err);
         }),
         finalize(() => {
@@ -232,9 +183,6 @@ export class TexeraCopilot {
     });
   }
 
-  /**
-   * Create workflow manipulation tools with timeout protection.
-   */
   private createWorkflowTools(): Record<string, any> {
     const listOperatorsInCurrentWorkflowTool = toolWithTimeout(
       createListOperatorsInCurrentWorkflowTool(this.workflowActionService)

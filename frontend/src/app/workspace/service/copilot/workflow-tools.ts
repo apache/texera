@@ -24,32 +24,26 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 
-const TOOL_TIMEOUT_MS = 120000;
+const TIMEOUT_MS = 120000;
 
 export function toolWithTimeout(toolConfig: any): any {
   const originalExecute = toolConfig.execute;
-
   return {
     ...toolConfig,
     execute: async (args: any) => {
-      const abortController = new AbortController();
-
-      const timeoutPromise = new Promise((_, reject) => {
+      const controller = new AbortController();
+      const timeout = new Promise((_, reject) => {
         setTimeout(() => {
-          abortController.abort();
+          controller.abort();
           reject(new Error("timeout"));
-        }, TOOL_TIMEOUT_MS);
+        }, TIMEOUT_MS);
       });
 
       try {
-        const argsWithSignal = { ...args, signal: abortController.signal };
-        return await Promise.race([originalExecute(argsWithSignal), timeoutPromise]);
+        return await Promise.race([originalExecute({ ...args, signal: controller.signal }), timeout]);
       } catch (error: any) {
         if (error.message === "timeout") {
-          return {
-            success: false,
-            error: "Tool execution timeout - operation took longer than 2 minutes. Please try again later.",
-          };
+          return { success: false, error: "Tool execution timeout - exceeded 2 minutes" };
         }
         throw error;
       }
@@ -65,16 +59,14 @@ export function createListOperatorsInCurrentWorkflowTool(workflowActionService: 
     execute: async () => {
       try {
         const operators = workflowActionService.getTexeraGraph().getAllOperators();
-        const operatorList = operators.map(op => ({
-          operatorId: op.operatorID,
-          operatorType: op.operatorType,
-          customDisplayName: op.customDisplayName,
-        }));
-
         return {
           success: true,
-          operators: operatorList,
-          count: operatorList.length,
+          operators: operators.map(op => ({
+            operatorId: op.operatorID,
+            operatorType: op.operatorType,
+            customDisplayName: op.customDisplayName,
+          })),
+          count: operators.length,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
@@ -91,11 +83,7 @@ export function createListLinksInCurrentWorkflowTool(workflowActionService: Work
     execute: async () => {
       try {
         const links = workflowActionService.getTexeraGraph().getAllLinks();
-        return {
-          success: true,
-          links: links,
-          count: links.length,
-        };
+        return { success: true, links, count: links.length };
       } catch (error: any) {
         return { success: false, error: error.message };
       }
@@ -111,11 +99,7 @@ export function createListAllOperatorTypesTool(workflowUtilService: WorkflowUtil
     execute: async () => {
       try {
         const operatorTypes = workflowUtilService.getOperatorTypeList();
-        return {
-          success: true,
-          operatorTypes: operatorTypes,
-          count: operatorTypes.length,
-        };
+        return { success: true, operatorTypes, count: operatorTypes.length };
       } catch (error: any) {
         return { success: false, error: error.message };
       }
@@ -130,34 +114,24 @@ export function createGetOperatorInCurrentWorkflowTool(
   return tool({
     name: "getOperatorInCurrentWorkflow",
     description:
-      "Get detailed information about a specific operator in the current workflow, including its input and output schemas",
+      "Get detailed information about a specific operator in the current workflow, including input/output schemas",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to retrieve"),
     }),
     execute: async (args: { operatorId: string }) => {
       try {
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
-
-        // Get input schema (empty map if not available)
-        const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(args.operatorId);
-        const inputSchema = inputSchemaMap || {};
-
-        // Get output schema (empty map if not available)
-        const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(args.operatorId);
-        const outputSchema = outputSchemaMap || {};
+        const inputSchema = workflowCompilingService.getOperatorInputSchemaMap(args.operatorId) || {};
+        const outputSchema = workflowCompilingService.getOperatorOutputSchemaMap(args.operatorId) || {};
 
         return {
           success: true,
-          operator: operator,
-          inputSchema: inputSchema,
-          outputSchema: outputSchema,
-          message: `Retrieved operator ${args.operatorId}`,
+          operator,
+          inputSchema,
+          outputSchema,
         };
       } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || `Operator ${args.operatorId} not found`,
-        };
+        return { success: false, error: error.message || `Operator ${args.operatorId} not found` };
       }
     },
   });
@@ -166,24 +140,21 @@ export function createGetOperatorInCurrentWorkflowTool(
 export function createGetOperatorPropertiesSchemaTool(operatorMetadataService: OperatorMetadataService) {
   return tool({
     name: "getOperatorPropertiesSchema",
-    description: "Get only the properties schema for an operator type. Use this before setting operator properties.",
+    description: "Get properties schema for an operator type. Use before setting operator properties",
     inputSchema: z.object({
-      operatorType: z.string().describe("Type of the operator to get properties schema for"),
+      operatorType: z.string().describe("Operator type"),
     }),
     execute: async (args: { operatorType: string }) => {
       try {
         const schema = operatorMetadataService.getOperatorSchema(args.operatorType);
-        const propertiesSchema = {
-          properties: schema.jsonSchema.properties,
-          required: schema.jsonSchema.required,
-          definitions: schema.jsonSchema.definitions,
-        };
-
         return {
           success: true,
-          propertiesSchema: propertiesSchema,
+          propertiesSchema: {
+            properties: schema.jsonSchema.properties,
+            required: schema.jsonSchema.required,
+            definitions: schema.jsonSchema.definitions,
+          },
           operatorType: args.operatorType,
-          message: `Retrieved properties schema for operator type ${args.operatorType}`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
@@ -195,26 +166,22 @@ export function createGetOperatorPropertiesSchemaTool(operatorMetadataService: O
 export function createGetOperatorPortsInfoTool(operatorMetadataService: OperatorMetadataService) {
   return tool({
     name: "getOperatorPortsInfo",
-    description:
-      "Get input and output port information for an operator type. This is more token-efficient than getOperatorSchema and returns only port details (display names, multi-input support, etc.).",
+    description: "Get input/output port information for an operator type",
     inputSchema: z.object({
-      operatorType: z.string().describe("Type of the operator to get port information for"),
+      operatorType: z.string().describe("Operator type"),
     }),
     execute: async (args: { operatorType: string }) => {
       try {
         const schema = operatorMetadataService.getOperatorSchema(args.operatorType);
-        const portsInfo = {
-          inputPorts: schema.additionalMetadata.inputPorts,
-          outputPorts: schema.additionalMetadata.outputPorts,
-          dynamicInputPorts: schema.additionalMetadata.dynamicInputPorts,
-          dynamicOutputPorts: schema.additionalMetadata.dynamicOutputPorts,
-        };
-
         return {
           success: true,
-          portsInfo: portsInfo,
+          portsInfo: {
+            inputPorts: schema.additionalMetadata.inputPorts,
+            outputPorts: schema.additionalMetadata.outputPorts,
+            dynamicInputPorts: schema.additionalMetadata.dynamicInputPorts,
+            dynamicOutputPorts: schema.additionalMetadata.dynamicOutputPorts,
+          },
           operatorType: args.operatorType,
-          message: `Retrieved port information for operator type ${args.operatorType}`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
@@ -226,22 +193,18 @@ export function createGetOperatorPortsInfoTool(operatorMetadataService: Operator
 export function createGetOperatorMetadataTool(operatorMetadataService: OperatorMetadataService) {
   return tool({
     name: "getOperatorMetadata",
-    description:
-      "Get semantic metadata for an operator type, including user-friendly name, description, operator group, and capabilities. This is very useful to understand the semantics and purpose of each operator type - what it does, how it works, and what kind of data transformation it performs.",
+    description: "Get semantic metadata for an operator type (name, description, group, capabilities)",
     inputSchema: z.object({
-      operatorType: z.string().describe("Type of the operator to get metadata for"),
+      operatorType: z.string().describe("Operator type"),
     }),
-    execute: async (args: { operatorType: string; signal?: AbortSignal }) => {
+    execute: async (args: { operatorType: string }) => {
       try {
         const schema = operatorMetadataService.getOperatorSchema(args.operatorType);
-
-        const metadata = schema.additionalMetadata;
         return {
           success: true,
-          metadata: metadata,
+          metadata: schema.additionalMetadata,
           operatorType: args.operatorType,
           operatorVersion: schema.operatorVersion,
-          message: `Retrieved metadata for operator type ${args.operatorType}`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
