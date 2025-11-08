@@ -120,8 +120,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error when agent not found", done => {
       service.getAgent("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -156,8 +156,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.sendMessage("non-existent", "test message").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -168,8 +168,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.getAgentResponses("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -180,8 +180,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.getAgentResponsesObservable("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -192,8 +192,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.clearMessages("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -204,8 +204,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.stopGeneration("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -216,8 +216,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.getAgentState("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -228,8 +228,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.getAgentStateObservable("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });
@@ -240,8 +240,8 @@ describe("TexeraCopilotManagerService", () => {
     it("should throw error for non-existent agent", done => {
       service.getSystemInfo("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
-        error: (error: Error) => {
-          expect(error.message).toContain("not found");
+        error: (error: unknown) => {
+          expect((error as Error).message).toContain("not found");
           done();
         },
       });

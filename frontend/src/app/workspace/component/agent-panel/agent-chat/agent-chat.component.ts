@@ -95,11 +95,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public showSystemInfo(): void {
-    this.copilotManagerService.getSystemInfo(this.agentInfo.id).subscribe(systemInfo => {
-      this.systemPrompt = systemInfo.systemPrompt;
-      this.availableTools = systemInfo.tools;
-      this.isSystemInfoModalVisible = true;
-    });
+    this.copilotManagerService
+      .getSystemInfo(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(systemInfo => {
+        this.systemPrompt = systemInfo.systemPrompt;
+        this.availableTools = systemInfo.tools;
+        this.isSystemInfoModalVisible = true;
+      });
   }
 
   public closeSystemInfoModal(): void {
@@ -208,11 +211,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public stopGeneration(): void {
-    this.copilotManagerService.stopGeneration(this.agentInfo.id).subscribe();
+    this.copilotManagerService.stopGeneration(this.agentInfo.id).pipe(untilDestroyed(this)).subscribe();
   }
 
   public clearMessages(): void {
-    this.copilotManagerService.clearMessages(this.agentInfo.id).subscribe();
+    this.copilotManagerService.clearMessages(this.agentInfo.id).pipe(untilDestroyed(this)).subscribe();
   }
 
   public isGenerating(): boolean {
