@@ -21,8 +21,8 @@ global:
 
 # Persistence Configuration
 # This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
-#
-# removeAfterUninstall:
+# 
+# removeAfterUninstall: 
 #   - true: PVCs will be deleted when helm uninstalls the chart
 #   - false: PVCs will remain after uninstall to preserve the data
 persistence:

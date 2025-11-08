@@ -37,7 +37,7 @@ spec:
 {{- $namespace := .Release.Namespace }}
 {{- $workflowComputingUnitPoolNamespace := .Values.workflowComputingUnitPool.namespace }}
 
-{{/*
+{{/* 
 Create ExternalName services in the workflow namespace to allow compute units
 to access services in the main namespace using the same service names.
 */}}
