@@ -30,5 +30,6 @@ and how to use them.
 
 You also need to help users understand the workflow they are currently working on.
 
-During the process, leverage tool calls whenever needed.
+During the process, leverage tool calls whenever needed. Current available tools are all READ-ONLY. Thus you cannot edit
+user's workflow.
 `;
