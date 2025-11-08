@@ -18,7 +18,8 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, from } from "rxjs";
+import { BehaviorSubject, Observable, from, of, throwError, defer } from "rxjs";
+import { map, catchError, tap, switchMap, finalize } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import {
   toolWithTimeout,
@@ -115,88 +116,96 @@ export class TexeraCopilot {
 
   /**
    * Initialize the copilot with the AI model.
+   * Returns an Observable that completes when initialization is done.
    */
-  public async initialize(): Promise<void> {
-    try {
-      this.model = createOpenAI({
-        baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
-        apiKey: "dummy",
-      }).chat(this.modelType);
+  public initialize(): Observable<void> {
+    return defer(() => {
+      try {
+        this.model = createOpenAI({
+          baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
+          apiKey: "dummy",
+        }).chat(this.modelType);
 
-      this.setState(CopilotState.AVAILABLE);
-    } catch (error: unknown) {
-      this.setState(CopilotState.UNAVAILABLE);
-      throw error;
-    }
+        this.setState(CopilotState.AVAILABLE);
+        return of(undefined);
+      } catch (error: unknown) {
+        this.setState(CopilotState.UNAVAILABLE);
+        return throwError(() => error);
+      }
+    });
   }
 
   public sendMessage(message: string): Observable<void> {
-    return from(
-      (async () => {
-        if (!this.model) {
-          throw new Error("Copilot not initialized");
-        }
+    return defer(() => {
+      // Validation
+      if (!this.model) {
+        return throwError(() => new Error("Copilot not initialized"));
+      }
 
-        if (this.state !== CopilotState.AVAILABLE) {
-          throw new Error(`Cannot send message: agent is ${this.state}`);
-        }
+      if (this.state !== CopilotState.AVAILABLE) {
+        return throwError(() => new Error(`Cannot send message: agent is ${this.state}`));
+      }
 
-        this.setState(CopilotState.GENERATING);
+      // Set state to generating
+      this.setState(CopilotState.GENERATING);
 
-        const userMessage: UserModelMessage = { role: "user", content: message };
-        this.messages.push(userMessage);
-        const userUIMessage: AgentUIMessage = {
-          role: "user",
-          content: message,
-          isBegin: true,
-          isEnd: true,
-        };
-        this.agentResponses.push(userUIMessage);
-        this.agentResponsesSubject.next([...this.agentResponses]);
+      // Add user message
+      const userMessage: UserModelMessage = { role: "user", content: message };
+      this.messages.push(userMessage);
+      const userUIMessage: AgentUIMessage = {
+        role: "user",
+        content: message,
+        isBegin: true,
+        isEnd: true,
+      };
+      this.agentResponses.push(userUIMessage);
+      this.agentResponsesSubject.next([...this.agentResponses]);
 
-        try {
-          const tools = this.createWorkflowTools();
-          let isFirstStep = true;
+      const tools = this.createWorkflowTools();
+      let isFirstStep = true;
 
-          const { response } = await generateText({
-            model: this.model,
-            messages: this.messages,
-            tools,
-            system: COPILOT_SYSTEM_PROMPT,
-            stopWhen: ({ steps }) => {
-              if (this.state === CopilotState.STOPPING) {
-                this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
-                return true;
-              }
-              return stepCountIs(50)({ steps });
-            },
-            onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
-              if (this.state === CopilotState.STOPPING) {
-                return;
-              }
+      // Generate text using AI
+      return from(
+        generateText({
+          model: this.model,
+          messages: this.messages,
+          tools,
+          system: COPILOT_SYSTEM_PROMPT,
+          stopWhen: ({ steps }) => {
+            if (this.state === CopilotState.STOPPING) {
+              this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
+              return true;
+            }
+            return stepCountIs(50)({ steps });
+          },
+          onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
+            if (this.state === CopilotState.STOPPING) {
+              return;
+            }
 
-              const stepResponse: AgentUIMessage = {
-                role: "agent",
-                content: text || "",
-                isBegin: isFirstStep,
-                isEnd: false,
-                toolCalls: toolCalls,
-                toolResults: toolResults,
-                usage: usage as any,
-              };
-              this.agentResponses.push(stepResponse);
-              this.agentResponsesSubject.next([...this.agentResponses]);
+            const stepResponse: AgentUIMessage = {
+              role: "agent",
+              content: text || "",
+              isBegin: isFirstStep,
+              isEnd: false,
+              toolCalls: toolCalls,
+              toolResults: toolResults,
+              usage: usage as any,
+            };
+            this.agentResponses.push(stepResponse);
+            this.agentResponsesSubject.next([...this.agentResponses]);
 
-              isFirstStep = false;
-            },
-          });
+            isFirstStep = false;
+          },
+        })
+      ).pipe(
+        tap(({ response }) => {
           this.messages.push(...response.messages);
           this.agentResponsesSubject.next([...this.agentResponses]);
-
-          this.setState(CopilotState.AVAILABLE);
-        } catch (err: any) {
-          this.setState(CopilotState.AVAILABLE);
-          const errorText = `Error: ${err?.message ?? String(err)}`;
+        }),
+        map(() => undefined),
+        catchError((err: unknown) => {
+          const errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
 
@@ -209,10 +218,14 @@ export class TexeraCopilot {
           this.agentResponses.push(errorResponse);
           this.agentResponsesSubject.next([...this.agentResponses]);
 
-          throw err;
-        }
-      })()
-    );
+          return throwError(() => err);
+        }),
+        finalize(() => {
+          // Always set state back to available when done
+          this.setState(CopilotState.AVAILABLE);
+        })
+      );
+    });
   }
 
   /**
@@ -265,14 +278,18 @@ export class TexeraCopilot {
     return this.state;
   }
 
-  public async disconnect(): Promise<void> {
-    if (this.state === CopilotState.GENERATING) {
-      this.stopGeneration();
-    }
+  public disconnect(): Observable<void> {
+    return defer(() => {
+      if (this.state === CopilotState.GENERATING) {
+        this.stopGeneration();
+      }
 
-    this.clearMessages();
-    this.setState(CopilotState.UNAVAILABLE);
-    this.notificationService.info(`Agent ${this.agentName} is removed successfully`);
+      this.clearMessages();
+      this.setState(CopilotState.UNAVAILABLE);
+      this.notificationService.info(`Agent ${this.agentName} is removed successfully`);
+
+      return of(undefined);
+    });
   }
 
   public isConnected(): boolean {

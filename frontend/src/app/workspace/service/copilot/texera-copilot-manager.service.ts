@@ -20,18 +20,7 @@
 import { Injectable, Injector } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { TexeraCopilot, AgentUIMessage, CopilotState } from "./texera-copilot";
-import { Observable, Subject, catchError, map, of, shareReplay, tap } from "rxjs";
-import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
-import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
-import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
-import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { NotificationService } from "../../../common/service/notification/notification.service";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
-import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
+import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError, switchMap } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 
 /**
@@ -92,50 +81,79 @@ export class TexeraCopilotManagerService {
 
   /**
    * Create a new agent with the specified model type.
+   * Returns an Observable that emits the created AgentInfo.
    */
-  public async createAgent(modelType: string, customName?: string): Promise<AgentInfo> {
-    const agentId = `agent-${++this.agentCounter}`;
-    const agentName = customName || `Agent ${this.agentCounter}`;
+  public createAgent(modelType: string, customName?: string): Observable<AgentInfo> {
+    return defer(() => {
+      const agentId = `agent-${++this.agentCounter}`;
+      const agentName = customName || `Agent ${this.agentCounter}`;
 
-    try {
       const agentInstance = this.createCopilotInstance(modelType);
       agentInstance.setAgentInfo(agentId, agentName);
-      await agentInstance.initialize();
 
-      const agentInfo: AgentInfo = {
-        id: agentId,
-        name: agentName,
-        modelType,
-        instance: agentInstance,
-        createdAt: new Date(),
-      };
+      return agentInstance.initialize().pipe(
+        map(() => {
+          const agentInfo: AgentInfo = {
+            id: agentId,
+            name: agentName,
+            modelType,
+            instance: agentInstance,
+            createdAt: new Date(),
+          };
 
-      this.agents.set(agentId, agentInfo);
-      this.agentChangeSubject.next();
+          this.agents.set(agentId, agentInfo);
+          this.agentChangeSubject.next();
 
-      return agentInfo;
-    } catch (error) {
-      throw error;
-    }
+          return agentInfo;
+        }),
+        catchError((error: unknown) => {
+          return throwError(() => error);
+        })
+      );
+    });
   }
 
-  public getAgent(agentId: string): AgentInfo | undefined {
-    return this.agents.get(agentId);
+  /**
+   * Get an agent by ID.
+   * Returns an Observable that emits the AgentInfo or throws if not found.
+   */
+  public getAgent(agentId: string): Observable<AgentInfo> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      return of(agent);
+    });
   }
 
-  public getAllAgents(): AgentInfo[] {
-    return Array.from(this.agents.values());
+  /**
+   * Get all agents.
+   * Returns an Observable that emits the array of all AgentInfo.
+   */
+  public getAllAgents(): Observable<AgentInfo[]> {
+    return of(Array.from(this.agents.values()));
   }
 
-  public deleteAgent(agentId: string): boolean {
-    const agent = this.agents.get(agentId);
-    if (agent) {
-      agent.instance.disconnect();
-      this.agents.delete(agentId);
-      this.agentChangeSubject.next();
-      return true;
-    }
-    return false;
+  /**
+   * Delete an agent by ID.
+   * Returns an Observable that emits true if deleted, false if not found.
+   */
+  public deleteAgent(agentId: string): Observable<boolean> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return of(false);
+      }
+
+      return agent.instance.disconnect().pipe(
+        map(() => {
+          this.agents.delete(agentId);
+          this.agentChangeSubject.next();
+          return true;
+        })
+      );
+    });
   }
 
   /**
@@ -176,86 +194,146 @@ export class TexeraCopilotManagerService {
       .join(" ");
   }
 
-  public getAgentCount(): number {
-    return this.agents.size;
+  /**
+   * Get the count of active agents.
+   * Returns an Observable that emits the count.
+   */
+  public getAgentCount(): Observable<number> {
+    return of(this.agents.size);
   }
 
+  /**
+   * Send a message to an agent.
+   * Returns an Observable that completes when the message is processed.
+   */
   public sendMessage(agentId: string, message: string): Observable<void> {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    return agent.instance.sendMessage(message);
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      return agent.instance.sendMessage(message);
+    });
   }
 
+  /**
+   * Get the agent responses observable stream.
+   * Returns an Observable that emits arrays of AgentUIMessage.
+   */
   public getAgentResponsesObservable(agentId: string): Observable<AgentUIMessage[]> {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    return agent.instance.agentResponses$;
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      return agent.instance.agentResponses$;
+    });
   }
 
-  public getAgentResponses(agentId: string): AgentUIMessage[] {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    return agent.instance.getAgentResponses();
+  /**
+   * Get the current agent responses.
+   * Returns an Observable that emits the current array of AgentUIMessage.
+   */
+  public getAgentResponses(agentId: string): Observable<AgentUIMessage[]> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      return of(agent.instance.getAgentResponses());
+    });
   }
 
-  public clearMessages(agentId: string): void {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    agent.instance.clearMessages();
+  /**
+   * Clear all messages for an agent.
+   * Returns an Observable that completes when done.
+   */
+  public clearMessages(agentId: string): Observable<void> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      agent.instance.clearMessages();
+      return of(undefined);
+    });
   }
 
-  public stopGeneration(agentId: string): void {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    agent.instance.stopGeneration();
+  /**
+   * Stop generation for an agent.
+   * Returns an Observable that completes when done.
+   */
+  public stopGeneration(agentId: string): Observable<void> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      agent.instance.stopGeneration();
+      return of(undefined);
+    });
   }
 
-  public getAgentState(agentId: string) {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    return agent.instance.getState();
+  /**
+   * Get the current state of an agent.
+   * Returns an Observable that emits the CopilotState.
+   */
+  public getAgentState(agentId: string): Observable<CopilotState> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      return of(agent.instance.getState());
+    });
   }
 
+  /**
+   * Get the state observable stream for an agent.
+   * Returns an Observable that emits CopilotState changes.
+   */
   public getAgentStateObservable(agentId: string): Observable<CopilotState> {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    return agent.instance.state$;
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      return agent.instance.state$;
+    });
   }
 
-  public isAgentConnected(agentId: string): boolean {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      return false;
-    }
-    return agent.instance.isConnected();
+  /**
+   * Check if an agent is connected.
+   * Returns an Observable that emits a boolean.
+   */
+  public isAgentConnected(agentId: string): Observable<boolean> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return of(false);
+      }
+      return of(agent.instance.isConnected());
+    });
   }
 
-  public getSystemInfo(agentId: string): {
+  /**
+   * Get system information for an agent.
+   * Returns an Observable that emits the system prompt and tools.
+   */
+  public getSystemInfo(agentId: string): Observable<{
     systemPrompt: string;
     tools: Array<{ name: string; description: string; inputSchema: any }>;
-  } {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      throw new Error(`Agent with ID ${agentId} not found`);
-    }
-    return {
-      systemPrompt: agent.instance.getSystemPrompt(),
-      tools: agent.instance.getToolsInfo(),
-    };
+  }> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+      return of({
+        systemPrompt: agent.instance.getSystemPrompt(),
+        tools: agent.instance.getToolsInfo(),
+      });
+    });
   }
 
   /**

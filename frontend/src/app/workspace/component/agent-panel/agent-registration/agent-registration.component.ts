@@ -89,20 +89,18 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
 
     this.isCreating = true;
 
-    try {
-      const agentInfo = await this.copilotManagerService.createAgent(
-        this.selectedModelType,
-        this.customAgentName || undefined
-      );
-
-      this.agentCreated.emit(agentInfo.id);
-      this.selectedModelType = null;
-      this.customAgentName = "";
-    } catch (error) {
-      this.notificationService.error(`Failed to create agent: ${error}`);
-    } finally {
-      this.isCreating = false;
-    }
+    this.copilotManagerService.createAgent(this.selectedModelType, this.customAgentName || undefined).subscribe({
+      next: agentInfo => {
+        this.agentCreated.emit(agentInfo.id);
+        this.selectedModelType = null;
+        this.customAgentName = "";
+        this.isCreating = false;
+      },
+      error: (error: unknown) => {
+        this.notificationService.error(`Failed to create agent: ${error}`);
+        this.isCreating = false;
+      },
+    });
   }
 
   public canCreate(): boolean {
