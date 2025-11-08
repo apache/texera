@@ -21,16 +21,14 @@ import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, from } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import {
-  createGetOperatorTool,
+  toolWithTimeout,
+  createGetOperatorInCurrentWorkflowTool,
   createGetOperatorPropertiesSchemaTool,
   createGetOperatorPortsInfoTool,
   createGetOperatorMetadataTool,
-  createGetOperatorInputSchemaTool,
-  createGetOperatorOutputSchemaTool,
-  toolWithTimeout,
   createListAllOperatorTypesTool,
-  createListLinksTool,
-  createListOperatorIdsTool,
+  createListLinksInCurrentWorkflowTool,
+  createListOperatorsInCurrentWorkflowTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -222,34 +220,28 @@ export class TexeraCopilot {
    * Create workflow manipulation tools with timeout protection.
    */
   private createWorkflowTools(): Record<string, any> {
-    const listOperatorIdsTool = toolWithTimeout(createListOperatorIdsTool(this.workflowActionService));
-    const listLinksTool = toolWithTimeout(createListLinksTool(this.workflowActionService));
+    const listOperatorsInCurrentWorkflowTool = toolWithTimeout(
+      createListOperatorsInCurrentWorkflowTool(this.workflowActionService)
+    );
+    const listLinksTool = toolWithTimeout(createListLinksInCurrentWorkflowTool(this.workflowActionService));
     const listAllOperatorTypesTool = toolWithTimeout(createListAllOperatorTypesTool(this.workflowUtilService));
-    const getOperatorTool = toolWithTimeout(createGetOperatorTool(this.workflowActionService));
+    const getOperatorTool = toolWithTimeout(
+      createGetOperatorInCurrentWorkflowTool(this.workflowActionService, this.workflowCompilingService)
+    );
     const getOperatorPropertiesSchemaTool = toolWithTimeout(
-      createGetOperatorPropertiesSchemaTool(this.workflowActionService, this.operatorMetadataService)
+      createGetOperatorPropertiesSchemaTool(this.operatorMetadataService)
     );
-    const getOperatorPortsInfoTool = toolWithTimeout(
-      createGetOperatorPortsInfoTool(this.workflowActionService, this.operatorMetadataService)
-    );
-    const getOperatorMetadataTool = toolWithTimeout(
-      createGetOperatorMetadataTool(this.workflowActionService, this.operatorMetadataService)
-    );
-    const getOperatorInputSchemaTool = toolWithTimeout(createGetOperatorInputSchemaTool(this.workflowCompilingService));
-    const getOperatorOutputSchemaTool = toolWithTimeout(
-      createGetOperatorOutputSchemaTool(this.workflowCompilingService)
-    );
+    const getOperatorPortsInfoTool = toolWithTimeout(createGetOperatorPortsInfoTool(this.operatorMetadataService));
+    const getOperatorMetadataTool = toolWithTimeout(createGetOperatorMetadataTool(this.operatorMetadataService));
 
     return {
       listAllOperatorTypes: listAllOperatorTypesTool,
-      listOperatorIds: listOperatorIdsTool,
-      listLinks: listLinksTool,
-      getOperator: getOperatorTool,
+      listOperatorsInCurrentWorkflow: listOperatorsInCurrentWorkflowTool,
+      listLinksInCurrentWorkflow: listLinksTool,
+      getOperatorInCurrentWorkflow: getOperatorTool,
       getOperatorPropertiesSchema: getOperatorPropertiesSchemaTool,
       getOperatorPortsInfo: getOperatorPortsInfoTool,
       getOperatorMetadata: getOperatorMetadataTool,
-      getOperatorInputSchema: getOperatorInputSchemaTool,
-      getOperatorOutputSchema: getOperatorOutputSchemaTool,
     };
   }
 
