@@ -37,13 +37,13 @@ spec:
 {{- $namespace := .Release.Namespace }}
 {{- $workflowComputingUnitPoolNamespace := .Values.workflowComputingUnitPool.namespace }}
 
-{{/* 
+{{/*
 Create ExternalName services in the workflow namespace to allow compute units
 to access services in the main namespace using the same service names.
 */}}
 
 {{/* File service ExternalName */}}
-{{- include "external-name-service" (dict 
+{{- include "external-name-service" (dict
   "name" (printf "%s-svc" .Values.fileService.name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.fileService.name $namespace)
@@ -51,7 +51,7 @@ to access services in the main namespace using the same service names.
 
 ---
 {{/* Config service ExternalName */}}
-{{- include "external-name-service" (dict 
+{{- include "external-name-service" (dict
   "name" (printf "%s-svc" .Values.configService.name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.configService.name $namespace)
@@ -66,31 +66,10 @@ to access services in the main namespace using the same service names.
 ) | nindent 0 }}
 
 ---
-{{/* PostgreSQL LiteLLM ExternalName */}}
-{{- if .Values.litellm.persistence.enabled }}
-{{- include "external-name-service" (dict
-  "name" (printf "%s-postgresql-litellm" .Release.Name)
-  "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-postgresql-litellm.%s.svc.cluster.local" .Release.Name $namespace)
-) | nindent 0 }}
-
----
-{{- end }}
-{{/* LiteLLM service ExternalName */}}
-{{- if .Values.litellm.enabled }}
-{{- include "external-name-service" (dict
-  "name" (printf "%s-svc" .Values.litellm.name)
-  "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.litellm.name $namespace)
-) | nindent 0 }}
-
----
-{{- end }}
 {{/* Webserver ExternalName */}}
-{{- include "external-name-service" (dict 
+{{- include "external-name-service" (dict
   "name" (printf "%s-svc" .Values.webserver.name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.webserver.name $namespace)
 ) | nindent 0 }}
-
 
