@@ -18,12 +18,6 @@
  */
 
 module.exports = {
-  resolve: {
-    fallback: {
-      // Minimal polyfill for path (needed by some dependencies)
-      "path": require.resolve("path-browserify"),
-    }
-  },
   module: {
     rules: [
       {
