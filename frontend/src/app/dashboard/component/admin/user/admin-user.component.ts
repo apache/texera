@@ -149,6 +149,8 @@ export class AdminUserComponent implements OnInit {
   public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => (b.email || "").localeCompare(a.email);
   public sortByComment: NzTableSortFn<User> = (a: User, b: User) => (b.comment || "").localeCompare(a.comment);
   public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
+  public sortByAccountCreation: NzTableSortFn<User> = (a: User, b: User) =>
+    (a.accountCreation || 0) - (b.accountCreation || 0);
 
   reset(): void {
     this.nameSearchValue = "";

@@ -96,7 +96,11 @@
         User Role
       </th>
       <th>Quota</th>
-      <th>Account Creation Time</th>
+      <th
+        [nzSortFn]="sortByAccountCreation"
+        [nzSortDirections]="['ascend', 'descend']">
+        Account Creation Time
+      </th>
     </tr>
   </thead>
   <nz-dropdown-menu #nameMenu="nzDropdownMenu">
