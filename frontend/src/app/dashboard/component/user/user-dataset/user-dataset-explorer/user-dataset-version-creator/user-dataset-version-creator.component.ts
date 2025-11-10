@@ -125,6 +125,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
                 {
                   key: "role",
                   type: "select",
+                  defaultValue: "RESEARCHER",
                   templateOptions: {
                     label: "Contributor Role",
                     options: [
@@ -229,6 +230,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         description: this.form.get("description")?.value,
         isPublic: this.isDatasetPublic,
         isDownloadable: this.isDatasetDownloadable,
+        contributors: this.form.get("contributors")?.value,
         did: undefined,
         ownerUid: undefined,
         storagePath: undefined,
