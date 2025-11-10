@@ -25,12 +25,21 @@ import { WorkflowActionService } from "../../workflow-graph/model/workflow-actio
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
 import { estimateTokenCount, MAX_OPERATOR_RESULT_TOKEN_LIMIT } from "./tools-utility";
 
+// Tool name constants
+export const TOOL_NAME_EXECUTE_CURRENT_WORKFLOW = "executeCurrentWorkflow";
+export const TOOL_NAME_GET_CURRENT_EXECUTION_STATE = "getCurrentExecutionState";
+export const TOOL_NAME_KILL_CURRENT_WORKFLOW = "killCurrentWorkflow";
+export const TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT = "hasCurrentOperatorResult";
+export const TOOL_NAME_GET_CURRENT_OPERATOR_RESULT = "getCurrentOperatorResult";
+export const TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO = "getCurrentOperatorResultInfo";
+export const TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS = "getCurrentComputingUnitStatus";
+
 /**
  * Create executeWorkflow tool for running the workflow
  */
 export function createExecuteCurrentWorkflowTool(executeWorkflowService: ExecuteWorkflowService) {
   return tool({
-    name: "executeCurrentWorkflow",
+    name: TOOL_NAME_EXECUTE_CURRENT_WORKFLOW,
     description: "Execute the current workflow",
     inputSchema: z.object({
       executionName: z.string().optional().describe("Name for this execution (default: 'Copilot Execution')"),
@@ -65,7 +74,7 @@ export function createGetCurrentExecutionStateTool(
   workflowConsoleService: WorkflowConsoleService
 ) {
   return tool({
-    name: "getCurrentExecutionState",
+    name: TOOL_NAME_GET_CURRENT_EXECUTION_STATE,
     description: "Get the current execution state of the workflow, including console logs from operators",
     inputSchema: z.object({}),
     execute: async () => {
@@ -105,7 +114,7 @@ export function createGetCurrentExecutionStateTool(
  */
 export function createKillCurrentWorkflowTool(executeWorkflowService: ExecuteWorkflowService) {
   return tool({
-    name: "killCurrentWorkflow",
+    name: TOOL_NAME_KILL_CURRENT_WORKFLOW,
     description:
       "Kill the currently running workflow execution. Use this when the workflow is stuck or you need to stop it. Cannot kill if workflow is uninitialized or already completed.",
     inputSchema: z.object({}),
@@ -131,7 +140,7 @@ export function createHasCurrentOperatorResultTool(
   workflowActionService: WorkflowActionService
 ) {
   return tool({
-    name: "hasCurrentOperatorResult",
+    name: TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT,
     description: "Check if an operator in the current workflow has any execution results available",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to check"),
@@ -159,7 +168,7 @@ export function createHasCurrentOperatorResultTool(
  */
 export function createGetCurrentOperatorResultTool(workflowResultService: WorkflowResultService) {
   return tool({
-    name: "getCurrentOperatorResult",
+    name: TOOL_NAME_GET_CURRENT_OPERATOR_RESULT,
     description:
       "Get result data for an operator in the current workflow. Automatically detects and uses the appropriate mode (pagination for tables, snapshot for visualizations). Returns rows limited by token count (~3000 tokens) to avoid overwhelming LLM context.",
     inputSchema: z.object({
@@ -293,7 +302,7 @@ export function createGetCurrentOperatorResultInfoTool(
   workflowActionService: WorkflowActionService
 ) {
   return tool({
-    name: "getCurrentOperatorResultInfo",
+    name: TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO,
     description:
       "Get information about an operator's results in the current workflow, including total count and pagination details",
     inputSchema: z.object({
@@ -332,7 +341,7 @@ export function createGetCurrentOperatorResultInfoTool(
  */
 export function createGetCurrentComputingUnitStatusTool(computingUnitStatusService: any) {
   return tool({
-    name: "getCurrentComputingUnitStatus",
+    name: TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS,
     description:
       "Check the status of the computing unit connection for the current workflow. This is important before workflow execution - if the unit is disconnected, workflows cannot be executed. Use this when execution fails or to verify readiness for execution.",
     inputSchema: z.object({}),

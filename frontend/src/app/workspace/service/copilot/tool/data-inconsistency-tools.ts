@@ -21,12 +21,19 @@ import { z } from "zod";
 import { tool } from "ai";
 import { DataInconsistencyService } from "../../data-inconsistency/data-inconsistency.service";
 
+// Tool name constants
+export const TOOL_NAME_ADD_INCONSISTENCY = "addInconsistency";
+export const TOOL_NAME_LIST_INCONSISTENCIES = "listInconsistencies";
+export const TOOL_NAME_UPDATE_INCONSISTENCY = "updateInconsistency";
+export const TOOL_NAME_DELETE_INCONSISTENCY = "deleteInconsistency";
+export const TOOL_NAME_CLEAR_INCONSISTENCIES = "clearInconsistencies";
+
 /**
  * Tool to add a data inconsistency to the list
  */
 export function createAddInconsistencyTool(service: DataInconsistencyService) {
   return tool({
-    name: "addInconsistency",
+    name: TOOL_NAME_ADD_INCONSISTENCY,
     description:
       "Add a data inconsistency finding to the inconsistency list. Use this when you find data errors or anomalies in the workflow results.",
     inputSchema: z.object({
@@ -57,7 +64,7 @@ export function createAddInconsistencyTool(service: DataInconsistencyService) {
  */
 export function createListInconsistenciesTool(service: DataInconsistencyService) {
   return tool({
-    name: "listInconsistencies",
+    name: TOOL_NAME_LIST_INCONSISTENCIES,
     description: "Get all data inconsistencies found so far",
     inputSchema: z.object({}),
     execute: async (args: {}) => {
@@ -83,7 +90,7 @@ export function createListInconsistenciesTool(service: DataInconsistencyService)
  */
 export function createUpdateInconsistencyTool(service: DataInconsistencyService) {
   return tool({
-    name: "updateInconsistency",
+    name: TOOL_NAME_UPDATE_INCONSISTENCY,
     description: "Update an existing data inconsistency",
     inputSchema: z.object({
       id: z.string().describe("ID of the inconsistency to update"),
@@ -126,7 +133,7 @@ export function createUpdateInconsistencyTool(service: DataInconsistencyService)
  */
 export function createDeleteInconsistencyTool(service: DataInconsistencyService) {
   return tool({
-    name: "deleteInconsistency",
+    name: TOOL_NAME_DELETE_INCONSISTENCY,
     description: "Delete a data inconsistency from the list",
     inputSchema: z.object({
       id: z.string().describe("ID of the inconsistency to delete"),
@@ -160,7 +167,7 @@ export function createDeleteInconsistencyTool(service: DataInconsistencyService)
  */
 export function createClearInconsistenciesTool(service: DataInconsistencyService) {
   return tool({
-    name: "clearInconsistencies",
+    name: TOOL_NAME_CLEAR_INCONSISTENCIES,
     description: "Clear all data inconsistencies from the list",
     inputSchema: z.object({}),
     execute: async (args: {}) => {

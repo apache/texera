@@ -25,6 +25,14 @@ import { OperatorLink } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 import { ActionPlanService } from "../../action-plan/action-plan.service";
 
+// Tool name constants
+export const TOOL_NAME_ACTION_PLAN = "actionPlan";
+export const TOOL_NAME_UPDATE_ACTION_PLAN_PROGRESS = "updateActionPlanProgress";
+export const TOOL_NAME_GET_ACTION_PLAN = "getActionPlan";
+export const TOOL_NAME_LIST_ACTION_PLANS = "listActionPlans";
+export const TOOL_NAME_DELETE_ACTION_PLAN = "deleteActionPlan";
+export const TOOL_NAME_UPDATE_ACTION_PLAN = "updateActionPlan";
+
 /**
  * Create actionPlan tool for adding batch operators and links
  */
@@ -37,7 +45,7 @@ export function createActionPlanTool(
   agentName: string = ""
 ) {
   return tool({
-    name: "actionPlan",
+    name: TOOL_NAME_ACTION_PLAN,
     description:
       "Add a batch of operators and links to the workflow as part of an action plan. This tool is used to show the structure of what you plan to add without filling in detailed operator properties. It creates a workflow skeleton that demonstrates the planned data flow.",
     inputSchema: z.object({
@@ -217,7 +225,7 @@ export function createActionPlanTool(
  */
 export function createUpdateActionPlanProgressTool(actionPlanService: ActionPlanService) {
   return tool({
-    name: "updateActionPlanProgress",
+    name: TOOL_NAME_UPDATE_ACTION_PLAN_PROGRESS,
     description:
       "Mark a specific task in an action plan as completed. Use this after you've finished configuring an operator from an accepted action plan.",
     inputSchema: z.object({
@@ -261,7 +269,7 @@ export function createUpdateActionPlanProgressTool(actionPlanService: ActionPlan
  */
 export function createGetActionPlanTool(actionPlanService: ActionPlanService) {
   return tool({
-    name: "getActionPlan",
+    name: TOOL_NAME_GET_ACTION_PLAN,
     description: "Retrieve a specific action plan by its ID",
     inputSchema: z.object({
       actionPlanId: z.string().describe("The ID of the action plan to retrieve"),
@@ -306,7 +314,7 @@ export function createGetActionPlanTool(actionPlanService: ActionPlanService) {
  */
 export function createListActionPlansTool(actionPlanService: ActionPlanService) {
   return tool({
-    name: "listActionPlans",
+    name: TOOL_NAME_LIST_ACTION_PLANS,
     description: "List all action plans in the system",
     inputSchema: z.object({
       filterByAgent: z.string().optional().describe("Optional: Filter by agent ID"),
@@ -358,7 +366,7 @@ export function createListActionPlansTool(actionPlanService: ActionPlanService) 
  */
 export function createDeleteActionPlanTool(actionPlanService: ActionPlanService) {
   return tool({
-    name: "deleteActionPlan",
+    name: TOOL_NAME_DELETE_ACTION_PLAN,
     description: "Delete an action plan by its ID",
     inputSchema: z.object({
       actionPlanId: z.string().describe("The ID of the action plan to delete"),
@@ -382,7 +390,7 @@ export function createDeleteActionPlanTool(actionPlanService: ActionPlanService)
  */
 export function createUpdateActionPlanTool(actionPlanService: ActionPlanService) {
   return tool({
-    name: "updateActionPlan",
+    name: TOOL_NAME_UPDATE_ACTION_PLAN,
     description: "Update an action plan's properties",
     inputSchema: z.object({
       actionPlanId: z.string().describe("The ID of the action plan to update"),

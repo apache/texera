@@ -22,6 +22,10 @@ import { tool } from "ai";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 
+// Tool name constants
+export const TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO = "getCurrentWorkflowValidationInfo";
+export const TOOL_NAME_VALIDATE_CURRENT_OPERATOR = "validateCurrentOperator";
+
 /**
  * Create getValidationInfoOfCurrentWorkflow tool for getting workflow validation information
  */
@@ -30,7 +34,7 @@ export function createGetCurrentWorkflowValidationInfoTool(
   workflowActionService: WorkflowActionService
 ) {
   return tool({
-    name: "getCurrentWorkflowValidationInfo",
+    name: TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO,
     description:
       "Get all current validation errors in the workflow. This shows which operators have validation issues and what the errors are. Also returns lists of valid and invalid operator IDs. Use this to check if operators are properly configured before execution.",
     inputSchema: z.object({}),
@@ -71,7 +75,7 @@ export function createGetCurrentWorkflowValidationInfoTool(
  */
 export function createValidateCurrentOperatorTool(validationWorkflowService: ValidationWorkflowService) {
   return tool({
-    name: "validateCurrentOperator",
+    name: TOOL_NAME_VALIDATE_CURRENT_OPERATOR,
     description:
       "Validate a specific operator in the current workflow to check if it's properly configured. Returns validation status and any error messages if invalid.",
     inputSchema: z.object({

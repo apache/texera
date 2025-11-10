@@ -422,50 +422,57 @@ export class TexeraCopilot {
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // meta level knowledge
-      listAllOperatorTypes: listAllOperatorTypesTool,
-      getOperatorPropertiesSchema: getOperatorPropertiesSchemaTool,
-      getOperatorPortsInfo: getOperatorPortsInfoTool,
-      getOperatorMetadata: getOperatorMetadataTool,
+      [workflowMetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES]: listAllOperatorTypesTool,
+      [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA]: getOperatorPropertiesSchemaTool,
+      [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: getOperatorPortsInfoTool,
+      [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: getOperatorMetadataTool,
       // current workflow editing
-      addOperatorToCurrentWorkflow: addOperatorToCurrentWorkflowTool,
-      addLinkToCurrentWorkflow: addLinkToCurrentWorkflowTool,
-      deleteOperatorInCurrentWorkflow: deleteOperatorInCurrentWorkflowTool,
-      deleteLinkInCurrentWorkflow: deleteLinkInCurrentWorkflowTool,
-      setOperatorPropertyInCurrentWorkflow: setOperatorPropertyInCurrentWorkflowTool,
-      setPortPropertyInCurrentWorkflow: setPortPropertyInCurrentWorkflowTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW]:
+        addOperatorToCurrentWorkflowTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW]: addLinkToCurrentWorkflowTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW]:
+        deleteOperatorInCurrentWorkflowTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW]: deleteLinkInCurrentWorkflowTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW]:
+        setOperatorPropertyInCurrentWorkflowTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW]:
+        setPortPropertyInCurrentWorkflowTool,
       // current workflow validation
-      getCurrentWorkflowValidationInfo: getCurrentWorkflowValidationInfoTool,
-      validateCurrentOperator: validateCurrentOperatorTool,
+      [currentWorkflowValidationTools.TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO]:
+        getCurrentWorkflowValidationInfoTool,
+      [currentWorkflowValidationTools.TOOL_NAME_VALIDATE_CURRENT_OPERATOR]: validateCurrentOperatorTool,
       // current workflow inspecting
-      listCurrentRelevantOperatorIds: listCurrentRelevantOperatorIdsTool,
-      listCurrentLinks: listCurrentLinksTool,
-      getCurrentOperator: getCurrentOperatorTool,
-      getCurrentWorkflowCompilationState: getCurrentWorkflowCompilationStateTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS]:
+        listCurrentRelevantOperatorIdsTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_LINKS]: listCurrentLinksTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: getCurrentOperatorTool,
+      [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE]:
+        getCurrentWorkflowCompilationStateTool,
       // current workflow execution
-      executeCurrentWorkflow: executeCurrentWorkflowTool,
-      getCurrentExecutionState: getCurrentExecutionStateTool,
-      killCurrentWorkflow: killCurrentWorkflowTool,
-      hasCurrentOperatorResult: hasCurrentOperatorResultTool,
-      getCurrentOperatorResult: getCurrentOperatorResultTool,
-      getCurrentOperatorResultInfo: getCurrentOperatorResultInfoTool,
-      getCurrentComputingUnitStatus: getCurrentComputingUnitStatusTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: executeCurrentWorkflowTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: getCurrentExecutionStateTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: killCurrentWorkflowTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT]: hasCurrentOperatorResultTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: getCurrentOperatorResultTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: getCurrentOperatorResultInfoTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: getCurrentComputingUnitStatusTool,
       // Data inconsistency tools
-      addInconsistency: addInconsistencyTool,
-      listInconsistencies: listInconsistenciesTool,
-      updateInconsistency: updateInconsistencyTool,
-      deleteInconsistency: deleteInconsistencyTool,
-      clearInconsistencies: clearInconsistenciesTool,
+      [dataInconsistencyTools.TOOL_NAME_ADD_INCONSISTENCY]: addInconsistencyTool,
+      [dataInconsistencyTools.TOOL_NAME_LIST_INCONSISTENCIES]: listInconsistenciesTool,
+      [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
+      [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
+      [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
     };
 
     if (this.planningMode) {
       return {
         ...baseTools,
-        actionPlan: actionPlanTool,
-        updateActionPlanProgress: updateActionPlanProgressTool,
-        getActionPlan: getActionPlanTool,
-        listActionPlans: listActionPlansTool,
-        deleteActionPlan: deleteActionPlanTool,
-        updateActionPlan: updateActionPlanTool,
+        [actionPlanTools.TOOL_NAME_ACTION_PLAN]: actionPlanTool,
+        [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN_PROGRESS]: updateActionPlanProgressTool,
+        [actionPlanTools.TOOL_NAME_GET_ACTION_PLAN]: getActionPlanTool,
+        [actionPlanTools.TOOL_NAME_LIST_ACTION_PLANS]: listActionPlansTool,
+        [actionPlanTools.TOOL_NAME_DELETE_ACTION_PLAN]: deleteActionPlanTool,
+        [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN]: updateActionPlanTool,
       };
     } else {
       return baseTools;

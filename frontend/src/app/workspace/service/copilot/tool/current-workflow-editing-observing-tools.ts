@@ -26,6 +26,19 @@ import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.ser
 import { WorkflowCompilingService } from "../../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 
+// Tool name constants
+export const TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW = "addOperatorToCurrentWorkflow";
+export const TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW = "addLinkToCurrentWorkflow";
+export const TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW = "deleteOperatorInCurrentWorkflow";
+export const TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW = "deleteLinkInCurrentWorkflow";
+export const TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW = "setOperatorPropertyInCurrentWorkflow";
+export const TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW = "setPortPropertyInCurrentWorkflow";
+export const TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW = "listOperatorsInCurrentWorkflow";
+export const TOOL_NAME_LIST_CURRENT_LINKS = "listCurrentLinks";
+export const TOOL_NAME_GET_CURRENT_OPERATOR = "getCurrentOperator";
+export const TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS = "listCurrentRelevantOperatorIds";
+export const TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE = "getCurrentWorkflowCompilationState";
+
 /**
  * Create addOperator tool for adding a new operator to the workflow
  */
@@ -35,7 +48,7 @@ export function createAddOperatorToCurrentWorkflowTool(
   operatorMetadataService: OperatorMetadataService
 ) {
   return tool({
-    name: "addOperatorToCurrentWorkflow",
+    name: TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW,
     description: "Add a new operator to the current workflow",
     inputSchema: z.object({
       operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
@@ -86,7 +99,7 @@ export function createAddOperatorToCurrentWorkflowTool(
  */
 export function createAddLinkToCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
   return tool({
-    name: "addLinkToCurrentWorkflow",
+    name: TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW,
     description: "Connect two operators with a link",
     inputSchema: z.object({
       sourceOperatorId: z.string().describe("ID of the source operator"),
@@ -136,7 +149,7 @@ export function createAddLinkToCurrentWorkflowTool(workflowActionService: Workfl
  */
 export function createDeleteOperatorInCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
   return tool({
-    name: "deleteOperatorInCurrentWorkflow",
+    name: TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW,
     description: "Delete an operator from the current workflow",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to delete"),
@@ -161,7 +174,7 @@ export function createDeleteOperatorInCurrentWorkflowTool(workflowActionService:
  */
 export function createDeleteLinkInCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
   return tool({
-    name: "deleteLinkInCurrentWorkflow",
+    name: TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW,
     description: "Delete a link between two operators in the current workflow by link ID",
     inputSchema: z.object({
       linkId: z.string().describe("ID of the link to delete"),
@@ -188,7 +201,7 @@ export function createSetOperatorPropertyInCurrentWorkflowTool(
   validationWorkflowService: ValidationWorkflowService
 ) {
   return tool({
-    name: "setOperatorPropertyInCurrentWorkflow",
+    name: TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW,
     description:
       "Set or update properties of an operator in the current workflow. Properties must match the operator's schema. Use getOperatorPropertiesSchema first to understand required properties and their types.",
     inputSchema: z.object({
@@ -235,7 +248,7 @@ export function createSetPortPropertyInCurrentWorkflowTool(
   validationWorkflowService: ValidationWorkflowService
 ) {
   return tool({
-    name: "setPortPropertyInCurrentWorkflow",
+    name: TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW,
     description:
       "Set or update properties of a port on an operator in the current workflow (e.g., partition information, dependencies). Use getOperatorPortsInfo first to see available ports.",
     inputSchema: z.object({
@@ -285,7 +298,7 @@ export function createSetPortPropertyInCurrentWorkflowTool(
  */
 export function createListCurrentLinksTool(workflowActionService: WorkflowActionService) {
   return tool({
-    name: "listCurrentLinks",
+    name: TOOL_NAME_LIST_CURRENT_LINKS,
     description: "Get all links in the current workflow",
     inputSchema: z.object({}),
     execute: async () => {
@@ -305,7 +318,7 @@ export function createListCurrentLinksTool(workflowActionService: WorkflowAction
 
 export function createListOperatorsInCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
   return tool({
-    name: "listOperatorsInCurrentWorkflow",
+    name: TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW,
     description: "Get all operators in the current workflow",
     inputSchema: z.object({}),
     execute: async () => {
@@ -328,7 +341,7 @@ export function createGetCurrentOperatorTool(
   workflowCompilingService: WorkflowCompilingService
 ) {
   return tool({
-    name: "getCurrentOperator",
+    name: TOOL_NAME_GET_CURRENT_OPERATOR,
     description:
       "Get detailed information about a specific operator in the current workflow, including its input and output schemas",
     inputSchema: z.object({
@@ -372,7 +385,7 @@ export function createListCurrentRelevantOperatorIdsTool(
   workflowCompilingService: WorkflowCompilingService
 ) {
   return tool({
-    name: "listCurrentRelevantOperatorIds",
+    name: TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS,
     description:
       "Find all operators in the workflow that are relevant context when working with specific data schemas. " +
       "Please use this method when you want to work on certain columns in the data. " +
@@ -434,7 +447,7 @@ export function createListCurrentRelevantOperatorIdsTool(
  */
 export function createGetCurrentWorkflowCompilationStateTool(workflowCompilingService: WorkflowCompilingService) {
   return tool({
-    name: "getCurrentWorkflowCompilationState",
+    name: TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE,
     description:
       "Get the current workflow compilation state and any compilation errors. Use this to check if the workflow is valid and identify any operator configuration issues.",
     inputSchema: z.object({}),

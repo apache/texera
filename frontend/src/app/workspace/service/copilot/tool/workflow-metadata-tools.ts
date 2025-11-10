@@ -22,9 +22,15 @@ import { tool } from "ai";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 
+// Tool name constants
+export const TOOL_NAME_LIST_ALL_OPERATOR_TYPES = "listAllOperatorTypes";
+export const TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA = "getOperatorPropertiesSchema";
+export const TOOL_NAME_GET_OPERATOR_PORTS_INFO = "getOperatorPortsInfo";
+export const TOOL_NAME_GET_OPERATOR_METADATA = "getOperatorMetadata";
+
 export function createListAllOperatorTypesTool(workflowUtilService: WorkflowUtilService) {
   return tool({
-    name: "listAllOperatorTypes",
+    name: TOOL_NAME_LIST_ALL_OPERATOR_TYPES,
     description: "Get all available operator types in the system",
     inputSchema: z.object({}),
     execute: async () => {
@@ -48,7 +54,7 @@ export function createListAllOperatorTypesTool(workflowUtilService: WorkflowUtil
  */
 export function createGetOperatorPropertiesSchemaTool(operatorMetadataService: OperatorMetadataService) {
   return tool({
-    name: "getOperatorPropertiesSchema",
+    name: TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA,
     description: "Get only the properties schema for an operator type. Use this before setting operator properties.",
     inputSchema: z.object({
       operatorType: z.string().describe("Type of the operator to get properties schema for"),
@@ -77,7 +83,7 @@ export function createGetOperatorPropertiesSchemaTool(operatorMetadataService: O
 
 export function createGetOperatorPortsInfoTool(operatorMetadataService: OperatorMetadataService) {
   return tool({
-    name: "getOperatorPortsInfo",
+    name: TOOL_NAME_GET_OPERATOR_PORTS_INFO,
     description:
       "Get input and output port information for an operator type. This is more token-efficient than getOperatorSchema and returns only port details (display names, multi-input support, etc.).",
     inputSchema: z.object({
@@ -108,7 +114,7 @@ export function createGetOperatorPortsInfoTool(operatorMetadataService: Operator
 
 export function createGetOperatorMetadataTool(operatorMetadataService: OperatorMetadataService) {
   return tool({
-    name: "getOperatorMetadata",
+    name: TOOL_NAME_GET_OPERATOR_METADATA,
     description:
       "Get semantic metadata for an operator type, including user-friendly name, description, operator group, and capabilities. This is very useful to understand the semantics and purpose of each operator type - what it does, how it works, and what kind of data transformation it performs.",
     inputSchema: z.object({
