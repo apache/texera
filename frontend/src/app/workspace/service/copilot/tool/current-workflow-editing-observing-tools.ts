@@ -379,6 +379,7 @@ export function createGetCurrentOperatorTool(
 /**
  * Tool to find operators by output schema
  * This helps the agent identify relevant operators that produce data matching a specific schema
+ * Returns detailed operator information including input/output schemas and custom display names
  */
 export function createListCurrentRelevantOperatorIdsTool(
   workflowActionService: WorkflowActionService,
@@ -388,8 +389,9 @@ export function createListCurrentRelevantOperatorIdsTool(
     name: TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS,
     description:
       "Find all operators in the workflow that are relevant context when working with specific data schemas. " +
+      "Returns detailed operator information including operatorId, operatorType, customDisplayName, inputSchema, and outputSchema. " +
       "Please use this method when you want to work on certain columns in the data. " +
-      "If you don't have a specific scope to work on, provide an empty schema array to get all operator IDs.",
+      "If you don't have a specific scope to work on, provide an empty schema array to get all operators with their detailed information.",
     inputSchema: z.object({
       targetSchema: z
         .array(
@@ -407,17 +409,28 @@ export function createListCurrentRelevantOperatorIdsTool(
     }),
     execute: async (args: { targetSchema: Array<{ attributeName: string; attributeType: string }> }) => {
       try {
-        // If no schema provided (empty array), return all operator IDs
+        // If no schema provided (empty array), return all operators with details
         if (!args.targetSchema || args.targetSchema.length === 0) {
-          const allOperatorIds = workflowActionService
-            .getTexeraGraph()
-            .getAllOperators()
-            .map(op => op.operatorID);
+          const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+          const operatorDetails = allOperators.map(op => {
+            const operatorID = op.operatorID;
+            const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorID);
+            const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorID);
+
+            return {
+              operatorId: operatorID,
+              operatorType: op.operatorType,
+              customDisplayName: op.customDisplayName,
+              inputSchema: inputSchemaMap || {},
+              outputSchema: outputSchemaMap || {},
+            };
+          });
+
           return {
             success: true,
-            operatorIds: allOperatorIds,
-            count: allOperatorIds.length,
-            message: `No specific schema provided. Returning all ${allOperatorIds.length} operator(s) in the workflow.`,
+            operators: operatorDetails,
+            count: operatorDetails.length,
+            message: `No specific schema provided. Returning all ${operatorDetails.length} operator(s) in the workflow with their schemas.`,
           };
         }
 
@@ -426,11 +439,26 @@ export function createListCurrentRelevantOperatorIdsTool(
           workflowCompilingService
         );
 
+        // Get detailed information for matching operators
+        const operatorDetails = matchingOperatorIds.map(operatorID => {
+          const operator = workflowActionService.getTexeraGraph().getOperator(operatorID);
+          const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorID);
+          const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorID);
+
+          return {
+            operatorId: operatorID,
+            operatorType: operator?.operatorType,
+            customDisplayName: operator?.customDisplayName,
+            inputSchema: inputSchemaMap || {},
+            outputSchema: outputSchemaMap || {},
+          };
+        });
+
         return {
           success: true,
-          operatorIds: matchingOperatorIds,
-          count: matchingOperatorIds.length,
-          message: `Found ${matchingOperatorIds.length} operator(s) with output schema matching the target attributes: ${args.targetSchema.map(attr => attr.attributeName).join(", ")}`,
+          operators: operatorDetails,
+          count: operatorDetails.length,
+          message: `Found ${operatorDetails.length} operator(s) with output schema matching the target attributes: ${args.targetSchema.map(attr => attr.attributeName).join(", ")}`,
         };
       } catch (error: any) {
         return {
