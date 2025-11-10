@@ -1,0 +1,103 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { z } from "zod";
+import { tool } from "ai";
+import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
+import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
+
+/**
+ * Create getValidationInfoOfCurrentWorkflow tool for getting workflow validation information
+ */
+export function createGetCurrentWorkflowValidationInfoTool(
+  validationWorkflowService: ValidationWorkflowService,
+  workflowActionService: WorkflowActionService
+) {
+  return tool({
+    name: "getCurrentWorkflowValidationInfo",
+    description:
+      "Get all current validation errors in the workflow. This shows which operators have validation issues and what the errors are. Also returns lists of valid and invalid operator IDs. Use this to check if operators are properly configured before execution.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      try {
+        const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
+        const errorCount = Object.keys(validationOutput.errors).length;
+
+        const validGraph = validationWorkflowService.getValidTexeraGraph();
+        const validOperators = validGraph.getAllOperators();
+        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+
+        const validOperatorIds = validOperators.map(op => op.operatorID);
+        const invalidCount = allOperators.length - validOperators.length;
+
+        return {
+          success: true,
+          errors: validationOutput.errors,
+          errorCount: errorCount,
+          validOperatorIds: validOperatorIds,
+          validCount: validOperators.length,
+          totalCount: allOperators.length,
+          invalidCount: invalidCount,
+          message:
+            errorCount === 0
+              ? "No validation errors in the workflow"
+              : `Found ${errorCount} operator(s) with validation errors. ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create validateOperator tool for validating a specific operator
+ */
+export function createValidateCurrentOperatorTool(validationWorkflowService: ValidationWorkflowService) {
+  return tool({
+    name: "validateCurrentOperator",
+    description:
+      "Validate a specific operator in the current workflow to check if it's properly configured. Returns validation status and any error messages if invalid.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to validate"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const validation = validationWorkflowService.validateOperator(args.operatorId);
+
+        if (validation.isValid) {
+          return {
+            success: true,
+            isValid: true,
+            message: `Operator ${args.operatorId} is valid`,
+          };
+        } else {
+          return {
+            success: true,
+            isValid: false,
+            errors: validation.messages,
+            message: `Operator ${args.operatorId} has validation errors`,
+          };
+        }
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}

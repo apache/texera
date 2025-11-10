@@ -20,7 +20,13 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, from } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import {*} from "./workflow-tools";
+import { toolWithTimeout } from "./tool/tools-utility";
+import * as workflowMetadataTools from "./tool/workflow-metadata-tools";
+import * as currentWorkflowEditingObservingTools from "./tool/current-workflow-editing-observing-tools";
+import * as currentWorkflowValidationTools from "./tool/current-workflow-validation-tools";
+import * as currentWorkflowExecutionTools from "./tool/current-workflow-execution-tools";
+import * as actionPlanTools from "./tool/action-plan-tools";
+import * as dataInconsistencyTools from "./tool/data-inconsistency-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UIMessage, UserModelMessage } from "ai";
@@ -268,57 +274,181 @@ export class TexeraCopilot {
    * Create workflow manipulation tools with timeout protection.
    */
   private createWorkflowTools(): Record<string, any> {
-    const listOperatorsInCurrentWorkflowTool = toolWithTimeout(
-      createListOperatorsInCurrentWorkflowTool(this.workflowActionService)
-    );
-    const listLinksTool = toolWithTimeout(createListLinksInCurrentWorkflowTool(this.workflowActionService));
-    const listAllOperatorTypesTool = toolWithTimeout(createListAllOperatorTypesTool(this.workflowUtilService));
-    const getOperatorTool = toolWithTimeout(
-      createGetOperatorInCurrentWorkflowTool(this.workflowActionService, this.workflowCompilingService)
+    // Workflow metadata tools
+    const listAllOperatorTypesTool = toolWithTimeout(
+      workflowMetadataTools.createListAllOperatorTypesTool(this.workflowUtilService)
     );
     const getOperatorPropertiesSchemaTool = toolWithTimeout(
-      createGetOperatorPropertiesSchemaTool(this.operatorMetadataService)
+      workflowMetadataTools.createGetOperatorPropertiesSchemaTool(this.operatorMetadataService)
     );
-    const getOperatorPortsInfoTool = toolWithTimeout(createGetOperatorPortsInfoTool(this.operatorMetadataService));
-    const getOperatorMetadataTool = toolWithTimeout(createGetOperatorMetadataTool(this.operatorMetadataService));
-
-    // Context adjustment tool
-    const listRelevantOperatorIdsTool = toolWithTimeout(
-      createListRelevantOperatorIdsTool(this.workflowActionService, this.workflowCompilingService)
+    const getOperatorPortsInfoTool = toolWithTimeout(
+      workflowMetadataTools.createGetOperatorPortsInfoTool(this.operatorMetadataService)
+    );
+    const getOperatorMetadataTool = toolWithTimeout(
+      workflowMetadataTools.createGetOperatorMetadataTool(this.operatorMetadataService)
     );
 
+    // Current workflow editing and observing tools
+    const listCurrentLinksTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createListCurrentLinksTool(this.workflowActionService)
+    );
+    const listOperatorsInCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createListOperatorsInCurrentWorkflowTool(this.workflowActionService)
+    );
+    const getCurrentOperatorTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createGetCurrentOperatorTool(
+        this.workflowActionService,
+        this.workflowCompilingService
+      )
+    );
+    const listCurrentRelevantOperatorIdsTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createListCurrentRelevantOperatorIdsTool(
+        this.workflowActionService,
+        this.workflowCompilingService
+      )
+    );
+    const getCurrentWorkflowCompilationStateTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createGetCurrentWorkflowCompilationStateTool(this.workflowCompilingService)
+    );
+    const addOperatorToCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createAddOperatorToCurrentWorkflowTool(
+        this.workflowActionService,
+        this.workflowUtilService,
+        this.operatorMetadataService
+      )
+    );
+    const addLinkToCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createAddLinkToCurrentWorkflowTool(this.workflowActionService)
+    );
+    const deleteOperatorInCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createDeleteOperatorInCurrentWorkflowTool(this.workflowActionService)
+    );
+    const deleteLinkInCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createDeleteLinkInCurrentWorkflowTool(this.workflowActionService)
+    );
+    const setOperatorPropertyInCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createSetOperatorPropertyInCurrentWorkflowTool(
+        this.workflowActionService,
+        this.validationWorkflowService
+      )
+    );
+    const setPortPropertyInCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createSetPortPropertyInCurrentWorkflowTool(
+        this.workflowActionService,
+        this.validationWorkflowService
+      )
+    );
+
+    // Workflow validation tools
+    const getCurrentWorkflowValidationInfoTool = toolWithTimeout(
+      currentWorkflowValidationTools.createGetCurrentWorkflowValidationInfoTool(
+        this.validationWorkflowService,
+        this.workflowActionService
+      )
+    );
+    const validateCurrentOperatorTool = toolWithTimeout(
+      currentWorkflowValidationTools.createValidateCurrentOperatorTool(this.validationWorkflowService)
+    );
+
+    // Workflow execution tools
+    const executeCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createExecuteCurrentWorkflowTool(this.executeWorkflowService)
+    );
+    const getCurrentExecutionStateTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createGetCurrentExecutionStateTool(
+        this.executeWorkflowService,
+        this.workflowActionService,
+        this.workflowConsoleService
+      )
+    );
+    const killCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createKillCurrentWorkflowTool(this.executeWorkflowService)
+    );
+    const hasCurrentOperatorResultTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createHasCurrentOperatorResultTool(
+        this.workflowResultService,
+        this.workflowActionService
+      )
+    );
+    const getCurrentOperatorResultTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createGetCurrentOperatorResultTool(this.workflowResultService)
+    );
+    const getCurrentOperatorResultInfoTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createGetCurrentOperatorResultInfoTool(
+        this.workflowResultService,
+        this.workflowActionService
+      )
+    );
+    const getCurrentComputingUnitStatusTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createGetCurrentComputingUnitStatusTool(this.computingUnitStatusService)
+    );
+
+    // Data inconsistency tools
+    const addInconsistencyTool = toolWithTimeout(
+      dataInconsistencyTools.createAddInconsistencyTool(this.dataInconsistencyService)
+    );
+    const listInconsistenciesTool = toolWithTimeout(
+      dataInconsistencyTools.createListInconsistenciesTool(this.dataInconsistencyService)
+    );
+    const updateInconsistencyTool = toolWithTimeout(
+      dataInconsistencyTools.createUpdateInconsistencyTool(this.dataInconsistencyService)
+    );
+    const deleteInconsistencyTool = toolWithTimeout(
+      dataInconsistencyTools.createDeleteInconsistencyTool(this.dataInconsistencyService)
+    );
+    const clearInconsistenciesTool = toolWithTimeout(
+      dataInconsistencyTools.createClearInconsistenciesTool(this.dataInconsistencyService)
+    );
+
+    // Action plan tools (for planning mode)
+    const actionPlanTool = toolWithTimeout(
+      actionPlanTools.createActionPlanTool(
+        this.workflowActionService,
+        this.workflowUtilService,
+        this.operatorMetadataService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const updateActionPlanProgressTool = toolWithTimeout(
+      actionPlanTools.createUpdateActionPlanProgressTool(this.actionPlanService)
+    );
+    const getActionPlanTool = toolWithTimeout(actionPlanTools.createGetActionPlanTool(this.actionPlanService));
+    const listActionPlansTool = toolWithTimeout(actionPlanTools.createListActionPlansTool(this.actionPlanService));
+    const deleteActionPlanTool = toolWithTimeout(actionPlanTools.createDeleteActionPlanTool(this.actionPlanService));
+    const updateActionPlanTool = toolWithTimeout(actionPlanTools.createUpdateActionPlanTool(this.actionPlanService));
 
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
-      // workflow editing
-      addOperator: addOperatorTool,
-      addLink: addLinkTool,
-      deleteOperator: deleteOperatorTool,
-      deleteLink: deleteLinkTool,
-      setOperatorProperty: setOperatorPropertyTool,
-      setPortProperty: setPortPropertyTool,
-      // workflow validation
-      getValidationInfoOfCurrentWorkflow: getValidationInfoOfCurrentWorkflowTool,
-      validateOperator: validateOperatorTool,
-      // workflow inspecting
-      listRelevantOperatorIds: listRelevantOperatorIdsTool,
-      listLinks: listLinksTool,
+      // meta level knowledge
       listAllOperatorTypes: listAllOperatorTypesTool,
-      getOperator: getOperatorTool,
       getOperatorPropertiesSchema: getOperatorPropertiesSchemaTool,
       getOperatorPortsInfo: getOperatorPortsInfoTool,
       getOperatorMetadata: getOperatorMetadataTool,
-      getOperatorInputSchema: getOperatorInputSchemaTool,
-      getOperatorOutputSchema: getOperatorOutputSchemaTool,
-      getWorkflowCompilationState: getWorkflowCompilationStateTool,
-      // workflow execution
-      executeWorkflow: executeWorkflowTool,
-      getExecutionStateTool: getExecutionStateTool,
-      killWorkflow: killWorkflowTool,
-      hasOperatorResult: hasOperatorResultTool,
-      getOperatorResult: getOperatorResultTool,
-      getOperatorResultInfo: getOperatorResultInfoTool,
-      getComputingUnitStatus: getComputingUnitStatusTool,
+      // current workflow editing
+      addOperatorToCurrentWorkflow: addOperatorToCurrentWorkflowTool,
+      addLinkToCurrentWorkflow: addLinkToCurrentWorkflowTool,
+      deleteOperatorInCurrentWorkflow: deleteOperatorInCurrentWorkflowTool,
+      deleteLinkInCurrentWorkflow: deleteLinkInCurrentWorkflowTool,
+      setOperatorPropertyInCurrentWorkflow: setOperatorPropertyInCurrentWorkflowTool,
+      setPortPropertyInCurrentWorkflow: setPortPropertyInCurrentWorkflowTool,
+      // current workflow validation
+      getCurrentWorkflowValidationInfo: getCurrentWorkflowValidationInfoTool,
+      validateCurrentOperator: validateCurrentOperatorTool,
+      // current workflow inspecting
+      listCurrentRelevantOperatorIds: listCurrentRelevantOperatorIdsTool,
+      listCurrentLinks: listCurrentLinksTool,
+      getCurrentOperator: getCurrentOperatorTool,
+      getCurrentWorkflowCompilationState: getCurrentWorkflowCompilationStateTool,
+      // current workflow execution
+      executeCurrentWorkflow: executeCurrentWorkflowTool,
+      getCurrentExecutionState: getCurrentExecutionStateTool,
+      killCurrentWorkflow: killCurrentWorkflowTool,
+      hasCurrentOperatorResult: hasCurrentOperatorResultTool,
+      getCurrentOperatorResult: getCurrentOperatorResultTool,
+      getCurrentOperatorResultInfo: getCurrentOperatorResultInfoTool,
+      getCurrentComputingUnitStatus: getCurrentComputingUnitStatusTool,
       // Data inconsistency tools
       addInconsistency: addInconsistencyTool,
       listInconsistencies: listInconsistenciesTool,
