@@ -132,10 +132,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public showSystemInfo(): void {
-    const systemInfo = this.copilotManagerService.getSystemInfo(this.agentInfo.id);
-    this.systemPrompt = systemInfo.systemPrompt;
-    this.availableTools = systemInfo.tools;
-    this.isSystemInfoModalVisible = true;
+    this.copilotManagerService.getSystemInfo(this.agentInfo.id).subscribe(systemInfo => {
+      this.systemPrompt = systemInfo.systemPrompt;
+      this.availableTools = systemInfo.tools;
+      this.isSystemInfoModalVisible = true;
+    });
   }
 
   public closeSystemInfoModal(): void {
@@ -244,27 +245,27 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public stopGeneration(): void {
-    this.copilotManagerService.stopGeneration(this.agentInfo.id);
+    this.copilotManagerService.stopGeneration(this.agentInfo.id).subscribe();
   }
 
   public clearMessages(): void {
-    this.copilotManagerService.clearMessages(this.agentInfo.id);
+    this.copilotManagerService.clearMessages(this.agentInfo.id).subscribe();
   }
 
   public isGenerating(): boolean {
-    return this.copilotManagerService.getAgentState(this.agentInfo.id) === CopilotState.GENERATING;
+    return this.agentState === CopilotState.GENERATING;
   }
 
   public isStopping(): boolean {
-    return this.copilotManagerService.getAgentState(this.agentInfo.id) === CopilotState.STOPPING;
+    return this.agentState === CopilotState.STOPPING;
   }
 
   public isAvailable(): boolean {
-    return this.copilotManagerService.getAgentState(this.agentInfo.id) === CopilotState.AVAILABLE;
+    return this.agentState === CopilotState.AVAILABLE;
   }
 
   public isConnected(): boolean {
-    return this.copilotManagerService.isAgentConnected(this.agentInfo.id);
+    return this.agentState !== CopilotState.UNAVAILABLE;
   }
 
   public onPlanningModeChange(value: boolean): void {
@@ -289,22 +290,25 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
         if (decision.createNewActor) {
           this.copilotManagerService
             .createAgent("claude-3.7", `Actor for Plan ${decision.planId}`)
-            .then(newAgent => {
-              const initialMessage = `Please work on action plan with id: ${decision.planId}`;
-              this.copilotManagerService
-                .sendMessage(newAgent.id, initialMessage)
-                .pipe(untilDestroyed(this))
-                .subscribe({
-                  next: () => {
-                    this.notificationService.info(`Actor agent started for plan: ${decision.planId}`);
-                  },
-                  error: (error: unknown) => {
-                    this.notificationService.error(`Error starting actor agent: ${error}`);
-                  },
-                });
-            })
-            .catch((error: unknown) => {
-              this.notificationService.error(`Failed to create actor agent: ${error}`);
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: newAgent => {
+                const initialMessage = `Please work on action plan with id: ${decision.planId}`;
+                this.copilotManagerService
+                  .sendMessage(newAgent.id, initialMessage)
+                  .pipe(untilDestroyed(this))
+                  .subscribe({
+                    next: () => {
+                      this.notificationService.info(`Actor agent started for plan: ${decision.planId}`);
+                    },
+                    error: (error: unknown) => {
+                      this.notificationService.error(`Error starting actor agent: ${error}`);
+                    },
+                  });
+              },
+              error: (error: unknown) => {
+                this.notificationService.error(`Failed to create actor agent: ${error}`);
+              },
             });
         } else {
           const executionMessage = "I have accepted your action plan. Please proceed with executing it.";

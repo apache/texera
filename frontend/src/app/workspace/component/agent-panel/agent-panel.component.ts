@@ -75,11 +75,15 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
 
     // Subscribe to agent changes
     this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
-      this.agents = this.copilotManagerService.getAllAgents();
+      this.copilotManagerService.getAllAgents().subscribe(agents => {
+        this.agents = agents;
+      });
     });
 
     // Load initial agents
-    this.agents = this.copilotManagerService.getAllAgents();
+    this.copilotManagerService.getAllAgents().subscribe(agents => {
+      this.agents = agents;
+    });
   }
 
   @HostListener("window:beforeunload")
