@@ -210,19 +210,13 @@ Theoretical vulnerabilities in dependencies that have not been exploited in Texe
 
 ## Reporting Security Vulnerabilities
 
-If you believe you have found a security vulnerability in Texera, please report it responsibly to the Apache Security Team. **DO NOT** create a public GitHub issue.
-
-### How to Report
-
-Email: [security@apache.org](mailto:security@apache.org)
-
-Include in your report:
-- Description of the vulnerability and potential impact
-- Steps to reproduce the issue
-- Affected versions (if known)
-- Any proof of concept or supporting materials
-
-The security team will acknowledge your report, assess the issue, and work on a fix if confirmed. For validated vulnerabilities, a CVE will be requested and a security advisory will be published. We will credit reporters in advisories unless anonymity is preferred.
+The Apache Software Foundation takes a rigorous stance on eliminating security issues in its software projects. If you
+find a security bug, with that in mind, please **DO NOT** file public issues (e.g., GitHub issues). Before reporting a
+security issue, check the security model declared above. To report a new vulnerability you have discovered, please
+follow the ASF security [vulnerability reporting process](https://apache.org/security/#reporting-a-vulnerability).
+The Texera community follows the ASF
+security [vulnerability handling process](https://apache.org/security/#vulnerability-handling), and will fix it as soon
+as possible.
 
 
 ## Changes to This Policy
