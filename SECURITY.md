@@ -244,7 +244,7 @@ regularly updates dependencies and monitors security advisories.
 
 ## Reporting Security Vulnerabilities
 
-The Apache Software Foundation takes a rigorous stance on eliminating security issues in its software projects. If you
+The [Apache Software Foundation](https://apache.org/) takes a rigorous stance on eliminating security issues in its software projects. If you
 find a security bug, with that in mind, please **DO NOT** file public issues (e.g., GitHub issues). Before reporting a
 security issue, check the security model declared above. To report a new vulnerability you have discovered, please
 follow the ASF security [vulnerability reporting process](https://apache.org/security/#reporting-a-vulnerability).
