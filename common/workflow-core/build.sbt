@@ -97,6 +97,7 @@ libraryDependencies ++= Seq(
 
 val jacksonVersion = "2.15.1"
 libraryDependencies ++= Seq(
+  "javax.validation" % "validation-api" % "2.0.1.Final",
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,        // Jackson Databind
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % Test,   // Jackson Kotlin Module
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % Test, // Jackson JDK8 Datatypes
