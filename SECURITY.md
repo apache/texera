@@ -239,8 +239,8 @@ configuration files are out of scope. These access levels are considered trusted
 
 ### Third-Party Dependencies
 
-Theoretical vulnerabilities in dependencies that have not been exploited in Texera's usage are not in scope. Texera
-regularly updates dependencies and monitors security advisories.
+Theoretical vulnerabilities in dependencies that have not been exploited in Texera's usage are not in scope.
+You are they are welcome to raise an issue or a PR.
 
 ## Reporting Security Vulnerabilities
 
