@@ -79,6 +79,22 @@
         </small>
       </div>
 
+      <!-- Stats button -->
+      <div class="toolbar-item">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="showStatsModal()"
+          nz-tooltip
+          nzTooltipTitle="View message statistics">
+          <i
+            nz-icon
+            nzType="bar-chart"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+
       <!-- Clear button (when available) -->
       <div class="toolbar-item">
         <button
@@ -418,6 +434,69 @@
             </div>
           </nz-collapse-panel>
         </nz-collapse>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Message Statistics Modal -->
+<nz-modal
+  [(nzVisible)]="isStatsModalVisible"
+  nzTitle="Message Statistics"
+  nzWidth="1000px"
+  (nzOnCancel)="closeStatsModal()"
+  [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <div style="max-height: 600px; overflow-y: auto">
+      <!-- Stats Table -->
+      <nz-table
+        #statsTable
+        [nzData]="messageStats"
+        [nzShowPagination]="false"
+        nzSize="small"
+        [nzScroll]="{ y: '500px' }">
+        <thead>
+          <tr>
+            <th nzWidth="60px">#</th>
+            <th nzWidth="120px">Status</th>
+            <th>User Message</th>
+            <th nzWidth="100px">Steps</th>
+            <th nzWidth="100px">Input Tokens</th>
+            <th nzWidth="100px">Output Tokens</th>
+            <th nzWidth="100px">Cached Tokens</th>
+            <th nzWidth="120px">Execution Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let stat of statsTable.data; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>
+              <nz-tag [nzColor]="getStatusColor(stat.status)"> {{ stat.status }} </nz-tag>
+            </td>
+            <td
+              style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+              [nz-tooltip]="stat.userMessage">
+              {{ stat.userMessage }}
+            </td>
+            <td>{{ stat.stepCount }}</td>
+            <td>{{ stat.totalInputTokens }}</td>
+            <td>{{ stat.totalOutputTokens }}</td>
+            <td>{{ stat.cachedInputTokens }}</td>
+            <td>{{ getExecutionTime(stat) }}</td>
+          </tr>
+        </tbody>
+      </nz-table>
+
+      <!-- No Data Message -->
+      <div
+        *ngIf="messageStats.length === 0"
+        style="text-align: center; padding: 40px; color: #8c8c8c">
+        <i
+          nz-icon
+          nzType="info-circle"
+          nzTheme="outline"
+          style="font-size: 32px; margin-bottom: 8px"></i>
+        <div>No message statistics available yet. Send a message to generate statistics.</div>
       </div>
     </div>
   </ng-container>

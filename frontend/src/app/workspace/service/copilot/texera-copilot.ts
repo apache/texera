@@ -30,7 +30,15 @@ import * as actionPlanTools from "./tool/action-plan-tools";
 import * as dataInconsistencyTools from "./tool/data-inconsistency-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UIMessage, UserModelMessage } from "ai";
+import {
+  AssistantModelMessage,
+  generateText,
+  type ModelMessage,
+  stepCountIs,
+  UIMessage,
+  UserModelMessage,
+  LanguageModelUsage,
+} from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
@@ -74,6 +82,23 @@ export interface AgentUIMessage {
 }
 
 /**
+ * Statistics for a single message request.
+ */
+export interface CopilotMessageStats {
+  messageId: string;
+  userMessage: string;
+  startTime: Date;
+  endTime?: Date;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  cachedInputTokens: number;
+  stepCount: number;
+  status: "running" | "completed" | "error" | "stopped";
+  errorMessage?: string;
+}
+
+/**
  * Texera Copilot - An AI assistant for workflow manipulation.
  * Uses Vercel AI SDK for chat completion.
  * Note: Not a singleton - each agent has its own instance.
@@ -96,6 +121,10 @@ export class TexeraCopilot {
   private relevantOperators: string[] = [];
   private relevantOperatorsSubject = new BehaviorSubject<string[]>([]);
   public relevantOperators$ = this.relevantOperatorsSubject.asObservable();
+  private messageStatsMap: Map<string, CopilotMessageStats> = new Map();
+  private messageStatsSubject = new BehaviorSubject<Map<string, CopilotMessageStats>>(new Map());
+  public messageStats$ = this.messageStatsSubject.asObservable();
+  private messageIdCounter: number = 0;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -175,6 +204,24 @@ export class TexeraCopilot {
       this.setState(CopilotState.GENERATING);
       this.shouldStopAfterActionPlan = false;
 
+      // Generate unique message ID
+      const messageId = `msg-${this.agentId}-${++this.messageIdCounter}-${Date.now()}`;
+
+      // Initialize message stats
+      const messageStats: CopilotMessageStats = {
+        messageId,
+        userMessage: message,
+        startTime: new Date(),
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalTokens: 0,
+        cachedInputTokens: 0,
+        stepCount: 0,
+        status: "running",
+      };
+      this.messageStatsMap.set(messageId, messageStats);
+      this.messageStatsSubject.next(new Map(this.messageStatsMap));
+
       // Add user message
       const userMessage: UserModelMessage = { role: "user", content: message };
       this.messages.push(userMessage);
@@ -220,6 +267,14 @@ export class TexeraCopilot {
               this.shouldStopAfterActionPlan = true;
             }
 
+            // Update step count
+            const stats = this.messageStatsMap.get(messageId);
+            if (stats) {
+              stats.stepCount++;
+              this.messageStatsMap.set(messageId, stats);
+              this.messageStatsSubject.next(new Map(this.messageStatsMap));
+            }
+
             // Track relevant operators from listRelevantOperatorIds tool calls
             if (toolCalls && toolResults) {
               for (let i = 0; i < toolCalls.length; i++) {
@@ -253,9 +308,25 @@ export class TexeraCopilot {
           },
         })
       ).pipe(
-        tap(({ response }) => {
+        tap(({ response, usage }) => {
           this.messages.push(...response.messages);
           this.agentResponsesSubject.next([...this.agentResponses]);
+
+          // Update final stats for completion with final usage
+          const stats = this.messageStatsMap.get(messageId);
+          if (stats) {
+            stats.endTime = new Date();
+            stats.status = this.state === CopilotState.STOPPING ? "stopped" : "completed";
+            // Use the final usage from generateText result
+            if (usage) {
+              stats.totalInputTokens = usage.inputTokens || 0;
+              stats.totalOutputTokens = usage.outputTokens || 0;
+              stats.totalTokens = usage.totalTokens || 0;
+              stats.cachedInputTokens = usage.cachedInputTokens || 0;
+            }
+            this.messageStatsMap.set(messageId, stats);
+            this.messageStatsSubject.next(new Map(this.messageStatsMap));
+          }
         }),
         map(() => undefined),
         catchError((err: unknown) => {
@@ -271,6 +342,16 @@ export class TexeraCopilot {
           };
           this.agentResponses.push(errorResponse);
           this.agentResponsesSubject.next([...this.agentResponses]);
+
+          // Update stats for error
+          const stats = this.messageStatsMap.get(messageId);
+          if (stats) {
+            stats.endTime = new Date();
+            stats.status = "error";
+            stats.errorMessage = errorText;
+            this.messageStatsMap.set(messageId, stats);
+            this.messageStatsSubject.next(new Map(this.messageStatsMap));
+          }
 
           return throwError(() => err);
         }),
@@ -508,6 +589,12 @@ export class TexeraCopilot {
     this.agentResponsesSubject.next([...this.agentResponses]);
     this.relevantOperators = [];
     this.relevantOperatorsSubject.next([]);
+    this.messageStatsMap.clear();
+    this.messageStatsSubject.next(new Map());
+  }
+
+  public getMessageStats(): CopilotMessageStats[] {
+    return Array.from(this.messageStatsMap.values());
   }
 
   public getState(): CopilotState {

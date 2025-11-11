@@ -19,7 +19,7 @@
 
 import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CopilotState, AgentUIMessage } from "../../../service/copilot/texera-copilot";
+import { CopilotState, AgentUIMessage, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -51,6 +51,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public agentState: CopilotState = CopilotState.UNAVAILABLE;
   public showContext = false;
   public relevantOperators: string[] = [];
+  public isStatsModalVisible = false;
+  public messageStats: CopilotMessageStats[] = [];
 
   constructor(
     private actionPlanService: ActionPlanService,
@@ -108,6 +110,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
           this.highlightContextOperators();
         }
       });
+
+    // Subscribe to message stats changes
+    this.copilotManagerService
+      .getMessageStatsObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(statsMap => {
+        this.messageStats = Array.from(statsMap.values());
+      });
   }
 
   ngAfterViewChecked(): void {
@@ -143,8 +153,41 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     this.isSystemInfoModalVisible = false;
   }
 
+  public showStatsModal(): void {
+    this.isStatsModalVisible = true;
+  }
+
+  public closeStatsModal(): void {
+    this.isStatsModalVisible = false;
+  }
+
   public formatJson(data: any): string {
     return JSON.stringify(data, null, 2);
+  }
+
+  public getExecutionTime(stat: CopilotMessageStats): string {
+    if (!stat.endTime) {
+      return "Running...";
+    }
+    const duration = stat.endTime.getTime() - stat.startTime.getTime();
+    const seconds = Math.floor(duration / 1000);
+    const ms = duration % 1000;
+    return `${seconds}.${ms.toString().padStart(3, "0")}s`;
+  }
+
+  public getStatusColor(status: string): string {
+    switch (status) {
+      case "completed":
+        return "#52c41a";
+      case "running":
+        return "#1890ff";
+      case "error":
+        return "#ff4d4f";
+      case "stopped":
+        return "#faad14";
+      default:
+        return "#8c8c8c";
+    }
   }
 
   public getToolResult(response: AgentUIMessage, toolCallIndex: number): any {
