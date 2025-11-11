@@ -29,6 +29,7 @@ import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import java.util
+import javax.validation.constraints.{NotBlank, NotNull}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 //type constraint: measurementColumnName can only be a numeric column
 @JsonSchemaInject(json = """
@@ -46,28 +47,33 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Category Column Name")
   @JsonPropertyDescription("the name of the category column")
   @AutofillAttributeName
+  @NotNull(message = "Category Column Name cannot be empty")
   var categoryColumnName: String = ""
 
   @JsonProperty(value = "dumbbellStartValue", required = true)
   @JsonSchemaTitle("Dumbbell Start Value")
   @JsonPropertyDescription("the start point value of each dumbbell")
+  @NotBlank(message = "Dumbbell Start Value cannot be empty")
   var dumbbellStartValue: String = ""
 
   @JsonProperty(value = "dumbbellEndValue", required = true)
   @JsonSchemaTitle("Dumbbell End Value")
   @JsonPropertyDescription("the end value of each dumbbell")
+  @NotBlank(message = "Dumbbell End Value cannot be empty")
   var dumbbellEndValue: String = ""
 
   @JsonProperty(value = "measurementColumnName", required = true)
   @JsonSchemaTitle("Measurement Column Name")
   @JsonPropertyDescription("the name of the measurement column")
   @AutofillAttributeName
+  @NotNull(message = "Measurement Column Name cannot be empty")
   var measurementColumnName: String = ""
 
   @JsonProperty(value = "comparedColumnName", required = true)
   @JsonSchemaTitle("Compared Column Name")
   @JsonPropertyDescription("the column name that is being compared")
   @AutofillAttributeName
+  @NotNull(message = "Compared Column Name cannot be empty")
   var comparedColumnName: String = ""
 
   @JsonProperty(value = "dots", required = false)
