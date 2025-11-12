@@ -28,6 +28,8 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -44,12 +46,14 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The value associated with slice of pie")
   @AutofillAttributeName
+  @NotNull(message = "Value column cannot be empty")
   var value: String = ""
 
   @JsonProperty(value = "name", required = true)
   @JsonSchemaTitle("Name Column")
   @JsonPropertyDescription("The name of the slice of pie")
   @AutofillAttributeName
+  @NotNull(message = "Name column cannot be empty")
   var name: String = ""
 
   override def getOutputSchemas(

@@ -22,6 +22,7 @@ package org.apache.amber.core.tuple;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
@@ -47,7 +48,7 @@ public class Attribute implements Serializable {
     }
 
     @JsonProperty(value = "attributeName", required = true)
-    @NotNull(message = "Attribute name is required")
+    @NotBlank(message = "Attribute name is required")
     public String getName() {
         return attributeName;
     }

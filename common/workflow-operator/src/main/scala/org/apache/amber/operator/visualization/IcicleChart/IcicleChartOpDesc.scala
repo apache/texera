@@ -29,6 +29,8 @@ import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.visualization.hierarchychart.HierarchySection
 
+import javax.validation.constraints.{NotEmpty, NotNull}
+
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -45,12 +47,14 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "hierarchy of attributes from a root (higher-level category) to leaves (lower-level category)"
   )
+  @NotEmpty(message = "Hierarchy path list cannot be empty")
   var hierarchy: List[HierarchySection] = List()
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("the value associated with the size of each sector in the chart")
   @AutofillAttributeName
+  @NotNull(message = "Value column cannot be empty")
   var value: String = ""
 
   override def getOutputSchemas(

@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 
+import javax.validation.constraints.NotNull
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -38,6 +40,7 @@ class DumbbellDotConfig {
   @JsonSchemaTitle("Dot Column Value")
   @JsonPropertyDescription("value for dot axis")
   @AutofillAttributeName
+  @NotNull(message = "Dot Column Value cannot be empty")
   var dotValue: String = ""
 
 }
