@@ -19,7 +19,7 @@
 
 import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CopilotState, AgentUIMessage, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
+import { CopilotState, AgentUIMessage, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -196,6 +196,20 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     }
     const toolResult = response.toolResults[toolCallIndex];
     return toolResult.output || toolResult.result || toolResult;
+  }
+
+  public getToolOperatorAccess(
+    response: AgentUIMessage,
+    toolCallIndex: number
+  ): { READ: string[]; WRITE: string[] } | null {
+    if (!response.operatorAccess) {
+      return null;
+    }
+    return response.operatorAccess.get(toolCallIndex) || null;
+  }
+
+  public hasOperatorAccess(response: AgentUIMessage): boolean {
+    return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
   public getTotalInputTokens(): number {

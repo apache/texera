@@ -52,6 +52,8 @@ import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
+import { TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS } from "./tool/current-workflow-editing-observing-tools";
+import { parseOperatorAccessFromStep, ToolOperatorAccess } from "./tool/react-step-operator-parser";
 
 /**
  * Copilot state enum.
@@ -64,9 +66,10 @@ export enum CopilotState {
 }
 
 /**
- * Agent response for UI display.
+ * ReActStep - Represents a single reasoning and acting step in the agent's response.
+ * Each step contains the agent's reasoning text, tool calls, results, and metadata.
  */
-export interface AgentUIMessage {
+export interface ReActStep {
   role: "user" | "agent";
   content: string;
   isBegin: boolean;
@@ -79,7 +82,14 @@ export interface AgentUIMessage {
     totalTokens?: number;
     cachedInputTokens?: number;
   };
+  // Map from tool call index to operator access information
+  operatorAccess?: Map<number, ToolOperatorAccess>;
 }
+
+/**
+ * @deprecated Use ReActStep instead
+ */
+export type AgentUIMessage = ReActStep;
 
 /**
  * Statistics for a single message request.
@@ -110,8 +120,13 @@ export class TexeraCopilot {
   private agentId: string = "";
   private agentName: string = "";
   private messages: ModelMessage[] = [];
-  private agentResponses: AgentUIMessage[] = [];
-  private agentResponsesSubject = new BehaviorSubject<AgentUIMessage[]>([]);
+  // Mapping from (messageId, stepIndex) to ReActStep
+  private reActSteps: Map<string, ReActStep> = new Map();
+  private reActStepsSubject = new BehaviorSubject<Map<string, ReActStep>>(new Map());
+  public reActSteps$ = this.reActStepsSubject.asObservable();
+  // Maintain a list for backward compatibility and easy iteration
+  private agentResponses: ReActStep[] = [];
+  private agentResponsesSubject = new BehaviorSubject<ReActStep[]>([]);
   public agentResponses$ = this.agentResponsesSubject.asObservable();
   private state: CopilotState = CopilotState.UNAVAILABLE;
   private stateSubject = new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE);
@@ -141,6 +156,13 @@ export class TexeraCopilot {
     private workflowConsoleService: WorkflowConsoleService
   ) {
     this.modelType = "";
+  }
+
+  /**
+   * Generate a unique step key for the mapping.
+   */
+  private generateStepKey(messageId: string, stepIndex: number): string {
+    return `${messageId}:${stepIndex}`;
   }
 
   public setAgentInfo(agentId: string, agentName: string): void {
@@ -225,7 +247,7 @@ export class TexeraCopilot {
       // Add user message
       const userMessage: UserModelMessage = { role: "user", content: message };
       this.messages.push(userMessage);
-      const userUIMessage: AgentUIMessage = {
+      const userUIMessage: ReActStep = {
         role: "user",
         content: message,
         isBegin: true,
@@ -236,6 +258,7 @@ export class TexeraCopilot {
 
       const tools = this.createWorkflowTools();
       let isFirstStep = true;
+      let stepIndex = 0;
 
       const systemPrompt = this.planningMode
         ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT
@@ -275,24 +298,27 @@ export class TexeraCopilot {
               this.messageStatsSubject.next(new Map(this.messageStatsMap));
             }
 
-            // Track relevant operators from listRelevantOperatorIds tool calls
+            // Parse operator access (READ/WRITE) from tool calls and results
+            let operatorAccess: Map<number, ToolOperatorAccess> | undefined;
             if (toolCalls && toolResults) {
+              operatorAccess = parseOperatorAccessFromStep(toolCalls, toolResults);
+
+              // Track relevant operators from listRelevantOperatorIds tool calls
               for (let i = 0; i < toolCalls.length; i++) {
                 const toolCall = toolCalls[i];
-                if (toolCall.toolName === "listRelevantOperatorIds") {
+                if (toolCall.toolName === TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS) {
                   const toolResult = toolResults[i];
                   console.log("result of context switching: ", toolResult);
                   // The actual result is in toolResult.output, not toolResult.result
                   if (toolResult && toolResult.output && toolResult.output.success && toolResult.output.operatorIds) {
                     this.relevantOperators = toolResult.output.operatorIds;
                     this.relevantOperatorsSubject.next([...this.relevantOperators]);
-                    console.log("emit: ", this.relevantOperators);
                   }
                 }
               }
             }
 
-            const stepResponse: AgentUIMessage = {
+            const stepResponse: ReActStep = {
               role: "agent",
               content: text || "",
               isBegin: isFirstStep,
@@ -300,11 +326,20 @@ export class TexeraCopilot {
               toolCalls: toolCalls,
               toolResults: toolResults,
               usage: usage as any,
+              operatorAccess: operatorAccess,
             };
+
+            // Add to array for backward compatibility
             this.agentResponses.push(stepResponse);
             this.agentResponsesSubject.next([...this.agentResponses]);
 
+            // Add to mapping with (messageId, stepIndex) as key
+            const stepKey = this.generateStepKey(messageId, stepIndex);
+            this.reActSteps.set(stepKey, stepResponse);
+            this.reActStepsSubject.next(new Map(this.reActSteps));
+
             isFirstStep = false;
+            stepIndex++;
           },
         })
       ).pipe(
@@ -334,7 +369,7 @@ export class TexeraCopilot {
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
 
-          const errorResponse: AgentUIMessage = {
+          const errorResponse: ReActStep = {
             role: "agent",
             content: errorText,
             isBegin: false,
@@ -572,8 +607,23 @@ export class TexeraCopilot {
     }
   }
 
-  public getAgentResponses(): AgentUIMessage[] {
+  public getAgentResponses(): ReActStep[] {
     return [...this.agentResponses];
+  }
+
+  /**
+   * Get a specific ReActStep by message ID and step index.
+   */
+  public getReActStep(messageId: string, stepIndex: number): ReActStep | undefined {
+    const key = this.generateStepKey(messageId, stepIndex);
+    return this.reActSteps.get(key);
+  }
+
+  /**
+   * Get all ReActSteps as a map.
+   */
+  public getReActStepsMap(): Map<string, ReActStep> {
+    return new Map(this.reActSteps);
   }
 
   public stopGeneration(): void {
@@ -587,6 +637,8 @@ export class TexeraCopilot {
     this.messages = [];
     this.agentResponses = [];
     this.agentResponsesSubject.next([...this.agentResponses]);
+    this.reActSteps.clear();
+    this.reActStepsSubject.next(new Map());
     this.relevantOperators = [];
     this.relevantOperatorsSubject.next([]);
     this.messageStatsMap.clear();

@@ -19,7 +19,7 @@
 
 import { Injectable, Injector } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { TexeraCopilot, AgentUIMessage, CopilotState } from "./texera-copilot";
+import { TexeraCopilot, AgentUIMessage, ReActStep, CopilotState } from "./texera-copilot";
 import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
