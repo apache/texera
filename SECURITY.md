@@ -9,7 +9,7 @@ reporting security vulnerabilities.
 - [Resources in Texera](#resources-in-texera)
 - [User Categories and Responsibilities](#user-categories-and-responsibilities)
 - [UI User Roles and Privileges](#ui-user-roles-and-privileges)
-- [Computing Units and Deployment](#computing-units-and-deployment)
+- [Deployments and Computing Units](#deployments-and-computing-units)
 - [What is NOT a Security Issue](#what-is-not-a-security-issue)
 - [Reporting Security Vulnerabilities](#reporting-security-vulnerabilities)
 
