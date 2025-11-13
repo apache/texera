@@ -17,112 +17,54 @@
  * under the License.
  */
 
-import {
-  TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS,
-  TOOL_NAME_GET_CURRENT_OPERATOR,
-  TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW,
-  TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW,
-  TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW,
-  TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW,
-} from "./current-workflow-editing-observing-tools";
-import {
-  TOOL_NAME_GET_CURRENT_OPERATOR_RESULT,
-  TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO,
-  TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT,
-} from "./current-workflow-execution-tools";
-import { TOOL_NAME_VALIDATE_CURRENT_OPERATOR } from "./current-workflow-validation-tools";
-
 /**
- * Central parser module to extract relevant operator IDs from tool calls and results.
- * This module provides a unified way to parse operator IDs based on tool types.
+ * Central parser module to extract operator access information from tool results.
+ * Tools should populate viewedOperatorIds and modifiedOperatorIds in their results.
  */
 
 /**
- * Operator access information indicating which operators are read from or written to.
+ * Operator access information indicating which operators were viewed or modified.
+ * Tools should populate these fields in their results to indicate operator interaction.
  */
 export interface ToolOperatorAccess {
-  READ: string[];
-  WRITE: string[];
+  viewedOperatorIds: string[];
+  modifiedOperatorIds: string[];
 }
 
 /**
- * Parse operator access (READ/WRITE) from a tool call and its result.
- * Different tools store operator IDs in different locations (input args vs. output result).
+ * Parse operator access from a tool call's result.
+ * Tools should populate viewedOperatorIds and modifiedOperatorIds in their results.
  *
  * @param toolCall - The tool call object containing toolName and args
- * @param toolResult - The tool result object containing the output/result
- * @returns ToolOperatorAccess object with READ and WRITE operator IDs
+ * @param toolResult - The tool result object containing the output/result with operator IDs
+ * @returns ToolOperatorAccess object with viewedOperatorIds and modifiedOperatorIds
  */
 export function parseOperatorAccessFromToolCall(toolCall: any, toolResult?: any): ToolOperatorAccess {
-  const access: ToolOperatorAccess = { READ: [], WRITE: [] };
-  if (!toolCall || !toolCall.toolName) {
+  const access: ToolOperatorAccess = { viewedOperatorIds: [], modifiedOperatorIds: [] };
+
+  if (!toolResult || !toolResult.output) {
     return access;
   }
 
-  const toolName = toolCall.toolName;
-
   try {
-    // Parse based on tool type and classify as READ or WRITE
-    switch (toolName) {
-      // Tools that READ operators from the result (context switching)
-      case TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS:
-        if (toolResult && toolResult.output) {
-          if (toolResult.output.success && Array.isArray(toolResult.output.operatorIds)) {
-            access.READ.push(...toolResult.output.operatorIds);
-          }
-        }
-        break;
+    const output = toolResult.output;
 
-      // Tools that READ operator information
-      case TOOL_NAME_GET_CURRENT_OPERATOR:
-      case TOOL_NAME_VALIDATE_CURRENT_OPERATOR:
-      case TOOL_NAME_GET_CURRENT_OPERATOR_RESULT:
-      case TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO:
-      case TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT:
-        if (toolCall.args && toolCall.args.operatorId) {
-          access.READ.push(toolCall.args.operatorId);
-        }
-        break;
-
-      // Tools that WRITE to operators (modify properties)
-      case TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW:
-      case TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW:
-        if (toolCall.args && toolCall.args.operatorId) {
-          access.WRITE.push(toolCall.args.operatorId);
-        }
-        break;
-
-      // Tools that WRITE (delete operator)
-      case TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW:
-        if (toolCall.args && toolCall.args.operatorId) {
-          access.WRITE.push(toolCall.args.operatorId);
-        }
-        break;
-
-      // Tools that WRITE (create new operator)
-      case TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW:
-        if (toolResult && toolResult.output) {
-          if (toolResult.output.success && toolResult.output.operatorId) {
-            access.WRITE.push(toolResult.output.operatorId);
-          }
-        }
-        break;
-
-      // Add more tool parsers here as needed
-      default:
-        // For unknown tools, try to extract operatorId from args and classify as READ
-        if (toolCall.args && toolCall.args.operatorId) {
-          access.READ.push(toolCall.args.operatorId);
-        }
-        break;
+    // Extract viewedOperatorIds from tool result
+    if (Array.isArray(output.viewedOperatorIds)) {
+      access.viewedOperatorIds = output.viewedOperatorIds.filter((id: any) => id && typeof id === "string");
     }
-  } catch (error) {
-    console.error(`Error parsing operator access from tool ${toolName}:`, error);
-  }
 
-  // Remove duplicates and filter out invalid IDs
-  access.READ = [...new Set(access.READ.filter(id => id && typeof id === "string"))];
-  access.WRITE = [...new Set(access.WRITE.filter(id => id && typeof id === "string"))];
+    // Extract modifiedOperatorIds from tool result
+    if (Array.isArray(output.modifiedOperatorIds)) {
+      access.modifiedOperatorIds = output.modifiedOperatorIds.filter((id: any) => id && typeof id === "string");
+    }
+
+    // Remove duplicates
+    access.viewedOperatorIds = [...new Set(access.viewedOperatorIds)];
+    access.modifiedOperatorIds = [...new Set(access.modifiedOperatorIds)];
+  } catch (error) {
+    console.error("Error parsing operator access from tool result:", error);
+  }
 
   return access;
 }
@@ -146,8 +88,8 @@ export function parseOperatorAccessFromStep(toolCalls: any[], toolResults?: any[
     const toolResult = toolResults && toolResults[i] ? toolResults[i] : undefined;
     const access = parseOperatorAccessFromToolCall(toolCall, toolResult);
 
-    // Only add to map if there are any READ or WRITE operations
-    if (access.READ.length > 0 || access.WRITE.length > 0) {
+    // Only add to map if there are any viewed or modified operations
+    if (access.viewedOperatorIds.length > 0 || access.modifiedOperatorIds.length > 0) {
       accessMap.set(i, access);
     }
   }
@@ -156,55 +98,55 @@ export function parseOperatorAccessFromStep(toolCalls: any[], toolResults?: any[
 }
 
 /**
- * Extract all READ operator IDs from a ReActStep.
+ * Extract all viewed operator IDs from a ReActStep.
  *
  * @param step - The ReActStep to extract from
- * @returns Array of unique operator IDs that were read
+ * @returns Array of unique operator IDs that were viewed
  */
-export function getAllReadOperatorIds(step: { operatorAccess?: Map<number, ToolOperatorAccess> }): string[] {
+export function getAllViewedOperatorIds(step: { operatorAccess?: Map<number, ToolOperatorAccess> }): string[] {
   if (!step.operatorAccess) {
     return [];
   }
 
-  const allReadIds: string[] = [];
+  const allViewedIds: string[] = [];
   for (const access of step.operatorAccess.values()) {
-    allReadIds.push(...access.READ);
+    allViewedIds.push(...access.viewedOperatorIds);
   }
 
   // Return unique operator IDs
-  return [...new Set(allReadIds)];
+  return [...new Set(allViewedIds)];
 }
 
 /**
- * Extract all WRITE operator IDs from a ReActStep.
+ * Extract all modified operator IDs from a ReActStep.
  *
  * @param step - The ReActStep to extract from
- * @returns Array of unique operator IDs that were written
+ * @returns Array of unique operator IDs that were modified
  */
-export function getAllWriteOperatorIds(step: { operatorAccess?: Map<number, ToolOperatorAccess> }): string[] {
+export function getAllModifiedOperatorIds(step: { operatorAccess?: Map<number, ToolOperatorAccess> }): string[] {
   if (!step.operatorAccess) {
     return [];
   }
 
-  const allWriteIds: string[] = [];
+  const allModifiedIds: string[] = [];
   for (const access of step.operatorAccess.values()) {
-    allWriteIds.push(...access.WRITE);
+    allModifiedIds.push(...access.modifiedOperatorIds);
   }
 
   // Return unique operator IDs
-  return [...new Set(allWriteIds)];
+  return [...new Set(allModifiedIds)];
 }
 
 /**
- * Extract all operator IDs (both READ and WRITE) from a ReActStep.
+ * Extract all operator IDs (both viewed and modified) from a ReActStep.
  *
  * @param step - The ReActStep to extract from
  * @returns Array of unique operator IDs involved in this step
  */
 export function getAllOperatorIds(step: { operatorAccess?: Map<number, ToolOperatorAccess> }): string[] {
-  const readIds = getAllReadOperatorIds(step);
-  const writeIds = getAllWriteOperatorIds(step);
+  const viewedIds = getAllViewedOperatorIds(step);
+  const modifiedIds = getAllModifiedOperatorIds(step);
 
   // Combine and return unique IDs
-  return [...new Set([...readIds, ...writeIds])];
+  return [...new Set([...viewedIds, ...modifiedIds])];
 }

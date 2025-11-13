@@ -87,11 +87,6 @@ export interface ReActStep {
 }
 
 /**
- * @deprecated Use ReActStep instead
- */
-export type AgentUIMessage = ReActStep;
-
-/**
  * Statistics for a single message request.
  */
 export interface CopilotMessageStats {

@@ -19,7 +19,7 @@
 
 import { Injectable, Injector } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { TexeraCopilot, AgentUIMessage, ReActStep, CopilotState } from "./texera-copilot";
+import { TexeraCopilot, ReActStep, CopilotState } from "./texera-copilot";
 import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
@@ -231,9 +231,9 @@ export class TexeraCopilotManagerService {
 
   /**
    * Get the agent responses observable stream.
-   * Returns an Observable that emits arrays of AgentUIMessage.
+   * Returns an Observable that emits arrays of ReActStep.
    */
-  public getAgentResponsesObservable(agentId: string): Observable<AgentUIMessage[]> {
+  public getAgentResponsesObservable(agentId: string): Observable<ReActStep[]> {
     return defer(() => {
       const agent = this.agents.get(agentId);
       if (!agent) {
@@ -245,9 +245,9 @@ export class TexeraCopilotManagerService {
 
   /**
    * Get the current agent responses.
-   * Returns an Observable that emits the current array of AgentUIMessage.
+   * Returns an Observable that emits the current array of ReActStep.
    */
-  public getAgentResponses(agentId: string): Observable<AgentUIMessage[]> {
+  public getAgentResponses(agentId: string): Observable<ReActStep[]> {
     return defer(() => {
       const agent = this.agents.get(agentId);
       if (!agent) {

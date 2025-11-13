@@ -19,7 +19,7 @@
 
 import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CopilotState, AgentUIMessage, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
+import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -37,13 +37,13 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
-  public agentResponses: AgentUIMessage[] = [];
+  public agentResponses: ReActStep[] = [];
   public currentMessage = "";
   public pendingActionPlan: ActionPlan | null = null;
   private shouldScrollToBottom = false;
   public planningMode = false;
   public isDetailsModalVisible = false;
-  public selectedResponse: AgentUIMessage | null = null;
+  public selectedResponse: ReActStep | null = null;
   public hoveredMessageIndex: number | null = null;
   public isSystemInfoModalVisible = false;
   public systemPrompt: string = "";
@@ -131,7 +131,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     this.hoveredMessageIndex = index;
   }
 
-  public showResponseDetails(response: AgentUIMessage): void {
+  public showResponseDetails(response: ReActStep): void {
     this.selectedResponse = response;
     this.isDetailsModalVisible = true;
   }
@@ -190,7 +190,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  public getToolResult(response: AgentUIMessage, toolCallIndex: number): any {
+  public getToolResult(response: ReActStep, toolCallIndex: number): any {
     if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
       return null;
     }
@@ -199,16 +199,16 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public getToolOperatorAccess(
-    response: AgentUIMessage,
+    response: ReActStep,
     toolCallIndex: number
-  ): { READ: string[]; WRITE: string[] } | null {
+  ): { viewedOperatorIds: string[]; modifiedOperatorIds: string[] } | null {
     if (!response.operatorAccess) {
       return null;
     }
     return response.operatorAccess.get(toolCallIndex) || null;
   }
 
-  public hasOperatorAccess(response: AgentUIMessage): boolean {
+  public hasOperatorAccess(response: ReActStep): boolean {
     return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
