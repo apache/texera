@@ -34,6 +34,8 @@ class WorkflowScheduler(
   var physicalPlan: PhysicalPlan = _
   private var schedule: Schedule = _
 
+  def getSchedule: Schedule = schedule
+
   /**
     * Update the schedule to be executed, based on the given physicalPlan.
     */

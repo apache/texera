@@ -28,6 +28,8 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 @JsonSchemaInject(
   json =
     "{" +
@@ -47,12 +49,14 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("X Column")
   @AutofillAttributeName
+  @NotNull(message = "X-Column cannot be null")
   private val xColumn: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Y Column")
   @AutofillAttributeName
+  @NotNull(message = "Y-Column cannot be null")
   private val yColumn: String = ""
 
   @JsonProperty(required = false)
@@ -119,17 +123,20 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
 
   def createPlotlyFigure(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
-    val colorColExpr = if (colorColumn.nonEmpty) {
-      s"color='$colorColumn'"
-    } else {
-      ""
-    }
-    var argDetails = ""
-    if (xLogScale) argDetails = argDetails + ", log_x=True"
-    if (yLogScale) argDetails = argDetails + ", log_y=True"
-    if (hoverName.nonEmpty) argDetails = argDetails + s""", hover_name='$hoverName'"""
+
+    val args = scala.collection.mutable.ArrayBuffer[String](
+      s"x='$xColumn'",
+      s"y='$yColumn'",
+      s"opacity=$alpha"
+    )
+    if (colorColumn.nonEmpty) args += s"color='$colorColumn'"
+    if (xLogScale) args += "log_x=True"
+    if (yLogScale) args += "log_y=True"
+    if (hoverName.nonEmpty) args += s"hover_name='$hoverName'"
+
+    val joined = args.mkString(", ")
     s"""
-       |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn', opacity=$alpha, $colorColExpr $argDetails))
+       |        fig = go.Figure(px.scatter(table, $joined))
        |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
        |""".stripMargin
   }

@@ -28,12 +28,15 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class DotPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Count Attribute", required = true)
   @JsonSchemaTitle("Count Attribute")
   @JsonPropertyDescription("the attribute for the counting of the dot plot")
   @AutofillAttributeName
+  @NotNull(message = "Count Attribute column cannot be empty")
   var countAttribute: String = ""
 
   override def getOutputSchemas(

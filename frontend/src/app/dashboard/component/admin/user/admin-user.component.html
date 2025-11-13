@@ -31,7 +31,11 @@
   [nzData]="listOfDisplayUser">
   <thead>
     <tr>
-      <th>Avatar</th>
+      <th
+        [nzSortFn]="sortByActive"
+        [nzSortDirections]="['ascend', 'descend']">
+        Avatar
+      </th>
       <th
         [nzSortFn]="sortByID"
         [nzSortDirections]="['ascend', 'descend']">
@@ -92,7 +96,11 @@
         User Role
       </th>
       <th>Quota</th>
-      <th>Account Creation Time</th>
+      <th
+        [nzSortFn]="sortByAccountCreation"
+        [nzSortDirections]="['ascend', 'descend']">
+        Account Creation Time
+      </th>
     </tr>
   </thead>
   <nz-dropdown-menu #nameMenu="nzDropdownMenu">

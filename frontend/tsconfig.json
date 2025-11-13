@@ -1,6 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
     "paths": {
       "path": ["./node_modules/path-browserify"]
     },
