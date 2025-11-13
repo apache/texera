@@ -74,6 +74,9 @@ Deployment managers can also decide to keep audits, backups, and copies of infor
 covered by Texera's security model. They operate outside the Texera UI role system and may or may not have a UI user
 account.
 
+Please refer to our wikis about how to deploy Texera, e.g., 
+[How to run Texera on Local Kubernetes](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kubernetes).
+
 ### UI Users
 
 **Who They Are**: Individuals who interact with Texera through the web interface.
