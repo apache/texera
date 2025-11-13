@@ -21,6 +21,7 @@ import { z } from "zod";
 import { tool } from "ai";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
+import { createSuccessResult, createErrorResult } from "./tools-utility";
 
 // Tool name constants
 export const TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO = "getCurrentWorkflowValidationInfo";
@@ -48,23 +49,27 @@ export function createGetCurrentWorkflowValidationInfoTool(
         const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
 
         const validOperatorIds = validOperators.map(op => op.operatorID);
+        const invalidOperatorIds = Object.keys(validationOutput.errors);
         const invalidCount = allOperators.length - validOperators.length;
 
-        return {
-          success: true,
-          errors: validationOutput.errors,
-          errorCount: errorCount,
-          validOperatorIds: validOperatorIds,
-          validCount: validOperators.length,
-          totalCount: allOperators.length,
-          invalidCount: invalidCount,
-          message:
-            errorCount === 0
-              ? "No validation errors in the workflow"
-              : `Found ${errorCount} operator(s) with validation errors. ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
-        };
+        return createSuccessResult(
+          {
+            errors: validationOutput.errors,
+            errorCount: errorCount,
+            validOperatorIds: validOperatorIds,
+            validCount: validOperators.length,
+            totalCount: allOperators.length,
+            invalidCount: invalidCount,
+            message:
+              errorCount === 0
+                ? "No validation errors in the workflow"
+                : `Found ${errorCount} operator(s) with validation errors. ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
+          },
+          validOperatorIds,
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -86,21 +91,27 @@ export function createValidateCurrentOperatorTool(validationWorkflowService: Val
         const validation = validationWorkflowService.validateOperator(args.operatorId);
 
         if (validation.isValid) {
-          return {
-            success: true,
-            isValid: true,
-            message: `Operator ${args.operatorId} is valid`,
-          };
+          return createSuccessResult(
+            {
+              isValid: true,
+              message: `Operator ${args.operatorId} is valid`,
+            },
+            [args.operatorId],
+            []
+          );
         } else {
-          return {
-            success: true,
-            isValid: false,
-            errors: validation.messages,
-            message: `Operator ${args.operatorId} has validation errors`,
-          };
+          return createSuccessResult(
+            {
+              isValid: false,
+              errors: validation.messages,
+              message: `Operator ${args.operatorId} has validation errors`,
+            },
+            [args.operatorId],
+            []
+          );
         }
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });

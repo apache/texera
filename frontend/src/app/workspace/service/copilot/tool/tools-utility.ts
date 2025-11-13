@@ -25,6 +25,71 @@ export const TOOL_TIMEOUT_MS = 120000;
 export const MAX_OPERATOR_RESULT_TOKEN_LIMIT = 1000;
 
 /**
+ * Base interface for all tool execution results.
+ * Ensures consistent structure across all tools with required tracking fields.
+ */
+export interface BaseToolResult {
+  /**
+   * Indicates whether the tool execution was successful.
+   */
+  success: boolean;
+
+  /**
+   * Error message if the tool execution failed.
+   */
+  error?: string;
+
+  /**
+   * List of operator IDs that were viewed/read during tool execution.
+   * Empty array if no operators were viewed.
+   */
+  viewedOperatorIds: string[];
+
+  /**
+   * List of operator IDs that were modified/written during tool execution.
+   * Empty array if no operators were modified.
+   */
+  modifiedOperatorIds: string[];
+}
+
+/**
+ * Creates a successful tool result with default values for required fields.
+ * Tools can extend this with additional custom fields.
+ *
+ * @param data - Custom data fields for the tool result
+ * @param viewedOperatorIds - Operator IDs that were viewed (default: [])
+ * @param modifiedOperatorIds - Operator IDs that were modified (default: [])
+ * @returns BaseToolResult with success=true and provided data
+ */
+export function createSuccessResult<T extends Record<string, any>>(
+  data: T,
+  viewedOperatorIds: string[] = [],
+  modifiedOperatorIds: string[] = []
+): BaseToolResult & T {
+  return {
+    success: true,
+    viewedOperatorIds,
+    modifiedOperatorIds,
+    ...data,
+  };
+}
+
+/**
+ * Creates a failed tool result with an error message.
+ *
+ * @param error - Error message describing the failure
+ * @returns BaseToolResult with success=false and error message
+ */
+export function createErrorResult(error: string): BaseToolResult {
+  return {
+    success: false,
+    error,
+    viewedOperatorIds: [],
+    modifiedOperatorIds: [],
+  };
+}
+
+/**
  * Estimates the number of tokens in a JSON-serializable object
  * Uses a common approximation: tokens ≈ characters / 4
  */
@@ -62,10 +127,9 @@ export function toolWithTimeout(toolConfig: any): any {
         return await Promise.race([originalExecute(argsWithSignal), timeoutPromise]);
       } catch (error: any) {
         if (error.message === "timeout") {
-          return {
-            success: false,
-            error: "Tool execution timeout - operation took longer than 2 minutes. Please try again later.",
-          };
+          return createErrorResult(
+            "Tool execution timeout - operation took longer than 2 minutes. Please try again later."
+          );
         }
         throw error;
       }

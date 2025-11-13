@@ -25,6 +25,7 @@ import { OperatorLink } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 import { WorkflowCompilingService } from "../../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
+import { createSuccessResult, createErrorResult } from "./tools-utility";
 
 // Tool name constants
 export const TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW = "addOperatorToCurrentWorkflow";
@@ -61,10 +62,7 @@ export function createAddOperatorToCurrentWorkflowTool(
       try {
         // Validate operator type exists
         if (!operatorMetadataService.operatorTypeExists(args.operatorType)) {
-          return {
-            success: false,
-            error: `Unknown operator type: ${args.operatorType}.Use tools to see available types.`,
-          };
+          return createErrorResult(`Unknown operator type: ${args.operatorType}.Use tools to see available types.`);
         }
 
         // Get a new operator predicate with default settings and optional custom display name
@@ -82,13 +80,16 @@ export function createAddOperatorToCurrentWorkflowTool(
         // Show copilot is adding this operator (after it's added to graph)
         setTimeout(() => {}, 100);
 
-        return {
-          success: true,
-          operatorId: operator.operatorID,
-          message: `Added ${args.operatorType} operator to workflow`,
-        };
+        return createSuccessResult(
+          {
+            operatorId: operator.operatorID,
+            message: `Added ${args.operatorType} operator to workflow`,
+          },
+          [],
+          [operator.operatorID]
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -132,13 +133,16 @@ export function createAddLinkToCurrentWorkflowTool(workflowActionService: Workfl
 
         workflowActionService.addLink(link);
 
-        return {
-          success: true,
-          linkId: link.linkID,
-          message: `Connected ${args.sourceOperatorId}:${sourcePId} to ${args.targetOperatorId}:${targetPId}`,
-        };
+        return createSuccessResult(
+          {
+            linkId: link.linkID,
+            message: `Connected ${args.sourceOperatorId}:${sourcePId} to ${args.targetOperatorId}:${targetPId}`,
+          },
+          [],
+          [args.sourceOperatorId, args.targetOperatorId]
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -158,12 +162,15 @@ export function createDeleteOperatorInCurrentWorkflowTool(workflowActionService:
       try {
         workflowActionService.deleteOperator(args.operatorId);
 
-        return {
-          success: true,
-          message: `Deleted operator ${args.operatorId}`,
-        };
+        return createSuccessResult(
+          {
+            message: `Deleted operator ${args.operatorId}`,
+          },
+          [],
+          [args.operatorId]
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -182,12 +189,15 @@ export function createDeleteLinkInCurrentWorkflowTool(workflowActionService: Wor
     execute: async (args: { linkId: string }) => {
       try {
         workflowActionService.deleteLinkWithID(args.linkId);
-        return {
-          success: true,
-          message: `Deleted link ${args.linkId}`,
-        };
+        return createSuccessResult(
+          {
+            message: `Deleted link ${args.linkId}`,
+          },
+          [],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -218,23 +228,23 @@ export function createSetOperatorPropertyInCurrentWorkflowTool(
 
         if (!validation.isValid) {
           // Properties are set but invalid - return error with details
-          return {
-            success: false,
-            error: "Property validation failed",
-            validationErrors: validation.messages,
-            hint: "Use getOperatorPropertiesSchema tool to see the expected schema structure for this operator",
-          };
+          return createErrorResult(
+            `Property validation failed: ${JSON.stringify(validation.messages)}. Use getOperatorPropertiesSchema tool to see the expected schema structure for this operator`
+          );
         }
 
         // Show property was changed
 
-        return {
-          success: true,
-          message: `Updated properties for operator ${args.operatorId}`,
-          properties: args.properties,
-        };
+        return createSuccessResult(
+          {
+            message: `Updated properties for operator ${args.operatorId}`,
+            properties: args.properties,
+          },
+          [],
+          [args.operatorId]
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -271,23 +281,23 @@ export function createSetPortPropertyInCurrentWorkflowTool(
 
         if (!validation.isValid) {
           // Properties are set but invalid - return error with details
-          return {
-            success: false,
-            error: "Port property validation failed",
-            validationErrors: validation.messages,
-            hint: "Use getOperatorPortsInfo tool to see the available ports and their current configuration",
-          };
+          return createErrorResult(
+            `Port property validation failed: ${JSON.stringify(validation.messages)}. Use getOperatorPortsInfo tool to see the available ports and their current configuration`
+          );
         }
 
         // Show property was changed
 
-        return {
-          success: true,
-          message: `Updated port ${args.portId} properties for operator ${args.operatorId}`,
-          properties: args.properties,
-        };
+        return createSuccessResult(
+          {
+            message: `Updated port ${args.portId} properties for operator ${args.operatorId}`,
+            properties: args.properties,
+          },
+          [],
+          [args.operatorId]
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -304,13 +314,16 @@ export function createListCurrentLinksTool(workflowActionService: WorkflowAction
     execute: async () => {
       try {
         const links = workflowActionService.getTexeraGraph().getAllLinks();
-        return {
-          success: true,
-          links: links,
-          count: links.length,
-        };
+        return createSuccessResult(
+          {
+            links: links,
+            count: links.length,
+          },
+          [],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -324,13 +337,17 @@ export function createListOperatorsInCurrentWorkflowTool(workflowActionService: 
     execute: async () => {
       try {
         const operators = workflowActionService.getTexeraGraph().getAllOperators();
-        return {
-          success: true,
-          operators: operators,
-          count: operators.length,
-        };
+        const operatorIds = operators.map(op => op.operatorID);
+        return createSuccessResult(
+          {
+            operators: operators,
+            count: operators.length,
+          },
+          operatorIds,
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -359,18 +376,18 @@ export function createGetCurrentOperatorTool(
         const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(args.operatorId);
         const outputSchema = outputSchemaMap || {};
 
-        return {
-          success: true,
-          operator: operator,
-          inputSchema: inputSchema,
-          outputSchema: outputSchema,
-          message: `Retrieved operator ${args.operatorId}`,
-        };
+        return createSuccessResult(
+          {
+            operator: operator,
+            inputSchema: inputSchema,
+            outputSchema: outputSchema,
+            message: `Retrieved operator ${args.operatorId}`,
+          },
+          [args.operatorId],
+          []
+        );
       } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || `Operator ${args.operatorId} not found`,
-        };
+        return createErrorResult(error.message || `Operator ${args.operatorId} not found`);
       }
     },
   });
@@ -426,12 +443,16 @@ export function createListCurrentRelevantOperatorIdsTool(
             };
           });
 
-          return {
-            success: true,
-            operators: operatorDetails,
-            count: operatorDetails.length,
-            message: `No specific schema provided. Returning all ${operatorDetails.length} operator(s) in the workflow with their schemas.`,
-          };
+          const operatorIds = operatorDetails.map(op => op.operatorId);
+          return createSuccessResult(
+            {
+              operators: operatorDetails,
+              count: operatorDetails.length,
+              message: `No specific schema provided. Returning all ${operatorDetails.length} operator(s) in the workflow with their schemas.`,
+            },
+            operatorIds,
+            []
+          );
         }
 
         const matchingOperatorIds = workflowActionService.findOperatorsByOutputSchema(
@@ -454,17 +475,17 @@ export function createListCurrentRelevantOperatorIdsTool(
           };
         });
 
-        return {
-          success: true,
-          operators: operatorDetails,
-          count: operatorDetails.length,
-          message: `Found ${operatorDetails.length} operator(s) with output schema matching the target attributes: ${args.targetSchema.map(attr => attr.attributeName).join(", ")}`,
-        };
+        return createSuccessResult(
+          {
+            operators: operatorDetails,
+            count: operatorDetails.length,
+            message: `Found ${operatorDetails.length} operator(s) with output schema matching the target attributes: ${args.targetSchema.map(attr => attr.attributeName).join(", ")}`,
+          },
+          matchingOperatorIds,
+          []
+        );
       } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || String(error),
-        };
+        return createErrorResult(error.message || String(error));
       }
     },
   });
@@ -486,17 +507,20 @@ export function createGetCurrentWorkflowCompilationStateTool(workflowCompilingSe
 
         const hasErrors = Object.keys(compilationErrors).length > 0;
 
-        return {
-          success: true,
-          state: compilationState,
-          hasErrors: hasErrors,
-          errors: hasErrors ? compilationErrors : undefined,
-          message: hasErrors
-            ? `Workflow compilation failed with ${Object.keys(compilationErrors).length} error(s)`
-            : `Workflow compilation state: ${compilationState}`,
-        };
+        return createSuccessResult(
+          {
+            state: compilationState,
+            hasErrors: hasErrors,
+            errors: hasErrors ? compilationErrors : undefined,
+            message: hasErrors
+              ? `Workflow compilation failed with ${Object.keys(compilationErrors).length} error(s)`
+              : `Workflow compilation state: ${compilationState}`,
+          },
+          [],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });

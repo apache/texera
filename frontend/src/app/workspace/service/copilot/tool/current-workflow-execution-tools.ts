@@ -23,7 +23,12 @@ import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.
 import { WorkflowResultService } from "../../workflow-result/workflow-result.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
-import { estimateTokenCount, MAX_OPERATOR_RESULT_TOKEN_LIMIT } from "./tools-utility";
+import {
+  estimateTokenCount,
+  MAX_OPERATOR_RESULT_TOKEN_LIMIT,
+  createSuccessResult,
+  createErrorResult,
+} from "./tools-utility";
 
 // Tool name constants
 export const TOOL_NAME_EXECUTE_CURRENT_WORKFLOW = "executeCurrentWorkflow";
@@ -52,14 +57,17 @@ export function createExecuteCurrentWorkflowTool(executeWorkflowService: Execute
       try {
         const name = args.executionName || "Copilot Execution";
         executeWorkflowService.executeWorkflow(name, args.targetOperatorId);
-        return {
-          success: true,
-          message: args.targetOperatorId
-            ? `Started workflow execution up to operator ${args.targetOperatorId}`
-            : "Started workflow execution",
-        };
+        return createSuccessResult(
+          {
+            message: args.targetOperatorId
+              ? `Started workflow execution up to operator ${args.targetOperatorId}`
+              : "Started workflow execution",
+          },
+          [],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -96,14 +104,16 @@ export function createGetCurrentExecutionStateTool(
         }
 
         // Only include essential information, not the entire stateInfo which can be very large
-        const result: any = {
-          success: true,
-          state: stateInfo,
-          consoleLogs: consoleLogs,
-        };
-        return result;
+        return createSuccessResult(
+          {
+            state: stateInfo,
+            consoleLogs: consoleLogs,
+          },
+          [],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -121,12 +131,15 @@ export function createKillCurrentWorkflowTool(executeWorkflowService: ExecuteWor
     execute: async () => {
       try {
         executeWorkflowService.killWorkflow();
-        return {
-          success: true,
-          message: "Workflow execution killed successfully",
-        };
+        return createSuccessResult(
+          {
+            message: "Workflow execution killed successfully",
+          },
+          [],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -149,15 +162,18 @@ export function createHasCurrentOperatorResultTool(
       try {
         const hasResult = workflowResultService.hasAnyResult(args.operatorId);
 
-        return {
-          success: true,
-          hasResult: hasResult,
-          message: hasResult
-            ? `Operator ${args.operatorId} has results available`
-            : `Operator ${args.operatorId} has no results`,
-        };
+        return createSuccessResult(
+          {
+            hasResult: hasResult,
+            message: hasResult
+              ? `Operator ${args.operatorId} has results available`
+              : `Operator ${args.operatorId} has no results`,
+          },
+          [args.operatorId],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -220,24 +236,26 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
             const totalRows = paginatedResultService.getCurrentTotalNumTuples();
             const wasLimited = limitedResult.length < (resultEvent.table?.length || 0);
 
-            return {
-              success: true,
-              operatorId: args.operatorId,
-              mode: "pagination",
-              totalRows: totalRows,
-              displayedRows: limitedResult.length,
-              estimatedTokens: currentTokenCount,
-              truncated: wasLimited,
-              result: { ...resultEvent, table: limitedResult },
-              message: wasLimited
-                ? `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, limited by token count ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`
-                : `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`,
-            };
+            return createSuccessResult(
+              {
+                operatorId: args.operatorId,
+                mode: "pagination",
+                totalRows: totalRows,
+                displayedRows: limitedResult.length,
+                estimatedTokens: currentTokenCount,
+                truncated: wasLimited,
+                result: { ...resultEvent, table: limitedResult },
+                message: wasLimited
+                  ? `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, limited by token count ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`
+                  : `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`,
+              },
+              [args.operatorId],
+              []
+            );
           } catch (error: any) {
-            return {
-              success: false,
-              error: `Failed to fetch paginated results: ${error.message}. This may be due to backend storage issues or results not being ready yet.`,
-            };
+            return createErrorResult(
+              `Failed to fetch paginated results: ${error.message}. This may be due to backend storage issues or results not being ready yet.`
+            );
           }
         }
 
@@ -246,10 +264,9 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
         if (resultService) {
           const snapshot = resultService.getCurrentResultSnapshot();
           if (!snapshot || snapshot.length === 0) {
-            return {
-              success: false,
-              error: `Result snapshot is empty for operator ${args.operatorId}. Results might not be ready yet.`,
-            };
+            return createErrorResult(
+              `Result snapshot is empty for operator ${args.operatorId}. Results might not be ready yet.`
+            );
           }
 
           // Filter by token limit
@@ -267,28 +284,30 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
 
           const wasLimited = limitedResult.length < snapshot.length;
 
-          return {
-            success: true,
-            operatorId: args.operatorId,
-            mode: "snapshot",
-            totalRows: snapshot.length,
-            displayedRows: limitedResult.length,
-            estimatedTokens: currentTokenCount,
-            truncated: wasLimited,
-            result: limitedResult,
-            message: wasLimited
-              ? `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, limited by token count ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`
-              : `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`,
-          };
+          return createSuccessResult(
+            {
+              operatorId: args.operatorId,
+              mode: "snapshot",
+              totalRows: snapshot.length,
+              displayedRows: limitedResult.length,
+              estimatedTokens: currentTokenCount,
+              truncated: wasLimited,
+              result: limitedResult,
+              message: wasLimited
+                ? `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, limited by token count ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`
+                : `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`,
+            },
+            [args.operatorId],
+            []
+          );
         }
 
         // No results available at all
-        return {
-          success: false,
-          error: `No results available for operator ${args.operatorId}. The operator may not have been executed yet, or it may not produce viewable results.`,
-        };
+        return createErrorResult(
+          `No results available for operator ${args.operatorId}. The operator may not have been executed yet, or it may not produce viewable results.`
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -312,25 +331,25 @@ export function createGetCurrentOperatorResultInfoTool(
       try {
         const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
         if (!paginatedResultService) {
-          return {
-            success: false,
-            error: `No paginated results available for operator ${args.operatorId}`,
-          };
+          return createErrorResult(`No paginated results available for operator ${args.operatorId}`);
         }
         const totalTuples = paginatedResultService.getCurrentTotalNumTuples();
         const currentPage = paginatedResultService.getCurrentPageIndex();
         const schema = paginatedResultService.getSchema();
 
-        return {
-          success: true,
-          operatorId: args.operatorId,
-          totalTuples: totalTuples,
-          currentPage: currentPage,
-          schema: schema,
-          message: `Operator ${args.operatorId} has ${totalTuples} result tuples`,
-        };
+        return createSuccessResult(
+          {
+            operatorId: args.operatorId,
+            totalTuples: totalTuples,
+            currentPage: currentPage,
+            schema: schema,
+            message: `Operator ${args.operatorId} has ${totalTuples} result tuples`,
+          },
+          [args.operatorId],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -350,34 +369,40 @@ export function createGetCurrentComputingUnitStatusTool(computingUnitStatusServi
         const selectedUnit = computingUnitStatusService.getSelectedComputingUnitValue();
 
         if (!selectedUnit) {
-          return {
-            success: true,
-            status: "No Computing Unit",
-            isConnected: false,
-            message:
-              "No computing unit is selected. Workflow execution is not available. Please remind the user to connect to a computing unit.",
-          };
+          return createSuccessResult(
+            {
+              status: "No Computing Unit",
+              isConnected: false,
+              message:
+                "No computing unit is selected. Workflow execution is not available. Please remind the user to connect to a computing unit.",
+            },
+            [],
+            []
+          );
         }
 
         const unitStatus = selectedUnit.status;
         const isConnected = unitStatus === "Running";
 
-        return {
-          success: true,
-          status: unitStatus,
-          isConnected: isConnected,
-          computingUnit: {
-            cuid: selectedUnit.computingUnit.cuid,
-            name: selectedUnit.computingUnit.name,
+        return createSuccessResult(
+          {
+            status: unitStatus,
+            isConnected: isConnected,
+            computingUnit: {
+              cuid: selectedUnit.computingUnit.cuid,
+              name: selectedUnit.computingUnit.name,
+            },
+            message: isConnected
+              ? `Computing unit "${selectedUnit.computingUnit.name}" is running and ready for workflow execution`
+              : unitStatus === "Pending"
+                ? `Computing unit "${selectedUnit.computingUnit.name}" is pending/starting. Workflow execution may not be available yet.`
+                : `Computing unit is in state: ${unitStatus}. Workflow execution may not be available.`,
           },
-          message: isConnected
-            ? `Computing unit "${selectedUnit.computingUnit.name}" is running and ready for workflow execution`
-            : unitStatus === "Pending"
-              ? `Computing unit "${selectedUnit.computingUnit.name}" is pending/starting. Workflow execution may not be available yet.`
-              : `Computing unit is in state: ${unitStatus}. Workflow execution may not be available.`,
-        };
+          [],
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
