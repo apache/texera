@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Build Docker Images (QEMU Multi-Arch - Parallel)
+name: Build and push images
 
 on:
   workflow_dispatch:
@@ -50,7 +50,7 @@ on:
           - amd64
           - arm64
       with_r_support:
-        description: 'Enable R support for computing-unit-master'
+        description: 'Enable R support for workflow-execution-coordinator'
         required: false
         default: false
         type: boolean
