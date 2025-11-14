@@ -152,7 +152,7 @@ object Tuple {
       )
     ) {
       throw new RuntimeException(
-        s"edu.ics.uci.amber.model.tuple.model.Attribute ${attribute.getName}'s type (${attribute.getType}) is different from field's type (${AttributeType
+        s"Attribute ${attribute.getName}'s type (${attribute.getType}) is different from field's type (${AttributeType
           .getAttributeType(field.getClass)})"
       )
     }
@@ -190,7 +190,7 @@ object Tuple {
     }
 
     def add(attribute: Attribute, field: Any): Builder = {
-      require(attribute != null, "edu.ics.uci.amber.model.tuple.model.Attribute cannot be null")
+      require(attribute != null, "Attribute cannot be null")
       checkAttributeMatchesField(attribute, field)
 
       if (!schema.containsAttribute(attribute.getName)) {
@@ -206,7 +206,7 @@ object Tuple {
     def add(attributeName: String, attributeType: AttributeType, field: Any): Builder = {
       require(
         attributeName != null && attributeType != null,
-        "edu.ics.uci.amber.model.tuple.model.Attribute name and type cannot be null"
+        "Attribute name and type cannot be null"
       )
       this.add(new Attribute(attributeName, attributeType), field)
       this
