@@ -45,6 +45,7 @@ import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
 import { ActionPlanService } from "../../service/action-plan/action-plan.service";
 import { ContextHighlightService } from "../../service/context-highlight/context-highlight.service";
+import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -116,7 +117,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private elementRef: ElementRef,
     private config: GuiConfigService,
     private actionPlanService: ActionPlanService,
-    private contextHighlightService: ContextHighlightService
+    private contextHighlightService: ContextHighlightService,
+    private copilotManagerService: TexeraCopilotManagerService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -171,6 +173,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleActionPlanHighlight();
     this.handleContextHighlight();
     this.handleOperatorSuggestionHighlightEvent();
+    this.handleAgentHoverHighlight();
     this.handleElementDelete();
     this.handleElementSelectAll();
     this.handleElementCopy();
@@ -1756,6 +1759,81 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
   }
+
+  /**
+   * Handle agent hover highlighting to show "Viewing" and "Modifying" labels on operators
+   */
+  private handleAgentHoverHighlight(): void {
+    // Subscribe to all agents and their hover events
+    this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
+      this.copilotManagerService.getAllAgents().subscribe(agents => {
+        agents.forEach(agent => {
+          // Subscribe to each agent's hover operators stream
+          this.copilotManagerService
+            .getHoveredMessageOperatorsObservable(agent.id)
+            .pipe(untilDestroyed(this))
+            .subscribe(({ viewedOperatorIds, modifiedOperatorIds }) => {
+              // Clear all previous labels first
+              this.clearAllAgentActionLabels();
+
+              // Show "Viewing" labels on viewed operators
+              viewedOperatorIds.forEach(operatorId => {
+                if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                  this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing");
+                }
+              });
+
+              // Show "Modifying" labels on modified operators
+              modifiedOperatorIds.forEach(operatorId => {
+                if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                  this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying");
+                }
+              });
+            });
+        });
+      });
+    });
+
+    // Initial setup
+    this.copilotManagerService.getAllAgents().subscribe(agents => {
+      agents.forEach(agent => {
+        this.copilotManagerService
+          .getHoveredMessageOperatorsObservable(agent.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(({ viewedOperatorIds, modifiedOperatorIds }) => {
+            // Clear all previous labels first
+            this.clearAllAgentActionLabels();
+
+            // Show "Viewing" labels on viewed operators
+            viewedOperatorIds.forEach(operatorId => {
+              if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing");
+              }
+            });
+
+            // Show "Modifying" labels on modified operators
+            modifiedOperatorIds.forEach(operatorId => {
+              if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying");
+              }
+            });
+          });
+      });
+    });
+  }
+
+  /**
+   * Clear all agent action labels from all operators
+   */
+  private clearAllAgentActionLabels(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(op => {
+        this.jointUIService.hideAgentActionLabel(this.paper, op.operatorID);
+      });
+  }
+
   /**
    * Info button on link between operator shown when user hovers over links
    */

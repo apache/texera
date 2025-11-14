@@ -129,6 +129,9 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
 
   public setHoveredMessage(index: number | null): void {
     this.hoveredMessageIndex = index;
+    // Notify the copilot service about the hovered message
+    const hoveredStep = index !== null && index >= 0 ? this.agentResponses[index] : null;
+    this.copilotManagerService.setHoveredMessage(this.agentInfo.id, hoveredStep);
   }
 
   public showResponseDetails(response: ReActStep): void {

@@ -1008,6 +1008,53 @@ export class JointUIService {
   public static getJointUserPointerName(coeditor: Coeditor) {
     return "pointer_" + coeditor.clientId;
   }
+
+  /**
+   * Shows agent action labels (Viewing/Modifying) on operators.
+   * @param jointPaper The JointJS paper
+   * @param operatorID The operator ID to show labels on
+   * @param actionType The type of action: "viewing" or "modifying"
+   */
+  public showAgentActionLabel(
+    jointPaper: joint.dia.Paper,
+    operatorID: string,
+    actionType: "viewing" | "modifying"
+  ): void {
+    const element = jointPaper.getModelById(operatorID);
+    if (!element) {
+      return;
+    }
+
+    const labelText = actionType === "viewing" ? "Viewing" : "Modifying";
+    const labelColor = actionType === "viewing" ? "#1890ff" : "#52c41a";
+
+    element.attr({
+      [`.${operatorAgentActionProgressClass}`]: {
+        text: labelText,
+        fill: labelColor,
+        visibility: "visible",
+      },
+    });
+  }
+
+  /**
+   * Hides agent action labels on operators.
+   * @param jointPaper The JointJS paper
+   * @param operatorID The operator ID to hide labels on
+   */
+  public hideAgentActionLabel(jointPaper: joint.dia.Paper, operatorID: string): void {
+    const element = jointPaper.getModelById(operatorID);
+    if (!element) {
+      return;
+    }
+
+    element.attr({
+      [`.${operatorAgentActionProgressClass}`]: {
+        text: "",
+        visibility: "hidden",
+      },
+    });
+  }
 }
 
 export function fromJointPaperEvent<T extends keyof joint.dia.Paper.EventMap = keyof joint.dia.Paper.EventMap>(

@@ -381,6 +381,24 @@ export class TexeraCopilotManagerService {
     return agent.instance.relevantOperators$;
   }
 
+  public setHoveredMessage(agentId: string, step: ReActStep | null): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    agent.instance.setHoveredMessage(step);
+  }
+
+  public getHoveredMessageOperatorsObservable(
+    agentId: string
+  ): Observable<{ viewedOperatorIds: string[]; modifiedOperatorIds: string[] }> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.hoveredMessageOperators$;
+  }
+
   public getMessageStatsObservable(agentId: string): Observable<Map<string, any>> {
     const agent = this.agents.get(agentId);
     if (!agent) {

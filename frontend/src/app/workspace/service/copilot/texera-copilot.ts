@@ -135,6 +135,12 @@ export class TexeraCopilot {
   private messageStatsSubject = new BehaviorSubject<Map<string, CopilotMessageStats>>(new Map());
   public messageStats$ = this.messageStatsSubject.asObservable();
   private messageIdCounter: number = 0;
+  // Track which message is being hovered and its operator IDs
+  private hoveredMessageOperatorsSubject = new BehaviorSubject<{
+    viewedOperatorIds: string[];
+    modifiedOperatorIds: string[];
+  }>({ viewedOperatorIds: [], modifiedOperatorIds: [] });
+  public hoveredMessageOperators$ = this.hoveredMessageOperatorsSubject.asObservable();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -650,6 +656,33 @@ export class TexeraCopilot {
 
   public getRelevantOperators(): string[] {
     return [...this.relevantOperators];
+  }
+
+  /**
+   * Set the hovered message and emit its operator IDs.
+   * @param step The ReActStep being hovered, or null to clear
+   */
+  public setHoveredMessage(step: ReActStep | null): void {
+    if (!step) {
+      this.hoveredMessageOperatorsSubject.next({ viewedOperatorIds: [], modifiedOperatorIds: [] });
+      return;
+    }
+
+    // Collect all operator IDs from this step's tool calls
+    const viewedOperatorIds = new Set<string>();
+    const modifiedOperatorIds = new Set<string>();
+
+    if (step.operatorAccess) {
+      step.operatorAccess.forEach((access, _) => {
+        access.viewedOperatorIds.forEach(id => viewedOperatorIds.add(id));
+        access.modifiedOperatorIds.forEach(id => modifiedOperatorIds.add(id));
+      });
+    }
+
+    this.hoveredMessageOperatorsSubject.next({
+      viewedOperatorIds: Array.from(viewedOperatorIds),
+      modifiedOperatorIds: Array.from(modifiedOperatorIds),
+    });
   }
 
   public disconnect(): Observable<void> {
