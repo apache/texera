@@ -49,54 +49,30 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
   constructor(private copilotManagerService: TexeraCopilotManagerService) {}
 
   ngOnInit(): void {
-    // Load saved panel dimensions and position
-    const savedWidth = localStorage.getItem("agent-panel-width");
-    const savedHeight = localStorage.getItem("agent-panel-height");
-    const savedStyle = localStorage.getItem("agent-panel-style");
-    const savedDocked = localStorage.getItem("agent-panel-docked");
-
-    // Only restore width if the panel was not docked
-    if (savedDocked === "false" && savedWidth) {
-      this.width = Number(savedWidth);
-    }
-
-    if (savedHeight) this.height = Number(savedHeight);
-
-    if (savedStyle) {
-      const container = document.getElementById("agent-container");
-      if (container) {
-        container.style.cssText = savedStyle;
-        const translates = container.style.transform;
-        const [xOffset, yOffset] = calculateTotalTranslate3d(translates);
-        this.returnPosition = { x: -xOffset, y: -yOffset };
-        this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
-      }
-    }
+    this.loadPanelSettings();
 
     // Subscribe to agent changes
     this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
-      this.copilotManagerService.getAllAgents().subscribe(agents => {
-        this.agents = agents;
-      });
+      this.copilotManagerService
+        .getAllAgents()
+        .pipe(untilDestroyed(this))
+        .subscribe(agents => {
+          this.agents = agents;
+        });
     });
 
     // Load initial agents
-    this.copilotManagerService.getAllAgents().subscribe(agents => {
-      this.agents = agents;
-    });
+    this.copilotManagerService
+      .getAllAgents()
+      .pipe(untilDestroyed(this))
+      .subscribe(agents => {
+        this.agents = agents;
+      });
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    // Save panel state
-    localStorage.setItem("agent-panel-width", String(this.width));
-    localStorage.setItem("agent-panel-height", String(this.height));
-    localStorage.setItem("agent-panel-docked", String(this.width === 0));
-
-    const container = document.getElementById("agent-container");
-    if (container) {
-      localStorage.setItem("agent-panel-style", container.style.cssText);
-    }
+    this.savePanelSettings();
   }
 
   /**
@@ -170,5 +146,55 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
    */
   handleDragStart(): void {
     this.isDocked = false;
+  }
+
+  /**
+   * Load panel settings from localStorage
+   */
+  private loadPanelSettings(): void {
+    const savedWidth = localStorage.getItem("agent-panel-width");
+    const savedHeight = localStorage.getItem("agent-panel-height");
+    const savedStyle = localStorage.getItem("agent-panel-style");
+    const savedDocked = localStorage.getItem("agent-panel-docked");
+
+    // Only restore width if the panel was not docked
+    if (savedDocked === "false" && savedWidth) {
+      const parsedWidth = Number(savedWidth);
+      if (!isNaN(parsedWidth) && parsedWidth >= AgentPanelComponent.MIN_PANEL_WIDTH) {
+        this.width = parsedWidth;
+      }
+    }
+
+    if (savedHeight) {
+      const parsedHeight = Number(savedHeight);
+      if (!isNaN(parsedHeight) && parsedHeight >= AgentPanelComponent.MIN_PANEL_HEIGHT) {
+        this.height = parsedHeight;
+      }
+    }
+
+    if (savedStyle) {
+      const container = document.getElementById("agent-container");
+      if (container) {
+        container.style.cssText = savedStyle;
+        const translates = container.style.transform;
+        const [xOffset, yOffset] = calculateTotalTranslate3d(translates);
+        this.returnPosition = { x: -xOffset, y: -yOffset };
+        this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
+      }
+    }
+  }
+
+  /**
+   * Save panel settings to localStorage
+   */
+  private savePanelSettings(): void {
+    localStorage.setItem("agent-panel-width", String(this.width));
+    localStorage.setItem("agent-panel-height", String(this.height));
+    localStorage.setItem("agent-panel-docked", String(this.width === 0));
+
+    const container = document.getElementById("agent-container");
+    if (container) {
+      localStorage.setItem("agent-panel-style", container.style.cssText);
+    }
   }
 }
