@@ -24,41 +24,41 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ai-sdk/gateway@npm:2.0.0":
-  version: 2.0.0
-  resolution: "@ai-sdk/gateway@npm:2.0.0"
+"@ai-sdk/gateway@npm:2.0.9":
+  version: 2.0.9
+  resolution: "@ai-sdk/gateway@npm:2.0.9"
   dependencies:
     "@ai-sdk/provider": "npm:2.0.0"
-    "@ai-sdk/provider-utils": "npm:3.0.12"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
     "@vercel/oidc": "npm:3.0.3"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/720cfb827bc64f3eb6bb86d17e7e7947c54bdc7d74db7f6e9e162be0973a45368c05829e4b257704182ca9c4886e7f3c74f6b64841e88359930f48f288aa958a
+  checksum: 10c0/840f94795b96c0fa6e73897ea8dba95fc78af1f8482f3b7d8439b6233b4f4de6979a8b67206f4bbf32649baf2acfb1153a46792dfa20259ca9f5fd214fb25fa5
   languageName: node
   linkType: hard
 
-"@ai-sdk/openai@npm:2.0.52":
-  version: 2.0.52
-  resolution: "@ai-sdk/openai@npm:2.0.52"
+"@ai-sdk/openai@npm:2.0.65":
+  version: 2.0.65
+  resolution: "@ai-sdk/openai@npm:2.0.65"
   dependencies:
     "@ai-sdk/provider": "npm:2.0.0"
-    "@ai-sdk/provider-utils": "npm:3.0.12"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/253125303235dc677e272eaffbcd5c788373e12f897e42da7cce827bcc952f31e4bb11b72ba06931f37d49a2588f6cba8526127d539025bbd58d78d7bcfc691d
+  checksum: 10c0/02547c62e1f8d6dcfc6ad67cd878a80e48d1294ae29ac37f11f653e6145969cf86dbd141bba4ca200b61336d5e2999173b57a4ba84f8032d9cb833d220f3b14b
   languageName: node
   linkType: hard
 
-"@ai-sdk/provider-utils@npm:3.0.12":
-  version: 3.0.12
-  resolution: "@ai-sdk/provider-utils@npm:3.0.12"
+"@ai-sdk/provider-utils@npm:3.0.17":
+  version: 3.0.17
+  resolution: "@ai-sdk/provider-utils@npm:3.0.17"
   dependencies:
     "@ai-sdk/provider": "npm:2.0.0"
     "@standard-schema/spec": "npm:^1.0.0"
-    eventsource-parser: "npm:^3.0.5"
+    eventsource-parser: "npm:^3.0.6"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/83886bf188cad0cc655b680b710a10413989eaba9ec59dd24a58b985c02a8a1d50ad0f96dd5259385c07592ec3c37a7769fdf4a1ef569a73c9edbdb2cd585915
+  checksum: 10c0/1bae6dc4cacd0305b6aa152f9589bbd61c29f150155482c285a77f83d7ed416d52bc2aa7fdaba2e5764530392d9e8f799baea34a63dce6c72ecd3de364dc62d1
   languageName: node
   linkType: hard
 
@@ -3578,13 +3578,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@microsoft/fetch-event-source@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "@microsoft/fetch-event-source@npm:2.0.1"
-  checksum: 10c0/38c69e9b9990e6cee715c7bbfa2752f943b42575acadb36facf19bb831f1520c469f854277439154258e0e1dc8650cc85038230d1f451e3f6b62e8faeaa1126c
-  languageName: node
-  linkType: hard
-
 "@modelcontextprotocol/sdk@npm:^1.20.1":
   version: 1.20.1
   resolution: "@modelcontextprotocol/sdk@npm:1.20.1"
@@ -6462,17 +6455,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ai@npm:^5.0.76":
-  version: 5.0.76
-  resolution: "ai@npm:5.0.76"
+"ai@npm:5.0.93":
+  version: 5.0.93
+  resolution: "ai@npm:5.0.93"
   dependencies:
-    "@ai-sdk/gateway": "npm:2.0.0"
+    "@ai-sdk/gateway": "npm:2.0.9"
     "@ai-sdk/provider": "npm:2.0.0"
-    "@ai-sdk/provider-utils": "npm:3.0.12"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
     "@opentelemetry/api": "npm:1.9.0"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/167a191354b72106b1af6cfc8b53975637ca43919b8f48db81c0cf542ef0172f55958ed9331adcd08d017a608a98cb0b4a253c62732038322c78091e32595771
+  checksum: 10c0/64e80a36248ef20d42a0e688a58da6ca4255e2510a47d6ee9c2318a669df8e8ffb5c63ddb03a3cadd841058414bd4b324783f168c761f82421e4a1c2ac958933
   languageName: node
   linkType: hard
 
@@ -6684,7 +6677,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"argparse@npm:^1.0.10, argparse@npm:^1.0.7":
+"argparse@npm:^1.0.7":
   version: 1.0.10
   resolution: "argparse@npm:1.0.10"
   dependencies:
@@ -6870,15 +6863,6 @@ __metadata:
   version: 1.0.0
   resolution: "at-least-node@npm:1.0.0"
   checksum: 10c0/4c058baf6df1bc5a1697cf182e2029c58cd99975288a13f9e70068ef5d6f4e1f1fd7c4d2c3c4912eae44797d1725be9700995736deca441b39f3e66d8dee97ef
-  languageName: node
-  linkType: hard
-
-"autolinker@npm:^3.11.0":
-  version: 3.16.2
-  resolution: "autolinker@npm:3.16.2"
-  dependencies:
-    tslib: "npm:^2.3.0"
-  checksum: 10c0/91e083bfa4393fdcd29f595e1db657d852fd74cbd1fec719f30f3d57c910e72d5e0a0b10f2b17e1e6297b52b2f5c12eb6d0cbe024c0d92671e81d8ab906fe981
   languageName: node
   linkType: hard
 
@@ -9339,17 +9323,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deep-chat@npm:^2.2.2":
-  version: 2.2.2
-  resolution: "deep-chat@npm:2.2.2"
-  dependencies:
-    "@microsoft/fetch-event-source": "npm:^2.0.1"
-    remarkable: "npm:^2.0.1"
-    speech-to-element: "npm:^1.0.4"
-  checksum: 10c0/67a4fa2062d6f170394c46e4ea57f63685b4f024f5390d8878a430e16ba99753e3a30322e0de0ac00629cc3249a73e37eb3297bfe5c73461b13ed6861cf3e578
-  languageName: node
-  linkType: hard
-
 "deep-equal@npm:^1.0.1":
   version: 1.1.2
   resolution: "deep-equal@npm:1.1.2"
@@ -10779,7 +10752,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eventsource-parser@npm:^3.0.0, eventsource-parser@npm:^3.0.1, eventsource-parser@npm:^3.0.5":
+"eventsource-parser@npm:^3.0.0, eventsource-parser@npm:^3.0.1, eventsource-parser@npm:^3.0.6":
   version: 3.0.6
   resolution: "eventsource-parser@npm:3.0.6"
   checksum: 10c0/70b8ccec7dac767ef2eca43f355e0979e70415701691382a042a2df8d6a68da6c2fca35363669821f3da876d29c02abe9b232964637c1b6635c940df05ada78a
@@ -11910,7 +11883,7 @@ __metadata:
   resolution: "gui@workspace:."
   dependencies:
     "@abacritt/angularx-social-login": "npm:2.3.0"
-    "@ai-sdk/openai": "npm:2.0.52"
+    "@ai-sdk/openai": "npm:2.0.65"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
     "@angular-builders/custom-webpack": "npm:16.0.1"
     "@angular-devkit/build-angular": "npm:16.2.12"
@@ -11963,7 +11936,7 @@ __metadata:
     "@types/ws": "npm:^8.18.1"
     "@typescript-eslint/eslint-plugin": "npm:7.0.2"
     "@typescript-eslint/parser": "npm:7.0.2"
-    ai: "npm:^5.0.76"
+    ai: "npm:5.0.93"
     ajv: "npm:8.10.0"
     babel-plugin-dynamic-import-node: "npm:2.3.3"
     backbone: "npm:1.4.1"
@@ -11972,7 +11945,6 @@ __metadata:
     content-disposition: "npm:0.5.4"
     d3: "npm:6.4.0"
     dagre: "npm:0.8.5"
-    deep-chat: "npm:^2.2.2"
     deep-map: "npm:2.0.0"
     edit-distance: "npm:1.0.4"
     es6-weak-map: "npm:2.0.3"
@@ -17155,18 +17127,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"remarkable@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "remarkable@npm:2.0.1"
-  dependencies:
-    argparse: "npm:^1.0.10"
-    autolinker: "npm:^3.11.0"
-  bin:
-    remarkable: bin/remarkable.js
-  checksum: 10c0/e2c23bfd2e45234110bc3220e44fcac5e4a8199691ff6959d9cd0bac34ffca2f123d3913946cbef517018bc8e5ab00beafc527a04782b7afbe5e9706d1c0c77a
-  languageName: node
-  linkType: hard
-
 "require-directory@npm:^2.1.1":
   version: 2.1.1
   resolution: "require-directory@npm:2.1.1"
@@ -18257,13 +18217,6 @@ __metadata:
     select-hose: "npm:^2.0.0"
     spdy-transport: "npm:^3.0.0"
   checksum: 10c0/983509c0be9d06fd00bb9dff713c5b5d35d3ffd720db869acdd5ad7aa6fc0e02c2318b58f75328957d8ff772acdf1f7d19382b6047df342044ff3e2d6805ccdf
-  languageName: node
-  linkType: hard
-
-"speech-to-element@npm:^1.0.4":
-  version: 1.0.4
-  resolution: "speech-to-element@npm:1.0.4"
-  checksum: 10c0/ae9e5bbefb13fa6920df6817ed02f463fa29a0cfd52a1fcc4b7864da816085d185087571e72bd1557c43255592ad39e17d403a2e4950c1233eaa822efd923268
   languageName: node
   linkType: hard
 
