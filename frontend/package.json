@@ -22,7 +22,7 @@
   "private": true,
   "dependencies": {
     "@abacritt/angularx-social-login": "2.3.0",
-    "@ai-sdk/openai": "2.0.52",
+    "@ai-sdk/openai": "2.0.67",
     "@ali-hm/angular-tree-component": "12.0.5",
     "@angular/animations": "16.2.12",
     "@angular/cdk": "16.2.12",
@@ -46,7 +46,7 @@
     "@stoplight/json-ref-resolver": "3.1.5",
     "@types/lodash-es": "4.17.4",
     "@types/plotly.js-basic-dist-min": "2.12.4",
-    "ai": "^5.0.76",
+    "ai": "5.0.93",
     "ajv": "8.10.0",
     "backbone": "1.4.1",
     "concaveman": "2.0.0",
