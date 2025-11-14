@@ -1014,25 +1014,31 @@ export class JointUIService {
    * @param jointPaper The JointJS paper
    * @param operatorID The operator ID to show labels on
    * @param actionType The type of action: "viewing" or "modifying"
+   * @param agentName The name of the agent performing the action
    */
   public showAgentActionLabel(
     jointPaper: joint.dia.Paper,
     operatorID: string,
-    actionType: "viewing" | "modifying"
+    actionType: "viewing" | "modifying",
+    agentName: string = "Agent"
   ): void {
     const element = jointPaper.getModelById(operatorID);
     if (!element) {
       return;
     }
 
-    const labelText = actionType === "viewing" ? "Viewing" : "Modifying";
-    const labelColor = actionType === "viewing" ? "#1890ff" : "#52c41a";
+    const iconUrl = actionType === "viewing" ? "assets/gif/agent-viewing.gif" : "assets/gif/agent-modifying.gif";
 
     element.attr({
-      [`.${operatorAgentActionProgressClass}`]: {
-        text: labelText,
-        fill: labelColor,
+      [`.${operatorAgentActionIconClass}`]: {
+        "xlink:href": iconUrl,
         visibility: "visible",
+      },
+      [`.${operatorAgentActionProgressClass}`]: {
+        text: agentName,
+        fill: "orange",
+        visibility: "visible",
+        "ref-y": 7, // Move up 5px from default position (was 12)
       },
     });
   }
@@ -1049,11 +1055,24 @@ export class JointUIService {
     }
 
     element.attr({
+      [`.${operatorAgentActionIconClass}`]: {
+        "xlink:href": "",
+        visibility: "hidden",
+      },
       [`.${operatorAgentActionProgressClass}`]: {
         text: "",
         visibility: "hidden",
       },
     });
+
+    // Remove tooltip
+    const iconElement = jointPaper.findViewByModel(operatorID)?.el.querySelector(`.${operatorAgentActionIconClass}`);
+    if (iconElement) {
+      const existingTitle = iconElement.querySelector("title");
+      if (existingTitle) {
+        existingTitle.remove();
+      }
+    }
   }
 }
 

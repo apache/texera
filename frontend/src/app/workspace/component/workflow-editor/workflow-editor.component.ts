@@ -1779,14 +1779,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
               // Show "Viewing" labels on viewed operators
               viewedOperatorIds.forEach(operatorId => {
                 if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                  this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing");
+                  this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing", agent.name);
                 }
               });
 
               // Show "Modifying" labels on modified operators
               modifiedOperatorIds.forEach(operatorId => {
                 if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                  this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying");
+                  this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying", agent.name);
                 }
               });
             });
@@ -1807,14 +1807,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             // Show "Viewing" labels on viewed operators
             viewedOperatorIds.forEach(operatorId => {
               if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing");
+                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing", agent.name);
               }
             });
 
             // Show "Modifying" labels on modified operators
             modifiedOperatorIds.forEach(operatorId => {
               if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying");
+                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying", agent.name);
               }
             });
           });
