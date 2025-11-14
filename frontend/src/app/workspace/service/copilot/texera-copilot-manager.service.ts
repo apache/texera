@@ -113,14 +113,22 @@ export class TexeraCopilotManagerService {
     });
   }
 
-  public getAgent(agentId: string): Observable<AgentInfo> {
+  /**
+   * Helper method to get an agent and execute a callback with it.
+   * Handles agent lookup and error throwing if not found.
+   */
+  private withAgent<T>(agentId: string, callback: (agent: AgentInfo) => Observable<T>): Observable<T> {
     return defer(() => {
       const agent = this.agents.get(agentId);
       if (!agent) {
         return throwError(() => new Error(`Agent with ID ${agentId} not found`));
       }
-      return of(agent);
+      return callback(agent);
     });
+  }
+
+  public getAgent(agentId: string): Observable<AgentInfo> {
+    return this.withAgent(agentId, agent => of(agent));
   }
 
   public getAllAgents(): Observable<AgentInfo[]> {
@@ -175,100 +183,52 @@ export class TexeraCopilotManagerService {
     return of(this.agents.size);
   }
   public sendMessage(agentId: string, message: string): Observable<void> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      return agent.instance.sendMessage(message);
-    });
+    return this.withAgent(agentId, agent => agent.instance.sendMessage(message));
   }
 
   public getAgentResponsesObservable(agentId: string): Observable<AgentUIMessage[]> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      return agent.instance.agentResponses$;
-    });
+    return this.withAgent(agentId, agent => agent.instance.agentResponses$);
   }
 
   public getAgentResponses(agentId: string): Observable<AgentUIMessage[]> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      return of(agent.instance.getAgentResponses());
-    });
+    return this.withAgent(agentId, agent => of(agent.instance.getAgentResponses()));
   }
 
   public clearMessages(agentId: string): Observable<void> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
+    return this.withAgent(agentId, agent => {
       agent.instance.clearMessages();
       return of(undefined);
     });
   }
 
   public stopGeneration(agentId: string): Observable<void> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
+    return this.withAgent(agentId, agent => {
       agent.instance.stopGeneration();
       return of(undefined);
     });
   }
 
   public getAgentState(agentId: string): Observable<CopilotState> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      return of(agent.instance.getState());
-    });
+    return this.withAgent(agentId, agent => of(agent.instance.getState()));
   }
 
   public getAgentStateObservable(agentId: string): Observable<CopilotState> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      return agent.instance.state$;
-    });
+    return this.withAgent(agentId, agent => agent.instance.state$);
   }
 
   public isAgentConnected(agentId: string): Observable<boolean> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return of(false);
-      }
-      return of(agent.instance.isConnected());
-    });
+    return this.withAgent(agentId, agent => of(agent.instance.isConnected())).pipe(catchError(() => of(false)));
   }
 
   public getSystemInfo(
     agentId: string
   ): Observable<{ systemPrompt: string; tools: Array<{ name: string; description: string; inputSchema: any }> }> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      return of({
+    return this.withAgent(agentId, agent =>
+      of({
         systemPrompt: agent.instance.getSystemPrompt(),
         tools: agent.instance.getToolsInfo(),
-      });
-    });
+      })
+    );
   }
   private createCopilotInstance(modelType: string): TexeraCopilot {
     const childInjector = Injector.create({
