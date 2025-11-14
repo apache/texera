@@ -74,8 +74,26 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       .getAgentResponsesObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(responses => {
+        const previousLength = this.agentResponses.length;
         this.agentResponses = responses;
         this.shouldScrollToBottom = true;
+
+        // Automatically highlight the latest ReAct step
+        if (responses.length > 0) {
+          const latestIndex = responses.length - 1;
+          const previousLatestIndex = previousLength - 1;
+
+          // Auto-highlight the latest if:
+          // 1. No message is currently hovered, OR
+          // 2. We were hovering the previous latest (so update to new latest)
+          if (
+            this.hoveredMessageIndex === null ||
+            this.hoveredMessageIndex === previousLatestIndex ||
+            this.hoveredMessageIndex >= responses.length
+          ) {
+            this.setHoveredMessage(latestIndex);
+          }
+        }
       });
 
     // Subscribe to pending action plans
@@ -128,6 +146,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public setHoveredMessage(index: number | null): void {
+    // When unhovered (null), automatically revert to latest step
+    if (index === null && this.agentResponses.length > 0) {
+      index = this.agentResponses.length - 1;
+    }
+
     this.hoveredMessageIndex = index;
     // Notify the copilot service about the hovered message
     const hoveredStep = index !== null && index >= 0 ? this.agentResponses[index] : null;
