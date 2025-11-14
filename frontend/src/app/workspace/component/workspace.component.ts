@@ -70,7 +70,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   constructor(
     private userService: UserService,
-    // list 3 services in constructor so they are initialized even if no one use them directly
+    // list additional 3 services in constructor so they are initialized even if no one use them directly
     // TODO: make their lifecycle better
     private workflowCompilingService: WorkflowCompilingService,
     private workflowConsoleService: WorkflowConsoleService,

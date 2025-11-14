@@ -82,7 +82,7 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
   /**
    * Create a new agent with the selected model type.
    */
-  public async createAgent(): Promise<void> {
+  public createAgent(): void {
     if (!this.selectedModelType || this.isCreating) {
       return;
     }

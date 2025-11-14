@@ -24,41 +24,41 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ai-sdk/gateway@npm:2.0.0":
-  version: 2.0.0
-  resolution: "@ai-sdk/gateway@npm:2.0.0"
+"@ai-sdk/gateway@npm:2.0.9":
+  version: 2.0.9
+  resolution: "@ai-sdk/gateway@npm:2.0.9"
   dependencies:
     "@ai-sdk/provider": "npm:2.0.0"
-    "@ai-sdk/provider-utils": "npm:3.0.12"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
     "@vercel/oidc": "npm:3.0.3"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/720cfb827bc64f3eb6bb86d17e7e7947c54bdc7d74db7f6e9e162be0973a45368c05829e4b257704182ca9c4886e7f3c74f6b64841e88359930f48f288aa958a
+  checksum: 10c0/840f94795b96c0fa6e73897ea8dba95fc78af1f8482f3b7d8439b6233b4f4de6979a8b67206f4bbf32649baf2acfb1153a46792dfa20259ca9f5fd214fb25fa5
   languageName: node
   linkType: hard
 
-"@ai-sdk/openai@npm:2.0.52":
-  version: 2.0.52
-  resolution: "@ai-sdk/openai@npm:2.0.52"
+"@ai-sdk/openai@npm:2.0.67":
+  version: 2.0.67
+  resolution: "@ai-sdk/openai@npm:2.0.67"
   dependencies:
     "@ai-sdk/provider": "npm:2.0.0"
-    "@ai-sdk/provider-utils": "npm:3.0.12"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/253125303235dc677e272eaffbcd5c788373e12f897e42da7cce827bcc952f31e4bb11b72ba06931f37d49a2588f6cba8526127d539025bbd58d78d7bcfc691d
+  checksum: 10c0/7e5c407504d7902c17c816aaccd83f642a3b82012cd8467c8f58aef5f08a49b6c31fff775439d541d40b0c8b5b94cc384f18096d1968e23670e22a56fe82d8bd
   languageName: node
   linkType: hard
 
-"@ai-sdk/provider-utils@npm:3.0.12":
-  version: 3.0.12
-  resolution: "@ai-sdk/provider-utils@npm:3.0.12"
+"@ai-sdk/provider-utils@npm:3.0.17":
+  version: 3.0.17
+  resolution: "@ai-sdk/provider-utils@npm:3.0.17"
   dependencies:
     "@ai-sdk/provider": "npm:2.0.0"
     "@standard-schema/spec": "npm:^1.0.0"
-    eventsource-parser: "npm:^3.0.5"
+    eventsource-parser: "npm:^3.0.6"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/83886bf188cad0cc655b680b710a10413989eaba9ec59dd24a58b985c02a8a1d50ad0f96dd5259385c07592ec3c37a7769fdf4a1ef569a73c9edbdb2cd585915
+  checksum: 10c0/1bae6dc4cacd0305b6aa152f9589bbd61c29f150155482c285a77f83d7ed416d52bc2aa7fdaba2e5764530392d9e8f799baea34a63dce6c72ecd3de364dc62d1
   languageName: node
   linkType: hard
 
@@ -6425,17 +6425,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ai@npm:^5.0.76":
-  version: 5.0.76
-  resolution: "ai@npm:5.0.76"
+"ai@npm:5.0.93":
+  version: 5.0.93
+  resolution: "ai@npm:5.0.93"
   dependencies:
-    "@ai-sdk/gateway": "npm:2.0.0"
+    "@ai-sdk/gateway": "npm:2.0.9"
     "@ai-sdk/provider": "npm:2.0.0"
-    "@ai-sdk/provider-utils": "npm:3.0.12"
+    "@ai-sdk/provider-utils": "npm:3.0.17"
     "@opentelemetry/api": "npm:1.9.0"
   peerDependencies:
     zod: ^3.25.76 || ^4.1.8
-  checksum: 10c0/167a191354b72106b1af6cfc8b53975637ca43919b8f48db81c0cf542ef0172f55958ed9331adcd08d017a608a98cb0b4a253c62732038322c78091e32595771
+  checksum: 10c0/64e80a36248ef20d42a0e688a58da6ca4255e2510a47d6ee9c2318a669df8e8ffb5c63ddb03a3cadd841058414bd4b324783f168c761f82421e4a1c2ac958933
   languageName: node
   linkType: hard
 
@@ -10656,7 +10656,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eventsource-parser@npm:^3.0.5":
+"eventsource-parser@npm:^3.0.6":
   version: 3.0.6
   resolution: "eventsource-parser@npm:3.0.6"
   checksum: 10c0/70b8ccec7dac767ef2eca43f355e0979e70415701691382a042a2df8d6a68da6c2fca35363669821f3da876d29c02abe9b232964637c1b6635c940df05ada78a
@@ -11713,7 +11713,7 @@ __metadata:
   resolution: "gui@workspace:."
   dependencies:
     "@abacritt/angularx-social-login": "npm:2.3.0"
-    "@ai-sdk/openai": "npm:2.0.52"
+    "@ai-sdk/openai": "npm:2.0.67"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
     "@angular-builders/custom-webpack": "npm:16.0.1"
     "@angular-devkit/build-angular": "npm:16.2.12"
@@ -11765,7 +11765,7 @@ __metadata:
     "@types/ws": "npm:^8.18.1"
     "@typescript-eslint/eslint-plugin": "npm:7.0.2"
     "@typescript-eslint/parser": "npm:7.0.2"
-    ai: "npm:^5.0.76"
+    ai: "npm:5.0.93"
     ajv: "npm:8.10.0"
     babel-plugin-dynamic-import-node: "npm:2.3.3"
     backbone: "npm:1.4.1"
