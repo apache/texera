@@ -21,16 +21,10 @@ import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, from, of, throwError, defer } from "rxjs";
 import { map, catchError, tap, switchMap, finalize } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import {
-  toolWithTimeout,
-  createGetOperatorInCurrentWorkflowTool,
-  createGetOperatorPropertiesSchemaTool,
-  createGetOperatorPortsInfoTool,
-  createGetOperatorMetadataTool,
-  createListAllOperatorTypesTool,
-  createListLinksInCurrentWorkflowTool,
-  createListOperatorsInCurrentWorkflowTool,
-} from "./workflow-tools";
+import { toolWithTimeout } from "./tool/tools-utility";
+import * as CurrentWorkflowTools from "./tool/current-workflow-editing-observing-tools";
+import * as MetadataTools from "./tool/workflow-metadata-tools";
+import { ToolOperatorAccess, parseOperatorAccessFromStep } from "./tool/react-step-operator-parser";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, type ModelMessage, stepCountIs } from "ai";
@@ -60,6 +54,11 @@ export interface ReActStep {
     totalTokens?: number;
     cachedInputTokens?: number;
   };
+  /**
+   * Map from tool call index to operator access information.
+   * Tracks which operators were viewed or modified during each tool call.
+   */
+  operatorAccess?: Map<number, ToolOperatorAccess>;
 }
 
 /**
@@ -141,9 +140,10 @@ export class TexeraCopilot {
     isEnd: boolean,
     toolCalls?: any[],
     toolResults?: any[],
-    usage?: ReActStep["usage"]
+    usage?: ReActStep["usage"],
+    operatorAccess?: Map<number, ToolOperatorAccess>
   ): void {
-    this.reActSteps.push({ role, content, isBegin, isEnd, toolCalls, toolResults, usage });
+    this.reActSteps.push({ role, content, isBegin, isEnd, toolCalls, toolResults, usage, operatorAccess });
     this.reActStepsSubject.next([...this.reActSteps]);
   }
 
@@ -232,7 +232,20 @@ export class TexeraCopilot {
             if (this.state === CopilotState.STOPPING) {
               return;
             }
-            this.emitReActStep("agent", text || "", isFirstStep, false, toolCalls, toolResults, usage as any);
+
+            // Parse operator access from tool results to track viewed/modified operators
+            const operatorAccess = parseOperatorAccessFromStep(toolCalls || [], toolResults || []);
+
+            this.emitReActStep(
+              "agent",
+              text || "",
+              isFirstStep,
+              false,
+              toolCalls,
+              toolResults,
+              usage as any,
+              operatorAccess
+            );
             isFirstStep = false;
           },
         })
@@ -264,27 +277,33 @@ export class TexeraCopilot {
 
   private createWorkflowTools(): Record<string, any> {
     const listOperatorsInCurrentWorkflowTool = toolWithTimeout(
-      createListOperatorsInCurrentWorkflowTool(this.workflowActionService)
+      CurrentWorkflowTools.createListOperatorsInCurrentWorkflowTool(this.workflowActionService)
     );
-    const listLinksTool = toolWithTimeout(createListLinksInCurrentWorkflowTool(this.workflowActionService));
-    const listAllOperatorTypesTool = toolWithTimeout(createListAllOperatorTypesTool(this.workflowUtilService));
+    const listLinksTool = toolWithTimeout(CurrentWorkflowTools.createListCurrentLinksTool(this.workflowActionService));
+    const listAllOperatorTypesTool = toolWithTimeout(
+      MetadataTools.createListAllOperatorTypesTool(this.workflowUtilService)
+    );
     const getOperatorTool = toolWithTimeout(
-      createGetOperatorInCurrentWorkflowTool(this.workflowActionService, this.workflowCompilingService)
+      CurrentWorkflowTools.createGetCurrentOperatorTool(this.workflowActionService, this.workflowCompilingService)
     );
     const getOperatorPropertiesSchemaTool = toolWithTimeout(
-      createGetOperatorPropertiesSchemaTool(this.operatorMetadataService)
+      MetadataTools.createGetOperatorPropertiesSchemaTool(this.operatorMetadataService)
     );
-    const getOperatorPortsInfoTool = toolWithTimeout(createGetOperatorPortsInfoTool(this.operatorMetadataService));
-    const getOperatorMetadataTool = toolWithTimeout(createGetOperatorMetadataTool(this.operatorMetadataService));
+    const getOperatorPortsInfoTool = toolWithTimeout(
+      MetadataTools.createGetOperatorPortsInfoTool(this.operatorMetadataService)
+    );
+    const getOperatorMetadataTool = toolWithTimeout(
+      MetadataTools.createGetOperatorMetadataTool(this.operatorMetadataService)
+    );
 
     return {
-      listAllOperatorTypes: listAllOperatorTypesTool,
-      listOperatorsInCurrentWorkflow: listOperatorsInCurrentWorkflowTool,
-      listLinksInCurrentWorkflow: listLinksTool,
-      getOperatorInCurrentWorkflow: getOperatorTool,
-      getOperatorPropertiesSchema: getOperatorPropertiesSchemaTool,
-      getOperatorPortsInfo: getOperatorPortsInfoTool,
-      getOperatorMetadata: getOperatorMetadataTool,
+      [MetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES]: listAllOperatorTypesTool,
+      [CurrentWorkflowTools.TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW]: listOperatorsInCurrentWorkflowTool,
+      [CurrentWorkflowTools.TOOL_NAME_LIST_CURRENT_LINKS]: listLinksTool,
+      [CurrentWorkflowTools.TOOL_NAME_GET_CURRENT_OPERATOR]: getOperatorTool,
+      [MetadataTools.TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA]: getOperatorPropertiesSchemaTool,
+      [MetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: getOperatorPortsInfoTool,
+      [MetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: getOperatorMetadataTool,
     };
   }
 
