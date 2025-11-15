@@ -34,7 +34,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
-  public agentResponses: ReActStep[] = [];
+  public agentResponses = new Map<string, ReActStep>();
   public currentMessage = "";
   private shouldScrollToBottom = false;
   public isDetailsModalVisible = false;
@@ -44,6 +44,16 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public systemPrompt: string = "";
   public availableTools: Array<{ name: string; description: string; inputSchema: any }> = [];
   public agentState: CopilotState = CopilotState.UNAVAILABLE;
+
+  /**
+   * Get sorted agent responses by timestamp for display.
+   * Returns array of [key, value] pairs sorted by timestamp in ascending order.
+   */
+  public getSortedResponses(): Array<{ key: string; value: ReActStep }> {
+    return Array.from(this.agentResponses.entries())
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => a.value.timestamp - b.value.timestamp);
+  }
 
   constructor(
     private copilotManagerService: TexeraCopilotManagerService,
@@ -122,20 +132,22 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public getTotalInputTokens(): number {
-    for (let i = this.agentResponses.length - 1; i >= 0; i--) {
-      const response = this.agentResponses[i];
-      if (response.usage?.inputTokens !== undefined) {
-        return response.usage.inputTokens;
+    // Iterate over map values in reverse to find the most recent usage
+    const responses = Array.from(this.agentResponses.values());
+    for (let i = responses.length - 1; i >= 0; i--) {
+      if (responses[i].usage?.inputTokens !== undefined) {
+        return responses[i].usage!.inputTokens!;
       }
     }
     return 0;
   }
 
   public getTotalOutputTokens(): number {
-    for (let i = this.agentResponses.length - 1; i >= 0; i--) {
-      const response = this.agentResponses[i];
-      if (response.usage?.outputTokens !== undefined) {
-        return response.usage.outputTokens;
+    // Iterate over map values in reverse to find the most recent usage
+    const responses = Array.from(this.agentResponses.values());
+    for (let i = responses.length - 1; i >= 0; i--) {
+      if (responses[i].usage?.outputTokens !== undefined) {
+        return responses[i].usage!.outputTokens!;
       }
     }
     return 0;

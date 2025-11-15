@@ -186,11 +186,11 @@ export class TexeraCopilotManagerService {
     return this.withAgent(agentId, agent => agent.instance.sendMessage(message));
   }
 
-  public getReActStepsObservable(agentId: string): Observable<ReActStep[]> {
+  public getReActStepsObservable(agentId: string): Observable<Map<string, ReActStep>> {
     return this.withAgent(agentId, agent => agent.instance.reActSteps$);
   }
 
-  public getAgentResponses(agentId: string): Observable<ReActStep[]> {
+  public getAgentResponses(agentId: string): Observable<Map<string, ReActStep>> {
     return this.withAgent(agentId, agent => of(agent.instance.getReActSteps()));
   }
 

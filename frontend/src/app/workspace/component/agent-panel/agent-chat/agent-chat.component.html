@@ -79,19 +79,19 @@
       #messageContainer
       class="messages-container">
       <div
-        *ngFor="let response of agentResponses; let i = index"
+        *ngFor="let entry of getSortedResponses(); let i = index"
         class="message"
-        [class.user-message]="response.role === 'user'"
-        [class.ai-message]="response.role === 'agent'">
+        [class.user-message]="entry.value.role === 'user'"
+        [class.ai-message]="entry.value.role === 'agent'">
         <!-- Show header for user messages or when isBegin is true for agent messages -->
         <div
           class="message-header"
-          *ngIf="response.role === 'user' || response.isBegin">
+          *ngIf="entry.value.role === 'user' || entry.value.isBegin">
           <i
             nz-icon
-            [nzType]="response.role === 'user' ? 'user' : 'robot'"
+            [nzType]="entry.value.role === 'user' ? 'user' : 'robot'"
             nzTheme="outline"></i>
-          <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
+          <span class="message-role">{{ entry.value.role === 'user' ? 'You' : agentInfo.name }}</span>
         </div>
 
         <!-- Message content with hover button -->
@@ -101,23 +101,23 @@
           (mouseleave)="setHoveredMessage(null)"
           style="position: relative">
           <div
-            *ngIf="response.content"
+            *ngIf="entry.value.content"
             class="message-content">
-            <markdown [data]="response.content"></markdown>
+            <markdown [data]="entry.value.content"></markdown>
           </div>
           <div
-            *ngIf="response.toolCalls && response.toolCalls.length > 0"
+            *ngIf="entry.value.toolCalls && entry.value.toolCalls.length > 0"
             style="color: #8c8c8c; font-style: italic">
-            Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
+            Execute {{ entry.value.toolCalls.length }} tool{{ entry.value.toolCalls.length > 1 ? 's' : '' }}
           </div>
 
           <!-- Details button (shown on hover) - only for agent messages with details -->
           <button
-            *ngIf="response.role === 'agent' && hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
+            *ngIf="entry.value.role === 'agent' && hoveredMessageIndex === i && (entry.value.toolCalls?.length || entry.value.usage)"
             nz-button
             nzType="text"
             nzSize="small"
-            (click)="showResponseDetails(response)"
+            (click)="showResponseDetails(entry.value)"
             style="position: absolute; top: 0; right: 0; opacity: 0.7"
             nz-tooltip
             nzTooltipTitle="View details">

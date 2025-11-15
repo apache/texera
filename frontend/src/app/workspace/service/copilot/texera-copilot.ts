@@ -46,6 +46,7 @@ export interface ReActStep {
   content: string;
   isBegin: boolean;
   isEnd: boolean;
+  timestamp: number;
   toolCalls?: any[];
   toolResults?: any[];
   usage?: {
@@ -102,9 +103,11 @@ export class TexeraCopilot {
    * UI-friendly representation of agent responses in ReAct (Reasoning + Acting) format.
    * Includes additional metadata like toolCalls, toolResults, and token usage.
    * This is what gets displayed in the UI to show the agent's reasoning process.
+   * Map key format: ${messageId}-${stepId} where messageId is randomly generated
+   * and stepId increments from 0 for each message.
    */
-  private reActSteps: ReActStep[] = [];
-  private reActStepsSubject = new BehaviorSubject<ReActStep[]>([]);
+  private reActSteps = new Map<string, ReActStep>();
+  private reActStepsSubject = new BehaviorSubject<Map<string, ReActStep>>(new Map());
   public reActSteps$ = this.reActStepsSubject.asObservable();
 
   private state = CopilotState.UNAVAILABLE;
@@ -134,6 +137,8 @@ export class TexeraCopilot {
   }
 
   private emitReActStep(
+    messageId: string,
+    stepId: number,
     role: "user" | "agent",
     content: string,
     isBegin: boolean,
@@ -143,8 +148,19 @@ export class TexeraCopilot {
     usage?: ReActStep["usage"],
     operatorAccess?: Map<number, ToolOperatorAccess>
   ): void {
-    this.reActSteps.push({ role, content, isBegin, isEnd, toolCalls, toolResults, usage, operatorAccess });
-    this.reActStepsSubject.next([...this.reActSteps]);
+    const key = `${messageId}-${stepId}`;
+    this.reActSteps.set(key, {
+      role,
+      content,
+      isBegin,
+      isEnd,
+      timestamp: Date.now(),
+      toolCalls,
+      toolResults,
+      usage,
+      operatorAccess,
+    });
+    this.reActStepsSubject.next(new Map(this.reActSteps));
   }
 
   public initialize(): Observable<void> {
@@ -181,7 +197,12 @@ export class TexeraCopilot {
 
       this.setState(CopilotState.GENERATING);
 
-      this.emitReActStep("user", message, true, true);
+      // Generate unique message ID for this conversation turn
+      const messageId = crypto.randomUUID();
+      let stepId = 0;
+
+      // Emit user message as first step
+      this.emitReActStep(messageId, stepId++, "user", message, true, true);
       this.messages.push({ role: "user", content: message });
 
       let isFirstStep = true;
@@ -237,6 +258,8 @@ export class TexeraCopilot {
             const operatorAccess = parseOperatorAccessFromStep(toolCalls || [], toolResults || []);
 
             this.emitReActStep(
+              messageId,
+              stepId++,
               "agent",
               text || "",
               isFirstStep,
@@ -256,13 +279,13 @@ export class TexeraCopilot {
          */
         tap(({ response }) => {
           this.messages.push(...response.messages);
-          this.reActStepsSubject.next([...this.reActSteps]);
+          this.reActStepsSubject.next(new Map(this.reActSteps));
         }),
         map(() => undefined),
         catchError((err: unknown) => {
           const errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
           this.messages.push({ role: "assistant", content: errorText });
-          this.emitReActStep("agent", errorText, false, true);
+          this.emitReActStep(messageId, stepId++, "agent", errorText, false, true);
           return throwError(() => err);
         }),
         /**
@@ -307,8 +330,8 @@ export class TexeraCopilot {
     };
   }
 
-  public getReActSteps(): ReActStep[] {
-    return [...this.reActSteps];
+  public getReActSteps(): Map<string, ReActStep> {
+    return new Map(this.reActSteps);
   }
 
   public stopGeneration(): void {
@@ -320,8 +343,8 @@ export class TexeraCopilot {
 
   public clearMessages(): void {
     this.messages = [];
-    this.reActSteps = [];
-    this.reActStepsSubject.next([...this.reActSteps]);
+    this.reActSteps = new Map();
+    this.reActStepsSubject.next(new Map(this.reActSteps));
   }
 
   public getState(): CopilotState {
