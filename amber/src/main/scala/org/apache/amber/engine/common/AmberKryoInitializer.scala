@@ -19,17 +19,15 @@
 
 package org.apache.amber.engine.common
 
-import akka.actor.ExtendedActorSystem
-import com.esotericsoftware.kryo.serializers.ClosureSerializer
-import com.esotericsoftware.kryo.serializers.ClosureSerializer.Closure
-import io.altoo.akka.serialization.kryo.DefaultKryoInitializer
-import io.altoo.akka.serialization.kryo.serializer.scala.ScalaKryo
+import com.esotericsoftware.kryo.kryo5.serializers.ClosureSerializer
+import io.altoo.serialization.kryo.pekko.DefaultKryoInitializer
+import io.altoo.serialization.kryo.scala.serializer.ScalaKryo
 
 import java.lang.invoke.SerializedLambda
 
 class AmberKryoInitializer extends DefaultKryoInitializer {
-  override def preInit(kryo: ScalaKryo, system: ExtendedActorSystem): Unit = {
+  override def preInit(kryo: ScalaKryo): Unit = {
     kryo.register(classOf[SerializedLambda])
-    kryo.register(classOf[Closure], new ClosureSerializer())
+    kryo.register(classOf[ClosureSerializer.Closure], new ClosureSerializer())
   }
 }

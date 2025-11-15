@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.common
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor.NetworkMessage

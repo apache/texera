@@ -19,9 +19,9 @@
 
 package org.apache.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorRef, Address, Stash}
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.actor.{Actor, ActorRef, Address, Stash}
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import org.apache.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor._

@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.faulttolerance
 
-import akka.actor.{ActorSystem, Props}
+import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.amber.clustering.SingleNodeListener
 import org.apache.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
