@@ -21,4 +21,4 @@ package org.apache.texera.web.model.websocket.response
 
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 
-case class RegionUpdateEvent(regions: List[List[String]]) extends TexeraWebSocketEvent
+case class RegionUpdateEvent(regions: List[(Long, List[String])]) extends TexeraWebSocketEvent

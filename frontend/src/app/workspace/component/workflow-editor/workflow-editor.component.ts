@@ -163,7 +163,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
-    this.handleRegionUpdate();
+    this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -333,14 +333,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
   }
 
-  private handleRegionUpdate(): void {
+  private handleRegionEvents(): void {
     this.editor.classList.add("hide-region");
     const Region = joint.dia.Element.define(
       "region",
       {
         attrs: {
           body: {
-            fill: "rgba(255,213,79,0.2)",
+            fill: "rgba(158,158,158,0.2)",
             pointerEvents: "none",
             class: "region",
           },
@@ -356,14 +356,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.executeWorkflowService
       .getRegionUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(regions => {
+      .subscribe(event => {
         this.paper.model
           .getCells()
           .filter(element => element instanceof Region)
           .forEach(element => element.remove());
 
-        regionMap = regions.map(region => {
-          const element = new Region();
+        regionMap = event.regions.map(([id, region]) => {
+          const element = new Region({ id: "region-" + id });
           const ops = region.map(id => this.paper.getModelById(id));
           this.paper.model.addCell(element);
           this.updateRegionElement(element, ops);
@@ -376,6 +376,19 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         .filter(region => region.operators.includes(operator))
         .forEach(region => this.updateRegionElement(region.regionElement, region.operators));
     });
+
+    // update region element colors on execution
+    this.executeWorkflowService
+      .getRegionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(region => {
+        const colorMap: Record<string, string> = {
+          ExecutingDependeePortsPhase: "rgba(33,150,243,0.2)",
+          ExecutingNonDependeePortsPhase: "rgba(255,213,79,0.2)",
+          Completed: "rgba(76,175,80,0.2)",
+        };
+        this.paper.getModelById("region-" + region.id).attr("body/fill", colorMap[region.state]);
+      });
   }
 
   private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {

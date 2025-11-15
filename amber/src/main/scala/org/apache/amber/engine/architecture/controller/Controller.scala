@@ -114,9 +114,9 @@ class Controller(
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
 
-    val regions: List[List[String]] =
+    val regions: List[(Long, List[String])] =
       cp.workflowScheduler.getSchedule.getRegions.map { region =>
-        region.physicalOps.map(_.id.logicalOpId.id).toList
+        (region.id.id, region.physicalOps.map(_.id.logicalOpId.id).toList)
       }
 
     SessionState.getAllSessionStates.foreach { state =>

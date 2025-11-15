@@ -28,18 +28,22 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
   @JsonPropertyDescription("The attribute for your x-axis")
   @AutofillAttributeName
+  @NotNull(message = "X-axis Attribute cannot be empty")
   var x: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-axis Attribute")
   @JsonPropertyDescription("The attribute for your y-axis")
   @AutofillAttributeName
+  @NotNull(message = "Y-axis Attribute cannot be empty")
   var y: String = ""
 
   @JsonProperty(required = false)

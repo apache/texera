@@ -193,3 +193,7 @@
 .liked {
   color: red;
 }
+
+:host ::ng-deep nz-card.list-item-card.ant-card:hover .ant-card-body {
+  cursor: pointer;
+}

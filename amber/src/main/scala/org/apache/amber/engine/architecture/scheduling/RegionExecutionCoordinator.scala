@@ -54,6 +54,8 @@ import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.FutureBijection._
 import org.apache.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.web.SessionState
+import org.apache.texera.web.model.websocket.event.RegionStateEvent
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.util.concurrent.TimeUnit
@@ -134,7 +136,7 @@ class RegionExecutionCoordinator(
 
     // Set this coordinator's status to be completed so that subsequent regions can be started by
     // WorkflowExecutionCoordinator.
-    currentPhaseRef.set(Completed)
+    setPhase(Completed)
 
     // Terminate all the workers in this region.
     terminateWorkers(regionExecution)
@@ -223,7 +225,7 @@ class RegionExecutionCoordinator(
     }
 
   private def executeDependeePortPhase(): Future[Unit] = {
-    currentPhaseRef.set(ExecutingDependeePortsPhase)
+    setPhase(ExecutingDependeePortsPhase)
     if (!region.getOperators.exists(_.dependeeInputs.nonEmpty)) {
       // Skip to the next phase when there are no dependee input ports
       return syncStatusAndTransitionRegionExecutionPhase()
@@ -239,7 +241,7 @@ class RegionExecutionCoordinator(
   }
 
   private def executeNonDependeePortPhase(): Future[Unit] = {
-    currentPhaseRef.set(ExecutingNonDependeePortsPhase)
+    setPhase(ExecutingNonDependeePortsPhase)
     // Allocate output port storage objects
     region.resourceConfig.get.portConfigs
       .collect {
@@ -538,6 +540,13 @@ class RegionExecutionCoordinator(
           globalPortId = outputPortId,
           uri = storageUriToAdd
         )
+    }
+  }
+
+  private def setPhase(phase: RegionExecutionPhase): Unit = {
+    currentPhaseRef.set(phase)
+    SessionState.getAllSessionStates.foreach { state =>
+      state.send(RegionStateEvent(region.id.id, phase.toString))
     }
   }
 

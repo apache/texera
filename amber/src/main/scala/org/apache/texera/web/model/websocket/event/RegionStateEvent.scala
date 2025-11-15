@@ -17,18 +17,6 @@
  * under the License.
  */
 
-package org.apache.amber.operator.visualization.tablesChart
+package org.apache.texera.web.model.websocket.event
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
-
-import javax.validation.constraints.NotNull
-
-class TablesConfig {
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Attribute Name")
-  @AutofillAttributeName
-  @NotNull(message = "Attribute Name cannot be empty")
-  var attributeName: String = ""
-}
+case class RegionStateEvent(id: Long, state: String) extends TexeraWebSocketEvent

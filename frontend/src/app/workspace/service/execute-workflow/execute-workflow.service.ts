@@ -31,6 +31,8 @@ import {
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import {
   OperatorCurrentTuples,
+  RegionStateEvent,
+  RegionUpdateEvent,
   ReplayExecutionInfo,
   TexeraWebsocketEvent,
   WorkflowFatalError,
@@ -85,7 +87,8 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }>();
 
-  private regionUpdateStream = new Subject<readonly string[][]>();
+  private regionUpdateStream = new Subject<RegionUpdateEvent>();
+  private regionStateStream = new Subject<RegionStateEvent>();
 
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
@@ -102,7 +105,10 @@ export class ExecuteWorkflowService {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
         case "RegionUpdateEvent":
-          this.regionUpdateStream.next(event.regions);
+          this.regionUpdateStream.next(event);
+          break;
+        case "RegionStateEvent":
+          this.regionStateStream.next(event);
           break;
         case "WorkerAssignmentUpdateEvent":
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
@@ -334,8 +340,12 @@ export class ExecuteWorkflowService {
     return this.executionStateStream.asObservable();
   }
 
-  public getRegionUpdateStream(): Observable<readonly string[][]> {
+  public getRegionUpdateStream(): Observable<RegionUpdateEvent> {
     return this.regionUpdateStream.asObservable();
+  }
+
+  public getRegionStateStream(): Observable<RegionStateEvent> {
+    return this.regionStateStream.asObservable();
   }
 
   public resetExecutionState(): void {
