@@ -19,7 +19,7 @@
 
 import { Injectable, Injector } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { TexeraCopilot, AgentUIMessage, CopilotState } from "./texera-copilot";
+import { TexeraCopilot, ReActStep, CopilotState } from "./texera-copilot";
 import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError, switchMap } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 
@@ -186,12 +186,12 @@ export class TexeraCopilotManagerService {
     return this.withAgent(agentId, agent => agent.instance.sendMessage(message));
   }
 
-  public getAgentResponsesObservable(agentId: string): Observable<AgentUIMessage[]> {
-    return this.withAgent(agentId, agent => agent.instance.agentResponses$);
+  public getReActStepsObservable(agentId: string): Observable<ReActStep[]> {
+    return this.withAgent(agentId, agent => agent.instance.reActSteps$);
   }
 
-  public getAgentResponses(agentId: string): Observable<AgentUIMessage[]> {
-    return this.withAgent(agentId, agent => of(agent.instance.getAgentResponses()));
+  public getAgentResponses(agentId: string): Observable<ReActStep[]> {
+    return this.withAgent(agentId, agent => of(agent.instance.getReActSteps()));
   }
 
   public clearMessages(agentId: string): Observable<void> {

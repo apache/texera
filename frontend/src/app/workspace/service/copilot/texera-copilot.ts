@@ -47,7 +47,7 @@ export enum CopilotState {
   STOPPING = "Stopping",
 }
 
-export interface AgentUIMessage {
+export interface ReActStep {
   role: "user" | "agent";
   content: string;
   isBegin: boolean;
@@ -82,16 +82,36 @@ export interface AgentUIMessage {
  */
 @Injectable()
 export class TexeraCopilot {
+  /**
+   * Maximum number of ReAct reasoning/action cycles allowed per generation.
+   * Prevents infinite loops and excessive token usage.
+   */
+  private static readonly MAX_REACT_STEPS = 50;
+
   private model: any;
   private modelType = "";
   private agentName = "";
+
+  /**
+   * Conversation history in LLM API format.
+   * Used internally to maintain context for generateText() API calls.
+   * Contains the raw message format expected by the AI model.
+   */
   private messages: ModelMessage[] = [];
-  private agentResponses: AgentUIMessage[] = [];
-  private agentResponsesSubject = new BehaviorSubject<AgentUIMessage[]>([]);
-  public agentResponses$ = this.agentResponsesSubject.asObservable();
+
+  /**
+   * UI-friendly representation of agent responses in ReAct (Reasoning + Acting) format.
+   * Includes additional metadata like toolCalls, toolResults, and token usage.
+   * This is what gets displayed in the UI to show the agent's reasoning process.
+   */
+  private reActSteps: ReActStep[] = [];
+  private reActStepsSubject = new BehaviorSubject<ReActStep[]>([]);
+  public reActSteps$ = this.reActStepsSubject.asObservable();
+
   private state = CopilotState.UNAVAILABLE;
   private stateSubject = new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE);
   public state$ = this.stateSubject.asObservable();
+  private tools: Record<string, any> = {};
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -113,25 +133,32 @@ export class TexeraCopilot {
     this.state = newState;
     this.stateSubject.next(newState);
   }
-  private emitAgentUIMessage(
+
+  private emitReActStep(
     role: "user" | "agent",
     content: string,
     isBegin: boolean,
     isEnd: boolean,
     toolCalls?: any[],
     toolResults?: any[],
-    usage?: AgentUIMessage["usage"]
+    usage?: ReActStep["usage"]
   ): void {
-    this.agentResponses.push({ role, content, isBegin, isEnd, toolCalls, toolResults, usage });
-    this.agentResponsesSubject.next([...this.agentResponses]);
+    this.reActSteps.push({ role, content, isBegin, isEnd, toolCalls, toolResults, usage });
+    this.reActStepsSubject.next([...this.reActSteps]);
   }
+
   public initialize(): Observable<void> {
     return defer(() => {
       try {
         this.model = createOpenAI({
           baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
+          // apiKey is required by the library for creating the OpenAI compatible client;
+          // For security reason, we store the apiKey at the backend, thus the value is dummy here.
           apiKey: "dummy",
         }).chat(this.modelType);
+
+        // Create tools once during initialization
+        this.tools = this.createWorkflowTools();
 
         this.setState(CopilotState.AVAILABLE);
         return of(undefined);
@@ -154,47 +181,80 @@ export class TexeraCopilot {
 
       this.setState(CopilotState.GENERATING);
 
-      this.emitAgentUIMessage("user", message, true, true);
+      this.emitReActStep("user", message, true, true);
       this.messages.push({ role: "user", content: message });
 
-      const tools = this.createWorkflowTools();
       let isFirstStep = true;
 
+      /**
+       * Generate text using the AI model with ReAct (Reasoning + Acting) pattern.
+       * This is the core of the agent lifecycle with several callbacks:
+       *
+       * Lifecycle flow:
+       * 1. generateText() starts the LLM generation
+       * 2. stopWhen() - checked before each step to determine if generation should stop
+       * 3. onStepFinish() - called DURING generation after each reasoning/action step (real-time updates)
+       * 4. pipe operators - executed AFTER generation completes (final processing)
+       */
       return from(
         generateText({
           model: this.model,
           messages: this.messages,
-          tools,
+          tools: this.tools,
           system: COPILOT_SYSTEM_PROMPT,
+          /**
+           * stopWhen - Determines if generation should stop.
+           * Called before each step during generation.
+           * Returns true to stop, false to continue.
+           */
           stopWhen: ({ steps }) => {
             if (this.state === CopilotState.STOPPING) {
               this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
               return true;
             }
-            return stepCountIs(50)({ steps });
+            // Stop if step count reaches max limit to prevent infinite loops
+            return stepCountIs(TexeraCopilot.MAX_REACT_STEPS)({ steps });
           },
+          /**
+           * onStepFinish is called DURING generation after each ReAct step completes.
+           * This provides real-time updates to the UI as the agent reasons and acts.
+           *
+           * Each step may include:
+           * - text: The agent's reasoning or response text
+           * - toolCalls: Tools the agent decided to call
+           * - toolResults: Results from executed tools
+           * - usage: Token usage for this step
+           *
+           * Note: This is called multiple times during a single generation,
+           * once per reasoning/action cycle.
+           */
           onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
             if (this.state === CopilotState.STOPPING) {
               return;
             }
-
-            this.emitAgentUIMessage("agent", text || "", isFirstStep, false, toolCalls, toolResults, usage as any);
-
+            this.emitReActStep("agent", text || "", isFirstStep, false, toolCalls, toolResults, usage as any);
             isFirstStep = false;
           },
         })
       ).pipe(
+        /**
+         * To this point, generateText has finished.
+         * All the responses from AI are recorded in responses variable.
+         */
         tap(({ response }) => {
           this.messages.push(...response.messages);
-          this.agentResponsesSubject.next([...this.agentResponses]);
+          this.reActStepsSubject.next([...this.reActSteps]);
         }),
         map(() => undefined),
         catchError((err: unknown) => {
           const errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
           this.messages.push({ role: "assistant", content: errorText });
-          this.emitAgentUIMessage("agent", errorText, false, true);
+          this.emitReActStep("agent", errorText, false, true);
           return throwError(() => err);
         }),
+        /**
+         * Resets agent state back to AVAILABLE so it can handle new messages.
+         */
         finalize(() => {
           this.setState(CopilotState.AVAILABLE);
         })
@@ -228,8 +288,8 @@ export class TexeraCopilot {
     };
   }
 
-  public getAgentResponses(): AgentUIMessage[] {
-    return [...this.agentResponses];
+  public getReActSteps(): ReActStep[] {
+    return [...this.reActSteps];
   }
 
   public stopGeneration(): void {
@@ -241,8 +301,8 @@ export class TexeraCopilot {
 
   public clearMessages(): void {
     this.messages = [];
-    this.agentResponses = [];
-    this.agentResponsesSubject.next([...this.agentResponses]);
+    this.reActSteps = [];
+    this.reActStepsSubject.next([...this.reActSteps]);
   }
 
   public getState(): CopilotState {
@@ -256,6 +316,7 @@ export class TexeraCopilot {
       }
 
       this.clearMessages();
+      this.tools = {}; // Clear tools to free memory
       this.setState(CopilotState.UNAVAILABLE);
       this.notificationService.info(`Agent ${this.agentName} is removed successfully`);
 
@@ -272,8 +333,7 @@ export class TexeraCopilot {
   }
 
   public getToolsInfo(): Array<{ name: string; description: string; inputSchema: any }> {
-    const tools = this.createWorkflowTools();
-    return Object.entries(tools).map(([name, tool]) => ({
+    return Object.entries(this.tools).map(([name, tool]) => ({
       name: name,
       description: tool.description || "No description available",
       inputSchema: tool.parameters || {},

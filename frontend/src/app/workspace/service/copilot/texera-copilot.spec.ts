@@ -88,7 +88,7 @@ describe("TexeraCopilot", () => {
 
   it("should clear messages correctly", () => {
     service.clearMessages();
-    expect(service.getAgentResponses().length).toBe(0);
+    expect(service.getReActSteps().length).toBe(0);
   });
 
   it("should stop generation when in GENERATING state", () => {
@@ -118,7 +118,7 @@ describe("TexeraCopilot", () => {
   });
 
   it("should emit agent responses correctly", done => {
-    service.agentResponses$.subscribe(responses => {
+    service.reActSteps$.subscribe(responses => {
       if (responses.length > 0) {
         expect(responses[0].role).toBe("user");
         expect(responses[0].content).toBe("test message");
@@ -130,7 +130,7 @@ describe("TexeraCopilot", () => {
   });
 
   it("should return empty agent responses initially", () => {
-    const responses = service.getAgentResponses();
+    const responses = service.getReActSteps();
     expect(responses).toEqual([]);
   });
 
@@ -138,7 +138,7 @@ describe("TexeraCopilot", () => {
     it("should disconnect and clear state", done => {
       service.disconnect().subscribe(() => {
         expect(service.getState()).toBe(CopilotState.UNAVAILABLE);
-        expect(service.getAgentResponses().length).toBe(0);
+        expect(service.getReActSteps().length).toBe(0);
         done();
       });
     });

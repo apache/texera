@@ -19,7 +19,7 @@
 
 import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CopilotState, AgentUIMessage } from "../../../service/copilot/texera-copilot";
+import { CopilotState, ReActStep } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 
@@ -34,11 +34,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
-  public agentResponses: AgentUIMessage[] = [];
+  public agentResponses: ReActStep[] = [];
   public currentMessage = "";
   private shouldScrollToBottom = false;
   public isDetailsModalVisible = false;
-  public selectedResponse: AgentUIMessage | null = null;
+  public selectedResponse: ReActStep | null = null;
   public hoveredMessageIndex: number | null = null;
   public isSystemInfoModalVisible = false;
   public systemPrompt: string = "";
@@ -57,7 +57,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
 
     // Subscribe to agent responses
     this.copilotManagerService
-      .getAgentResponsesObservable(this.agentInfo.id)
+      .getReActStepsObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(responses => {
         this.agentResponses = responses;
@@ -84,7 +84,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     this.hoveredMessageIndex = index;
   }
 
-  public showResponseDetails(response: AgentUIMessage): void {
+  public showResponseDetails(response: ReActStep): void {
     this.selectedResponse = response;
     this.isDetailsModalVisible = true;
   }
@@ -113,7 +113,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     return JSON.stringify(data, null, 2);
   }
 
-  public getToolResult(response: AgentUIMessage, toolCallIndex: number): any {
+  public getToolResult(response: ReActStep, toolCallIndex: number): any {
     if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
       return null;
     }

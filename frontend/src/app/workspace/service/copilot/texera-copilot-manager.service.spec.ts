@@ -178,7 +178,7 @@ describe("TexeraCopilotManagerService", () => {
 
   describe("getAgentResponsesObservable", () => {
     it("should throw error for non-existent agent", done => {
-      service.getAgentResponsesObservable("non-existent").subscribe({
+      service.getReActStepsObservable("non-existent").subscribe({
         next: () => fail("Should have thrown error"),
         error: (error: unknown) => {
           expect((error as Error).message).toContain("not found");
