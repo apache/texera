@@ -42,6 +42,8 @@ export enum CopilotState {
 }
 
 export interface ReActStep {
+  messageId: string;
+  stepId: number;
   role: "user" | "agent";
   content: string;
   isBegin: boolean;
@@ -103,11 +105,10 @@ export class TexeraCopilot {
    * UI-friendly representation of agent responses in ReAct (Reasoning + Acting) format.
    * Includes additional metadata like toolCalls, toolResults, and token usage.
    * This is what gets displayed in the UI to show the agent's reasoning process.
-   * Map key format: ${messageId}-${stepId} where messageId is randomly generated
-   * and stepId increments from 0 for each message.
+   * Each step contains messageId (randomly generated UUID) and stepId (incremental from 0).
    */
-  private reActSteps = new Map<string, ReActStep>();
-  private reActStepsSubject = new BehaviorSubject<Map<string, ReActStep>>(new Map());
+  private reActSteps: ReActStep[] = [];
+  private reActStepsSubject = new BehaviorSubject<ReActStep[]>([]);
   public reActSteps$ = this.reActStepsSubject.asObservable();
 
   private state = CopilotState.UNAVAILABLE;
@@ -148,8 +149,9 @@ export class TexeraCopilot {
     usage?: ReActStep["usage"],
     operatorAccess?: Map<number, ToolOperatorAccess>
   ): void {
-    const key = `${messageId}-${stepId}`;
-    this.reActSteps.set(key, {
+    this.reActSteps.push({
+      messageId,
+      stepId,
       role,
       content,
       isBegin,
@@ -160,7 +162,7 @@ export class TexeraCopilot {
       usage,
       operatorAccess,
     });
-    this.reActStepsSubject.next(new Map(this.reActSteps));
+    this.reActStepsSubject.next([...this.reActSteps]);
   }
 
   public initialize(): Observable<void> {
@@ -279,7 +281,7 @@ export class TexeraCopilot {
          */
         tap(({ response }) => {
           this.messages.push(...response.messages);
-          this.reActStepsSubject.next(new Map(this.reActSteps));
+          this.reActStepsSubject.next([...this.reActSteps]);
         }),
         map(() => undefined),
         catchError((err: unknown) => {
@@ -330,8 +332,8 @@ export class TexeraCopilot {
     };
   }
 
-  public getReActSteps(): Map<string, ReActStep> {
-    return new Map(this.reActSteps);
+  public getReActSteps(): ReActStep[] {
+    return [...this.reActSteps];
   }
 
   public stopGeneration(): void {
@@ -343,8 +345,8 @@ export class TexeraCopilot {
 
   public clearMessages(): void {
     this.messages = [];
-    this.reActSteps = new Map();
-    this.reActStepsSubject.next(new Map(this.reActSteps));
+    this.reActSteps = [];
+    this.reActStepsSubject.next([]);
   }
 
   public getState(): CopilotState {
