@@ -66,17 +66,21 @@ export function createListOperatorsInCurrentWorkflowTool(workflowActionService: 
     execute: async () => {
       try {
         const operators = workflowActionService.getTexeraGraph().getAllOperators();
-        return {
-          success: true,
-          operators: operators.map(op => ({
-            operatorId: op.operatorID,
-            operatorType: op.operatorType,
-            customDisplayName: op.customDisplayName,
-          })),
-          count: operators.length,
-        };
+        const operatorIds = operators.map(op => op.operatorID);
+        return createSuccessResult(
+          {
+            operators: operators.map(op => ({
+              operatorId: op.operatorID,
+              operatorType: op.operatorType,
+              customDisplayName: op.customDisplayName,
+            })),
+            count: operators.length,
+          },
+          operatorIds,
+          []
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });

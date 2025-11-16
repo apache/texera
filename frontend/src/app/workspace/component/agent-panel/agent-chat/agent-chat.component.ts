@@ -121,6 +121,27 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     return toolResult.output || toolResult.result || toolResult;
   }
 
+  public getReActStepOperatorAccess(
+    response: ReActStep,
+    toolCallIndex: number
+  ): { viewedOperatorIds: string[]; modifiedOperatorIds: string[] } | null {
+    if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
+      return null;
+    }
+    const toolResult = response.toolResults[toolCallIndex];
+    const result = toolResult.output || toolResult.result || toolResult;
+
+    // Check if the result has operator access information
+    if (result && (result.viewedOperatorIds || result.modifiedOperatorIds)) {
+      return {
+        viewedOperatorIds: result.viewedOperatorIds || [],
+        modifiedOperatorIds: result.modifiedOperatorIds || [],
+      };
+    }
+
+    return null;
+  }
+
   public getTotalInputTokens(): number {
     // Iterate in reverse to find the most recent usage (already sorted by timestamp)
     for (let i = this.responses.length - 1; i >= 0; i--) {
