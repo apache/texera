@@ -41,6 +41,10 @@ export enum CopilotState {
   STOPPING = "Stopping",
 }
 
+/**
+ * Represents a single step in the ReAct (Reasoning and Acting) conversation flow.
+ * Each step can be either a user message or an agent response with potential tool calls.
+ */
 export interface ReActStep {
   messageId: string;
   stepId: number;
@@ -58,8 +62,7 @@ export interface ReActStep {
     cachedInputTokens?: number;
   };
   /**
-   * Map from tool call index to operator access information.
-   * Tracks which operators were viewed or modified during each tool call.
+   * Map from tool call index to operator access information, which tracks operators were viewed or modified during the tool call.
    */
   operatorAccess?: Map<number, ToolOperatorAccess>;
 }
@@ -102,8 +105,7 @@ export class TexeraCopilot {
   private messages: ModelMessage[] = [];
 
   /**
-   * UI-friendly representation of agent responses in ReAct (Reasoning + Acting) format.
-   * Includes additional metadata like toolCalls, toolResults, and token usage.
+   * Representing a step in ReAct (Reasoning + Acting).
    * This is what gets displayed in the UI to show the agent's reasoning process.
    * Each step contains messageId (randomly generated UUID) and stepId (incremental from 0).
    */
