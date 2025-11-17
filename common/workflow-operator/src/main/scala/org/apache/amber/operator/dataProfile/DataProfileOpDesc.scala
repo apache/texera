@@ -29,51 +29,11 @@ import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class DataProfileOpDesc extends PythonOperatorDescriptor {
 
-  @JsonProperty(
-    value = "Minimal Mode",
-    required = false,
-    defaultValue = "false"
-  )
-  @JsonPropertyDescription("Enable minimal mode for faster profiling with fewer statistics")
-  var minimalMode: Boolean = false
-
-  @JsonProperty(
-    value = "Explorative Mode",
-    required = false,
-    defaultValue = "false"
-  )
-  @JsonPropertyDescription("Enable explorative mode for more detailed analysis")
-  var explorativeMode: Boolean = false
-
   @JsonProperty()
   @JsonSchemaTitle("Sample Size")
   @JsonPropertyDescription("Number of rows to sample for profiling (leave empty to use all rows)")
   @JsonDeserialize(contentAs = classOf[Int])
   var sampleSize: Option[Int] = None
-
-  @JsonProperty(
-    value = "Enable Correlations",
-    required = false,
-    defaultValue = "true"
-  )
-  @JsonPropertyDescription("Calculate correlation matrices")
-  var enableCorrelations: Boolean = true
-
-  @JsonProperty(
-    value = "Enable Missing Values Analysis",
-    required = false,
-    defaultValue = "true"
-  )
-  @JsonPropertyDescription("Analyze missing values patterns")
-  var enableMissingValues: Boolean = true
-
-  @JsonProperty(
-    value = "Enable Duplicates Check",
-    required = false,
-    defaultValue = "true"
-  )
-  @JsonPropertyDescription("Check for duplicate rows")
-  var enableDuplicates: Boolean = true
 
   @JsonProperty(defaultValue = "[]")
   @JsonSchemaTitle("Columns to Profile")
@@ -95,15 +55,6 @@ class DataProfileOpDesc extends PythonOperatorDescriptor {
       ""
     }
 
-    // Build ProfileReport parameters
-    val minimalModePy = if (minimalMode) "True" else "False"
-    val explorativeModePy = if (explorativeMode) "True" else "False"
-
-    // For correlations, missing_diagrams, duplicates: None disables, omitting enables
-    val correlationsParam = if (enableCorrelations) "" else "correlations=None,"
-    val missingDiagramsParam = if (enableMissingValues) "" else "missing_diagrams=None,"
-    val duplicatesParam = if (enableDuplicates) "" else "duplicates=None,"
-
     s"""
        |import pandas as pd
        |import json
@@ -121,18 +72,69 @@ class DataProfileOpDesc extends PythonOperatorDescriptor {
        |
        |        $sampleCode
        |
-       |        # Generate profile report
+       |        # Configure minimal profile settings to reduce token usage
        |        profile = ProfileReport(
        |            df,
-       |            minimal=$minimalModePy,
-       |            explorative=$explorativeModePy,
-       |            $correlationsParam
-       |            $missingDiagramsParam
-       |            $duplicatesParam
+       |            minimal=True,  # Use minimal mode
+       |            # Disable expensive computations
+       |            correlations=None,
+       |            missing_diagrams=None,
+       |            duplicates=None,
+       |            interactions=None,
+       |            samples=None
        |        )
        |
-       |        # Convert report to JSON
-       |        report_json = profile.to_json()
+       |        # Get the full JSON report
+       |        report_json_str = profile.to_json()
+       |        report_data = json.loads(report_json_str)
+       |
+       |        # Extract only essential metrics
+       |        essential_metrics = {
+       |            'table_stats': {
+       |                'n_rows': report_data.get('table', {}).get('n', 0),
+       |                'n_columns': report_data.get('table', {}).get('n_var', 0),
+       |                'missing_cells': report_data.get('table', {}).get('n_cells_missing', 0),
+       |                'missing_percentage': report_data.get('table', {}).get('p_cells_missing', 0),
+       |                'duplicates': report_data.get('table', {}).get('n_duplicates', 0),
+       |                'duplicate_percentage': report_data.get('table', {}).get('p_duplicates', 0),
+       |                'memory_size': report_data.get('table', {}).get('memory_size', 0),
+       |                'column_types': report_data.get('table', {}).get('types', {})
+       |            },
+       |            'variables': {}
+       |        }
+       |
+       |        # Extract essential variable-level metrics
+       |        variables = report_data.get('variables', {})
+       |        for col_name, col_stats in variables.items():
+       |            essential_metrics['variables'][col_name] = {
+       |                'type': col_stats.get('type'),
+       |                'n_missing': col_stats.get('n_missing', 0),
+       |                'p_missing': col_stats.get('p_missing', 0),
+       |                'n_distinct': col_stats.get('n_distinct', 0),
+       |                'p_distinct': col_stats.get('p_distinct', 0),
+       |                'is_unique': col_stats.get('is_unique', False)
+       |            }
+       |
+       |            # Add numeric-specific stats if available
+       |            if 'mean' in col_stats:
+       |                essential_metrics['variables'][col_name].update({
+       |                    'mean': col_stats.get('mean'),
+       |                    'std': col_stats.get('std'),
+       |                    'min': col_stats.get('min'),
+       |                    'max': col_stats.get('max'),
+       |                    'median': col_stats.get('50%')
+       |                })
+       |
+       |            # Add text-specific stats if available
+       |            if 'max_length' in col_stats:
+       |                essential_metrics['variables'][col_name].update({
+       |                    'max_length': col_stats.get('max_length'),
+       |                    'mean_length': col_stats.get('mean_length'),
+       |                    'min_length': col_stats.get('min_length')
+       |                })
+       |
+       |        # Convert to compact JSON
+       |        report_json = json.dumps(essential_metrics, separators=(',', ':'))
        |
        |        # Create output DataFrame with single row containing the JSON report
        |        result_df = pd.DataFrame({
@@ -146,15 +148,15 @@ class DataProfileOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Data Profile",
-      "Generate comprehensive data profiling report using ydata-profiling",
+      "Generate essential data profiling metrics using ydata-profiling",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
 
   override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
+                                 inputSchemas: Map[PortIdentity, Schema]
+                               ): Map[PortIdentity, Schema] = {
     Map(
       operatorInfo.outputPorts.head.id -> Schema()
         .add("report", AttributeType.STRING)
