@@ -79,7 +79,7 @@ object ExecutionResultService {
       tuples: Iterable[Tuple],
       isVisualization: Boolean = false
   ): List[ObjectNode] = {
-    val maxStringLength = 100
+    val maxStringLength = 100000
 
     tuples.map { tuple =>
       val processedFields = tuple.schema.getAttributes.zipWithIndex
