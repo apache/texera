@@ -128,6 +128,16 @@
             (click)="open(i, row)">
             <span class="cell-content">{{ column.getCell(row) }}</span>
             <button
+              (click)="openFullContentModal(column.getCell(row), column.header); $event.stopPropagation()"
+              nz-button
+              nzType="link"
+              class="expand-button"
+              title="View full content">
+              <i
+                nz-icon
+                nzType="fullscreen"></i>
+            </button>
+            <button
               (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
               nz-button
               nzType="link"

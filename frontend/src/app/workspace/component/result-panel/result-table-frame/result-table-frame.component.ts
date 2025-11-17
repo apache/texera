@@ -405,4 +405,37 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       nzFooter: null,
     });
   }
+
+  /**
+   * Opens a modal to display the full content of a cell
+   */
+  openFullContentModal(content: string | number | boolean | object, columnName: string): void {
+    const contentString = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+    this.modalService.create({
+      nzTitle: `Full Content - ${columnName}`,
+      nzContent: `<pre style="white-space: pre-wrap; word-wrap: break-word; max-height: 500px; overflow-y: auto;">${this.escapeHtml(contentString)}</pre>`,
+      nzFooter: [
+        {
+          label: "Close",
+          onClick: () => {},
+          type: "primary",
+        },
+      ],
+      nzWidth: "800px",
+    });
+  }
+
+  /**
+   * Escapes HTML special characters to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const map: { [key: string]: string } = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+  }
 }
