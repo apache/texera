@@ -29,8 +29,10 @@ import {
 } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
-import { Subject } from "rxjs";
+import { Subject, combineLatest } from "rxjs";
 import { AbstractControl, FormGroup } from "@angular/forms";
+import { ReActStep } from "../../../service/copilot/texera-copilot";
+import { TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
@@ -145,6 +147,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
 
+  // ReActSteps that modified this operator
+  public modifyingReActSteps: ReActStep[] = [];
+
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -155,7 +160,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private copilotManagerService: TexeraCopilotManagerService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -195,6 +201,37 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  /**
+   * Load all ReActSteps that modified this operator from all active agents.
+   */
+  private loadModifyingReActSteps(operatorId: string): void {
+    this.modifyingReActSteps = [];
+
+    this.copilotManagerService.getAllAgents().subscribe(agents => {
+      if (agents.length === 0) {
+        return;
+      }
+
+      // For each agent, get steps that modified this operator
+      const allStepObservables = agents.map(agent =>
+        this.copilotManagerService.getReActStepsByOperatorAccess(agent.id, operatorId)
+      );
+
+      // Combine all results
+      combineLatest(allStepObservables).subscribe(results => {
+        const allModifyingSteps: ReActStep[] = [];
+        results.forEach(result => {
+          allModifyingSteps.push(...result.modifiedBy);
+        });
+
+        // Sort by timestamp (newest first)
+        this.modifyingReActSteps = allModifyingSteps.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+        this.changeDetectorRef.detectChanges();
+      });
+    });
+  }
+
   async ngOnDestroy() {
     // await this.checkAndSavePreset();
     this.teardownObservable.complete();
@@ -220,6 +257,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
     this.currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
     this.currentOperatorStatus = this.workflowStatusSerivce.getCurrentStatus()[this.currentOperatorId];
+
+    // Load ReActSteps that modified this operator from all agents
+    this.loadModifyingReActSteps(this.currentOperatorId);
 
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);

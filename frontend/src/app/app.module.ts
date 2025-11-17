@@ -103,6 +103,8 @@ import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-u
 import { AgentPanelComponent } from "./workspace/component/agent-panel/agent-panel.component";
 import { AgentChatComponent } from "./workspace/component/agent-panel/agent-chat/agent-chat.component";
 import { AgentRegistrationComponent } from "./workspace/component/agent-panel/agent-registration/agent-registration.component";
+import { ReActStepDetailModalComponent } from "./workspace/component/agent-panel/react-step-detail-modal/react-step-detail-modal.component";
+import { ReActStepListComponent } from "./workspace/component/agent-panel/react-step-list/react-step-list.component";
 import { ActionPlanFeedbackComponent } from "./workspace/component/action-plan-feedback/action-plan-feedback.component";
 import { ActionPlanViewComponent } from "./workspace/component/action-plan-view/action-plan-view.component";
 import { ActionPlansTabComponent } from "./workspace/component/agent-panel/action-plans-tab/action-plans-tab.component";
@@ -257,6 +259,8 @@ registerLocaleData(en);
     AgentPanelComponent,
     AgentChatComponent,
     AgentRegistrationComponent,
+    ReActStepDetailModalComponent,
+    ReActStepListComponent,
     ActionPlanFeedbackComponent,
     ActionPlanViewComponent,
     ActionPlansTabComponent,

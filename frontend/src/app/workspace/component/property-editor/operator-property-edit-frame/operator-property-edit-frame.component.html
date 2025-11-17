@@ -88,6 +88,19 @@
   <p>{{ operatorDescription }}</p>
 </div>
 
+<!-- ReActSteps that modified this operator -->
+<div
+  *ngIf="modifyingReActSteps.length > 0 && !editingTitle"
+  class="react-steps-section"
+  style="margin-top: 16px; margin-bottom: 16px">
+  <texera-react-step-list
+    [steps]="modifyingReActSteps"
+    [agentId]="null"
+    [title]="'Agent Modifications'"
+    [emptyMessage]="'No agent modifications'">
+  </texera-react-step-list>
+</div>
+
 <div
   id="customName"
   [hidden]="!editingTitle"

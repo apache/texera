@@ -1,0 +1,234 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- ReActStep Detail Modal -->
+<nz-modal
+  [(nzVisible)]="visible"
+  (nzVisibleChange)="visibleChange.emit($event)"
+  nzTitle="ReActStep Details"
+  nzWidth="800px"
+  (nzOnCancel)="closeModal()"
+  [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <div
+      *ngIf="step"
+      style="max-height: 600px; overflow-y: auto">
+      <!-- Step Identification Section -->
+      <div style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="number"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Step Identification
+        </h4>
+        <nz-descriptions
+          nzBordered
+          nzSize="small"
+          [nzColumn]="2">
+          <nz-descriptions-item nzTitle="Message ID">
+            <code style="font-family: monospace; font-size: 12px">{{ step.messageId }}</code>
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Step ID">
+            <nz-tag [nzColor]="'blue'">{{ step.stepId }}</nz-tag>
+          </nz-descriptions-item>
+          <nz-descriptions-item
+            nzTitle="Timestamp"
+            [nzSpan]="2">
+            {{ step.timestamp | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+          </nz-descriptions-item>
+        </nz-descriptions>
+      </div>
+
+      <!-- Dependent Steps Section -->
+      <div
+        *ngIf="dependentSteps.length > 0"
+        style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="branches"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Dependent Steps ({{ dependentSteps.length }})
+        </h4>
+        <div
+          style="
+            background: #fafafa;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+            max-height: 200px;
+            overflow-y: auto;
+          ">
+          <nz-list
+            nzSize="small"
+            [nzDataSource]="dependentSteps"
+            nzBordered>
+            <nz-list-item *ngFor="let depStep of dependentSteps">
+              <div style="display: flex; align-items: center; width: 100%">
+                <nz-tag
+                  [nzColor]="'blue'"
+                  style="margin-right: 8px"
+                  >{{ depStep.stepId }}</nz-tag
+                >
+                <code style="font-family: monospace; font-size: 11px; color: #8c8c8c; margin-right: 8px">
+                  {{ depStep.messageId }}
+                </code>
+                <span style="flex: 1; font-size: 12px; color: #595959">
+                  {{ depStep.timestamp | date: 'HH:mm:ss' }}
+                </span>
+              </div>
+            </nz-list-item>
+          </nz-list>
+        </div>
+      </div>
+
+      <!-- Token Usage Section -->
+      <div
+        *ngIf="step.usage"
+        style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="bar-chart"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Token Usage
+        </h4>
+        <nz-descriptions
+          nzBordered
+          nzSize="small"
+          [nzColumn]="2">
+          <nz-descriptions-item nzTitle="Input Tokens"> {{ step.usage.inputTokens || 0 }} </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Output Tokens"> {{ step.usage.outputTokens || 0 }} </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Total Tokens"> {{ step.usage.totalTokens || 0 }} </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Cached Tokens"> {{ step.usage.cachedInputTokens || 0 }} </nz-descriptions-item>
+        </nz-descriptions>
+      </div>
+
+      <!-- Tool Calls Section -->
+      <div *ngIf="step.toolCalls && step.toolCalls.length > 0">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="tool"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Tool Calls ({{ step.toolCalls.length }})
+        </h4>
+        <nz-collapse style="margin-bottom: 16px">
+          <nz-collapse-panel
+            *ngFor="let call of step.toolCalls; let idx = index"
+            [nzHeader]="call.toolName"
+            [nzActive]="false">
+            <div style="background: #fafafa; padding: 12px; border-radius: 4px; margin-bottom: 12px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Arguments:</strong>
+              </div>
+              <pre
+                style="
+                  background: #fff;
+                  padding: 12px;
+                  border: 1px solid #d9d9d9;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin: 0;
+                "><code class="language-json">{{ formatJson(call.input || call.args) }}</code></pre>
+            </div>
+            <div
+              *ngIf="getToolResult(step, idx)"
+              style="background: #fafafa; padding: 12px; border-radius: 4px; margin-bottom: 12px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Result:</strong>
+              </div>
+              <pre
+                style="
+                  background: #fff;
+                  padding: 12px;
+                  border: 1px solid #d9d9d9;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin: 0;
+                "><code class="language-json">{{ formatJson(getToolResult(step, idx)) }}</code></pre>
+            </div>
+            <div
+              *ngIf="getToolOperatorAccess(step, idx)"
+              style="background: #fafafa; padding: 12px; border-radius: 4px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Operator Access:</strong>
+              </div>
+              <div style="background: #fff; padding: 12px; border: 1px solid #d9d9d9; border-radius: 4px">
+                <div
+                  *ngIf="getToolOperatorAccess(step, idx)!.viewedOperatorIds.length > 0"
+                  style="margin-bottom: 8px">
+                  <span style="color: #1890ff; font-weight: 500; margin-right: 8px">
+                    <i
+                      nz-icon
+                      nzType="eye"
+                      nzTheme="outline"
+                      style="margin-right: 4px"></i>
+                    VIEWED:
+                  </span>
+                  <nz-tag
+                    *ngFor="let opId of getToolOperatorAccess(step, idx)!.viewedOperatorIds"
+                    [nzColor]="'blue'"
+                    style="margin: 2px; font-family: monospace; font-size: 12px">
+                    {{ opId }}
+                  </nz-tag>
+                </div>
+                <div *ngIf="getToolOperatorAccess(step, idx)!.modifiedOperatorIds.length > 0">
+                  <span style="color: #52c41a; font-weight: 500; margin-right: 8px">
+                    <i
+                      nz-icon
+                      nzType="edit"
+                      nzTheme="outline"
+                      style="margin-right: 4px"></i>
+                    MODIFIED:
+                  </span>
+                  <nz-tag
+                    *ngFor="let opId of getToolOperatorAccess(step, idx)!.modifiedOperatorIds"
+                    [nzColor]="'green'"
+                    style="margin: 2px; font-family: monospace; font-size: 12px">
+                    {{ opId }}
+                  </nz-tag>
+                </div>
+              </div>
+            </div>
+          </nz-collapse-panel>
+        </nz-collapse>
+      </div>
+
+      <!-- No Data Message -->
+      <div
+        *ngIf="
+          !step.usage && (!step.toolCalls || step.toolCalls.length === 0) && !hasOperatorAccess(step) && dependentSteps.length === 0
+        "
+        style="text-align: center; padding: 40px; color: #8c8c8c">
+        <i
+          nz-icon
+          nzType="info-circle"
+          nzTheme="outline"
+          style="font-size: 32px; margin-bottom: 8px"></i>
+        <div>No additional details available for this step.</div>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>
