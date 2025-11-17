@@ -236,6 +236,9 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
             const totalRows = paginatedResultService.getCurrentTotalNumTuples();
             const wasLimited = limitedResult.length < (resultEvent.table?.length || 0);
 
+            // Get table statistics (min, max, not_null_count for each column)
+            const tableStats = paginatedResultService.getStats();
+
             return createSuccessResult(
               {
                 operatorId: args.operatorId,
@@ -244,6 +247,7 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
                 displayedRows: limitedResult.length,
                 estimatedTokens: currentTokenCount,
                 truncated: wasLimited,
+                tableStats: tableStats,
                 result: { ...resultEvent, table: limitedResult },
                 message: wasLimited
                   ? `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, limited by token count ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`
