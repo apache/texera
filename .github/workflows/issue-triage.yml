@@ -18,8 +18,6 @@ name: Issue triage
 on:
   issues:
     types: [assigned, unassigned]
-  pull_request:
-    types: [closed]
 
 permissions:
   issues: write
