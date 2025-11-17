@@ -23,5 +23,6 @@ case class ResultPaginationRequest(
     requestID: String,
     operatorID: String,
     pageIndex: Int,
-    pageSize: Int
+    pageSize: Int,
+    noTruncation: Option[Boolean] = None
 ) extends TexeraWebSocketRequest

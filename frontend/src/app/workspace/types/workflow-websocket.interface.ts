@@ -94,6 +94,7 @@ export type PaginationRequest = Readonly<{
   operatorID: string;
   pageIndex: number;
   pageSize: number;
+  noTruncation?: boolean;
 }>;
 
 export type PaginatedResultEvent = Readonly<{

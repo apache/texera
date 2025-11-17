@@ -299,12 +299,13 @@ export class OperatorPaginationResultService {
 
   public selectTuple(
     tupleIndex: number,
-    pageSize: number
+    pageSize: number,
+    noTruncation: boolean = false
   ): Observable<{ tuple: IndexableObject; schema: ReadonlyArray<SchemaAttribute> }> {
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
-    return this.selectPage(pageIndex, pageSize).pipe(
+    return this.selectPage(pageIndex, pageSize, noTruncation).pipe(
       map(p => ({
         tuple: p.table[tupleIndex % pageSize],
         schema: this.schema,
@@ -312,11 +313,15 @@ export class OperatorPaginationResultService {
     );
   }
 
-  public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
+  public selectPage(
+    pageIndex: number,
+    pageSize: number,
+    noTruncation: boolean = false
+  ): Observable<PaginatedResultEvent> {
     // update currently selected page
     this.currentPageIndex = pageIndex;
-    // first fetch from frontend result cache
-    const pageCache = this.resultCache.get(pageIndex);
+    // first fetch from frontend result cache (only use cache if noTruncation is false)
+    const pageCache = !noTruncation ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
         requestID: "",
@@ -329,12 +334,16 @@ export class OperatorPaginationResultService {
       // fetch result data from server
       const requestID = uuid();
       const operatorID = this.operatorID;
-      this.workflowWebsocketService.send("ResultPaginationRequest", {
+      const request: any = {
         requestID,
         operatorID,
         pageIndex,
         pageSize,
-      });
+      };
+      if (noTruncation) {
+        request.noTruncation = true;
+      }
+      this.workflowWebsocketService.send("ResultPaginationRequest", request);
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);
       return pendingRequestSubject;

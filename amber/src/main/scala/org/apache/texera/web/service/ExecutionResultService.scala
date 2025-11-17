@@ -441,7 +441,9 @@ class ExecutionResultService(
             .getRange(from, from + request.pageSize)
             .to(Iterable)
         }
-        val mappedResults = convertTuplesToJson(paginationIterable)
+        // Use noTruncation flag to prevent string truncation when requested
+        val isVisualization = request.noTruncation.getOrElse(false)
+        val mappedResults = convertTuplesToJson(paginationIterable, isVisualization)
         val attributes = paginationIterable.headOption
           .map(_.getSchema.getAttributes)
           .getOrElse(List.empty)

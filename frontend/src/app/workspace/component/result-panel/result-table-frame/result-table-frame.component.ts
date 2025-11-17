@@ -407,22 +407,119 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Opens a modal to display the full content of a cell
+   * Opens a modal to display the full content of a cell by fetching complete data from backend
    */
-  openFullContentModal(content: string | number | boolean | object, columnName: string): void {
-    const contentString = typeof content === "string" ? content : JSON.stringify(content, null, 2);
-    this.modalService.create({
+  openFullContentModal(indexInPage: number, columnDef: string, columnName: string): void {
+    if (!this.operatorId) {
+      return;
+    }
+
+    const currentRowIndex = indexInPage + (this.currentPageIndex - 1) * this.pageSize;
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+
+    if (!paginatedResultService) {
+      return;
+    }
+
+    // Create modal with loading state
+    const modalRef: NzModalRef = this.modalService.create({
       nzTitle: `Full Content - ${columnName}`,
-      nzContent: `<pre style="white-space: pre-wrap; word-wrap: break-word; max-height: 500px; overflow-y: auto;">${this.escapeHtml(contentString)}</pre>`,
+      nzContent: "<div style=\"text-align: center; padding: 20px;\">Loading...</div>",
       nzFooter: [
         {
           label: "Close",
-          onClick: () => {},
+          onClick: () => modalRef.destroy(),
           type: "primary",
         },
       ],
       nzWidth: "800px",
     });
+
+    // Fetch the full tuple data from backend with noTruncation flag
+    paginatedResultService
+      .selectTuple(currentRowIndex, this.pageSize, true)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: res => {
+          const cellValue = res.tuple[columnDef];
+          const contentString = typeof cellValue === "string" ? cellValue : JSON.stringify(cellValue, null, 2);
+          const contentSize = new Blob([contentString]).size;
+          const sizeMB = contentSize / (1024 * 1024);
+
+          // For large content (> 1MB), provide download option instead of rendering
+          if (sizeMB > 1) {
+            modalRef.updateConfig({
+              nzContent: `
+                <div style="padding: 20px;">
+                  <p><strong>Content Size:</strong> ${sizeMB.toFixed(2)} MB</p>
+                  <p>This content is too large to display directly (${sizeMB.toFixed(2)} MB).</p>
+                  <p>Preview (first 5000 characters):</p>
+                  <textarea readonly style="width: 100%; height: 300px; font-family: monospace; font-size: 12px; border: 1px solid #d9d9d9; padding: 8px;">${this.escapeHtml(contentString.substring(0, 10000))}</textarea>
+                  ${contentString.length > 5000 ? `<p style="color: #999; margin-top: 8px;">... and ${(contentString.length - 5000).toLocaleString()} more characters</p>` : ""}
+                </div>
+              `,
+              nzFooter: [
+                {
+                  label: "Download",
+                  onClick: () => this.downloadContent(contentString, columnName, currentRowIndex),
+                  type: "default",
+                },
+                {
+                  label: "Close",
+                  onClick: () => modalRef.destroy(),
+                  type: "primary",
+                },
+              ],
+            });
+          } else {
+            // For smaller content, display directly in textarea for better performance
+            modalRef.updateConfig({
+              nzContent: `
+                <div style="padding: 20px;">
+                  <textarea readonly style="width: 100%; height: 500px; font-family: monospace; font-size: 12px; border: 1px solid #d9d9d9; padding: 8px;">${this.escapeHtml(contentString)}</textarea>
+                </div>
+              `,
+              nzFooter: [
+                {
+                  label: "Download",
+                  onClick: () => this.downloadContent(contentString, columnName, currentRowIndex),
+                  type: "default",
+                },
+                {
+                  label: "Close",
+                  onClick: () => modalRef.destroy(),
+                  type: "primary",
+                },
+              ],
+            });
+          }
+        },
+        error: (err: Error) => {
+          modalRef.updateConfig({
+            nzContent: `<div style="color: red; padding: 20px;">Error loading content: ${err.message || "Unknown error"}</div>`,
+            nzFooter: [
+              {
+                label: "Close",
+                onClick: () => modalRef.destroy(),
+                type: "primary",
+              },
+            ],
+          });
+        },
+      });
+  }
+
+  /**
+   * Downloads content as a text file
+   */
+  private downloadContent(content: string, columnName: string, rowIndex: number): void {
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${columnName}_row_${rowIndex}.txt`;
+    link.click();
+    window.URL.revokeObjectURL(url);
   }
 
   /**
@@ -433,7 +530,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
-      '"': "&quot;",
+      "\"": "&quot;",
       "'": "&#039;",
     };
     return text.replace(/[&<>"']/g, m => map[m]);

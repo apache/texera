@@ -128,7 +128,7 @@
             (click)="open(i, row)">
             <span class="cell-content">{{ column.getCell(row) }}</span>
             <button
-              (click)="openFullContentModal(column.getCell(row), column.header); $event.stopPropagation()"
+              (click)="openFullContentModal(i, column.columnDef, column.header); $event.stopPropagation()"
               nz-button
               nzType="link"
               class="expand-button"
