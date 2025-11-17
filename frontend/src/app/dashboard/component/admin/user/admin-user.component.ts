@@ -126,12 +126,33 @@ export class AdminUserComponent implements OnInit {
     }
 
     const currentUid = this.editUid;
+    const localUpdated: User = {
+      ...originalUser,
+      name: this.editName,
+      email: this.editEmail,
+      comment: this.editComment,
+      role: this.editRole,
+    };
     this.stopEdit();
     this.adminUserService
       .updateUser(currentUid, this.editName, this.editEmail, this.editRole, this.editComment)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.ngOnInit(),
+        next: () => {
+          const i = this.userList.findIndex(u => u.uid === currentUid);
+          if (i >= 0) {
+            const copy = this.userList.slice();
+            copy[i] = localUpdated;
+            this.userList = copy;
+          }
+
+          const j = this.listOfDisplayUser.findIndex(u => u.uid === currentUid);
+          if (j >= 0) {
+            const v = this.listOfDisplayUser.slice();
+            v[j] = localUpdated;
+            this.listOfDisplayUser = v;
+          }
+        },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;
           this.messageService.error(errorMessage);
