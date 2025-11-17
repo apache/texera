@@ -29,6 +29,7 @@ import org.apache.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEF
 import org.apache.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import org.apache.amber.operator.aggregate.AggregateOpDesc
 import org.apache.amber.operator.cartesianProduct.CartesianProductOpDesc
+import org.apache.amber.operator.dataProfile.DataProfileOpDesc
 import org.apache.amber.operator.dictionary.DictionaryMatcherOpDesc
 import org.apache.amber.operator.difference.DifferenceOpDesc
 import org.apache.amber.operator.distinct.DistinctOpDesc
@@ -224,6 +225,7 @@ trait StateTransferFunc
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
     new Type(value = classOf[DummyOpDesc], name = "Dummy"),
+    new Type(value = classOf[DataProfileOpDesc], name = "DataProfile"),
     new Type(value = classOf[BoxViolinPlotOpDesc], name = "BoxViolinPlot"),
     new Type(value = classOf[NetworkGraphOpDesc], name = "NetworkGraph"),
     new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
