@@ -19,9 +19,9 @@
 
 package org.apache.amber.engine.common.client
 
-import akka.actor.{ActorSystem, Address, PoisonPill, Props}
-import akka.pattern._
-import akka.util.Timeout
+import org.apache.pekko.actor.{ActorSystem, Address, PoisonPill, Props}
+import org.apache.pekko.pattern._
+import org.apache.pekko.util.Timeout
 import com.twitter.util.{Future, Promise}
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
