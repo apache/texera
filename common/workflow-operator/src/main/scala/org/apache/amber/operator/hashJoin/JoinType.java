@@ -19,6 +19,7 @@
 
 package org.apache.amber.operator.hashJoin;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum JoinType {
@@ -38,4 +39,13 @@ public enum JoinType {
         return this.value;
     }
 
+    @JsonCreator
+    public static JoinType fromString(String value) {
+        for (JoinType type : JoinType.values()) {
+            if (type.value.equals(value)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Unknown join type: " + value);
+    }
 }
