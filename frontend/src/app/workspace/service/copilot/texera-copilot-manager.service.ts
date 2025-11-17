@@ -230,30 +230,30 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Get the agent responses observable stream.
+   * Get the ReActSteps observable stream.
    * Returns an Observable that emits arrays of ReActStep.
    */
-  public getAgentResponsesObservable(agentId: string): Observable<ReActStep[]> {
+  public getReActStepsObservable(agentId: string): Observable<ReActStep[]> {
     return defer(() => {
       const agent = this.agents.get(agentId);
       if (!agent) {
         return throwError(() => new Error(`Agent with ID ${agentId} not found`));
       }
-      return agent.instance.agentResponses$;
+      return agent.instance.reActSteps$;
     });
   }
 
   /**
-   * Get the current agent responses.
+   * Get the current ReActSteps.
    * Returns an Observable that emits the current array of ReActStep.
    */
-  public getAgentResponses(agentId: string): Observable<ReActStep[]> {
+  public getReActSteps(agentId: string): Observable<ReActStep[]> {
     return defer(() => {
       const agent = this.agents.get(agentId);
       if (!agent) {
         return throwError(() => new Error(`Agent with ID ${agentId} not found`));
       }
-      return of(agent.instance.getAgentResponses());
+      return of(agent.instance.getReActSteps());
     });
   }
 

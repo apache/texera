@@ -69,18 +69,18 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
 
     this.planningMode = this.copilotManagerService.getPlanningMode(this.agentInfo.id);
 
-    // Subscribe to agent responses
+    // Subscribe to ReActSteps
     this.copilotManagerService
-      .getAgentResponsesObservable(this.agentInfo.id)
+      .getReActStepsObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
-      .subscribe(responses => {
+      .subscribe(steps => {
         const previousLength = this.agentResponses.length;
-        this.agentResponses = responses;
+        this.agentResponses = steps;
         this.shouldScrollToBottom = true;
 
         // Automatically highlight the latest ReAct step
-        if (responses.length > 0) {
-          const latestIndex = responses.length - 1;
+        if (steps.length > 0) {
+          const latestIndex = steps.length - 1;
           const previousLatestIndex = previousLength - 1;
 
           // Auto-highlight the latest if:
@@ -89,7 +89,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
           if (
             this.hoveredMessageIndex === null ||
             this.hoveredMessageIndex === previousLatestIndex ||
-            this.hoveredMessageIndex >= responses.length
+            this.hoveredMessageIndex >= steps.length
           ) {
             this.setHoveredMessage(latestIndex);
           }
