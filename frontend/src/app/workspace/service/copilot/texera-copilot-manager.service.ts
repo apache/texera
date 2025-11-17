@@ -408,6 +408,120 @@ export class TexeraCopilotManagerService {
   }
 
   /**
+   * Get ReActSteps that viewed or modified a specific operator.
+   * Returns two arrays: steps that viewed the operator and steps that modified it.
+   */
+  public getReActStepsByOperatorAccess(
+    agentId: string,
+    operatorId: string
+  ): Observable<{ viewedBy: ReActStep[]; modifiedBy: ReActStep[] }> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+
+      const allSteps = agent.instance.getReActSteps();
+      const viewedBy: ReActStep[] = [];
+      const modifiedBy: ReActStep[] = [];
+
+      // Iterate through all steps and check operator access
+      for (const step of allSteps) {
+        if (step.operatorAccess) {
+          step.operatorAccess.forEach(access => {
+            if (access.viewedOperatorIds.includes(operatorId) && !viewedBy.includes(step)) {
+              viewedBy.push(step);
+            }
+            if (access.modifiedOperatorIds.includes(operatorId) && !modifiedBy.includes(step)) {
+              modifiedBy.push(step);
+            }
+          });
+        }
+      }
+
+      return of({ viewedBy, modifiedBy });
+    });
+  }
+
+  /**
+   * Get ReActSteps that depend on a specific step.
+   * A step B depends on step A if:
+   * - Step A comes earlier (lower stepId or earlier timestamp)
+   * - Step A modified some operator IDs
+   * - Step B viewed or modified those same operator IDs
+   */
+  public getDependentReActSteps(agentId: string, messageId: string, stepId: number): Observable<ReActStep[]> {
+    return defer(() => {
+      const agent = this.agents.get(agentId);
+      if (!agent) {
+        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
+      }
+
+      const allSteps = agent.instance.getReActSteps();
+
+      // Find the target step
+      const targetStep = allSteps.find(s => s.messageId === messageId && s.stepId === stepId);
+      if (!targetStep) {
+        return of([]);
+      }
+
+      // Collect all operator IDs modified by the target step
+      const modifiedOperatorIds = new Set<string>();
+      if (targetStep.operatorAccess) {
+        targetStep.operatorAccess.forEach(access => {
+          access.modifiedOperatorIds.forEach(opId => modifiedOperatorIds.add(opId));
+        });
+      }
+
+      // If target step didn't modify anything, no steps can depend on it
+      if (modifiedOperatorIds.size === 0) {
+        return of([]);
+      }
+
+      // Find all later steps that viewed or modified the same operators
+      const dependentSteps: ReActStep[] = [];
+      for (const step of allSteps) {
+        // Skip if it's the same step or comes before the target step
+        if (step.messageId === targetStep.messageId && step.stepId === targetStep.stepId) {
+          continue;
+        }
+
+        // Check if step comes after target step (by timestamp)
+        if (step.timestamp <= targetStep.timestamp) {
+          continue;
+        }
+
+        // Check if this step viewed or modified any of the target step's modified operators
+        let hasAccess = false;
+        if (step.operatorAccess) {
+          step.operatorAccess.forEach(access => {
+            // Check viewedOperatorIds
+            for (const opId of access.viewedOperatorIds) {
+              if (modifiedOperatorIds.has(opId)) {
+                hasAccess = true;
+                break;
+              }
+            }
+            // Check modifiedOperatorIds
+            for (const opId of access.modifiedOperatorIds) {
+              if (modifiedOperatorIds.has(opId)) {
+                hasAccess = true;
+                break;
+              }
+            }
+          });
+        }
+
+        if (hasAccess) {
+          dependentSteps.push(step);
+        }
+      }
+
+      return of(dependentSteps);
+    });
+  }
+
+  /**
    * Create a copilot instance using Angular's dependency injection.
    * Each agent receives a unique instance via a child injector.
    */

@@ -142,6 +142,26 @@
           (mouseenter)="setHoveredMessage(i)"
           (mouseleave)="setHoveredMessage(null)"
           style="position: relative">
+          <!-- Step ID badge at top-left corner -->
+          <div
+            style="
+              position: absolute;
+              top: -8px;
+              left: -8px;
+              background: #1890ff;
+              color: white;
+              font-size: 11px;
+              font-weight: 500;
+              padding: 2px 6px;
+              border-radius: 10px;
+              font-family: monospace;
+              z-index: 1;
+            "
+            nz-tooltip
+            [nzTooltipTitle]="'Message ID: ' + response.messageId + ' | Step ID: ' + response.stepId">
+            {{ response.stepId }}
+          </div>
+
           <div
             *ngIf="response.content"
             class="message-content">
@@ -267,6 +287,34 @@
     <div
       *ngIf="selectedResponse"
       style="max-height: 600px; overflow-y: auto">
+      <!-- Step Identification Section -->
+      <div style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="number"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Step Identification
+        </h4>
+        <nz-descriptions
+          nzBordered
+          nzSize="small"
+          [nzColumn]="2">
+          <nz-descriptions-item nzTitle="Message ID">
+            <code style="font-family: monospace; font-size: 12px">{{ selectedResponse.messageId }}</code>
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Step ID">
+            <nz-tag [nzColor]="'blue'">{{ selectedResponse.stepId }}</nz-tag>
+          </nz-descriptions-item>
+          <nz-descriptions-item
+            nzTitle="Timestamp"
+            [nzSpan]="2">
+            {{ selectedResponse.timestamp | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+          </nz-descriptions-item>
+        </nz-descriptions>
+      </div>
+
       <!-- Token Usage Section -->
       <div
         *ngIf="selectedResponse.usage"
