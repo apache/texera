@@ -113,5 +113,6 @@ lazy val TexeraProject = (project in file("."))
     version := "1.0.0",
     organization := "org.apache",
     scalaVersion := "2.13.12",
-    publishMavenStyle := true
+    publishMavenStyle := true,
+    addCommandAlias("jooqgen", "DAO/jooqGenerate")
   )
