@@ -158,15 +158,20 @@ export class DatasetService {
       const partProgress = new Map<number, number>();
 
       // Progress tracking state
-      const startTime = Date.now();
+      let startTime: number | null = null;
       const speedSamples: number[] = [];
       let lastETA = 0;
       let lastUpdateTime = 0;
 
       // Calculate stats with smoothing
+      const getTotalTime = () => (startTime ? (Date.now() - startTime) / 1000 : 0);
       const calculateStats = (totalUploaded: number) => {
+        if (startTime === null) {
+          startTime = Date.now();
+        }
+
         const now = Date.now();
-        const elapsed = (now - startTime) / 1000;
+        const elapsed = getTotalTime();
 
         // Throttle updates to every 1s
         const shouldUpdate = now - lastUpdateTime >= 1000;
@@ -325,7 +330,6 @@ export class DatasetService {
                 )
               ),
               tap(() => {
-                const finalTotalTime = (Date.now() - startTime) / 1000;
                 observer.next({
                   filePath,
                   percentage: 100,
@@ -334,13 +338,12 @@ export class DatasetService {
                   physicalAddress: physicalAddress,
                   uploadSpeed: 0,
                   estimatedTimeRemaining: 0,
-                  totalTime: finalTotalTime,
+                  totalTime: getTotalTime(),
                 });
                 observer.complete();
               }),
               catchError((error: unknown) => {
                 // If an error occurred, abort the upload
-                const currentTotalTime = (Date.now() - startTime) / 1000;
                 observer.next({
                   filePath,
                   percentage: Math.round((uploadedParts.length / partCount) * 100),
@@ -349,7 +352,7 @@ export class DatasetService {
                   physicalAddress: physicalAddress,
                   uploadSpeed: 0,
                   estimatedTimeRemaining: 0,
-                  totalTime: currentTotalTime,
+                  totalTime: getTotalTime(),
                 });
 
                 return this.finalizeMultipartUpload(

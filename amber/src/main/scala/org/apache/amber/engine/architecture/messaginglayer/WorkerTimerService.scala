@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.messaginglayer
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.engine.architecture.common.AkkaActorService
 import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
