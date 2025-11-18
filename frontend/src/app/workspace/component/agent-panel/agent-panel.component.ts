@@ -110,15 +110,25 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
 
     if (confirm("Are you sure you want to delete this agent?")) {
       const agentIndex = this.agents.findIndex(agent => agent.id === agentId);
-      this.copilotManagerService.deleteAgent(agentId);
 
-      // If we're on the deleted agent's tab, switch to registration
-      if (agentIndex !== -1 && this.selectedTabIndex === agentIndex + 3) {
-        this.selectedTabIndex = 0;
-      } else if (this.selectedTabIndex > agentIndex + 3) {
-        // Adjust selected index if we deleted a tab before the current one
-        this.selectedTabIndex--;
-      }
+      // Must subscribe to the observable for it to execute
+      this.copilotManagerService
+        .deleteAgent(agentId)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => {
+            // If we're on the deleted agent's tab, switch to registration
+            if (agentIndex !== -1 && this.selectedTabIndex === agentIndex + 3) {
+              this.selectedTabIndex = 0;
+            } else if (this.selectedTabIndex > agentIndex + 3) {
+              // Adjust selected index if we deleted a tab before the current one
+              this.selectedTabIndex--;
+            }
+          },
+          error: (error: unknown) => {
+            console.error("Failed to delete agent:", error);
+          },
+        });
     }
   }
 

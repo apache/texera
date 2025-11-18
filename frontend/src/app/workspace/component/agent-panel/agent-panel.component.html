@@ -88,23 +88,30 @@
       [(nzSelectedIndex)]="selectedTabIndex"
       class="agent-tabs"
       nzType="card"
+      [nzAnimated]="false"
       [nzTabBarExtraContent]="tabBarExtra">
       <!-- Registration Tab -->
-      <nz-tab nzTitle="+ Agent">
+      <nz-tab
+        nzTitle="+ Agent"
+        [nzForceRender]="true">
         <ng-template nz-tab>
           <texera-agent-registration (agentCreated)="onAgentCreated($event)"></texera-agent-registration>
         </ng-template>
       </nz-tab>
 
       <!-- Action Plans Tab -->
-      <nz-tab nzTitle="Action Plans">
+      <nz-tab
+        nzTitle="Action Plans"
+        [nzForceRender]="true">
         <ng-template nz-tab>
           <texera-action-plans-tab></texera-action-plans-tab>
         </ng-template>
       </nz-tab>
 
       <!-- Data Inconsistencies Tab -->
-      <nz-tab nzTitle="Data Inconsistencies">
+      <nz-tab
+        nzTitle="Data Inconsistencies"
+        [nzForceRender]="true">
         <ng-template nz-tab>
           <texera-inconsistency-list></texera-inconsistency-list>
         </ng-template>
@@ -112,8 +119,9 @@
 
       <!-- Agent Tabs -->
       <nz-tab
-        *ngFor="let agent of agents"
-        [nzTitle]="agentTabTitle">
+        *ngFor="let agent of agents; let i = index"
+        [nzTitle]="agentTabTitle"
+        [nzForceRender]="true">
         <ng-template
           #agentTabTitle
           let-active="active">

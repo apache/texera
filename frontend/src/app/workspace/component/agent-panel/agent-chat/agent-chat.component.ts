@@ -17,7 +17,17 @@
  * under the License.
  */
 
-import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
+import {
+  Component,
+  ViewChild,
+  ElementRef,
+  Input,
+  OnInit,
+  OnDestroy,
+  AfterViewChecked,
+  ChangeDetectorRef,
+  ChangeDetectionStrategy,
+} from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
@@ -32,7 +42,7 @@ import { ContextHighlightService } from "../../../service/context-highlight/cont
   templateUrl: "agent-chat.component.html",
   styleUrls: ["agent-chat.component.scss"],
 })
-export class AgentChatComponent implements OnInit, AfterViewChecked {
+export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   @Input() agentInfo!: AgentInfo;
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
@@ -59,7 +69,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     private copilotManagerService: TexeraCopilotManagerService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
-    private contextHighlightService: ContextHighlightService
+    private contextHighlightService: ContextHighlightService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -68,6 +79,25 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     }
 
     this.planningMode = this.copilotManagerService.getPlanningMode(this.agentInfo.id);
+
+    // First, get the current state synchronously to ensure we have it immediately
+    const agent = this.agentInfo.instance;
+    if (agent) {
+      const currentState = agent.getState();
+      this.agentState = currentState;
+      // Immediately trigger change detection to show the current state
+      this.cdr.detectChanges();
+    }
+
+    // Then subscribe to agent state changes (BehaviorSubject will immediately emit current value)
+    this.copilotManagerService
+      .getAgentStateObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(state => {
+        this.agentState = state;
+        // Force immediate change detection
+        this.cdr.detectChanges();
+      });
 
     // Subscribe to ReActSteps
     this.copilotManagerService
@@ -94,6 +124,9 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
             this.setHoveredMessage(latestIndex);
           }
         }
+
+        // Trigger change detection
+        this.cdr.detectChanges();
       });
 
     // Subscribe to pending action plans
@@ -107,14 +140,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
         } else if (plan === null || (plan && plan.agentId !== this.agentInfo.id)) {
           this.pendingActionPlan = null;
         }
-      });
-
-    // Subscribe to agent state changes
-    this.copilotManagerService
-      .getAgentStateObservable(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(state => {
-        this.agentState = state;
+        this.cdr.detectChanges();
       });
 
     // Subscribe to relevant operators changes
@@ -127,6 +153,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
         if (this.showContext && operators.length > 0) {
           this.highlightContextOperators();
         }
+        this.cdr.detectChanges();
       });
 
     // Subscribe to message stats changes
@@ -135,7 +162,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       .pipe(untilDestroyed(this))
       .subscribe(statsMap => {
         this.messageStats = Array.from(statsMap.values());
+        this.cdr.detectChanges();
       });
+  }
+
+  ngOnDestroy(): void {
+    // Cleanup handled by @UntilDestroy
   }
 
   ngAfterViewChecked(): void {
