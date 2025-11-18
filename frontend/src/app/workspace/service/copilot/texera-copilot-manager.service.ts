@@ -233,14 +233,30 @@ export class TexeraCopilotManagerService {
         return throwError(() => new Error(`Agent with ID ${agentId} not found`));
       }
 
-      // If there are relevant steps, append them to the message
+      // If there are relevant steps, retrieve and append their full data to the message
       let finalMessage = message;
       if (relevantSteps.length > 0) {
         console.log("Sending message with relevant steps:", relevantSteps);
-        const stepsInfo = relevantSteps
-          .map(step => `- Agent: ${step.agentId}, Message: ${step.messageId}, Step: ${step.stepId}`)
-          .join("\n");
-        finalMessage = `${message}\n\nRelevant ReAct Steps:\n${stepsInfo}\n\nPlease use the appropriate tools to retrieve the details of these relevant steps for context.`;
+
+        const retrievedSteps: any[] = [];
+        for (const stepRef of relevantSteps) {
+          const sourceAgent = this.agents.get(stepRef.agentId);
+          if (sourceAgent) {
+            const step = sourceAgent.instance.getReActStepById(stepRef.messageId, stepRef.stepId);
+            if (step) {
+              retrievedSteps.push({
+                agentId: stepRef.agentId,
+                agentName: sourceAgent.name,
+                step: step,
+              });
+            }
+          }
+        }
+
+        if (retrievedSteps.length > 0) {
+          const stepsJson = JSON.stringify(retrievedSteps, null, 2);
+          finalMessage = `${message}\n\nRelevant ReAct Steps (Full Data):\n\`\`\`json\n${stepsJson}\n\`\`\`\n\nPlease use the information from these steps for context.`;
+        }
       }
 
       return agent.instance.sendMessage(finalMessage);

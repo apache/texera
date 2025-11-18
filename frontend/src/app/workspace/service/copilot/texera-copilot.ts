@@ -28,7 +28,6 @@ import * as currentWorkflowValidationTools from "./tool/current-workflow-validat
 import * as currentWorkflowExecutionTools from "./tool/current-workflow-execution-tools";
 import * as actionPlanTools from "./tool/action-plan-tools";
 import * as dataInconsistencyTools from "./tool/data-inconsistency-tools";
-import * as reactStepRetrievalTools from "./tool/react-step-retrieval-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
@@ -219,12 +218,14 @@ export class TexeraCopilot {
         return throwError(() => new Error("Copilot not initialized"));
       }
 
-      if (this.state !== CopilotState.AVAILABLE) {
-        return throwError(() => new Error(`Cannot send message: agent is ${this.state}`));
-      }
-
       // Get current retry count for this message
       const currentRetryCount = this.retryCountMap.get(message) || 0;
+
+      // Only check state if this is not a retry attempt
+      // During retry, state will be GENERATING from the previous attempt
+      if (currentRetryCount === 0 && this.state !== CopilotState.AVAILABLE) {
+        return throwError(() => new Error(`Cannot send message: agent is ${this.state}`));
+      }
 
       // Set state to generating
       this.setState(CopilotState.GENERATING);
@@ -607,14 +608,6 @@ export class TexeraCopilot {
     const deleteActionPlanTool = toolWithTimeout(actionPlanTools.createDeleteActionPlanTool(this.actionPlanService));
     const updateActionPlanTool = toolWithTimeout(actionPlanTools.createUpdateActionPlanTool(this.actionPlanService));
 
-    // ReAct step retrieval tools (for accessing historical steps)
-    const getReActStepTool = toolWithTimeout(
-      reactStepRetrievalTools.createGetReActStepTool((messageId, stepId) => this.getReActStepById(messageId, stepId))
-    );
-    const getReActStepsByMessageTool = toolWithTimeout(
-      reactStepRetrievalTools.createGetReActStepsByMessageTool(messageId => this.getReActStepsByMessageId(messageId))
-    );
-
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // meta level knowledge
@@ -658,9 +651,6 @@ export class TexeraCopilot {
       [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
-      // ReAct step retrieval tools
-      [reactStepRetrievalTools.TOOL_NAME_GET_REACT_STEP]: getReActStepTool,
-      [reactStepRetrievalTools.TOOL_NAME_GET_REACT_STEPS_BY_MESSAGE]: getReActStepsByMessageTool,
     };
 
     if (this.planningMode) {
