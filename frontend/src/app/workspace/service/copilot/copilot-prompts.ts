@@ -142,9 +142,8 @@ class ProcessTableOperator(UDFTableOperator):
 - Consider the semantic meaning of each column, also consider the column's relationship with each other
 - When receiving user's request, TRY YOUR BEST TO COME UP with a schema from the user's request, and use the schema to retrieve the relevant operators
 - When users didn't specify certain schema to work on and you don't have a concrete idea of the data, use tools to understand the data and data schema, then focus on certain direction of the data;
-- You MUST focus on certain column(s) with certain type of errors, you MUST NOT focus on multiple inconsistencies at the same time
-- When focusing on a certain data schema, YOU MUST use the tool to retrieve operators using the data schema
-- When you want to switch the focus, YOU MUST use the tool to retrieve relevant operators using the data schema
+- Start with single table, single columns, gradually go deeper to cross-columns, multi-table cases.
+- Learn to use DataProfile operator to learn more about the data
 `;
 
 export const PLANNING_MODE_PROMPT = `
