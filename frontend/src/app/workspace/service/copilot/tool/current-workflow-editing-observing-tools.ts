@@ -138,7 +138,7 @@ export function createAddLinkToCurrentWorkflowTool(workflowActionService: Workfl
             linkId: link.linkID,
             message: `Connected ${args.sourceOperatorId}:${sourcePId} to ${args.targetOperatorId}:${targetPId}`,
           },
-          [args.sourceOperatorId, args.targetOperatorId],
+          [args.sourceOperatorId, args.targetOperatorId]
         );
       } catch (error: any) {
         return createErrorResult(error.message);

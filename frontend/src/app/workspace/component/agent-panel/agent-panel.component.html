@@ -103,6 +103,13 @@
         </ng-template>
       </nz-tab>
 
+      <!-- Data Inconsistencies Tab -->
+      <nz-tab nzTitle="Data Inconsistencies">
+        <ng-template nz-tab>
+          <texera-inconsistency-list></texera-inconsistency-list>
+        </ng-template>
+      </nz-tab>
+
       <!-- Agent Tabs -->
       <nz-tab
         *ngFor="let agent of agents"

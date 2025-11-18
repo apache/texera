@@ -137,7 +137,7 @@ import { ErrorFrameComponent } from "./workspace/component/result-panel/error-fr
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
-import { InconsistencyListComponent } from "./workspace/component/left-panel/inconsistency-list/inconsistency-list.component";
+import { InconsistencyListComponent } from "./workspace/component/agent-panel/data-inconsistencies/inconsistency-list.component";
 import { AddInconsistencyModalComponent } from "./workspace/component/add-inconsistency-modal/add-inconsistency-modal.component";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
