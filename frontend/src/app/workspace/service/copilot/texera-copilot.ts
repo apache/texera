@@ -401,6 +401,9 @@ export class TexeraCopilot {
             console.warn(retryMessage);
             this.notificationService.info(retryMessage);
 
+            // Clear message history before retrying for a fresh start
+            this.clearMessages();
+
             // Retry by recursively calling sendMessage
             return this.sendMessage(message);
           } else {
