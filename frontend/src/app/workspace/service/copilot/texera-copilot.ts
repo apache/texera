@@ -53,7 +53,6 @@ import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
-import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS } from "./tool/current-workflow-editing-observing-tools";
 import { parseOperatorAccessFromStep, ToolOperatorAccess } from "./tool/react-step-operator-parser";
@@ -162,7 +161,6 @@ export class TexeraCopilot {
     private notificationService: NotificationService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowConsoleService: WorkflowConsoleService,
-    private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService
   ) {
     this.modelType = "";
@@ -292,7 +290,7 @@ export class TexeraCopilot {
             if (this.shouldStopAfterActionPlan) {
               return true;
             }
-            return stepCountIs(50)({ steps });
+            return stepCountIs(500)({ steps });
           },
           onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
             if (this.state === CopilotState.STOPPING) {
@@ -548,7 +546,6 @@ export class TexeraCopilot {
         this.executeWorkflowService,
         this.workflowActionService,
         this.workflowConsoleService,
-        this.workflowWebsocketService,
         this.workflowStatusService
       )
     );
