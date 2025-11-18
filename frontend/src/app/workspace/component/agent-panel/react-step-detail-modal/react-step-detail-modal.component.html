@@ -57,6 +57,33 @@
         </nz-descriptions>
       </div>
 
+      <!-- Text Content Section -->
+      <div
+        *ngIf="step.content && step.content.trim().length > 0"
+        style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="file-text"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Content
+        </h4>
+        <div
+          style="
+            background: #fafafa;
+            padding: 16px;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #262626;
+          ">{{ step.content }}</div>
+      </div>
+
       <!-- Dependent Steps Section -->
       <div
         *ngIf="dependentSteps.length > 0"
@@ -219,7 +246,11 @@
       <!-- No Data Message -->
       <div
         *ngIf="
-          !step.usage && (!step.toolCalls || step.toolCalls.length === 0) && !hasOperatorAccess(step) && dependentSteps.length === 0
+          (!step.content || step.content.trim().length === 0) &&
+          !step.usage &&
+          (!step.toolCalls || step.toolCalls.length === 0) &&
+          !hasOperatorAccess(step) &&
+          dependentSteps.length === 0
         "
         style="text-align: center; padding: 40px; color: #8c8c8c">
         <i
