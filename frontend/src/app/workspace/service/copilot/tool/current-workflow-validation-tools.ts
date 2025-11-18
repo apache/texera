@@ -65,7 +65,7 @@ export function createGetCurrentWorkflowValidationInfoTool(
                 ? "No validation errors in the workflow"
                 : `Found ${errorCount} operator(s) with validation errors. ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
           },
-          validOperatorIds,
+          [],
           []
         );
       } catch (error: any) {
@@ -76,40 +76,52 @@ export function createGetCurrentWorkflowValidationInfoTool(
 }
 
 /**
- * Create validateOperator tool for validating a specific operator
+ * Create validateOperator tool for validating a list of operators
  */
 export function createValidateCurrentOperatorTool(validationWorkflowService: ValidationWorkflowService) {
   return tool({
     name: TOOL_NAME_VALIDATE_CURRENT_OPERATOR,
     description:
-      "Validate a specific operator in the current workflow to check if it's properly configured. Returns validation status and any error messages if invalid.",
+      "Validate a list of operators in the current workflow to check if they're properly configured. Returns an array of validation results with status and error messages for each operator.",
     inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to validate"),
+      operatorIds: z.array(z.string()).describe("Array of operator IDs to validate"),
     }),
-    execute: async (args: { operatorId: string }) => {
+    execute: async (args: { operatorIds: string[] }) => {
       try {
-        const validation = validationWorkflowService.validateOperator(args.operatorId);
+        const validationResults = args.operatorIds.map(operatorId => {
+          const validation = validationWorkflowService.validateOperator(operatorId);
 
-        if (validation.isValid) {
-          return createSuccessResult(
-            {
+          if (validation.isValid) {
+            return {
+              operatorId: operatorId,
               isValid: true,
-              message: `Operator ${args.operatorId} is valid`,
-            },
-            [args.operatorId],
-            []
-          );
-        } else {
-          return createSuccessResult(
-            {
+              message: `Operator ${operatorId} is valid`,
+            };
+          } else {
+            return {
+              operatorId: operatorId,
               isValid: false,
-              errors: validation.messages,
-              message: `Operator ${args.operatorId} has validation errors`,
-            },
-            [args.operatorId],
-            []
-          );
-        }
+              message: Object.values(validation.messages).join("; "),
+            };
+          }
+        });
+
+        const validCount = validationResults.filter(r => r.isValid).length;
+        const invalidCount = validationResults.length - validCount;
+
+        return createSuccessResult(
+          {
+            results: validationResults,
+            validCount: validCount,
+            invalidCount: invalidCount,
+            message:
+              invalidCount === 0
+                ? `All ${validCount} operator(s) are valid`
+                : `${validCount} valid, ${invalidCount} invalid out of ${validationResults.length} operator(s)`,
+          },
+          args.operatorIds,
+          []
+        );
       } catch (error: any) {
         return createErrorResult(error.message);
       }
