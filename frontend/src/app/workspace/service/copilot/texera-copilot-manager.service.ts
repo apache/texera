@@ -218,13 +218,26 @@ export class TexeraCopilotManagerService {
   /**
    * Send a message to an agent.
    * Returns an Observable that completes when the message is processed.
+   * @param agentId - The ID of the agent to send the message to
+   * @param message - The message to send
+   * @param relevantSteps - Optional array of relevant ReAct steps for context
    */
-  public sendMessage(agentId: string, message: string): Observable<void> {
+  public sendMessage(
+    agentId: string,
+    message: string,
+    relevantSteps: Array<{ agentId: string; messageId: string; stepId: number }> = []
+  ): Observable<void> {
     return defer(() => {
       const agent = this.agents.get(agentId);
       if (!agent) {
         return throwError(() => new Error(`Agent with ID ${agentId} not found`));
       }
+
+      // Log relevant steps for now (as requested by user)
+      if (relevantSteps.length > 0) {
+        console.log("Sending message with relevant steps:", relevantSteps);
+      }
+
       return agent.instance.sendMessage(message);
     });
   }

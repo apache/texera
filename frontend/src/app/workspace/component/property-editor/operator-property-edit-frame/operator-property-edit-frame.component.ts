@@ -150,6 +150,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // ReActSteps that modified this operator
   public modifyingReActSteps: ReActStep[] = [];
 
+  // Agent interaction properties
+  public availableAgents: Array<{ id: string; name: string }> = [];
+  public selectedAgentId: string | null = null;
+  public feedbackMessage: string = "";
+
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -199,6 +204,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorStatus = update[this.currentOperatorId];
         }
       });
+
+    // Load available agents and subscribe to changes
+    this.loadAvailableAgents();
+    this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
+      this.loadAvailableAgents();
+    });
   }
 
   /**
@@ -829,5 +840,59 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       placeholder: "Start collaborating...",
       theme: "snow",
     });
+  }
+
+  /**
+   * Load available agents from the copilot manager service.
+   */
+  private loadAvailableAgents(): void {
+    this.copilotManagerService.getAllAgents().subscribe(agents => {
+      this.availableAgents = agents.map(agent => ({
+        id: agent.id,
+        name: agent.name,
+      }));
+
+      // If there's only one agent, auto-select it
+      if (this.availableAgents.length === 1) {
+        this.selectedAgentId = this.availableAgents[0].id;
+      }
+
+      this.changeDetectorRef.detectChanges();
+    });
+  }
+
+  /**
+   * Send feedback message to the selected agent with relevant steps.
+   */
+  public sendFeedbackToAgent(): void {
+    if (!this.selectedAgentId || !this.feedbackMessage.trim() || !this.currentOperatorId) {
+      return;
+    }
+
+    // Collect relevant steps from modifyingReActSteps
+    const relevantSteps = this.modifyingReActSteps.map(step => ({
+      agentId: this.selectedAgentId!,
+      messageId: step.messageId,
+      stepId: step.stepId,
+    }));
+
+    // Construct the message with context about the operator
+    const operatorName = this.formTitle || "this operator";
+    const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.currentOperatorId}): ${this.feedbackMessage.trim()}`;
+
+    // Send message to the selected agent
+    this.copilotManagerService
+      .sendMessage(this.selectedAgentId, contextMessage, relevantSteps)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success("Message sent to agent successfully");
+          this.feedbackMessage = "";
+          this.changeDetectorRef.detectChanges();
+        },
+        error: (error: unknown) => {
+          this.notificationService.error(`Failed to send message: ${error}`);
+        },
+      });
   }
 }
