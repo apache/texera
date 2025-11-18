@@ -113,6 +113,9 @@ export interface CopilotMessageStats {
  */
 @Injectable()
 export class TexeraCopilot {
+  // Maximum number of retries for failed message attempts
+  private static readonly MAX_RETRY_COUNT = 3;
+
   private model: any;
   private modelType: string;
   private agentId: string = "";
@@ -134,6 +137,8 @@ export class TexeraCopilot {
   private messageStatsSubject = new BehaviorSubject<Map<string, CopilotMessageStats>>(new Map());
   public messageStats$ = this.messageStatsSubject.asObservable();
   private messageIdCounter: number = 0;
+  // Track retry count for each message attempt
+  private retryCountMap: Map<string, number> = new Map();
   // Track which message is being hovered and its operator IDs
   private hoveredMessageOperatorsSubject = new BehaviorSubject<{
     viewedOperatorIds: string[];
@@ -215,6 +220,9 @@ export class TexeraCopilot {
         return throwError(() => new Error(`Cannot send message: agent is ${this.state}`));
       }
 
+      // Get current retry count for this message
+      const currentRetryCount = this.retryCountMap.get(message) || 0;
+
       // Set state to generating
       this.setState(CopilotState.GENERATING);
       this.shouldStopAfterActionPlan = false;
@@ -236,6 +244,10 @@ export class TexeraCopilot {
       };
       this.messageStatsMap.set(messageId, messageStats);
       this.messageStatsSubject.next(new Map(this.messageStatsMap));
+
+      // Store current state lengths for cleanup on error
+      const messagesLengthBeforeRequest = this.messages.length;
+      const reActStepsLengthBeforeRequest = this.reActSteps.length;
 
       // Add user message
       const userMessage: UserModelMessage = { role: "user", content: message };
@@ -356,36 +368,80 @@ export class TexeraCopilot {
             this.messageStatsMap.set(messageId, stats);
             this.messageStatsSubject.next(new Map(this.messageStatsMap));
           }
+
+          // Clear retry count on successful completion
+          this.retryCountMap.delete(message);
         }),
         map(() => undefined),
         catchError((err: unknown) => {
           const errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
-          const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
-          this.messages.push(assistantError);
 
-          const errorResponse: ReActStep = {
-            messageId: messageId,
-            stepId: ++stepIndex,
-            timestamp: new Date(),
-            role: "agent",
-            content: errorText,
-            isBegin: false,
-            isEnd: true,
-          };
-          this.reActSteps.push(errorResponse);
+          // Clean up the failed attempt
+          // 1. Remove all messages added since this request started
+          this.messages.splice(messagesLengthBeforeRequest);
+
+          // 2. Remove all reActSteps added for this messageId
+          this.reActSteps.splice(reActStepsLengthBeforeRequest);
           this.reActStepsSubject.next([...this.reActSteps]);
 
-          // Update stats for error
-          const stats = this.messageStatsMap.get(messageId);
-          if (stats) {
-            stats.endTime = new Date();
-            stats.status = "error";
-            stats.errorMessage = errorText;
-            this.messageStatsMap.set(messageId, stats);
-            this.messageStatsSubject.next(new Map(this.messageStatsMap));
-          }
+          // 3. Remove message stats for this failed attempt
+          this.messageStatsMap.delete(messageId);
+          this.messageStatsSubject.next(new Map(this.messageStatsMap));
 
-          return throwError(() => err);
+          // 4. Reset state to available for retry
+          this.setState(CopilotState.AVAILABLE);
+
+          // Check if we should retry
+          if (currentRetryCount < TexeraCopilot.MAX_RETRY_COUNT) {
+            // Increment retry count
+            this.retryCountMap.set(message, currentRetryCount + 1);
+
+            // Log retry attempt
+            const retryMessage = `Retrying message (attempt ${currentRetryCount + 2}/${TexeraCopilot.MAX_RETRY_COUNT + 1}) after error: ${errorText}`;
+            console.warn(retryMessage);
+            this.notificationService.info(retryMessage);
+
+            // Retry by recursively calling sendMessage
+            return this.sendMessage(message);
+          } else {
+            // Max retries exceeded, clean up retry count and show error
+            this.retryCountMap.delete(message);
+
+            // Add error message to UI
+            const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
+            this.messages.push(assistantError);
+
+            const errorResponse: ReActStep = {
+              messageId: messageId,
+              stepId: ++stepIndex,
+              timestamp: new Date(),
+              role: "agent",
+              content: errorText,
+              isBegin: false,
+              isEnd: true,
+            };
+            this.reActSteps.push(errorResponse);
+            this.reActStepsSubject.next([...this.reActSteps]);
+
+            // Add stats for the final failed attempt
+            const failedStats: CopilotMessageStats = {
+              messageId,
+              userMessage: message,
+              startTime: new Date(),
+              endTime: new Date(),
+              totalInputTokens: 0,
+              totalOutputTokens: 0,
+              totalTokens: 0,
+              cachedInputTokens: 0,
+              stepCount: 0,
+              status: "error",
+              errorMessage: `Failed after ${TexeraCopilot.MAX_RETRY_COUNT} retries: ${errorText}`,
+            };
+            this.messageStatsMap.set(messageId, failedStats);
+            this.messageStatsSubject.next(new Map(this.messageStatsMap));
+
+            return throwError(() => err);
+          }
         }),
         finalize(() => {
           // Always set state back to available when done
