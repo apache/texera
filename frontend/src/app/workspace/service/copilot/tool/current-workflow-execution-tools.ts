@@ -23,6 +23,8 @@ import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.
 import { WorkflowResultService } from "../../workflow-result/workflow-result.service";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
+import { WorkflowWebsocketService } from "../../workflow-websocket/workflow-websocket.service";
+import { WorkflowStatusService } from "../../workflow-status/workflow-status.service";
 import {
   estimateTokenCount,
   MAX_OPERATOR_RESULT_TOKEN_LIMIT,
@@ -79,11 +81,20 @@ export function createExecuteCurrentWorkflowTool(executeWorkflowService: Execute
 export function createGetCurrentExecutionStateTool(
   executeWorkflowService: ExecuteWorkflowService,
   workflowActionService: WorkflowActionService,
-  workflowConsoleService: WorkflowConsoleService
+  workflowConsoleService: WorkflowConsoleService,
+  workflowWebsocketService: WorkflowWebsocketService,
+  workflowStatusService: WorkflowStatusService
 ) {
+  // Track execution duration by subscribing to websocket events
+  let executionDuration = 0;
+  workflowWebsocketService.subscribeToEvent("ExecutionDurationUpdateEvent").subscribe(event => {
+    executionDuration = event.duration;
+  });
+
   return tool({
     name: TOOL_NAME_GET_CURRENT_EXECUTION_STATE,
-    description: "Get the current execution state of the workflow, including console logs from operators",
+    description:
+      "Get the current execution state of the workflow, including console logs, execution duration, and operator states (Running=orange, Completed=green, Ready=lime, Paused=magenta)",
     inputSchema: z.object({}),
     execute: async () => {
       try {
@@ -103,11 +114,26 @@ export function createGetCurrentExecutionStateTool(
           }
         }
 
+        // Get operator states for all operators
+        const operatorStates = workflowStatusService.getCurrentStatus();
+
+        // Format execution duration from milliseconds to HH:MM:SS
+        const totalSeconds = Math.floor(executionDuration / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        const executionDurationFormatted = `${hours.toString().padStart(2, "0")}:${minutes
+          .toString()
+          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+
         // Only include essential information, not the entire stateInfo which can be very large
         return createSuccessResult(
           {
             state: stateInfo,
             consoleLogs: consoleLogs,
+            operatorStates: operatorStates,
+            executionDurationMs: executionDuration,
+            executionDuration: executionDurationFormatted,
           },
           [],
           []

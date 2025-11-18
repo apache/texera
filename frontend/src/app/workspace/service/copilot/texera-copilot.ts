@@ -28,6 +28,7 @@ import * as currentWorkflowValidationTools from "./tool/current-workflow-validat
 import * as currentWorkflowExecutionTools from "./tool/current-workflow-execution-tools";
 import * as actionPlanTools from "./tool/action-plan-tools";
 import * as dataInconsistencyTools from "./tool/data-inconsistency-tools";
+import * as reactStepRetrievalTools from "./tool/react-step-retrieval-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
@@ -52,6 +53,8 @@ import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
+import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS } from "./tool/current-workflow-editing-observing-tools";
 import { parseOperatorAccessFromStep, ToolOperatorAccess } from "./tool/react-step-operator-parser";
 
@@ -158,7 +161,9 @@ export class TexeraCopilot {
     private actionPlanService: ActionPlanService,
     private notificationService: NotificationService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private workflowConsoleService: WorkflowConsoleService
+    private workflowConsoleService: WorkflowConsoleService,
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private workflowStatusService: WorkflowStatusService
   ) {
     this.modelType = "";
   }
@@ -542,7 +547,9 @@ export class TexeraCopilot {
       currentWorkflowExecutionTools.createGetCurrentExecutionStateTool(
         this.executeWorkflowService,
         this.workflowActionService,
-        this.workflowConsoleService
+        this.workflowConsoleService,
+        this.workflowWebsocketService,
+        this.workflowStatusService
       )
     );
     const killCurrentWorkflowTool = toolWithTimeout(
@@ -603,6 +610,14 @@ export class TexeraCopilot {
     const deleteActionPlanTool = toolWithTimeout(actionPlanTools.createDeleteActionPlanTool(this.actionPlanService));
     const updateActionPlanTool = toolWithTimeout(actionPlanTools.createUpdateActionPlanTool(this.actionPlanService));
 
+    // ReAct step retrieval tools (for accessing historical steps)
+    const getReActStepTool = toolWithTimeout(
+      reactStepRetrievalTools.createGetReActStepTool((messageId, stepId) => this.getReActStepById(messageId, stepId))
+    );
+    const getReActStepsByMessageTool = toolWithTimeout(
+      reactStepRetrievalTools.createGetReActStepsByMessageTool(messageId => this.getReActStepsByMessageId(messageId))
+    );
+
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // meta level knowledge
@@ -646,6 +661,9 @@ export class TexeraCopilot {
       [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
+      // ReAct step retrieval tools
+      [reactStepRetrievalTools.TOOL_NAME_GET_REACT_STEP]: getReActStepTool,
+      [reactStepRetrievalTools.TOOL_NAME_GET_REACT_STEPS_BY_MESSAGE]: getReActStepsByMessageTool,
     };
 
     if (this.planningMode) {
@@ -665,6 +683,20 @@ export class TexeraCopilot {
 
   public getReActSteps(): ReActStep[] {
     return [...this.reActSteps];
+  }
+
+  /**
+   * Get a specific ReAct step by messageId and stepId
+   */
+  public getReActStepById(messageId: string, stepId: number): ReActStep | undefined {
+    return this.reActSteps.find(step => step.messageId === messageId && step.stepId === stepId);
+  }
+
+  /**
+   * Get all ReAct steps for a specific message
+   */
+  public getReActStepsByMessageId(messageId: string): ReActStep[] {
+    return this.reActSteps.filter(step => step.messageId === messageId);
   }
 
   public stopGeneration(): void {

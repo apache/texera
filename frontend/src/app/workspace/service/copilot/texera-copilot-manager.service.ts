@@ -233,12 +233,17 @@ export class TexeraCopilotManagerService {
         return throwError(() => new Error(`Agent with ID ${agentId} not found`));
       }
 
-      // Log relevant steps for now (as requested by user)
+      // If there are relevant steps, append them to the message
+      let finalMessage = message;
       if (relevantSteps.length > 0) {
         console.log("Sending message with relevant steps:", relevantSteps);
+        const stepsInfo = relevantSteps
+          .map(step => `- Agent: ${step.agentId}, Message: ${step.messageId}, Step: ${step.stepId}`)
+          .join("\n");
+        finalMessage = `${message}\n\nRelevant ReAct Steps:\n${stepsInfo}\n\nPlease use the appropriate tools to retrieve the details of these relevant steps for context.`;
       }
 
-      return agent.instance.sendMessage(message);
+      return agent.instance.sendMessage(finalMessage);
     });
   }
 

@@ -77,6 +77,9 @@ export function createAddOperatorToCurrentWorkflowTool(
         // Add the operator to the workflow first
         workflowActionService.addOperator(operator, position);
 
+        // Auto-layout the workflow after adding operator
+        workflowActionService.autoLayoutWorkflow();
+
         // Show copilot is adding this operator (after it's added to graph)
         setTimeout(() => {}, 100);
 
@@ -132,6 +135,9 @@ export function createAddLinkToCurrentWorkflowTool(workflowActionService: Workfl
         };
 
         workflowActionService.addLink(link);
+
+        // Auto-layout the workflow after adding link
+        workflowActionService.autoLayoutWorkflow();
 
         return createSuccessResult(
           {

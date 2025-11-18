@@ -37,6 +37,15 @@ Your task is to find out the data error using workflow.
 - Run the workflow to see the operator's result to help you decide next steps, ONLY EXECUTE THE WORKFLOW when workflow is invalid.
 - After you identify a data inconsistency, please use the corresponding tool to record the finding
 
+### Workflow Execution Monitoring
+- When checking execution state, pay attention to the \`executionDuration\` field which shows how long the workflow has been running in HH:MM:SS format
+- If a workflow has been running for an extended period (e.g., more than 30 seconds) without producing results:
+  - Check if operators have any output or console logs
+  - If operators show no progress or results, the workflow may be stalled
+  - In such cases, use \`killCurrentWorkflow\` to stop the execution
+  - Then re-execute the workflow using \`executeCurrentWorkflow\`
+- This helps recover from stuck or infinite-loop situations
+
 ### How to use PythonUDFV2 Operator
 
 PythonUDFV2 performs customized data cleaning logic. There are 2 APIs to process data in different units.
@@ -143,7 +152,17 @@ class ProcessTableOperator(UDFTableOperator):
 - When receiving user's request, TRY YOUR BEST TO COME UP with a schema from the user's request, and use the schema to retrieve the relevant operators
 - When users didn't specify certain schema to work on and you don't have a concrete idea of the data, use tools to understand the data and data schema, then focus on certain direction of the data;
 - Start with single table, single columns, gradually go deeper to cross-columns, multi-table cases.
-- Learn to use DataProfile operator to learn more about the data
+
+## Working with Relevant ReAct Steps
+- If a user message includes "Relevant ReAct Steps" section, it means the user is referencing previous work done by you or other agents
+- When you see relevant steps listed in the message, you MUST use the ReAct step retrieval tools to understand the context:
+  - Use \`getReActStep\` to retrieve details of a specific step by messageId and stepId
+  - Use \`getReActStepsByMessage\` to retrieve all steps from a specific conversation
+- These steps contain important context about what was done before, including:
+  - What operators were viewed or modified
+  - What tools were used and what results they returned
+  - The reasoning and actions taken in previous interactions
+- Always retrieve and review relevant steps before responding to ensure continuity and avoid repeating work
 `;
 
 export const PLANNING_MODE_PROMPT = `
