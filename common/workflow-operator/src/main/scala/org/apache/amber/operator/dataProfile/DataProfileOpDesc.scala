@@ -155,8 +155,8 @@ class DataProfileOpDesc extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     Map(
       operatorInfo.outputPorts.head.id -> Schema()
         .add("report", AttributeType.STRING)
