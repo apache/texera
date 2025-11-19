@@ -61,31 +61,42 @@ c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,16
 c42.109,42.109,42.109,110.626,0,152.735C160.199,244.417,91.683,244.417,49.574,202.309z"/>
 <path d="M194.823,116.941H57.059c-4.971,0-9,4.029-9,9s4.029,9,9,9h137.764c4.971,0,9-4.029,9-9S199.794,116.941,194.823,116.941z"
 />`;
-
 export const addInputPortButtonSVG = `
   <svg class="add-input-port-button">
-    <g transform="scale(0.075)">${addPortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${addPortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>add port</title>
   </svg>
 `;
 
 export const removeInputPortButtonSVG = `
   <svg class="remove-input-port-button">
-  <g transform="scale(0.075)">${removePortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${removePortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>remove port</title>
   </svg>
 `;
 
 export const addOutputPortButtonSVG = `
   <svg class="add-output-port-button">
-    <g transform="scale(0.075)">${addPortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${addPortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>add port</title>
   </svg>
 `;
 
 export const removeOutputPortButtonSVG = `
   <svg class="remove-output-port-button">
-    <g transform="scale(0.075)">${removePortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${removePortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>remove port</title>
   </svg>
 `;
@@ -810,32 +821,32 @@ export class JointUIService {
         visibility: "hidden",
       },
       ".add-input-port-button": {
-        x: -22,
-        y: 40,
+        x: -25,
+        y: 65,
         cursor: "pointer",
         fill: "#565656",
         event: "element:add-input-port",
         visibility: "hidden",
       },
       ".remove-input-port-button": {
-        x: -22,
-        y: 60,
+        x: -25,
+        y: 85,
         cursor: "pointer",
         fill: "#565656",
         event: "element:remove-input-port",
         visibility: "hidden",
       },
       ".add-output-port-button": {
-        x: 62,
-        y: 40,
+        x: 65,
+        y: 65,
         cursor: "pointer",
         fill: "#565656",
         event: "element:add-output-port",
         visibility: "hidden",
       },
       ".remove-output-port-button": {
-        x: 62,
-        y: 60,
+        x: 65,
+        y: 85,
         cursor: "pointer",
         fill: "#565656",
         event: "element:remove-output-port",

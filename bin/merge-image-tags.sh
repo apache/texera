@@ -16,18 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 set -e
 
-# Prompt for base tag
+# Accept parameters from command line
 DEFAULT_TAG="latest"
-read -p "Enter the base tag to merge [${DEFAULT_TAG}]: " BASE_TAG
-BASE_TAG=${BASE_TAG:-$DEFAULT_TAG}
-
-# Prompt for which services' manifests to merge
 DEFAULT_SERVICES="*"
-read -p "Enter services to merge (comma-separated, '*' for all) [${DEFAULT_SERVICES}]: " SERVICES_INPUT
-SERVICES_INPUT=${SERVICES_INPUT:-$DEFAULT_SERVICES}
+
+BASE_TAG="${1:-$DEFAULT_TAG}"
+SERVICES_INPUT="${2:-$DEFAULT_SERVICES}"
+
+echo "Using base tag: $BASE_TAG"
+echo "Services to merge: $SERVICES_INPUT"
 
 # Convert input into array for lookup
 IFS=',' read -ra SELECTED_SERVICES <<< "$SERVICES_INPUT"
@@ -82,3 +81,8 @@ for svc in "${services[@]}"; do
 
   echo "✅ Created manifest: texera/$svc:$BASE_TAG"
 done
+
+echo ""
+echo "=========================================="
+echo "✅ All manifests merged successfully!"
+echo "=========================================="

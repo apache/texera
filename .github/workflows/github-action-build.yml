@@ -17,6 +17,9 @@
 
 name: Build
 
+env:
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+  
 on:
   push:
     branches:
@@ -128,7 +131,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
+        python-version: [ '3.10', '3.11', '3.12' ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Texera
