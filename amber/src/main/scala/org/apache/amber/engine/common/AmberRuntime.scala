@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.common
 
-import akka.actor.{ActorSystem, Address, Cancellable, DeadLetter, Props}
-import akka.serialization.{Serialization, SerializationExtension}
+import org.apache.pekko.actor.{ActorSystem, Address, Cancellable, DeadLetter, Props}
+import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.amber.clustering.ClusterListener
 import org.apache.amber.config.AkkaConfig
@@ -79,9 +79,9 @@ object AmberRuntime {
 
     val masterConfig = ConfigFactory
       .parseString(s"""
-        akka.remote.artery.canonical.port = 2552
-        akka.remote.artery.canonical.hostname = $localIpAddress
-        akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
+        pekko.remote.artery.canonical.port = 2552
+        pekko.remote.artery.canonical.hostname = $localIpAddress
+        pekko.cluster.seed-nodes = [ "pekko://Amber@$localIpAddress:2552" ]
         """)
       .withFallback(akkaConfig)
       .resolve()
@@ -91,7 +91,7 @@ object AmberRuntime {
 
   def akkaConfig: Config = AkkaConfig.akkaConfig
 
-  private def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
+  private def createMasterAddress(addr: String): Address = Address("pekko", "Amber", addr, 2552)
 
   def startActorWorker(mainNodeAddress: Option[String]): Unit = {
     val addr = mainNodeAddress.getOrElse("localhost")
@@ -101,9 +101,9 @@ object AmberRuntime {
     }
     val workerConfig = ConfigFactory
       .parseString(s"""
-        akka.remote.artery.canonical.hostname = $localIpAddress
-        akka.remote.artery.canonical.port = 0
-        akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
+        pekko.remote.artery.canonical.hostname = $localIpAddress
+        pekko.remote.artery.canonical.port = 0
+        pekko.cluster.seed-nodes = [ "pekko://Amber@$addr:2552" ]
         """)
       .withFallback(akkaConfig)
       .resolve()

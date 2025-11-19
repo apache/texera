@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 
+import javax.validation.constraints.NotNull
+
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -42,12 +44,14 @@ class LineConfig {
   @JsonSchemaTitle("Y Value")
   @JsonPropertyDescription("value for y axis")
   @AutofillAttributeName
+  @NotNull(message = "Y Value cannot be empty")
   var yValue: String = ""
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Value")
   @JsonPropertyDescription("value for x axis")
   @AutofillAttributeName
+  @NotNull(message = "X Value cannot be empty")
   var xValue: String = ""
 
   @JsonProperty(
@@ -56,6 +60,7 @@ class LineConfig {
     defaultValue = "line with dots"
   )
   @JsonSchemaTitle("Line Mode")
+  @NotNull(message = "Line Mode cannot be empty")
   var mode: LineMode = LineMode.LINE_WITH_DOTS
 
   @JsonProperty(value = "name", required = false)

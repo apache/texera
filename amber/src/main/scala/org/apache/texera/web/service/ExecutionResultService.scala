@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.service
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging

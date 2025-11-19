@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.worker
 
-import akka.actor.Props
+import org.apache.pekko.actor.Props
 import org.apache.amber.core.virtualidentity.{ChannelIdentity, EmbeddedControlMessageIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor
 import org.apache.amber.engine.architecture.common.WorkflowActor.NetworkAck

@@ -25,6 +25,6 @@ object AkkaConfig {
   // Load configuration
   private val conf: Config = ConfigFactory.parseResources("cluster.conf").resolve()
 
-  // Return the complete Akka configuration with fallback to default application config
+  // Return the complete Pekko configuration with fallback to default application config
   def akkaConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
 }

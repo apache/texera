@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.common.ambermessage
 
-import akka.actor.{ActorRef, Address}
+import org.apache.pekko.actor.{ActorRef, Address}
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 sealed trait RecoveryPayload extends Serializable {}

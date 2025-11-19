@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.architecture.common
 
-import akka.actor.{Address, Deploy}
-import akka.remote.RemoteScope
+import org.apache.pekko.actor.{Address, Deploy}
+import org.apache.pekko.remote.RemoteScope
 import org.apache.amber.core.workflow.{PhysicalOp, PreferController, RoundRobinPreference}
 import org.apache.amber.engine.architecture.controller.execution.OperatorExecution
 import org.apache.amber.engine.architecture.deploysemantics.AddressInfo

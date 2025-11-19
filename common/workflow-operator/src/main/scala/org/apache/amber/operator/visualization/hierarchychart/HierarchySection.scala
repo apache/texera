@@ -23,11 +23,14 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 
+import javax.validation.constraints.NotNull
+
 // This is a hack to get a order-preserve selection from the combobox
 // TODO: remove it after we enabled a order-preserve combobox on the frontend.
 class HierarchySection {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute Name")
   @AutofillAttributeName
+  @NotNull(message = "Attribute Name cannot be empty")
   var attributeName: String = ""
 }

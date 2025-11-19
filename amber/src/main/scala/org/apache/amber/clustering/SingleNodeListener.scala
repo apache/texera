@@ -19,7 +19,7 @@
 
 package org.apache.amber.clustering
 
-import akka.actor.{Actor, ActorLogging}
+import org.apache.pekko.actor.{Actor, ActorLogging}
 import org.apache.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 
 class SingleNodeListener extends Actor with ActorLogging {

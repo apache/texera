@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.messaginglayer
 
-import akka.actor.{Actor, DeadLetter}
+import org.apache.pekko.actor.{Actor, DeadLetter}
 import org.apache.amber.engine.architecture.common.WorkflowActor.{
   MessageBecomesDeadLetter,
   NetworkMessage
