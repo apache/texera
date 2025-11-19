@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.common
 
-import akka.actor.ActorRef
+import org.apache.pekko.actor.ActorRef
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor.{
   CreditRequest,

@@ -28,6 +28,8 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 /**
   * Visualization Operator to visualize results as a Bubble Chart
   * User specifies 2 columns to use for the x, y labels. Size of bubbles determined via
@@ -40,17 +42,23 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "xValue", required = true)
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("Data column for the x-axis")
-  @AutofillAttributeName var xValue: String = ""
+  @AutofillAttributeName
+  @NotNull(message = "xValue column cannot be empty")
+  var xValue: String = ""
 
   @JsonProperty(value = "yValue", required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Data column for the y-axis")
-  @AutofillAttributeName var yValue: String = ""
+  @AutofillAttributeName
+  @NotNull(message = "yValue column cannot be empty")
+  var yValue: String = ""
 
   @JsonProperty(value = "zValue", required = true)
   @JsonSchemaTitle("Z-Column")
   @JsonPropertyDescription("Data column to determine bubble size")
-  @AutofillAttributeName var zValue: String = ""
+  @AutofillAttributeName
+  @NotNull(message = "zValue column cannot be empty")
+  var zValue: String = ""
 
   @JsonProperty(value = "enableColor", defaultValue = "false")
   @JsonSchemaTitle("Enable Color")
@@ -60,7 +68,9 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "colorCategory", required = true)
   @JsonSchemaTitle("Color-Column")
   @JsonPropertyDescription("Picks data column to color bubbles with if color is enabled")
-  @AutofillAttributeName var colorCategory: String = ""
+  @AutofillAttributeName
+  @NotNull(message = "colorCategory column cannot be empty")
+  var colorCategory: String = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]

@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.common
 
-import akka.serialization.{Serialization, Serializers}
+import org.apache.pekko.serialization.{Serialization, Serializers}
 
 object SerializedState {
 

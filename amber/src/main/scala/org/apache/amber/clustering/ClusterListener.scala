@@ -19,9 +19,9 @@
 
 package org.apache.amber.clustering
 
-import akka.actor.{Actor, Address}
-import akka.cluster.Cluster
-import akka.cluster.ClusterEvent._
+import org.apache.pekko.actor.{Actor, Address}
+import org.apache.pekko.cluster.Cluster
+import org.apache.pekko.cluster.ClusterEvent._
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import org.apache.amber.clustering.ClusterListener.numWorkerNodesInCluster

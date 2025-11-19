@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.deploysemantics
 
-import akka.actor.Address
+import org.apache.pekko.actor.Address
 
 // Holds worker and controller node addresses.
 case class AddressInfo(
