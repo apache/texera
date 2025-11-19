@@ -35,12 +35,12 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.time.{OffsetDateTime, ZoneOffset, Duration}
 import java.util
 import java.util.Collections
 import java.util.concurrent.TimeUnit
@@ -51,6 +51,10 @@ class WorkflowResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
+  // An example creation time to test Account Creation Time attribute
+  private val exampleCreationTime: OffsetDateTime =
+    OffsetDateTime.parse("2025-01-01T00:00:00Z")
+
   private val testUser: User = {
     val user = new User
     user.setUid(Integer.valueOf(1))
@@ -58,6 +62,7 @@ class WorkflowResourceSpec
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment")
+    user.setAccountCreationTime(exampleCreationTime)
     user
   }
 
@@ -68,6 +73,7 @@ class WorkflowResourceSpec
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment2")
+    user.setAccountCreationTime(exampleCreationTime)
     user
   }
 
@@ -197,8 +203,101 @@ class WorkflowResourceSpec
     keywordsList
   }
 
+  private def insertAndAssertAccountCreation(uid: Int, ts: OffsetDateTime): Unit = {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u = new User
+    u.setUid(Integer.valueOf(uid))
+    u.setName(s"tmp_user_$uid")
+    u.setRole(UserRoleEnum.REGULAR)
+    u.setPassword("pw")
+    u.setComment("tmp")
+    u.setAccountCreationTime(ts)
+    userDao.insert(u)
+
+    try {
+      val fetched = userDao.fetchOneByUid(Integer.valueOf(uid))
+      assert(fetched.getAccountCreationTime != null)
+      assert(fetched.getAccountCreationTime.isEqual(ts))
+    } finally {
+      userDao.deleteById(Integer.valueOf(uid))
+    }
+  }
+
   private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
+  }
+
+  "User.accountCreationTime" should "be persisted and retrievable via UserDao" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    val u2 = userDao.fetchOneByUid(Integer.valueOf(2))
+
+    assert(u1.getAccountCreationTime != null)
+    assert(u2.getAccountCreationTime != null)
+
+    assert(u1.getAccountCreationTime.isEqual(exampleCreationTime))
+    assert(u2.getAccountCreationTime.isEqual(exampleCreationTime))
+  }
+
+  it should "remain unchanged when updating unrelated fields" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    val originalTime = u1.getAccountCreationTime
+
+    u1.setComment("updated_comment")
+    userDao.update(u1)
+
+    val test_u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    assert(test_u1.getAccountCreationTime.isEqual(originalTime))
+  }
+
+  it should "fallback to DB default when not explicitly set on insert" in {
+    // account_creation_time TIMESTAMPTZ NOT NULL DEFAULT now()
+    val userDao = new UserDao(getDSLContext.configuration())
+    // Test user 3 on top of test user 1 and 2
+    val userId = 3
+    val tmp = new User
+    tmp.setUid(Integer.valueOf(userId))
+    tmp.setName("tmp_user")
+    tmp.setRole(UserRoleEnum.REGULAR)
+    tmp.setPassword("pw")
+    tmp.setComment("tmp")
+    // Account creation time not set
+    userDao.insert(tmp)
+
+    val fetched = userDao.fetchOneByUid(Integer.valueOf(3))
+    assert(fetched.getAccountCreationTime != null)
+
+    val now = OffsetDateTime.now(ZoneOffset.UTC)
+    val diff = Duration.between(fetched.getAccountCreationTime, now).abs()
+    assert(diff.toMinutes <= 2)
+  }
+
+  // Testing with user id 4
+  it should "persist and retrieve a non-UTC offset time (ex: +09:00 JST)" in {
+    val userId = 4
+    insertAndAssertAccountCreation(
+      uid = userId,
+      ts = OffsetDateTime.parse("2020-06-15T12:34:56+09:00")
+    )
+  }
+
+  // Testing with user id 5
+  it should "persist and retrieve a leap day timestamp" in {
+    val userId = 5
+    insertAndAssertAccountCreation(
+      uid = userId,
+      ts = OffsetDateTime.parse("2024-02-29T23:59:59Z")
+    )
+  }
+
+  // Testing with user id 6
+  it should "persist and retrieve a future timestamp" in {
+    val userId = 6
+    insertAndAssertAccountCreation(
+      uid = userId,
+      ts = OffsetDateTime.parse("2100-12-31T23:59:59Z")
+    )
   }
 
   "/search API " should "be able to search for workflows in different columns in Workflow table" in {

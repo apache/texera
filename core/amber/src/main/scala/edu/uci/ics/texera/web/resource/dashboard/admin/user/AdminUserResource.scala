@@ -29,7 +29,7 @@ import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.us
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.dao.jooq.generated.tables.TimeLog.TIME_LOG
+import edu.uci.ics.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -44,7 +44,8 @@ case class UserInfo(
     role: UserRoleEnum,
     googleAvatar: String,
     comment: String,
-    lastLogin: java.time.OffsetDateTime // will be null if never logged in
+    lastLogin: java.time.OffsetDateTime, // will be null if never logged in
+    accountCreation: java.time.OffsetDateTime
 )
 
 object AdminUserResource {
@@ -66,7 +67,7 @@ class AdminUserResource {
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUserWithActivity(): util.List[UserInfo] = {
+  def list(): util.List[UserInfo] = {
     AdminUserResource.context
       .select(
         USER.UID,
@@ -76,11 +77,12 @@ class AdminUserResource {
         USER.ROLE,
         USER.GOOGLE_AVATAR,
         USER.COMMENT,
-        TIME_LOG.LAST_LOGIN
+        USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
+        USER.ACCOUNT_CREATION_TIME
       )
       .from(USER)
-      .leftJoin(TIME_LOG)
-      .on(USER.UID.eq(TIME_LOG.UID))
+      .leftJoin(USER_LAST_ACTIVE_TIME)
+      .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
       .fetchInto(classOf[UserInfo])
   }
 

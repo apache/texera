@@ -156,30 +156,28 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         new WebsocketPayloadSizeTuner(ApplicationConfig.maxWorkflowWebsocketRequestPayloadSizeKb)
       )
 
-    if (UserSystemConfig.isUserSystemEnabled) {
-      val timeToLive: Int = ApplicationConfig.sinkStorageTTLInSecs
-      if (ApplicationConfig.cleanupAllExecutionResults) {
-        // do one time cleanup of collections that were not closed gracefully before restart/crash
-        // retrieve all executions that were executing before the reboot.
-        val allExecutionsBeforeRestart: List[WorkflowExecutions] =
-          WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
-        cleanExecutions(
-          allExecutionsBeforeRestart,
-          statusByte => {
-            if (statusByte != maptoStatusCode(COMPLETED)) {
-              maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
-            } else {
-              statusByte
-            }
+    val timeToLive: Int = ApplicationConfig.sinkStorageTTLInSecs
+    if (ApplicationConfig.cleanupAllExecutionResults) {
+      // do one time cleanup of collections that were not closed gracefully before restart/crash
+      // retrieve all executions that were executing before the reboot.
+      val allExecutionsBeforeRestart: List[WorkflowExecutions] =
+        WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
+      cleanExecutions(
+        allExecutionsBeforeRestart,
+        statusByte => {
+          if (statusByte != maptoStatusCode(COMPLETED)) {
+            maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
+          } else {
+            statusByte
           }
-        )
-      }
-      scheduleRecurringCallThroughActorSystem(
-        2.seconds,
-        ApplicationConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
-      ) {
-        recurringCheckExpiredResults(timeToLive)
-      }
+        }
+      )
+    }
+    scheduleRecurringCallThroughActorSystem(
+      2.seconds,
+      ApplicationConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
+    ) {
+      recurringCheckExpiredResults(timeToLive)
     }
 
     environment.jersey.register(classOf[WorkflowExecutionsResource])

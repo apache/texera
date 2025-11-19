@@ -19,19 +19,10 @@
 
 package edu.uci.ics.texera.web.resource.auth
 
-import edu.uci.ics.texera.auth.JwtAuth.{
-  TOKEN_EXPIRE_TIME_IN_MINUTES,
-  jwtClaims,
-  jwtConsumer,
-  jwtToken
-}
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.http.request.auth.{
-  RefreshTokenRequest,
-  UserLoginRequest,
-  UserRegistrationRequest
-}
+import edu.uci.ics.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
@@ -98,8 +89,6 @@ class AuthResource {
   @POST
   @Path("/login")
   def login(request: UserLoginRequest): TokenIssueResponse = {
-    if (!UserSystemConfig.isUserSystemEnabled)
-      throw new NotAcceptableException("User System is disabled on the backend!")
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
@@ -108,18 +97,8 @@ class AuthResource {
   }
 
   @POST
-  @Path("/refresh")
-  def refresh(request: RefreshTokenRequest): TokenIssueResponse = {
-    val claims = jwtConsumer.process(request.accessToken).getJwtClaims
-    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
-    TokenIssueResponse(jwtToken(claims))
-  }
-
-  @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    if (!UserSystemConfig.isUserSystemEnabled)
-      throw new NotAcceptableException("User System is disabled on the backend!")
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")
     if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")

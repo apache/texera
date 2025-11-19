@@ -65,4 +65,6 @@ object GuiConfig {
     conf.getInt("gui.workflow-workspace.operator-console-message-buffer-size")
   val guiWorkflowWorkspaceWorkflowEmailNotificationEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.workflow-email-notification-enabled")
+  val guiWorkflowWorkspaceActiveTimeInMinutes: Int =
+    conf.getInt("gui.workflow-workspace.active-time-in-minutes")
 }

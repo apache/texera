@@ -64,6 +64,12 @@
   margin-left: auto;
 }
 
+.arrow {
+  width: 12px;
+  height: 12px;
+  transform-origin: center center;
+}
+
 details[open] .arrow {
   transform: rotate(90deg);
 }
@@ -90,4 +96,8 @@ details[open] .arrow {
   font-size: 12px;
   color: #888;
   margin-bottom: 20px;
+}
+
+.icon-info {
+  margin-left: 6px;
 }
