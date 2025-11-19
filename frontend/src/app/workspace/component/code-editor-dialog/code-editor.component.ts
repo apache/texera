@@ -17,7 +17,16 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, Type, ViewChild, HostListener } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  ComponentRef,
+  ElementRef,
+  OnDestroy,
+  Type,
+  ViewChild,
+  HostListener,
+} from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -516,7 +525,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.code?.insert(insertOffset, annotations);
   }
 
-  @HostListener('window:resize')
+  @HostListener("window:resize")
   onWindowResize() {
     this.adjustEditorSize();
   }
@@ -525,17 +534,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     const container = this.containerElement.nativeElement;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-
     const rect = container.getBoundingClientRect();
-
     if (rect.right > viewportWidth) {
       container.style.width = `${viewportWidth - rect.left}px`;
     }
-
     if (rect.bottom > viewportHeight) {
       container.style.height = `${viewportHeight - rect.top}px`;
     }
-
     this.editorWrapper.getEditor()?.layout();
   }
   onFocus() {
