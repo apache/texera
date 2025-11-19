@@ -28,6 +28,8 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -46,18 +48,21 @@ class GanttChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Start Datetime Column")
   @JsonPropertyDescription("the start timestamp of the task")
   @AutofillAttributeName
+  @NotNull(message = "Start Datetime Column cannot be empty")
   var start: String = ""
 
   @JsonProperty(value = "finish", required = true)
   @JsonSchemaTitle("Finish Datetime Column")
   @JsonPropertyDescription("the end timestamp of the task")
   @AutofillAttributeName
+  @NotNull(message = "Finish Datetime Column cannot be empty")
   var finish: String = ""
 
   @JsonProperty(value = "task", required = true)
   @JsonSchemaTitle("Task Column")
   @JsonPropertyDescription("the name of the task")
   @AutofillAttributeName
+  @NotNull(message = "Task Column cannot be empty")
   var task: String = ""
 
   @JsonProperty(value = "color", required = false)

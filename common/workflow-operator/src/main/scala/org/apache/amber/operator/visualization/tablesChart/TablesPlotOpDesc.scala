@@ -25,10 +25,13 @@ import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+
+import javax.validation.constraints.NotEmpty
 class TablesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
   @JsonProperty(value = "add attribute", required = true)
+  @NotEmpty(message = "Included columns list cannot be empty")
   var includedColumns: List[TablesConfig] = List()
 
   private def getAttributes: String =

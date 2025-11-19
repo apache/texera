@@ -27,12 +27,15 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.{NotBlank, NotNull}
+
 class TimeSeriesOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "timeColumn", required = true)
   @JsonSchemaTitle("Time Column")
   @JsonPropertyDescription("The column containing time/date values (e.g., Date, Timestamp).")
   @AutofillAttributeName
+  @NotNull(message = "Time Column cannot be empty")
   var timeColumn: String = ""
 
   @JsonProperty(value = "valueColumn", required = true)
@@ -40,6 +43,7 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("The numerical column to plot on the Y-axis (e.g., Sales, Temperature).")
   @JsonSchemaInject(json = """{"enum": "autofill"}""")
   @AutofillAttributeName
+  @NotNull(message = "Value Column cannot be empty")
   var valueColumn: String = ""
 
   @JsonProperty(value = "categoryColumn", required = false, defaultValue = "No Selection")
@@ -57,6 +61,7 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "line", defaultValue = "line", required = true)
   @JsonSchemaTitle("Plot Type")
   @JsonPropertyDescription("Select the type of time series plot (line, area).")
+  @NotBlank(message = "Plot Type cannot be empty")
   var plotType: String = "line"
 
   @JsonProperty(value = "slider", defaultValue = "false")

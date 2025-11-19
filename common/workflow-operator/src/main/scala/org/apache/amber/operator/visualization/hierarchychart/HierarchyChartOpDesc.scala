@@ -27,6 +27,9 @@ import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+
+import javax.validation.constraints.{NotEmpty, NotNull}
+
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -41,6 +44,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
   @JsonPropertyDescription("Treemap or Sunburst")
+  @NotNull(message = "Hierarchy Chart Type cannot be empty")
   var hierarchyChartType: HierarchyChartType = _
 
   @JsonProperty(required = true)
@@ -48,12 +52,14 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "Hierarchy of attributes from a higher-level category to lower-level category"
   )
+  @NotEmpty(message = "Hierarchy path list cannot be empty")
   var hierarchy: List[HierarchySection] = List()
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The value associated with the size of each sector in the chart")
   @AutofillAttributeName
+  @NotNull(message = "Value column cannot be empty")
   var value: String = ""
 
   override def getOutputSchemas(

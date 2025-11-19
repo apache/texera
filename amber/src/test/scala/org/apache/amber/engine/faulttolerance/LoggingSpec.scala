@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.faulttolerance
 
-import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.amber.core.tuple.{AttributeType, Schema, TupleLike}
 import org.apache.amber.core.virtualidentity.{
   ActorVirtualIdentity,

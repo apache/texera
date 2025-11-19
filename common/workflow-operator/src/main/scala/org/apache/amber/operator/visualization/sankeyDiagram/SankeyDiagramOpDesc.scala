@@ -28,24 +28,29 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Source Attribute", required = true)
   @JsonSchemaTitle("Source Attribute")
   @JsonPropertyDescription("The source node of the Sankey diagram")
   @AutofillAttributeName
+  @NotNull(message = "Source Attribute cannot be empty")
   var sourceAttribute: String = ""
 
   @JsonProperty(value = "Target Attribute", required = true)
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("The target node of the Sankey diagram")
   @AutofillAttributeName
+  @NotNull(message = "Target Attribute cannot be empty")
   var targetAttribute: String = ""
 
   @JsonProperty(value = "Value Attribute", required = true)
   @JsonSchemaTitle("Value Attribute")
   @JsonPropertyDescription("The value/volume of the flow between source and target")
   @AutofillAttributeName
+  @NotNull(message = "Value Attribute cannot be empty")
   var valueAttribute: String = ""
 
   override def getOutputSchemas(

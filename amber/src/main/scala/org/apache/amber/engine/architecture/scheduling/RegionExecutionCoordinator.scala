@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.scheduling
 
-import akka.pattern.gracefulStop
+import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Future, Return, Throw}
 import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.storage.VFSURIFactory.decodeURI
@@ -118,7 +118,7 @@ class RegionExecutionCoordinator(
     * 1.  An `EndWorker` control message is first sent to all the workers. This will be the last message each worker
     * receives. We wait for all workers have replied to indicate they have finished processing all control messages.
     *
-    * 2. Only after all workers have processed all control messages do we send a `gracefulStop` (akka message) to each
+    * 2. Only after all workers have processed all control messages do we send a `gracefulStop` (pekko message) to each
     * worker. JVM workers will be terminated by `gracefulStop`. Python proxy workes will also be terminated by
     * `gracefulStop`, whose termination logic will also kill the PVMs.
     */

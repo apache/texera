@@ -28,6 +28,8 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -42,12 +44,16 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "Y-axis", required = true)
   @JsonSchemaTitle("Y-axis")
   @JsonPropertyDescription("The name of the column to represent y-axis")
-  @AutofillAttributeName var yAxis: String = ""
+  @AutofillAttributeName
+  @NotNull(message = "Y-axis cannot be empty")
+  var yAxis: String = ""
 
   @JsonProperty(value = "X-axis", required = true)
   @JsonSchemaTitle("X-axis")
   @JsonPropertyDescription("The name of the column to represent the x-axis")
-  @AutofillAttributeName var xAxis: String = ""
+  @AutofillAttributeName
+  @NotNull(message = "X-axis cannot be empty")
+  var xAxis: String = ""
 
   @JsonProperty(value = "Duplicates", required = false)
   @JsonSchemaTitle("Handle Duplicates")

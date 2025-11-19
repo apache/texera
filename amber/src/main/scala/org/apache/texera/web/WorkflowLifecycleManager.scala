@@ -19,7 +19,7 @@
 
 package org.apache.texera.web
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.RUNNING
