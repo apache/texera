@@ -69,23 +69,17 @@ export class InconsistencyListComponent implements OnInit, OnDestroy {
 
   /**
    * Handle click on inconsistency card to highlight the upstream path
+   * Delegates to service which handles toggle behavior
    */
   onInconsistencyClick(inconsistency: DataInconsistency): void {
     if (!inconsistency.operatorId) {
       return;
     }
 
-    // Clear any existing highlights first
-    const currentHighlights = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
-    this.workflowActionService.getJointGraphWrapper().unhighlightElements(currentHighlights);
-
     // Find all upstream operators and links leading to this operator
     const pathResult = this.workflowActionService.findUpstreamPath(inconsistency.operatorId);
 
-    if (pathResult.operators.length > 0 || pathResult.links.length > 0) {
-      // Highlight operators and links on the upstream path
-      this.workflowActionService.highlightOperators(false, ...pathResult.operators);
-      this.workflowActionService.highlightLinks(false, ...pathResult.links);
-    }
+    // Trigger highlight via service (which handles toggle logic)
+    this.inconsistencyService.toggleHighlight(inconsistency.id, pathResult.operators, pathResult.links);
   }
 }

@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { BehaviorSubject, Observable, Subject } from "rxjs";
 
 /**
  * Interface for a data inconsistency item
@@ -31,6 +31,15 @@ export interface DataInconsistency {
 }
 
 /**
+ * Interface for an inconsistency highlight event
+ */
+export interface InconsistencyHighlight {
+  inconsistencyId: string;
+  operatorIds: string[];
+  linkIds: string[];
+}
+
+/**
  * Service to manage data inconsistencies found in workflows
  * Singleton service that maintains an in-memory list of inconsistencies
  */
@@ -40,6 +49,9 @@ export interface DataInconsistency {
 export class DataInconsistencyService {
   private inconsistencies: Map<string, DataInconsistency> = new Map();
   private inconsistenciesSubject = new BehaviorSubject<DataInconsistency[]>([]);
+  private highlightSubject = new Subject<InconsistencyHighlight>();
+  private cleanupSubject = new Subject<void>();
+  private currentHighlightedInconsistencyId: string | null = null;
 
   constructor() {}
 
@@ -153,5 +165,53 @@ export class DataInconsistencyService {
    */
   private emitUpdate(): void {
     this.inconsistenciesSubject.next(this.getAllInconsistencies());
+  }
+
+  /**
+   * Get inconsistency highlight stream
+   */
+  public getHighlightStream(): Observable<InconsistencyHighlight> {
+    return this.highlightSubject.asObservable();
+  }
+
+  /**
+   * Get cleanup stream - emits when highlight should be removed
+   */
+  public getCleanupStream(): Observable<void> {
+    return this.cleanupSubject.asObservable();
+  }
+
+  /**
+   * Trigger highlight for an inconsistency (toggle behavior)
+   * If clicking the same inconsistency, triggers cleanup instead
+   */
+  public toggleHighlight(inconsistencyId: string, operatorIds: string[], linkIds: string[]): void {
+    // If clicking the same inconsistency, cleanup and return
+    if (this.currentHighlightedInconsistencyId === inconsistencyId) {
+      this.cleanupSubject.next();
+      this.currentHighlightedInconsistencyId = null;
+      return;
+    }
+
+    // Otherwise, highlight the new inconsistency
+    this.currentHighlightedInconsistencyId = inconsistencyId;
+    this.highlightSubject.next({ inconsistencyId, operatorIds, linkIds });
+  }
+
+  /**
+   * Clear the current highlight
+   */
+  public clearHighlight(): void {
+    if (this.currentHighlightedInconsistencyId !== null) {
+      this.cleanupSubject.next();
+      this.currentHighlightedInconsistencyId = null;
+    }
+  }
+
+  /**
+   * Get the currently highlighted inconsistency ID
+   */
+  public getCurrentHighlightedInconsistencyId(): string | null {
+    return this.currentHighlightedInconsistencyId;
   }
 }

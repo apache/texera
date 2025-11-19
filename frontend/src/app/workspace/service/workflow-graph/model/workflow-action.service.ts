@@ -506,6 +506,11 @@ export class WorkflowActionService {
     this.getJointGraphWrapper().unhighlightLinks(...links);
   }
 
+  public unhighlightAllElements(): void {
+    const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
+    this.jointGraphWrapper.unhighlightElements(currentHighlights);
+  }
+
   public highlightCommentBoxes(multiSelect: boolean, ...commentBoxIDs: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightCommentBoxes(...commentBoxIDs);

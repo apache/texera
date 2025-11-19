@@ -46,6 +46,7 @@ import concaveman from "concaveman";
 import { ActionPlanService } from "../../service/action-plan/action-plan.service";
 import { ContextHighlightService } from "../../service/context-highlight/context-highlight.service";
 import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
+import { DataInconsistencyService } from "../../service/data-inconsistency/data-inconsistency.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -118,7 +119,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private config: GuiConfigService,
     private actionPlanService: ActionPlanService,
     private contextHighlightService: ContextHighlightService,
-    private copilotManagerService: TexeraCopilotManagerService
+    private copilotManagerService: TexeraCopilotManagerService,
+    private dataInconsistencyService: DataInconsistencyService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -171,6 +173,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
     this.handleActionPlanHighlight();
+    this.handleInconsistencyHighlight();
     this.handleContextHighlight();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -553,6 +556,82 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       ];
     });
     element.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
+  }
+
+  /**
+   * Handle inconsistency highlighting - shows upstream path for selected inconsistency
+   * Uses the same visual style as action plan highlighting (transparent fill with dashed border)
+   */
+  private handleInconsistencyHighlight(): void {
+    // Define Inconsistency JointJS element with same style as action plan
+    const InconsistencyHighlight = joint.dia.Element.define(
+      "inconsistency-highlight",
+      {
+        attrs: {
+          body: {
+            fill: "transparent",
+            stroke: "rgba(79,195,255,0.6)",
+            strokeWidth: 2,
+            strokeDasharray: "5,5",
+            pointerEvents: "none",
+            class: "inconsistency-highlight",
+          },
+        },
+      },
+      {
+        markup: [{ tagName: "path", selector: "body" }],
+      }
+    );
+
+    // Track current highlight element and cleanup handler
+    let currentElement: joint.dia.Element | null = null;
+    let currentPositionHandler: ((operator: joint.dia.Cell) => void) | null = null;
+
+    // Subscribe to inconsistency highlight events
+    this.dataInconsistencyService
+      .getHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(highlight => {
+        // Get operator elements from IDs
+        const operators = highlight.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
+
+        if (operators.length === 0) {
+          return; // No valid operators found
+        }
+
+        // Create inconsistency highlight element
+        currentElement = new InconsistencyHighlight();
+        this.paper.model.addCell(currentElement);
+
+        // Update the highlight to wrap around operators
+        this.updateActionPlanElement(currentElement, operators);
+
+        // Listen to operator position changes to update the highlight
+        currentPositionHandler = (operator: joint.dia.Cell) => {
+          if (operators.includes(operator) && currentElement) {
+            this.updateActionPlanElement(currentElement, operators);
+          }
+        };
+        this.paper.model.on("change:position", currentPositionHandler);
+      });
+
+    // Subscribe to cleanup stream - triggered when user clicks same item or selects different one
+    this.dataInconsistencyService
+      .getCleanupStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        // Remove highlight element
+        if (currentElement) {
+          currentElement.remove();
+          currentElement = null;
+        }
+
+        // Remove position handler
+        if (currentPositionHandler) {
+          this.paper.model.off("change:position", currentPositionHandler);
+          currentPositionHandler = null;
+        }
+      });
   }
 
   /**
