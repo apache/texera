@@ -1,0 +1,209 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.amber.engine.architecture.scheduling
+
+import org.apache.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.amber.engine.e2e.TestUtils.buildWorkflow
+import org.apache.amber.operator.TestOperators
+import org.apache.texera.workflow.LogicalLink
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.flatspec.AnyFlatSpec
+
+class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
+
+  "CostBasedRegionPlanGenerator" should "finish bottom-up search using different pruning techniques with correct number of states explored in csv->->filter->join->filter2 workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        keywordOpDesc2
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false, oEarlyStop = false)
+
+    // Should have explored all possible states (2^4 states)
+    assert(globalSearchNoPruningResult.numStatesExplored == 16)
+
+    val globalSearchOChainsResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).bottomUpSearch(globalSearch = true, oCleanEdges = false, oEarlyStop = false)
+
+    // By applying pruning based on Chains alone, it should skip 10 (8 + 2) states. 8 states where CSV->Build is
+    // materialized should be skipped because this edge is in the same chain as another blocking edge.
+    // Of the remaining states, 2 more states where both CSV->KeywordFilter and KeywordFilter->Probe are materialized
+    // should be skipped because these two edges are in the same chain.
+    assert(globalSearchOChainsResult.numStatesExplored == 6)
+
+    val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).bottomUpSearch(globalSearch = true, oChains = false, oEarlyStop = false)
+
+    // By applying pruning based on Clean edges (bridges) alone, it should skip 8 states. There is one clean edge
+    // in the DAG (Probe->Keyword2) and the 8 states where this edge is materialized should be skipped.
+    assert(globalSearchOCleanEdgesResult.numStatesExplored == 8)
+
+    val globalSearchOEarlyStopResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false)
+
+    // By applying pruning based on Early Stop alone, only 6 states that are not descendants of a schedulable states
+    // should be explored.
+    assert(globalSearchOEarlyStopResult.numStatesExplored == 6)
+
+    val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).bottomUpSearch(globalSearch = true)
+
+    // By combining all pruning techniques, only 3 states should be visited (1 state where both CSV->KeywordFilter and
+    // KeywordFilter->Probe are pipelined, and two states where only one of CSV->KeywordFilter or KeywordFilter->Probe
+    // is materialized. The other two edges should always be pipelined.)
+    assert(globalSearchAllPruningEnabledResult.numStatesExplored == 3)
+
+  }
+
+  "CostBasedRegionPlanGenerator" should "finish top-down search using different pruning techniques with correct number of states explored in csv->->filter->join->filter2 workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        keywordOpDesc2
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true, oChains = false, oCleanEdges = false)
+
+    // Should have explored all possible states (2^4 states)
+    assert(globalSearchNoPruningResult.numStatesExplored == 16)
+
+    val globalSearchOChainsResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true, oCleanEdges = false)
+
+    // By applying pruning based on Chains alone, it should start with a state where CSV->Build is pipelined because
+    // this edge is in the same chain as another blocking edge. That reduces the search space to 8 states.
+    assert(globalSearchOChainsResult.numStatesExplored == 8)
+
+    val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true, oChains = false)
+
+    // By applying pruning based on Clean Edges (bridges) alone, it should start with a state where Probe->Keyword2 is
+    // pipelined because this edge is a clean edge. That reduces the search space to 8 states.
+    assert(globalSearchOCleanEdgesResult.numStatesExplored == 8)
+
+    val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true)
+
+    // By combining both pruning techniques, the search should start with a state where both CSV->Build and
+    // Probe->Keyword2 are pipelined, reducing the search space to 4 states.
+    assert(globalSearchAllPruningEnabledResult.numStatesExplored == 4)
+
+  }
+
+}

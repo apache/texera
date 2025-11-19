@@ -1,0 +1,216 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-layout class="layout">
+  <nz-sider
+    nzCollapsible
+    [nzCollapsedWidth]="45"
+    (nzCollapsedChange)="handleCollapseChange($event)"
+    nzTheme="light">
+    <ul
+      nz-menu
+      nzMode="inline"
+      nzSelectable="false">
+      <li class="logo-section">
+        <img
+          *ngIf="miniLogo && isCollapsed"
+          alt="mini-logo"
+          [src]="miniLogo"
+          class="collapsed-logo" />
+        <img
+          *ngIf="logo && !isCollapsed"
+          alt="logo"
+          height="50"
+          [src]="logo" />
+      </li>
+
+      <li
+        *ngIf="sidebarTabs.hub_enabled"
+        nz-submenu
+        nzTitle="Hub"
+        nzIcon="usergroup-add"
+        nzOpen="true">
+        <texera-hub
+          [isLogin]="isLogin"
+          [sidebarTabs]="sidebarTabs">
+        </texera-hub>
+      </li>
+
+      <li
+        *ngIf="isLogin && sidebarTabs.your_work_enabled"
+        nz-submenu
+        nzTitle="Your Work"
+        nzIcon="user"
+        nzOpen="true">
+        <ul>
+          <li
+            *ngIf="sidebarTabs.projects_enabled"
+            nz-menu-item
+            nz-tooltip="Look up the user projects"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_PROJECT">
+            <span
+              nz-icon
+              nzType="container"></span>
+            <span>Projects</span>
+          </li>
+
+          <li
+            *ngIf="sidebarTabs.workflows_enabled"
+            nz-menu-item
+            nz-tooltip="Open the saved workflows"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_WORKFLOW">
+            <span
+              nz-icon
+              nzType="project"></span>
+            <span>Workflows</span>
+          </li>
+
+          <li
+            *ngIf="sidebarTabs.datasets_enabled"
+            nz-menu-item
+            nz-tooltip="Look up for datasets"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_DATASET">
+            <span
+              nz-icon
+              nzType="database"></span>
+            <span>Datasets</span>
+          </li>
+          <li
+            *ngIf="sidebarTabs.quota_enabled"
+            nz-menu-item
+            nz-tooltip="Quota information"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_QUOTA">
+            <span
+              nz-icon
+              nzType="dashboard"></span>
+            <span>Quota</span>
+          </li>
+          <li
+            *ngIf="sidebarTabs.forum_enabled"
+            nz-menu-item
+            nz-tooltip="Open the discussion forum"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_DISCUSSION">
+            <span
+              nz-icon
+              nzType="comment"></span>
+            <span>Forum</span>
+          </li>
+        </ul>
+      </li>
+
+      <li
+        *ngIf="isAdmin"
+        nz-submenu
+        nzTitle="Admin"
+        nzIcon="tool">
+        <ul>
+          <li
+            nz-menu-item
+            nz-tooltip="Look up the users"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_USER">
+            <span
+              nz-icon
+              nzType="user"></span>
+            <span>Users</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="View statistics"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_EXECUTION">
+            <span
+              nz-icon
+              nzType="setting"></span>
+            <span>Executions</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Setup gmail"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_GMAIL">
+            <span
+              nz-icon
+              nzType="mail"></span>
+            <span>Gmail</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Settings"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_SETTINGS">
+            <span
+              nz-icon
+              nzType="edit"></span>
+            <span>Settings</span>
+          </li>
+        </ul>
+      </li>
+
+      <li
+        *ngIf="sidebarTabs.about_enabled"
+        nz-menu-item
+        nz-tooltip
+        nzTooltipPlacement="right"
+        [routerLink]="DASHBOARD_ABOUT">
+        <span
+          nz-icon
+          nzType="info-circle"></span>
+        <span>About</span>
+      </li>
+    </ul>
+    <span id="git-commit-id">Git hash: {{ gitCommitHash }}</span>
+  </nz-sider>
+
+  <div class="page-container">
+    <nz-layout class="page-content-layout">
+      <div
+        [hidden]="!displayNavbar"
+        id="nav">
+        <texera-search-bar></texera-search-bar>
+        <ng-container *ngIf="isLogin">
+          <texera-user-icon></texera-user-icon>
+        </ng-container>
+        <asl-google-signin-button
+          *ngIf="!isLogin && this.config.env.googleLogin"
+          type="standard"
+          size="large"
+          [width]="200"></asl-google-signin-button>
+      </div>
+
+      <nz-content>
+        <router-outlet></router-outlet>
+      </nz-content>
+    </nz-layout>
+  </div>
+</nz-layout>

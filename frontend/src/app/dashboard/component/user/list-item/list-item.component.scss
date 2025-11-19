@@ -1,0 +1,199 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.list-item-card {
+  padding: 3px;
+  width: 100%;
+  background-color: white;
+  position: relative;
+  min-height: 65px;
+  height: auto;
+
+  &.editing-description {
+    z-index: 10;
+  }
+
+  &:hover {
+    background-color: #f0f0f0;
+
+    .edit-button {
+      display: flex;
+    }
+
+    &.has-button-group:hover .resource-info {
+      opacity: 0.3;
+    }
+  }
+
+  &.selected {
+    border-color: #1e90ff;
+    background-color: #e6f7ff;
+
+    .button-group,
+    .button-group button {
+      background-color: #e6f7ff;
+    }
+
+    .button-group button:hover,
+    .edit-button button:hover {
+      background-color: #cceeff;
+    }
+  }
+}
+
+.resource-name-group {
+  min-width: 0;
+}
+
+.truncate-single-line {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.resource-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.resource-description {
+  font-size: 12px;
+  font-weight: 300;
+  color: grey;
+}
+
+.resource-info {
+  font-size: 13px;
+  color: grey;
+}
+
+.large-checkbox {
+  display: none;
+  width: 16px;
+  height: 16px;
+}
+
+.list-item-card:hover .large-checkbox,
+.showc {
+  display: block;
+  z-index: 10;
+}
+
+.button-group {
+  display: none;
+  position: absolute;
+  height: 70px;
+  min-width: 150px;
+  right: 0;
+  bottom: 0;
+  justify-content: right;
+  align-items: center;
+  transition: none;
+
+  button {
+    margin-right: 32px;
+    transition: none;
+    background-color: #e0e0e0;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+  }
+
+  button:hover {
+    background-color: #c7c7c7;
+  }
+}
+
+.list-item-card:hover .button-group {
+  display: flex;
+  background-color: transparent;
+}
+
+.resource-name-edit-input {
+  font-size: 17px;
+  font-weight: 600;
+  padding: 0;
+  margin: 4px 0;
+  outline: none;
+  height: 23px;
+  border: 1px solid #d9d9d9;
+}
+
+.resource-description {
+  font-size: 14px;
+  font-weight: 400;
+  color: #333333;
+  transition: all 0.2s ease;
+}
+
+.list-item-card:hover .resource-description {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e90ff;
+}
+
+.resource-description-edit-textarea {
+  font-size: 12px;
+  font-weight: 300;
+  padding: 0;
+  border: 1px solid #d9d9d9;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  overflow: hidden;
+  white-space: pre-wrap;
+  width: 100%;
+  min-height: 18px;
+  height: auto;
+}
+
+.edit-button {
+  display: none;
+
+  &:hover {
+    display: block;
+    background-color: #d9d9d9;
+  }
+
+  button {
+    height: 25px;
+  }
+}
+
+.type-icon {
+  font-size: 30px;
+}
+
+.workflow-id {
+  padding: 6px;
+}
+
+.like-button {
+  width: 50px;
+  border-radius: 5px;
+  padding: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.liked {
+  color: red;
+}
+
+:host ::ng-deep nz-card.list-item-card.ant-card:hover .ant-card-body {
+  cursor: pointer;
+}
