@@ -301,15 +301,8 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     const userMessage = this.currentMessage.trim();
     this.currentMessage = "";
 
-    // Send to copilot via manager service
-    this.copilotManagerService
-      .sendMessage(this.agentInfo.id, userMessage)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        error: (error: unknown) => {
-          this.notificationService.error(`Error sending message: ${error}`);
-        },
-      });
+    // Send to copilot via manager service (fire-and-forget)
+    this.copilotManagerService.sendMessage(this.agentInfo.id, userMessage);
   }
 
   /**
@@ -405,17 +398,8 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
             .subscribe({
               next: newAgent => {
                 const initialMessage = `Please work on action plan with id: ${decision.planId}`;
-                this.copilotManagerService
-                  .sendMessage(newAgent.id, initialMessage)
-                  .pipe(untilDestroyed(this))
-                  .subscribe({
-                    next: () => {
-                      this.notificationService.info(`Actor agent started for plan: ${decision.planId}`);
-                    },
-                    error: (error: unknown) => {
-                      this.notificationService.error(`Error starting actor agent: ${error}`);
-                    },
-                  });
+                this.copilotManagerService.sendMessage(newAgent.id, initialMessage);
+                this.notificationService.info(`Actor agent started for plan: ${decision.planId}`);
               },
               error: (error: unknown) => {
                 this.notificationService.error(`Failed to create actor agent: ${error}`);
@@ -423,14 +407,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
             });
         } else {
           const executionMessage = "I have accepted your action plan. Please proceed with executing it.";
-          this.copilotManagerService
-            .sendMessage(this.agentInfo.id, executionMessage)
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              error: (error: unknown) => {
-                this.notificationService.error(`Error sending acceptance message: ${error}`);
-              },
-            });
+          this.copilotManagerService.sendMessage(this.agentInfo.id, executionMessage);
         }
       } else {
         const feedbackMatch = decision.message.match(/Feedback: (.+)$/);
@@ -444,14 +421,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.actionPlanService.rejectPlan(userFeedback, decision.planId);
 
         const rejectionMessage = `I have rejected your action plan. Feedback: ${userFeedback}`;
-        this.copilotManagerService
-          .sendMessage(this.agentInfo.id, rejectionMessage)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            error: (error: unknown) => {
-              this.notificationService.error(`Error sending rejection feedback: ${error}`);
-            },
-          });
+        this.copilotManagerService.sendMessage(this.agentInfo.id, rejectionMessage);
       }
     }
   }

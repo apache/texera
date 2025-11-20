@@ -881,18 +881,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.currentOperatorId}): ${this.feedbackMessage.trim()}`;
 
     // Send message to the selected agent
-    this.copilotManagerService
-      .sendMessage(this.selectedAgentId, contextMessage, relevantSteps)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.notificationService.success("Message sent to agent successfully");
-          this.feedbackMessage = "";
-          this.changeDetectorRef.detectChanges();
-        },
-        error: (error: unknown) => {
-          this.notificationService.error(`Failed to send message: ${error}`);
-        },
-      });
+    // This is fire-and-forget - the copilot manager handles the subscription internally.
+    // The agent will continue processing even if this component is destroyed.
+    this.copilotManagerService.sendMessage(this.selectedAgentId, contextMessage, relevantSteps);
+
+    // Clear the feedback input and show success message
+    this.notificationService.success("Message sent to agent successfully");
+    this.feedbackMessage = "";
+    this.changeDetectorRef.detectChanges();
   }
 }

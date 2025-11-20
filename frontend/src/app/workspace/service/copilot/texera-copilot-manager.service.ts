@@ -89,7 +89,8 @@ export class TexeraCopilotManagerService {
 
   constructor(
     private injector: Injector,
-    private http: HttpClient
+    private http: HttpClient,
+    private notificationService: NotificationService
   ) {}
 
   /**
@@ -217,7 +218,9 @@ export class TexeraCopilotManagerService {
 
   /**
    * Send a message to an agent.
-   * Returns an Observable that completes when the message is processed.
+   * This is a fire-and-forget method that manages the subscription internally.
+   * The agent will process the message in the background.
+   *
    * @param agentId - The ID of the agent to send the message to
    * @param message - The message to send
    * @param relevantSteps - Optional array of relevant ReAct steps for context
@@ -226,40 +229,46 @@ export class TexeraCopilotManagerService {
     agentId: string,
     message: string,
     relevantSteps: Array<{ agentId: string; messageId: string; stepId: number }> = []
-  ): Observable<void> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
+  ): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      console.error(`Agent with ID ${agentId} not found`);
+      this.notificationService.error(`Agent with ID ${agentId} not found`);
+      return;
+    }
 
-      // If there are relevant steps, retrieve and append their full data to the message
-      let finalMessage = message;
-      if (relevantSteps.length > 0) {
-        console.log("Sending message with relevant steps:", relevantSteps);
-
-        const retrievedSteps: any[] = [];
-        for (const stepRef of relevantSteps) {
-          const sourceAgent = this.agents.get(stepRef.agentId);
-          if (sourceAgent) {
-            const step = sourceAgent.instance.getReActStepById(stepRef.messageId, stepRef.stepId);
-            if (step) {
-              retrievedSteps.push({
-                agentId: stepRef.agentId,
-                agentName: sourceAgent.name,
-                step: step,
-              });
-            }
+    // If there are relevant steps, retrieve and append their full data to the message
+    let finalMessage = message;
+    if (relevantSteps.length > 0) {
+      const retrievedSteps: any[] = [];
+      for (const stepRef of relevantSteps) {
+        const sourceAgent = this.agents.get(stepRef.agentId);
+        if (sourceAgent) {
+          const step = sourceAgent.instance.getReActStepById(stepRef.messageId, stepRef.stepId);
+          if (step) {
+            retrievedSteps.push({
+              agentId: stepRef.agentId,
+              agentName: sourceAgent.name,
+              step: step,
+            });
           }
         }
-
-        if (retrievedSteps.length > 0) {
-          const stepsJson = JSON.stringify(retrievedSteps, null, 2);
-          finalMessage = `${message}\n\nRelevant ReAct Steps (Full Data):\n\`\`\`json\n${stepsJson}\n\`\`\`\n\nPlease use the information from these steps for context.`;
-        }
       }
 
-      return agent.instance.sendMessage(finalMessage);
+      if (retrievedSteps.length > 0) {
+        const stepsJson = JSON.stringify(retrievedSteps, null, 2);
+        finalMessage = `${message}\n\nRelevant ReAct Steps (Full Data):\n\`\`\`json\n${stepsJson}\n\`\`\`\n\nPlease use the information from these steps for context.`;
+      }
+    }
+
+    // Auto-subscribe internally - fire and forget
+    // The agent state updates will be handled by the agent's state$ observable
+    // which is already subscribed to by the agent-chat component
+    agent.instance.sendMessage(finalMessage).subscribe({
+      error: (error: unknown) => {
+        console.error(`Error sending message to agent ${agentId}:`, error);
+        // Error notification is already handled by the agent's sendMessage method
+      },
     });
   }
 
