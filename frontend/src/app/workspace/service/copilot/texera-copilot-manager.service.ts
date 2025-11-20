@@ -20,7 +20,7 @@
 import { Injectable, Injector } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { TexeraCopilot, ReActStep, CopilotState } from "./texera-copilot";
-import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError } from "rxjs";
+import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError, filter, first } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -219,6 +219,8 @@ export class TexeraCopilotManagerService {
   /**
    * Send a message to an agent.
    * This is a fire-and-forget method that manages the subscription internally.
+   * If the agent is currently generating, it will be stopped and this method will wait
+   * until the agent is ready before sending the new message.
    * The agent will process the message in the background.
    *
    * @param agentId - The ID of the agent to send the message to
@@ -237,39 +239,57 @@ export class TexeraCopilotManagerService {
       return;
     }
 
-    // If there are relevant steps, retrieve and append their full data to the message
-    let finalMessage = message;
-    if (relevantSteps.length > 0) {
-      const retrievedSteps: any[] = [];
-      for (const stepRef of relevantSteps) {
-        const sourceAgent = this.agents.get(stepRef.agentId);
-        if (sourceAgent) {
-          const step = sourceAgent.instance.getReActStepById(stepRef.messageId, stepRef.stepId);
-          if (step) {
-            retrievedSteps.push({
-              agentId: stepRef.agentId,
-              agentName: sourceAgent.name,
-              step: step,
-            });
+    // Prepare the final message with relevant steps if provided
+    const prepareFinalMessage = (): string => {
+      let finalMessage = message;
+      if (relevantSteps.length > 0) {
+        const retrievedSteps: any[] = [];
+        for (const stepRef of relevantSteps) {
+          const sourceAgent = this.agents.get(stepRef.agentId);
+          if (sourceAgent) {
+            const step = sourceAgent.instance.getReActStepById(stepRef.messageId, stepRef.stepId);
+            if (step) {
+              retrievedSteps.push({
+                agentId: stepRef.agentId,
+                agentName: sourceAgent.name,
+                step: step,
+              });
+            }
           }
         }
-      }
 
-      if (retrievedSteps.length > 0) {
-        const stepsJson = JSON.stringify(retrievedSteps, null, 2);
-        finalMessage = `${message}\n\nRelevant ReAct Steps (Full Data):\n\`\`\`json\n${stepsJson}\n\`\`\`\n\nPlease use the information from these steps for context.`;
+        if (retrievedSteps.length > 0) {
+          const stepsJson = JSON.stringify(retrievedSteps, null, 2);
+          finalMessage = `${message}\n\nRelevant ReAct Steps (Full Data):\n\`\`\`json\n${stepsJson}\n\`\`\`\n\nPlease use the information from these steps for context.`;
+        }
       }
+      return finalMessage;
+    };
+
+    // Helper to actually send the message
+    const doSendMessage = () => {
+      const finalMessage = prepareFinalMessage();
+      agent.instance.sendMessage(finalMessage).subscribe({
+        error: (error: unknown) => {
+          console.error(`Error sending message to agent ${agentId}:`, error);
+        },
+      });
+    };
+
+    // Check if agent is currently generating
+    if (agent.instance.getState() === CopilotState.GENERATING) {
+      // Stop the agent and wait for it to become available
+      agent.instance.stopGeneration();
+      this.getAgentStateObservable(agentId)
+        .pipe(
+          filter(state => state === CopilotState.AVAILABLE),
+          first()
+        )
+        .subscribe(() => doSendMessage());
+    } else {
+      // Agent is ready, send immediately
+      doSendMessage();
     }
-
-    // Auto-subscribe internally - fire and forget
-    // The agent state updates will be handled by the agent's state$ observable
-    // which is already subscribed to by the agent-chat component
-    agent.instance.sendMessage(finalMessage).subscribe({
-      error: (error: unknown) => {
-        console.error(`Error sending message to agent ${agentId}:`, error);
-        // Error notification is already handled by the agent's sendMessage method
-      },
-    });
   }
 
   /**
