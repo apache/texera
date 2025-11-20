@@ -18,8 +18,8 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, from, of, throwError, defer } from "rxjs";
-import { map, catchError, tap, switchMap, finalize } from "rxjs/operators";
+import { BehaviorSubject, Observable, of, throwError, defer } from "rxjs";
+import { finalize } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { toolWithTimeout } from "./tool/tools-utility";
 import * as workflowMetadataTools from "./tool/workflow-metadata-tools";
@@ -138,8 +138,6 @@ export class TexeraCopilot {
   private messageStatsSubject = new BehaviorSubject<Map<string, CopilotMessageStats>>(new Map());
   public messageStats$ = this.messageStatsSubject.asObservable();
   private messageIdCounter: number = 0;
-  // Track retry count for each message attempt
-  private retryCountMap: Map<string, number> = new Map();
   // Track which message is being hovered and its operator IDs
   private hoveredMessageOperatorsSubject = new BehaviorSubject<{
     viewedOperatorIds: string[];
@@ -212,250 +210,232 @@ export class TexeraCopilot {
   }
 
   public sendMessage(message: string): Observable<void> {
-    return defer(() => {
+    return defer(async () => {
       // Validation
       if (!this.model) {
-        return throwError(() => new Error("Copilot not initialized"));
+        throw new Error("Copilot not initialized");
+      }
+      if (this.state !== CopilotState.AVAILABLE) {
+        throw new Error(`Cannot send message: agent is ${this.state}`);
       }
 
-      // Get current retry count for this message
-      const currentRetryCount = this.retryCountMap.get(message) || 0;
-
-      // Only check state if this is not a retry attempt
-      // During retry, state will be GENERATING from the previous attempt
-      if (currentRetryCount === 0 && this.state !== CopilotState.AVAILABLE) {
-        return throwError(() => new Error(`Cannot send message: agent is ${this.state}`));
-      }
-
-      // Set state to generating
+      // Set state to generating once at the start
       this.setState(CopilotState.GENERATING);
       this.shouldStopAfterActionPlan = false;
-
-      // Generate unique message ID
-      const messageId = `msg-${this.agentId}-${++this.messageIdCounter}-${Date.now()}`;
-
-      // Initialize message stats
-      const messageStats: CopilotMessageStats = {
-        messageId,
-        userMessage: message,
-        startTime: new Date(),
-        totalInputTokens: 0,
-        totalOutputTokens: 0,
-        totalTokens: 0,
-        cachedInputTokens: 0,
-        stepCount: 0,
-        status: "running",
-      };
-      this.messageStatsMap.set(messageId, messageStats);
-      this.messageStatsSubject.next(new Map(this.messageStatsMap));
-
-      // Store current state lengths for cleanup on error
-      const messagesLengthBeforeRequest = this.messages.length;
-      const reActStepsLengthBeforeRequest = this.reActSteps.length;
-
-      // Add user message
-      const userMessage: UserModelMessage = { role: "user", content: message };
-      this.messages.push(userMessage);
-      const userUIMessage: ReActStep = {
-        messageId: messageId,
-        stepId: 0, // User message is always step 0
-        timestamp: new Date(),
-        role: "user",
-        content: message,
-        isBegin: true,
-        isEnd: true,
-      };
-      this.reActSteps.push(userUIMessage);
-      this.reActStepsSubject.next([...this.reActSteps]);
-
-      const tools = this.createWorkflowTools();
-      let isFirstStep = true;
-      let stepIndex = 0;
 
       const systemPrompt = this.planningMode
         ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT
         : COPILOT_SYSTEM_PROMPT;
 
-      // Generate text using AI
-      return from(
-        generateText({
-          model: this.model,
-          messages: this.messages,
-          tools,
-          system: systemPrompt,
-          stopWhen: ({ steps }) => {
-            if (this.state === CopilotState.STOPPING) {
-              this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
-              return true;
-            }
-            if (this.shouldStopAfterActionPlan) {
-              return true;
-            }
-            return stepCountIs(500)({ steps });
-          },
-          onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
-            if (this.state === CopilotState.STOPPING) {
-              return;
-            }
+      let lastError: unknown = null;
 
-            if (toolCalls && toolCalls.some((call: any) => call.toolName === "actionPlan")) {
-              this.shouldStopAfterActionPlan = true;
-            }
+      // Retry loop - each attempt is independent with a fresh start
+      for (let attempt = 1; attempt <= TexeraCopilot.MAX_RETRY_COUNT + 1; attempt++) {
+        // Generate unique message ID for this attempt
+        const messageId = `msg-${this.agentId}-${++this.messageIdCounter}-${Date.now()}`;
 
-            // Update step count
-            const stats = this.messageStatsMap.get(messageId);
-            if (stats) {
-              stats.stepCount++;
-              this.messageStatsMap.set(messageId, stats);
-              this.messageStatsSubject.next(new Map(this.messageStatsMap));
-            }
+        // Initialize message stats for this attempt
+        const messageStats: CopilotMessageStats = {
+          messageId,
+          userMessage: message,
+          startTime: new Date(),
+          totalInputTokens: 0,
+          totalOutputTokens: 0,
+          totalTokens: 0,
+          cachedInputTokens: 0,
+          stepCount: 0,
+          status: "running",
+        };
+        this.messageStatsMap.set(messageId, messageStats);
+        this.messageStatsSubject.next(new Map(this.messageStatsMap));
 
-            // Parse operator access (READ/WRITE) from tool calls and results
-            let operatorAccess: Map<number, ToolOperatorAccess> | undefined;
-            if (toolCalls && toolResults) {
-              operatorAccess = parseOperatorAccessFromStep(toolCalls, toolResults);
+        // Add user message
+        const userMessage: UserModelMessage = { role: "user", content: message };
+        this.messages.push(userMessage);
+        const userUIMessage: ReActStep = {
+          messageId: messageId,
+          stepId: 0, // User message is always step 0
+          timestamp: new Date(),
+          role: "user",
+          content: message,
+          isBegin: true,
+          isEnd: true,
+        };
+        this.reActSteps.push(userUIMessage);
+        this.reActStepsSubject.next([...this.reActSteps]);
 
-              // Track relevant operators from listRelevantOperatorIds tool calls
-              for (let i = 0; i < toolCalls.length; i++) {
-                const toolCall = toolCalls[i];
-                if (toolCall.toolName === TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS) {
-                  const toolResult = toolResults[i];
-                  console.log("result of context switching: ", toolResult);
-                  // The actual result is in toolResult.output, not toolResult.result
-                  if (toolResult && toolResult.output && toolResult.output.success && toolResult.output.operatorIds) {
-                    this.relevantOperators = toolResult.output.operatorIds;
-                    this.relevantOperatorsSubject.next([...this.relevantOperators]);
+        const tools = this.createWorkflowTools();
+        let isFirstStep = true;
+        let stepIndex = 0;
+        let wasStopped = false;
+
+        try {
+          // Generate text using AI
+          const result = await generateText({
+            model: this.model,
+            messages: this.messages,
+            tools,
+            system: systemPrompt,
+            stopWhen: ({ steps }) => {
+              if (this.state === CopilotState.STOPPING) {
+                wasStopped = true;
+                this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
+                return true;
+              }
+              if (this.shouldStopAfterActionPlan) {
+                return true;
+              }
+              return stepCountIs(500)({ steps });
+            },
+            onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
+              if (this.state === CopilotState.STOPPING) {
+                return;
+              }
+
+              if (toolCalls && toolCalls.some((call: any) => call.toolName === "actionPlan")) {
+                this.shouldStopAfterActionPlan = true;
+              }
+
+              // Update step count
+              const stats = this.messageStatsMap.get(messageId);
+              if (stats) {
+                stats.stepCount++;
+                this.messageStatsMap.set(messageId, stats);
+                this.messageStatsSubject.next(new Map(this.messageStatsMap));
+              }
+
+              // Parse operator access (READ/WRITE) from tool calls and results
+              let operatorAccess: Map<number, ToolOperatorAccess> | undefined;
+              if (toolCalls && toolResults) {
+                operatorAccess = parseOperatorAccessFromStep(toolCalls, toolResults);
+
+                // Track relevant operators from listRelevantOperatorIds tool calls
+                for (let i = 0; i < toolCalls.length; i++) {
+                  const toolCall = toolCalls[i];
+                  if (toolCall.toolName === TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS) {
+                    const toolResult = toolResults[i];
+                    console.log("result of context switching: ", toolResult);
+                    // The actual result is in toolResult.output, not toolResult.result
+                    if (toolResult && toolResult.output && toolResult.output.success && toolResult.output.operatorIds) {
+                      this.relevantOperators = toolResult.output.operatorIds;
+                      this.relevantOperatorsSubject.next([...this.relevantOperators]);
+                    }
                   }
                 }
               }
-            }
 
-            stepIndex++; // Increment first since user message is step 0
-            const stepResponse: ReActStep = {
-              messageId: messageId,
-              stepId: stepIndex,
-              timestamp: new Date(),
-              role: "agent",
-              content: text || "",
-              isBegin: isFirstStep,
-              isEnd: false,
-              toolCalls: toolCalls,
-              toolResults: toolResults,
-              usage: usage as any,
-              operatorAccess: operatorAccess,
-            };
+              stepIndex++; // Increment first since user message is step 0
+              const stepResponse: ReActStep = {
+                messageId: messageId,
+                stepId: stepIndex,
+                timestamp: new Date(),
+                role: "agent",
+                content: text || "",
+                isBegin: isFirstStep,
+                isEnd: false,
+                toolCalls: toolCalls,
+                toolResults: toolResults,
+                usage: usage as any,
+                operatorAccess: operatorAccess,
+              };
 
-            // Add to reActSteps array
-            this.reActSteps.push(stepResponse);
-            this.reActStepsSubject.next([...this.reActSteps]);
+              // Add to reActSteps array
+              this.reActSteps.push(stepResponse);
+              this.reActStepsSubject.next([...this.reActSteps]);
 
-            isFirstStep = false;
-          },
-        })
-      ).pipe(
-        tap(({ response, usage }) => {
-          this.messages.push(...response.messages);
+              isFirstStep = false;
+            },
+          });
+
+          // Success! Process the result
+          this.messages.push(...result.response.messages);
           this.reActStepsSubject.next([...this.reActSteps]);
 
           // Update final stats for completion with final usage
           const stats = this.messageStatsMap.get(messageId);
           if (stats) {
             stats.endTime = new Date();
-            stats.status = this.state === CopilotState.STOPPING ? "stopped" : "completed";
+            stats.status = wasStopped ? "stopped" : "completed";
             // Use the final usage from generateText result
-            if (usage) {
-              stats.totalInputTokens = usage.inputTokens || 0;
-              stats.totalOutputTokens = usage.outputTokens || 0;
-              stats.totalTokens = usage.totalTokens || 0;
-              stats.cachedInputTokens = usage.cachedInputTokens || 0;
+            if (result.usage) {
+              stats.totalInputTokens = result.usage.inputTokens || 0;
+              stats.totalOutputTokens = result.usage.outputTokens || 0;
+              stats.totalTokens = result.usage.totalTokens || 0;
+              stats.cachedInputTokens = result.usage.cachedInputTokens || 0;
             }
             this.messageStatsMap.set(messageId, stats);
             this.messageStatsSubject.next(new Map(this.messageStatsMap));
           }
 
-          // Clear retry count on successful completion
-          this.retryCountMap.delete(message);
-        }),
-        map(() => undefined),
-        catchError((err: unknown) => {
+          // Success - return from the async function
+          return;
+        } catch (err) {
+          lastError = err;
           const errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
+          this.notificationService.info(errorText);
 
           // Clean up the failed attempt
-          // 1. Remove all messages added since this request started
-          this.messages.splice(messagesLengthBeforeRequest);
-
-          // 2. Remove all reActSteps added for this messageId
-          this.reActSteps.splice(reActStepsLengthBeforeRequest);
-          this.reActStepsSubject.next([...this.reActSteps]);
-
-          // 3. Remove message stats for this failed attempt
           this.messageStatsMap.delete(messageId);
           this.messageStatsSubject.next(new Map(this.messageStatsMap));
 
-          // 4. Reset state to available for retry
-          this.setState(CopilotState.AVAILABLE);
+          // Clear message history for fresh start
+          this.clearMessages();
 
-          // Check if we should retry
-          if (currentRetryCount < TexeraCopilot.MAX_RETRY_COUNT) {
-            // Increment retry count
-            this.retryCountMap.set(message, currentRetryCount + 1);
-
-            // Log retry attempt
-            const retryMessage = `Retrying message (attempt ${currentRetryCount + 2}/${TexeraCopilot.MAX_RETRY_COUNT + 1}) after error: ${errorText}`;
+          // If this was not the last attempt, retry
+          if (attempt < TexeraCopilot.MAX_RETRY_COUNT + 1) {
+            const retryMessage = `Retrying message (attempt ${attempt + 1}/${TexeraCopilot.MAX_RETRY_COUNT + 1}) after error: ${errorText}`;
             console.warn(retryMessage);
             this.notificationService.info(retryMessage);
-
-            // Clear message history before retrying for a fresh start
-            this.clearMessages();
-
-            // Retry by recursively calling sendMessage
-            return this.sendMessage(message);
-          } else {
-            // Max retries exceeded, clean up retry count and show error
-            this.retryCountMap.delete(message);
-
-            // Add error message to UI
-            const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
-            this.messages.push(assistantError);
-
-            const errorResponse: ReActStep = {
-              messageId: messageId,
-              stepId: ++stepIndex,
-              timestamp: new Date(),
-              role: "agent",
-              content: errorText,
-              isBegin: false,
-              isEnd: true,
-            };
-            this.reActSteps.push(errorResponse);
-            this.reActStepsSubject.next([...this.reActSteps]);
-
-            // Add stats for the final failed attempt
-            const failedStats: CopilotMessageStats = {
-              messageId,
-              userMessage: message,
-              startTime: new Date(),
-              endTime: new Date(),
-              totalInputTokens: 0,
-              totalOutputTokens: 0,
-              totalTokens: 0,
-              cachedInputTokens: 0,
-              stepCount: 0,
-              status: "error",
-              errorMessage: `Failed after ${TexeraCopilot.MAX_RETRY_COUNT} retries: ${errorText}`,
-            };
-            this.messageStatsMap.set(messageId, failedStats);
-            this.messageStatsSubject.next(new Map(this.messageStatsMap));
-
-            return throwError(() => err);
           }
-        }),
-        finalize(() => {
-          // Always set state back to available when done
-          this.setState(CopilotState.AVAILABLE);
-        })
-      );
-    });
+        }
+      }
+
+      // If we get here, all retries failed
+      // Generate a final messageId for the error
+      const errorMessageId = `msg-${this.agentId}-${++this.messageIdCounter}-${Date.now()}`;
+
+      // Add error message to UI
+      const errorText = `Error: ${lastError instanceof Error ? lastError.message : String(lastError)}`;
+      const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
+      this.messages.push(assistantError);
+
+      const errorResponse: ReActStep = {
+        messageId: errorMessageId,
+        stepId: 1,
+        timestamp: new Date(),
+        role: "agent",
+        content: errorText,
+        isBegin: false,
+        isEnd: true,
+      };
+      this.reActSteps.push(errorResponse);
+      this.reActStepsSubject.next([...this.reActSteps]);
+
+      // Add stats for the final failed attempt
+      const failedStats: CopilotMessageStats = {
+        messageId: errorMessageId,
+        userMessage: message,
+        startTime: new Date(),
+        endTime: new Date(),
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalTokens: 0,
+        cachedInputTokens: 0,
+        stepCount: 0,
+        status: "error",
+        errorMessage: `Failed after ${TexeraCopilot.MAX_RETRY_COUNT + 1} attempts: ${errorText}`,
+      };
+      this.messageStatsMap.set(errorMessageId, failedStats);
+      this.messageStatsSubject.next(new Map(this.messageStatsMap));
+
+      // Throw the error
+      throw lastError;
+    }).pipe(
+      finalize(() => {
+        // Always set state to AVAILABLE when done (success or failure)
+        this.setState(CopilotState.AVAILABLE);
+      })
+    );
   }
 
   /**
