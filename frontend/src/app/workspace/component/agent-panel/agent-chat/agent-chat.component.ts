@@ -353,11 +353,11 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   public stopGeneration(): void {
-    this.copilotManagerService.stopGeneration(this.agentInfo.id).subscribe();
+    this.copilotManagerService.stopGeneration(this.agentInfo.id);
   }
 
   public clearMessages(): void {
-    this.copilotManagerService.clearMessages(this.agentInfo.id).subscribe();
+    this.copilotManagerService.clearMessages(this.agentInfo.id);
   }
 
   public isGenerating(): boolean {

@@ -300,32 +300,30 @@ export class TexeraCopilotManagerService {
 
   /**
    * Clear all messages for an agent.
-   * Returns an Observable that completes when done.
+   * This is a fire-and-forget method.
    */
-  public clearMessages(agentId: string): Observable<void> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      agent.instance.clearMessages();
-      return of(undefined);
-    });
+  public clearMessages(agentId: string): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      console.error(`Agent with ID ${agentId} not found`);
+      this.notificationService.error(`Agent with ID ${agentId} not found`);
+      return;
+    }
+    agent.instance.clearMessages();
   }
 
   /**
    * Stop generation for an agent.
-   * Returns an Observable that completes when done.
+   * This is a fire-and-forget method.
    */
-  public stopGeneration(agentId: string): Observable<void> {
-    return defer(() => {
-      const agent = this.agents.get(agentId);
-      if (!agent) {
-        return throwError(() => new Error(`Agent with ID ${agentId} not found`));
-      }
-      agent.instance.stopGeneration();
-      return of(undefined);
-    });
+  public stopGeneration(agentId: string): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      console.error(`Agent with ID ${agentId} not found`);
+      this.notificationService.error(`Agent with ID ${agentId} not found`);
+      return;
+    }
+    agent.instance.stopGeneration();
   }
 
   /**
