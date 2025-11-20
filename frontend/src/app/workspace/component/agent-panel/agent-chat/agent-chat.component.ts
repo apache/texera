@@ -372,6 +372,10 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     return this.agentState !== CopilotState.UNAVAILABLE;
   }
 
+  public isStopping(): boolean {
+    return this.agentState === CopilotState.STOPPING;
+  }
+
   public onPlanningModeChange(value: boolean): void {
     this.copilotManagerService.setPlanningMode(this.agentInfo.id, value);
   }
