@@ -145,12 +145,30 @@ export class AdminUserComponent implements OnInit {
   }
 
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
-  public sortByName: NzTableSortFn<User> = (a: User, b: User) => (b.name || "").localeCompare(a.name);
-  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => (b.email || "").localeCompare(a.email);
-  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => (b.comment || "").localeCompare(a.comment);
-  public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
-  public sortByAccountCreation: NzTableSortFn<User> = (a: User, b: User) =>
-    (a.accountCreation || 0) - (b.accountCreation || 0);
+  public sortByName: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.name || "").localeCompare(a.name || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.email || "").localeCompare(a.email || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.comment || "").localeCompare(a.comment || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByRole: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = b.role.localeCompare(a.role);
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByAccountCreation: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (a.accountCreation || 0) - (b.accountCreation || 0);
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
 
   reset(): void {
     this.nameSearchValue = "";
@@ -210,7 +228,7 @@ export class AdminUserComponent implements OnInit {
     const aActive = this.isUserActive(a);
     const bActive = this.isUserActive(b);
 
-    if (aActive === bActive) return 0;
+    if (aActive === bActive) return a.uid - b.uid;
     return aActive ? -1 : 1;
   };
 
