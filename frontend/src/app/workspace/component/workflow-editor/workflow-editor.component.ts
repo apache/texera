@@ -583,8 +583,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       }
     );
 
-    // Track current highlight element and cleanup handler
-    let currentElement: joint.dia.Element | null = null;
+    // Track current highlight elements (using array for consistent cleanup pattern)
+    const currentElements: joint.dia.Element[] = [];
     let currentPositionHandler: ((operator: joint.dia.Cell) => void) | null = null;
 
     // Subscribe to inconsistency highlight events
@@ -592,6 +592,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getHighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(highlight => {
+        // Clear any existing highlights first to prevent orphaned elements
+        this.clearInconsistencyHighlightElements(currentElements, currentPositionHandler);
+
         // Get operator elements from IDs
         const operators = highlight.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
 
@@ -600,16 +603,17 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         // Create inconsistency highlight element
-        currentElement = new InconsistencyHighlight();
-        this.paper.model.addCell(currentElement);
+        const highlightElement = new InconsistencyHighlight();
+        this.paper.model.addCell(highlightElement);
+        currentElements.push(highlightElement);
 
         // Update the highlight to wrap around operators
-        this.updateActionPlanElement(currentElement, operators);
+        this.updateActionPlanElement(highlightElement, operators);
 
         // Listen to operator position changes to update the highlight
         currentPositionHandler = (operator: joint.dia.Cell) => {
-          if (operators.includes(operator) && currentElement) {
-            this.updateActionPlanElement(currentElement, operators);
+          if (operators.includes(operator) && currentElements.length > 0) {
+            this.updateActionPlanElement(currentElements[0], operators);
           }
         };
         this.paper.model.on("change:position", currentPositionHandler);
@@ -620,18 +624,26 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getCleanupStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        // Remove highlight element
-        if (currentElement) {
-          currentElement.remove();
-          currentElement = null;
-        }
-
-        // Remove position handler
-        if (currentPositionHandler) {
-          this.paper.model.off("change:position", currentPositionHandler);
-          currentPositionHandler = null;
-        }
+        this.clearInconsistencyHighlightElements(currentElements, currentPositionHandler);
+        currentPositionHandler = null;
       });
+  }
+
+  /**
+   * Clear all inconsistency highlight elements and remove position handler.
+   */
+  private clearInconsistencyHighlightElements(
+    elements: joint.dia.Element[],
+    positionHandler: ((cell: joint.dia.Cell) => void) | null
+  ): void {
+    // Remove all highlight elements
+    elements.forEach(element => element.remove());
+    elements.length = 0; // Clear the array
+
+    // Remove position handler
+    if (positionHandler) {
+      this.paper.model.off("change:position", positionHandler);
+    }
   }
 
   /**

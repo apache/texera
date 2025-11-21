@@ -372,7 +372,7 @@ export class TexeraCopilot {
         } catch (err) {
           lastError = err;
           const errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
-          this.notificationService.info(errorText);
+          // this.notificationService.info(errorText);
 
           // Clean up the failed attempt
           this.messageStatsMap.delete(messageId);
@@ -385,7 +385,7 @@ export class TexeraCopilot {
           if (attempt < TexeraCopilot.MAX_RETRY_COUNT + 1) {
             const retryMessage = `Retrying message (attempt ${attempt + 1}/${TexeraCopilot.MAX_RETRY_COUNT + 1}) after error: ${errorText}`;
             console.warn(retryMessage);
-            this.notificationService.info(retryMessage);
+            // this.notificationService.info(retryMessage);
           }
         }
       }

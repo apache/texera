@@ -34,7 +34,6 @@ import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ContextHighlightService } from "../../../service/context-highlight/context-highlight.service";
 
 @UntilDestroy()
 @Component({
@@ -59,8 +58,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public systemPrompt: string = "";
   public availableTools: Array<{ name: string; description: string; inputSchema: any }> = [];
   public agentState: CopilotState = CopilotState.UNAVAILABLE;
-  public showContext = false;
-  public relevantOperators: string[] = [];
   public isStatsModalVisible = false;
   public messageStats: CopilotMessageStats[] = [];
 
@@ -69,7 +66,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private copilotManagerService: TexeraCopilotManagerService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
-    private contextHighlightService: ContextHighlightService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -139,19 +135,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.shouldScrollToBottom = true;
         } else if (plan === null || (plan && plan.agentId !== this.agentInfo.id)) {
           this.pendingActionPlan = null;
-        }
-        this.cdr.detectChanges();
-      });
-
-    // Subscribe to relevant operators changes
-    this.copilotManagerService
-      .getRelevantOperatorsObservable(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(operators => {
-        this.relevantOperators = operators;
-        // If context is currently shown, update the highlighting
-        if (this.showContext && operators.length > 0) {
-          this.highlightContextOperators();
         }
         this.cdr.detectChanges();
       });
@@ -428,39 +411,5 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.copilotManagerService.sendMessage(this.agentInfo.id, rejectionMessage);
       }
     }
-  }
-
-  /**
-   * Handle context visibility toggle change.
-   */
-  public onShowContextChange(value: boolean): void {
-    this.showContext = value;
-    if (value && this.relevantOperators.length > 0) {
-      this.highlightContextOperators();
-    } else {
-      this.clearContextHighlighting();
-    }
-  }
-
-  /**
-   * Highlight operators in the workflow that are relevant context.
-   * Uses the ContextHighlightService to create visual regions around operators,
-   * automatically handling multiple connected components.
-   */
-  private highlightContextOperators(): void {
-    if (this.relevantOperators.length === 0) {
-      return;
-    }
-
-    // Trigger context highlighting via the service
-    // The workflow-editor component will handle creating the visual regions
-    this.contextHighlightService.highlightContext(this.relevantOperators);
-  }
-
-  /**
-   * Clear context highlighting from the workflow.
-   */
-  private clearContextHighlighting(): void {
-    this.contextHighlightService.clearHighlight();
   }
 }
