@@ -47,14 +47,14 @@
       </div>
 
       <!-- Planning mode toggle -->
-      <!-- <div class="toolbar-item">
+      <div class="toolbar-item">
         <small style="color: #888">Planning Mode</small>
         <nz-switch
           [(ngModel)]="planningMode"
           (ngModelChange)="onPlanningModeChange($event)"
           nzSize="small"
           style="margin-left: 8px"></nz-switch>
-      </div> -->
+      </div>
 
       <!-- Token counts -->
       <div class="toolbar-item">
@@ -212,58 +212,76 @@
           <span style="margin-left: 8px">Stopping...</span>
         </div>
       </div>
-
-      <!-- Pending Action Plan -->
-      <div
-        *ngIf="pendingActionPlan"
-        class="message ai-message action-plan-message">
-        <div class="message-header">
-          <i
-            nz-icon
-            nzType="robot"
-            nzTheme="outline"></i>
-          <span class="message-role">{{ agentInfo.name }}</span>
-        </div>
-        <div class="message-content">
-          <texera-action-plan-view
-            [actionPlan]="pendingActionPlan"
-            [showFeedbackControls]="true"
-            (userDecision)="onUserDecision($event)"></texera-action-plan-view>
-        </div>
-      </div>
     </div>
 
     <!-- Input Area -->
     <div class="input-area">
-      <textarea
-        #messageInput
-        nz-input
-        [(ngModel)]="currentMessage"
-        placeholder="Ask me anything about workflows..."
-        [nzAutosize]="{ minRows: 1, maxRows: 4 }"
-        (keydown.enter)="onEnterPress($any($event))"
-        [disabled]="!canSendMessage()"></textarea>
-      <button
-        nz-button
-        nzType="primary"
-        [disabled]="!currentMessage.trim() || !canSendMessage()"
-        (click)="sendMessage()">
-        <i
-          nz-icon
-          nzType="send"
-          nzTheme="outline"></i>
-      </button>
-      <button
-        *ngIf="isGenerating()"
-        nz-button
-        nzType="default"
-        nzDanger
-        (click)="stopGeneration()">
-        <i
-          nz-icon
-          nzType="stop"
-          nzTheme="outline"></i>
-      </button>
+      <!-- Normal input state -->
+      <ng-container *ngIf="!isWaitingForActionPlanApproval">
+        <textarea
+          #messageInput
+          nz-input
+          [(ngModel)]="currentMessage"
+          placeholder="Ask me anything about workflows..."
+          [nzAutosize]="{ minRows: 1, maxRows: 4 }"
+          (keydown.enter)="onEnterPress($any($event))"
+          [disabled]="!canSendMessage()"></textarea>
+        <button
+          nz-button
+          nzType="primary"
+          [disabled]="!currentMessage.trim() || !canSendMessage()"
+          (click)="sendMessage()">
+          <i
+            nz-icon
+            nzType="send"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          *ngIf="isGenerating()"
+          nz-button
+          nzType="default"
+          nzDanger
+          (click)="stopGeneration()">
+          <i
+            nz-icon
+            nzType="stop"
+            nzTheme="outline"></i>
+        </button>
+      </ng-container>
+
+      <!-- Action Plan Approval state -->
+      <ng-container *ngIf="isWaitingForActionPlanApproval">
+        <textarea
+          nz-input
+          [(ngModel)]="currentMessage"
+          placeholder="Provide feedback (optional)..."
+          [nzAutosize]="{ minRows: 1, maxRows: 4 }"></textarea>
+        <button
+          nz-button
+          nzType="primary"
+          (click)="onApproveActionPlan()"
+          nz-tooltip
+          nzTooltipTitle="Accept the action plan and proceed">
+          <i
+            nz-icon
+            nzType="check"
+            nzTheme="outline"></i>
+          Accept
+        </button>
+        <button
+          nz-button
+          nzType="default"
+          nzDanger
+          (click)="onRejectActionPlan()"
+          nz-tooltip
+          nzTooltipTitle="Reject the action plan">
+          <i
+            nz-icon
+            nzType="close"
+            nzTheme="outline"></i>
+          Reject
+        </button>
+      </ng-container>
     </div>
   </div>
 

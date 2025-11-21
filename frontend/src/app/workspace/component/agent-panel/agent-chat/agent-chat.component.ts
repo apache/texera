@@ -60,6 +60,8 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public agentState: CopilotState = CopilotState.UNAVAILABLE;
   public isStatsModalVisible = false;
   public messageStats: CopilotMessageStats[] = [];
+  public isWaitingForActionPlanApproval = false;
+  public pendingActionPlanId?: string;
 
   constructor(
     private actionPlanService: ActionPlanService,
@@ -145,6 +147,16 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       .pipe(untilDestroyed(this))
       .subscribe(statsMap => {
         this.messageStats = Array.from(statsMap.values());
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to action plan approval state
+    this.copilotManagerService
+      .getActionPlanApprovalObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(approvalState => {
+        this.isWaitingForActionPlanApproval = approvalState.isWaitingForApproval;
+        this.pendingActionPlanId = approvalState.actionPlanId;
         this.cdr.detectChanges();
       });
   }
@@ -376,7 +388,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     if (decision.planId) {
       if (decision.accepted) {
-        this.actionPlanService.acceptPlan(decision.planId);
+        // Status management removed - no need to call acceptPlan
 
         if (decision.createNewActor) {
           this.copilotManagerService
@@ -405,11 +417,35 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.workflowActionService.deleteOperatorsAndLinks(actionPlan.operatorIds);
         }
 
-        this.actionPlanService.rejectPlan(userFeedback, decision.planId);
+        // Status management removed - no need to call rejectPlan
 
         const rejectionMessage = `I have rejected your action plan. Feedback: ${userFeedback}`;
         this.copilotManagerService.sendMessage(this.agentInfo.id, rejectionMessage);
       }
+    }
+  }
+
+  /**
+   * Approve the pending action plan
+   */
+  public onApproveActionPlan(): void {
+    const feedback = this.currentMessage.trim();
+    const agent = this.agentInfo.instance;
+    if (agent) {
+      agent.approveActionPlan(feedback);
+      this.currentMessage = "";
+    }
+  }
+
+  /**
+   * Reject the pending action plan
+   */
+  public onRejectActionPlan(): void {
+    const feedback = this.currentMessage.trim();
+    const agent = this.agentInfo.instance;
+    if (agent) {
+      agent.rejectActionPlan(feedback);
+      this.currentMessage = "";
     }
   }
 }

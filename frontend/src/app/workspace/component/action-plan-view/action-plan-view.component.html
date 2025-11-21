@@ -37,27 +37,84 @@
             nzTheme="outline"></i>
           {{ actionPlan.createdAt | date : "short" }}
         </span>
-        <span class="plan-status">
-          <nz-tag [nzColor]="getStatusColor()">{{ getStatusLabel() }}</nz-tag>
-        </span>
       </div>
     </div>
   </div>
 
-  <!-- User Feedback (shown for rejected plans) -->
-  <div
-    *ngIf="actionPlan.status$.value === ActionPlanStatus.REJECTED && actionPlan.userFeedback"
-    class="feedback-section">
-    <nz-alert
-      nzType="error"
-      nzShowIcon
-      [nzMessage]="'User Feedback'"
-      [nzDescription]="actionPlan.userFeedback"></nz-alert>
+  <!-- Operations Display -->
+  <div class="operations-section">
+    <!-- Add Operations -->
+    <div
+      *ngIf="hasItems(actionPlan.operations.add.operatorIds) || hasItems(actionPlan.operations.add.linkIds)"
+      class="operation-group">
+      <div class="operation-header">
+        <i
+          nz-icon
+          nzType="plus-circle"
+          nzTheme="outline"
+          style="color: #52c41a"></i>
+        <span>Add</span>
+      </div>
+      <div class="operation-content">
+        <div *ngIf="hasItems(actionPlan.operations.add.operatorIds)">
+          <span class="label">Operators:</span>
+          <span class="ids">{{ actionPlan.operations.add.operatorIds.join(", ") }}</span>
+        </div>
+        <div *ngIf="hasItems(actionPlan.operations.add.linkIds)">
+          <span class="label">Links:</span>
+          <span class="ids">{{ actionPlan.operations.add.linkIds.join(", ") }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modify Operations -->
+    <div
+      *ngIf="hasItems(actionPlan.operations.modify.operatorIds)"
+      class="operation-group">
+      <div class="operation-header">
+        <i
+          nz-icon
+          nzType="edit"
+          nzTheme="outline"
+          style="color: #1890ff"></i>
+        <span>Modify</span>
+      </div>
+      <div class="operation-content">
+        <div>
+          <span class="label">Operators:</span>
+          <span class="ids">{{ actionPlan.operations.modify.operatorIds.join(", ") }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Operations -->
+    <div
+      *ngIf="hasItems(actionPlan.operations.delete.operatorIds) || hasItems(actionPlan.operations.delete.linkIds)"
+      class="operation-group">
+      <div class="operation-header">
+        <i
+          nz-icon
+          nzType="delete"
+          nzTheme="outline"
+          style="color: #ff4d4f"></i>
+        <span>Delete</span>
+      </div>
+      <div class="operation-content">
+        <div *ngIf="hasItems(actionPlan.operations.delete.operatorIds)">
+          <span class="label">Operators:</span>
+          <span class="ids">{{ actionPlan.operations.delete.operatorIds.join(", ") }}</span>
+        </div>
+        <div *ngIf="hasItems(actionPlan.operations.delete.linkIds)">
+          <span class="label">Links:</span>
+          <span class="ids">{{ actionPlan.operations.delete.linkIds.join(", ") }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Feedback Controls (only shown when flag is true) -->
   <div
-    *ngIf="showFeedbackControls && actionPlan.status$.value === ActionPlanStatus.PENDING"
+    *ngIf="showFeedbackControls"
     class="controls-section">
     <div class="new-agent-toggle">
       <label

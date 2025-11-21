@@ -30,24 +30,6 @@ export interface ActionPlanHighlight {
 }
 
 /**
- * User feedback for an action plan
- */
-export interface ActionPlanFeedback {
-  accepted: boolean;
-  message?: string; // Optional message when rejecting
-}
-
-/**
- * Status of an action plan
- */
-export enum ActionPlanStatus {
-  PENDING = "pending", // Waiting for user approval
-  ACCEPTED = "accepted", // User accepted, being executed
-  REJECTED = "rejected", // User rejected
-  COMPLETED = "completed", // Execution completed
-}
-
-/**
  * Operations performed in an action plan
  */
 export interface ActionPlanOperations {
@@ -74,9 +56,7 @@ export interface ActionPlan {
   executorAgentId: string; // ID of the agent that will execute/handle feedback for this plan (can be different from creator)
   summary: string; // Overall summary of the action plan
   operations: ActionPlanOperations; // Operations performed (add/modify/delete)
-  status$: BehaviorSubject<ActionPlanStatus>; // Current status
   createdAt: Date; // Creation timestamp
-  userFeedback?: string; // User's feedback message (if rejected)
   operatorIds: string[]; // For highlighting
   linkIds: string[]; // For highlighting
 }
@@ -162,7 +142,6 @@ export class ActionPlanService {
       executorAgentId: executorAgentId || agentId, // Default to creator if not specified
       summary,
       operations,
-      status$: new BehaviorSubject<ActionPlanStatus>(ActionPlanStatus.PENDING),
       createdAt: new Date(),
       operatorIds,
       linkIds,
@@ -179,24 +158,10 @@ export class ActionPlanService {
   }
 
   /**
-   * Update action plan status
-   */
-  public updateActionPlanStatus(id: string, status: ActionPlanStatus): void {
-    const plan = this.actionPlans.get(id);
-    if (plan) {
-      plan.status$.next(status);
-      this.emitActionPlans();
-    }
-  }
-
-  /**
    * Delete an action plan
    */
   public deleteActionPlan(id: string): boolean {
-    const plan = this.actionPlans.get(id);
-    if (plan) {
-      // Complete status observable
-      plan.status$.complete();
+    if (this.actionPlans.has(id)) {
       this.actionPlans.delete(id);
       this.emitActionPlans();
       return true;
@@ -208,43 +173,8 @@ export class ActionPlanService {
    * Clear all action plans
    */
   public clearAllActionPlans(): void {
-    this.actionPlans.forEach(plan => {
-      plan.status$.complete();
-    });
     this.actionPlans.clear();
     this.emitActionPlans();
-  }
-
-  /**
-   * User accepted the action plan
-   */
-  public acceptPlan(planId?: string): void {
-    // Trigger cleanup (remove highlight)
-    this.cleanupSubject.next();
-
-    // Update plan status if planId provided
-    if (planId) {
-      this.updateActionPlanStatus(planId, ActionPlanStatus.ACCEPTED);
-      this.pendingActionPlanSubject.next(null);
-    }
-  }
-
-  /**
-   * User rejected the action plan with optional feedback message
-   */
-  public rejectPlan(message?: string, planId?: string): void {
-    // Trigger cleanup (remove highlight)
-    this.cleanupSubject.next();
-
-    // Update plan status if planId provided
-    if (planId) {
-      const plan = this.actionPlans.get(planId);
-      if (plan) {
-        plan.userFeedback = message;
-        this.updateActionPlanStatus(planId, ActionPlanStatus.REJECTED);
-      }
-      this.pendingActionPlanSubject.next(null);
-    }
   }
 
   /**

@@ -172,7 +172,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
-    this.handleActionPlanHighlight();
+    // this.handleActionPlanHighlight(); // Temporarily disabled
     this.handleInconsistencyHighlight();
     this.handleContextHighlight();
     this.handleOperatorSuggestionHighlightEvent();

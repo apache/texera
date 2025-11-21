@@ -374,9 +374,7 @@ export function createGetActionPlanTool(actionPlanService: ActionPlanService) {
             agentName: plan.agentName,
             executorAgentId: plan.executorAgentId,
             summary: plan.summary,
-            status: plan.status$.value,
             createdAt: plan.createdAt.toISOString(),
-            userFeedback: plan.userFeedback,
             operatorIds: plan.operatorIds,
             linkIds: plan.linkIds,
             operations: plan.operations,
@@ -398,12 +396,8 @@ export function createListActionPlansTool(actionPlanService: ActionPlanService) 
     description: "List all action plans in the system",
     inputSchema: z.object({
       filterByAgent: z.string().optional().describe("Optional: Filter by agent ID"),
-      filterByStatus: z
-        .string()
-        .optional()
-        .describe("Optional: Filter by status (pending, accepted, rejected, completed)"),
     }),
-    execute: async (args: { filterByAgent?: string; filterByStatus?: string }) => {
+    execute: async (args: { filterByAgent?: string }) => {
       try {
         const allPlans = actionPlanService.getAllActionPlans();
 
@@ -411,9 +405,6 @@ export function createListActionPlansTool(actionPlanService: ActionPlanService) 
         let filteredPlans = allPlans;
         if (args.filterByAgent) {
           filteredPlans = filteredPlans.filter(plan => plan.agentId === args.filterByAgent);
-        }
-        if (args.filterByStatus) {
-          filteredPlans = filteredPlans.filter(plan => plan.status$.value === args.filterByStatus);
         }
 
         // Convert to serializable format
@@ -423,7 +414,6 @@ export function createListActionPlansTool(actionPlanService: ActionPlanService) 
           agentName: plan.agentName,
           executorAgentId: plan.executorAgentId,
           summary: plan.summary,
-          status: plan.status$.value,
           createdAt: plan.createdAt.toISOString(),
           operations: plan.operations,
         }));
@@ -474,13 +464,8 @@ export function createUpdateActionPlanTool(actionPlanService: ActionPlanService)
     inputSchema: z.object({
       actionPlanId: z.string().describe("The ID of the action plan to update"),
       summary: z.string().optional().describe("New summary for the action plan"),
-      status: z
-        .enum(["pending", "accepted", "rejected", "completed"])
-        .optional()
-        .describe("New status for the action plan"),
-      userFeedback: z.string().optional().describe("User feedback to add"),
     }),
-    execute: async (args: { actionPlanId: string; summary?: string; status?: string; userFeedback?: string }) => {
+    execute: async (args: { actionPlanId: string; summary?: string }) => {
       try {
         const plan = actionPlanService.getActionPlan(args.actionPlanId);
         if (!plan) {
@@ -490,12 +475,6 @@ export function createUpdateActionPlanTool(actionPlanService: ActionPlanService)
         // Update fields if provided
         if (args.summary !== undefined) {
           plan.summary = args.summary;
-        }
-        if (args.status !== undefined) {
-          plan.status$.next(args.status as any);
-        }
-        if (args.userFeedback !== undefined) {
-          plan.userFeedback = args.userFeedback;
         }
 
         return {

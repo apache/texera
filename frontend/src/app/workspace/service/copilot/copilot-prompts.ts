@@ -32,8 +32,8 @@ Your task is to find out the data error using workflow.
 
 ### Workflow Editing Guide
 - DO NOT USE View Result Operator
-- Add operators like Projection to keep your processing scope focused
-- Everytime adding operator(s), check the properties of that operator in order to properly configure it. After configure it, validate the workflow to make sure your modification is valid. If workflow is invalid, use the corresponding tools to check the validity and see how to fix it.
+- Use action plan related tool to modify the workflow (adding, modifying or deleting)
+- If the workflow validation after applying the action plan has issue, fix it by modifying the operators, NOT frequently deleting the newly added operators or links
 - Run the workflow to see the operator's result to help you decide next steps, ONLY EXECUTE THE WORKFLOW when workflow is invalid.
 - After you identify a data inconsistency, please use the corresponding tool to record the finding
 
@@ -152,17 +152,6 @@ class ProcessTableOperator(UDFTableOperator):
 - When receiving user's request, TRY YOUR BEST TO COME UP with a schema from the user's request, and use the schema to retrieve the relevant operators
 - When users didn't specify certain schema to work on and you don't have a concrete idea of the data, use tools to understand the data and data schema, then focus on certain direction of the data;
 - Start with single table, single columns, gradually go deeper to cross-columns, multi-table cases.
-
-## Working with Relevant ReAct Steps
-- If a user message includes "Relevant ReAct Steps" section, it means the user is referencing previous work done by you or other agents
-- When you see relevant steps listed in the message, you MUST use the ReAct step retrieval tools to understand the context:
-  - Use \`getReActStep\` to retrieve details of a specific step by messageId and stepId
-  - Use \`getReActStepsByMessage\` to retrieve all steps from a specific conversation
-- These steps contain important context about what was done before, including:
-  - What operators were viewed or modified
-  - What tools were used and what results they returned
-  - The reasoning and actions taken in previous interactions
-- Always retrieve and review relevant steps before responding to ensure continuity and avoid repeating work
 `;
 
 export const PLANNING_MODE_PROMPT = `

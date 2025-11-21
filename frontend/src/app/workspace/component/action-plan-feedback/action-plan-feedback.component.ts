@@ -35,11 +35,10 @@ export class ActionPlanFeedbackComponent {
   constructor(private actionPlanService: ActionPlanService) {}
 
   public onAccept(): void {
-    this.actionPlanService.acceptPlan();
+    // Action plan acceptance removed - feedback component is now unused
   }
 
   public onReject(): void {
-    const message = this.rejectMessage.trim() || "I don't want this action plan.";
-    this.actionPlanService.rejectPlan(message);
+    // Action plan rejection removed - feedback component is now unused
   }
 }

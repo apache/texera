@@ -464,6 +464,16 @@ export class TexeraCopilotManagerService {
     return agent.instance.messageStats$;
   }
 
+  public getActionPlanApprovalObservable(
+    agentId: string
+  ): Observable<{ isWaitingForApproval: boolean; actionPlanId?: string }> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.actionPlanApproval$;
+  }
+
   /**
    * Get ReActSteps that viewed or modified a specific operator.
    * Returns two arrays: steps that viewed the operator and steps that modified it.

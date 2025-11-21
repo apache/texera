@@ -144,6 +144,12 @@ export class TexeraCopilot {
     modifiedOperatorIds: string[];
   }>({ viewedOperatorIds: [], modifiedOperatorIds: [] });
   public hoveredMessageOperators$ = this.hoveredMessageOperatorsSubject.asObservable();
+  // Action plan approval blocking state
+  private actionPlanApprovalSubject = new BehaviorSubject<{
+    isWaitingForApproval: boolean;
+    actionPlanId?: string;
+  }>({ isWaitingForApproval: false });
+  public actionPlanApproval$ = this.actionPlanApprovalSubject.asObservable();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -292,10 +298,6 @@ export class TexeraCopilot {
                 return;
               }
 
-              if (toolCalls && toolCalls.some((call: any) => call.toolName === "actionPlan")) {
-                this.shouldStopAfterActionPlan = true;
-              }
-
               // Update step count
               const stats = this.messageStatsMap.get(messageId);
               if (stats) {
@@ -304,24 +306,32 @@ export class TexeraCopilot {
                 this.messageStatsSubject.next(new Map(this.messageStatsMap));
               }
 
+              // Check if planning mode is on and there's an actionPlan tool call
+              if (this.planningMode && toolCalls && toolResults) {
+                const actionPlanCallIndex = toolCalls.findIndex(
+                  call => call.toolName === actionPlanTools.TOOL_NAME_ACTION_PLAN
+                );
+
+                if (actionPlanCallIndex !== -1) {
+                  // Extract action plan ID from the result
+                  const actionPlanResult = toolResults[actionPlanCallIndex];
+                  const actionPlanId = actionPlanResult?.result?.actionPlanId;
+
+                  // Stop generation after this step to wait for user approval
+                  this.shouldStopAfterActionPlan = true;
+
+                  // Emit blocking state
+                  this.actionPlanApprovalSubject.next({
+                    isWaitingForApproval: true,
+                    actionPlanId: actionPlanId,
+                  });
+                }
+              }
+
               // Parse operator access (READ/WRITE) from tool calls and results
               let operatorAccess: Map<number, ToolOperatorAccess> | undefined;
               if (toolCalls && toolResults) {
                 operatorAccess = parseOperatorAccessFromStep(toolCalls, toolResults);
-
-                // Track relevant operators from listRelevantOperatorIds tool calls
-                for (let i = 0; i < toolCalls.length; i++) {
-                  const toolCall = toolCalls[i];
-                  if (toolCall.toolName === TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS) {
-                    const toolResult = toolResults[i];
-                    console.log("result of context switching: ", toolResult);
-                    // The actual result is in toolResult.output, not toolResult.result
-                    if (toolResult && toolResult.output && toolResult.output.success && toolResult.output.operatorIds) {
-                      this.relevantOperators = toolResult.output.operatorIds;
-                      this.relevantOperatorsSubject.next([...this.relevantOperators]);
-                    }
-                  }
-                }
               }
 
               stepIndex++; // Increment first since user message is step 0
@@ -593,17 +603,17 @@ export class TexeraCopilot {
       [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA]: getOperatorPropertiesSchemaTool,
       [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: getOperatorPortsInfoTool,
       [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: getOperatorMetadataTool,
-      // current workflow editing
-      [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW]:
-        addOperatorToCurrentWorkflowTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW]: addLinkToCurrentWorkflowTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW]:
-        deleteOperatorInCurrentWorkflowTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW]: deleteLinkInCurrentWorkflowTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW]:
-        setOperatorPropertyInCurrentWorkflowTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW]:
-        setPortPropertyInCurrentWorkflowTool,
+      // current workflow editing - TEMPORARILY COMMENTED OUT
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW]:
+      //   addOperatorToCurrentWorkflowTool,
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW]: addLinkToCurrentWorkflowTool,
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW]:
+      //   deleteOperatorInCurrentWorkflowTool,
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW]: deleteLinkInCurrentWorkflowTool,
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW]:
+      //   setOperatorPropertyInCurrentWorkflowTool,
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW]:
+      //   setPortPropertyInCurrentWorkflowTool,
       // current workflow validation
       [currentWorkflowValidationTools.TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO]:
         getCurrentWorkflowValidationInfoTool,
@@ -629,20 +639,15 @@ export class TexeraCopilot {
       [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
+      // Action plan tools - always available
+      [actionPlanTools.TOOL_NAME_ACTION_PLAN]: actionPlanTool,
+      // [actionPlanTools.TOOL_NAME_GET_ACTION_PLAN]: getActionPlanTool,
+      // [actionPlanTools.TOOL_NAME_LIST_ACTION_PLANS]: listActionPlansTool,
+      // [actionPlanTools.TOOL_NAME_DELETE_ACTION_PLAN]: deleteActionPlanTool,
+      // [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN]: updateActionPlanTool,
     };
 
-    if (this.planningMode) {
-      return {
-        ...baseTools,
-        [actionPlanTools.TOOL_NAME_ACTION_PLAN]: actionPlanTool,
-        [actionPlanTools.TOOL_NAME_GET_ACTION_PLAN]: getActionPlanTool,
-        [actionPlanTools.TOOL_NAME_LIST_ACTION_PLANS]: listActionPlansTool,
-        [actionPlanTools.TOOL_NAME_DELETE_ACTION_PLAN]: deleteActionPlanTool,
-        [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN]: updateActionPlanTool,
-      };
-    } else {
-      return baseTools;
-    }
+    return baseTools;
   }
 
   public getReActSteps(): ReActStep[] {
@@ -748,5 +753,31 @@ export class TexeraCopilot {
       description: tool.description || "No description available",
       inputSchema: tool.parameters || {},
     }));
+  }
+
+  /**
+   * Approve the pending action plan and continue with execution
+   */
+  public approveActionPlan(feedback?: string): void {
+    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
+
+    const message = feedback
+      ? `I approve this action plan. Additional feedback: ${feedback}`
+      : "I approve this action plan. Please proceed with execution.";
+
+    this.sendMessage(message).subscribe();
+  }
+
+  /**
+   * Reject the pending action plan and provide feedback
+   */
+  public rejectActionPlan(feedback?: string): void {
+    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
+
+    const message = feedback
+      ? `I reject this action plan. Reason: ${feedback}`
+      : "I reject this action plan. Please revise your approach.";
+
+    this.sendMessage(message).subscribe();
   }
 }

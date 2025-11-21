@@ -18,7 +18,7 @@
  */
 
 import { Component, Input, Output, EventEmitter, OnInit } from "@angular/core";
-import { ActionPlan, ActionPlanStatus } from "../../service/action-plan/action-plan.service";
+import { ActionPlan } from "../../service/action-plan/action-plan.service";
 
 @Component({
   selector: "texera-action-plan-view",
@@ -37,7 +37,6 @@ export class ActionPlanViewComponent implements OnInit {
 
   public rejectMessage: string = "";
   public runInNewAgent: boolean = false;
-  public ActionPlanStatus = ActionPlanStatus;
 
   constructor() {}
 
@@ -74,40 +73,9 @@ export class ActionPlanViewComponent implements OnInit {
   }
 
   /**
-   * Get display label for current plan status.
+   * Check if an operations array has any items
    */
-  public getStatusLabel(): string {
-    const status = this.actionPlan.status$.value;
-    switch (status) {
-      case ActionPlanStatus.PENDING:
-        return "Pending Approval";
-      case ActionPlanStatus.ACCEPTED:
-        return "In Progress";
-      case ActionPlanStatus.REJECTED:
-        return "Rejected";
-      case ActionPlanStatus.COMPLETED:
-        return "Completed";
-      default:
-        return status;
-    }
-  }
-
-  /**
-   * Get display color for current plan status.
-   */
-  public getStatusColor(): string {
-    const status = this.actionPlan.status$.value;
-    switch (status) {
-      case ActionPlanStatus.PENDING:
-        return "warning";
-      case ActionPlanStatus.ACCEPTED:
-        return "processing";
-      case ActionPlanStatus.REJECTED:
-        return "error";
-      case ActionPlanStatus.COMPLETED:
-        return "success";
-      default:
-        return "default";
-    }
+  public hasItems(items: string[]): boolean {
+    return items && items.length > 0;
   }
 }
