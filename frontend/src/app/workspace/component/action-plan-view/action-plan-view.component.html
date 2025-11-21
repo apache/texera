@@ -44,50 +44,6 @@
     </div>
   </div>
 
-  <!-- Progress Bar (only shown for accepted plans) -->
-  <div
-    *ngIf="actionPlan.status$.value === ActionPlanStatus.ACCEPTED"
-    class="progress-section">
-    <nz-progress
-      [nzPercent]="getProgressPercentage()"
-      [nzStatus]="getProgressPercentage() === 100 ? 'success' : 'active'"></nz-progress>
-  </div>
-
-  <!-- Tasks List -->
-  <div class="tasks-section">
-    <h5>Tasks:</h5>
-    <nz-list
-      [nzDataSource]="tasksArray"
-      nzSize="small">
-      <nz-list-item *ngFor="let task of tasksArray">
-        <div
-          class="task-item"
-          (mouseenter)="onTaskHover(task.operatorId, true)"
-          (mouseleave)="onTaskHover(task.operatorId, false)"
-          style="cursor: pointer">
-          <div class="task-checkbox">
-            <i
-              *ngIf="taskCompletionStates[task.operatorId]"
-              nz-icon
-              nzType="check-circle"
-              nzTheme="twotone"
-              [nzTwotoneColor]="'#52c41a'"
-              class="task-completed"></i>
-            <i
-              *ngIf="!taskCompletionStates[task.operatorId]"
-              nz-icon
-              nzType="clock-circle"
-              nzTheme="outline"
-              class="task-pending"></i>
-          </div>
-          <div class="task-content">
-            <div class="task-description">{{ task.description }}</div>
-          </div>
-        </div>
-      </nz-list-item>
-    </nz-list>
-  </div>
-
   <!-- User Feedback (shown for rejected plans) -->
   <div
     *ngIf="actionPlan.status$.value === ActionPlanStatus.REJECTED && actionPlan.userFeedback"

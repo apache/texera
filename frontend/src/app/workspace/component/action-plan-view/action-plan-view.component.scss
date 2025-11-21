@@ -59,54 +59,6 @@
     }
   }
 
-  .progress-section {
-    margin-bottom: 16px;
-  }
-
-  .tasks-section {
-    margin-bottom: 16px;
-
-    h5 {
-      margin: 0 0 8px 0;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .task-item {
-      display: flex;
-      gap: 12px;
-      width: 100%;
-      padding: 8px;
-      border-radius: 4px;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background-color: #f0f7ff;
-      }
-
-      .task-checkbox {
-        flex-shrink: 0;
-        font-size: 18px;
-
-        .task-completed {
-          color: #52c41a;
-        }
-
-        .task-pending {
-          color: #d9d9d9;
-        }
-      }
-
-      .task-content {
-        flex: 1;
-
-        .task-description {
-          font-size: 14px;
-        }
-      }
-    }
-  }
-
   .feedback-section {
     margin-bottom: 16px;
   }

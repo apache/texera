@@ -576,12 +576,10 @@ export class TexeraCopilot {
         this.workflowUtilService,
         this.operatorMetadataService,
         this.actionPlanService,
+        this.validationWorkflowService,
         this.agentId,
         this.agentName
       )
-    );
-    const updateActionPlanProgressTool = toolWithTimeout(
-      actionPlanTools.createUpdateActionPlanProgressTool(this.actionPlanService)
     );
     const getActionPlanTool = toolWithTimeout(actionPlanTools.createGetActionPlanTool(this.actionPlanService));
     const listActionPlansTool = toolWithTimeout(actionPlanTools.createListActionPlansTool(this.actionPlanService));
@@ -637,7 +635,6 @@ export class TexeraCopilot {
       return {
         ...baseTools,
         [actionPlanTools.TOOL_NAME_ACTION_PLAN]: actionPlanTool,
-        [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN_PROGRESS]: updateActionPlanProgressTool,
         [actionPlanTools.TOOL_NAME_GET_ACTION_PLAN]: getActionPlanTool,
         [actionPlanTools.TOOL_NAME_LIST_ACTION_PLANS]: listActionPlansTool,
         [actionPlanTools.TOOL_NAME_DELETE_ACTION_PLAN]: deleteActionPlanTool,

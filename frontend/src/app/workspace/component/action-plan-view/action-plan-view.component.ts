@@ -17,12 +17,9 @@
  * under the License.
  */
 
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from "@angular/core";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { ActionPlan, ActionPlanStatus, ActionPlanTask } from "../../service/action-plan/action-plan.service";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { Component, Input, Output, EventEmitter, OnInit } from "@angular/core";
+import { ActionPlan, ActionPlanStatus } from "../../service/action-plan/action-plan.service";
 
-@UntilDestroy()
 @Component({
   selector: "texera-action-plan-view",
   templateUrl: "./action-plan-view.component.html",
@@ -41,22 +38,11 @@ export class ActionPlanViewComponent implements OnInit {
   public rejectMessage: string = "";
   public runInNewAgent: boolean = false;
   public ActionPlanStatus = ActionPlanStatus;
-  public taskCompletionStates: { [operatorId: string]: boolean } = {};
 
-  constructor(private workflowActionService: WorkflowActionService) {}
+  constructor() {}
 
   ngOnInit(): void {
-    if (!this.actionPlan) {
-      return;
-    }
-
-    // Subscribe to task completion changes
-    this.actionPlan.tasks.forEach((task, operatorId) => {
-      this.taskCompletionStates[operatorId] = task.completed$.value;
-      task.completed$.pipe(untilDestroyed(this)).subscribe(completed => {
-        this.taskCompletionStates[operatorId] = completed;
-      });
-    });
+    // Component initialization
   }
 
   /**
@@ -85,44 +71,6 @@ export class ActionPlanViewComponent implements OnInit {
     });
 
     this.rejectMessage = "";
-  }
-
-  /**
-   * Show halo effect on operator when hovering over its task.
-   */
-  public onTaskHover(operatorId: string, isHovering: boolean): void {
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
-    if (!operator) {
-      return;
-    }
-
-    const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
-    if (!jointGraphWrapper) {
-      return;
-    }
-
-    const paper = jointGraphWrapper.getMainJointPaper();
-    const operatorElement = paper.getModelById(operatorId);
-
-    if (operatorElement) {
-      if (isHovering) {
-        // Add highlight effect by changing stroke attributes
-        operatorElement.attr({
-          "rect.body": {
-            stroke: "#69b7ff",
-            "stroke-width": 4,
-          },
-        });
-      } else {
-        // Restore default stroke attributes
-        operatorElement.attr({
-          "rect.body": {
-            stroke: "#CFCFCF",
-            "stroke-width": 2,
-          },
-        });
-      }
-    }
   }
 
   /**
@@ -161,22 +109,5 @@ export class ActionPlanViewComponent implements OnInit {
       default:
         return "default";
     }
-  }
-
-  /**
-   * Get tasks as array for template iteration.
-   */
-  public get tasksArray(): ActionPlanTask[] {
-    return Array.from(this.actionPlan.tasks.values());
-  }
-
-  /**
-   * Calculate completion percentage based on finished tasks.
-   */
-  public getProgressPercentage(): number {
-    if (this.actionPlan.tasks.size === 0) return 0;
-    const tasksArray = Array.from(this.actionPlan.tasks.values());
-    const completedCount = tasksArray.filter(t => t.completed$.value).length;
-    return Math.round((completedCount / this.actionPlan.tasks.size) * 100);
   }
 }
