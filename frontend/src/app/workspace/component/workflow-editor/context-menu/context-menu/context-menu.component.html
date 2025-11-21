@@ -140,9 +140,9 @@
   <li
     nz-menu-item
     *ngIf="hasHighlightedLinks() &&
-      operatorMenuService.highlightedOperators.value.length === 0 &&
-      operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
-      isWorkflowModifiable"
+  operatorMenuService.highlightedOperators.value.length === 0 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  isWorkflowModifiable"
     (click)="onDelete()">
     <span
       nz-icon

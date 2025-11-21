@@ -243,10 +243,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     return this.agentState === CopilotState.GENERATING;
   }
 
-  public isStopping(): boolean {
-    return this.agentState === CopilotState.STOPPING;
-  }
-
   public isAvailable(): boolean {
     return this.agentState === CopilotState.AVAILABLE;
   }
