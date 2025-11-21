@@ -48,6 +48,7 @@ export class MockGuiConfigService {
     defaultLocalUser: { username: "", password: "" },
     expirationTimeInMinutes: 2880,
     activeTimeInMinutes: 15,
+    copilotEnabled: false,
   };
 
   get env(): GuiConfig {
