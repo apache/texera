@@ -1,0 +1,266 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Create and upload release candidate artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.1.0-incubating)'
+        required: true
+        type: string
+      rc_number:
+        description: 'Release candidate number (e.g., 1 for RC1)'
+        required: true
+        type: string
+        default: '1'
+
+jobs:
+  create-rc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper tagging
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-incubating$ ]]; then
+            echo "Error: Version must be in format X.Y.Z-incubating"
+            exit 1
+          fi
+          echo "Version validation passed: $VERSION"
+
+      - name: Set up variables
+        id: vars
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          RC_NUM="${{ github.event.inputs.rc_number }}"
+          TAG_NAME="v${VERSION}-rc${RC_NUM}"
+          RC_DIR="${VERSION}-RC${RC_NUM}"
+          TARBALL_NAME="apache-texera-${VERSION}-rc${RC_NUM}-src.tar.gz"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "rc_num=$RC_NUM" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "rc_dir=$RC_DIR" >> $GITHUB_OUTPUT
+          echo "tarball_name=$TARBALL_NAME" >> $GITHUB_OUTPUT
+
+          echo "Release Candidate: $TAG_NAME"
+          echo "Tarball: $TARBALL_NAME"
+          echo "Staging directory: dist/dev/incubator/texera/$RC_DIR"
+
+      - name: Create and push RC tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Warning: Tag $TAG_NAME already exists locally"
+            git tag -d "$TAG_NAME" || true
+          fi
+
+          # Create annotated tag
+          git tag -a "$TAG_NAME" -m "Apache Texera ${{ steps.vars.outputs.version }} Release Candidate ${{ steps.vars.outputs.rc_num }}"
+
+          # Push tag
+          git push origin "$TAG_NAME" --force
+
+          echo "✓ Created and pushed tag: $TAG_NAME"
+
+      - name: Create source tarball
+        run: |
+          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
+          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
+          VERSION="${{ steps.vars.outputs.version }}"
+          RC_NUM="${{ steps.vars.outputs.rc_num }}"
+
+          # Create a temporary directory for the archive
+          TEMP_DIR=$(mktemp -d)
+          ARCHIVE_DIR="$TEMP_DIR/apache-texera-${VERSION}-rc${RC_NUM}-src"
+
+          echo "Creating source archive in $ARCHIVE_DIR"
+
+          # Export the git repository at the tag
+          git archive --format=tar --prefix="apache-texera-${VERSION}-rc${RC_NUM}-src/" "$TAG_NAME" | tar -x -C "$TEMP_DIR"
+
+          # Create tarball
+          cd "$TEMP_DIR"
+          tar -czf "$GITHUB_WORKSPACE/$TARBALL_NAME" "apache-texera-${VERSION}-rc${RC_NUM}-src"
+
+          cd "$GITHUB_WORKSPACE"
+
+          # Verify tarball was created
+          if [[ ! -f "$TARBALL_NAME" ]]; then
+            echo "Error: Tarball was not created"
+            exit 1
+          fi
+
+          # Show tarball info
+          ls -lh "$TARBALL_NAME"
+          echo "✓ Created tarball: $TARBALL_NAME"
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+          # List imported keys
+          gpg --list-secret-keys
+
+          echo "✓ GPG key imported successfully"
+
+      - name: Create GPG signature (.asc)
+        run: |
+          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
+
+          # Sign the tarball
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 \
+            --armor --detach-sign --output "${TARBALL_NAME}.asc" "$TARBALL_NAME"
+
+          # Verify signature
+          gpg --verify "${TARBALL_NAME}.asc" "$TARBALL_NAME"
+
+          echo "✓ Created GPG signature: ${TARBALL_NAME}.asc"
+
+      - name: Create SHA512 checksum
+        run: |
+          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
+
+          # Create SHA512 checksum
+          sha512sum "$TARBALL_NAME" > "${TARBALL_NAME}.sha512"
+
+          # Display checksum
+          cat "${TARBALL_NAME}.sha512"
+
+          echo "✓ Created SHA512 checksum: ${TARBALL_NAME}.sha512"
+
+      - name: Install SVN
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y subversion
+          svn --version
+
+      - name: Checkout SVN dev directory
+        run: |
+          RC_DIR="${{ steps.vars.outputs.rc_dir }}"
+
+          # Checkout the dev directory with depth=empty (lightweight)
+          svn co --depth=empty https://dist.apache.org/repos/dist/dev/incubator/texera svn-texera \
+            --username "${{ secrets.SVN_USERNAME }}" \
+            --password "${{ secrets.SVN_PASSWORD }}" \
+            --no-auth-cache
+
+          cd svn-texera
+
+          # Create RC directory if it doesn't exist
+          if ! svn info "$RC_DIR" >/dev/null 2>&1; then
+            mkdir -p "$RC_DIR"
+            svn add "$RC_DIR"
+            echo "✓ Created new RC directory: $RC_DIR"
+          else
+            svn update "$RC_DIR"
+            echo "✓ RC directory already exists: $RC_DIR"
+          fi
+
+      - name: Stage artifacts to SVN
+        run: |
+          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
+          RC_DIR="${{ steps.vars.outputs.rc_dir }}"
+
+          cd svn-texera/"$RC_DIR"
+
+          # Copy artifacts
+          cp "$GITHUB_WORKSPACE/$TARBALL_NAME" .
+          cp "$GITHUB_WORKSPACE/${TARBALL_NAME}.asc" .
+          cp "$GITHUB_WORKSPACE/${TARBALL_NAME}.sha512" .
+
+          # Add files to SVN
+          svn add "$TARBALL_NAME" "${TARBALL_NAME}.asc" "${TARBALL_NAME}.sha512" --force
+
+          # Check status
+          svn status
+
+          echo "✓ Staged artifacts to SVN"
+
+      - name: Commit artifacts to dist/dev
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          RC_NUM="${{ steps.vars.outputs.rc_num }}"
+          RC_DIR="${{ steps.vars.outputs.rc_dir }}"
+
+          cd svn-texera
+
+          # Commit with descriptive message
+          svn commit -m "Add Apache Texera ${VERSION} RC${RC_NUM} artifacts" \
+            --username "${{ secrets.SVN_USERNAME }}" \
+            --password "${{ secrets.SVN_PASSWORD }}" \
+            --no-auth-cache
+
+          echo "✓ Committed artifacts to dist/dev/incubator/texera/$RC_DIR"
+
+      - name: Generate release summary
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          RC_NUM="${{ steps.vars.outputs.rc_num }}"
+          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
+          RC_DIR="${{ steps.vars.outputs.rc_dir }}"
+          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
+
+          echo "## Release Candidate Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Release Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **RC Number:** RC${RC_NUM}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag:** \`${TAG_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts Location" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Staging Directory:** https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts Created" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${TARBALL_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${TARBALL_NAME}.asc\` (GPG signature)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${TARBALL_NAME}.sha512\` (SHA512 checksum)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify the artifacts at the staging directory" >> $GITHUB_STEP_SUMMARY
+          echo "2. Send [VOTE] email to dev@texera.apache.org" >> $GITHUB_STEP_SUMMARY
+          echo "3. Include links to:" >> $GITHUB_STEP_SUMMARY
+          echo "   - Tag: https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "   - Artifacts: https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Verification Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Download and verify signature" >> $GITHUB_STEP_SUMMARY
+          echo "wget https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/${TARBALL_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "wget https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/${TARBALL_NAME}.asc" >> $GITHUB_STEP_SUMMARY
+          echo "wget https://dist.apache.org/repos/dist/release/incubator/texera/KEYS" >> $GITHUB_STEP_SUMMARY
+          echo "gpg --import KEYS" >> $GITHUB_STEP_SUMMARY
+          echo "gpg --verify ${TARBALL_NAME}.asc ${TARBALL_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Verify SHA512" >> $GITHUB_STEP_SUMMARY
+          echo "wget https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/${TARBALL_NAME}.sha512" >> $GITHUB_STEP_SUMMARY
+          echo "sha512sum -c ${TARBALL_NAME}.sha512" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          echo "✓ Release candidate workflow completed successfully!"
