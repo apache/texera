@@ -21,6 +21,7 @@
  * Immutable helpers for array updates.
  */
 
+// Returns a array with an element edited (original array not mutated)
 export function replaceOneImmutable<T>(
   arr: ReadonlyArray<T>,
   index: number,
@@ -30,13 +31,4 @@ export function replaceOneImmutable<T>(
   const next = arr.slice();
   next[index] = item;
   return next;
-}
-
-export function replaceWhereImmutable<T>(
-  arr: ReadonlyArray<T>,
-  predicate: (x: T) => boolean,
-  item: T
-): ReadonlyArray<T> {
-  const idx = arr.findIndex(predicate);
-  return replaceOneImmutable(arr, idx, item);
 }

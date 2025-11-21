@@ -27,7 +27,7 @@ import { MilliSecond, Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { replaceWhereImmutable } from "../../../../common/util/array-utils";
+import { replaceOneImmutable } from "../../../../common/util/array-utils";
 
 
 @UntilDestroy()
@@ -128,8 +128,8 @@ export class AdminUserComponent implements OnInit {
     }
 
     const currentUid = this.editUid;
-    // Array to keep the original list with the new edit
-    const updatedUserList: User = {
+    // Edited User
+    const updatedUser: User = {
       ...originalUser,
       name: this.editName,
       email: this.editEmail,
@@ -145,20 +145,12 @@ export class AdminUserComponent implements OnInit {
       .subscribe({
         next: () => {
           // Update userList
-          this.userList = replaceWhereImmutable(
-            this.userList,
-            u => u.uid === currentUid,
-            updatedUserList
-          );
+          const i = this.userList.findIndex((u: User) => u.uid === currentUid);
+          this.userList = replaceOneImmutable<User>(this.userList, i, updatedUser);
 
           // Update listOfDisplayUser
-          this.listOfDisplayUser = [
-            ...replaceWhereImmutable(
-              this.listOfDisplayUser,
-              u => u.uid === currentUid,
-              updatedUserList
-            ),
-          ];
+          const j = this.listOfDisplayUser.findIndex((u: User) => u.uid === currentUid);
+          this.listOfDisplayUser = replaceOneImmutable<User>(this.listOfDisplayUser, j, updatedUser);
         },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;
