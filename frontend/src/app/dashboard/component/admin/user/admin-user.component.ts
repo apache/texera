@@ -144,13 +144,9 @@ export class AdminUserComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          // Update userList
-          const i = this.userList.findIndex((u: User) => u.uid === currentUid);
-          this.userList = replaceOneImmutable<User>(this.userList, i, updatedUser);
-
-          // Update listOfDisplayUser
-          const j = this.listOfDisplayUser.findIndex((u: User) => u.uid === currentUid);
-          this.listOfDisplayUser = replaceOneImmutable<User>(this.listOfDisplayUser, j, updatedUser);
+          // Update userList and listOfDisplayUser with updatedUser
+          this.userList = [...replaceOneImmutable(this.userList, u => u.uid === currentUid, updatedUser)];
+          this.listOfDisplayUser = [...replaceOneImmutable(this.listOfDisplayUser, u => u.uid === currentUid, updatedUser)];
         },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;

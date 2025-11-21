@@ -24,11 +24,12 @@
 // Returns a array with an element edited (original array not mutated)
 export function replaceOneImmutable<T>(
   arr: ReadonlyArray<T>,
-  index: number,
+  predicate: (t: T, idx: number) => boolean,
   item: T
 ): ReadonlyArray<T> {
-  if (index < 0 || index >= arr.length) return arr;
+  const idx = arr.findIndex(predicate);
+  if (idx < 0) return arr;
   const next = arr.slice();
-  next[index] = item;
+  (next as T[])[idx] = item;
   return next;
 }
