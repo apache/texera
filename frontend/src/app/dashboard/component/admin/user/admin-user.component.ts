@@ -29,7 +29,6 @@ import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { replaceOneImmutable } from "../../../../common/util/array-utils";
 
-
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-user.component.html",
@@ -146,7 +145,9 @@ export class AdminUserComponent implements OnInit {
         next: () => {
           // Update userList and listOfDisplayUser with updatedUser
           this.userList = [...replaceOneImmutable(this.userList, u => u.uid === currentUid, updatedUser)];
-          this.listOfDisplayUser = [...replaceOneImmutable(this.listOfDisplayUser, u => u.uid === currentUid, updatedUser)];
+          this.listOfDisplayUser = [
+            ...replaceOneImmutable(this.listOfDisplayUser, u => u.uid === currentUid, updatedUser),
+          ];
         },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;
