@@ -27,6 +27,8 @@ import { MilliSecond, Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { replaceWhereImmutable } from "../../../../common/util/array-utils";
+
 
 @UntilDestroy()
 @Component({
@@ -126,32 +128,37 @@ export class AdminUserComponent implements OnInit {
     }
 
     const currentUid = this.editUid;
-    const localUpdated: User = {
+    // Array to keep the original list with the new edit
+    const updatedUserList: User = {
       ...originalUser,
       name: this.editName,
       email: this.editEmail,
       comment: this.editComment,
       role: this.editRole,
     };
+
     this.stopEdit();
+
     this.adminUserService
       .updateUser(currentUid, this.editName, this.editEmail, this.editRole, this.editComment)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          const i = this.userList.findIndex(u => u.uid === currentUid);
-          if (i >= 0) {
-            const copy = this.userList.slice();
-            copy[i] = localUpdated;
-            this.userList = copy;
-          }
+          // Update userList
+          this.userList = replaceWhereImmutable(
+            this.userList,
+            u => u.uid === currentUid,
+            updatedUserList
+          );
 
-          const j = this.listOfDisplayUser.findIndex(u => u.uid === currentUid);
-          if (j >= 0) {
-            const v = this.listOfDisplayUser.slice();
-            v[j] = localUpdated;
-            this.listOfDisplayUser = v;
-          }
+          // Update listOfDisplayUser
+          this.listOfDisplayUser = [
+            ...replaceWhereImmutable(
+              this.listOfDisplayUser,
+              u => u.uid === currentUid,
+              updatedUserList
+            ),
+          ];
         },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;
