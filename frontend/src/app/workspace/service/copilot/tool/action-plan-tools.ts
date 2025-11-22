@@ -43,7 +43,8 @@ export function createActionPlanTool(
   actionPlanService: ActionPlanService,
   validationWorkflowService: ValidationWorkflowService,
   agentId: string = "",
-  agentName: string = ""
+  agentName: string = "",
+  planningModeGetter?: () => boolean // Function to check if planning mode is enabled
 ) {
   return tool({
     name: TOOL_NAME_ACTION_PLAN,
@@ -59,12 +60,10 @@ export function createActionPlanTool(
                 operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
                 customDisplayName: z
                   .string()
-                  .optional()
                   .describe("Brief custom name summarizing what this operator does"),
                 properties: z
                   .record(z.any())
-                  .optional()
-                  .describe("Properties object to set on the operator (e.g., {fileName: 'data.csv', delimiter: ','})"),
+                  .describe("Properties object to set on this operator."),
               })
             )
             .optional()
@@ -142,6 +141,61 @@ export function createActionPlanTool(
           deletedOperatorIds: [] as string[],
           deletedLinkIds: [] as string[],
         };
+
+        // SNAPSHOT CREATION (for planning mode to enable revert on reject)
+        // Capture workflow state BEFORE applying any changes
+        const isPlanningMode = planningModeGetter?.() ?? false;
+        let workflowSnapshot = undefined;
+
+        if (isPlanningMode) {
+          const texeraGraph = workflowActionService.getTexeraGraph();
+
+          // Save operators and links that will be deleted (so we can restore them)
+          const operatorsToDelete = (args.delete?.operatorIds || [])
+            .map(id => {
+              try {
+                return texeraGraph.getOperator(id);
+              } catch {
+                return null;
+              }
+            })
+            .filter(op => op !== null) as any[];
+
+          const linksToDelete = (args.delete?.linkIds || [])
+            .map(id => {
+              try {
+                return texeraGraph.getLinkWithID(id);
+              } catch {
+                return null;
+              }
+            })
+            .filter(link => link !== null) as any[];
+
+          // Save original properties of operators that will be modified
+          const operatorPropertiesMap = new Map<string, any>();
+          if (args.modify?.operators) {
+            for (const modifySpec of args.modify.operators) {
+              try {
+                const operator = texeraGraph.getOperator(modifySpec.operatorId);
+                if (operator) {
+                  // Save a deep copy of the current properties
+                  operatorPropertiesMap.set(
+                    modifySpec.operatorId,
+                    JSON.parse(JSON.stringify(operator.operatorProperties))
+                  );
+                }
+              } catch {
+                // Operator doesn't exist, skip
+              }
+            }
+          }
+
+          workflowSnapshot = {
+            operators: operatorsToDelete,
+            links: linksToDelete,
+            operatorProperties: operatorPropertiesMap,
+          };
+        }
 
         // Helper function to resolve operator ID (can be existing ID or index string)
         const resolveOperatorId = (idOrIndex: string, createdIds: string[]): string | null => {
@@ -305,7 +359,9 @@ export function createActionPlanTool(
             },
           },
           allOperatorIds,
-          allLinkIds
+          allLinkIds,
+          undefined, // executorAgentId (default to agentId)
+          workflowSnapshot // Pass the snapshot for revert functionality
         );
 
         // Get validation information for the workflow after operations

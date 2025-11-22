@@ -444,7 +444,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     const feedback = this.currentMessage.trim();
     const agent = this.agentInfo.instance;
     if (agent) {
-      agent.rejectActionPlan(feedback);
+      agent.rejectActionPlan(feedback, this.pendingActionPlanId);
       this.currentMessage = "";
     }
   }

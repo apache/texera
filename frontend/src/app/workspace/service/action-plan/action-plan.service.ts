@@ -19,6 +19,8 @@
 
 import { Injectable } from "@angular/core";
 import { Subject, Observable, BehaviorSubject } from "rxjs";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { OperatorPredicate, OperatorLink } from "../../types/workflow-common.interface";
 
 /**
  * Interface for an action plan highlight event
@@ -47,6 +49,15 @@ export interface ActionPlanOperations {
 }
 
 /**
+ * Workflow snapshot for saving pre-action-plan state
+ */
+export interface WorkflowSnapshot {
+  operators: OperatorPredicate[]; // Snapshot of operators to restore (for delete operations)
+  links: OperatorLink[]; // Snapshot of links to restore (for delete operations)
+  operatorProperties: Map<string, any>; // Map of operator ID to original properties (for modify operations)
+}
+
+/**
  * Complete Action Plan data structure
  */
 export interface ActionPlan {
@@ -59,6 +70,7 @@ export interface ActionPlan {
   createdAt: Date; // Creation timestamp
   operatorIds: string[]; // For highlighting
   linkIds: string[]; // For highlighting
+  workflowSnapshot?: WorkflowSnapshot; // Snapshot of workflow state before changes (for planning mode)
 }
 
 /**
@@ -77,7 +89,16 @@ export class ActionPlanService {
   private actionPlansSubject = new BehaviorSubject<ActionPlan[]>([]);
   private pendingActionPlanSubject = new BehaviorSubject<ActionPlan | null>(null);
 
+  private workflowActionService?: WorkflowActionService;
+
   constructor() {}
+
+  /**
+   * Set the workflow action service (injected later to avoid circular dependency)
+   */
+  public setWorkflowActionService(service: WorkflowActionService): void {
+    this.workflowActionService = service;
+  }
 
   /**
    * Get action plan highlight stream
@@ -131,7 +152,8 @@ export class ActionPlanService {
     operations: ActionPlanOperations,
     operatorIds: string[],
     linkIds: string[],
-    executorAgentId?: string // Optional: defaults to agentId if not specified
+    executorAgentId?: string, // Optional: defaults to agentId if not specified
+    workflowSnapshot?: WorkflowSnapshot // Optional: snapshot of workflow state before changes (for planning mode)
   ): ActionPlan {
     const id = this.generateId();
 
@@ -145,6 +167,7 @@ export class ActionPlanService {
       createdAt: new Date(),
       operatorIds,
       linkIds,
+      workflowSnapshot,
     };
 
     this.actionPlans.set(id, actionPlan);
@@ -189,5 +212,95 @@ export class ActionPlanService {
    */
   private emitActionPlans(): void {
     this.actionPlansSubject.next(this.getAllActionPlans());
+  }
+
+  /**
+   * Revert an action plan by restoring the workflow state from snapshot
+   * This method undoes the changes made by an action plan:
+   * - Deletes operators that were added
+   * - Restores properties of modified operators
+   * - Re-adds operators and links that were deleted
+   */
+  public revertActionPlan(actionPlanId: string): boolean {
+    const actionPlan = this.actionPlans.get(actionPlanId);
+    if (!actionPlan || !this.workflowActionService) {
+      console.error(`Cannot revert action plan ${actionPlanId}: plan or workflow service not found`);
+      return false;
+    }
+
+    const { operations, workflowSnapshot } = actionPlan;
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+
+    try {
+      // STEP 1: Delete operators that were added
+      if (operations.add.operatorIds.length > 0) {
+        for (const operatorId of operations.add.operatorIds) {
+          try {
+            if (texeraGraph.hasOperator(operatorId)) {
+              this.workflowActionService.deleteOperator(operatorId);
+            }
+          } catch (error) {
+            console.error(`Error deleting added operator ${operatorId}:`, error);
+          }
+        }
+      }
+
+      // STEP 2: Delete links that were added
+      if (operations.add.linkIds.length > 0) {
+        for (const linkId of operations.add.linkIds) {
+          try {
+            if (texeraGraph.hasLinkWithID(linkId)) {
+              this.workflowActionService.deleteLinkWithID(linkId);
+            }
+          } catch (error) {
+            console.error(`Error deleting added link ${linkId}:`, error);
+          }
+        }
+      }
+
+      // STEP 3: Restore properties of modified operators from snapshot
+      if (workflowSnapshot && operations.modify.operatorIds.length > 0) {
+        for (const operatorId of operations.modify.operatorIds) {
+          const originalProperties = workflowSnapshot.operatorProperties.get(operatorId);
+          if (originalProperties && texeraGraph.hasOperator(operatorId)) {
+            try {
+              this.workflowActionService.setOperatorProperty(operatorId, originalProperties);
+            } catch (error) {
+              console.error(`Error restoring operator ${operatorId} properties:`, error);
+            }
+          }
+        }
+      }
+
+      // STEP 4: Re-add operators that were deleted
+      if (workflowSnapshot && operations.delete.operatorIds.length > 0) {
+        for (const operator of workflowSnapshot.operators) {
+          try {
+            // Use a default position for restored operators
+            const position = { x: 100, y: 100 };
+            this.workflowActionService.addOperator(operator, position);
+          } catch (error) {
+            console.error(`Error re-adding deleted operator ${operator.operatorID}:`, error);
+          }
+        }
+      }
+
+      // STEP 5: Re-add links that were deleted
+      if (workflowSnapshot && operations.delete.linkIds.length > 0) {
+        for (const link of workflowSnapshot.links) {
+          try {
+            this.workflowActionService.addLink(link);
+          } catch (error) {
+            console.error(`Error re-adding deleted link ${link.linkID}:`, error);
+          }
+        }
+      }
+
+      console.log(`Successfully reverted action plan ${actionPlanId}`);
+      return true;
+    } catch (error) {
+      console.error(`Error reverting action plan ${actionPlanId}:`, error);
+      return false;
+    }
   }
 }

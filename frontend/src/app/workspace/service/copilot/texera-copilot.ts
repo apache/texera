@@ -580,6 +580,9 @@ export class TexeraCopilot {
     );
 
     // Action plan tools (for planning mode)
+    // Inject WorkflowActionService into ActionPlanService for revert functionality
+    this.actionPlanService.setWorkflowActionService(this.workflowActionService);
+
     const actionPlanTool = toolWithTimeout(
       actionPlanTools.createActionPlanTool(
         this.workflowActionService,
@@ -588,7 +591,8 @@ export class TexeraCopilot {
         this.actionPlanService,
         this.validationWorkflowService,
         this.agentId,
-        this.agentName
+        this.agentName,
+        () => this.planningMode // Pass planning mode getter
       )
     );
     const getActionPlanTool = toolWithTimeout(actionPlanTools.createGetActionPlanTool(this.actionPlanService));
@@ -759,25 +763,46 @@ export class TexeraCopilot {
    * Approve the pending action plan and continue with execution
    */
   public approveActionPlan(feedback?: string): void {
-    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
-
+    // Construct the approval message
     const message = feedback
       ? `I approve this action plan. Additional feedback: ${feedback}`
       : "I approve this action plan. Please proceed with execution.";
 
+    // Clear the approval state - UI will update immediately
+    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
+
+    // Continue the conversation with the approval message
+    // sendMessage() will handle adding the message to history
     this.sendMessage(message).subscribe();
   }
 
   /**
-   * Reject the pending action plan and provide feedback
+   * Reject the pending action plan and revert changes
    */
-  public rejectActionPlan(feedback?: string): void {
-    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
+  public rejectActionPlan(feedback?: string, actionPlanId?: string): void {
+    // STEP 1: Revert the action plan changes FIRST (before updating UI)
+    if (actionPlanId) {
+      console.log(`Reverting action plan ${actionPlanId}...`);
+      const success = this.actionPlanService.revertActionPlan(actionPlanId);
+      if (success) {
+        console.log(`Successfully reverted action plan ${actionPlanId}`);
+      } else {
+        console.error(`Failed to revert action plan ${actionPlanId}`);
+      }
+    } else {
+      console.warn("No action plan ID provided for rejection");
+    }
 
+    // STEP 2: Construct the rejection message
     const message = feedback
       ? `I reject this action plan. Reason: ${feedback}`
       : "I reject this action plan. Please revise your approach.";
 
+    // STEP 3: Clear the approval state - UI will update immediately
+    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
+
+    // STEP 4: Continue the conversation with the rejection message
+    // sendMessage() will handle adding the message to history
     this.sendMessage(message).subscribe();
   }
 }
