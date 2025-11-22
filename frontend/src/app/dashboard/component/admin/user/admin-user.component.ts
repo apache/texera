@@ -27,6 +27,7 @@ import { MilliSecond, Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { replaceOneImmutable } from "../../../../common/util/array-utils";
 
 @UntilDestroy()
 @Component({
@@ -126,12 +127,28 @@ export class AdminUserComponent implements OnInit {
     }
 
     const currentUid = this.editUid;
+    // Edited User
+    const updatedUser: User = {
+      ...originalUser,
+      name: this.editName,
+      email: this.editEmail,
+      comment: this.editComment,
+      role: this.editRole,
+    };
+
     this.stopEdit();
+
     this.adminUserService
       .updateUser(currentUid, this.editName, this.editEmail, this.editRole, this.editComment)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.ngOnInit(),
+        next: () => {
+          // Update userList and listOfDisplayUser with updatedUser
+          this.userList = [...replaceOneImmutable(this.userList, u => u.uid === currentUid, updatedUser)];
+          this.listOfDisplayUser = [
+            ...replaceOneImmutable(this.listOfDisplayUser, u => u.uid === currentUid, updatedUser),
+          ];
+        },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;
           this.messageService.error(errorMessage);
