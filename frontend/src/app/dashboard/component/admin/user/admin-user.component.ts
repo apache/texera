@@ -27,6 +27,7 @@ import { MilliSecond, Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { replaceOneImmutable } from "../../../../common/util/array-utils";
 
 @UntilDestroy()
 @Component({
@@ -126,12 +127,28 @@ export class AdminUserComponent implements OnInit {
     }
 
     const currentUid = this.editUid;
+    // Edited User
+    const updatedUser: User = {
+      ...originalUser,
+      name: this.editName,
+      email: this.editEmail,
+      comment: this.editComment,
+      role: this.editRole,
+    };
+
     this.stopEdit();
+
     this.adminUserService
       .updateUser(currentUid, this.editName, this.editEmail, this.editRole, this.editComment)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.ngOnInit(),
+        next: () => {
+          // Update userList and listOfDisplayUser with updatedUser
+          this.userList = [...replaceOneImmutable(this.userList, u => u.uid === currentUid, updatedUser)];
+          this.listOfDisplayUser = [
+            ...replaceOneImmutable(this.listOfDisplayUser, u => u.uid === currentUid, updatedUser),
+          ];
+        },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;
           this.messageService.error(errorMessage);
@@ -145,12 +162,30 @@ export class AdminUserComponent implements OnInit {
   }
 
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
-  public sortByName: NzTableSortFn<User> = (a: User, b: User) => (b.name || "").localeCompare(a.name);
-  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => (b.email || "").localeCompare(a.email);
-  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => (b.comment || "").localeCompare(a.comment);
-  public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
-  public sortByAccountCreation: NzTableSortFn<User> = (a: User, b: User) =>
-    (a.accountCreation || 0) - (b.accountCreation || 0);
+  public sortByName: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.name || "").localeCompare(a.name || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.email || "").localeCompare(a.email || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.comment || "").localeCompare(a.comment || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByRole: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = b.role.localeCompare(a.role);
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByAccountCreation: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (a.accountCreation || 0) - (b.accountCreation || 0);
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
 
   reset(): void {
     this.nameSearchValue = "";
@@ -210,7 +245,7 @@ export class AdminUserComponent implements OnInit {
     const aActive = this.isUserActive(a);
     const bActive = this.isUserActive(b);
 
-    if (aActive === bActive) return 0;
+    if (aActive === bActive) return a.uid - b.uid;
     return aActive ? -1 : 1;
   };
 

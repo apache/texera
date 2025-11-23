@@ -24,11 +24,17 @@ import org.apache.amber.core.tuple.AttributeTypeUtils.{
   AttributeTypeException,
   inferField,
   inferSchemaFromRows,
-  parseField
+  parseField,
+  compare,
+  add,
+  minValue,
+  maxValue,
+  zeroValue
 }
 import org.scalatest.funsuite.AnyFunSuite
 
 class AttributeTypeUtilsSpec extends AnyFunSuite {
+
   // Unit Test for Infer Schema
 
   test("type should get inferred correctly individually") {
@@ -190,4 +196,131 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assert(parseField("anything", AttributeType.ANY) == "anything")
   }
 
+  test("compare correctly handles null values for different attribute types") {
+    assert(compare(null, null, INTEGER) == 0)
+    assert(compare(null, 10, INTEGER) < 0)
+    assert(compare(10, null, INTEGER) > 0)
+  }
+
+  test("compare correctly orders numeric, boolean, timestamp, string and binary values") {
+    assert(compare(1, 2, INTEGER) < 0)
+    assert(compare(2, 1, INTEGER) > 0)
+    assert(compare(5, 5, INTEGER) == 0)
+
+    assert(compare(false, true, BOOLEAN) < 0)
+    assert(compare(true, false, BOOLEAN) > 0)
+    assert(compare(true, true, BOOLEAN) == 0)
+
+    val earlierTimestamp = new java.sql.Timestamp(1000L)
+    val laterTimestamp = new java.sql.Timestamp(2000L)
+    assert(compare(earlierTimestamp, laterTimestamp, TIMESTAMP) < 0)
+    assert(compare(laterTimestamp, earlierTimestamp, TIMESTAMP) > 0)
+
+    assert(compare("apple", "banana", STRING) < 0)
+    assert(compare("banana", "apple", STRING) > 0)
+    assert(compare("same", "same", STRING) == 0)
+
+    val firstBytes = Array[Byte](0, 1, 2)
+    val secondBytes = Array[Byte](0, 2, 0)
+    assert(compare(firstBytes, secondBytes, BINARY) < 0)
+  }
+
+  test("add correctly handles null values as identity for numeric types") {
+    val integerZeroFromAdd = add(null, null, INTEGER).asInstanceOf[Int]
+    assert(integerZeroFromAdd == 0)
+
+    val rightOnlyResult =
+      add(null, java.lang.Integer.valueOf(5), INTEGER).asInstanceOf[Int]
+    assert(rightOnlyResult == 5)
+
+    val leftOnlyResult =
+      add(java.lang.Integer.valueOf(7), null, INTEGER).asInstanceOf[Int]
+    assert(leftOnlyResult == 7)
+  }
+
+  test("add correctly adds integer, long, double and timestamp values") {
+    val integerSum =
+      add(java.lang.Integer.valueOf(3), java.lang.Integer.valueOf(4), INTEGER)
+        .asInstanceOf[Int]
+    assert(integerSum == 7)
+
+    val longSum =
+      add(java.lang.Long.valueOf(10L), java.lang.Long.valueOf(5L), LONG)
+        .asInstanceOf[Long]
+    assert(longSum == 15L)
+
+    val doubleSum =
+      add(java.lang.Double.valueOf(1.5), java.lang.Double.valueOf(2.5), DOUBLE)
+        .asInstanceOf[Double]
+    assert(doubleSum == 4.0)
+
+    val firstTimestamp = new java.sql.Timestamp(1000L)
+    val secondTimestamp = new java.sql.Timestamp(2500L)
+    val timestampSum =
+      add(firstTimestamp, secondTimestamp, TIMESTAMP).asInstanceOf[java.sql.Timestamp]
+    assert(timestampSum.getTime == 3500L)
+  }
+
+  test("zeroValue returns correct numeric and timestamp identity values") {
+    val integerZero = zeroValue(INTEGER).asInstanceOf[Int]
+    val longZero = zeroValue(LONG).asInstanceOf[Long]
+    val doubleZero = zeroValue(DOUBLE).asInstanceOf[Double]
+    val timestampZero = zeroValue(TIMESTAMP).asInstanceOf[java.sql.Timestamp]
+
+    assert(integerZero == 0)
+    assert(longZero == 0L)
+    assert(doubleZero == 0.0d)
+    assert(timestampZero.getTime == 0L)
+  }
+
+  test("zeroValue returns empty binary array and fails for unsupported types") {
+    val binaryZero = zeroValue(BINARY).asInstanceOf[Array[Byte]]
+    assert(binaryZero.isEmpty)
+
+    assertThrows[UnsupportedOperationException] {
+      zeroValue(STRING)
+    }
+  }
+
+  test("maxValue returns correct maximum numeric bounds") {
+    val integerMax = maxValue(INTEGER).asInstanceOf[Int]
+    val longMax = maxValue(LONG).asInstanceOf[Long]
+    val doubleMax = maxValue(DOUBLE).asInstanceOf[Double]
+
+    assert(integerMax == Int.MaxValue)
+    assert(longMax == Long.MaxValue)
+    assert(doubleMax == Double.MaxValue)
+  }
+
+  test("maxValue returns maximum timestamp and fails for unsupported types") {
+    val timestampMax = maxValue(TIMESTAMP).asInstanceOf[java.sql.Timestamp]
+    assert(timestampMax.getTime == Long.MaxValue)
+
+    assertThrows[UnsupportedOperationException] {
+      maxValue(BOOLEAN)
+    }
+  }
+
+  test("minValue returns correct minimum numeric bounds") {
+    val integerMin = minValue(INTEGER).asInstanceOf[Int]
+    val longMin = minValue(LONG).asInstanceOf[Long]
+    val doubleMin = minValue(DOUBLE).asInstanceOf[Double]
+
+    assert(integerMin == Int.MinValue)
+    assert(longMin == Long.MinValue)
+    assert(doubleMin == java.lang.Double.MIN_VALUE)
+  }
+
+  test("minValue returns timestamp epoch and empty binary array, and fails for unsupported types") {
+    val timestampMin = minValue(TIMESTAMP).asInstanceOf[java.sql.Timestamp]
+    val binaryMin = minValue(BINARY).asInstanceOf[Array[Byte]]
+
+    assert(timestampMin.getTime == 0L)
+
+    assert(binaryMin.isEmpty)
+
+    assertThrows[UnsupportedOperationException] {
+      minValue(STRING)
+    }
+  }
 }

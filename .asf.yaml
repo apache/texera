@@ -71,7 +71,6 @@ github:
           - frontend (windows-latest, 18)
           - frontend (macos-latest, 18)
           - scala (ubuntu-22.04, 11)
-          - python (ubuntu-latest, 3.9)
           - python (ubuntu-latest, 3.10)
           - python (ubuntu-latest, 3.11)
           - python (ubuntu-latest, 3.12)

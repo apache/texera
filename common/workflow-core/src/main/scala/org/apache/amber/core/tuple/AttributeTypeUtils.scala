@@ -387,6 +387,137 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
+  /** Three-way compare for the given attribute type.
+    * Returns < 0 if left < right, > 0 if left > right, 0 if equal.
+    * Null semantics: null < non-null (both null => 0).
+    */
+  @throws[UnsupportedOperationException]
+  def compare(left: Any, right: Any, attrType: AttributeType): Int =
+    (left, right) match {
+      case (null, null) => 0
+      case (null, _)    => -1
+      case (_, null)    => 1
+      case _ =>
+        attrType match {
+          case AttributeType.INTEGER =>
+            java.lang.Integer.compare(
+              left.asInstanceOf[Number].intValue(),
+              right.asInstanceOf[Number].intValue()
+            )
+          case AttributeType.LONG =>
+            java.lang.Long.compare(
+              left.asInstanceOf[Number].longValue(),
+              right.asInstanceOf[Number].longValue()
+            )
+          case AttributeType.DOUBLE =>
+            java.lang.Double.compare(
+              left.asInstanceOf[Number].doubleValue(),
+              right.asInstanceOf[Number].doubleValue()
+            ) // -Infinity < ... < -0.0 < +0.0 < ... < +Infinity < NaN
+          case AttributeType.BOOLEAN =>
+            java.lang.Boolean.compare(
+              left.asInstanceOf[Boolean],
+              right.asInstanceOf[Boolean]
+            )
+          case AttributeType.TIMESTAMP =>
+            java.lang.Long.compare(
+              left.asInstanceOf[Timestamp].getTime,
+              right.asInstanceOf[Timestamp].getTime
+            )
+          case AttributeType.STRING =>
+            left.toString.compareTo(right.toString)
+          case AttributeType.BINARY =>
+            java.util.Arrays.compareUnsigned(
+              left.asInstanceOf[Array[Byte]],
+              right.asInstanceOf[Array[Byte]]
+            )
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"Unsupported attribute type for compare: $attrType"
+            )
+        }
+    }
+
+  /** Type-aware addition (null is identity). */
+  @throws[UnsupportedOperationException]
+  def add(left: Object, right: Object, attrType: AttributeType): Object =
+    (left, right) match {
+      case (null, null)  => zeroValue(attrType)
+      case (null, right) => right
+      case (left, null)  => left
+      case (left, right) =>
+        attrType match {
+          case AttributeType.INTEGER =>
+            java.lang.Integer.valueOf(
+              left.asInstanceOf[Number].intValue() + right.asInstanceOf[Number].intValue()
+            )
+          case AttributeType.LONG =>
+            java.lang.Long.valueOf(
+              left.asInstanceOf[Number].longValue() + right.asInstanceOf[Number].longValue()
+            )
+          case AttributeType.DOUBLE =>
+            java.lang.Double.valueOf(
+              left.asInstanceOf[Number].doubleValue() + right.asInstanceOf[Number].doubleValue()
+            )
+          case AttributeType.TIMESTAMP =>
+            new Timestamp(
+              left.asInstanceOf[Timestamp].getTime + right.asInstanceOf[Timestamp].getTime
+            )
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"Unsupported attribute type for addition: $attrType"
+            )
+        }
+    }
+
+  /** Additive identity for supported numeric/timestamp types.
+    * For BINARY an empty array is returned as an identity value.
+    */
+  @throws[UnsupportedOperationException]
+  def zeroValue(attrType: AttributeType): Object =
+    attrType match {
+      case AttributeType.INTEGER   => java.lang.Integer.valueOf(0)
+      case AttributeType.LONG      => java.lang.Long.valueOf(0L)
+      case AttributeType.DOUBLE    => java.lang.Double.valueOf(0.0d)
+      case AttributeType.TIMESTAMP => new Timestamp(0L)
+      case AttributeType.BINARY    => Array.emptyByteArray
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"Unsupported attribute type for zero value: $attrType"
+        )
+    }
+
+  /** Returns the maximum possible value for a given attribute type. */
+  @throws[UnsupportedOperationException]
+  def maxValue(attrType: AttributeType): Object =
+    attrType match {
+      case AttributeType.INTEGER   => java.lang.Integer.valueOf(Integer.MAX_VALUE)
+      case AttributeType.LONG      => java.lang.Long.valueOf(java.lang.Long.MAX_VALUE)
+      case AttributeType.DOUBLE    => java.lang.Double.valueOf(java.lang.Double.MAX_VALUE)
+      case AttributeType.TIMESTAMP => new Timestamp(java.lang.Long.MAX_VALUE)
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"Unsupported attribute type for max value: $attrType"
+        )
+    }
+
+  /** Returns the minimum possible value for a given attribute type. (note Double.MIN_VALUE is > 0).
+    * For BINARY under lexicographic order, the empty array is the global minimum.
+    */
+  @throws[UnsupportedOperationException]
+  def minValue(attrType: AttributeType): Object =
+    attrType match {
+      case AttributeType.INTEGER   => java.lang.Integer.valueOf(Integer.MIN_VALUE)
+      case AttributeType.LONG      => java.lang.Long.valueOf(java.lang.Long.MIN_VALUE)
+      case AttributeType.DOUBLE    => java.lang.Double.valueOf(java.lang.Double.MIN_VALUE)
+      case AttributeType.TIMESTAMP => new Timestamp(0L)
+      case AttributeType.BINARY    => Array.emptyByteArray
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"Unsupported attribute type for min value: $attrType"
+        )
+    }
+
   class AttributeTypeException(msg: String, cause: Throwable = null)
       extends IllegalArgumentException(msg, cause) {}
 }
