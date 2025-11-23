@@ -130,7 +130,7 @@ jobs:
           TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
 
           # Sign the tarball
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 \
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
             --armor --detach-sign --output "${TARBALL_NAME}.asc" "$TARBALL_NAME"
 
           # Verify signature
