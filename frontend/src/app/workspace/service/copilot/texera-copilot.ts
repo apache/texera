@@ -53,6 +53,8 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS } from "./tool/current-workflow-editing-observing-tools";
 import { parseOperatorAccessFromStep, ToolOperatorAccess } from "./tool/react-step-operator-parser";
 
@@ -164,7 +166,9 @@ export class TexeraCopilot {
     private notificationService: NotificationService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowConsoleService: WorkflowConsoleService,
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private workflowPersistService: WorkflowPersistService,
+    private workflowVersionService: WorkflowVersionService
   ) {
     this.modelType = "";
   }
@@ -586,13 +590,10 @@ export class TexeraCopilot {
     const actionPlanTool = toolWithTimeout(
       actionPlanTools.createActionPlanTool(
         this.workflowActionService,
-        this.workflowUtilService,
-        this.operatorMetadataService,
         this.actionPlanService,
         this.validationWorkflowService,
         this.agentId,
-        this.agentName,
-        () => this.planningMode // Pass planning mode getter
+        this.agentName
       )
     );
     const getActionPlanTool = toolWithTimeout(actionPlanTools.createGetActionPlanTool(this.actionPlanService));
@@ -763,15 +764,36 @@ export class TexeraCopilot {
    * Approve the pending action plan and continue with execution
    */
   public approveActionPlan(feedback?: string): void {
-    // Construct the approval message
+    // STEP 1: Clean up version display UI if in planning mode (but keep the workflow state)
+    if (this.planningMode && this.workflowVersionService) {
+      console.log("[Planning Mode] Cleaning up version display UI (approved)");
+      // Clear all version display highlights and state
+      // Do NOT reload the workflow - we want to keep the current state with action plan applied
+      const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators();
+      const allOperatorIds = allOperators.map(op => op.operatorID);
+
+      // Clear highlights on all operators
+      this.workflowVersionService.unhighlightOpVersionDiff({
+        modified: allOperatorIds,
+        added: [],
+        deleted: []
+      });
+      this.workflowVersionService.setDisplayParticularVersion(false);
+      // Clear the temp workflow without reloading
+      this.workflowActionService.resetTempWorkflow();
+      // Re-enable workflow modification
+      this.workflowActionService.enableWorkflowModification();
+    }
+
+    // STEP 2: Construct the approval message
     const message = feedback
       ? `I approve this action plan. Additional feedback: ${feedback}`
       : "I approve this action plan. Please proceed with execution.";
 
-    // Clear the approval state - UI will update immediately
+    // STEP 3: Clear the approval state - UI will update immediately
     this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
 
-    // Continue the conversation with the approval message
+    // STEP 4: Continue the conversation with the approval message
     // sendMessage() will handle adding the message to history
     this.sendMessage(message).subscribe();
   }
@@ -780,7 +802,7 @@ export class TexeraCopilot {
    * Reject the pending action plan and revert changes
    */
   public rejectActionPlan(feedback?: string, actionPlanId?: string): void {
-    // STEP 1: Revert the action plan changes FIRST (before updating UI)
+    // STEP 1: Revert the action plan changes FIRST (while workflow is still in modified state)
     if (actionPlanId) {
       console.log(`Reverting action plan ${actionPlanId}...`);
       const success = this.actionPlanService.revertActionPlan(actionPlanId);
@@ -793,15 +815,15 @@ export class TexeraCopilot {
       console.warn("No action plan ID provided for rejection");
     }
 
-    // STEP 2: Construct the rejection message
+    // STEP 3: Construct the rejection message
     const message = feedback
       ? `I reject this action plan. Reason: ${feedback}`
       : "I reject this action plan. Please revise your approach.";
 
-    // STEP 3: Clear the approval state - UI will update immediately
+    // STEP 4: Clear the approval state - UI will update immediately
     this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
 
-    // STEP 4: Continue the conversation with the rejection message
+    // STEP 5: Continue the conversation with the rejection message
     // sendMessage() will handle adding the message to history
     this.sendMessage(message).subscribe();
   }

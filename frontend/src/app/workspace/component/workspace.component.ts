@@ -170,6 +170,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             });
           // to sync up with the updated information, such as workflow.wid
+        } else {
+          console.log("Workflow not persisted")
         }
       });
   }

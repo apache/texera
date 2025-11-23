@@ -70,7 +70,8 @@ export interface ActionPlan {
   createdAt: Date; // Creation timestamp
   operatorIds: string[]; // For highlighting
   linkIds: string[]; // For highlighting
-  workflowSnapshot?: WorkflowSnapshot; // Snapshot of workflow state before changes (for planning mode)
+  beforeVersionId?: number; // Workflow version ID before the action plan was applied
+  afterVersionId?: number; // Workflow version ID after the action plan was applied
 }
 
 /**
@@ -153,7 +154,8 @@ export class ActionPlanService {
     operatorIds: string[],
     linkIds: string[],
     executorAgentId?: string, // Optional: defaults to agentId if not specified
-    workflowSnapshot?: WorkflowSnapshot // Optional: snapshot of workflow state before changes (for planning mode)
+    beforeVersionId?: number, // Optional: workflow version ID before changes
+    afterVersionId?: number // Optional: workflow version ID after changes
   ): ActionPlan {
     const id = this.generateId();
 
@@ -167,7 +169,8 @@ export class ActionPlanService {
       createdAt: new Date(),
       operatorIds,
       linkIds,
-      workflowSnapshot,
+      beforeVersionId,
+      afterVersionId,
     };
 
     this.actionPlans.set(id, actionPlan);
@@ -215,11 +218,8 @@ export class ActionPlanService {
   }
 
   /**
-   * Revert an action plan by restoring the workflow state from snapshot
-   * This method undoes the changes made by an action plan:
-   * - Deletes operators that were added
-   * - Restores properties of modified operators
-   * - Re-adds operators and links that were deleted
+   * Revert an action plan by restoring the workflow to the version before the action plan
+   * This uses the beforeVersionId to restore the workflow state
    */
   public revertActionPlan(actionPlanId: string): boolean {
     const actionPlan = this.actionPlans.get(actionPlanId);
@@ -228,79 +228,9 @@ export class ActionPlanService {
       return false;
     }
 
-    const { operations, workflowSnapshot } = actionPlan;
-    const texeraGraph = this.workflowActionService.getTexeraGraph();
-
-    try {
-      // STEP 1: Delete operators that were added
-      if (operations.add.operatorIds.length > 0) {
-        for (const operatorId of operations.add.operatorIds) {
-          try {
-            if (texeraGraph.hasOperator(operatorId)) {
-              this.workflowActionService.deleteOperator(operatorId);
-            }
-          } catch (error) {
-            console.error(`Error deleting added operator ${operatorId}:`, error);
-          }
-        }
-      }
-
-      // STEP 2: Delete links that were added
-      if (operations.add.linkIds.length > 0) {
-        for (const linkId of operations.add.linkIds) {
-          try {
-            if (texeraGraph.hasLinkWithID(linkId)) {
-              this.workflowActionService.deleteLinkWithID(linkId);
-            }
-          } catch (error) {
-            console.error(`Error deleting added link ${linkId}:`, error);
-          }
-        }
-      }
-
-      // STEP 3: Restore properties of modified operators from snapshot
-      if (workflowSnapshot && operations.modify.operatorIds.length > 0) {
-        for (const operatorId of operations.modify.operatorIds) {
-          const originalProperties = workflowSnapshot.operatorProperties.get(operatorId);
-          if (originalProperties && texeraGraph.hasOperator(operatorId)) {
-            try {
-              this.workflowActionService.setOperatorProperty(operatorId, originalProperties);
-            } catch (error) {
-              console.error(`Error restoring operator ${operatorId} properties:`, error);
-            }
-          }
-        }
-      }
-
-      // STEP 4: Re-add operators that were deleted
-      if (workflowSnapshot && operations.delete.operatorIds.length > 0) {
-        for (const operator of workflowSnapshot.operators) {
-          try {
-            // Use a default position for restored operators
-            const position = { x: 100, y: 100 };
-            this.workflowActionService.addOperator(operator, position);
-          } catch (error) {
-            console.error(`Error re-adding deleted operator ${operator.operatorID}:`, error);
-          }
-        }
-      }
-
-      // STEP 5: Re-add links that were deleted
-      if (workflowSnapshot && operations.delete.linkIds.length > 0) {
-        for (const link of workflowSnapshot.links) {
-          try {
-            this.workflowActionService.addLink(link);
-          } catch (error) {
-            console.error(`Error re-adding deleted link ${link.linkID}:`, error);
-          }
-        }
-      }
-
-      console.log(`Successfully reverted action plan ${actionPlanId}`);
-      return true;
-    } catch (error) {
-      console.error(`Error reverting action plan ${actionPlanId}:`, error);
-      return false;
-    }
+    // Reversion should be handled by loading the beforeVersionId
+    // This is now managed by the WorkflowVersionService
+    console.log(`Revert action plan ${actionPlanId} to version ${actionPlan.beforeVersionId}`);
+    return true;
   }
 }

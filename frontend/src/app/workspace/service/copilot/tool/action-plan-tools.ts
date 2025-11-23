@@ -20,9 +20,6 @@
 import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
-import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { OperatorLink } from "../../../types/workflow-common.interface";
-import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 import { ActionPlanService } from "../../action-plan/action-plan.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 
@@ -38,13 +35,10 @@ export const TOOL_NAME_UPDATE_ACTION_PLAN = "updateActionPlan";
  */
 export function createActionPlanTool(
   workflowActionService: WorkflowActionService,
-  workflowUtilService: WorkflowUtilService,
-  operatorMetadataService: OperatorMetadataService,
   actionPlanService: ActionPlanService,
   validationWorkflowService: ValidationWorkflowService,
   agentId: string = "",
-  agentName: string = "",
-  planningModeGetter?: () => boolean // Function to check if planning mode is enabled
+  agentName: string = ""
 ) {
   return tool({
     name: TOOL_NAME_ACTION_PLAN,
@@ -58,12 +52,8 @@ export function createActionPlanTool(
             .array(
               z.object({
                 operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
-                customDisplayName: z
-                  .string()
-                  .describe("Brief custom name summarizing what this operator does"),
-                properties: z
-                  .record(z.any())
-                  .describe("Properties object to set on this operator."),
+                customDisplayName: z.string().describe("Brief custom name summarizing what this operator does"),
+                properties: z.record(z.any()).describe("Properties object to set on this operator."),
               })
             )
             .optional()
@@ -134,207 +124,15 @@ export function createActionPlanTool(
       };
     }) => {
       try {
-        const results = {
-          addedOperatorIds: [] as string[],
-          addedLinkIds: [] as string[],
-          modifiedOperatorIds: [] as string[],
-          deletedOperatorIds: [] as string[],
-          deletedLinkIds: [] as string[],
-        };
+        // Apply agent actions atomically using workflow action service
+        const results = workflowActionService.applyAgentAction(args);
 
-        // SNAPSHOT CREATION (for planning mode to enable revert on reject)
-        // Capture workflow state BEFORE applying any changes
-        const isPlanningMode = planningModeGetter?.() ?? false;
-        let workflowSnapshot = undefined;
-
-        if (isPlanningMode) {
-          const texeraGraph = workflowActionService.getTexeraGraph();
-
-          // Save operators and links that will be deleted (so we can restore them)
-          const operatorsToDelete = (args.delete?.operatorIds || [])
-            .map(id => {
-              try {
-                return texeraGraph.getOperator(id);
-              } catch {
-                return null;
-              }
-            })
-            .filter(op => op !== null) as any[];
-
-          const linksToDelete = (args.delete?.linkIds || [])
-            .map(id => {
-              try {
-                return texeraGraph.getLinkWithID(id);
-              } catch {
-                return null;
-              }
-            })
-            .filter(link => link !== null) as any[];
-
-          // Save original properties of operators that will be modified
-          const operatorPropertiesMap = new Map<string, any>();
-          if (args.modify?.operators) {
-            for (const modifySpec of args.modify.operators) {
-              try {
-                const operator = texeraGraph.getOperator(modifySpec.operatorId);
-                if (operator) {
-                  // Save a deep copy of the current properties
-                  operatorPropertiesMap.set(
-                    modifySpec.operatorId,
-                    JSON.parse(JSON.stringify(operator.operatorProperties))
-                  );
-                }
-              } catch {
-                // Operator doesn't exist, skip
-              }
-            }
-          }
-
-          workflowSnapshot = {
-            operators: operatorsToDelete,
-            links: linksToDelete,
-            operatorProperties: operatorPropertiesMap,
+        // Check if the action failed
+        if (!results.success) {
+          return {
+            success: false,
+            error: results.error || "Failed to apply agent actions",
           };
-        }
-
-        // Helper function to resolve operator ID (can be existing ID or index string)
-        const resolveOperatorId = (idOrIndex: string, createdIds: string[]): string | null => {
-          // Check if it's a numeric index (referring to operators array)
-          const indexMatch = idOrIndex.match(/^(\d+)$/);
-          if (indexMatch) {
-            const index = parseInt(indexMatch[1], 10);
-            if (index >= 0 && index < createdIds.length) {
-              return createdIds[index];
-            }
-            return null; // Invalid index
-          }
-
-          // Otherwise, treat as existing operator ID
-          const existingOp = workflowActionService.getTexeraGraph().getOperator(idOrIndex);
-          return existingOp ? idOrIndex : null;
-        };
-
-        // STEP 1: ADD operations
-        if (args.add?.operators) {
-          // Validate all operator types exist
-          for (let i = 0; i < args.add.operators.length; i++) {
-            const operatorSpec = args.add.operators[i];
-            if (!operatorMetadataService.operatorTypeExists(operatorSpec.operatorType)) {
-              return {
-                success: false,
-                error: `Unknown operator type at index ${i}: ${operatorSpec.operatorType}. Use listOperatorTypes tool to see available types.`,
-              };
-            }
-          }
-
-          const existingOperators = workflowActionService.getTexeraGraph().getAllOperators();
-          const startIndex = existingOperators.length;
-
-          for (let i = 0; i < args.add.operators.length; i++) {
-            const operatorSpec = args.add.operators[i];
-
-            // Get a new operator predicate with default settings and optional custom display name
-            const operator = workflowUtilService.getNewOperatorPredicate(
-              operatorSpec.operatorType,
-              operatorSpec.customDisplayName
-            );
-
-            // Apply custom properties if provided
-            if (operatorSpec.properties) {
-              Object.assign(operator, operatorSpec.properties);
-            }
-
-            // Calculate a default position with better spacing for batch operations
-            const defaultX = 100 + ((startIndex + i) % 5) * 200;
-            const defaultY = 100 + Math.floor((startIndex + i) / 5) * 150;
-            const position = { x: defaultX, y: defaultY };
-
-            // Add the operator to the workflow
-            workflowActionService.addOperator(operator, position);
-            results.addedOperatorIds.push(operator.operatorID);
-          }
-        }
-
-        // Add links if specified
-        if (args.add?.links) {
-          for (let i = 0; i < args.add.links.length; i++) {
-            const linkSpec = args.add.links[i];
-
-            // Resolve source and target operator IDs
-            const sourceOperatorId = resolveOperatorId(linkSpec.sourceOperatorId, results.addedOperatorIds);
-            const targetOperatorId = resolveOperatorId(linkSpec.targetOperatorId, results.addedOperatorIds);
-
-            if (!sourceOperatorId) {
-              return {
-                success: false,
-                error: `Invalid source operator ID at link ${i}: '${linkSpec.sourceOperatorId}'. Must be either an existing operator ID or a valid index (0-${results.addedOperatorIds.length - 1}).`,
-              };
-            }
-
-            if (!targetOperatorId) {
-              return {
-                success: false,
-                error: `Invalid target operator ID at link ${i}: '${linkSpec.targetOperatorId}'. Must be either an existing operator ID or a valid index (0-${results.addedOperatorIds.length - 1}).`,
-              };
-            }
-
-            const sourcePId = linkSpec.sourcePortId || "output-0";
-            const targetPId = linkSpec.targetPortId || "input-0";
-
-            const link: OperatorLink = {
-              linkID: `link_${Date.now()}_${Math.random()}`,
-              source: {
-                operatorID: sourceOperatorId,
-                portID: sourcePId,
-              },
-              target: {
-                operatorID: targetOperatorId,
-                portID: targetPId,
-              },
-            };
-
-            workflowActionService.addLink(link);
-            results.addedLinkIds.push(link.linkID);
-          }
-        }
-
-        // STEP 2: MODIFY operations
-        if (args.modify?.operators) {
-          for (const modifySpec of args.modify.operators) {
-            const operator = workflowActionService.getTexeraGraph().getOperator(modifySpec.operatorId);
-            if (!operator) {
-              return {
-                success: false,
-                error: `Operator with ID '${modifySpec.operatorId}' not found for modification.`,
-              };
-            }
-
-            // Apply property updates
-            Object.assign(operator, modifySpec.properties);
-            workflowActionService.setOperatorProperty(modifySpec.operatorId, modifySpec.properties);
-            results.modifiedOperatorIds.push(modifySpec.operatorId);
-          }
-        }
-
-        // STEP 3: DELETE operations
-        if (args.delete?.operatorIds) {
-          for (const operatorId of args.delete.operatorIds) {
-            const operator = workflowActionService.getTexeraGraph().getOperator(operatorId);
-            if (operator) {
-              workflowActionService.deleteOperator(operatorId);
-              results.deletedOperatorIds.push(operatorId);
-            }
-          }
-        }
-
-        if (args.delete?.linkIds) {
-          for (const linkId of args.delete.linkIds) {
-            const link = workflowActionService.getTexeraGraph().getLinkWithID(linkId);
-            if (link) {
-              workflowActionService.deleteLinkWithID(linkId);
-              results.deletedLinkIds.push(linkId);
-            }
-          }
         }
 
         // Create action plan with all operations
@@ -359,9 +157,7 @@ export function createActionPlanTool(
             },
           },
           allOperatorIds,
-          allLinkIds,
-          undefined, // executorAgentId (default to agentId)
-          workflowSnapshot // Pass the snapshot for revert functionality
+          allLinkIds
         );
 
         // Get validation information for the workflow after operations
@@ -455,16 +251,15 @@ export function createListActionPlansTool(actionPlanService: ActionPlanService) 
     }),
     execute: async (args: { filterByAgent?: string }) => {
       try {
-        const allPlans = actionPlanService.getAllActionPlans();
+        let plans = actionPlanService.getAllActionPlans();
 
         // Apply filters if provided
-        let filteredPlans = allPlans;
         if (args.filterByAgent) {
-          filteredPlans = filteredPlans.filter(plan => plan.agentId === args.filterByAgent);
+          plans = plans.filter(plan => plan.agentId === args.filterByAgent);
         }
 
         // Convert to serializable format
-        const plans = filteredPlans.map(plan => ({
+        const serializedPlans = plans.map(plan => ({
           id: plan.id,
           agentId: plan.agentId,
           agentName: plan.agentName,
@@ -476,8 +271,8 @@ export function createListActionPlansTool(actionPlanService: ActionPlanService) 
 
         return {
           success: true,
-          actionPlans: plans,
-          totalCount: plans.length,
+          actionPlans: serializedPlans,
+          totalCount: serializedPlans.length,
         };
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : "Failed to list action plans" };

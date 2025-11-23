@@ -1050,4 +1050,201 @@ export class WorkflowActionService {
 
     return matchingOperators;
   }
+
+  /**
+   * Apply agent action plan operations to the workflow atomically.
+   * This includes adding operators/links, modifying operators, and deleting operators/links.
+   * All operations are bundled together to ensure atomicity.
+   *
+   * @param args Action plan arguments with add, modify, and delete operations
+   * @returns Result object with IDs of added/modified/deleted items or error message
+   */
+  public applyAgentAction(args: {
+    add?: {
+      operators?: Array<{
+        operatorType: string;
+        customDisplayName?: string;
+        properties?: Record<string, any>
+      }>;
+      links?: Array<{
+        sourceOperatorId: string;
+        targetOperatorId: string;
+        sourcePortId?: string;
+        targetPortId?: string;
+      }>;
+    };
+    modify?: {
+      operators?: Array<{ operatorId: string; properties: Record<string, any> }>;
+    };
+    delete?: {
+      operatorIds?: string[];
+      linkIds?: string[];
+    };
+  }): {
+    success: boolean;
+    error?: string;
+    addedOperatorIds: string[];
+    addedLinkIds: string[];
+    modifiedOperatorIds: string[];
+    deletedOperatorIds: string[];
+    deletedLinkIds: string[];
+  } {
+    const results: {
+      success: boolean;
+      error?: string;
+      addedOperatorIds: string[];
+      addedLinkIds: string[];
+      modifiedOperatorIds: string[];
+      deletedOperatorIds: string[];
+      deletedLinkIds: string[];
+    } = {
+      success: true,
+      addedOperatorIds: [],
+      addedLinkIds: [],
+      modifiedOperatorIds: [],
+      deletedOperatorIds: [],
+      deletedLinkIds: [],
+    };
+
+    // Helper function to resolve operator ID (can be existing ID or index string)
+    const resolveOperatorId = (idOrIndex: string, createdIds: string[]): string | null => {
+      // Check if it's a numeric index (referring to operators array)
+      const indexMatch = idOrIndex.match(/^(\d+)$/);
+      if (indexMatch) {
+        const index = parseInt(indexMatch[1], 10);
+        if (index >= 0 && index < createdIds.length) {
+          return createdIds[index];
+        }
+        return null; // Invalid index
+      }
+
+      // Otherwise, treat as existing operator ID
+      const existingOp = this.getTexeraGraph().getOperator(idOrIndex);
+      return existingOp ? idOrIndex : null;
+    };
+
+    // Bundle all operations for atomicity
+    this.texeraGraph.bundleActions(() => {
+      // STEP 1: ADD operations
+      if (args.add?.operators) {
+        // Validate all operator types exist
+        for (let i = 0; i < args.add.operators.length; i++) {
+          const operatorSpec = args.add.operators[i];
+          if (!this.operatorMetadataService.operatorTypeExists(operatorSpec.operatorType)) {
+            results.success = false;
+            results.error = `Unknown operator type at index ${i}: ${operatorSpec.operatorType}. Use listOperatorTypes tool to see available types.`;
+            return;
+          }
+        }
+
+        const existingOperators = this.getTexeraGraph().getAllOperators();
+        const startIndex = existingOperators.length;
+
+        for (let i = 0; i < args.add.operators.length; i++) {
+          const operatorSpec = args.add.operators[i];
+
+          // Get a new operator predicate with default settings and optional custom display name
+          const operator = this.workflowUtilService.getNewOperatorPredicate(
+            operatorSpec.operatorType,
+            operatorSpec.customDisplayName
+          );
+
+          // Apply custom properties if provided
+          if (operatorSpec.properties) {
+            Object.assign(operator, operatorSpec.properties);
+          }
+
+          // Calculate a default position with better spacing for batch operations
+          const defaultX = 100 + ((startIndex + i) % 5) * 200;
+          const defaultY = 100 + Math.floor((startIndex + i) / 5) * 150;
+          const position = { x: defaultX, y: defaultY };
+
+          // Add the operator to the workflow
+          this.addOperator(operator, position);
+          results.addedOperatorIds.push(operator.operatorID);
+        }
+      }
+
+      // Add links if specified
+      if (args.add?.links) {
+        for (let i = 0; i < args.add.links.length; i++) {
+          const linkSpec = args.add.links[i];
+
+          // Resolve source and target operator IDs
+          const sourceOperatorId = resolveOperatorId(linkSpec.sourceOperatorId, results.addedOperatorIds);
+          const targetOperatorId = resolveOperatorId(linkSpec.targetOperatorId, results.addedOperatorIds);
+
+          if (!sourceOperatorId) {
+            results.success = false;
+            results.error = `Invalid source operator ID at link ${i}: '${linkSpec.sourceOperatorId}'. Must be either an existing operator ID or a valid index (0-${results.addedOperatorIds.length - 1}).`;
+            return;
+          }
+
+          if (!targetOperatorId) {
+            results.success = false;
+            results.error = `Invalid target operator ID at link ${i}: '${linkSpec.targetOperatorId}'. Must be either an existing operator ID or a valid index (0-${results.addedOperatorIds.length - 1}).`;
+            return;
+          }
+
+          const sourcePId = linkSpec.sourcePortId || "output-0";
+          const targetPId = linkSpec.targetPortId || "input-0";
+
+          const link: OperatorLink = {
+            linkID: `link_${Date.now()}_${Math.random()}`,
+            source: {
+              operatorID: sourceOperatorId,
+              portID: sourcePId,
+            },
+            target: {
+              operatorID: targetOperatorId,
+              portID: targetPId,
+            },
+          };
+
+          this.addLink(link);
+          results.addedLinkIds.push(link.linkID);
+        }
+      }
+
+      // STEP 2: MODIFY operations
+      if (args.modify?.operators) {
+        for (const modifySpec of args.modify.operators) {
+          const operator = this.getTexeraGraph().getOperator(modifySpec.operatorId);
+          if (!operator) {
+            results.success = false;
+            results.error = `Operator with ID '${modifySpec.operatorId}' not found for modification.`;
+            return;
+          }
+
+          // Apply property updates
+          Object.assign(operator, modifySpec.properties);
+          this.setOperatorProperty(modifySpec.operatorId, modifySpec.properties);
+          results.modifiedOperatorIds.push(modifySpec.operatorId);
+        }
+      }
+
+      // STEP 3: DELETE operations
+      if (args.delete?.operatorIds) {
+        for (const operatorId of args.delete.operatorIds) {
+          const operator = this.getTexeraGraph().getOperator(operatorId);
+          if (operator) {
+            this.deleteOperator(operatorId);
+            results.deletedOperatorIds.push(operatorId);
+          }
+        }
+      }
+
+      if (args.delete?.linkIds) {
+        for (const linkId of args.delete.linkIds) {
+          const link = this.getTexeraGraph().getLinkWithID(linkId);
+          if (link) {
+            this.deleteLinkWithID(linkId);
+            results.deletedLinkIds.push(linkId);
+          }
+        }
+      }
+    });
+
+    return results;
+  }
 }
