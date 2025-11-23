@@ -20,15 +20,10 @@ name: Create and upload release candidate artifacts
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release version (e.g., 1.1.0-incubating)'
+      tag:
+        description: 'Existing Git tag (e.g., v1.1.0-incubating-rc1)'
         required: true
         type: string
-      rc_number:
-        description: 'Release candidate number (e.g., 1 for RC1)'
-        required: true
-        type: string
-        default: '1'
 
 jobs:
   create-rc:
@@ -40,21 +35,33 @@ jobs:
         with:
           fetch-depth: 0  # Full history for proper tagging
 
-      - name: Validate version format
+      - name: Validate tag exists
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-incubating$ ]]; then
-            echo "Error: Version must be in format X.Y.Z-incubating"
+          TAG_NAME="${{ github.event.inputs.tag }}"
+
+          # Check if tag exists
+          if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Error: Tag '$TAG_NAME' does not exist"
+            echo "Available tags:"
+            git tag -l | tail -10
             exit 1
           fi
-          echo "Version validation passed: $VERSION"
+
+          echo "✓ Tag validation passed: $TAG_NAME"
 
       - name: Set up variables
         id: vars
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          RC_NUM="${{ github.event.inputs.rc_number }}"
-          TAG_NAME="v${VERSION}-rc${RC_NUM}"
+          TAG_NAME="${{ github.event.inputs.tag }}"
+
+          # Parse version and RC number from tag (format: v1.1.0-incubating-rc1)
+          if [[ ! "$TAG_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+-incubating)-rc([0-9]+)$ ]]; then
+            echo "Error: Tag must be in format vX.Y.Z-incubating-rcN (e.g., v1.1.0-incubating-rc1)"
+            exit 1
+          fi
+
+          VERSION="${BASH_REMATCH[1]}"
+          RC_NUM="${BASH_REMATCH[2]}"
           RC_DIR="${VERSION}-RC${RC_NUM}"
           TARBALL_NAME="apache-texera-${VERSION}-rc${RC_NUM}-src.tar.gz"
 
@@ -65,29 +72,10 @@ jobs:
           echo "tarball_name=$TARBALL_NAME" >> $GITHUB_OUTPUT
 
           echo "Release Candidate: $TAG_NAME"
+          echo "Version: $VERSION"
+          echo "RC Number: $RC_NUM"
           echo "Tarball: $TARBALL_NAME"
           echo "Staging directory: dist/dev/incubator/texera/$RC_DIR"
-
-      - name: Create and push RC tag
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-
-          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
-
-          # Check if tag already exists
-          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            echo "Warning: Tag $TAG_NAME already exists locally"
-            git tag -d "$TAG_NAME" || true
-          fi
-
-          # Create annotated tag
-          git tag -a "$TAG_NAME" -m "Apache Texera ${{ steps.vars.outputs.version }} Release Candidate ${{ steps.vars.outputs.rc_num }}"
-
-          # Push tag
-          git push origin "$TAG_NAME" --force
-
-          echo "✓ Created and pushed tag: $TAG_NAME"
 
       - name: Create source tarball
         run: |
