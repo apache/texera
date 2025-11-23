@@ -1,0 +1,65 @@
+{
+  "operators": [
+    {
+      "operatorID": "operator-1",
+      "operatorType": "CSVFileScan",
+      "operatorProperties": {
+        "fileName": "country_sales_small.csv",
+        "customDelimiter": ",",
+        "hasHeader": true,
+        "datasetID": null
+      },
+      "operatorVersion": "1.0",
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0"
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false
+    },
+    {
+      "operatorID": "operator-2",
+      "operatorType": "Projection",
+      "operatorProperties": {
+        "attributes": [
+          "Region",
+          "Country",
+          "Item Type",
+          "Total Revenue",
+          "Total Profit"
+        ]
+      },
+      "operatorVersion": "1.0",
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": ""
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0"
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false
+    }
+  ],
+  "links": [
+    {
+      "linkID": "link-1",
+      "source": {
+        "operatorID": "operator-1",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "operator-2",
+        "portID": "input-0"
+      }
+    }
+  ],
+  "breakpoints": {},
+  "commentBoxes": []
+}

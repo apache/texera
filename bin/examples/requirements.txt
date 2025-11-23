@@ -1,0 +1,10 @@
+# Texera Example Data Loader - Python Dependencies
+
+# HTTP client library for API requests
+requests>=2.31.0
+
+# For concurrent uploads (standard library, but listed for clarity)
+# concurrent.futures is part of Python 3 standard library
+
+# Typing support (standard library in Python 3.5+)
+# typing is part of Python 3 standard library
