@@ -42,8 +42,9 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { ActionPlanService } from "../service/action-plan/action-plan.service";
 
-export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
+export const SAVE_DEBOUNCE_TIME_IN_MS = 1000;
 
 @UntilDestroy()
 @Component({
@@ -87,7 +88,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private notificationService: NotificationService,
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private actionPlanService: ActionPlanService
   ) {}
 
   ngOnInit() {
@@ -168,10 +170,15 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
                 this.location.go(`${DASHBOARD_USER_WORKSPACE}/${updatedWorkflow.wid}`);
               }
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+
+              // Notify action plan service so pending action plans can update their afterVersionId
+              if (updatedWorkflow.wid) {
+                this.actionPlanService.notifyWorkflowPersisted(updatedWorkflow.wid);
+              }
             });
           // to sync up with the updated information, such as workflow.wid
         } else {
-          console.log("Workflow not persisted")
+          console.log("Workflow not persisted");
         }
       });
   }

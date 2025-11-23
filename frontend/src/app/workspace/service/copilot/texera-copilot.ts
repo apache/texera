@@ -592,6 +592,7 @@ export class TexeraCopilot {
         this.workflowActionService,
         this.actionPlanService,
         this.validationWorkflowService,
+        this.workflowVersionService,
         this.agentId,
         this.agentName
       )
@@ -776,7 +777,7 @@ export class TexeraCopilot {
       this.workflowVersionService.unhighlightOpVersionDiff({
         modified: allOperatorIds,
         added: [],
-        deleted: []
+        deleted: [],
       });
       this.workflowVersionService.setDisplayParticularVersion(false);
       // Clear the temp workflow without reloading

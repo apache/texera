@@ -19,8 +19,10 @@
 
 import { Injectable } from "@angular/core";
 import { Subject, Observable, BehaviorSubject } from "rxjs";
+import { filter, take, switchMap, map } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorPredicate, OperatorLink } from "../../types/workflow-common.interface";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 
 /**
  * Interface for an action plan highlight event
@@ -90,9 +92,12 @@ export class ActionPlanService {
   private actionPlansSubject = new BehaviorSubject<ActionPlan[]>([]);
   private pendingActionPlanSubject = new BehaviorSubject<ActionPlan | null>(null);
 
+  // Workflow persisted event stream
+  private workflowPersistedSubject = new Subject<number>(); // Emits wid
+
   private workflowActionService?: WorkflowActionService;
 
-  constructor() {}
+  constructor(private workflowVersionService: WorkflowVersionService) {}
 
   /**
    * Set the workflow action service (injected later to avoid circular dependency)
@@ -113,6 +118,38 @@ export class ActionPlanService {
    */
   public getCleanupStream() {
     return this.cleanupSubject.asObservable();
+  }
+
+  /**
+   * Get workflow persisted event stream
+   */
+  public onWorkflowPersisted(): Observable<number> {
+    return this.workflowPersistedSubject.asObservable();
+  }
+
+  /**
+   * Notify that a workflow has been persisted
+   * This triggers listeners to update afterVersionId
+   */
+  public notifyWorkflowPersisted(wid: number): void {
+    this.workflowPersistedSubject.next(wid);
+  }
+
+  /**
+   * Wait for the workflow to be persisted and return the new version ID
+   * Returns an Observable that emits once when persistence completes
+   */
+  public waitForWorkflowPersisted(wid: number): Observable<number | undefined> {
+    return this.onWorkflowPersisted().pipe(
+      filter(persistedWid => persistedWid === wid),
+      take(1), // Auto-cleanup after first event
+      switchMap(() => this.workflowVersionService.retrieveVersionsOfWorkflow(wid)),
+      map(versions => {
+        const afterVersionId = versions.length > 0 ? versions[0].vId : undefined;
+        console.log("afterVersionId: ", afterVersionId);
+        return afterVersionId;
+      })
+    );
   }
 
   /**
@@ -181,6 +218,17 @@ export class ActionPlanService {
     this.actionPlanHighlightSubject.next({ operatorIds, linkIds, summary });
 
     return actionPlan;
+  }
+
+  /**
+   * Update the afterVersionId of an existing action plan
+   */
+  public updateActionPlanAfterVersionId(actionPlanId: string, afterVersionId: number): void {
+    const actionPlan = this.actionPlans.get(actionPlanId);
+    if (actionPlan) {
+      actionPlan.afterVersionId = afterVersionId;
+      this.emitActionPlans();
+    }
   }
 
   /**

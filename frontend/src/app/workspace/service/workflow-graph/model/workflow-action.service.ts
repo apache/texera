@@ -1064,7 +1064,7 @@ export class WorkflowActionService {
       operators?: Array<{
         operatorType: string;
         customDisplayName?: string;
-        properties?: Record<string, any>
+        properties?: Record<string, any>;
       }>;
       links?: Array<{
         sourceOperatorId: string;
