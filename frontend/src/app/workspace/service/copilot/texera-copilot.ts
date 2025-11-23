@@ -229,6 +229,9 @@ export class TexeraCopilot {
         throw new Error(`Cannot send message: agent is ${this.state}`);
       }
 
+      // Clear action plan approval state when any message is sent
+      this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
+
       // Set state to generating once at the start
       this.setState(CopilotState.GENERATING);
       this.shouldStopAfterActionPlan = false;
@@ -759,73 +762,5 @@ export class TexeraCopilot {
       description: tool.description || "No description available",
       inputSchema: tool.parameters || {},
     }));
-  }
-
-  /**
-   * Approve the pending action plan and continue with execution
-   */
-  public approveActionPlan(feedback?: string): void {
-    // STEP 1: Clean up version display UI if in planning mode (but keep the workflow state)
-    if (this.planningMode && this.workflowVersionService) {
-      console.log("[Planning Mode] Cleaning up version display UI (approved)");
-      // Clear all version display highlights and state
-      // Do NOT reload the workflow - we want to keep the current state with action plan applied
-      const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators();
-      const allOperatorIds = allOperators.map(op => op.operatorID);
-
-      // Clear highlights on all operators
-      this.workflowVersionService.unhighlightOpVersionDiff({
-        modified: allOperatorIds,
-        added: [],
-        deleted: [],
-      });
-      this.workflowVersionService.setDisplayParticularVersion(false);
-      // Clear the temp workflow without reloading
-      this.workflowActionService.resetTempWorkflow();
-      // Re-enable workflow modification
-      this.workflowActionService.enableWorkflowModification();
-    }
-
-    // STEP 2: Construct the approval message
-    const message = feedback
-      ? `I approve this action plan. Additional feedback: ${feedback}`
-      : "I approve this action plan. Please proceed with execution.";
-
-    // STEP 3: Clear the approval state - UI will update immediately
-    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
-
-    // STEP 4: Continue the conversation with the approval message
-    // sendMessage() will handle adding the message to history
-    this.sendMessage(message).subscribe();
-  }
-
-  /**
-   * Reject the pending action plan and revert changes
-   */
-  public rejectActionPlan(feedback?: string, actionPlanId?: string): void {
-    // STEP 1: Revert the action plan changes FIRST (while workflow is still in modified state)
-    if (actionPlanId) {
-      console.log(`Reverting action plan ${actionPlanId}...`);
-      const success = this.actionPlanService.revertActionPlan(actionPlanId);
-      if (success) {
-        console.log(`Successfully reverted action plan ${actionPlanId}`);
-      } else {
-        console.error(`Failed to revert action plan ${actionPlanId}`);
-      }
-    } else {
-      console.warn("No action plan ID provided for rejection");
-    }
-
-    // STEP 3: Construct the rejection message
-    const message = feedback
-      ? `I reject this action plan. Reason: ${feedback}`
-      : "I reject this action plan. Please revise your approach.";
-
-    // STEP 4: Clear the approval state - UI will update immediately
-    this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
-
-    // STEP 5: Continue the conversation with the rejection message
-    // sendMessage() will handle adding the message to history
-    this.sendMessage(message).subscribe();
   }
 }
