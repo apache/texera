@@ -24,6 +24,11 @@ on:
         description: 'Existing Git tag (e.g., v1.1.0-incubating-rc1)'
         required: true
         type: string
+      rc_number:
+        description: 'Release candidate number for artifacts (e.g., 1 for RC1, 2 for RC2)'
+        required: true
+        type: string
+        default: '1'
 
 jobs:
   create-rc:
@@ -53,15 +58,17 @@ jobs:
         id: vars
         run: |
           TAG_NAME="${{ github.event.inputs.tag }}"
+          RC_NUM="${{ github.event.inputs.rc_number }}"
 
-          # Parse version and RC number from tag (format: v1.1.0-incubating-rc1)
-          if [[ ! "$TAG_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+-incubating)-rc([0-9]+)$ ]]; then
-            echo "Error: Tag must be in format vX.Y.Z-incubating-rcN (e.g., v1.1.0-incubating-rc1)"
+          # Parse version from tag (format: v1.1.0-incubating or v1.1.0-incubating-rcN)
+          # Both formats are accepted, but we use the input rc_number for artifacts
+          if [[ "$TAG_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+-incubating)(-rc[0-9]+)?$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+          else
+            echo "Error: Tag must be in format vX.Y.Z-incubating or vX.Y.Z-incubating-rcN (e.g., v1.1.0-incubating-rc1)"
             exit 1
           fi
 
-          VERSION="${BASH_REMATCH[1]}"
-          RC_NUM="${BASH_REMATCH[2]}"
           RC_DIR="${VERSION}-RC${RC_NUM}"
           TARBALL_NAME="apache-texera-${VERSION}-rc${RC_NUM}-src.tar.gz"
 
