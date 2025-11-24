@@ -295,13 +295,13 @@ export class WorkflowVersionService {
       );
   }
 
-  private saveModificationState(): void {
+  public saveModificationState(): void {
     if (this.modificationEnabledBeforeTempWorkflow === undefined) {
       this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
     }
   }
 
-  private restoreModificationState(): void {
+  public restoreModificationState(): void {
     if (this.modificationEnabledBeforeTempWorkflow !== undefined) {
       if (!this.modificationEnabledBeforeTempWorkflow) {
         this.workflowActionService.disableWorkflowModification();

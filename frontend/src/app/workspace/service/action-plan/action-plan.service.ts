@@ -308,10 +308,6 @@ export class ActionPlanService {
     beforeVersionId: number,
     afterVersionId: number
   ): Observable<DifferentOpIDsList> {
-    if (!this.workflowActionService) {
-      throw new Error("Cannot preview version pair diff: workflow action service not set");
-    }
-
     // Fetch both versions
     const beforeWorkflow$ = this.workflowVersionService.retrieveWorkflowByVersion(wid, beforeVersionId);
     const afterWorkflow$ = this.workflowVersionService.retrieveWorkflowByVersion(wid, afterVersionId);
@@ -320,12 +316,22 @@ export class ActionPlanService {
       switchMap(beforeWorkflow => {
         return afterWorkflow$.pipe(
           map(afterWorkflow => {
-            // First load the AFTER version onto the canvas to ensure it's saved to temp
-            this.workflowActionService.reloadWorkflow(afterWorkflow);
+            // Save modification state first
+            this.workflowVersionService.saveModificationState();
 
-            // Then display the BEFORE version as readonly (saves after to temp, displays before on canvas,
-            // disables persist, disables undo/redo, disables modifications)
-            this.workflowVersionService.displayReadonlyWorkflow(beforeWorkflow);
+            // Explicitly set temp workflow to AFTER version (v2) - this is what we'll restore on accept
+            this.workflowActionService.setTempWorkflow(afterWorkflow);
+            console.log("Before workflow", beforeWorkflow);
+            console.log("After workflow", afterWorkflow);
+            console.log("Current workflow", this.workflowActionService.getWorkflow());
+
+            // Disable persist and undo/redo before reloading
+            this.workflowPersistService.setWorkflowPersistFlag(false);
+            this.undoRedoService.disableWorkFlowModification();
+
+            // Display the BEFORE version (v1) on canvas as readonly
+            this.workflowActionService.reloadWorkflow(beforeWorkflow);
+            this.workflowActionService.disableWorkflowModification();
 
             // Calculate diff using workflow-version.service (after -> before)
             // This gives: added = elements in before but not after, deleted = elements in after but not before
@@ -384,19 +390,41 @@ export class ActionPlanService {
    * Clears highlights and reloads the after version from temp (which was saved during preview).
    */
   public acceptActionPlan(): void {
-    if (!this.workflowActionService || !this.currentDiff) {
+    if (!this.currentDiff) {
       return;
     }
 
-    // Clear highlights using workflow-version.service
+    // Clear highlights
     this.workflowVersionService.unhighlightOpVersionDiff(this.currentDiff);
-    this.workflowVersionService.closeReadonlyWorkflowDisplay();
+
+    // Reload the after version from temp (similar to closeReadonlyWorkflowDisplay)
+    // Enable modifications first to be able to reload
+    this.workflowActionService.enableWorkflowModification();
+
+    // Disable undo/redo to not capture the reload as an action
+    this.undoRedoService.disableWorkFlowModification();
+
+    // Reload the after version (v2) from temp
+    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow());
+
+    // Clear temp workflow
+    this.workflowActionService.resetTempWorkflow();
+
+    // Re-enable undo/redo
+    this.undoRedoService.enableWorkFlowModification();
+
+    // Re-enable persist to DB
+    this.workflowPersistService.setWorkflowPersistFlag(true);
+
+    // Restore modification state
+    this.workflowVersionService.restoreModificationState();
+
     // Clear preview state
     this.currentDiff = null;
     this.isInPreviewMode = false;
     this.previewingVersionId = null;
 
-    console.log("Action plan accepted - after version remains loaded");
+    console.log("Action plan accepted - after version loaded from temp");
   }
 
   /**
@@ -404,11 +432,6 @@ export class ActionPlanService {
    * Keeps the before version (currently displayed) and makes it the new current workflow.
    */
   public rejectActionPlan(): void {
-    if (!this.workflowActionService) {
-      console.error("Cannot reject action plan: workflow action service not set");
-      return;
-    }
-
     if (!this.isInPreviewMode) {
       console.error("No action plan preview active to reject");
       return;
@@ -435,6 +458,9 @@ export class ActionPlanService {
 
     // Re-enable persist to DB
     this.workflowPersistService.setWorkflowPersistFlag(true);
+
+    // Restore modification state
+    this.workflowVersionService.restoreModificationState();
 
     // Clear preview state
     this.isInPreviewMode = false;
