@@ -105,8 +105,6 @@ export class ActionPlanService {
 
   // Diff preview state
   private currentDiff: DifferentOpIDsList | null = null;
-  private isInPreviewMode = false;
-  private currentPreviewingActionPlanId: string | null = null;
 
   constructor(
     private workflowVersionService: WorkflowVersionService,
@@ -248,57 +246,44 @@ export class ActionPlanService {
       throw new Error(`Action plan ${actionPlanId} not found`);
     }
 
-    console.log(`Previewing action plan ${actionPlanId}`);
-
-    // Create Workflow objects from content and metadata
-    const beforeWorkflow: Workflow = { content: actionPlan.beforeWorkflowContent, ...actionPlan.workflowMetadata };
-    const afterWorkflow: Workflow = { content: actionPlan.afterWorkflowContent, ...actionPlan.workflowMetadata };
-
-    console.log("Before workflow content", actionPlan.beforeWorkflowContent);
-    console.log("After workflow content", actionPlan.afterWorkflowContent);
-    // Calculate diff between BEFORE and what's now displayed (AFTER)
-    // Since we used synchronous rendering, getWorkflowContent() will return the AFTER content
+    // Calculate diff between BEFORE and AFTER
     const diff = this.workflowVersionService.getWorkflowsDifference(
       actionPlan.beforeWorkflowContent,
-      actionPlan.afterWorkflowContent  // Compare before and after directly
+      actionPlan.afterWorkflowContent
     );
 
-    // Save modification state first
+    // Create AFTER workflow (spread metadata first to prevent overwriting)
+    const afterWorkflow: Workflow = { ...actionPlan.workflowMetadata, content: actionPlan.afterWorkflowContent };
+
+    // Save modification state
     this.workflowVersionService.saveModificationState();
-    this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
+
     // Disable persist and undo/redo before reloading
     this.workflowPersistService.setWorkflowPersistFlag(false);
     this.undoRedoService.disableWorkFlowModification();
 
-    // Display the AFTER content on canvas as readonly (user sees the proposed final result)
-    // IMPORTANT: Use synchronous rendering (false) to ensure the workflow is fully loaded before proceeding
+    // Display the AFTER content on canvas as readonly
     this.workflowActionService.reloadWorkflow(afterWorkflow);
     this.workflowActionService.disableWorkflowModification();
 
-    // Render highlights - only highlights operators that exist on displayed canvas
-    this.workflowVersionService.highlightOpVersionDiff(diff);
+    // Render highlights with beforeWorkflowContent for deleted operator brackets
+    this.workflowVersionService.highlightOpVersionDiffSimple(diff, actionPlan.beforeWorkflowContent);
 
-    // Store the current diff and action plan ID
+    // Store the current diff
     this.currentDiff = diff;
-    this.currentPreviewingActionPlanId = actionPlanId;
-    this.isInPreviewMode = true;
-
-    console.log("Previewing diff between before and after workflow contents:", diff);
   }
 
   /**
-   * Accept the current action plan.
-   * Clears highlights and keeps the after version (currently displayed on canvas).
+   * Set workflow to either before or after state of an action plan.
+   * Clears highlights, reloads the specified version, and enables modifications.
+   *
+   * @param actionPlanId Action plan ID
+   * @param isBefore If true, loads before version; if false, loads after version
    */
-  public acceptActionPlan(): void {
-    if (!this.isInPreviewMode || !this.currentPreviewingActionPlanId) {
-      console.error("No action plan preview active to accept");
-      return;
-    }
-
-    const actionPlan = this.actionPlans.get(this.currentPreviewingActionPlanId);
+  public setWorkflowToActionPlan(actionPlanId: string, isBefore: boolean): void {
+    const actionPlan = this.actionPlans.get(actionPlanId);
     if (!actionPlan) {
-      console.error(`Action plan ${this.currentPreviewingActionPlanId} not found`);
+      console.error(`Action plan ${actionPlanId} not found`);
       return;
     }
 
@@ -307,70 +292,21 @@ export class ActionPlanService {
       this.workflowVersionService.unhighlightOpVersionDiff(this.currentDiff);
       this.currentDiff = null;
     }
+
+    // Clear undo/redo stacks
     this.undoRedoService.clearRedoStack();
     this.undoRedoService.clearUndoStack();
-    // The AFTER version is already displayed on canvas, so just enable modifications
-    this.workflowActionService.enableWorkflowModification();
 
-    // Clear temp workflow
-    this.workflowActionService.resetTempWorkflow();
-
-    // Re-enable undo/redo
-    this.undoRedoService.enableWorkFlowModification();
-
-    // Re-enable persist to DB
-    this.workflowPersistService.setWorkflowPersistFlag(true);
-
-    // Restore modification state
-    this.workflowVersionService.restoreModificationState();
-
-    // Clear preview state
-    this.isInPreviewMode = false;
-    this.currentPreviewingActionPlanId = null;
-
-    console.log("Action plan accepted - after version kept on canvas");
-  }
-
-  /**
-   * Reject the current action plan.
-   * Reloads the before version from the action plan, discarding the after version.
-   */
-  public rejectActionPlan(): void {
-    if (!this.isInPreviewMode || !this.currentPreviewingActionPlanId) {
-      console.error("No action plan preview active to reject");
-      return;
-    }
-
-    const actionPlan = this.actionPlans.get(this.currentPreviewingActionPlanId);
-    if (!actionPlan) {
-      console.error(`Action plan ${this.currentPreviewingActionPlanId} not found`);
-      return;
-    }
-
-    // Clear highlights
-    if (this.currentDiff) {
-      this.workflowVersionService.unhighlightOpVersionDiff(this.currentDiff);
-      this.currentDiff = null;
-    }
-
-    // Create before workflow from action plan
-    const beforeWorkflow: Workflow = { content: actionPlan.beforeWorkflowContent, ...actionPlan.workflowMetadata };
-
-    // Enable modifications first to be able to reload
+    // Enable modifications to allow reloading
     this.workflowActionService.enableWorkflowModification();
 
     // Disable undo/redo to not capture the reload as an action
     this.undoRedoService.disableWorkFlowModification();
 
-    // Reload the BEFORE version from the action plan
-    this.workflowActionService.reloadWorkflow(beforeWorkflow);
-
-    // Clear temp workflow
-    this.workflowActionService.resetTempWorkflow();
-
-    // Clear undo/redo stacks since this is like reverting to a previous state
-    this.undoRedoService.clearRedoStack();
-    this.undoRedoService.clearUndoStack();
+    // Reload the selected version (spread metadata first to prevent overwriting)
+    const workflowContent = isBefore ? actionPlan.beforeWorkflowContent : actionPlan.afterWorkflowContent;
+    const workflow: Workflow = { ...actionPlan.workflowMetadata, content: workflowContent };
+    this.workflowActionService.reloadWorkflow(workflow);
 
     // Re-enable undo/redo
     this.undoRedoService.enableWorkFlowModification();
@@ -381,10 +317,6 @@ export class ActionPlanService {
     // Restore modification state
     this.workflowVersionService.restoreModificationState();
 
-    // Clear preview state
-    this.isInPreviewMode = false;
-    this.currentPreviewingActionPlanId = null;
-
-    console.log("Action plan rejected - before version reloaded from action plan");
+    console.log(`Action plan ${isBefore ? 'rejected - before' : 'accepted - after'} version reloaded`);
   }
 }

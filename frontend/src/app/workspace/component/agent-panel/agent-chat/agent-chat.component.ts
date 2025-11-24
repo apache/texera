@@ -405,10 +405,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Approve the pending action plan
    */
   public onApproveActionPlan(): void {
-    // Accept the action plan if in planning mode (clears highlights, keeps after version)
-    if (this.planningMode) {
-      console.log("[Agent Chat] Accepting action plan (clearing highlights, keeping after version)");
-      this.actionPlanService.acceptActionPlan();
+    // Accept the action plan if in planning mode
+    if (this.planningMode && this.pendingActionPlan) {
+      this.actionPlanService.setWorkflowToActionPlan(this.pendingActionPlan.id, false);
     }
 
     // Construct the approval message
@@ -417,7 +416,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       ? `I approve this action plan. Additional feedback: ${feedback}`
       : "I approve this action plan. Please proceed with execution.";
 
-    // Send message via manager service (this will automatically clear approval state)
+    // Send message via manager service
     this.copilotManagerService.sendMessage(this.agentInfo.id, message);
     this.currentMessage = "";
   }
@@ -426,10 +425,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Reject the pending action plan
    */
   public onRejectActionPlan(): void {
-    // Reject the action plan if in planning mode (clears highlights, reverts to original workflow)
-    if (this.planningMode) {
-      console.log("[Agent Chat] Rejecting action plan (reverting to original workflow)");
-      this.actionPlanService.rejectActionPlan();
+    // Reject the action plan if in planning mode
+    if (this.planningMode && this.pendingActionPlan) {
+      this.actionPlanService.setWorkflowToActionPlan(this.pendingActionPlan.id, true);
     }
 
     // Construct the rejection message
@@ -438,7 +436,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       ? `I reject this action plan. Reason: ${feedback}`
       : "I reject this action plan. Please revise your approach.";
 
-    // Send message via manager service (this will automatically clear approval state)
+    // Send message via manager service
     this.copilotManagerService.sendMessage(this.agentInfo.id, message);
     this.currentMessage = "";
   }

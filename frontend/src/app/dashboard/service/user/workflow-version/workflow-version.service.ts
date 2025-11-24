@@ -141,6 +141,30 @@ export class WorkflowVersionService {
     }
   }
 
+  /**
+   * Simplified version of highlightOpVersionDiff that accepts beforeWorkflowContent directly.
+   * Highlights added (green), modified (orange), and deleted (red brackets) operators.
+   *
+   * @param differentOpIDsList Diff between before and after workflows
+   * @param beforeWorkflowContent Before workflow content for rendering deleted operator brackets
+   */
+  public highlightOpVersionDiffSimple(differentOpIDsList: DifferentOpIDsList, beforeWorkflowContent: WorkflowContent) {
+    differentOpIDsList.modified.map(id => this.highlightOpBoundary(id, "255,118,20,0.5"));
+    differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "0,255,0,0.5"));
+
+    // Render red brackets for deleted operators using beforeWorkflowContent
+    if (differentOpIDsList.deleted.length > 0) {
+      for (const link of beforeWorkflowContent.links) {
+        if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined) {
+          this.highlightOpBracket(link.target.operatorID, "255,0,0,0.5", "left-");
+        }
+        if (differentOpIDsList.deleted.includes(link.target.operatorID) && link.source.operatorID != undefined) {
+          this.highlightOpBracket(link.source.operatorID, "255,0,0,0.5", "right-");
+        }
+      }
+    }
+  }
+
   public highlightOpBoundary(id: string, color: string) {
     this.workflowActionService
       .getJointGraphWrapper()

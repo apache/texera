@@ -44,7 +44,7 @@ import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 import { ActionPlanService } from "../service/action-plan/action-plan.service";
 
-export const SAVE_DEBOUNCE_TIME_IN_MS = 1000;
+export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
 @UntilDestroy()
 @Component({
