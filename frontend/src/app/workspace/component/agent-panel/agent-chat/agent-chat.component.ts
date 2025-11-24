@@ -131,7 +131,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.cdr.detectChanges();
       });
 
-    // Subscribe to pending action plans
+    // Subscribe to pending action plans (only emitted when both version IDs are set)
     this.actionPlanService
       .getPendingActionPlanStream()
       .pipe(untilDestroyed(this))
@@ -140,22 +140,13 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.pendingActionPlan = plan;
           this.shouldScrollToBottom = true;
 
-          // Show diff preview in planning mode
-          if (this.planningMode && plan.beforeVersionId) {
-            const wid = this.workflowActionService.getWorkflowMetadata().wid;
-            if (wid) {
-              console.log("[Agent Chat] Showing action plan diff preview");
-              this.workflowVersionService.previewActionPlanDiff(plan.beforeVersionId, wid).subscribe({
-                next: diff => {
-                  this.currentActionPlanDiff = diff;
-                  console.log("[Agent Chat] Action plan diff stored for cleanup:", diff);
-                },
-                error: err => {
-                  console.error("[Agent Chat] Failed to show action plan preview:", err);
-                },
-              });
-            }
-          }
+          console.log(
+            `[Agent Chat] Received pending action plan with complete version IDs: beforeVersionId=${plan.beforeVersionId}, afterVersionId=${plan.afterVersionId}`,
+            plan
+          );
+
+          // Try to show diff preview (should always work now since both IDs are set)
+          this.tryShowActionPlanDiff(plan);
         } else if (plan === null || (plan && plan.agentId !== this.agentInfo.id)) {
           this.pendingActionPlan = null;
         }
@@ -397,63 +388,48 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
-   * Handle user decision on action plan (acceptance or rejection).
+   * Try to show action plan diff preview if conditions are met
    */
-  public onUserDecision(decision: {
-    accepted: boolean;
-    message: string;
-    createNewActor?: boolean;
-    planId?: string;
-  }): void {
-    this.pendingActionPlan = null;
-
-    if (decision.planId) {
-      if (decision.accepted) {
-        // Status management removed - no need to call acceptPlan
-
-        if (decision.createNewActor) {
-          this.copilotManagerService
-            .createAgent("claude-3.7", `Actor for Plan ${decision.planId}`)
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              next: newAgent => {
-                const initialMessage = `Please work on action plan with id: ${decision.planId}`;
-                this.copilotManagerService.sendMessage(newAgent.id, initialMessage);
-                this.notificationService.info(`Actor agent started for plan: ${decision.planId}`);
-              },
-              error: (error: unknown) => {
-                this.notificationService.error(`Failed to create actor agent: ${error}`);
-              },
-            });
-        } else {
-          const executionMessage = "I have accepted your action plan. Please proceed with executing it.";
-          this.copilotManagerService.sendMessage(this.agentInfo.id, executionMessage);
-        }
-      } else {
-        const feedbackMatch = decision.message.match(/Feedback: (.+)$/);
-        const userFeedback = feedbackMatch ? feedbackMatch[1] : "I don't want this action plan.";
-
-        const actionPlan = this.actionPlanService.getActionPlan(decision.planId);
-        if (actionPlan) {
-          this.workflowActionService.deleteOperatorsAndLinks(actionPlan.operatorIds);
-        }
-
-        // Status management removed - no need to call rejectPlan
-
-        const rejectionMessage = `I have rejected your action plan. Feedback: ${userFeedback}`;
-        this.copilotManagerService.sendMessage(this.agentInfo.id, rejectionMessage);
-      }
+  private tryShowActionPlanDiff(plan: ActionPlan): void {
+    // Show diff preview in planning mode
+    if (!this.planningMode) {
+      console.log("[Agent Chat] Not in planning mode, skipping diff preview");
+      return;
     }
+
+    if (!plan.beforeVersionId || !plan.afterVersionId) {
+      console.error(
+        `[Agent Chat] Action plan missing version IDs: beforeVersionId=${plan.beforeVersionId}, afterVersionId=${plan.afterVersionId}`
+      );
+      return;
+    }
+
+    const wid = this.workflowActionService.getWorkflowMetadata().wid;
+    if (!wid || wid <= 0) {
+      console.warn(`[Agent Chat] Cannot show diff preview: invalid wid ${wid}`);
+      return;
+    }
+
+    console.log(`[Agent Chat] Showing comprehensive action plan diff preview (wid=${wid})`);
+    this.actionPlanService.previewActionPlanDiff(plan.id, wid).subscribe({
+      next: diff => {
+        this.currentActionPlanDiff = diff;
+        console.log("[Agent Chat] Comprehensive action plan diff stored:", diff);
+      },
+      error: err => {
+        console.error("[Agent Chat] Failed to show action plan preview:", err);
+      },
+    });
   }
 
   /**
    * Approve the pending action plan
    */
   public onApproveActionPlan(): void {
-    // Clear highlights if in planning mode (before sending message)
+    // Accept the action plan if in planning mode (clears highlights, keeps after version)
     if (this.planningMode && this.currentActionPlanDiff) {
-      console.log("[Agent Chat] Clearing action plan diff highlights (approved)");
-      this.workflowVersionService.unhighlightOpVersionDiff(this.currentActionPlanDiff);
+      console.log("[Agent Chat] Accepting action plan (clearing highlights, keeping after version)");
+      this.actionPlanService.acceptActionPlan();
       this.currentActionPlanDiff = undefined;
     }
 
@@ -472,30 +448,11 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Reject the pending action plan
    */
   public onRejectActionPlan(): void {
-    // Clear highlights first
-    if (this.currentActionPlanDiff) {
-      console.log("[Agent Chat] Clearing action plan diff highlights (rejected)");
-      this.workflowVersionService.unhighlightOpVersionDiff(this.currentActionPlanDiff);
+    // Reject the action plan if in planning mode (clears highlights, reverts to original workflow)
+    if (this.planningMode && this.currentActionPlanDiff) {
+      console.log("[Agent Chat] Rejecting action plan (reverting to original workflow)");
+      this.actionPlanService.rejectActionPlan();
       this.currentActionPlanDiff = undefined;
-    }
-
-    // Revert to beforeVersionId if available
-    const actionPlan = this.pendingActionPlanId
-      ? this.actionPlanService.getActionPlan(this.pendingActionPlanId)
-      : undefined;
-    const wid = this.workflowActionService.getWorkflowMetadata().wid;
-
-    if (this.planningMode && actionPlan?.beforeVersionId && wid) {
-      console.log(`[Agent Chat] Reverting workflow to version ${actionPlan.beforeVersionId}...`);
-      this.workflowVersionService.revertToSpecificVersion(actionPlan.beforeVersionId, wid).subscribe({
-        next: () => {
-          console.log(`[Agent Chat] Successfully reverted workflow to version ${actionPlan.beforeVersionId}`);
-        },
-        error: err => {
-          console.error(`[Agent Chat] Failed to revert workflow:`, err);
-          this.notificationService.error("Failed to revert workflow changes");
-        },
-      });
     }
 
     // Construct the rejection message

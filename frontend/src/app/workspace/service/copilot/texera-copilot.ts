@@ -586,10 +586,6 @@ export class TexeraCopilot {
       dataInconsistencyTools.createClearInconsistenciesTool(this.dataInconsistencyService)
     );
 
-    // Action plan tools (for planning mode)
-    // Inject WorkflowActionService into ActionPlanService for revert functionality
-    this.actionPlanService.setWorkflowActionService(this.workflowActionService);
-
     const actionPlanTool = toolWithTimeout(
       actionPlanTools.createActionPlanTool(
         this.workflowActionService,

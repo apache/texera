@@ -310,48 +310,6 @@ export class WorkflowVersionService {
     }
   }
 
-  /**
-   * Preview action plan diff without entering version display mode
-   * Shows highlights but doesn't trigger menu buttons
-   * @param beforeVersionId Version ID before action plan was applied
-   * @param wid Workflow ID
-   * @returns Observable with diff for cleanup later
-   */
-  public previewActionPlanDiff(beforeVersionId: number, wid: number): Observable<DifferentOpIDsList> {
-    return this.retrieveWorkflowByVersion(wid, beforeVersionId).pipe(
-      map(beforeWorkflow => {
-        const currentWorkflowContent = this.workflowActionService.getWorkflowContent();
-        // Compare before version with current (after action plan applied)
-        const diff = this.getWorkflowsDifference(beforeWorkflow.content, currentWorkflowContent);
-        // Show highlights (green=added, orange=modified, red brackets=deleted)
-        this.highlightOpVersionDiff(diff);
-        // KEY: DON'T call setDisplayParticularVersion() - this avoids menu buttons
-        console.log("Action plan diff preview shown:", diff);
-        return diff;
-      })
-    );
-  }
-
-  /**
-   * Revert to a specific version (for action plan rejection)
-   * Loads the version and replaces current workflow
-   * @param versionId Version ID to revert to
-   * @param wid Workflow ID
-   */
-  public revertToSpecificVersion(versionId: number, wid: number): Observable<void> {
-    return this.retrieveWorkflowByVersion(wid, versionId).pipe(
-      map(workflow => {
-        // Temporarily disable undo/redo to avoid recording this reload
-        this.undoRedoService.disableWorkFlowModification();
-        // Load the before version
-        this.workflowActionService.reloadWorkflow(workflow);
-        // Re-enable undo/redo
-        this.undoRedoService.enableWorkFlowModification();
-        console.log(`Reverted workflow to version ${versionId}`);
-      })
-    );
-  }
-
   public cloneWorkflowVersion(): Observable<number> {
     const vid = this.selectedVersionId.getValue();
     const displayedVersionId = this.selectedDisplayedVersionId.getValue();

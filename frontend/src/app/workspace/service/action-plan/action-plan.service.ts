@@ -23,6 +23,9 @@ import { filter, take, switchMap, map } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorPredicate, OperatorLink } from "../../types/workflow-common.interface";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { UndoRedoService } from "../undo-redo/undo-redo.service";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
+import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 
 /**
  * Interface for an action plan highlight event
@@ -32,6 +35,13 @@ export interface ActionPlanHighlight {
   linkIds: string[];
   summary: string;
 }
+
+/**
+ * Diff structure for operators (reusing workflow-version.service structure)
+ */
+type DifferentOpIDsList = {
+  [key in "modified" | "added" | "deleted"]: string[];
+};
 
 /**
  * Operations performed in an action plan
@@ -94,17 +104,17 @@ export class ActionPlanService {
 
   // Workflow persisted event stream
   private workflowPersistedSubject = new Subject<number>(); // Emits wid
+  // Diff preview state
+  private currentDiff: DifferentOpIDsList | null = null;
+  private isInPreviewMode = false;
+  private previewingVersionId: number | null = null;
 
-  private workflowActionService?: WorkflowActionService;
-
-  constructor(private workflowVersionService: WorkflowVersionService) {}
-
-  /**
-   * Set the workflow action service (injected later to avoid circular dependency)
-   */
-  public setWorkflowActionService(service: WorkflowActionService): void {
-    this.workflowActionService = service;
-  }
+  constructor(
+    private workflowVersionService: WorkflowVersionService,
+    private undoRedoService: UndoRedoService,
+    private workflowPersistService: WorkflowPersistService,
+    private workflowActionService: WorkflowActionService
+) {}
 
   /**
    * Get action plan highlight stream
@@ -212,10 +222,17 @@ export class ActionPlanService {
 
     this.actionPlans.set(id, actionPlan);
     this.emitActionPlans();
-    this.pendingActionPlanSubject.next(actionPlan);
 
-    // Emit highlight event for the workflow editor
-    this.actionPlanHighlightSubject.next({ operatorIds, linkIds, summary });
+    // Only emit to pending stream if both version IDs are set
+    // Otherwise, wait for updateActionPlanAfterVersionId to be called
+    if (beforeVersionId !== undefined && afterVersionId !== undefined) {
+      console.log(`[ActionPlanService] Action plan created with both version IDs, emitting immediately: ${id}`);
+      this.pendingActionPlanSubject.next(actionPlan);
+    } else {
+      console.log(
+        `[ActionPlanService] Action plan created without full version IDs (before: ${beforeVersionId}, after: ${afterVersionId}), waiting for update`
+      );
+    }
 
     return actionPlan;
   }
@@ -228,6 +245,14 @@ export class ActionPlanService {
     if (actionPlan) {
       actionPlan.afterVersionId = afterVersionId;
       this.emitActionPlans();
+
+      // If both version IDs are now set, emit to pending stream
+      if (actionPlan.beforeVersionId !== undefined && actionPlan.afterVersionId !== undefined) {
+        console.log(
+          `[ActionPlanService] Action plan now has both version IDs (before: ${actionPlan.beforeVersionId}, after: ${actionPlan.afterVersionId}), emitting to pending stream`
+        );
+        this.pendingActionPlanSubject.next(actionPlan);
+      }
     }
   }
 
@@ -265,20 +290,156 @@ export class ActionPlanService {
     this.actionPlansSubject.next(this.getAllActionPlans());
   }
 
+  // ===== DIFF PREVIEW METHODS (using workflow-version.service) =====
+
   /**
-   * Revert an action plan by restoring the workflow to the version before the action plan
-   * This uses the beforeVersionId to restore the workflow state
+   * Preview diff between any two versions.
+   * Saves the AFTER version to temp and displays the BEFORE version on canvas
+   * with highlights showing what changed (added/modified elements in green/orange,
+   * deleted elements shown as red brackets on connected operators).
+   *
+   * @param wid Workflow ID
+   * @param beforeVersionId Version ID to display on canvas
+   * @param afterVersionId Version ID to save as temp (for accept/reject)
+   * @returns Observable with diff
    */
-  public revertActionPlan(actionPlanId: string): boolean {
-    const actionPlan = this.actionPlans.get(actionPlanId);
-    if (!actionPlan || !this.workflowActionService) {
-      console.error(`Cannot revert action plan ${actionPlanId}: plan or workflow service not found`);
-      return false;
+  public previewVersionPairDiff(
+    wid: number,
+    beforeVersionId: number,
+    afterVersionId: number
+  ): Observable<DifferentOpIDsList> {
+    if (!this.workflowActionService) {
+      throw new Error("Cannot preview version pair diff: workflow action service not set");
     }
 
-    // Reversion should be handled by loading the beforeVersionId
-    // This is now managed by the WorkflowVersionService
-    console.log(`Revert action plan ${actionPlanId} to version ${actionPlan.beforeVersionId}`);
-    return true;
+    // Fetch both versions
+    const beforeWorkflow$ = this.workflowVersionService.retrieveWorkflowByVersion(wid, beforeVersionId);
+    const afterWorkflow$ = this.workflowVersionService.retrieveWorkflowByVersion(wid, afterVersionId);
+
+    return beforeWorkflow$.pipe(
+      switchMap(beforeWorkflow => {
+        return afterWorkflow$.pipe(
+          map(afterWorkflow => {
+            // First load the AFTER version onto the canvas to ensure it's saved to temp
+            this.workflowActionService.reloadWorkflow(afterWorkflow);
+
+            // Then display the BEFORE version as readonly (saves after to temp, displays before on canvas,
+            // disables persist, disables undo/redo, disables modifications)
+            this.workflowVersionService.displayReadonlyWorkflow(beforeWorkflow);
+
+            // Calculate diff using workflow-version.service (after -> before)
+            // This gives: added = elements in before but not after, deleted = elements in after but not before
+            const diff = this.workflowVersionService.getWorkflowsDifference(afterWorkflow.content, beforeWorkflow.content);
+
+            // Render highlights using workflow-version.service
+            // Highlights on displayed before version: green for removed elements, orange for modified
+            // Red brackets on temp after version: for added elements
+            this.workflowVersionService.highlightOpVersionDiff(diff);
+
+            // Store the current diff
+            this.currentDiff = diff;
+
+            // Track preview state
+            this.isInPreviewMode = true;
+            this.previewingVersionId = afterVersionId;
+
+            console.log(`Previewing diff from version ${beforeVersionId} to ${afterVersionId}:`, diff);
+
+            return diff;
+          })
+        );
+      })
+    );
+  }
+
+  /**
+   * Preview action plan diff by action plan ID.
+   * Fetches the action plan, then saves the AFTER version to temp and displays
+   * the BEFORE version on canvas with highlights showing what changed.
+   *
+   * @param actionPlanId Action plan ID
+   * @param wid Workflow ID
+   * @returns Observable with diff for cleanup later
+   */
+  public previewActionPlanDiff(actionPlanId: string, wid: number): Observable<DifferentOpIDsList> {
+    const actionPlan = this.actionPlans.get(actionPlanId);
+    if (!actionPlan) {
+      throw new Error(`Action plan ${actionPlanId} not found`);
+    }
+
+    if (!actionPlan.beforeVersionId || !actionPlan.afterVersionId) {
+      throw new Error(`Action plan ${actionPlanId} is missing version IDs`);
+    }
+
+    console.log(
+      `Previewing action plan ${actionPlanId}: v${actionPlan.beforeVersionId} -> v${actionPlan.afterVersionId}`
+    );
+
+    // Use the general version pair diff method
+    return this.previewVersionPairDiff(wid, actionPlan.beforeVersionId, actionPlan.afterVersionId);
+  }
+
+  /**
+   * Accept the current action plan.
+   * Clears highlights and reloads the after version from temp (which was saved during preview).
+   */
+  public acceptActionPlan(): void {
+    if (!this.workflowActionService || !this.currentDiff) {
+      return;
+    }
+
+    // Clear highlights using workflow-version.service
+    this.workflowVersionService.unhighlightOpVersionDiff(this.currentDiff);
+    this.workflowVersionService.closeReadonlyWorkflowDisplay();
+    // Clear preview state
+    this.currentDiff = null;
+    this.isInPreviewMode = false;
+    this.previewingVersionId = null;
+
+    console.log("Action plan accepted - after version remains loaded");
+  }
+
+  /**
+   * Reject the current action plan.
+   * Keeps the before version (currently displayed) and makes it the new current workflow.
+   */
+  public rejectActionPlan(): void {
+    if (!this.workflowActionService) {
+      console.error("Cannot reject action plan: workflow action service not set");
+      return;
+    }
+
+    if (!this.isInPreviewMode) {
+      console.error("No action plan preview active to reject");
+      return;
+    }
+
+    // Clear highlights using workflow-version.service
+    if (this.currentDiff) {
+      this.workflowVersionService.unhighlightOpVersionDiff(this.currentDiff);
+      this.currentDiff = null;
+    }
+
+    // Keep the before version (currently displayed) as the new current version
+    // Similar to revertToVersion logic in workflow-version.service
+
+    // Clear undo/redo stacks since this is like reverting to a previous version
+    this.undoRedoService.clearRedoStack();
+    this.undoRedoService.clearUndoStack();
+
+    // Enable workflow modifications (before version is currently readonly)
+    this.workflowActionService.enableWorkflowModification();
+
+    // Clear the temp workflow (don't reload it - keep the before version on canvas)
+    this.workflowActionService.resetTempWorkflow();
+
+    // Re-enable persist to DB
+    this.workflowPersistService.setWorkflowPersistFlag(true);
+
+    // Clear preview state
+    this.isInPreviewMode = false;
+    this.previewingVersionId = null;
+
+    console.log("Action plan rejected - before version kept as current workflow");
   }
 }
