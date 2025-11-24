@@ -19,11 +19,9 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import { firstValueFrom } from "rxjs";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { ActionPlanService } from "../../action-plan/action-plan.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
-import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 
 // Tool name constants
 export const TOOL_NAME_ACTION_PLAN = "actionPlan";
@@ -39,7 +37,6 @@ export function createActionPlanTool(
   workflowActionService: WorkflowActionService,
   actionPlanService: ActionPlanService,
   validationWorkflowService: ValidationWorkflowService,
-  workflowVersionService: WorkflowVersionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -127,20 +124,12 @@ export function createActionPlanTool(
       };
     }) => {
       try {
-        const wid = workflowActionService.getWorkflowMetadata().wid;
-        let beforeVersionId: number | undefined;
+        // Capture workflow metadata
+        const workflowMetadata = workflowActionService.getWorkflowMetadata();
 
-        // Capture BEFORE version before applying changes
-        if (wid) {
-          try {
-            const versions = await firstValueFrom(workflowVersionService.retrieveVersionsOfWorkflow(wid));
-            beforeVersionId = versions.length > 0 ? versions[0].vId : undefined;
-          } catch (error) {
-            console.warn("Could not fetch workflow versions:", error);
-          }
-        }
+        // Capture BEFORE workflow content before applying changes
+        const beforeWorkflowContent = workflowActionService.getWorkflowContent();
 
-        console.log("beforeVersionId: ", beforeVersionId);
         // Apply agent actions atomically using workflow action service
         const results = workflowActionService.applyAgentAction(args);
 
@@ -151,6 +140,9 @@ export function createActionPlanTool(
             error: results.error || "Failed to apply agent actions",
           };
         }
+
+        // Capture AFTER workflow content after applying changes
+        const afterWorkflowContent = workflowActionService.getWorkflowContent();
 
         // Create action plan with all operations
         const allOperatorIds = [...results.addedOperatorIds, ...results.modifiedOperatorIds];
@@ -175,21 +167,11 @@ export function createActionPlanTool(
           },
           allOperatorIds,
           allLinkIds,
-          undefined, // executorAgentId
-          beforeVersionId // beforeVersionId captured above
+          workflowMetadata,
+          beforeWorkflowContent,
+          afterWorkflowContent,
+          undefined // executorAgentId
         );
-
-        // Wait for workflow to be persisted and get afterVersionId synchronously
-        if (wid && beforeVersionId !== undefined) {
-          try {
-            const afterVersionId = await firstValueFrom(actionPlanService.waitForWorkflowPersisted(wid));
-            if (afterVersionId !== undefined) {
-              actionPlanService.updateActionPlanAfterVersionId(actionPlan.id, afterVersionId);
-            }
-          } catch (error) {
-            console.warn("Could not fetch afterVersionId:", error);
-          }
-        }
 
         // Get validation information for the workflow after operations
         const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();

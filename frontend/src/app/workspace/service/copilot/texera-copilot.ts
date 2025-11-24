@@ -591,7 +591,6 @@ export class TexeraCopilot {
         this.workflowActionService,
         this.actionPlanService,
         this.validationWorkflowService,
-        this.workflowVersionService,
         this.agentId,
         this.agentName
       )

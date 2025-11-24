@@ -63,8 +63,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public messageStats: CopilotMessageStats[] = [];
   public isWaitingForActionPlanApproval = false;
   public pendingActionPlanId?: string;
-  // Store current action plan diff for cleanup
-  private currentActionPlanDiff?: { modified: string[]; added: string[]; deleted: string[] };
 
   constructor(
     private actionPlanService: ActionPlanService,
@@ -140,12 +138,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.pendingActionPlan = plan;
           this.shouldScrollToBottom = true;
 
-          console.log(
-            `[Agent Chat] Received pending action plan with complete version IDs: beforeVersionId=${plan.beforeVersionId}, afterVersionId=${plan.afterVersionId}`,
-            plan
-          );
+          console.log("[Agent Chat] Received pending action plan with workflow contents", plan);
 
-          // Try to show diff preview (should always work now since both IDs are set)
+          // Try to show diff preview
           this.tryShowActionPlanDiff(plan);
         } else if (plan === null || (plan && plan.agentId !== this.agentInfo.id)) {
           this.pendingActionPlan = null;
@@ -397,29 +392,13 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    if (!plan.beforeVersionId || !plan.afterVersionId) {
-      console.error(
-        `[Agent Chat] Action plan missing version IDs: beforeVersionId=${plan.beforeVersionId}, afterVersionId=${plan.afterVersionId}`
-      );
-      return;
+    console.log("[Agent Chat] Showing action plan diff preview");
+    try {
+      this.actionPlanService.previewActionPlanDiff(plan.id);
+      console.log("[Agent Chat] Action plan diff preview displayed");
+    } catch (err) {
+      console.error("[Agent Chat] Failed to show action plan preview:", err);
     }
-
-    const wid = this.workflowActionService.getWorkflowMetadata().wid;
-    if (!wid || wid <= 0) {
-      console.warn(`[Agent Chat] Cannot show diff preview: invalid wid ${wid}`);
-      return;
-    }
-
-    console.log(`[Agent Chat] Showing comprehensive action plan diff preview (wid=${wid})`);
-    this.actionPlanService.previewActionPlanDiff(plan.id, wid).subscribe({
-      next: diff => {
-        this.currentActionPlanDiff = diff;
-        console.log("[Agent Chat] Comprehensive action plan diff stored:", diff);
-      },
-      error: err => {
-        console.error("[Agent Chat] Failed to show action plan preview:", err);
-      },
-    });
   }
 
   /**
@@ -427,10 +406,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   public onApproveActionPlan(): void {
     // Accept the action plan if in planning mode (clears highlights, keeps after version)
-    if (this.planningMode && this.currentActionPlanDiff) {
+    if (this.planningMode) {
       console.log("[Agent Chat] Accepting action plan (clearing highlights, keeping after version)");
       this.actionPlanService.acceptActionPlan();
-      this.currentActionPlanDiff = undefined;
     }
 
     // Construct the approval message
@@ -449,10 +427,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   public onRejectActionPlan(): void {
     // Reject the action plan if in planning mode (clears highlights, reverts to original workflow)
-    if (this.planningMode && this.currentActionPlanDiff) {
+    if (this.planningMode) {
       console.log("[Agent Chat] Rejecting action plan (reverting to original workflow)");
       this.actionPlanService.rejectActionPlan();
-      this.currentActionPlanDiff = undefined;
     }
 
     // Construct the rejection message

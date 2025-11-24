@@ -170,11 +170,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
                 this.location.go(`${DASHBOARD_USER_WORKSPACE}/${updatedWorkflow.wid}`);
               }
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-
-              // Notify action plan service so pending action plans can update their afterVersionId
-              if (updatedWorkflow.wid) {
-                this.actionPlanService.notifyWorkflowPersisted(updatedWorkflow.wid);
-              }
             });
           // to sync up with the updated information, such as workflow.wid
         } else {
