@@ -1159,8 +1159,10 @@ export class WorkflowActionService {
           const defaultY = 100 + Math.floor((startIndex + i) / 5) * 150;
           const position = { x: defaultX, y: defaultY };
 
-          // Add the operator to the workflow
-          this.addOperator(operator, position);
+          // Add the operator to the workflow using native method (already in bundleActions)
+          this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+          this.texeraGraph.addOperator(operator);
+          this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, position);
           results.addedOperatorIds.push(operator.operatorID);
         }
       }
@@ -1216,9 +1218,8 @@ export class WorkflowActionService {
             return;
           }
 
-          // Apply property updates
-          Object.assign(operator, modifySpec.properties);
-          this.setOperatorProperty(modifySpec.operatorId, modifySpec.properties);
+          // Apply property updates using native method (already in bundleActions)
+          this.texeraGraph.setOperatorProperty(modifySpec.operatorId, modifySpec.properties);
           results.modifiedOperatorIds.push(modifySpec.operatorId);
         }
       }
@@ -1228,7 +1229,15 @@ export class WorkflowActionService {
         for (const operatorId of args.delete.operatorIds) {
           const operator = this.getTexeraGraph().getOperator(operatorId);
           if (operator) {
-            this.deleteOperator(operatorId);
+            // Delete operator using native methods (already in bundleActions)
+            this.unhighlightOperators(operatorId);
+            // Delete associated links first
+            this.getTexeraGraph()
+              .getAllLinks()
+              .filter(link => link.source.operatorID === operatorId || link.target.operatorID === operatorId)
+              .forEach(link => this.deleteLinkWithID(link.linkID));
+            this.texeraGraph.assertOperatorExists(operatorId);
+            this.texeraGraph.deleteOperator(operatorId);
             results.deletedOperatorIds.push(operatorId);
           }
         }
