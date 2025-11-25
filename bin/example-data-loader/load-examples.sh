@@ -36,7 +36,6 @@ VERBOSE="${VERBOSE:-false}"
 
 JWT_TOKEN=""
 AUTH_HEADER=""
-declare -A DATASET_INFO
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
@@ -64,7 +63,7 @@ Options:
 EOF
 }
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
     case $1 in
         --url) TEXERA_URL="$2"; shift 2 ;;
         --file-service-url) TEXERA_FILE_SERVICE_URL="$2"; shift 2 ;;
@@ -86,21 +85,29 @@ TEXERA_FILE_SERVICE_URL="${TEXERA_FILE_SERVICE_URL%/}"
 
 json_value() {
     local json="$1" key="$2"
-    if command -v jq &> /dev/null; then
+    if command -v jq >/dev/null 2>&1; then
         echo "$json" | jq -r ".$key // empty"
     else
         echo "$json" | grep -o "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed "s/.*\"\([^\"]*\)\"$/\1/"
     fi
 }
 
-is_success() { [[ "$1" =~ ^2[0-9][0-9]$ ]]; }
+is_success() {
+    case "$1" in
+        2[0-9][0-9]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 http_request() {
     local method="$1" url="$2" data="$3" content_type="${4:-application/json}"
-    local curl_args=(-s -w "\n%{http_code}" --connect-timeout 10 --max-time 60 -X "$method" -H "$AUTH_HEADER")
-    [ -n "$content_type" ] && curl_args+=(-H "Content-Type: $content_type")
-    [ -n "$data" ] && curl_args+=(-d "$data")
-    curl "${curl_args[@]}" "$url" 2>/dev/null
+    if [ -n "$data" ]; then
+        curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 60 -X "$method" \
+            -H "$AUTH_HEADER" -H "Content-Type: $content_type" -d "$data" "$url" 2>/dev/null
+    else
+        curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 60 -X "$method" \
+            -H "$AUTH_HEADER" "$url" 2>/dev/null
+    fi
 }
 
 parse_response() {
@@ -111,7 +118,8 @@ parse_response() {
 
 authenticate() {
     log_info "Authenticating with Texera server..."
-    local response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 -X POST \
+    local response
+    response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 -X POST \
         -H "Content-Type: application/json" \
         -d "{\"username\":\"$TEXERA_USERNAME\",\"password\":\"$TEXERA_PASSWORD\"}" \
         "${TEXERA_URL}/api/auth/login" 2>/dev/null)
@@ -131,14 +139,19 @@ authenticate() {
 
 get_dataset_id() {
     local dataset_name="$1"
-    local response=$(http_request GET "${TEXERA_FILE_SERVICE_URL}/api/dataset/list")
+    local response
+    response=$(http_request GET "${TEXERA_FILE_SERVICE_URL}/api/dataset/list")
     parse_response "$response"
 
     if is_success "$HTTP_CODE" && [ -n "$HTTP_BODY" ] && [ "$HTTP_BODY" != "[]" ]; then
-        if command -v jq &> /dev/null; then
-            local did=$(echo "$HTTP_BODY" | jq -r --arg name "$dataset_name" \
+        if command -v jq >/dev/null 2>&1; then
+            local did
+            did=$(echo "$HTTP_BODY" | jq -r --arg name "$dataset_name" \
                 'map(select(.dataset.name == $name)) | .[0].dataset.did // empty' 2>/dev/null)
-            [ -n "$did" ] && [ "$did" != "null" ] && echo "$did" && return 0
+            if [ -n "$did" ] && [ "$did" != "null" ]; then
+                echo "$did"
+                return 0
+            fi
         else
             if echo "$HTTP_BODY" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${dataset_name}\""; then
                 echo "$HTTP_BODY" | grep -o "\"did\"[[:space:]]*:[[:space:]]*[0-9]*" | head -n1 | grep -o "[0-9]*"
@@ -153,13 +166,14 @@ create_dataset() {
     local name="$1" description="$2"
     log_info "Creating dataset: $name" >&2
 
-    local response=$(http_request POST "${TEXERA_FILE_SERVICE_URL}/api/dataset/create" \
+    local response
+    response=$(http_request POST "${TEXERA_FILE_SERVICE_URL}/api/dataset/create" \
         "{\"datasetName\":\"$name\",\"datasetDescription\":\"$description\",\"isDatasetPublic\":true,\"isDatasetDownloadable\":true}")
     parse_response "$response"
 
     if is_success "$HTTP_CODE"; then
         log_info "Dataset '$name' created" >&2
-        if command -v jq &> /dev/null; then
+        if command -v jq >/dev/null 2>&1; then
             echo "$HTTP_BODY" | jq -r ".dataset.did // empty" 2>/dev/null
         else
             echo "$HTTP_BODY" | grep -o "\"did\"[[:space:]]*:[[:space:]]*[0-9]*" | head -n1 | grep -o "[0-9]*"
@@ -174,10 +188,17 @@ upload_file() {
     local did="$1" file_path="$2" remote_name="$3"
     log_info "Uploading: $remote_name"
 
-    local encoded_path=$(printf '%s' "$remote_name" | jq -sRr @uri 2>/dev/null || echo "$remote_name")
-    local file_size=$(wc -c < "$file_path" | tr -d ' ')
+    local encoded_path
+    if command -v jq >/dev/null 2>&1; then
+        encoded_path=$(printf '%s' "$remote_name" | jq -sRr @uri)
+    else
+        encoded_path="$remote_name"
+    fi
+    local file_size
+    file_size=$(wc -c < "$file_path" | tr -d ' ')
 
-    local response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 120 -X POST \
+    local response
+    response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 120 -X POST \
         -H "$AUTH_HEADER" -H "Content-Type: application/octet-stream" -H "Content-Length: $file_size" \
         --data-binary "@$file_path" \
         "${TEXERA_FILE_SERVICE_URL}/api/dataset/${did}/upload?filePath=${encoded_path}" 2>/dev/null)
@@ -193,52 +214,57 @@ upload_file() {
 
 create_version() {
     local did="$1"
-    log_info "Creating dataset version..." >&2
+    log_info "Creating dataset version..."
 
-    local response=$(http_request POST "${TEXERA_FILE_SERVICE_URL}/api/dataset/${did}/version/create" "" "text/plain")
+    local response
+    response=$(http_request POST "${TEXERA_FILE_SERVICE_URL}/api/dataset/${did}/version/create" "" "text/plain")
     parse_response "$response"
 
     if is_success "$HTTP_CODE"; then
         local version=""
-        if command -v jq &> /dev/null; then
+        if command -v jq >/dev/null 2>&1; then
             version=$(echo "$HTTP_BODY" | jq -r '.datasetVersion.name // empty' 2>/dev/null)
         else
             version=$(echo "$HTTP_BODY" | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n1 | sed 's/.*"\([^"]*\)"$/\1/')
         fi
-        [ -n "$version" ] && log_info "Created version: $version" >&2 && echo "$version" && return 0
+        if [ -n "$version" ]; then
+            log_info "Created version: $version"
+            return 0
+        fi
     fi
-    log_error "Failed to create version (HTTP $HTTP_CODE)" >&2
+    log_error "Failed to create version (HTTP $HTTP_CODE)"
     return 1
 }
 
 process_dataset() {
     local dataset_name="$1" description="$2" data_dir="$3"
 
-    local did=$(get_dataset_id "$dataset_name") || true
+    local did
+    did=$(get_dataset_id "$dataset_name") || true
     if [ -n "$did" ]; then
         log_info "Dataset '$dataset_name' exists (did: $did), skipping"
         return 0
     fi
 
     did=$(create_dataset "$dataset_name" "$description") || true
-    [ -z "$did" ] && return 1
+    if [ -z "$did" ]; then
+        return 1
+    fi
 
-    local uploaded_files="" files_count=0
-    for data_file in "$data_dir"/*.{csv,CSV,txt,tsv}; do
+    local files_count=0
+    for data_file in "$data_dir"/*.csv "$data_dir"/*.CSV "$data_dir"/*.txt "$data_dir"/*.tsv; do
         [ ! -f "$data_file" ] && continue
-        local filename=$(basename "$data_file")
+        local filename
+        filename=$(basename "$data_file")
         [ "$filename" = "description" ] && continue
 
         if upload_file "$did" "$data_file" "$filename"; then
-            [ -n "$uploaded_files" ] && uploaded_files="${uploaded_files},"
-            uploaded_files="${uploaded_files}${filename}"
-            ((files_count++))
+            files_count=$((files_count + 1))
         fi
     done
 
     if [ "$files_count" -gt 0 ]; then
-        local version=$(create_version "$did") || true
-        [ -n "$version" ] && DATASET_INFO["$dataset_name"]="${did}:${version}:${uploaded_files}"
+        create_version "$did" || true
     fi
     return 0
 }
@@ -252,40 +278,23 @@ load_datasets() {
 
     for subdir in "$DATASET_DIR"/*; do
         [ ! -d "$subdir" ] && continue
-        local name=$(basename "$subdir")
+        local name
+        name=$(basename "$subdir")
         local desc="Example dataset: $name"
         [ -f "$subdir/description" ] && desc=$(cat "$subdir/description" 2>/dev/null || echo "$desc")
 
-        process_dataset "$name" "$desc" "$subdir" && ((count++))
+        if process_dataset "$name" "$desc" "$subdir"; then
+            count=$((count + 1))
+        fi
     done
 
     log_info "Processed $count dataset(s)"
 }
 
-update_workflow_paths() {
-    local content="$1"
-    [ ${#DATASET_INFO[@]} -eq 0 ] && echo "$content" && return 0
-
-    for dataset_name in "${!DATASET_INFO[@]}"; do
-        local info="${DATASET_INFO[$dataset_name]}"
-        local version=$(echo "$info" | cut -d: -f2)
-        local files=$(echo "$info" | cut -d: -f3)
-
-        IFS=',' read -ra file_array <<< "$files"
-        for file in "${file_array[@]}"; do
-            local path="/texera/${dataset_name}/${version}/${file}"
-            if command -v jq &> /dev/null; then
-                content=$(echo "$content" | jq --arg p "$path" --arg f "$file" \
-                    'walk(if type == "object" and has("fileName") and (.fileName | test($f + "$"; "i")) then .fileName = $p else . end)' 2>/dev/null) || true
-            fi
-        done
-    done
-    echo "$content"
-}
-
 workflow_exists() {
     local name="$1"
-    local response=$(http_request GET "${TEXERA_URL}/api/workflow/list")
+    local response
+    response=$(http_request GET "${TEXERA_URL}/api/workflow/list")
     parse_response "$response"
     is_success "$HTTP_CODE" && echo "$HTTP_BODY" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${name}\""
 }
@@ -294,11 +303,11 @@ create_workflow() {
     local file="$1" name="$2" desc="$3"
     log_info "Creating workflow: $name"
 
-    local content=$(cat "$file")
-    content=$(update_workflow_paths "$content")
+    local content
+    content=$(cat "$file")
 
     local escaped_content
-    if command -v jq &> /dev/null; then
+    if command -v jq >/dev/null 2>&1; then
         escaped_content=$(echo "$content" | jq -c '.' | jq -Rs '.')
     else
         escaped_content=$(echo "$content" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
@@ -306,14 +315,15 @@ create_workflow() {
     fi
 
     local payload
-    if command -v jq &> /dev/null; then
+    if command -v jq >/dev/null 2>&1; then
         payload=$(jq -n --arg n "$name" --arg d "$desc" --argjson c "$escaped_content" \
             '{name: $n, description: $d, content: $c, isPublic: true}')
     else
         payload="{\"name\":\"$name\",\"description\":\"$desc\",\"content\":$escaped_content,\"isPublic\":true}"
     fi
 
-    local response=$(http_request POST "${TEXERA_URL}/api/workflow/persist" "$payload")
+    local response
+    response=$(http_request POST "${TEXERA_URL}/api/workflow/persist" "$payload")
     parse_response "$response"
 
     if is_success "$HTTP_CODE"; then
@@ -333,11 +343,17 @@ load_workflows() {
 
     for file in "$WORKFLOW_DIR"/*.json; do
         [ ! -f "$file" ] && continue
-        local name=$(basename "$file" .json)
+        local name
+        name=$(basename "$file" .json)
         local desc="Example workflow: $name"
 
-        workflow_exists "$name" && log_info "Workflow '$name' exists, skipping" && continue
-        create_workflow "$file" "$name" "$desc" && ((count++))
+        if workflow_exists "$name"; then
+            log_info "Workflow '$name' exists, skipping"
+            continue
+        fi
+        if create_workflow "$file" "$name" "$desc"; then
+            count=$((count + 1))
+        fi
     done
 
     log_info "Processed $count workflow(s)"
@@ -348,14 +364,16 @@ check_services() {
     log_info "Checking services..."
 
     if [ "$SKIP_DATASETS" != "true" ]; then
-        local response=$(http_request GET "${TEXERA_FILE_SERVICE_URL}/api/dataset/list")
+        local response
+        response=$(http_request GET "${TEXERA_FILE_SERVICE_URL}/api/dataset/list")
         parse_response "$response"
         [ "$HTTP_CODE" = "404" ] && log_error "Dataset API unavailable" && exit 1
         is_success "$HTTP_CODE" && log_info "Dataset API available"
     fi
 
     if [ "$SKIP_WORKFLOWS" != "true" ]; then
-        local response=$(http_request GET "${TEXERA_URL}/api/workflow/list")
+        local response
+        response=$(http_request GET "${TEXERA_URL}/api/workflow/list")
         parse_response "$response"
         is_success "$HTTP_CODE" && log_info "Workflow API available"
     fi
