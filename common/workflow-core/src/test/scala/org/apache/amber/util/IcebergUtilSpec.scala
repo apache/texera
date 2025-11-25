@@ -19,7 +19,7 @@
 
 package org.apache.amber.util
 
-import org.apache.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.amber.core.tuple.{AttributeType, BigObject, Schema, Tuple}
 import org.apache.amber.util.IcebergUtil.toIcebergSchema
 import org.apache.iceberg.data.GenericRecord
 import org.apache.iceberg.types.Types
@@ -198,5 +198,103 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(tuple.getField[Timestamp]("test-5") == new Timestamp(10000L))
     assert(tuple.getField[String]("test-6") == "hello world")
     assert(tuple.getField[Array[Byte]]("test-7") sameElements Array[Byte](1, 2, 3, 4))
+  }
+
+  // BIG_OBJECT type tests
+
+  it should "convert BIG_OBJECT type correctly between Texera and Iceberg" in {
+    // BIG_OBJECT stored as StringType with field name suffix
+    assert(IcebergUtil.toIcebergType(AttributeType.BIG_OBJECT) == Types.StringType.get())
+    assert(IcebergUtil.fromIcebergType(Types.StringType.get(), "field") == AttributeType.STRING)
+    assert(
+      IcebergUtil.fromIcebergType(
+        Types.StringType.get(),
+        "field__texera_big_obj_ptr"
+      ) == AttributeType.BIG_OBJECT
+    )
+  }
+
+  it should "convert schemas with BIG_OBJECT fields correctly" in {
+    val texeraSchema = Schema()
+      .add("id", AttributeType.INTEGER)
+      .add("large_data", AttributeType.BIG_OBJECT)
+
+    val icebergSchema = IcebergUtil.toIcebergSchema(texeraSchema)
+
+    // BIG_OBJECT field gets encoded name with suffix
+    assert(icebergSchema.findField("large_data__texera_big_obj_ptr") != null)
+    assert(
+      icebergSchema.findField("large_data__texera_big_obj_ptr").`type`() == Types.StringType.get()
+    )
+
+    // Round-trip preserves schema
+    val roundTripSchema = IcebergUtil.fromIcebergSchema(icebergSchema)
+    assert(roundTripSchema.getAttribute("large_data").getType == AttributeType.BIG_OBJECT)
+  }
+
+  it should "convert tuples with BIG_OBJECT to records and back correctly" in {
+    val schema = Schema()
+      .add("id", AttributeType.INTEGER)
+      .add("large_data", AttributeType.BIG_OBJECT)
+
+    val tuple = Tuple
+      .builder(schema)
+      .addSequentially(Array(Int.box(42), new BigObject("s3://bucket/object/key.data")))
+      .build()
+
+    val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tuple)
+
+    // BIG_OBJECT stored as URI string with encoded field name
+    assert(record.getField("id") == 42)
+    assert(record.getField("large_data__texera_big_obj_ptr") == "s3://bucket/object/key.data")
+
+    // Round-trip preserves data
+    val roundTripTuple = IcebergUtil.fromRecord(record, schema)
+    assert(roundTripTuple == tuple)
+
+    // BigObject properties are accessible
+    val bigObj = roundTripTuple.getField[BigObject]("large_data")
+    assert(bigObj.getUri == "s3://bucket/object/key.data")
+    assert(bigObj.getBucketName == "bucket")
+    assert(bigObj.getObjectKey == "object/key.data")
+  }
+
+  it should "handle null BIG_OBJECT values correctly" in {
+    val schema = Schema().add("data", AttributeType.BIG_OBJECT)
+
+    val tupleWithNull = Tuple.builder(schema).addSequentially(Array(null)).build()
+    val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tupleWithNull)
+
+    assert(record.getField("data__texera_big_obj_ptr") == null)
+    assert(IcebergUtil.fromRecord(record, schema) == tupleWithNull)
+  }
+
+  it should "handle multiple BIG_OBJECT fields and mixed types correctly" in {
+    val schema = Schema()
+      .add("int_field", AttributeType.INTEGER)
+      .add("big_obj_1", AttributeType.BIG_OBJECT)
+      .add("string_field", AttributeType.STRING)
+      .add("big_obj_2", AttributeType.BIG_OBJECT)
+
+    val tuple = Tuple
+      .builder(schema)
+      .addSequentially(
+        Array(
+          Int.box(123),
+          new BigObject("s3://bucket1/file1.dat"),
+          "normal string",
+          null // null BIG_OBJECT
+        )
+      )
+      .build()
+
+    val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tuple)
+
+    assert(record.getField("int_field") == 123)
+    assert(record.getField("big_obj_1__texera_big_obj_ptr") == "s3://bucket1/file1.dat")
+    assert(record.getField("string_field") == "normal string")
+    assert(record.getField("big_obj_2__texera_big_obj_ptr") == null)
+
+    assert(IcebergUtil.fromRecord(record, schema) == tuple)
   }
 }

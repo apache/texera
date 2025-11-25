@@ -36,6 +36,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos._
+import org.apache.texera.service.util.BigObjectManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -599,6 +600,8 @@ class WorkflowResource extends LazyLogging {
         .fetchInto(classOf[Integer])
         .asScala
         .toList
+
+      BigObjectManager.deleteAllObjects()
 
       // Collect all URIs related to executions for cleanup
       val uris = eids.flatMap { eid =>
