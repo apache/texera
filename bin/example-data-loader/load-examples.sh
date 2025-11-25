@@ -256,7 +256,7 @@ process_dataset() {
         [ ! -f "$data_file" ] && continue
         local filename
         filename=$(basename "$data_file")
-        [ "$filename" = "description" ] && continue
+        [ "$filename" = "description.txt" ] && continue
 
         if upload_file "$did" "$data_file" "$filename"; then
             files_count=$((files_count + 1))
@@ -281,7 +281,7 @@ load_datasets() {
         local name
         name=$(basename "$subdir")
         local desc="Example dataset: $name"
-        [ -f "$subdir/description" ] && desc=$(cat "$subdir/description" 2>/dev/null || echo "$desc")
+        [ -f "$subdir/description.txt" ] && desc=$(cat "$subdir/description.txt" 2>/dev/null || echo "$desc")
 
         if process_dataset "$name" "$desc" "$subdir"; then
             count=$((count + 1))
