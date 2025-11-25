@@ -78,15 +78,10 @@ class BigObjectOutputStream(bigObject: BigObject) extends OutputStream with Lazy
     }
   }
 
-  override def write(b: Int): Unit = {
-    ensureOpen()
-    pipedOut.write(b)
-  }
+  override def write(b: Int): Unit = whenOpen(pipedOut.write(b))
 
-  override def write(b: Array[Byte], off: Int, len: Int): Unit = {
-    ensureOpen()
-    pipedOut.write(b, off, len)
-  }
+  override def write(b: Array[Byte], off: Int, len: Int): Unit =
+    whenOpen(pipedOut.write(b, off, len))
 
   override def flush(): Unit = {
     if (!closed) pipedOut.flush()
@@ -112,9 +107,10 @@ class BigObjectOutputStream(bigObject: BigObject) extends OutputStream with Lazy
     }
   }
 
-  private def ensureOpen(): Unit = {
+  private def whenOpen[T](f: => T): T = {
     if (closed) throw new IOException("Stream is closed")
     checkUploadSuccess()
+    f
   }
 
   private def checkUploadSuccess(): Unit = {

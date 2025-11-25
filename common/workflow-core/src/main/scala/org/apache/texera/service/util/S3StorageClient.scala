@@ -180,6 +180,7 @@ object S3StorageClient {
       )
       .uploadId()
 
+    var uploadSuccess = false
     try {
       // Upload all parts using an iterator
       val allParts = Iterator
@@ -203,7 +204,7 @@ object S3StorageClient {
         }
         .toList
 
-      s3Client
+      val result = s3Client
         .completeMultipartUpload(
           CompleteMultipartUploadRequest
             .builder()
@@ -215,8 +216,11 @@ object S3StorageClient {
         )
         .eTag()
 
-    } catch {
-      case e: Exception =>
+      uploadSuccess = true
+      result
+
+    } finally {
+      if (!uploadSuccess) {
         try {
           s3Client.abortMultipartUpload(
             AbortMultipartUploadRequest
@@ -227,7 +231,7 @@ object S3StorageClient {
               .build()
           )
         } catch { case _: Exception => }
-        throw e
+      }
     }
   }
 

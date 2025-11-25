@@ -47,35 +47,18 @@ class BigObjectInputStream(bigObject: BigObject) extends InputStream {
 
   @volatile private var closed = false
 
-  override def read(): Int = {
-    ensureOpen()
-    underlying.read()
-  }
+  override def read(): Int = whenOpen(underlying.read())
 
-  override def read(b: Array[Byte], off: Int, len: Int): Int = {
-    ensureOpen()
-    underlying.read(b, off, len)
-  }
+  override def read(b: Array[Byte], off: Int, len: Int): Int =
+    whenOpen(underlying.read(b, off, len))
 
-  override def readAllBytes(): Array[Byte] = {
-    ensureOpen()
-    underlying.readAllBytes()
-  }
+  override def readAllBytes(): Array[Byte] = whenOpen(underlying.readAllBytes())
 
-  override def readNBytes(n: Int): Array[Byte] = {
-    ensureOpen()
-    underlying.readNBytes(n)
-  }
+  override def readNBytes(n: Int): Array[Byte] = whenOpen(underlying.readNBytes(n))
 
-  override def skip(n: Long): Long = {
-    ensureOpen()
-    underlying.skip(n)
-  }
+  override def skip(n: Long): Long = whenOpen(underlying.skip(n))
 
-  override def available(): Int = {
-    ensureOpen()
-    underlying.available()
-  }
+  override def available(): Int = whenOpen(underlying.available())
 
   override def close(): Unit = {
     if (!closed) {
@@ -86,22 +69,14 @@ class BigObjectInputStream(bigObject: BigObject) extends InputStream {
     }
   }
 
-  override def markSupported(): Boolean = {
-    ensureOpen()
-    underlying.markSupported()
-  }
+  override def markSupported(): Boolean = whenOpen(underlying.markSupported())
 
-  override def mark(readlimit: Int): Unit = {
-    ensureOpen()
-    underlying.mark(readlimit)
-  }
+  override def mark(readlimit: Int): Unit = whenOpen(underlying.mark(readlimit))
 
-  override def reset(): Unit = {
-    ensureOpen()
-    underlying.reset()
-  }
+  override def reset(): Unit = whenOpen(underlying.reset())
 
-  private def ensureOpen(): Unit = {
+  private def whenOpen[T](f: => T): T = {
     if (closed) throw new java.io.IOException("Stream is closed")
+    f
   }
 }
