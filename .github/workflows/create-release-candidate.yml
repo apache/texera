@@ -259,3 +259,87 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
           echo "✓ Release candidate workflow completed successfully!"
+
+      - name: Generate vote email template
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          RC_NUM="${{ steps.vars.outputs.rc_num }}"
+          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
+          RC_DIR="${{ steps.vars.outputs.rc_dir }}"
+
+          # Get commit hash for the tag
+          COMMIT_HASH=$(git rev-parse "$TAG_NAME")
+          COMMIT_HASH_SHORT=$(git rev-parse --short "$TAG_NAME")
+
+          # Get GPG key ID from the imported key
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | awk '{print $2}' | cut -d'/' -f2)
+          GPG_EMAIL=$(gpg --list-secret-keys | grep 'uid' | head -n1 | grep -oP '[\w\.-]+@[\w\.-]+')
+
+          # Create email template file
+          cat > vote-email.txt <<'EOF'
+          Subject: [VOTE] Release Apache Texera (incubating) ${VERSION} RC${RC_NUM}
+
+          Hi Texera Community,
+
+          This is a call for vote to release Apache Texera (incubating) ${VERSION}.
+
+          The release candidates:
+          https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/
+
+          Git tag for the release:
+          https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME}
+
+          Hash for the release tag:
+          ${COMMIT_HASH}
+
+          Release Notes:
+          https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME}
+
+          The artifacts have been signed with Key [${GPG_KEY_ID}], corresponding to [${GPG_EMAIL}]
+          which can be found in the keys file:
+          https://dist.apache.org/repos/dist/dev/incubator/texera/KEYS
+          
+          The vote will be open for at least 72 hours.
+
+          Please vote accordingly:
+
+          [ ] +1 approve
+          [ ] +0 no opinion
+          [ ] -1 disapprove with the reason
+
+          Checklist for reference:
+
+          [ ] Download links are valid.
+          [ ] Checksums and signatures.
+          [ ] LICENSE/NOTICE files exist
+          [ ] No unexpected binary files
+          [ ] Can compile from source
+
+          Thanks,
+          [Your Name]
+          EOF
+
+          # Substitute variables in the template
+          sed -i "s/\${VERSION}/${VERSION}/g" vote-email.txt
+          sed -i "s/\${RC_NUM}/${RC_NUM}/g" vote-email.txt
+          sed -i "s/\${RC_DIR}/${RC_DIR}/g" vote-email.txt
+          sed -i "s/\${TAG_NAME}/${TAG_NAME}/g" vote-email.txt
+          sed -i "s/\${COMMIT_HASH}/${COMMIT_HASH}/g" vote-email.txt
+          sed -i "s/\${GPG_KEY_ID}/${GPG_KEY_ID}/g" vote-email.txt
+          sed -i "s/\${GPG_EMAIL}/${GPG_EMAIL}/g" vote-email.txt
+
+          echo "## 📧 Vote Email Template" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Copy the content below to send to dev@texera.apache.org:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat vote-email.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          echo "✓ Vote email template generated!"
+
+      - name: Upload vote email template
+        uses: actions/upload-artifact@v4
+        with:
+          name: vote-email-template
+          path: vote-email.txt
