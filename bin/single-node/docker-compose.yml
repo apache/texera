@@ -46,7 +46,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # mount the sql files for initializing the postgres
-      - ../../sql:/docker-entrypoint-initdb.d
+      - ./sql:/docker-entrypoint-initdb.d
 
   # lakeFS is the underlying storage of Texera's dataset service
   lakefs:
@@ -90,6 +90,38 @@ services:
       - .env
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:9092/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ConfigService provides endpoints for configuration management
+  config-service:
+    image: apache/texera-config-service:latest
+    container_name: texera-config-service
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9094/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # AccessControlService handles user permissions and access control
+  access-control-service:
+    image: apache/texera-access-control-service:latest
+    container_name: texera-access-control-service
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9096/api/healthcheck"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -191,6 +223,8 @@ services:
       - file-service
       - texera-web-application
       - computing-unit-master
+      - config-service
+      - access-control-service
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
