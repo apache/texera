@@ -1,4 +1,21 @@
 #!/usr/bin/env python3
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 """
 Main script to load example datasets and workflows into Texera.
 
@@ -37,6 +54,10 @@ def load_datasets(
     """
     Load all datasets from the dataset directory.
 
+    Supports two structures:
+    1. Subdirectories: dataset/dataset-name/ contains data files and optional "description" file
+    2. Flat files: dataset/*.csv directly in dataset directory (legacy)
+
     Args:
         dataset_loader: DatasetLoader instance
         dataset_dir: Path to dataset directory
@@ -48,50 +69,133 @@ def load_datasets(
         logger.warning(f"Dataset directory not found: {dataset_dir}")
         return
 
-    # Find all CSV/data files in dataset directory
-    data_files = list(dataset_dir.glob('*.csv')) + \
-                 list(dataset_dir.glob('*.json')) + \
-                 list(dataset_dir.glob('*.txt'))
+    # Find all subdirectories (new structure)
+    subdirs = [d for d in dataset_dir.iterdir() if d.is_dir()]
 
-    if not data_files:
-        logger.warning(f"No data files found in {dataset_dir}")
+    # Find all data files directly in dataset directory (legacy structure)
+    direct_files = list(dataset_dir.glob('*.csv')) + \
+                   list(dataset_dir.glob('*.CSV')) + \
+                   list(dataset_dir.glob('*.json')) + \
+                   list(dataset_dir.glob('*.txt'))
+
+    if not subdirs and not direct_files:
+        logger.warning(f"No dataset subdirectories or data files found in {dataset_dir}")
         return
 
-    logger.info(f"Found {len(data_files)} data files to upload")
+    datasets_processed = 0
 
-    for data_file in data_files:
-        dataset_name = data_file.stem.replace('_', '-')
-        dataset_description = f"Example dataset: {data_file.stem}"
+    # Process subdirectory-based datasets (preferred structure)
+    for subdir in subdirs:
+        dataset_name = subdir.name
+        logger.info(f"Processing dataset directory: {dataset_name}")
 
-        logger.info(f"Processing dataset: {dataset_name}")
+        # Look for description file
+        description_file = subdir / "description"
+        if description_file.exists():
+            try:
+                with open(description_file, 'r', encoding='utf-8') as f:
+                    dataset_description = f.read().strip()
+            except Exception as e:
+                logger.warning(f"Failed to read description file for {dataset_name}: {e}")
+                dataset_description = f"Example dataset: {dataset_name}"
+        else:
+            dataset_description = f"Example dataset: {dataset_name}"
+
+        # Find all data files in the subdirectory
+        data_files = list(subdir.glob('*.csv')) + \
+                     list(subdir.glob('*.CSV')) + \
+                     list(subdir.glob('*.json')) + \
+                     list(subdir.glob('*.JSON')) + \
+                     list(subdir.glob('*.txt')) + \
+                     list(subdir.glob('*.tsv'))
+
+        # Exclude description file
+        data_files = [f for f in data_files if f.name != "description"]
+
+        if not data_files:
+            logger.warning(f"No data files found in {subdir}, skipping")
+            continue
+
+        logger.info(f"Found {len(data_files)} data file(s) in {dataset_name}")
 
         # Check if dataset already exists
         existing = dataset_loader.get_dataset_by_name(dataset_name)
 
         if existing:
             logger.info(f"Dataset '{dataset_name}' already exists, skipping creation")
-            dataset_info = existing
         else:
             # Create dataset
-            dataset_info = dataset_loader.create_dataset(
-                name=dataset_name,
-                description=dataset_description,
-                is_public=True,
-                is_downloadable=True
-            )
+            try:
+                dataset_loader.create_dataset(
+                    name=dataset_name,
+                    description=dataset_description,
+                    is_public=True,
+                    is_downloadable=True
+                )
+                logger.info(f"Created dataset: {dataset_name}")
+            except Exception as e:
+                logger.error(f"Failed to create dataset {dataset_name}: {e}")
+                continue
 
-        # Upload file using multipart upload
-        try:
-            logger.info(f"Uploading file: {data_file.name}")
-            dataset_loader.upload_file_multipart(
-                owner_email=owner_email,
-                dataset_name=dataset_name,
-                local_file_path=str(data_file),
-                remote_file_path=data_file.name
-            )
-            logger.info(f"Successfully uploaded {data_file.name} to dataset {dataset_name}")
-        except Exception as e:
-            logger.error(f"Failed to upload {data_file.name}: {e}")
+        # Upload all data files from this subdirectory
+        for data_file in data_files:
+            try:
+                logger.info(f"Uploading file: {data_file.name}")
+                dataset_loader.upload_file_multipart(
+                    owner_email=owner_email,
+                    dataset_name=dataset_name,
+                    local_file_path=str(data_file),
+                    remote_file_path=data_file.name
+                )
+                logger.info(f"Successfully uploaded {data_file.name} to dataset {dataset_name}")
+            except Exception as e:
+                logger.error(f"Failed to upload {data_file.name}: {e}")
+
+        datasets_processed += 1
+
+    # Process legacy flat-file structure (for backward compatibility)
+    if direct_files:
+        logger.info(f"Found {len(direct_files)} data files in legacy flat structure")
+        for data_file in direct_files:
+            dataset_name = data_file.stem.replace('_', '-')
+            dataset_description = f"Example dataset: {data_file.stem}"
+
+            logger.info(f"Processing legacy dataset: {dataset_name}")
+
+            # Check if dataset already exists
+            existing = dataset_loader.get_dataset_by_name(dataset_name)
+
+            if existing:
+                logger.info(f"Dataset '{dataset_name}' already exists, skipping creation")
+            else:
+                # Create dataset
+                try:
+                    dataset_loader.create_dataset(
+                        name=dataset_name,
+                        description=dataset_description,
+                        is_public=True,
+                        is_downloadable=True
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create dataset {dataset_name}: {e}")
+                    continue
+
+            # Upload file using multipart upload
+            try:
+                logger.info(f"Uploading file: {data_file.name}")
+                dataset_loader.upload_file_multipart(
+                    owner_email=owner_email,
+                    dataset_name=dataset_name,
+                    local_file_path=str(data_file),
+                    remote_file_path=data_file.name
+                )
+                logger.info(f"Successfully uploaded {data_file.name} to dataset {dataset_name}")
+            except Exception as e:
+                logger.error(f"Failed to upload {data_file.name}: {e}")
+
+            datasets_processed += 1
+
+    logger.info(f"Processed {datasets_processed} dataset(s)")
 
 
 def load_workflows(
