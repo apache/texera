@@ -15,36 +15,39 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM python:3.11-slim
+# Use alpine for minimal image size (~10MB vs ~200MB with Python)
+FROM alpine:latest
+
+# Install curl, bash, and jq
+RUN apk add --no-cache curl bash jq
 
 # Set working directory
 WORKDIR /app
 
-# Install Python dependencies
-COPY bin/examples/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy example loader scripts
-COPY bin/examples/login.py .
-COPY bin/examples/load_dataset.py .
-COPY bin/examples/load_workflow.py .
-COPY bin/examples/main.py .
+# Copy the shell script
+COPY bin/example-data-loader/load-examples.sh /app/
 
 # Copy example data
-COPY bin/examples/dataset ./dataset
-COPY bin/examples/workflow ./workflow
+COPY bin/example-data-loader/dataset ./dataset/
+COPY bin/example-data-loader/workflow ./workflow/
 
-# Make main.py executable
-RUN chmod +x main.py
+# Make script executable
+RUN chmod +x /app/load-examples.sh
 
 # Set environment variables with defaults
 ENV TEXERA_URL=http://localhost:8080
+ENV TEXERA_FILE_SERVICE_URL=http://localhost:8080
 ENV TEXERA_USERNAME=admin
 ENV TEXERA_PASSWORD=admin
-ENV TEXERA_EMAIL=admin
+ENV DATASET_DIR=/app/dataset
+ENV WORKFLOW_DIR=/app/workflow
+ENV SKIP_DATASETS=false
+ENV SKIP_WORKFLOWS=false
+ENV SKIP_SERVICE_CHECK=false
+ENV VERBOSE=false
 
-# Run the loader
-ENTRYPOINT ["python", "main.py"]
+# Run the loader script
+ENTRYPOINT ["/app/load-examples.sh"]
 
 # Default arguments (can be overridden)
 CMD []

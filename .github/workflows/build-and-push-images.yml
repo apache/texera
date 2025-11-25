@@ -270,6 +270,9 @@ jobs:
                 "workflow-computing-unit-managing-service")
                   image_name="texera-workflow-computing-unit-managing-service"
                   ;;
+                "texera-example-data-loader")
+                  image_name="texera-example-data-loader"
+                  ;;
                 *)
                   # Default: use service name as-is
                   image_name="$service"
