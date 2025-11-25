@@ -152,13 +152,9 @@ services:
     depends_on:
       texera-web-application:
         condition: service_healthy
-      file-service:
-        condition: service_healthy
     environment:
-      TEXERA_URL: http://texera-nginx:8080
-      TEXERA_FILE_SERVICE_URL: http://texera-nginx:8080
-      TEXERA_USERNAME: ${TEXERA_EXAMPLE_USERNAME}
-      TEXERA_PASSWORD: ${TEXERA_EXAMPLE_PASSWORD}
+      TEXERA_WEB_APPLICATION_URL: http://texera-web-application:8080/api
+      TEXERA_FILE_SERVICE_URL: http://texera-file-service:9092/api
     restart: "no"
 
   texera-access-message:
