@@ -25,8 +25,8 @@ NC='\033[0m'
 
 TEXERA_URL="${TEXERA_URL:-http://localhost:8080}"
 TEXERA_FILE_SERVICE_URL="${TEXERA_FILE_SERVICE_URL:-http://localhost:8080}"
-TEXERA_USERNAME="${TEXERA_USERNAME:-admin}"
-TEXERA_PASSWORD="${TEXERA_PASSWORD:-admin}"
+TEXERA_USERNAME="${TEXERA_USERNAME:-texera}"
+TEXERA_PASSWORD="${TEXERA_PASSWORD:-texera}"
 DATASET_DIR="${DATASET_DIR:-$(dirname "$0")/dataset}"
 WORKFLOW_DIR="${WORKFLOW_DIR:-$(dirname "$0")/workflow}"
 SKIP_DATASETS="${SKIP_DATASETS:-false}"
@@ -51,8 +51,8 @@ Load example datasets and workflows into Texera.
 Options:
     --url URL               Texera server URL (default: http://localhost:8080)
     --file-service-url URL  File service URL (default: http://localhost:8080)
-    --username USERNAME     Username (default: admin)
-    --password PASSWORD     Password (default: admin)
+    --username USERNAME     Username (default: texera)
+    --password PASSWORD     Password (default: texera)
     --dataset-dir DIR       Dataset directory (default: ./dataset)
     --workflow-dir DIR      Workflow directory (default: ./workflow)
     --skip-datasets         Skip loading datasets

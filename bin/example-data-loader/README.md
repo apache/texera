@@ -28,12 +28,12 @@ Loads example datasets and workflows into Texera using a lightweight shell scrip
 ./load-examples.sh
 
 # With custom URL and credentials
-./load-examples.sh --url http://texera:8080 --username admin --password admin
+./load-examples.sh --url http://texera:8080 --username texera --password texera
 
 # Using environment variables
 export TEXERA_URL=http://texera:8080
-export TEXERA_USERNAME=admin
-export TEXERA_PASSWORD=admin
+export TEXERA_USERNAME=texera
+export TEXERA_PASSWORD=texera
 ./load-examples.sh
 
 # Show help
@@ -46,8 +46,8 @@ export TEXERA_PASSWORD=admin
 |----------|---------|
 | `TEXERA_URL` | `http://localhost:8080` |
 | `TEXERA_FILE_SERVICE_URL` | `http://localhost:8080` |
-| `TEXERA_USERNAME` | `admin` |
-| `TEXERA_PASSWORD` | `admin` |
+| `TEXERA_USERNAME` | `texera` |
+| `TEXERA_PASSWORD` | `texera` |
 | `SKIP_DATASETS` | `false` |
 | `SKIP_WORKFLOWS` | `false` |
 | `VERBOSE` | `false` |
@@ -61,7 +61,7 @@ docker build -f bin/texera-example-data-loader.dockerfile -t texera/texera-examp
 # Run
 docker run --rm \
   -e TEXERA_URL=http://host.docker.internal:8080 \
-  -e TEXERA_USERNAME=admin \
-  -e TEXERA_PASSWORD=admin \
+  -e TEXERA_USERNAME=texera \
+  -e TEXERA_PASSWORD=texera \
   texera/texera-example-data-loader
 ```
