@@ -1,0 +1,526 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Build and push images
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to checkout and build from'
+        required: false
+        default: 'main'
+        type: string
+      image_tag:
+        description: 'Docker image tag to use (e.g., latest, v1.0.0)'
+        required: true
+        default: 'latest'
+        type: string
+      docker_registry:
+        description: 'Docker registry namespace (e.g., apache, myorg)'
+        required: false
+        default: 'apache'
+        type: string
+      services:
+        description: 'Services to build (comma-separated, "*" for all)'
+        required: false
+        default: '*'
+        type: string
+      platforms:
+        description: 'Target platforms to build'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - amd64
+          - arm64
+      with_r_support:
+        description: 'Enable R support for workflow-execution-coordinator'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Run nightly at 2:00 AM UTC
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.image_tag || 'nightly' }}
+  cancel-in-progress: false
+
+env:
+  DOCKER_REGISTRY: apache  # Will be overridden by job-level env if needed
+
+jobs:
+  # Step 0: Set runtime parameters (handles both manual and scheduled runs)
+  set-parameters:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.set-params.outputs.branch }}
+      image_tag: ${{ steps.set-params.outputs.image_tag }}
+      docker_registry: ${{ steps.set-params.outputs.docker_registry }}
+      services: ${{ steps.set-params.outputs.services }}
+      platforms: ${{ steps.set-params.outputs.platforms }}
+      with_r_support: ${{ steps.set-params.outputs.with_r_support }}
+    steps:
+      - name: Set build parameters
+        id: set-params
+        run: |
+          # Detect if this is a scheduled run
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "Nightly build detected - using nightly defaults"
+            echo "branch=main" >> $GITHUB_OUTPUT
+            echo "image_tag=nightly" >> $GITHUB_OUTPUT
+            echo "docker_registry=apache" >> $GITHUB_OUTPUT
+            echo "services=*" >> $GITHUB_OUTPUT
+            echo "platforms=both" >> $GITHUB_OUTPUT
+            echo "with_r_support=false" >> $GITHUB_OUTPUT
+          else
+            echo "Manual workflow_dispatch - using user inputs"
+            echo "branch=${{ github.event.inputs.branch || 'main' }}" >> $GITHUB_OUTPUT
+            echo "image_tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+            echo "docker_registry=${{ github.event.inputs.docker_registry || 'apache' }}" >> $GITHUB_OUTPUT
+            echo "services=${{ github.event.inputs.services || '*' }}" >> $GITHUB_OUTPUT
+            echo "platforms=${{ github.event.inputs.platforms || 'both' }}" >> $GITHUB_OUTPUT
+            echo "with_r_support=${{ github.event.inputs.with_r_support || 'false' }}" >> $GITHUB_OUTPUT
+          fi
+
+  # Step 1: Generate JOOQ code once and share it
+  generate-jooq:
+    needs: [set-parameters]
+    runs-on: ubuntu-latest
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.set-parameters.outputs.branch }}
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 11
+
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
+
+      - uses: coursier/cache-action@v6
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+
+      - name: Install PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y postgresql
+
+      - name: Start PostgreSQL Service
+        run: sudo systemctl start postgresql
+
+      - name: Configure PostgreSQL authentication
+        run: |
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+          sudo sed -i 's/local   all             postgres                                peer/local   all             postgres                                md5/' /etc/postgresql/*/main/pg_hba.conf
+          sudo sed -i 's/host    all             all             127.0.0.1\/32            scram-sha-256/host    all             all             127.0.0.1\/32            md5/' /etc/postgresql/*/main/pg_hba.conf
+          sudo systemctl restart postgresql
+          sleep 2
+
+      - name: Create Databases
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -f sql/texera_ddl.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -f sql/texera_lakefs.sql
+
+      - name: Generate JOOQ code
+        run: sbt "DAO/runMain org.apache.texera.dao.JooqCodeGenerator"
+
+      - name: Upload JOOQ generated code
+        uses: actions/upload-artifact@v4
+        with:
+          name: jooq-code
+          path: |
+            common/dao/src/main/scala/org/apache/texera/dao/jooq/generated/
+          retention-days: 1
+
+  # Step 2: Parse services and prepare build matrix
+  prepare-matrix:
+    needs: [set-parameters]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      build_amd64: ${{ steps.set-platforms.outputs.build_amd64 }}
+      build_arm64: ${{ steps.set-platforms.outputs.build_arm64 }}
+      need_manifest: ${{ steps.set-platforms.outputs.need_manifest }}
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.set-parameters.outputs.branch }}
+
+      - name: Set target platforms
+        id: set-platforms
+        run: |
+          PLATFORM_INPUT="${{ needs.set-parameters.outputs.platforms }}"
+          
+          case "$PLATFORM_INPUT" in
+            both)
+              echo "build_amd64=true" >> $GITHUB_OUTPUT
+              echo "build_arm64=true" >> $GITHUB_OUTPUT
+              echo "need_manifest=true" >> $GITHUB_OUTPUT
+              echo "Building for both platforms (parallel jobs)"
+              ;;
+            amd64)
+              echo "build_amd64=true" >> $GITHUB_OUTPUT
+              echo "build_arm64=false" >> $GITHUB_OUTPUT
+              echo "need_manifest=false" >> $GITHUB_OUTPUT
+              echo "Building for AMD64 only"
+              ;;
+            arm64)
+              echo "build_amd64=false" >> $GITHUB_OUTPUT
+              echo "build_arm64=true" >> $GITHUB_OUTPUT
+              echo "need_manifest=false" >> $GITHUB_OUTPUT
+              echo "Building for ARM64 only"
+              ;;
+          esac
+
+      - name: Discover and parse services
+        id: set-matrix
+        run: |
+          SERVICES="${{ needs.set-parameters.outputs.services }}"
+
+          # Discover all Dockerfiles in bin/ directory
+          echo "Discovering services from Dockerfiles..."
+          cd bin
+
+          # Standard services from *.dockerfile pattern (excluding postgres17-pgroonga)
+          STANDARD_SERVICES=()
+          for dockerfile in *.dockerfile; do
+            if [[ -f "$dockerfile" ]]; then
+              service_name=$(basename "$dockerfile" .dockerfile)
+              # Skip postgres17-pgroonga
+              if [[ "$service_name" != "postgres17-pgroonga" ]]; then
+                STANDARD_SERVICES+=("$service_name")
+              fi
+            fi
+          done
+
+          # All services are standard services only
+          ALL_SERVICES=("${STANDARD_SERVICES[@]}")
+
+          echo "Found ${#ALL_SERVICES[@]} services: ${ALL_SERVICES[*]}"
+
+          # Filter based on user input
+          if [[ "$SERVICES" == "*" ]]; then
+            SERVICES_LIST=("${ALL_SERVICES[@]}")
+          else
+            IFS=',' read -ra SERVICES_LIST <<< "$SERVICES"
+            # Trim whitespace
+            for i in "${!SERVICES_LIST[@]}"; do
+              SERVICES_LIST[$i]=$(echo "${SERVICES_LIST[$i]}" | xargs)
+            done
+          fi
+
+          # Create JSON matrix with dockerfile info
+          JSON="["
+          FIRST=true
+          for service in "${SERVICES_LIST[@]}"; do
+            # Determine dockerfile path and context
+            if [[ " ${STANDARD_SERVICES[@]} " =~ " ${service} " ]]; then
+              dockerfile="bin/${service}.dockerfile"
+              context="."
+
+              # Map dockerfile service names to Docker image names
+              case "$service" in
+                "texera-web-application")
+                  image_name="texera-dashboard-service"
+                  ;;
+                "computing-unit-master")
+                  image_name="texera-workflow-execution-coordinator"
+                  ;;
+                "computing-unit-worker")
+                  image_name="texera-workflow-execution-runner"
+                  ;;
+                "access-control-service")
+                  image_name="texera-access-control-service"
+                  ;;
+                "config-service")
+                  image_name="texera-config-service"
+                  ;;
+                "file-service")
+                  image_name="texera-file-service"
+                  ;;
+                "workflow-compiling-service")
+                  image_name="texera-workflow-compiling-service"
+                  ;;
+                "workflow-computing-unit-managing-service")
+                  image_name="texera-workflow-computing-unit-managing-service"
+                  ;;
+                *)
+                  # Default: use service name as-is
+                  image_name="$service"
+                  ;;
+              esac
+            else
+              echo "WARNING: Unknown service: $service, skipping"
+              continue
+            fi
+
+            if [[ "$FIRST" == "true" ]]; then
+              FIRST=false
+            else
+              JSON+=","
+            fi
+            JSON+="{\"service\":\"$service\",\"image_name\":\"$image_name\",\"dockerfile\":\"$dockerfile\",\"context\":\"$context\"}"
+          done
+          JSON+="]"
+
+          echo "Generated matrix: $JSON"
+          echo "matrix={\"include\":$JSON}" >> $GITHUB_OUTPUT
+
+  # Step 3a: Build AMD64 images (runs in parallel with ARM64)
+  build-amd64:
+    runs-on: ubuntu-latest
+    needs: [set-parameters, generate-jooq, prepare-matrix]
+    if: needs.prepare-matrix.outputs.build_amd64 == 'true'
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+      fail-fast: false
+      max-parallel: 8  # Higher parallelism for native builds
+    env:
+      DOCKER_REGISTRY: ${{ needs.set-parameters.outputs.docker_registry }}
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.set-parameters.outputs.branch }}
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 11
+
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
+
+      - uses: coursier/cache-action@v6
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+
+      - name: Download JOOQ generated code
+        uses: actions/download-artifact@v4
+        with:
+          name: jooq-code
+          path: common/dao/src/main/scala/org/apache/texera/dao/jooq/generated/
+
+      - name: Free up disk space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push AMD64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64
+          cache-from: type=gha,scope=${{ matrix.image_name }}-amd64
+          cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-amd64
+          build-args: |
+            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image_name }}
+            org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (AMD64)
+            org.opencontainers.image.vendor=Apache Texera
+
+  # Step 3b: Build ARM64 images (runs in parallel with AMD64)
+  build-arm64:
+    runs-on: ubuntu-latest
+    needs: [set-parameters, generate-jooq, prepare-matrix]
+    if: needs.prepare-matrix.outputs.build_arm64 == 'true'
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+      fail-fast: false
+      max-parallel: 4  # Lower for QEMU builds
+    env:
+      DOCKER_REGISTRY: ${{ needs.set-parameters.outputs.docker_registry }}
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.set-parameters.outputs.branch }}
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 11
+
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
+
+      - uses: coursier/cache-action@v6
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+
+      - name: Download JOOQ generated code
+        uses: actions/download-artifact@v4
+        with:
+          name: jooq-code
+          path: common/dao/src/main/scala/org/apache/texera/dao/jooq/generated/
+
+      - name: Free up disk space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          df -h
+
+      # Set up QEMU for ARM64 emulation
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push ARM64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
+          cache-from: type=gha,scope=${{ matrix.image_name }}-arm64
+          cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-arm64
+          build-args: |
+            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image_name }}
+            org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (ARM64)
+            org.opencontainers.image.vendor=Apache Texera
+
+  # Step 4: Create multi-arch manifests (only if building both platforms)
+  create-manifests:
+    runs-on: ubuntu-latest
+    needs: [set-parameters, prepare-matrix, build-amd64, build-arm64]
+    if: always() && needs.prepare-matrix.outputs.need_manifest == 'true'
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+      fail-fast: false
+    env:
+      DOCKER_REGISTRY: ${{ needs.set-parameters.outputs.docker_registry }}
+
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Create and push multi-arch manifest
+        run: |
+          # Create manifest list combining both architectures
+          docker buildx imagetools create -t \
+            ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }} \
+            ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64 \
+            ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
+
+          # Also tag as 'latest' if requested
+          if [[ "${{ needs.set-parameters.outputs.image_tag }}" == "latest" ]]; then
+            docker buildx imagetools create -t \
+              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest \
+              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest-amd64 \
+              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest-arm64
+          fi
+
+      - name: Inspect multi-arch manifest
+        run: |
+          docker buildx imagetools inspect ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}
+
+  # Step 5: Summary report
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [set-parameters, prepare-matrix, build-amd64, build-arm64, create-manifests]
+    if: always()
+    steps:
+      - name: Generate build summary
+        run: |
+          echo "# Texera Multi-Arch Build Complete (Parallel)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ needs.set-parameters.outputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry:** \`${{ needs.set-parameters.outputs.docker_registry }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** \`${{ needs.set-parameters.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Services:** ${{ needs.set-parameters.outputs.services }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms:** ${{ needs.set-parameters.outputs.platforms }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **R Support:** ${{ needs.set-parameters.outputs.with_r_support }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Method" >> $GITHUB_STEP_SUMMARY
+          echo "**Parallel platform builds** (faster)" >> $GITHUB_STEP_SUMMARY
+          echo "- AMD64: Native build on \`ubuntu-latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ARM64: QEMU emulation on \`ubuntu-latest\` (runs in parallel)" >> $GITHUB_STEP_SUMMARY
+          echo "- Manifests: Combined into multi-arch images" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> **Performance:** AMD64 and ARM64 now build simultaneously instead of sequentially!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Images Published" >> $GITHUB_STEP_SUMMARY
+          echo "All images are now available as multi-arch manifests at:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ needs.set-parameters.outputs.docker_registry }}/<service-name>:${{ needs.set-parameters.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Usage" >> $GITHUB_STEP_SUMMARY
+          echo "The images will automatically use the correct architecture:" >> $GITHUB_STEP_SUMMARY
+          echo "- On x86_64/AMD64: pulls linux/amd64 variant" >> $GITHUB_STEP_SUMMARY
+          echo "- On ARM64/M1/M2: pulls linux/arm64 variant" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- AMD64 builds: ${{ needs.build-amd64.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ARM64 builds: ${{ needs.build-arm64.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Manifest creation: ${{ needs.create-manifests.result }}" >> $GITHUB_STEP_SUMMARY

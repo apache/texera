@@ -30,7 +30,8 @@ public enum FileAttributeType {
     DOUBLE("double", AttributeType.DOUBLE),
     BOOLEAN("boolean", AttributeType.BOOLEAN),
     TIMESTAMP("timestamp", AttributeType.TIMESTAMP),
-    BINARY("binary", AttributeType.BINARY);
+    BINARY("binary", AttributeType.BINARY),
+    BIG_OBJECT("big object", AttributeType.BIG_OBJECT);
 
 
     private final String name;
@@ -56,6 +57,6 @@ public enum FileAttributeType {
     }
 
     public boolean isSingle() {
-        return this == SINGLE_STRING || this == BINARY;
+        return this == SINGLE_STRING || this == BINARY || this == BIG_OBJECT;
     }
 }
