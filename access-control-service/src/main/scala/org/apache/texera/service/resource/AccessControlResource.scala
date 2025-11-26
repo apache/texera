@@ -26,7 +26,7 @@ import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.LLMConfig
+import org.apache.texera.config.{GuiConfig, LLMConfig}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 
 import java.net.URLDecoder
@@ -222,6 +222,13 @@ class LiteLLMProxyResource extends LazyLogging {
       @Context headers: HttpHeaders,
       body: String
   ): Response = {
+    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .entity("""{"error": "Copilot feature is disabled"}""")
+        .build()
+    }
+
     // uriInfo.getPath returns "chat/completions" for /api/chat/completions
     // We want to forward as "/chat/completions" to LiteLLM
     val fullPath = uriInfo.getPath
@@ -281,6 +288,13 @@ class LiteLLMModelsResource extends LazyLogging {
 
   @GET
   def getModels: Response = {
+    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .entity("""{"error": "Copilot feature is disabled"}""")
+        .build()
+    }
+
     val targetUrl = s"$litellmBaseUrl/models"
 
     logger.info(s"Fetching models from LiteLLM: $targetUrl")
