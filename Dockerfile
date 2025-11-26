@@ -49,9 +49,9 @@ WORKDIR /core
 COPY .git ../.git
 COPY --from=nodegui /gui/dist ./gui/dist
 
-RUN scripts/build-services.sh
+RUN ../bin/build-services.sh
 
-CMD ["scripts/deploy-docker.sh"]
+CMD ["../bin/deploy-docker.sh"]
 
 EXPOSE 8080
 

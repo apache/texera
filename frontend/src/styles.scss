@@ -1,0 +1,107 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+@import "@ali-hm/angular-tree-component/css/angular-tree-component.css";
+
+* {
+  user-select: none;
+}
+
+.ant-image-preview-img {
+  width: 50%;
+  height: 60%;
+}
+
+.ant-table-pagination {
+  justify-content: center;
+}
+
+.dynamic-fields .ant-form-item {
+  display: inline-block;
+  width: 50%;
+  padding-right: 4px;
+  margin: 0;
+}
+
+.ant-form-item {
+  font-size: 12px;
+}
+
+.ant-form-item-extra {
+  font-size: 11px;
+  line-height: 11px;
+}
+
+.ant-input {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ant-select-selector {
+  height: 24px !important;
+}
+
+.ant-select-selection-item {
+  line-height: 24px !important;
+}
+
+.ant-form-item-label {
+  padding-bottom: 0 !important;
+}
+
+hr {
+  background-color: #d3d3d3;
+  height: 1px;
+  border: 0;
+}
+
+// due to innerHTML, this rule has to be global
+.highlight-search-terms {
+  color: blue;
+}
+
+.box {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+.ant-collapse-header {
+  padding: 5px 8px !important;
+}
+
+.ant-collapse-content-box {
+  padding: 0 !important;
+}
+
+.ant-tabs-tabpane {
+  padding-right: 24px;
+}
+
+.annotation-highlight {
+  background-color: #6a5acd;
+}
+
+// makes avatar text centered in dropdown menu
+.ant-avatar-string {
+  position: relative;
+  left: 0;
+}

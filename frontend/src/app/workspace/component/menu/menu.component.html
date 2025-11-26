@@ -1,0 +1,441 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div id="menu-container">
+  <div id="menu-content">
+    <div id="menu-user">
+      <div id="metadata">
+        <button
+          (click)="closeParticularVersionDisplay()"
+          *ngIf="displayParticularWorkflowVersion"
+          nz-button
+          nzType="text"
+          title="back">
+          <i
+            nz-icon
+            nzType="arrow-left"></i>
+        </button>
+        <label>
+          <nz-avatar
+            style="vertical-align: top; margin-top: 1px; margin-left: 3px"
+            *ngIf="workflowId"
+            [nzText]="workflowId.toString() || ''"></nz-avatar>
+          <input
+            #workflowNameInput
+            *ngIf="!displayParticularWorkflowVersion"
+            (input)="adjustWorkflowNameWidth()"
+            (change)="onWorkflowNameChange()"
+            [(ngModel)]="currentWorkflowName"
+            class="workflow-name"
+            placeholder="Untitled Workflow" />
+          <span *ngIf="displayParticularWorkflowVersion"> {{particularVersionDate}} </span>
+        </label>
+        <button
+          *ngIf="displayParticularWorkflowVersion"
+          nz-button
+          nzType="primary"
+          [disabled]="!workflowVersionService.canRestoreVersion"
+          (click)="revertToVersion()"
+          style="width: 160px">
+          Restore this version
+        </button>
+        <button
+          *ngIf="displayParticularWorkflowVersion"
+          nz-button
+          nzType="default"
+          (click)="cloneVersion()"
+          style="width: 160px; margin-left: 10px">
+          Clone this version
+        </button>
+        <span
+          *ngIf="displayParticularWorkflowVersion && workflowVersionService.selectedDisplayedVersionId.getValue() !== null"
+          title="Current Version"
+          style="margin-left: 10px">
+          <i
+            nz-icon
+            nzType="info-circle"></i>
+          Current Version: {{ workflowVersionService.selectedDisplayedVersionId.getValue() }}
+        </span>
+        <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
+      </div>
+
+      <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+        <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
+      </ng-container>
+
+      <texera-user-icon></texera-user-icon>
+    </div>
+    <div id="button-groups">
+      <nz-button-group
+        id="user-buttons"
+        *ngIf="!displayParticularWorkflowVersion">
+        <a [routerLink]="DASHBOARD_USER_WORKFLOW">
+          <button
+            nz-button
+            title="dashboard">
+            <i
+              nz-icon
+              nzType="profile"></i>
+          </button>
+        </a>
+        <button
+          (click)="onClickCreateNewWorkflow()"
+          nz-button
+          title="create new">
+          <i
+            nz-icon
+            nzType="form"></i>
+        </button>
+        <button
+          (click)="persistWorkflow()"
+          [disabled]="!userService.isLogin() || isSaving || !isWorkflowModifiable"
+          nz-button
+          title="save">
+          <i
+            *ngIf="!isSaving"
+            nz-icon
+            nzType="save"></i>
+        </button>
+        <button
+          (click)="onClickDeleteAllOperators()"
+          [disabled]="!isWorkflowModifiable"
+          nz-button
+          title="delete all">
+          <i
+            nz-icon
+            nzType="delete"></i>
+        </button>
+        <nz-upload
+          [nzDisabled]="!isWorkflowModifiable"
+          [nzBeforeUpload]="onClickImportWorkflow">
+          <button
+            nz-button
+            [disabled]="!isWorkflowModifiable"
+            title="import workflow">
+            <i
+              nz-icon
+              nzType="upload"></i>
+          </button>
+        </nz-upload>
+        <button
+          (click)="onClickExportWorkflow()"
+          nz-button
+          title="export workflow">
+          <i
+            nz-icon
+            nzType="download"></i>
+        </button>
+      </nz-button-group>
+      <ng-template #utilities>
+        <nz-button-group>
+          <button
+            nz-dropdown
+            [nzDropdownMenu]="menu"
+            [nzClickHide]="false"
+            nz-button
+            title="Layers">
+            <i
+              nz-icon
+              nzType="block"></i>
+          </button>
+          <nz-dropdown-menu #menu="nzDropdownMenu">
+            <ul nz-menu>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showGrid"
+                  (ngModelChange)="toggleGrid()"
+                  >Grid</label
+                >
+              </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showRegion"
+                  (ngModelChange)="toggleRegion()"
+                  >Regions</label
+                >
+              </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showNumWorkers"
+                  (ngModelChange)="toggleNumWorkers()"
+                  >Workers</label
+                >
+              </li>
+            </ul>
+          </nz-dropdown-menu>
+          <button
+            (click)="onClickClosePanels()"
+            nz-button
+            title="close panels">
+            <i
+              nz-icon
+              nzType="minus"></i>
+          </button>
+          <button
+            (click)="onClickResetPanels()"
+            nz-button
+            title="reset panels">
+            <i
+              nz-icon
+              nzType="clear"></i>
+          </button>
+          <button
+            (click)="onClickGenerateReport()"
+            nz-button
+            title="generate report">
+            <i
+              nz-icon
+              nzType="printer"></i>
+          </button>
+          <button
+            (click)="onClickRestoreZoomOffsetDefault()"
+            nz-button
+            title="reset zoom">
+            <i
+              nz-icon
+              nzType="fullscreen"></i>
+          </button>
+          <button
+            nz-button
+            (click)="onClickAutoLayout()"
+            [disabled]="!isWorkflowModifiable"
+            title="auto layout">
+            <i
+              nz-icon
+              nzType="partition"></i>
+          </button>
+          <button
+            (click)="onClickAddCommentBox()"
+            [disabled]="!isWorkflowModifiable"
+            nz-button
+            title="add a comment">
+            <i
+              nz-icon
+              nzType="comment"></i>
+          </button>
+          <button
+            nz-button
+            nz-dropdown
+            (click)="onClickExportExecutionResult()"
+            [nzTrigger]="isExportDeactivate ? 'click' : 'hover'"
+            [disabled]="isExportDeactivate"
+            title="">
+            <i
+              nz-icon
+              nzType="cloud-download"></i>
+          </button>
+          <button
+            (click)="operatorMenu.disableHighlightedOperators()"
+            *ngIf="operatorMenu.isDisableOperator || !operatorMenu.isDisableOperatorClickable"
+            [disabled]="!operatorMenu.isDisableOperatorClickable"
+            nz-button
+            title="disable operators">
+            <i
+              nz-icon
+              nzType="stop"></i>
+          </button>
+          <button
+            (click)="operatorMenu.disableHighlightedOperators()"
+            *ngIf="!operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
+            [disabled]="!operatorMenu.isDisableOperatorClickable"
+            nz-button
+            title="operators disabled, click to re-enable">
+            <i
+              nz-icon
+              nzTheme="twotone"
+              nzType="stop"></i>
+          </button>
+          <button
+            *ngIf="(operatorMenu.isToViewResult || ! operatorMenu.isToViewResultClickable)"
+            [disabled]="! operatorMenu.isToViewResultClickable"
+            (click)="operatorMenu.viewResultHighlightedOperators()"
+            nz-button
+            title="view result">
+            <i
+              nz-icon
+              nzType="eye"></i>
+          </button>
+          <button
+            *ngIf="(! operatorMenu.isToViewResult && operatorMenu.isToViewResultClickable)"
+            [disabled]="! operatorMenu.isToViewResultClickable"
+            (click)="operatorMenu.viewResultHighlightedOperators()"
+            nz-button
+            title="click to remove view result">
+            <i
+              nz-icon
+              nzType="eye-invisible"
+              nzTheme="twotone"></i>
+          </button>
+          <button
+            *ngIf="(operatorMenu.isMarkForReuse || ! operatorMenu.isReuseResultClickable)"
+            [disabled]="true || ! operatorMenu.isReuseResultClickable"
+            (click)="operatorMenu.reuseResultHighlightedOperator()"
+            nz-button
+            title="reuse result if possible">
+            <i
+              nz-icon
+              nzType="database"></i>
+          </button>
+          <button
+            *ngIf="(! operatorMenu.isMarkForReuse && operatorMenu.isReuseResultClickable)"
+            [disabled]="! operatorMenu.isReuseResultClickable"
+            (click)="operatorMenu.reuseResultHighlightedOperator()"
+            nz-button
+            title="remove reusing previous result">
+            <i
+              nz-icon
+              nzType="database"
+              nzTheme="twotone"></i>
+          </button>
+          <button
+            (click)="undoRedoService.undoAction()"
+            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
+            nz-button>
+            <i
+              nz-icon
+              nzType="undo"></i>
+          </button>
+          <button
+            (click)="undoRedoService.redoAction()"
+            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"
+            nz-button>
+            <i
+              nz-icon
+              nzType="redo"></i>
+          </button>
+        </nz-button-group>
+      </ng-template>
+      <nz-dropdown-menu #menu="nzDropdownMenu">
+        <ng-template [ngTemplateOutlet]="utilities"></ng-template>
+      </nz-dropdown-menu>
+
+      <div id="expanded-utilities">
+        <ng-template [ngTemplateOutlet]="utilities"></ng-template>
+      </div>
+
+      <button
+        nz-button
+        nz-dropdown
+        [nzDropdownMenu]="menu"
+        nzPlacement="bottomCenter"
+        id="utilities-dropdown-button">
+        <i
+          nz-icon
+          nzType="ellipsis"></i>
+      </button>
+
+      <nz-button-group id="execution-buttons">
+        <texera-computing-unit-selection id="texera-compute-unit-selection"> </texera-computing-unit-selection>
+        <button
+          nz-button
+          id="share-button"
+          (click)="onClickOpenShareAccess()">
+          <span
+            nz-icon
+            nzType="share-alt"
+            nzTheme="outline"></span>
+          Share
+        </button>
+        <button
+          (click)="handleKill()"
+          [disabled]="
+        executionState === ExecutionState.Uninitialized ||
+        executionState === ExecutionState.Completed ||
+        executionState === ExecutionState.Killed ||
+        executionState === ExecutionState.Failed ||
+        (!workflowWebsocketService.isConnected &&
+       computingUnitStatus !== ComputingUnitState.NoComputingUnit)
+      "
+          nz-button
+          nzDanger
+          nzType="primary">
+          <i
+            nz-icon
+            nzType="close-circle"></i>
+        </button>
+        <button
+          (click)="onClickRunHandler()"
+          nz-popover
+          nzPopoverTitle="Execution Settings"
+          [nzPopoverTrigger]="'hover'"
+          [nzPopoverContent]="executionSettings"
+          nzPopoverPlacement="bottom"
+          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || selectedComputingUnit?.accessPrivilege !== Privilege.WRITE"
+          id="run-button"
+          nz-button
+          nzType="primary">
+          <i
+            nz-icon
+            nzType="{{ runIcon }}"></i>
+          <span> {{ runButtonText }}</span>
+        </button>
+        <button
+          *ngIf="this.config.env.timetravelEnabled"
+          (click)="handleCheckpoint()"
+          title="take checkpoint"
+          [disabled]="executionState !== ExecutionState.Paused"
+          id="checkpoint-button"
+          nz-button
+          nzType="primary">
+          <i
+            nz-icon
+            nzType="database"></i>
+        </button>
+        <ng-template #executionSettings>
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <input
+              [(ngModel)]="currentExecutionName"
+              placeholder="Untitled Execution"
+              [disabled]="!isWorkflowModifiable" />
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span>Email Notification</span>
+              <nz-switch
+                [(ngModel)]="this.config.env.workflowEmailNotificationEnabled"
+                nzCheckedChildren="On"
+                nzUnCheckedChildren="Off">
+              </nz-switch>
+            </div>
+          </div>
+        </ng-template>
+        <div style="margin-left: 5px">
+          <nz-badge
+            nz-tooltip=""
+            nzTooltipPlacement="bottom"
+            [nzTooltipTitle]="clusterInfo"
+            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitState.Running))?'green':'red'">
+          </nz-badge>
+          <ng-template #clusterInfo>
+            <b
+              >{{(workflowWebsocketService.isConnected && (computingUnitStatus ===
+              ComputingUnitState.Running))?"Connected":"Disconnected"}} to Computing Unit</b
+            >
+            <div *ngIf="workflowWebsocketService.isConnected">
+              <div>Computing Unit Status: {{computingUnitStatus}}</div>
+              <div>Number of Machines: {{workflowWebsocketService.numWorkers}}</div>
+            </div>
+          </ng-template>
+        </div>
+        <div style="color: #007bff; line-height: 32px">{{ executionDuration | date: 'H:mm:ss': 'UTC' }}</div>
+      </nz-button-group>
+    </div>
+  </div>
+</div>

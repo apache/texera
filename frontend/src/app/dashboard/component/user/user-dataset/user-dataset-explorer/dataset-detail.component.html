@@ -1,0 +1,411 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div *ngIf="!isMaximized">
+  <nz-card>
+    <h2 class="dataset-title">Dataset: {{datasetName}}</h2>
+    <nz-card-meta
+      style="padding-top: 10px"
+      [nzDescription]="descriptionTemplate">
+      <ng-template #descriptionTemplate>
+        Created at:
+        <span
+          nz-tooltip
+          [nzTooltipTitle]="datasetCreationTimeTooltip">
+          {{datasetCreationTime}}
+        </span>
+      </ng-template>
+    </nz-card-meta>
+    <nz-card-meta
+      style="padding-top: 20px"
+      nzDescription="{{datasetDescription}}"></nz-card-meta>
+    <div
+      class="workflow-panel"
+      style="padding-top: 30px">
+      <div
+        *ngIf="!(userDatasetAccessLevel === 'NONE')"
+        class="dataset-controls">
+        <div class="control-row">
+          <label>Visibility:</label>
+          <nz-switch
+            [ngModel]="datasetIsPublic"
+            (ngModelChange)="onPublicStatusChange($event)"
+            [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+            nzCheckedChildren="public"
+            nzUnCheckedChildren="private"></nz-switch>
+        </div>
+        <div
+          class="control-row"
+          *ngIf="isOwner">
+          <label>Download:</label>
+          <nz-switch
+            [ngModel]="datasetIsDownloadable"
+            (ngModelChange)="onDownloadableStatusChange($event)"
+            nzCheckedChildren="allowed"
+            nzUnCheckedChildren="blocked"></nz-switch>
+        </div>
+      </div>
+      <button
+        nz-button
+        nzType="text"
+        class="dropdown-item like-button"
+        title="View"
+        (click)="changeViewDisplayStyle()">
+        <i
+          nz-icon
+          [nzType]="'eye'"
+          class="like-icon">
+        </i>
+        <span>{{ formatCount(viewCount) }}</span>
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        class="like-button"
+        title="Like"
+        [disabled]="!isLogin"
+        (click)="toggleLike()">
+        <i
+          nz-icon
+          [nzType]="'like'"
+          [ngClass]="{liked: isLiked}">
+        </i>
+        <span>{{ formatCount(likeCount) }}</span>
+      </button>
+    </div>
+  </nz-card>
+</div>
+<nz-layout>
+  <nz-content
+    [ngClass]="{'grayed-out': false, 'disabled-click': false}"
+    style="background-color: white">
+    <nz-card>
+      <div style="display: flex; justify-content: space-between; align-items: center">
+        <div class="file-info">
+          <h3 class="file-title">
+            <b>{{currentDisplayedFileName}}</b>
+            <span
+              *ngIf="currentFileSize"
+              class="file-size">
+              <i
+                nz-icon
+                nzType="file"
+                nzTheme="outline"
+                class="icon-file"></i>
+              {{ formatSize(currentFileSize) }}
+            </span>
+          </h3>
+        </div>
+        <div style="display: flex">
+          <button
+            nz-button
+            *ngIf="selectedVersion"
+            nz-tooltip="Download the file"
+            [disabled]="!isLogin || !isDownloadAllowed()"
+            (click)="onClickDownloadCurrentFile()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="download">
+            </i>
+          </button>
+          <button
+            nz-button
+            *ngIf="!isMaximized && selectedVersion"
+            nz-tooltip="Maximize View"
+            (click)="onClickScaleTheView()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="expand">
+            </i>
+          </button>
+          <button
+            nz-button
+            *ngIf="isMaximized && selectedVersion"
+            nz-tooltip="Minimize View"
+            (click)="onClickScaleTheView()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="compress">
+            </i>
+          </button>
+          <button
+            *ngIf="!isRightBarCollapsed"
+            nz-button
+            nz-tooltip="Hide the right bar"
+            (click)="onClickHideRightBar()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="right">
+            </i>
+          </button>
+          <button
+            *ngIf="isRightBarCollapsed"
+            nz-button
+            nz-tooltip="Show Tree"
+            (click)="onClickHideRightBar()">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="left">
+            </i>
+          </button>
+        </div>
+      </div>
+    </nz-card>
+    <nz-empty
+      class="empty-version-indicator"
+      *ngIf="!selectedVersion"
+      nzNotFoundContent="No version is selected"></nz-empty>
+
+    <texera-user-dataset-file-renderer
+      *ngIf="selectedVersion"
+      [isMaximized]="isMaximized"
+      [did]="did"
+      [dvid]="selectedVersion?.dvid"
+      [filePath]="currentDisplayedFileName"
+      [fileSize]="currentFileSize"
+      [isLogin]="isLogin"
+      class="file-renderer">
+    </texera-user-dataset-file-renderer>
+  </nz-content>
+  <nz-sider
+    *ngIf="!isRightBarCollapsed"
+    nzTheme="light"
+    style="float: right; height: 100%"
+    [nzWidth]="siderWidth"
+    nz-resizable
+    [nzMinWidth]="MIN_SIDER_WIDTH"
+    [nzMaxWidth]="MAX_SIDER_WIDTH"
+    (nzResize)="onSideResize($event)">
+    <nz-resize-handle nzDirection="left">
+      <div class="sider-resize-line">
+        <i
+          class="sider-resize-handle"
+          nz-icon
+          nzType="more"
+          nzTheme="outline"></i>
+      </div>
+    </nz-resize-handle>
+    <div class="right-sider">
+      <nz-collapse nzGhost>
+        <nz-collapse-panel
+          nzHeader="Current Versions"
+          nzActive="true">
+          <div class="version-storage">
+            <h6 style="font-weight: lighter; font-size: 0.9em">Choose a Version:</h6>
+            <div class="select-and-button-container">
+              <nz-select
+                nzShowSearch
+                nzAllowClear
+                nzPlaceHolder="Select a version"
+                (ngModelChange)="onVersionSelected($event)"
+                [(ngModel)]="selectedVersion">
+                <nz-option
+                  *ngFor="let version of versions"
+                  [nzValue]="version"
+                  [nzLabel]="version.name"></nz-option>
+              </nz-select>
+              <button
+                nz-button
+                nz-tooltip="Download Dataset"
+                (click)="onClickDownloadVersionAsZip()"
+                *ngIf="selectedVersion"
+                [disabled]="!isLogin || !isDownloadAllowed()"
+                class="spaced-button">
+                <i
+                  nz-icon
+                  nzType="download"
+                  nzTheme="outline"></i>
+              </button>
+            </div>
+            <ng-container *ngIf="selectedVersion">
+              <div class="version-size">
+                <i
+                  nz-icon
+                  nzType="database"
+                  nzTheme="outline"
+                  class="icon-database"></i>
+                Version Size: {{ formatSize(currentDatasetVersionSize) }}
+              </div>
+              <div
+                *ngIf="selectedVersionCreationTime"
+                class="version-date">
+                <i
+                  nz-icon
+                  nzType="calendar"
+                  nzTheme="outline"
+                  class="icon-database"></i>
+                Created at: {{ selectedVersionCreationTime }}
+              </div>
+            </ng-container>
+          </div>
+          <texera-user-dataset-version-filetree
+            [fileTreeNodes]="fileTreeNodeList"
+            [isTreeNodeDeletable]="true"
+            (selectedTreeNode)="onVersionFileTreeNodeSelected($event)"
+            (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)">
+          </texera-user-dataset-version-filetree>
+        </nz-collapse-panel>
+      </nz-collapse>
+
+      <nz-divider></nz-divider>
+      <nz-collapse
+        *ngIf="userDatasetAccessLevel === 'WRITE'"
+        nzGhost>
+        <nz-collapse-panel
+          nzActive="true"
+          nzHeader="Create New Version">
+          <texera-user-files-uploader (uploadedFiles)="onNewUploadFilesChanged($event)"> </texera-user-files-uploader>
+
+          <nz-collapse
+            nzGhost
+            class="upload-status-panels">
+            <nz-collapse-panel
+              *ngIf="queuedCount > 0"
+              [nzHeader]="'Pending: ' + queuedCount + ' file(s)'">
+              <div class="upload-progress-wrapper-pending">
+                <div
+                  *ngFor="let fileName of queuedFileNames"
+                  class="upload-progress-container">
+                  <span>{{ fileName }}</span>
+                  <button
+                    nz-button
+                    nzType="text"
+                    nzShape="circle"
+                    nz-tooltip
+                    [nzTooltipTitle]="'Remove from queue'"
+                    (click)="cancelExistingUpload(fileName)">
+                    <span
+                      nz-icon
+                      nzType="close"
+                      nzTheme="outline"></span>
+                  </button>
+                </div>
+              </div>
+            </nz-collapse-panel>
+
+            <nz-divider
+              class="section-divider"
+              *ngIf="queuedCount > 0"></nz-divider>
+
+            <nz-collapse-panel
+              *ngIf="activeCount > 0"
+              [nzHeader]="'Uploading: ' + activeCount + ' file(s)'">
+              <div class="upload-progress-wrapper">
+                <div
+                  *ngFor="let task of uploadTasks; trackBy: trackByTask"
+                  class="upload-progress-container">
+                  <div class="progress-header">
+                    <span><b>{{ task.status }}</b>: {{ task.filePath }}</span>
+                    <button
+                      nz-button
+                      nzType="text"
+                      nzShape="circle"
+                      [nz-tooltip]="
+                (task.status === 'aborted' || task.status === 'finished')
+                ? 'Close'
+                : 'Cancel the upload'
+                "
+                      (click)="onClickAbortUploadProgress(task)">
+                      <i
+                        nz-icon
+                        nzType="close"
+                        nzTheme="outline"></i>
+                    </button>
+                  </div>
+
+                  <div
+                    class="upload-stats"
+                    *ngIf="task.status !== 'initializing'">
+                    <nz-progress
+                      [nzPercent]="task.percentage"
+                      [nzStatus]="getUploadStatus(task.status)"></nz-progress>
+                    <nz-tag
+                      *ngIf="task.status === 'uploading'"
+                      [nzColor]="'blue'">
+                      <span class="fixed-width-speed">{{ formatSpeed(task.uploadSpeed) }}</span> -
+                      <span class="fixed-width-time">{{ formatTime(task.totalTime ?? 0) }}</span> elapsed,
+                      <span class="fixed-width-time">{{ formatTime(task.estimatedTimeRemaining ?? 0) }} left</span>
+                    </nz-tag>
+
+                    <nz-tag *ngIf="(task.status === 'finished' || task.status === 'aborted')">
+                      Upload time: {{ formatTime(task.totalTime ?? 0) }}
+                    </nz-tag>
+                  </div>
+                </div>
+              </div>
+            </nz-collapse-panel>
+
+            <nz-divider
+              class="section-divider"
+              *ngIf="activeCount > 0"></nz-divider>
+
+            <nz-collapse-panel
+              *ngIf="hasAnyActivity"
+              [nzHeader]="'Finished: ' + pendingChangesCount + ' file(s)'">
+              <texera-dataset-staged-objects-list
+                [uploadTimeMap]="uploadTimeMap"
+                [did]="did"
+                [userMakeChangesEvent]="userMakeChanges"
+                (stagedObjectsChanged)="onStagedObjectsUpdated($event)">
+              </texera-dataset-staged-objects-list>
+            </nz-collapse-panel>
+          </nz-collapse>
+
+          <texera-dataset-staged-objects-list
+            *ngIf="!hasAnyActivity"
+            [uploadTimeMap]="uploadTimeMap"
+            [did]="did"
+            [userMakeChangesEvent]="userMakeChanges"
+            (stagedObjectsChanged)="onStagedObjectsUpdated($event)">
+          </texera-dataset-staged-objects-list>
+
+          <div
+            *ngIf="userHasWriteAccess() && userHasPendingChanges"
+            class="version-creator">
+            <div class="version-input-container">
+              <label>Version:</label>
+              <input
+                nz-input
+                [(ngModel)]="versionName"
+                placeholder="Describe the new version (Optional)"
+                [disabled]="isCreatingVersion"
+                (keydown.enter)="onClickOpenVersionCreator()"
+                class="version-input" />
+            </div>
+            <div>
+              <button
+                nz-button
+                nzType="primary"
+                [nzLoading]="isCreatingVersion"
+                (click)="onClickOpenVersionCreator()"
+                class="create-dataset-version-button">
+                Submit
+              </button>
+            </div>
+          </div>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </div>
+  </nz-sider>
+</nz-layout>
