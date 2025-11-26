@@ -313,10 +313,15 @@ export class TexeraCopilot {
                 this.messageStatsSubject.next(new Map(this.messageStatsMap));
               }
 
-              // Check if planning mode is on and there's an actionPlan tool call
+              // Check if planning mode is on and there's any workflow action tool call
               if (this.planningMode && toolCalls && toolResults) {
-                const actionPlanCallIndex = toolCalls.findIndex(
-                  call => call.toolName === actionPlanTools.TOOL_NAME_ACTION_PLAN
+                const workflowActionToolNames = [
+                  actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW,
+                  actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW,
+                  actionPlanTools.TOOL_NAME_DELETE_FROM_WORKFLOW,
+                ];
+                const actionPlanCallIndex = toolCalls.findIndex(call =>
+                  workflowActionToolNames.includes(call.toolName)
                 );
 
                 if (actionPlanCallIndex !== -1) {
@@ -537,7 +542,14 @@ export class TexeraCopilot {
 
     // Workflow execution tools
     const executeCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createExecuteCurrentWorkflowTool(this.executeWorkflowService)
+      currentWorkflowExecutionTools.createExecuteCurrentWorkflowTool(
+        this.executeWorkflowService,
+        this.validationWorkflowService,
+        this.workflowActionService,
+        this.workflowConsoleService,
+        this.workflowStatusService,
+        this.workflowResultService
+      )
     );
     const getCurrentExecutionStateTool = toolWithTimeout(
       currentWorkflowExecutionTools.createGetCurrentExecutionStateTool(
@@ -586,8 +598,28 @@ export class TexeraCopilot {
       dataInconsistencyTools.createClearInconsistenciesTool(this.dataInconsistencyService)
     );
 
-    const actionPlanTool = toolWithTimeout(
-      actionPlanTools.createActionPlanTool(
+    const addToWorkflowTool = toolWithTimeout(
+      actionPlanTools.createAddToWorkflowTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.validationWorkflowService,
+        this.workflowCompilingService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const modifyInWorkflowTool = toolWithTimeout(
+      actionPlanTools.createModifyInWorkflowTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.validationWorkflowService,
+        this.workflowCompilingService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const deleteFromWorkflowTool = toolWithTimeout(
+      actionPlanTools.createDeleteFromWorkflowTool(
         this.workflowActionService,
         this.actionPlanService,
         this.validationWorkflowService,
@@ -595,11 +627,6 @@ export class TexeraCopilot {
         this.agentName
       )
     );
-    const getActionPlanTool = toolWithTimeout(actionPlanTools.createGetActionPlanTool(this.actionPlanService));
-    const listActionPlansTool = toolWithTimeout(actionPlanTools.createListActionPlansTool(this.actionPlanService));
-    const deleteActionPlanTool = toolWithTimeout(actionPlanTools.createDeleteActionPlanTool(this.actionPlanService));
-    const updateActionPlanTool = toolWithTimeout(actionPlanTools.createUpdateActionPlanTool(this.actionPlanService));
-
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // meta level knowledge
@@ -643,12 +670,10 @@ export class TexeraCopilot {
       [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
-      // Action plan tools - always available
-      [actionPlanTools.TOOL_NAME_ACTION_PLAN]: actionPlanTool,
-      // [actionPlanTools.TOOL_NAME_GET_ACTION_PLAN]: getActionPlanTool,
-      // [actionPlanTools.TOOL_NAME_LIST_ACTION_PLANS]: listActionPlansTool,
-      // [actionPlanTools.TOOL_NAME_DELETE_ACTION_PLAN]: deleteActionPlanTool,
-      // [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN]: updateActionPlanTool,
+      // Workflow action tools - always available
+      [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: addToWorkflowTool,
+      [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: modifyInWorkflowTool,
+      [actionPlanTools.TOOL_NAME_DELETE_FROM_WORKFLOW]: deleteFromWorkflowTool,
     };
 
     return baseTools;

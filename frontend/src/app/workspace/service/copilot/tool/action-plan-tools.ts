@@ -22,18 +22,281 @@ import { tool } from "ai";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { ActionPlanService } from "../../action-plan/action-plan.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
+import { WorkflowCompilingService } from "../../compile-workflow/workflow-compiling.service";
 
 // Tool name constants
-export const TOOL_NAME_ACTION_PLAN = "actionPlan";
+export const TOOL_NAME_ADD_TO_WORKFLOW = "addToWorkflow";
+export const TOOL_NAME_MODIFY_IN_WORKFLOW = "modifyInWorkflow";
+export const TOOL_NAME_DELETE_FROM_WORKFLOW = "deleteFromWorkflow";
 export const TOOL_NAME_GET_ACTION_PLAN = "getActionPlan";
 export const TOOL_NAME_LIST_ACTION_PLANS = "listActionPlans";
 export const TOOL_NAME_DELETE_ACTION_PLAN = "deleteActionPlan";
 export const TOOL_NAME_UPDATE_ACTION_PLAN = "updateActionPlan";
 
 /**
- * Create actionPlan tool for managing workflow operations (add, modify, delete)
+ * Helper to get validation info for the current workflow
  */
-export function createActionPlanTool(
+function getWorkflowValidationInfo(
+  workflowActionService: WorkflowActionService,
+  validationWorkflowService: ValidationWorkflowService
+) {
+  const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
+  const errorCount = Object.keys(validationOutput.errors).length;
+  const validGraph = validationWorkflowService.getValidTexeraGraph();
+  const validOperators = validGraph.getAllOperators();
+  const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+  const validOperatorIds = validOperators.map(op => op.operatorID);
+
+  return {
+    errors: validationOutput.errors,
+    errorCount,
+    validOperatorIds,
+    validCount: validOperators.length,
+    totalCount: allOperators.length,
+    invalidCount: allOperators.length - validOperators.length,
+    message:
+      errorCount === 0
+        ? "No validation errors in the workflow"
+        : `Found ${errorCount} operator(s) with validation errors`,
+  };
+}
+
+/**
+ * Helper to get detailed operator info including schemas
+ */
+function getOperatorInfo(
+  operatorId: string,
+  workflowActionService: WorkflowActionService,
+  workflowCompilingService: WorkflowCompilingService
+) {
+  const operator = workflowActionService.getTexeraGraph().getOperator(operatorId);
+  const inputSchema = workflowCompilingService.getOperatorInputSchemaMap(operatorId) || {};
+  const outputSchema = workflowCompilingService.getOperatorOutputSchemaMap(operatorId) || {};
+
+  return {
+    operatorId: operator.operatorID,
+    operatorType: operator.operatorType,
+    customDisplayName: operator.customDisplayName,
+    properties: operator,
+    inputSchema,
+    outputSchema,
+  };
+}
+
+/**
+ * Helper to create action plan and return its ID
+ */
+function createAndRecordActionPlan(
+  workflowActionService: WorkflowActionService,
+  actionPlanService: ActionPlanService,
+  agentId: string,
+  agentName: string,
+  summary: string,
+  operations: {
+    add?: { operatorIds: string[]; linkIds: string[] };
+    modify?: { operatorIds: string[] };
+    delete?: { operatorIds: string[]; linkIds: string[] };
+  },
+  beforeWorkflowContent: any,
+  afterWorkflowContent: any
+) {
+  const allOperatorIds = [...(operations.add?.operatorIds || []), ...(operations.modify?.operatorIds || [])];
+  const allLinkIds = operations.add?.linkIds || [];
+
+  return actionPlanService.createActionPlan(
+    agentId,
+    agentName || "AI Agent",
+    summary,
+    {
+      add: operations.add || { operatorIds: [], linkIds: [] },
+      modify: operations.modify || { operatorIds: [] },
+      delete: operations.delete || { operatorIds: [], linkIds: [] },
+    },
+    allOperatorIds,
+    allLinkIds,
+    workflowActionService.getWorkflowMetadata(),
+    beforeWorkflowContent,
+    afterWorkflowContent
+  );
+}
+
+/**
+ * Create addToWorkflow tool for adding operators and links
+ */
+export function createAddToWorkflowTool(
+  workflowActionService: WorkflowActionService,
+  actionPlanService: ActionPlanService,
+  validationWorkflowService: ValidationWorkflowService,
+  workflowCompilingService: WorkflowCompilingService,
+  agentId: string = "",
+  agentName: string = ""
+) {
+  return tool({
+    name: TOOL_NAME_ADD_TO_WORKFLOW,
+    description:
+      "Add new operators and/or links to the workflow. Returns detailed info for each added operator including schemas.",
+    inputSchema: z.object({
+      summary: z.string().describe("A summary of what this add operation accomplishes"),
+      operators: z
+        .array(
+          z.object({
+            operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
+            customDisplayName: z.string().describe("Brief custom name summarizing what this operator does"),
+          })
+        )
+        .optional()
+        .describe("List of operators to add"),
+      links: z
+        .array(
+          z.object({
+            sourceOperatorId: z
+              .string()
+              .describe("ID of source operator - existing ID or index ('0', '1') for newly added operators"),
+            targetOperatorId: z
+              .string()
+              .describe("ID of target operator - existing ID or index ('0', '1') for newly added operators"),
+            sourcePortId: z.string().optional().describe("Port ID on source (default: 'output-0')"),
+            targetPortId: z.string().optional().describe("Port ID on target (default: 'input-0')"),
+          })
+        )
+        .optional()
+        .describe("List of links to connect operators"),
+    }),
+    execute: async (args: {
+      summary: string;
+      operators?: Array<{ operatorType: string; customDisplayName?: string }>;
+      links?: Array<{
+        sourceOperatorId: string;
+        targetOperatorId: string;
+        sourcePortId?: string;
+        targetPortId?: string;
+      }>;
+    }) => {
+      try {
+        const beforeContent = workflowActionService.getWorkflowContent();
+        const results = workflowActionService.applyAgentAction({ add: args });
+
+        if (!results.success) {
+          return { success: false, error: results.error || "Failed to add operators/links" };
+        }
+
+        const afterContent = workflowActionService.getWorkflowContent();
+
+        // Get detailed info for each added operator
+        const addedOperators = results.addedOperatorIds.map(id =>
+          getOperatorInfo(id, workflowActionService, workflowCompilingService)
+        );
+
+        // Get info for added links
+        const addedLinks = results.addedLinkIds.map(linkId => {
+          const link = workflowActionService.getTexeraGraph().getLinkWithID(linkId);
+          return {
+            linkId,
+            source: link?.source,
+            target: link?.target,
+          };
+        });
+
+        const actionPlan = createAndRecordActionPlan(
+          workflowActionService,
+          actionPlanService,
+          agentId,
+          agentName,
+          args.summary,
+          { add: { operatorIds: results.addedOperatorIds, linkIds: results.addedLinkIds } },
+          beforeContent,
+          afterContent
+        );
+
+        return {
+          success: true,
+          actionPlanId: actionPlan.id,
+          addedOperators,
+          addedLinks,
+          validation: getWorkflowValidationInfo(workflowActionService, validationWorkflowService),
+          message: `Added ${results.addedOperatorIds.length} operator(s) and ${results.addedLinkIds.length} link(s)`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create modifyInWorkflow tool for modifying operator properties
+ */
+export function createModifyInWorkflowTool(
+  workflowActionService: WorkflowActionService,
+  actionPlanService: ActionPlanService,
+  validationWorkflowService: ValidationWorkflowService,
+  workflowCompilingService: WorkflowCompilingService,
+  agentId: string = "",
+  agentName: string = ""
+) {
+  return tool({
+    name: TOOL_NAME_MODIFY_IN_WORKFLOW,
+    description:
+      "Modify properties of existing operators. Returns the updated operator info including schemas after modification.",
+    inputSchema: z.object({
+      summary: z.string().describe("A summary of what this modification accomplishes"),
+      operators: z
+        .array(
+          z.object({
+            operatorId: z.string().describe("ID of the operator to modify"),
+            properties: z.record(z.any()).describe("Properties to update (e.g., {delimiter: '|', limit: 100})"),
+          })
+        )
+        .describe("List of operators to modify with their new properties"),
+    }),
+    execute: async (args: {
+      summary: string;
+      operators: Array<{ operatorId: string; properties: Record<string, any> }>;
+    }) => {
+      try {
+        const beforeContent = workflowActionService.getWorkflowContent();
+        const results = workflowActionService.applyAgentAction({ modify: args });
+
+        if (!results.success) {
+          return { success: false, error: results.error || "Failed to modify operators" };
+        }
+
+        const afterContent = workflowActionService.getWorkflowContent();
+
+        // Get updated operator info after modification
+        const modifiedOperators = results.modifiedOperatorIds.map(id =>
+          getOperatorInfo(id, workflowActionService, workflowCompilingService)
+        );
+
+        const actionPlan = createAndRecordActionPlan(
+          workflowActionService,
+          actionPlanService,
+          agentId,
+          agentName,
+          args.summary,
+          { modify: { operatorIds: results.modifiedOperatorIds } },
+          beforeContent,
+          afterContent
+        );
+
+        return {
+          success: true,
+          actionPlanId: actionPlan.id,
+          modifiedOperators,
+          validation: getWorkflowValidationInfo(workflowActionService, validationWorkflowService),
+          message: `Modified ${results.modifiedOperatorIds.length} operator(s)`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create deleteFromWorkflow tool for deleting operators and links
+ */
+export function createDeleteFromWorkflowTool(
   workflowActionService: WorkflowActionService,
   actionPlanService: ActionPlanService,
   validationWorkflowService: ValidationWorkflowService,
@@ -41,170 +304,42 @@ export function createActionPlanTool(
   agentName: string = ""
 ) {
   return tool({
-    name: TOOL_NAME_ACTION_PLAN,
-    description:
-      "Plan and execute workflow modifications including adding new operators/links, modifying existing operators, and deleting operators/links. Operations are executed in order: add → modify → delete.",
+    name: TOOL_NAME_DELETE_FROM_WORKFLOW,
+    description: "Delete operators and/or links from the workflow.",
     inputSchema: z.object({
-      summary: z.string().describe("A summary of what this action plan accomplishes"),
-      add: z
-        .object({
-          operators: z
-            .array(
-              z.object({
-                operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
-                customDisplayName: z.string().describe("Brief custom name summarizing what this operator does"),
-                properties: z.record(z.any()).describe("Properties object to set on this operator."),
-              })
-            )
-            .optional()
-            .describe("List of operators to add to the workflow"),
-          links: z
-            .array(
-              z.object({
-                sourceOperatorId: z
-                  .string()
-                  .describe(
-                    "ID of source operator - can be existing operator ID or index (e.g., '0', '1') referring to newly added operators (0-based)"
-                  ),
-                targetOperatorId: z
-                  .string()
-                  .describe(
-                    "ID of target operator - can be existing operator ID or index (e.g., '0', '1') referring to newly added operators (0-based)"
-                  ),
-                sourcePortId: z.string().optional().describe("Port ID on source operator (e.g., 'output-0')"),
-                targetPortId: z.string().optional().describe("Port ID on target operator (e.g., 'input-0')"),
-              })
-            )
-            .optional()
-            .describe("List of links to connect operators"),
-        })
-        .optional()
-        .describe("Operations to add new operators and links"),
-      modify: z
-        .object({
-          operators: z
-            .array(
-              z.object({
-                operatorId: z.string().describe("ID of the existing operator to modify"),
-                properties: z
-                  .record(z.any())
-                  .describe("Properties to update on the operator (e.g., {delimiter: '|', limit: 100})"),
-              })
-            )
-            .optional()
-            .describe("List of operators to modify"),
-        })
-        .optional()
-        .describe("Operations to modify existing operators"),
-      delete: z
-        .object({
-          operatorIds: z.array(z.string()).optional().describe("List of operator IDs to delete"),
-          linkIds: z.array(z.string()).optional().describe("List of link IDs to delete"),
-        })
-        .optional()
-        .describe("Operations to delete operators and links"),
+      summary: z.string().describe("A summary of what this delete operation accomplishes"),
+      operatorIds: z.array(z.string()).optional().describe("List of operator IDs to delete"),
+      linkIds: z.array(z.string()).optional().describe("List of link IDs to delete"),
     }),
-    execute: async (args: {
-      summary: string;
-      add?: {
-        operators?: Array<{ operatorType: string; customDisplayName?: string; properties?: Record<string, any> }>;
-        links?: Array<{
-          sourceOperatorId: string;
-          targetOperatorId: string;
-          sourcePortId?: string;
-          targetPortId?: string;
-        }>;
-      };
-      modify?: {
-        operators?: Array<{ operatorId: string; properties: Record<string, any> }>;
-      };
-      delete?: {
-        operatorIds?: string[];
-        linkIds?: string[];
-      };
-    }) => {
+    execute: async (args: { summary: string; operatorIds?: string[]; linkIds?: string[] }) => {
       try {
-        // Capture workflow metadata
-        const workflowMetadata = workflowActionService.getWorkflowMetadata();
+        const beforeContent = workflowActionService.getWorkflowContent();
+        const results = workflowActionService.applyAgentAction({ delete: args });
 
-        // Capture BEFORE workflow content before applying changes
-        const beforeWorkflowContent = workflowActionService.getWorkflowContent();
-
-        // Apply agent actions atomically using workflow action service
-        const results = workflowActionService.applyAgentAction(args);
-
-        // Check if the action failed
         if (!results.success) {
-          return {
-            success: false,
-            error: results.error || "Failed to apply agent actions",
-          };
+          return { success: false, error: results.error || "Failed to delete operators/links" };
         }
 
-        // Capture AFTER workflow content after applying changes
-        const afterWorkflowContent = workflowActionService.getWorkflowContent();
+        const afterContent = workflowActionService.getWorkflowContent();
 
-        // Create action plan with all operations
-        const allOperatorIds = [...results.addedOperatorIds, ...results.modifiedOperatorIds];
-        const allLinkIds = [...results.addedLinkIds];
-
-        const actionPlan = actionPlanService.createActionPlan(
+        const actionPlan = createAndRecordActionPlan(
+          workflowActionService,
+          actionPlanService,
           agentId,
-          agentName || "AI Agent",
+          agentName,
           args.summary,
-          {
-            add: {
-              operatorIds: results.addedOperatorIds,
-              linkIds: results.addedLinkIds,
-            },
-            modify: {
-              operatorIds: results.modifiedOperatorIds,
-            },
-            delete: {
-              operatorIds: results.deletedOperatorIds,
-              linkIds: results.deletedLinkIds,
-            },
-          },
-          allOperatorIds,
-          allLinkIds,
-          workflowMetadata,
-          beforeWorkflowContent,
-          afterWorkflowContent,
-          undefined // executorAgentId
+          { delete: { operatorIds: results.deletedOperatorIds, linkIds: results.deletedLinkIds } },
+          beforeContent,
+          afterContent
         );
 
-        // Get validation information for the workflow after operations
-        const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
-        const errorCount = Object.keys(validationOutput.errors).length;
-
-        const validGraph = validationWorkflowService.getValidTexeraGraph();
-        const validOperators = validGraph.getAllOperators();
-        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-
-        const validOperatorIds = validOperators.map(op => op.operatorID);
-        const invalidCount = allOperators.length - validOperators.length;
-
-        const validationInfo = {
-          errors: validationOutput.errors,
-          errorCount: errorCount,
-          validOperatorIds: validOperatorIds,
-          validCount: validOperators.length,
-          totalCount: allOperators.length,
-          invalidCount: invalidCount,
-          message:
-            errorCount === 0
-              ? "No validation errors in the workflow"
-              : `Found ${errorCount} operator(s) with validation errors. ${validOperators.length} valid operator(s) out of ${allOperators.length} total`,
-        };
-
-        // Return the action plan info with validation
         return {
           success: true,
-          summary: args.summary,
           actionPlanId: actionPlan.id,
-          results,
-          validation: validationInfo,
-          message: `Created action plan: ${results.addedOperatorIds.length} operators added, ${results.modifiedOperatorIds.length} modified, ${results.deletedOperatorIds.length} deleted. ${results.addedLinkIds.length} links added, ${results.deletedLinkIds.length} deleted. Waiting for user feedback.`,
+          deletedOperatorIds: results.deletedOperatorIds,
+          deletedLinkIds: results.deletedLinkIds,
+          validation: getWorkflowValidationInfo(workflowActionService, validationWorkflowService),
+          message: `Deleted ${results.deletedOperatorIds.length} operator(s) and ${results.deletedLinkIds.length} link(s)`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
