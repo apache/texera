@@ -67,4 +67,6 @@ object GuiConfig {
     conf.getBoolean("gui.workflow-workspace.workflow-email-notification-enabled")
   val guiWorkflowWorkspaceActiveTimeInMinutes: Int =
     conf.getInt("gui.workflow-workspace.active-time-in-minutes")
+  val guiWorkflowWorkspaceCopilotEnabled: Boolean =
+    conf.getBoolean("gui.workflow-workspace.copilot-enabled")
 }

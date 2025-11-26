@@ -55,6 +55,7 @@ class ConfigResource {
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
+      "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
       // flags from the auth.conf if needed
       "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
     )

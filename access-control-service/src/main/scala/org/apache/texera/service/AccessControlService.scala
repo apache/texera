@@ -25,7 +25,12 @@ import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.amber.config.StorageConfig
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.resource.{AccessControlResource, HealthCheckResource}
+import org.apache.texera.service.resource.{
+  AccessControlResource,
+  HealthCheckResource,
+  LiteLLMModelsResource,
+  LiteLLMProxyResource
+}
 import org.eclipse.jetty.server.session.SessionHandler
 
 import java.nio.file.Path
@@ -54,6 +59,8 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
 
     environment.jersey.register(classOf[HealthCheckResource])
     environment.jersey.register(classOf[AccessControlResource])
+    environment.jersey.register(classOf[LiteLLMProxyResource])
+    environment.jersey.register(classOf[LiteLLMModelsResource])
 
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
