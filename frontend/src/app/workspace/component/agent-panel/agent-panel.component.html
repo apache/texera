@@ -1,0 +1,138 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- Docked Button -->
+<button
+  id="agent-docked-button"
+  nz-button
+  nzType="primary"
+  nzShape="circle"
+  nzSize="large"
+  (click)="openPanel()"
+  *ngIf="!width"
+  nz-tooltip
+  nzTooltipPlacement="left"
+  nzTooltipTitle="AI Agents">
+  <span
+    nz-icon
+    nzType="robot"></span>
+</button>
+
+<div
+  cdkDrag
+  cdkDragBoundary="texera-workspace"
+  id="agent-container"
+  class="box"
+  nz-resizable
+  [nzMinWidth]="400"
+  [nzMinHeight]="450"
+  [nzMaxWidth]="window.innerWidth * 0.9"
+  [nzMaxHeight]="window.innerHeight * 0.85"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)"
+  (cdkDragStarted)="handleDragStart()"
+  [cdkDragFreeDragPosition]="dragPosition">
+  <!-- Return and Minimize Buttons -->
+  <ul
+    id="return-button"
+    nz-menu
+    [ngClass]="{'shadow': !width}"
+    *ngIf="width">
+    <button
+      nz-button
+      nzType="text"
+      (click)="resetPanelPosition()"
+      *ngIf="!isDocked">
+      <span
+        nz-icon
+        nzType="enter"></span>
+    </button>
+    <li
+      nz-menu-item
+      (click)="openPanel()">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+  </ul>
+
+  <div
+    #content
+    id="content"
+    [hidden]="!width">
+    <h4
+      id="title"
+      cdkDragHandle>
+      AI Agents
+    </h4>
+
+    <!-- Tabs -->
+    <nz-tabset
+      [(nzSelectedIndex)]="selectedTabIndex"
+      class="agent-tabs"
+      nzType="card"
+      [nzTabBarExtraContent]="tabBarExtra">
+      <!-- Registration Tab -->
+      <nz-tab nzTitle="+ Agent">
+        <ng-template nz-tab>
+          <texera-agent-registration (agentCreated)="onAgentCreated($event)"></texera-agent-registration>
+        </ng-template>
+      </nz-tab>
+
+      <!-- Agent Tabs -->
+      <nz-tab
+        *ngFor="let agent of agents"
+        [nzTitle]="agentTabTitle">
+        <ng-template
+          #agentTabTitle
+          let-active="active">
+          <div class="agent-tab-title">
+            <span class="agent-tab-name">{{ agent.name }}</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="agent-tab-close"
+              (click)="deleteAgent(agent.id, $event)"
+              nz-tooltip
+              nzTooltipTitle="Close agent">
+              <i
+                nz-icon
+                nzType="close"
+                nzTheme="outline"></i>
+            </button>
+          </div>
+        </ng-template>
+        <ng-template nz-tab>
+          <texera-agent-chat [agentInfo]="agent"></texera-agent-chat>
+        </ng-template>
+      </nz-tab>
+    </nz-tabset>
+
+    <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
+  </div>
+</div>
+
+<!-- Tab Bar Extra Content Template -->
+<ng-template #tabBarExtra>
+  <div class="tab-bar-extra">
+    <span class="agent-count">{{ agents.length }} agent(s)</span>
+  </div>
+</ng-template>

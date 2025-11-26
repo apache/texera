@@ -148,6 +148,17 @@ export class WorkflowCompilingService {
     );
   }
 
+  public getOperatorOutputSchemaMap(operatorID: string): OperatorPortSchemaMap | undefined {
+    if (
+      this.currentCompilationStateInfo.state == CompilationState.Uninitialized ||
+      !this.currentCompilationStateInfo.operatorOutputPortSchemaMap
+    ) {
+      return undefined;
+    }
+
+    return this.currentCompilationStateInfo.operatorOutputPortSchemaMap[operatorID];
+  }
+
   public getPortInputSchema(operatorID: string, portIndex: number): PortSchema | undefined {
     return this.getOperatorInputSchemaMap(operatorID)?.[serializePortIdentity({ id: portIndex, internal: false })];
   }
