@@ -312,11 +312,18 @@ export class OperatorPaginationResultService {
     );
   }
 
-  public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
+  public selectPage(
+    pageIndex: number,
+    pageSize: number,
+    columnOffset: number = 0,
+    columnLimit: number = Number.MAX_SAFE_INTEGER,
+    columnSearch: string = ""
+  ): Observable<PaginatedResultEvent> {
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
-    const pageCache = this.resultCache.get(pageIndex);
+    const useCache = columnOffset === 0 && columnLimit === Number.MAX_SAFE_INTEGER && columnSearch === "";
+    const pageCache = useCache ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
         requestID: "",
@@ -334,6 +341,9 @@ export class OperatorPaginationResultService {
         operatorID,
         pageIndex,
         pageSize,
+        columnOffset,
+        columnLimit,
+        columnSearch,
       });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);

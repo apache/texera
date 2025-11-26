@@ -100,20 +100,27 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   /**
     * Get an iterator for reading records from the table.
     */
-  override def get(): Iterator[T] = getUsingFileSequenceOrder(0, None)
+  override def get(): Iterator[T] = getUsingFileSequenceOrder(0, None, None)
 
   /**
     * Get records within a specified range [from, until).
     */
   override def getRange(from: Int, until: Int): Iterator[T] = {
-    getUsingFileSequenceOrder(from, Some(until))
+    getUsingFileSequenceOrder(from, Some(until), None)
+  }
+
+  /**
+    * Get records within a specified range [from, until) with specific columns.
+    */
+  override def getRange(from: Int, until: Int, columns: Option[Seq[String]]): Iterator[T] = {
+    getUsingFileSequenceOrder(from, Some(until), columns)
   }
 
   /**
     * Get records starting after a specified offset.
     */
   override def getAfter(offset: Int): Iterator[T] = {
-    getUsingFileSequenceOrder(offset, None)
+    getUsingFileSequenceOrder(offset, None, None)
   }
 
   /**
@@ -150,8 +157,13 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     *
     * @param from  start from which record inclusively, if 0 means start from the first
     * @param until end at which record exclusively, if None means read to the table's EOF
+    * @param columns columns to be projected
     */
-  private def getUsingFileSequenceOrder(from: Int, until: Option[Int]): Iterator[T] =
+  private def getUsingFileSequenceOrder(
+      from: Int,
+      until: Option[Int],
+      columns: Option[Seq[String]]
+  ): Iterator[T] =
     withReadLock(lock) {
       new Iterator[T] {
         private val iteLock = new ReentrantLock()
@@ -259,9 +271,13 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
           while (!currentRecordIterator.hasNext && usableFileIterator.hasNext) {
             val nextFile = usableFileIterator.next()
+            val schemaToUse = columns match {
+              case Some(cols) => tableSchema.select(cols.asJava)
+              case None       => tableSchema
+            }
             currentRecordIterator = IcebergUtil.readDataFileAsIterator(
               nextFile.file(),
-              tableSchema,
+              schemaToUse,
               table.get
             )
 
@@ -281,7 +297,11 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
           val record = currentRecordIterator.next()
           numOfReturnedRecords += 1
-          deserde(tableSchema, record)
+          val schemaToUse = columns match {
+            case Some(cols) => tableSchema.select(cols.asJava)
+            case None       => tableSchema
+          }
+          deserde(schemaToUse, record)
         }
       }
     }

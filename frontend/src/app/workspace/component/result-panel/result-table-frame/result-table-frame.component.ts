@@ -66,6 +66,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = 5;
+  currentColumnOffset = 0;
+  columnLimit = 25;
+  columnSearch = "";
   panelHeight = 0;
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
@@ -329,7 +332,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     this.isLoadingResult = true;
     paginatedResultService
-      .selectPage(this.currentPageIndex, this.pageSize)
+      .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
@@ -404,5 +407,26 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
+  }
+
+  onColumnShiftLeft(): void {
+    if (this.currentColumnOffset > 0) {
+      this.currentColumnOffset = Math.max(0, this.currentColumnOffset - this.columnLimit);
+      this.changePaginatedResultData();
+    }
+  }
+
+  onColumnShiftRight(): void {
+    if (this.currentColumns && this.currentColumns.length === this.columnLimit) {
+      this.currentColumnOffset += this.columnLimit;
+      this.changePaginatedResultData();
+    }
+  }
+
+  onColumnSearch(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.columnSearch = input.value;
+    this.currentColumnOffset = 0;
+    this.changePaginatedResultData();
   }
 }
