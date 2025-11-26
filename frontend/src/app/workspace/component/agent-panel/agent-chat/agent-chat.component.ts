@@ -192,11 +192,35 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Get the state icon URL based on current agent state.
-   * Uses the same icons as workflow operators for consistency.
+   * Get the NG-ZORRO icon type based on current agent state.
    */
-  public getStateIconUrl(): string {
-    return this.agentState === CopilotState.AVAILABLE ? "assets/svg/done.svg" : "assets/gif/loading.gif";
+  public getStateIcon(): string {
+    switch (this.agentState) {
+      case CopilotState.AVAILABLE:
+        return "check-circle";
+      case CopilotState.GENERATING:
+      case CopilotState.STOPPING:
+        return "sync";
+      case CopilotState.UNAVAILABLE:
+      default:
+        return "close-circle";
+    }
+  }
+
+  /**
+   * Get the icon color based on current agent state.
+   */
+  public getStateIconColor(): string {
+    switch (this.agentState) {
+      case CopilotState.AVAILABLE:
+        return "#52c41a";
+      case CopilotState.GENERATING:
+      case CopilotState.STOPPING:
+        return "#1890ff";
+      case CopilotState.UNAVAILABLE:
+      default:
+        return "#ff4d4f";
+    }
   }
 
   /**

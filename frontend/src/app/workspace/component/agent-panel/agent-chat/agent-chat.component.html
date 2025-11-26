@@ -24,12 +24,14 @@
     <div class="chat-toolbar-controls">
       <!-- Agent model info with state icon -->
       <div class="toolbar-item">
-        <img
-          [src]="getStateIconUrl()"
-          [alt]="getStateTooltip()"
+        <i
+          nz-icon
+          [nzType]="getStateIcon()"
+          [nzSpin]="isGenerating()"
           nz-tooltip
           [nzTooltipTitle]="getStateTooltip()"
-          style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle" />
+          [style.color]="getStateIconColor()"
+          style="font-size: 16px; margin-right: 6px; vertical-align: middle"></i>
         <small style="color: #888"> Model: <strong>{{ agentInfo.modelType }}</strong> </small>
         <button
           nz-button
