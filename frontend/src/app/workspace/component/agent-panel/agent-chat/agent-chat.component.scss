@@ -83,17 +83,6 @@
     .message-content {
       background: #1890ff;
       color: white;
-
-      ::ng-deep {
-        code {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
-        }
-
-        strong {
-          color: white;
-        }
-      }
     }
   }
 
@@ -183,20 +172,6 @@
       color: rgba(0, 0, 0, 0.65);
     }
 
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-      margin: 12px 0 8px 0;
-      font-weight: 600;
-
-      &:first-child {
-        margin-top: 0;
-      }
-    }
-
     a {
       color: #1890ff;
       text-decoration: none;
@@ -211,10 +186,15 @@
 .user-message .message-content ::ng-deep markdown {
   code {
     background: rgba(255, 255, 255, 0.2);
+    color: white;
   }
 
   pre {
     background: rgba(255, 255, 255, 0.15);
+
+    code {
+      color: white;
+    }
   }
 
   blockquote {
