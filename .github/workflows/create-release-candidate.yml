@@ -17,10 +17,6 @@
 
 name: Create and upload release candidate artifacts
 
-# NOTE: This workflow should only be triggered by PMC members (Release Manager).
-# While GitHub allows any committer with write access to trigger workflow_dispatch,
-# only PMC members are authorized to create official Apache release candidates.
-
 on:
   workflow_dispatch:
     inputs:
