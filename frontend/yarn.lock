@@ -5603,15 +5603,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/ws@npm:^8.18.1":
-  version: 8.18.1
-  resolution: "@types/ws@npm:8.18.1"
-  dependencies:
-    "@types/node": "npm:*"
-  checksum: 10c0/61aff1129143fcc4312f083bc9e9e168aa3026b7dd6e70796276dcfb2c8211c4292603f9c4864fae702f2ed86e4abd4d38aa421831c2fd7f856c931a481afbab
-  languageName: node
-  linkType: hard
-
 "@types/ws@npm:^8.5.10, @types/ws@npm:^8.5.5":
   version: 8.5.12
   resolution: "@types/ws@npm:8.5.12"
@@ -11762,7 +11753,6 @@ __metadata:
     "@types/quill": "npm:2.0.9"
     "@types/uuid": "npm:8.3.4"
     "@types/validator": "npm:13.12.0"
-    "@types/ws": "npm:^8.18.1"
     "@typescript-eslint/eslint-plugin": "npm:7.0.2"
     "@typescript-eslint/parser": "npm:7.0.2"
     ai: "npm:5.0.93"
@@ -11842,7 +11832,7 @@ __metadata:
     y-quill: "npm:0.1.5"
     y-websocket: "npm:1.4.0"
     yjs: "npm:13.5.41"
-    zod: "npm:^3.25.76"
+    zod: "npm:3.25.76"
     zone.js: "npm:0.13.0"
   languageName: unknown
   linkType: soft
@@ -20187,7 +20177,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^3.25.76":
+"zod@npm:3.25.76":
   version: 3.25.76
   resolution: "zod@npm:3.25.76"
   checksum: 10c0/5718ec35e3c40b600316c5b4c5e4976f7fee68151bc8f8d90ec18a469be9571f072e1bbaace10f1e85cf8892ea12d90821b200e980ab46916a6166a4260a983c

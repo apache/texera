@@ -96,7 +96,7 @@
     "y-quill": "0.1.5",
     "y-websocket": "1.4.0",
     "yjs": "13.5.41",
-    "zod": "^3.25.76",
+    "zod": "3.25.76",
     "zone.js": "0.13.0"
   },
   "resolutions": {
@@ -130,7 +130,6 @@
     "@types/quill": "2.0.9",
     "@types/uuid": "8.3.4",
     "@types/validator": "13.12.0",
-    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "7.0.2",
     "@typescript-eslint/parser": "7.0.2",
     "babel-plugin-dynamic-import-node": "2.3.3",
