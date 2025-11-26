@@ -32,8 +32,8 @@ import {
   createSuccessResult,
   createErrorResult,
 } from "./tools-utility";
-import { Observable, of, throwError, defer, timer, forkJoin } from "rxjs";
-import { filter, timeout, map, switchMap, catchError, take } from "rxjs/operators";
+import { Observable, of, throwError, defer, timer, forkJoin, interval, merge, EMPTY } from "rxjs";
+import { filter, timeout, map, switchMap, catchError, take, tap } from "rxjs/operators";
 
 // Tool name constants
 export const TOOL_NAME_EXECUTE_CURRENT_WORKFLOW = "executeCurrentWorkflow";
@@ -189,17 +189,45 @@ export function createExecuteCurrentWorkflowTool(
           // Start the execution
           executeWorkflowService.executeWorkflow(name, args.targetOperatorId);
 
-          // Monitor execution state
-          return executeWorkflowService.getExecutionStateStream().pipe(
+          // Stream 1: Monitor execution state changes
+          const executionState$ = executeWorkflowService.getExecutionStateStream().pipe(
             filter(
               stateChange =>
                 stateChange.current.state === ExecutionState.Completed ||
                 stateChange.current.state === ExecutionState.Failed ||
-                stateChange.current.state === ExecutionState.Killed
+                stateChange.current.state === ExecutionState.Killed ||
+                stateChange.current.state === ExecutionState.Paused
             ),
+            map(stateChange => stateChange.current)
+          );
+
+          // Stream 2: Detect stuck state (workflow Running but operator Paused due to error)
+          const stuckDetection$ = interval(1000).pipe(
+            filter(() => {
+              const execState = executeWorkflowService.getExecutionState();
+              if (execState.state !== ExecutionState.Running) return false;
+
+              // Check if any operator is in Paused state (purple = error)
+              const operatorStates = workflowStatusService.getCurrentStatus();
+              return Object.values(operatorStates).some((stats: any) => stats.operatorState === "Paused");
+            }),
+            take(1),
+            tap(() => {
+              // Kill the workflow to trigger proper cleanup and error reporting
+              try {
+                executeWorkflowService.killWorkflow();
+              } catch (e) {
+                // Ignore if already in terminal state
+              }
+            }),
+            switchMap(() => EMPTY) // Let the Killed state be caught by executionState$
+          );
+
+          // Race between normal completion and stuck detection
+          return merge(executionState$, stuckDetection$).pipe(
             take(1),
             timeout(EXECUTION_TIMEOUT_MS),
-            map(stateChange => ({ finalState: stateChange.current, allOperators })),
+            map(finalState => ({ finalState, allOperators })),
             catchError(error => {
               if (error.name === "TimeoutError") {
                 return throwError(
@@ -291,6 +319,13 @@ export function createExecuteCurrentWorkflowTool(
           } else if (finalState.state === ExecutionState.Killed) {
             return createErrorResult(
               "Workflow execution was killed. " +
+                `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
+                `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`
+            );
+          } else if (finalState.state === ExecutionState.Paused) {
+            return createErrorResult(
+              "Workflow execution paused (likely due to an error). " +
+                `Error messages: ${JSON.stringify(errorMessages, null, 2)}. ` +
                 `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
                 `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`
             );
