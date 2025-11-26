@@ -102,14 +102,18 @@ describe("TexeraCopilot", () => {
     expect(typeof prompt).toBe("string");
   });
 
-  it("should return tools info", () => {
-    const tools = service.getToolsInfo();
-    expect(tools).toBeTruthy();
-    expect(Array.isArray(tools)).toBe(true);
-    expect(tools.length).toBeGreaterThan(0);
-    tools.forEach(tool => {
-      expect(tool.name).toBeTruthy();
-      expect(tool.description).toBeTruthy();
+  it("should return tools info", done => {
+    // Tools are only created after initialize() is called
+    service.initialize().subscribe(() => {
+      const tools = service.getToolsInfo();
+      expect(tools).toBeTruthy();
+      expect(Array.isArray(tools)).toBe(true);
+      expect(tools.length).toBeGreaterThan(0);
+      tools.forEach(tool => {
+        expect(tool.name).toBeTruthy();
+        expect(tool.description).toBeTruthy();
+      });
+      done();
     });
   });
 
@@ -126,7 +130,8 @@ describe("TexeraCopilot", () => {
       }
     });
 
-    (service as any).emitAgentUIMessage("user", "test message", true, true);
+    // emitReActStep signature: (messageId, stepId, role, content, isBegin, isEnd, toolCalls?, toolResults?, usage?, operatorAccess?)
+    (service as any).emitReActStep("test-id", 0, "user", "test message", true, true);
   });
 
   it("should return empty agent responses initially", () => {
@@ -171,10 +176,11 @@ describe("TexeraCopilot", () => {
       const tools = (service as any).createWorkflowTools();
       expect(tools).toBeTruthy();
       expect(typeof tools).toBe("object");
+      // Tool names match the constants in the tool files
       expect(tools.listAllOperatorTypes).toBeTruthy();
       expect(tools.listOperatorsInCurrentWorkflow).toBeTruthy();
-      expect(tools.listLinksInCurrentWorkflow).toBeTruthy();
-      expect(tools.getOperatorInCurrentWorkflow).toBeTruthy();
+      expect(tools.listCurrentLinks).toBeTruthy();
+      expect(tools.getCurrentOperator).toBeTruthy();
       expect(tools.getOperatorPropertiesSchema).toBeTruthy();
       expect(tools.getOperatorPortsInfo).toBeTruthy();
       expect(tools.getOperatorMetadata).toBeTruthy();
