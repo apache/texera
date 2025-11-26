@@ -444,7 +444,9 @@ class ExecutionResultService(
               allColumns.filter(col => col.toLowerCase.contains(search.toLowerCase))
             case None => allColumns
           }
-          Some(filteredColumns.slice(request.columnOffset, request.columnOffset + request.columnLimit))
+          Some(
+            filteredColumns.slice(request.columnOffset, request.columnOffset + request.columnLimit)
+          )
         } else {
           None
         }
