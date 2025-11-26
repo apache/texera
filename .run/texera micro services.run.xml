@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="texera micro services" type="CompoundRunConfigurationType">
+    <toRun name="AccessControlService" type="Application" />
+    <toRun name="ComputingUnitManagingService" type="Application" />
+    <toRun name="ComputingUnitMaster" type="Application" />
+    <toRun name="ComputingUnitWorker" type="Application" />
+    <toRun name="ConfigService" type="Application" />
+    <toRun name="FileService" type="Application" />
+    <toRun name="TexeraWebApplication" type="Application" />
+    <toRun name="WorkflowCompilingService" type="Application" />
+    <method v="2" />
+  </configuration>
+</component>
