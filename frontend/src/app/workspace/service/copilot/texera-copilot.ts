@@ -289,6 +289,46 @@ export class TexeraCopilot {
             messages: this.messages,
             tools,
             system: systemPrompt,
+            experimental_repairToolCall: async ({ toolCall, error }) => {
+              // Log the malformed tool call for debugging
+              console.warn(
+                `[Copilot] Malformed tool call for "${toolCall.toolName}":`,
+                error.message,
+                "\nRaw input:",
+                toolCall.input
+              );
+
+              // Try to repair common JSON escaping issues
+              try {
+                const rawInput = toolCall.input;
+                // Attempt 1: Try parsing as-is (might just be a minor issue)
+                try {
+                  const parsed = JSON.parse(rawInput);
+                  // Return repaired tool call with same structure
+                  return { ...toolCall, input: JSON.stringify(parsed) };
+                } catch {
+                  // Continue to repair attempts
+                }
+
+                // Attempt 2: Fix double-escaped strings (common LLM issue)
+                // Replace escaped newlines and quotes that are incorrectly double-escaped
+                let repaired = rawInput
+                  .replace(/\\\\n/g, "\\n") // \\n -> \n
+                  .replace(/\\\\"/g, '\\"') // \\" -> \"
+                  .replace(/\\\\t/g, "\\t"); // \\t -> \t
+
+                const parsed = JSON.parse(repaired);
+                console.info(`[Copilot] Successfully repaired tool call for "${toolCall.toolName}"`);
+                return { ...toolCall, input: JSON.stringify(parsed) };
+              } catch (repairError) {
+                // If repair fails, skip this tool call by returning null
+                console.error(
+                  `[Copilot] Failed to repair tool call for "${toolCall.toolName}", skipping:`,
+                  repairError
+                );
+                return null;
+              }
+            },
             stopWhen: ({ steps }) => {
               if (this.state === CopilotState.STOPPING) {
                 wasStopped = true;
