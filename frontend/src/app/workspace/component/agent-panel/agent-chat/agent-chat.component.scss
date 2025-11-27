@@ -83,17 +83,6 @@
     .message-content {
       background: #1890ff;
       color: white;
-
-      ::ng-deep {
-        code {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
-        }
-
-        strong {
-          color: white;
-        }
-      }
     }
   }
 
@@ -132,18 +121,12 @@
   border-radius: 6px;
   line-height: 1.5;
   word-wrap: break-word;
-  white-space: pre-wrap; // Preserves whitespace and line breaks
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
+  user-select: text;
 
-  // Style for markdown content
   ::ng-deep markdown {
     display: block;
 
-    // Reset whitespace handling for markdown
-    white-space: normal;
-
-    // Style markdown elements
     p {
       margin: 0 0 8px 0;
 
@@ -156,7 +139,6 @@
       background: rgba(0, 0, 0, 0.06);
       padding: 2px 6px;
       border-radius: 3px;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
       font-size: 13px;
     }
 
@@ -190,28 +172,6 @@
       color: rgba(0, 0, 0, 0.65);
     }
 
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-      margin: 12px 0 8px 0;
-      font-weight: 600;
-
-      &:first-child {
-        margin-top: 0;
-      }
-    }
-
-    strong {
-      font-weight: 600;
-    }
-
-    em {
-      font-style: italic;
-    }
-
     a {
       color: #1890ff;
       text-decoration: none;
@@ -223,14 +183,18 @@
   }
 }
 
-// Override styles for user messages with markdown
 .user-message .message-content ::ng-deep markdown {
   code {
     background: rgba(255, 255, 255, 0.2);
+    color: white;
   }
 
   pre {
     background: rgba(255, 255, 255, 0.15);
+
+    code {
+      color: white;
+    }
   }
 
   blockquote {

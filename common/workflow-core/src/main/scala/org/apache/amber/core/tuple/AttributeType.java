@@ -70,6 +70,7 @@ public enum AttributeType implements Serializable {
     BOOLEAN("boolean", Boolean.class),
     TIMESTAMP("timestamp", Timestamp.class),
     BINARY("binary", byte[].class),
+    BIG_OBJECT("big_object", BigObject.class),
     ANY("ANY", Object.class);
 
     private final String name;
@@ -109,6 +110,8 @@ public enum AttributeType implements Serializable {
             return TIMESTAMP;
         } else if (fieldClass.equals(byte[].class)) {
             return BINARY;
+        } else if (fieldClass.equals(BigObject.class)) {
+            return BIG_OBJECT;
         } else {
             return ANY;
         }

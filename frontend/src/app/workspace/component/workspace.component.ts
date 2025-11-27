@@ -287,4 +287,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }
+
+  public get copilotEnabled(): boolean {
+    return this.config.env.copilotEnabled;
+  }
 }

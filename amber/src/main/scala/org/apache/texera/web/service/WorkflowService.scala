@@ -46,6 +46,7 @@ import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
 }
 import org.apache.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.service.util.BigObjectManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -307,6 +308,7 @@ class WorkflowService(
     *  2. Clears URI references from the execution registry
     *  3. Safely clears all result and console message documents
     *  4. Expires Iceberg snapshots for runtime statistics
+    *  5. Deletes big objects from MinIO
     *
     * @param eid The execution identity to clean up resources for
     */
@@ -343,6 +345,7 @@ class WorkflowService(
           logger.debug(s"Error processing document at $uri: ${error.getMessage}")
       }
     }
+    // Delete big objects
+    BigObjectManager.deleteAllObjects()
   }
-
 }

@@ -78,7 +78,7 @@ services:
   # Part2: Specification of Texera's micro-services
   # FileService provides endpoints for Texera's dataset management
   file-service:
-    image: texera/file-service:single-node-release-1-0-0
+    image: apache/texera-file-service:latest
     container_name: texera-file-service
     restart: always
     depends_on:
@@ -96,7 +96,7 @@ services:
 
   # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
   workflow-compiling-service:
-    image: texera/workflow-compiling-service:single-node-release-1-0-0
+    image: apache/texera-workflow-compiling-service:latest
     container_name: texera-workflow-compiling-service
     restart: always
     depends_on:
@@ -113,7 +113,7 @@ services:
   # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
   computing-unit-master:
     # to enable R operators, change the image tag to single-node-release-1-0-0-R
-    image: texera/computing-unit-master:single-node-release-1-0-0
+    image: apache/texera-workflow-execution-coordinator:latest
     container_name: texera-computing-unit-master
     restart: always
     depends_on:
@@ -126,7 +126,7 @@ services:
 
   # TexeraWebApplication provides endpoints for hub resource management.
   texera-web-application:
-    image: texera/texera-web-application:single-node-release-1-0-0
+    image: apache/texera-dashboard-service:latest
     container_name: texera-web-application
     restart: always
     depends_on:
@@ -147,7 +147,7 @@ services:
       retries: 10
 
   texera-example-data-loader:
-    image: texera/texera-example-data-loader:single-node-release-1-0-0
+    image: apache/texera-example-data-loader:latest
     container_name: texera-example-data-loader
     depends_on:
       texera-web-application:
