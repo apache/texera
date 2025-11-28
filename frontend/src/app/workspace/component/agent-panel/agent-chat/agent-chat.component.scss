@@ -57,8 +57,8 @@
 
 // Timeline Styles
 .timeline-container {
-  width: 60px;
-  min-width: 60px;
+  width: 100px;
+  min-width: 100px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid #f0f0f0;
@@ -109,29 +109,29 @@
 
 .timeline-line {
   position: absolute;
-  left: 50%;
+  left: 24px;
   top: 0;
   bottom: 0;
   width: 2px;
   background: #d9d9d9;
-  transform: translateX(-50%);
   z-index: 0;
 }
 
 .timeline-node {
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   margin-bottom: 8px;
+  padding-left: 12px;
   z-index: 1;
   cursor: pointer;
   transition: transform 0.2s ease;
 
   &:hover,
   &.hovered {
-    transform: scale(1.1);
     .node-circle {
+      transform: scale(1.1);
       box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
     }
   }
@@ -139,6 +139,13 @@
   &.highlighted .node-circle {
     transform: scale(1.2);
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+  }
+
+  &.modify-node {
+    cursor: pointer;
+    &:hover .node-circle {
+      box-shadow: 0 0 10px rgba(250, 140, 22, 0.6);
+    }
   }
 
   .node-circle {
@@ -151,17 +158,26 @@
     justify-content: center;
     background: white;
     transition: all 0.2s ease;
+    flex-shrink: 0;
 
     .node-icon {
       font-size: 10px;
       color: white;
     }
   }
+
+  .node-label {
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
 }
 
 .timeline-arrow {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: 18px;
   margin-top: 4px;
   color: #d9d9d9;
   font-size: 14px;
@@ -332,6 +348,7 @@
   padding: 8px 12px;
   border-top: 1px solid #f0f0f0;
   background: #ffffff;
+  align-items: center;
 
   textarea {
     flex: 1;
@@ -339,6 +356,74 @@
 
   button {
     align-self: flex-end;
+  }
+
+  .preview-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #fff7e6;
+    border: 1px solid #ffd591;
+    border-radius: 4px;
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #fa8c16;
+      font-weight: 500;
+      font-size: 12px;
+
+      i {
+        font-size: 14px;
+      }
+    }
+
+    .preview-summary {
+      font-size: 12px;
+      color: #595959;
+      line-height: 1.4;
+    }
+
+    .preview-operations {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+
+      .op-badge {
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+
+        &.add {
+          background: #f6ffed;
+          color: #52c41a;
+          border: 1px solid #b7eb8f;
+        }
+
+        &.modify {
+          background: #e6f7ff;
+          color: #1890ff;
+          border: 1px solid #91d5ff;
+        }
+
+        &.delete {
+          background: #fff2f0;
+          color: #ff4d4f;
+          border: 1px solid #ffccc7;
+        }
+      }
+    }
+  }
+
+  .preview-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 }
 

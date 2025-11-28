@@ -95,6 +95,11 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public toolGroupConfigs = TOOL_GROUP_CONFIGS;
   public ToolGroup = ToolGroup;
 
+  // Action plan preview state (for timeline node clicks)
+  public isPreviewingActionPlan = false;
+  public previewingActionPlanId: string | null = null;
+  public previewingActionPlan: ActionPlan | null = null;
+
   constructor(
     private actionPlanService: ActionPlanService,
     private copilotManagerService: TexeraCopilotManagerService,
@@ -565,11 +570,14 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   /**
    * Handle mouse enter on timeline node.
+   * Scrolls chat to the corresponding message on hover.
    */
   public onTimelineNodeHover(node: TimelineNode): void {
     this.hoveredTimelineNodeId = node.id;
-    // Also highlight the corresponding message
+    // Highlight the corresponding message
     this.setHoveredMessage(node.stepIndex);
+    // Scroll chat to the message
+    this.scrollToMessage(node.stepIndex);
   }
 
   /**
@@ -618,5 +626,209 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   public getTimelineNodeIcon(node: TimelineNode): string {
     return getToolGroupConfig(node.toolGroup).icon;
+  }
+
+  /**
+   * Handle click on a timeline node.
+   * Shows action plan preview for Modify group nodes.
+   */
+  public onTimelineNodeClick(node: TimelineNode): void {
+    // For Modify group nodes, show the action plan preview
+    if (node.toolGroup === ToolGroup.MODIFY) {
+      this.showActionPlanPreviewForNode(node);
+    }
+  }
+
+  /**
+   * Scroll chat messages to a specific step index.
+   */
+  private scrollToMessage(stepIndex: number): void {
+    if (!this.messageContainer) {
+      return;
+    }
+
+    const container = this.messageContainer.nativeElement;
+    const messages = container.querySelectorAll(".message");
+
+    if (stepIndex >= 0 && stepIndex < messages.length) {
+      messages[stepIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  /**
+   * Show action plan preview for a Modify group timeline node.
+   * Finds the action plan associated with the tool call and displays diff preview.
+   */
+  private showActionPlanPreviewForNode(node: TimelineNode): void {
+    const step = this.agentResponses[node.stepIndex];
+    if (!step || !step.toolCalls || node.toolCallIndex >= step.toolCalls.length) {
+      console.log("[Timeline] No step or tool calls found for node", node);
+      return;
+    }
+
+    const toolCall = step.toolCalls[node.toolCallIndex];
+    const toolResult = step.toolResults?.[node.toolCallIndex];
+
+    console.log("[Timeline] Looking for action plan in tool call:", toolCall.toolName, { toolCall, toolResult, nodeTimestamp: node.timestamp });
+
+    // Try to extract action plan ID from the tool result
+    let actionPlanId: string | null = null;
+
+    if (toolResult) {
+      // Check if result contains action plan ID directly
+      if (typeof toolResult === "object" && toolResult.actionPlanId) {
+        actionPlanId = toolResult.actionPlanId;
+      } else if (typeof toolResult === "object" && toolResult.id) {
+        actionPlanId = toolResult.id;
+      } else if (typeof toolResult === "string") {
+        // Try to parse JSON result
+        try {
+          const parsed = JSON.parse(toolResult);
+          actionPlanId = parsed.actionPlanId || parsed.id;
+        } catch {
+          // Not JSON, check for ID pattern in string
+          const match = toolResult.match(/action-plan-[\w-]+/);
+          if (match) {
+            actionPlanId = match[0];
+          }
+        }
+      }
+    }
+
+    // Also check tool call input for action plan ID
+    if (!actionPlanId && toolCall.input) {
+      try {
+        const input = typeof toolCall.input === "string" ? JSON.parse(toolCall.input) : toolCall.input;
+        actionPlanId = input.actionPlanId || input.id;
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    // Fallback: Find action plan by matching timestamp (closest before or at the node timestamp)
+    if (!actionPlanId) {
+      const allPlans = this.actionPlanService.getAllActionPlans();
+      console.log("[Timeline] No action plan ID found, matching by timestamp. Plans:", allPlans.length);
+
+      if (allPlans.length > 0) {
+        const nodeTime = node.timestamp.getTime();
+
+        // Sort plans by creation time (oldest first)
+        const sortedPlans = [...allPlans].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+        // Find plans created before or at the node timestamp
+        const plansBeforeNode = sortedPlans.filter(p => p.createdAt.getTime() <= nodeTime);
+
+        if (plansBeforeNode.length > 0) {
+          // Get the latest plan that was created before or at the node timestamp
+          actionPlanId = plansBeforeNode[plansBeforeNode.length - 1].id;
+        } else {
+          // If no plans before, use the first (oldest) plan
+          actionPlanId = sortedPlans[0].id;
+        }
+
+        console.log("[Timeline] Found action plan by timestamp:", actionPlanId);
+      }
+    }
+
+    if (actionPlanId) {
+      console.log("[Timeline] Previewing action plan:", actionPlanId);
+      this.previewActionPlan(actionPlanId);
+    } else {
+      console.log("[Timeline] No action plan found to preview");
+      this.notificationService.warning("No action plan found for this operation");
+    }
+  }
+
+  /**
+   * Preview an action plan by ID.
+   * Shows the diff view and changes input area to Rollback/Cancel mode.
+   */
+  public previewActionPlan(actionPlanId: string): void {
+    const actionPlan = this.actionPlanService.getActionPlan(actionPlanId);
+    if (!actionPlan) {
+      this.notificationService.warning("Action plan not found");
+      return;
+    }
+
+    try {
+      // Show diff preview
+      this.actionPlanService.previewActionPlanDiff(actionPlanId);
+
+      // Set preview state
+      this.isPreviewingActionPlan = true;
+      this.previewingActionPlanId = actionPlanId;
+      this.previewingActionPlan = actionPlan;
+
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error("Failed to preview action plan:", err);
+      this.notificationService.error("Failed to preview action plan");
+    }
+  }
+
+  /**
+   * Rollback: Apply the after version of the action plan.
+   */
+  public onRollbackActionPlan(): void {
+    if (!this.previewingActionPlanId) {
+      return;
+    }
+
+    this.actionPlanService.setWorkflowToActionPlan(this.previewingActionPlanId, false);
+    this.clearActionPlanPreview();
+  }
+
+  /**
+   * Cancel: Clear preview and restore original workflow state.
+   */
+  public onCancelActionPlanPreview(): void {
+    if (!this.previewingActionPlanId) {
+      return;
+    }
+
+    // Restore to before version (cancel means don't apply changes)
+    this.actionPlanService.setWorkflowToActionPlan(this.previewingActionPlanId, true);
+    this.clearActionPlanPreview();
+  }
+
+  /**
+   * Clear the action plan preview state.
+   */
+  private clearActionPlanPreview(): void {
+    this.isPreviewingActionPlan = false;
+    this.previewingActionPlanId = null;
+    this.previewingActionPlan = null;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Get a summary of the action plan operations for display.
+   */
+  public getActionPlanOperationsSummary(): string {
+    if (!this.previewingActionPlan) {
+      return "";
+    }
+
+    const ops = this.previewingActionPlan.operations;
+    const parts: string[] = [];
+
+    if (ops.add.operatorIds.length > 0) {
+      parts.push(`+${ops.add.operatorIds.length} op`);
+    }
+    if (ops.add.linkIds.length > 0) {
+      parts.push(`+${ops.add.linkIds.length} link`);
+    }
+    if (ops.modify.operatorIds.length > 0) {
+      parts.push(`~${ops.modify.operatorIds.length} op`);
+    }
+    if (ops.delete.operatorIds.length > 0) {
+      parts.push(`-${ops.delete.operatorIds.length} op`);
+    }
+    if (ops.delete.linkIds.length > 0) {
+      parts.push(`-${ops.delete.linkIds.length} link`);
+    }
+
+    return parts.join(", ");
   }
 }

@@ -124,6 +124,8 @@
           class="timeline-node"
           [class.highlighted]="isNodeHighlighted(node)"
           [class.hovered]="hoveredTimelineNodeId === node.id"
+          [class.modify-node]="node.toolGroup === ToolGroup.MODIFY"
+          (click)="onTimelineNodeClick(node)"
           (mouseenter)="onTimelineNodeHover(node)"
           (mouseleave)="onTimelineNodeLeave()"
           nz-tooltip
@@ -131,6 +133,7 @@
           <div class="node-circle" [style.background-color]="node.color" [style.border-color]="node.color">
             <i nz-icon [nzType]="getTimelineNodeIcon(node)" nzTheme="outline" class="node-icon"></i>
           </div>
+          <span class="node-label" [style.color]="node.color">{{ toolGroupConfigs[node.toolGroup].group }}</span>
         </div>
         <!-- Downward arrow at the end -->
         <div class="timeline-arrow">
@@ -255,8 +258,58 @@
 
     <!-- Input Area -->
     <div class="input-area">
+      <!-- Action Plan Preview state (from timeline node click) -->
+      <ng-container *ngIf="isPreviewingActionPlan && previewingActionPlan">
+        <div class="preview-details">
+          <div class="preview-header">
+            <i nz-icon nzType="eye" nzTheme="outline"></i>
+            <span class="preview-title">Action Plan Preview</span>
+          </div>
+          <div class="preview-summary">{{ previewingActionPlan.summary }}</div>
+          <div class="preview-operations">
+            <span *ngIf="previewingActionPlan.operations.add.operatorIds.length > 0" class="op-badge add">
+              +{{ previewingActionPlan.operations.add.operatorIds.length }} operators
+            </span>
+            <span *ngIf="previewingActionPlan.operations.add.linkIds.length > 0" class="op-badge add">
+              +{{ previewingActionPlan.operations.add.linkIds.length }} links
+            </span>
+            <span *ngIf="previewingActionPlan.operations.modify.operatorIds.length > 0" class="op-badge modify">
+              ~{{ previewingActionPlan.operations.modify.operatorIds.length }} modified
+            </span>
+            <span *ngIf="previewingActionPlan.operations.delete.operatorIds.length > 0" class="op-badge delete">
+              -{{ previewingActionPlan.operations.delete.operatorIds.length }} operators
+            </span>
+            <span *ngIf="previewingActionPlan.operations.delete.linkIds.length > 0" class="op-badge delete">
+              -{{ previewingActionPlan.operations.delete.linkIds.length }} links
+            </span>
+          </div>
+        </div>
+        <div class="preview-actions">
+          <button
+            nz-button
+            nzType="primary"
+            nzSize="small"
+            (click)="onRollbackActionPlan()"
+            nz-tooltip
+            nzTooltipTitle="Apply this version to the workflow">
+            <i nz-icon nzType="check" nzTheme="outline"></i>
+            Apply
+          </button>
+          <button
+            nz-button
+            nzType="default"
+            nzSize="small"
+            (click)="onCancelActionPlanPreview()"
+            nz-tooltip
+            nzTooltipTitle="Cancel preview and restore original">
+            <i nz-icon nzType="close" nzTheme="outline"></i>
+            Cancel
+          </button>
+        </div>
+      </ng-container>
+
       <!-- Normal input state -->
-      <ng-container *ngIf="!isWaitingForActionPlanApproval">
+      <ng-container *ngIf="!isWaitingForActionPlanApproval && !isPreviewingActionPlan">
         <textarea
           #messageInput
           nz-input
@@ -289,7 +342,7 @@
       </ng-container>
 
       <!-- Action Plan Approval state -->
-      <ng-container *ngIf="isWaitingForActionPlanApproval">
+      <ng-container *ngIf="isWaitingForActionPlanApproval && !isPreviewingActionPlan">
         <textarea
           nz-input
           [(ngModel)]="currentMessage"
