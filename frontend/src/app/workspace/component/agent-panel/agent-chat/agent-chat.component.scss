@@ -48,18 +48,142 @@
   flex-shrink: 0;
 }
 
-.chat-toolbar-buttons {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  margin-left: 8px;
-}
-
 .chat-content-wrapper {
   flex: 1;
   overflow: hidden;
   display: flex;
+  flex-direction: row;
+}
+
+// Timeline Styles
+.timeline-container {
+  width: 60px;
+  min-width: 60px;
+  display: flex;
   flex-direction: column;
+  border-right: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.timeline-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 6px;
+  border-bottom: 1px solid #f0f0f0;
+  background: white;
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-label {
+      font-size: 9px;
+      color: #8c8c8c;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+.timeline-track {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding: 12px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.timeline-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #d9d9d9;
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
+.timeline-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+  z-index: 1;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover,
+  &.hovered {
+    transform: scale(1.1);
+    .node-circle {
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  &.highlighted .node-circle {
+    transform: scale(1.2);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .node-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    transition: all 0.2s ease;
+
+    .node-icon {
+      font-size: 10px;
+      color: white;
+    }
+  }
+}
+
+.timeline-arrow {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+  color: #d9d9d9;
+  font-size: 14px;
+}
+
+.timeline-track:has(.timeline-node.highlighted) {
+  .timeline-node:not(.highlighted) {
+    opacity: 0.4;
+    &:hover,
+    &.hovered {
+      opacity: 1;
+    }
+  }
+}
+
+// Main chat column (messages + input)
+.chat-main-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .messages-container {
@@ -79,7 +203,6 @@
 
   &.user-message {
     align-self: flex-end;
-
     .message-content {
       background: #1890ff;
       color: white;
@@ -88,18 +211,15 @@
 
   &.ai-message {
     align-self: flex-start;
-
     .message-content {
       background: #f5f5f5;
       color: #262626;
     }
   }
 
-  &.loading-message {
-    .message-content {
-      background: #e6f7ff;
-      border: 1px solid #91d5ff;
-    }
+  &.loading-message .message-content {
+    background: #e6f7ff;
+    border: 1px solid #91d5ff;
   }
 }
 
@@ -129,7 +249,6 @@
 
     p {
       margin: 0 0 8px 0;
-
       &:last-child {
         margin-bottom: 0;
       }
@@ -148,7 +267,6 @@
       border-radius: 4px;
       overflow-x: auto;
       margin: 8px 0;
-
       code {
         background: transparent;
         padding: 0;
@@ -175,7 +293,6 @@
     a {
       color: #1890ff;
       text-decoration: none;
-
       &:hover {
         text-decoration: underline;
       }
@@ -191,7 +308,6 @@
 
   pre {
     background: rgba(255, 255, 255, 0.15);
-
     code {
       color: white;
     }
@@ -204,7 +320,6 @@
 
   a {
     color: #e6f7ff;
-
     &:hover {
       color: white;
     }

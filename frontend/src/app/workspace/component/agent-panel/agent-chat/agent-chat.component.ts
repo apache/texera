@@ -27,6 +27,8 @@ import {
   AfterViewChecked,
   ChangeDetectorRef,
   ChangeDetectionStrategy,
+  QueryList,
+  ViewChildren,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
@@ -35,6 +37,27 @@ import { ActionPlan, ActionPlanService } from "../../../service/action-plan/acti
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import {
+  ToolGroup,
+  TOOL_GROUP_CONFIGS,
+  getToolGroup,
+  getToolColor,
+  getToolGroupConfig,
+} from "../../../service/copilot/tool/tool-groups";
+
+/**
+ * Represents a single node in the tool call timeline.
+ */
+export interface TimelineNode {
+  id: string;
+  toolName: string;
+  toolGroup: ToolGroup;
+  color: string;
+  stepIndex: number;
+  toolCallIndex: number;
+  messageId: string;
+  timestamp: Date;
+}
 
 @UntilDestroy()
 @Component({
@@ -46,6 +69,8 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   @Input() agentInfo!: AgentInfo;
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
+  @ViewChild("timelineContainer", { static: false }) timelineContainer?: ElementRef;
+  @ViewChildren("timelineNode") timelineNodeElements?: QueryList<ElementRef>;
 
   public agentResponses: ReActStep[] = [];
   public currentMessage = "";
@@ -63,6 +88,12 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public messageStats: CopilotMessageStats[] = [];
   public isWaitingForActionPlanApproval = false;
   public pendingActionPlanId?: string;
+
+  // Timeline-related properties
+  public timelineNodes: TimelineNode[] = [];
+  public hoveredTimelineNodeId: string | null = null;
+  public toolGroupConfigs = TOOL_GROUP_CONFIGS;
+  public ToolGroup = ToolGroup;
 
   constructor(
     private actionPlanService: ActionPlanService,
@@ -107,6 +138,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         const previousLength = this.agentResponses.length;
         this.agentResponses = steps;
         this.shouldScrollToBottom = true;
+
+        // Rebuild timeline nodes whenever responses change
+        this.buildTimelineNodes();
 
         // Automatically highlight the latest ReAct step
         if (steps.length > 0) {
@@ -189,6 +223,11 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Notify the copilot service about the hovered message
     const hoveredStep = index !== null && index >= 0 ? this.agentResponses[index] : null;
     this.copilotManagerService.setHoveredMessage(this.agentInfo.id, hoveredStep);
+
+    // Scroll timeline to show the highlighted nodes
+    if (index !== null) {
+      this.scrollTimelineToStep(index);
+    }
   }
 
   public showResponseDetails(response: ReActStep): void {
@@ -471,5 +510,113 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Send message via manager service
     this.copilotManagerService.sendMessage(this.agentInfo.id, message);
     this.currentMessage = "";
+  }
+
+  // =====================
+  // Timeline Methods
+  // =====================
+
+  /**
+   * Build timeline nodes from agent responses.
+   * Each tool call becomes a node in the timeline.
+   */
+  private buildTimelineNodes(): void {
+    const nodes: TimelineNode[] = [];
+
+    this.agentResponses.forEach((step, stepIndex) => {
+      if (step.toolCalls && step.toolCalls.length > 0) {
+        step.toolCalls.forEach((toolCall, toolCallIndex) => {
+          const toolName = toolCall.toolName || "unknown";
+          const toolGroup = getToolGroup(toolName);
+          const node: TimelineNode = {
+            id: `${step.messageId}-${stepIndex}-${toolCallIndex}`,
+            toolName,
+            toolGroup,
+            color: getToolColor(toolName),
+            stepIndex,
+            toolCallIndex,
+            messageId: step.messageId,
+            timestamp: step.timestamp,
+          };
+          nodes.push(node);
+        });
+      }
+    });
+
+    this.timelineNodes = nodes;
+  }
+
+  /**
+   * Get timeline nodes for a specific step index.
+   */
+  public getTimelineNodesForStep(stepIndex: number): TimelineNode[] {
+    return this.timelineNodes.filter(node => node.stepIndex === stepIndex);
+  }
+
+  /**
+   * Check if a timeline node belongs to the currently hovered message.
+   */
+  public isNodeHighlighted(node: TimelineNode): boolean {
+    if (this.hoveredMessageIndex === null) {
+      return false;
+    }
+    return node.stepIndex === this.hoveredMessageIndex;
+  }
+
+  /**
+   * Handle mouse enter on timeline node.
+   */
+  public onTimelineNodeHover(node: TimelineNode): void {
+    this.hoveredTimelineNodeId = node.id;
+    // Also highlight the corresponding message
+    this.setHoveredMessage(node.stepIndex);
+  }
+
+  /**
+   * Handle mouse leave on timeline node.
+   */
+  public onTimelineNodeLeave(): void {
+    this.hoveredTimelineNodeId = null;
+  }
+
+  /**
+   * Scroll timeline to show nodes for the hovered message.
+   */
+  private scrollTimelineToStep(stepIndex: number): void {
+    if (!this.timelineContainer || !this.timelineNodeElements) {
+      return;
+    }
+
+    // Find the first node for this step
+    const nodesForStep = this.getTimelineNodesForStep(stepIndex);
+    if (nodesForStep.length === 0) {
+      return;
+    }
+
+    const nodeIndex = this.timelineNodes.findIndex(n => n.stepIndex === stepIndex);
+    if (nodeIndex === -1) {
+      return;
+    }
+
+    const nodeElements = this.timelineNodeElements.toArray();
+    if (nodeIndex < nodeElements.length) {
+      const element = nodeElements[nodeIndex].nativeElement;
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  /**
+   * Get the tooltip text for a timeline node.
+   */
+  public getTimelineNodeTooltip(node: TimelineNode): string {
+    const groupConfig = getToolGroupConfig(node.toolGroup);
+    return `${node.toolName}\nGroup: ${groupConfig.group}\nStep: ${node.stepIndex}`;
+  }
+
+  /**
+   * Get the icon for a timeline node based on its group.
+   */
+  public getTimelineNodeIcon(node: TimelineNode): string {
+    return getToolGroupConfig(node.toolGroup).icon;
   }
 }
