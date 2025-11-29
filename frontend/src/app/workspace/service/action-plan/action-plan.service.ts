@@ -37,6 +37,14 @@ export interface ActionPlanHighlight {
 }
 
 /**
+ * Preview state for action plans - unified for both planning mode and timeline review
+ */
+export interface ActionPlanPreviewState {
+  actionPlan: ActionPlan;
+  isPending: boolean; // true = waiting for accept/reject, false = reviewing historical (apply/cancel)
+}
+
+/**
  * Diff structure for operators (reusing workflow-version.service structure)
  */
 type DifferentOpIDsList = {
@@ -101,7 +109,9 @@ export class ActionPlanService {
   // Action plan storage
   private actionPlans = new Map<string, ActionPlan>();
   private actionPlansSubject = new BehaviorSubject<ActionPlan[]>([]);
-  private pendingActionPlanSubject = new BehaviorSubject<ActionPlan | null>(null);
+
+  // Unified preview state - replaces the separate pending and preview states
+  private previewStateSubject = new BehaviorSubject<ActionPlanPreviewState | null>(null);
 
   // Diff preview state
   private currentDiff: DifferentOpIDsList | null = null;
@@ -111,7 +121,7 @@ export class ActionPlanService {
     private undoRedoService: UndoRedoService,
     private workflowPersistService: WorkflowPersistService,
     private workflowActionService: WorkflowActionService
-) {}
+  ) {}
 
   /**
    * Get action plan highlight stream
@@ -135,10 +145,25 @@ export class ActionPlanService {
   }
 
   /**
-   * Get pending action plan stream (for showing in agent chat)
+   * Get the unified preview state stream.
+   * Emits when an action plan is being previewed (either pending or historical).
    */
-  public getPendingActionPlanStream(): Observable<ActionPlan | null> {
-    return this.pendingActionPlanSubject.asObservable();
+  public getPreviewStateStream(): Observable<ActionPlanPreviewState | null> {
+    return this.previewStateSubject.asObservable();
+  }
+
+  /**
+   * Get the current preview state (synchronous access)
+   */
+  public getPreviewState(): ActionPlanPreviewState | null {
+    return this.previewStateSubject.getValue();
+  }
+
+  /**
+   * Check if currently in preview mode
+   */
+  public isPreviewActive(): boolean {
+    return this.previewStateSubject.getValue() !== null;
   }
 
   /**
@@ -190,11 +215,57 @@ export class ActionPlanService {
     this.actionPlans.set(id, actionPlan);
     this.emitActionPlans();
 
-    // Emit to pending stream immediately since we have all the data
-    console.log(`[ActionPlanService] Action plan created with workflow contents, emitting to pending stream: ${id}`);
-    this.pendingActionPlanSubject.next(actionPlan);
+    console.log(`[ActionPlanService] Action plan created: ${id}`);
 
     return actionPlan;
+  }
+
+  /**
+   * Start previewing an action plan as a pending plan (accept/reject mode).
+   * This is called in planning mode when a new action plan is created.
+   */
+  public startPendingPreview(actionPlanId: string): void {
+    const actionPlan = this.actionPlans.get(actionPlanId);
+    if (!actionPlan) {
+      console.error(`Action plan ${actionPlanId} not found`);
+      return;
+    }
+
+    this.previewActionPlanDiffInternal(actionPlan);
+    this.previewStateSubject.next({ actionPlan, isPending: true });
+    console.log(`[ActionPlanService] Started pending preview for action plan: ${actionPlanId}`);
+  }
+
+  /**
+   * Start previewing an action plan as historical (apply/cancel mode).
+   * This is called when clicking on a timeline node.
+   */
+  public startHistoricalPreview(actionPlanId: string): void {
+    const actionPlan = this.actionPlans.get(actionPlanId);
+    if (!actionPlan) {
+      console.error(`Action plan ${actionPlanId} not found`);
+      return;
+    }
+
+    this.previewActionPlanDiffInternal(actionPlan);
+    this.previewStateSubject.next({ actionPlan, isPending: false });
+    console.log(`[ActionPlanService] Started historical preview for action plan: ${actionPlanId}`);
+  }
+
+  /**
+   * Clear the current preview and optionally apply changes.
+   * @param accept If true, apply the after version; if false, restore the before version.
+   */
+  public endPreview(accept: boolean): void {
+    const previewState = this.previewStateSubject.getValue();
+    if (!previewState) {
+      console.warn("[ActionPlanService] No active preview to end");
+      return;
+    }
+
+    this.setWorkflowToActionPlanInternal(previewState.actionPlan, !accept);
+    this.previewStateSubject.next(null);
+    console.log(`[ActionPlanService] Ended preview, accept=${accept}`);
   }
 
   /**
@@ -231,21 +302,13 @@ export class ActionPlanService {
     this.actionPlansSubject.next(this.getAllActionPlans());
   }
 
-  // ===== DIFF PREVIEW METHODS (using workflow-version.service) =====
+  // ===== DIFF PREVIEW INTERNAL METHODS =====
 
   /**
-   * Preview action plan diff by action plan ID.
-   * Displays the AFTER content on canvas (user sees proposed final result)
-   * with highlights showing what changed from BEFORE.
-   *
-   * @param actionPlanId Action plan ID
+   * Internal method to display action plan diff on canvas.
+   * Displays the AFTER content with highlights showing what changed from BEFORE.
    */
-  public previewActionPlanDiff(actionPlanId: string): void {
-    const actionPlan = this.actionPlans.get(actionPlanId);
-    if (!actionPlan) {
-      throw new Error(`Action plan ${actionPlanId} not found`);
-    }
-
+  private previewActionPlanDiffInternal(actionPlan: ActionPlan): void {
     // Calculate diff between BEFORE and AFTER
     const diff = this.workflowVersionService.getWorkflowsDifference(
       actionPlan.beforeWorkflowContent,
@@ -274,19 +337,10 @@ export class ActionPlanService {
   }
 
   /**
-   * Set workflow to either before or after state of an action plan.
+   * Internal method to set workflow to either before or after state.
    * Clears highlights, reloads the specified version, and enables modifications.
-   *
-   * @param actionPlanId Action plan ID
-   * @param isBefore If true, loads before version; if false, loads after version
    */
-  public setWorkflowToActionPlan(actionPlanId: string, isBefore: boolean): void {
-    const actionPlan = this.actionPlans.get(actionPlanId);
-    if (!actionPlan) {
-      console.error(`Action plan ${actionPlanId} not found`);
-      return;
-    }
-
+  private setWorkflowToActionPlanInternal(actionPlan: ActionPlan, isBefore: boolean): void {
     // Clear highlights
     if (this.currentDiff) {
       this.workflowVersionService.unhighlightOpVersionDiff(this.currentDiff);
@@ -317,6 +371,6 @@ export class ActionPlanService {
     // Restore modification state
     this.workflowVersionService.restoreModificationState();
 
-    console.log(`Action plan ${isBefore ? 'rejected - before' : 'accepted - after'} version reloaded`);
+    console.log(`Action plan ${isBefore ? "rejected - before" : "accepted - after"} version reloaded`);
   }
 }

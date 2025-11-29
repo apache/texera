@@ -314,7 +314,7 @@ export class TexeraCopilot {
                 // Replace escaped newlines and quotes that are incorrectly double-escaped
                 let repaired = rawInput
                   .replace(/\\\\n/g, "\\n") // \\n -> \n
-                  .replace(/\\\\"/g, '\\"') // \\" -> \"
+                  .replace(/\\\\"/g, "\\\"") // \\" -> \"
                   .replace(/\\\\t/g, "\\t"); // \\t -> \t
 
                 const parsed = JSON.parse(repaired);
@@ -372,11 +372,10 @@ export class TexeraCopilot {
                   // Stop generation after this step to wait for user approval
                   this.shouldStopAfterActionPlan = true;
 
-                  // Emit blocking state
-                  this.actionPlanApprovalSubject.next({
-                    isWaitingForApproval: true,
-                    actionPlanId: actionPlanId,
-                  });
+                  // Start pending preview in the action plan service
+                  if (actionPlanId) {
+                    this.actionPlanService.startPendingPreview(actionPlanId);
+                  }
                 }
               }
 

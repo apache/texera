@@ -1,0 +1,61 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="inline-property-panel">
+  <div class="property-panel-header">
+    <i
+      nz-icon
+      [nzType]="operatorIcon"
+      nzTheme="outline"></i>
+    <span class="display-name">{{ displayName }}</span>
+    <button
+      class="close-btn"
+      (click)="onClose()"
+      title="Close panel">
+      <i
+        nz-icon
+        nzType="close"
+        nzTheme="outline"></i>
+    </button>
+  </div>
+  <div class="property-list">
+    <div
+      *ngFor="let prop of properties"
+      class="property-item">
+      <span class="property-label">
+        <i
+          *ngIf="prop.icon"
+          nz-icon
+          [nzType]="prop.icon"
+          nzTheme="outline"></i>
+        {{ prop.label }}:
+      </span>
+      <span
+        class="property-value"
+        [title]="prop.value">
+        {{ prop.value }}
+      </span>
+    </div>
+    <div
+      *ngIf="properties.length === 0"
+      class="no-properties">
+      No properties
+    </div>
+  </div>
+</div>

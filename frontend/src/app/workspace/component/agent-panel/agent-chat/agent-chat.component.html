@@ -103,13 +103,17 @@
   <!-- Custom Chat Interface -->
   <div class="chat-content-wrapper">
     <!-- Tool Call Timeline (Git-like vertical axis) -->
-    <div #timelineContainer class="timeline-container">
+    <div
+      #timelineContainer
+      class="timeline-container">
       <!-- Timeline Legend -->
       <div class="timeline-legend">
         <div
           class="legend-item"
           *ngFor="let group of [ToolGroup.OBSERVE, ToolGroup.EXECUTE, ToolGroup.MODIFY, ToolGroup.RECORD]">
-          <span class="legend-dot" [style.background-color]="toolGroupConfigs[group].color"></span>
+          <span
+            class="legend-dot"
+            [style.background-color]="toolGroupConfigs[group].color"></span>
           <span class="legend-label">{{ toolGroupConfigs[group].group }}</span>
         </div>
       </div>
@@ -130,14 +134,28 @@
           (mouseleave)="onTimelineNodeLeave()"
           nz-tooltip
           [nzTooltipTitle]="getTimelineNodeTooltip(node)">
-          <div class="node-circle" [style.background-color]="node.color" [style.border-color]="node.color">
-            <i nz-icon [nzType]="getTimelineNodeIcon(node)" nzTheme="outline" class="node-icon"></i>
+          <div
+            class="node-circle"
+            [style.background-color]="node.color"
+            [style.border-color]="node.color">
+            <i
+              nz-icon
+              [nzType]="getTimelineNodeIcon(node)"
+              nzTheme="outline"
+              class="node-icon"></i>
           </div>
-          <span class="node-label" [style.color]="node.color">{{ toolGroupConfigs[node.toolGroup].group }}</span>
+          <span
+            class="node-label"
+            [style.color]="node.color"
+            >{{ toolGroupConfigs[node.toolGroup].group }}</span
+          >
         </div>
         <!-- Downward arrow at the end -->
         <div class="timeline-arrow">
-          <i nz-icon nzType="arrow-down" nzTheme="outline"></i>
+          <i
+            nz-icon
+            nzType="arrow-down"
+            nzTheme="outline"></i>
         </div>
       </div>
     </div>
@@ -145,236 +163,233 @@
     <!-- Messages and Input Column -->
     <div class="chat-main-column">
       <!-- Messages List -->
-      <div #messageContainer class="messages-container">
       <div
-        *ngFor="let response of agentResponses; let i = index"
-        class="message"
-        [class.user-message]="response.role === 'user'"
-        [class.ai-message]="response.role === 'agent'">
-        <!-- Show header for user messages or when isBegin is true for agent messages -->
+        #messageContainer
+        class="messages-container">
         <div
-          class="message-header"
-          *ngIf="response.role === 'user' || response.isBegin">
-          <i
-            nz-icon
-            [nzType]="response.role === 'user' ? 'user' : 'robot'"
-            nzTheme="outline"></i>
-          <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
-        </div>
-
-        <!-- Message content with hover button -->
-        <div
-          class="message-content"
-          (mouseenter)="setHoveredMessage(i)"
-          (mouseleave)="setHoveredMessage(null)"
-          style="position: relative">
-          <!-- Step ID badge at top-left corner -->
+          *ngFor="let response of agentResponses; let i = index"
+          class="message"
+          [class.user-message]="response.role === 'user'"
+          [class.ai-message]="response.role === 'agent'">
+          <!-- Show header for user messages or when isBegin is true for agent messages -->
           <div
-            style="
-              position: absolute;
-              top: -8px;
-              left: -8px;
-              background: #1890ff;
-              color: white;
-              font-size: 11px;
-              font-weight: 500;
-              padding: 2px 6px;
-              border-radius: 10px;
-              font-family: monospace;
-              z-index: 1;
-            "
-            nz-tooltip
-            [nzTooltipTitle]="'Message ID: ' + response.messageId + ' | Step ID: ' + response.stepId">
-            {{ response.stepId }}
-          </div>
-
-          <div
-            *ngIf="response.content"
-            class="message-content">
-            <markdown [data]="response.content"></markdown>
-          </div>
-          <div
-            *ngIf="response.toolCalls && response.toolCalls.length > 0"
-            style="color: #8c8c8c; font-style: italic">
-            Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
-          </div>
-
-          <!-- Details button (shown on hover) - only for agent messages with details -->
-          <button
-            *ngIf="response.role === 'agent' && hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
-            nz-button
-            nzType="text"
-            nzSize="small"
-            (click)="showResponseDetails(response)"
-            style="position: absolute; top: 0; right: 0; opacity: 0.7"
-            nz-tooltip
-            nzTooltipTitle="View details">
+            class="message-header"
+            *ngIf="response.role === 'user' || response.isBegin">
             <i
               nz-icon
-              nzType="info-circle"
+              [nzType]="response.role === 'user' ? 'user' : 'robot'"
               nzTheme="outline"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Loading indicator -->
-      <div
-        *ngIf="isGenerating()"
-        class="message ai-message loading-message">
-        <div class="message-header">
-          <i
-            nz-icon
-            nzType="robot"
-            nzTheme="outline"></i>
-          <span class="message-role">{{ agentInfo.name }}</span>
-        </div>
-        <div class="message-content">
-          <nz-spin
-            nzSimple
-            nzSize="small"></nz-spin>
-          <span style="margin-left: 8px">Thinking...</span>
-        </div>
-      </div>
-
-      <!-- Stopping indicator -->
-      <div
-        *ngIf="isStopping()"
-        class="message ai-message loading-message">
-        <div class="message-header">
-          <i
-            nz-icon
-            nzType="robot"
-            nzTheme="outline"></i>
-          <span class="message-role">{{ agentInfo.name }}</span>
-        </div>
-        <div class="message-content">
-          <nz-spin
-            nzSimple
-            nzSize="small"></nz-spin>
-          <span style="margin-left: 8px">Stopping...</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Input Area -->
-    <div class="input-area">
-      <!-- Action Plan Preview state (from timeline node click) -->
-      <ng-container *ngIf="isPreviewingActionPlan && previewingActionPlan">
-        <div class="preview-details">
-          <div class="preview-header">
-            <i nz-icon nzType="eye" nzTheme="outline"></i>
-            <span class="preview-title">Action Plan Preview</span>
+            <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
           </div>
-          <div class="preview-summary">{{ previewingActionPlan.summary }}</div>
-          <div class="preview-operations">
-            <span *ngIf="previewingActionPlan.operations.add.operatorIds.length > 0" class="op-badge add">
-              +{{ previewingActionPlan.operations.add.operatorIds.length }} operators
-            </span>
-            <span *ngIf="previewingActionPlan.operations.add.linkIds.length > 0" class="op-badge add">
-              +{{ previewingActionPlan.operations.add.linkIds.length }} links
-            </span>
-            <span *ngIf="previewingActionPlan.operations.modify.operatorIds.length > 0" class="op-badge modify">
-              ~{{ previewingActionPlan.operations.modify.operatorIds.length }} modified
-            </span>
-            <span *ngIf="previewingActionPlan.operations.delete.operatorIds.length > 0" class="op-badge delete">
-              -{{ previewingActionPlan.operations.delete.operatorIds.length }} operators
-            </span>
-            <span *ngIf="previewingActionPlan.operations.delete.linkIds.length > 0" class="op-badge delete">
-              -{{ previewingActionPlan.operations.delete.linkIds.length }} links
-            </span>
+
+          <!-- Message content with hover button -->
+          <div
+            class="message-content"
+            (mouseenter)="setHoveredMessage(i)"
+            (mouseleave)="setHoveredMessage(null)"
+            style="position: relative">
+            <!-- Step ID badge at top-left corner -->
+            <div
+              style="
+                position: absolute;
+                top: -8px;
+                left: -8px;
+                background: #1890ff;
+                color: white;
+                font-size: 11px;
+                font-weight: 500;
+                padding: 2px 6px;
+                border-radius: 10px;
+                font-family: monospace;
+                z-index: 1;
+              "
+              nz-tooltip
+              [nzTooltipTitle]="'Message ID: ' + response.messageId + ' | Step ID: ' + response.stepId">
+              {{ response.stepId }}
+            </div>
+
+            <div
+              *ngIf="response.content"
+              class="message-content">
+              <markdown [data]="response.content"></markdown>
+            </div>
+            <div
+              *ngIf="response.toolCalls && response.toolCalls.length > 0"
+              style="color: #8c8c8c; font-style: italic">
+              Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
+            </div>
+
+            <!-- Details button (shown on hover) - only for agent messages with details -->
+            <button
+              *ngIf="response.role === 'agent' && hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
+              nz-button
+              nzType="text"
+              nzSize="small"
+              (click)="showResponseDetails(response)"
+              style="position: absolute; top: 0; right: 0; opacity: 0.7"
+              nz-tooltip
+              nzTooltipTitle="View details">
+              <i
+                nz-icon
+                nzType="info-circle"
+                nzTheme="outline"></i>
+            </button>
           </div>
         </div>
-        <div class="preview-actions">
+
+        <!-- Loading indicator -->
+        <div
+          *ngIf="isGenerating()"
+          class="message ai-message loading-message">
+          <div class="message-header">
+            <i
+              nz-icon
+              nzType="robot"
+              nzTheme="outline"></i>
+            <span class="message-role">{{ agentInfo.name }}</span>
+          </div>
+          <div class="message-content">
+            <nz-spin
+              nzSimple
+              nzSize="small"></nz-spin>
+            <span style="margin-left: 8px">Thinking...</span>
+          </div>
+        </div>
+
+        <!-- Stopping indicator -->
+        <div
+          *ngIf="isStopping()"
+          class="message ai-message loading-message">
+          <div class="message-header">
+            <i
+              nz-icon
+              nzType="robot"
+              nzTheme="outline"></i>
+            <span class="message-role">{{ agentInfo.name }}</span>
+          </div>
+          <div class="message-content">
+            <nz-spin
+              nzSimple
+              nzSize="small"></nz-spin>
+            <span style="margin-left: 8px">Stopping...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-area">
+        <!-- Unified Action Plan Preview state -->
+        <ng-container *ngIf="previewState">
+          <div class="preview-details">
+            <div class="preview-header">
+              <i
+                nz-icon
+                [nzType]="previewState.isPending ? 'bulb' : 'eye'"
+                nzTheme="outline"></i>
+              <span class="preview-title"
+                >{{ previewState.isPending ? 'Pending Action Plan' : 'Action Plan Preview' }}</span
+              >
+            </div>
+            <div class="preview-summary">{{ previewState.actionPlan.summary }}</div>
+            <div class="preview-operations">
+              <span
+                *ngIf="previewState.actionPlan.operations.add.operatorIds.length > 0"
+                class="op-badge add">
+                +{{ previewState.actionPlan.operations.add.operatorIds.length }} operators
+              </span>
+              <span
+                *ngIf="previewState.actionPlan.operations.add.linkIds.length > 0"
+                class="op-badge add">
+                +{{ previewState.actionPlan.operations.add.linkIds.length }} links
+              </span>
+              <span
+                *ngIf="previewState.actionPlan.operations.modify.operatorIds.length > 0"
+                class="op-badge modify">
+                ~{{ previewState.actionPlan.operations.modify.operatorIds.length }} modified
+              </span>
+              <span
+                *ngIf="previewState.actionPlan.operations.delete.operatorIds.length > 0"
+                class="op-badge delete">
+                -{{ previewState.actionPlan.operations.delete.operatorIds.length }} operators
+              </span>
+              <span
+                *ngIf="previewState.actionPlan.operations.delete.linkIds.length > 0"
+                class="op-badge delete">
+                -{{ previewState.actionPlan.operations.delete.linkIds.length }} links
+              </span>
+            </div>
+          </div>
+          <!-- Feedback textarea for pending mode -->
+          <textarea
+            *ngIf="previewState.isPending"
+            nz-input
+            [(ngModel)]="currentMessage"
+            placeholder="Provide feedback (optional)..."
+            [nzAutosize]="{ minRows: 1, maxRows: 2 }"></textarea>
+          <div class="preview-actions">
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="small"
+              (click)="onAcceptActionPlan()"
+              nz-tooltip
+              [nzTooltipTitle]="previewState.isPending ? 'Accept the action plan and proceed' : 'Apply this version to the workflow'">
+              <i
+                nz-icon
+                nzType="check"
+                nzTheme="outline"></i>
+              {{ previewState.isPending ? 'Accept' : 'Apply' }}
+            </button>
+            <button
+              nz-button
+              nzType="default"
+              nzSize="small"
+              [nzDanger]="previewState.isPending"
+              (click)="onRejectActionPlan()"
+              nz-tooltip
+              [nzTooltipTitle]="previewState.isPending ? 'Reject the action plan' : 'Cancel preview and restore original'">
+              <i
+                nz-icon
+                nzType="close"
+                nzTheme="outline"></i>
+              {{ previewState.isPending ? 'Reject' : 'Cancel' }}
+            </button>
+          </div>
+        </ng-container>
+
+        <!-- Normal input state -->
+        <ng-container *ngIf="!previewState">
+          <textarea
+            #messageInput
+            nz-input
+            [(ngModel)]="currentMessage"
+            placeholder="Ask me anything about workflows..."
+            [nzAutosize]="{ minRows: 1, maxRows: 4 }"
+            (keydown.enter)="onEnterPress($any($event))"
+            [disabled]="!canSendMessage()"></textarea>
           <button
             nz-button
             nzType="primary"
-            nzSize="small"
-            (click)="onRollbackActionPlan()"
-            nz-tooltip
-            nzTooltipTitle="Apply this version to the workflow">
-            <i nz-icon nzType="check" nzTheme="outline"></i>
-            Apply
+            [disabled]="!currentMessage.trim() || !canSendMessage()"
+            (click)="sendMessage()">
+            <i
+              nz-icon
+              nzType="send"
+              nzTheme="outline"></i>
           </button>
           <button
+            *ngIf="isGenerating()"
             nz-button
             nzType="default"
-            nzSize="small"
-            (click)="onCancelActionPlanPreview()"
-            nz-tooltip
-            nzTooltipTitle="Cancel preview and restore original">
-            <i nz-icon nzType="close" nzTheme="outline"></i>
-            Cancel
+            nzDanger
+            (click)="stopGeneration()">
+            <i
+              nz-icon
+              nzType="stop"
+              nzTheme="outline"></i>
           </button>
-        </div>
-      </ng-container>
-
-      <!-- Normal input state -->
-      <ng-container *ngIf="!isWaitingForActionPlanApproval && !isPreviewingActionPlan">
-        <textarea
-          #messageInput
-          nz-input
-          [(ngModel)]="currentMessage"
-          placeholder="Ask me anything about workflows..."
-          [nzAutosize]="{ minRows: 1, maxRows: 4 }"
-          (keydown.enter)="onEnterPress($any($event))"
-          [disabled]="!canSendMessage()"></textarea>
-        <button
-          nz-button
-          nzType="primary"
-          [disabled]="!currentMessage.trim() || !canSendMessage()"
-          (click)="sendMessage()">
-          <i
-            nz-icon
-            nzType="send"
-            nzTheme="outline"></i>
-        </button>
-        <button
-          *ngIf="isGenerating()"
-          nz-button
-          nzType="default"
-          nzDanger
-          (click)="stopGeneration()">
-          <i
-            nz-icon
-            nzType="stop"
-            nzTheme="outline"></i>
-        </button>
-      </ng-container>
-
-      <!-- Action Plan Approval state -->
-      <ng-container *ngIf="isWaitingForActionPlanApproval && !isPreviewingActionPlan">
-        <textarea
-          nz-input
-          [(ngModel)]="currentMessage"
-          placeholder="Provide feedback (optional)..."
-          [nzAutosize]="{ minRows: 1, maxRows: 4 }"></textarea>
-        <button
-          nz-button
-          nzType="primary"
-          (click)="onApproveActionPlan()"
-          nz-tooltip
-          nzTooltipTitle="Accept the action plan and proceed">
-          <i
-            nz-icon
-            nzType="check"
-            nzTheme="outline"></i>
-          Accept
-        </button>
-        <button
-          nz-button
-          nzType="default"
-          nzDanger
-          (click)="onRejectActionPlan()"
-          nz-tooltip
-          nzTooltipTitle="Reject the action plan">
-          <i
-            nz-icon
-            nzType="close"
-            nzTheme="outline"></i>
-          Reject
-        </button>
-      </ng-container>
-    </div>
+        </ng-container>
+      </div>
     </div>
   </div>
 

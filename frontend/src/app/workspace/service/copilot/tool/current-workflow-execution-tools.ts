@@ -228,13 +228,13 @@ export function createExecuteCurrentWorkflowTool(
             take(1),
             timeout(EXECUTION_TIMEOUT_MS),
             map(finalState => ({ finalState, allOperators })),
-            catchError(error => {
+            catchError((error: Error) => {
               if (error.name === "TimeoutError") {
                 return throwError(
                   () =>
                     new Error(
                       `Workflow execution timed out after ${EXECUTION_TIMEOUT_MS / 1000} seconds. ` +
-                        `The workflow may still be running. Use getCurrentExecutionState to check status.`
+                        "The workflow may still be running. Use getCurrentExecutionState to check status."
                     )
                 );
               }
@@ -256,7 +256,7 @@ export function createExecuteCurrentWorkflowTool(
               resultObservables.push(
                 getOperatorResult$(operatorId, workflowResultService).pipe(
                   map(result => ({ operatorId, result })),
-                  catchError(error =>
+                  catchError((error: Error) =>
                     of({
                       operatorId,
                       result: { error: `Failed to fetch results: ${error.message}` },
@@ -333,7 +333,9 @@ export function createExecuteCurrentWorkflowTool(
             return createErrorResult(`Unexpected execution state: ${finalState.state}`);
           }
         }),
-        catchError((error: any) => of(createErrorResult(`Execution error: ${error.message}`)))
+        catchError((error: unknown) =>
+          of(createErrorResult(`Execution error: ${error instanceof Error ? error.message : String(error)}`))
+        )
       );
 
       // Convert observable to promise for the tool framework
@@ -343,7 +345,7 @@ export function createExecuteCurrentWorkflowTool(
             subscription.unsubscribe();
             resolve(result);
           },
-          error: err => {
+          error: (err: Error) => {
             subscription.unsubscribe();
             reject(err);
           },

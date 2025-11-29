@@ -825,6 +825,8 @@ export class JointUIService {
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
+        cursor: "pointer",
+        event: "element:name:pointerclick",
       },
       ".texera-operator-friendly-name": {
         text: operatorFriendlyName,

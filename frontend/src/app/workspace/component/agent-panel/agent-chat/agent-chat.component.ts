@@ -33,7 +33,11 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
-import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
+import {
+  ActionPlan,
+  ActionPlanService,
+  ActionPlanPreviewState,
+} from "../../../service/action-plan/action-plan.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -74,7 +78,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   public agentResponses: ReActStep[] = [];
   public currentMessage = "";
-  public pendingActionPlan: ActionPlan | null = null;
   private shouldScrollToBottom = false;
   public planningMode = false;
   public isDetailsModalVisible = false;
@@ -86,8 +89,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public agentState: CopilotState = CopilotState.UNAVAILABLE;
   public isStatsModalVisible = false;
   public messageStats: CopilotMessageStats[] = [];
-  public isWaitingForActionPlanApproval = false;
-  public pendingActionPlanId?: string;
 
   // Timeline-related properties
   public timelineNodes: TimelineNode[] = [];
@@ -95,10 +96,8 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public toolGroupConfigs = TOOL_GROUP_CONFIGS;
   public ToolGroup = ToolGroup;
 
-  // Action plan preview state (for timeline node clicks)
-  public isPreviewingActionPlan = false;
-  public previewingActionPlanId: string | null = null;
-  public previewingActionPlan: ActionPlan | null = null;
+  // Unified action plan preview state
+  public previewState: ActionPlanPreviewState | null = null;
 
   constructor(
     private actionPlanService: ActionPlanService,
@@ -168,21 +167,18 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.cdr.detectChanges();
       });
 
-    // Subscribe to pending action plans (only emitted when both version IDs are set)
+    // Subscribe to unified preview state
     this.actionPlanService
-      .getPendingActionPlanStream()
+      .getPreviewStateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(plan => {
-        if (plan && plan.agentId === this.agentInfo.id) {
-          this.pendingActionPlan = plan;
+      .subscribe(state => {
+        // Only show preview UI if the action plan belongs to this agent
+        if (state && state.actionPlan.agentId === this.agentInfo.id) {
+          this.previewState = state;
           this.shouldScrollToBottom = true;
-
-          console.log("[Agent Chat] Received pending action plan with workflow contents", plan);
-
-          // Try to show diff preview
-          this.tryShowActionPlanDiff(plan);
-        } else if (plan === null || (plan && plan.agentId !== this.agentInfo.id)) {
-          this.pendingActionPlan = null;
+          console.log("[Agent Chat] Preview state updated", state);
+        } else {
+          this.previewState = null;
         }
         this.cdr.detectChanges();
       });
@@ -193,16 +189,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       .pipe(untilDestroyed(this))
       .subscribe(statsMap => {
         this.messageStats = Array.from(statsMap.values());
-        this.cdr.detectChanges();
-      });
-
-    // Subscribe to action plan approval state
-    this.copilotManagerService
-      .getActionPlanApprovalObservable(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(approvalState => {
-        this.isWaitingForActionPlanApproval = approvalState.isWaitingForApproval;
-        this.pendingActionPlanId = approvalState.actionPlanId;
         this.cdr.detectChanges();
       });
   }
@@ -459,62 +445,47 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
-   * Try to show action plan diff preview if conditions are met
+   * Accept the action plan (for pending mode) or Apply (for historical mode)
    */
-  private tryShowActionPlanDiff(plan: ActionPlan): void {
-    // Show diff preview in planning mode
-    if (!this.planningMode) {
-      console.log("[Agent Chat] Not in planning mode, skipping diff preview");
+  public onAcceptActionPlan(): void {
+    if (!this.previewState) {
       return;
     }
 
-    console.log("[Agent Chat] Showing action plan diff preview");
-    try {
-      this.actionPlanService.previewActionPlanDiff(plan.id);
-      console.log("[Agent Chat] Action plan diff preview displayed");
-    } catch (err) {
-      console.error("[Agent Chat] Failed to show action plan preview:", err);
+    // End preview and apply the changes
+    this.actionPlanService.endPreview(true);
+
+    // In pending mode, send approval message to continue the agent
+    if (this.previewState.isPending) {
+      const feedback = this.currentMessage.trim();
+      const message = feedback
+        ? `I approve this action plan. Additional feedback: ${feedback}`
+        : "I approve this action plan. Please proceed with execution.";
+      this.copilotManagerService.sendMessage(this.agentInfo.id, message);
+      this.currentMessage = "";
     }
   }
 
   /**
-   * Approve the pending action plan
-   */
-  public onApproveActionPlan(): void {
-    // Accept the action plan if in planning mode
-    if (this.planningMode && this.pendingActionPlan) {
-      this.actionPlanService.setWorkflowToActionPlan(this.pendingActionPlan.id, false);
-    }
-
-    // Construct the approval message
-    const feedback = this.currentMessage.trim();
-    const message = feedback
-      ? `I approve this action plan. Additional feedback: ${feedback}`
-      : "I approve this action plan. Please proceed with execution.";
-
-    // Send message via manager service
-    this.copilotManagerService.sendMessage(this.agentInfo.id, message);
-    this.currentMessage = "";
-  }
-
-  /**
-   * Reject the pending action plan
+   * Reject the action plan (for pending mode) or Cancel (for historical mode)
    */
   public onRejectActionPlan(): void {
-    // Reject the action plan if in planning mode
-    if (this.planningMode && this.pendingActionPlan) {
-      this.actionPlanService.setWorkflowToActionPlan(this.pendingActionPlan.id, true);
+    if (!this.previewState) {
+      return;
     }
 
-    // Construct the rejection message
-    const feedback = this.currentMessage.trim();
-    const message = feedback
-      ? `I reject this action plan. Reason: ${feedback}`
-      : "I reject this action plan. Please revise your approach.";
+    // End preview and reject the changes (restore to before state)
+    this.actionPlanService.endPreview(false);
 
-    // Send message via manager service
-    this.copilotManagerService.sendMessage(this.agentInfo.id, message);
-    this.currentMessage = "";
+    // In pending mode, send rejection message to the agent
+    if (this.previewState.isPending) {
+      const feedback = this.currentMessage.trim();
+      const message = feedback
+        ? `I reject this action plan. Reason: ${feedback}`
+        : "I reject this action plan. Please revise your approach.";
+      this.copilotManagerService.sendMessage(this.agentInfo.id, message);
+      this.currentMessage = "";
+    }
   }
 
   // =====================
@@ -669,7 +640,11 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     const toolCall = step.toolCalls[node.toolCallIndex];
     const toolResult = step.toolResults?.[node.toolCallIndex];
 
-    console.log("[Timeline] Looking for action plan in tool call:", toolCall.toolName, { toolCall, toolResult, nodeTimestamp: node.timestamp });
+    console.log("[Timeline] Looking for action plan in tool call:", toolCall.toolName, {
+      toolCall,
+      toolResult,
+      nodeTimestamp: node.timestamp,
+    });
 
     // Try to extract action plan ID from the tool result
     let actionPlanId: string | null = null;
@@ -741,94 +716,14 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
-   * Preview an action plan by ID.
-   * Shows the diff view and changes input area to Rollback/Cancel mode.
+   * Preview an action plan by ID (historical mode - from timeline click).
    */
   public previewActionPlan(actionPlanId: string): void {
-    const actionPlan = this.actionPlanService.getActionPlan(actionPlanId);
-    if (!actionPlan) {
-      this.notificationService.warning("Action plan not found");
-      return;
-    }
-
     try {
-      // Show diff preview
-      this.actionPlanService.previewActionPlanDiff(actionPlanId);
-
-      // Set preview state
-      this.isPreviewingActionPlan = true;
-      this.previewingActionPlanId = actionPlanId;
-      this.previewingActionPlan = actionPlan;
-
-      this.cdr.detectChanges();
+      this.actionPlanService.startHistoricalPreview(actionPlanId);
     } catch (err) {
       console.error("Failed to preview action plan:", err);
       this.notificationService.error("Failed to preview action plan");
     }
-  }
-
-  /**
-   * Rollback: Apply the after version of the action plan.
-   */
-  public onRollbackActionPlan(): void {
-    if (!this.previewingActionPlanId) {
-      return;
-    }
-
-    this.actionPlanService.setWorkflowToActionPlan(this.previewingActionPlanId, false);
-    this.clearActionPlanPreview();
-  }
-
-  /**
-   * Cancel: Clear preview and restore original workflow state.
-   */
-  public onCancelActionPlanPreview(): void {
-    if (!this.previewingActionPlanId) {
-      return;
-    }
-
-    // Restore to before version (cancel means don't apply changes)
-    this.actionPlanService.setWorkflowToActionPlan(this.previewingActionPlanId, true);
-    this.clearActionPlanPreview();
-  }
-
-  /**
-   * Clear the action plan preview state.
-   */
-  private clearActionPlanPreview(): void {
-    this.isPreviewingActionPlan = false;
-    this.previewingActionPlanId = null;
-    this.previewingActionPlan = null;
-    this.cdr.detectChanges();
-  }
-
-  /**
-   * Get a summary of the action plan operations for display.
-   */
-  public getActionPlanOperationsSummary(): string {
-    if (!this.previewingActionPlan) {
-      return "";
-    }
-
-    const ops = this.previewingActionPlan.operations;
-    const parts: string[] = [];
-
-    if (ops.add.operatorIds.length > 0) {
-      parts.push(`+${ops.add.operatorIds.length} op`);
-    }
-    if (ops.add.linkIds.length > 0) {
-      parts.push(`+${ops.add.linkIds.length} link`);
-    }
-    if (ops.modify.operatorIds.length > 0) {
-      parts.push(`~${ops.modify.operatorIds.length} op`);
-    }
-    if (ops.delete.operatorIds.length > 0) {
-      parts.push(`-${ops.delete.operatorIds.length} op`);
-    }
-    if (ops.delete.linkIds.length > 0) {
-      parts.push(`-${ops.delete.linkIds.length} link`);
-    }
-
-    return parts.join(", ");
   }
 }

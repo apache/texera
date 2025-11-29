@@ -169,6 +169,8 @@ import { LandingPageComponent } from "./hub/component/landing-page/landing-page.
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
+import { InlineCodePanelComponent } from "./workspace/component/inline-code-panel/inline-code-panel.component";
+import { InlinePropertyPanelComponent } from "./workspace/component/inline-property-panel/inline-property-panel.component";
 import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import {
   GoogleLoginProvider,
@@ -290,6 +292,8 @@ registerLocaleData(en);
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
     AdminSettingsComponent,
+    InlineCodePanelComponent,
+    InlinePropertyPanelComponent,
   ],
   imports: [
     BrowserModule,
