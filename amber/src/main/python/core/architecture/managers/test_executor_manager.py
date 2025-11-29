@@ -187,21 +187,22 @@ class UpdatedOperator(UDFOperatorV2):
         # Test with abstract base classes (TupleOperatorV2 has abstract methods)
         assert ExecutorManager.is_concrete_operator(TupleOperatorV2) is False
 
-    def test_executor_source_validation(self, executor_manager):
-        """Test that source operator validation works correctly."""
-        # Test 1: Regular operator with is_source=False should pass
+    def test_regular_operator_is_not_source(self, executor_manager):
+        """Test that regular operator with is_source=False works correctly."""
         executor_manager.initialize_executor(
             code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
         )
         assert executor_manager.executor.is_source is False
 
-        # Test 2: Source operator with is_source=True should pass
+    def test_source_operator_validation(self, executor_manager):
+        """Test that source operator with is_source=True works correctly."""
         executor_manager.initialize_executor(
             code=SAMPLE_SOURCE_OPERATOR_CODE, is_source=True, language="python"
         )
         assert executor_manager.executor.is_source is True
 
-        # Test 3: Mismatch should raise AssertionError
+    def test_source_operator_mismatch_raises_error(self, executor_manager):
+        """Test that mismatched source operator flag raises AssertionError."""
         with pytest.raises(AssertionError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE,
