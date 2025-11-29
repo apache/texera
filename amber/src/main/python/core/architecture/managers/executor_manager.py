@@ -132,10 +132,10 @@ class ExecutorManager:
         :param language: The language of the operator code.
         :return:
         """
-        assert language in [
+        assert language not in [
             "r-tuple",
             "r-table",
-        ], f"Language {language} is not by default. Please consult third party plugin."
+        ], f"R language is not supported by default. Please consult third party plugin."
         executor: type(Operator) = self.load_executor_definition(code)
         self.executor = executor()
         self.executor.is_source = is_source
