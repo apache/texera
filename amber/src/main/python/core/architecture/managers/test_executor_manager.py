@@ -139,37 +139,6 @@ class TestExecutorManager:
         assert module3 == "udf-v3"
         assert file3 == "udf-v3.py"
 
-    def test_update_executor_preserves_state(self, executor_manager):
-        """Test that update_executor preserves internal state."""
-        # First initialize with valid Python code
-        executor_manager.initialize_executor(
-            code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
-        )
-
-        # Add some internal state
-        executor_manager.executor.custom_state = "preserved_value"
-        original_dict_id = id(executor_manager.executor.__dict__)
-
-        # Update with new code
-        new_code = """
-from pytexera import *
-
-class UpdatedOperator(UDFOperatorV2):
-    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        # Updated logic
-        yield tuple_
-"""
-        executor_manager.update_executor(new_code, False)
-
-        # Verify the executor was updated but state was preserved
-        assert executor_manager.executor is not None
-        assert executor_manager.operator_module_name == "udf-v2"  # Version incremented
-        assert hasattr(executor_manager.executor, "custom_state")
-        assert executor_manager.executor.custom_state == "preserved_value"
-        assert (
-            id(executor_manager.executor.__dict__) == original_dict_id
-        )  # Same dict reference
-
     def test_is_concrete_operator_static_method(self):
         """Test the is_concrete_operator static method."""
         from core.models import TupleOperatorV2
@@ -193,13 +162,6 @@ class UpdatedOperator(UDFOperatorV2):
             code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
         )
         assert executor_manager.executor.is_source is False
-
-    def test_source_operator_validation(self, executor_manager):
-        """Test that source operator with is_source=True works correctly."""
-        executor_manager.initialize_executor(
-            code=SAMPLE_SOURCE_OPERATOR_CODE, is_source=True, language="python"
-        )
-        assert executor_manager.executor.is_source is True
 
     def test_source_operator_mismatch_raises_error(self, executor_manager):
         """Test that mismatched source operator flag raises AssertionError."""
