@@ -135,7 +135,7 @@ class ExecutorManager:
         assert language not in [
             "r-tuple",
             "r-table",
-        ], f"R language is not supported by default. Please consult third party plugin."
+        ], "R language is not supported by default. Please consult third party plugin."
         executor: type(Operator) = self.load_executor_definition(code)
         self.executor = executor()
         self.executor.is_source = is_source

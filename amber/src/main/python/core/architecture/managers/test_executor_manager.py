@@ -16,10 +16,8 @@
 # under the License.
 
 import pytest
-from typing import Iterator, Optional, Union
 
 from core.architecture.managers.executor_manager import ExecutorManager
-from core.models import Tuple, TupleLike, TableLike
 
 
 # Sample operator code for testing
@@ -49,7 +47,7 @@ class TestExecutorManager:
         manager = ExecutorManager()
         yield manager
         # Cleanup: close the temp filesystem
-        if hasattr(manager, '_fs'):
+        if hasattr(manager, "_fs"):
             manager.close()
 
     def test_initialization(self, executor_manager):
@@ -62,35 +60,33 @@ class TestExecutorManager:
         """Test that 'r-tuple' language is rejected with AssertionError."""
         with pytest.raises(AssertionError) as exc_info:
             executor_manager.initialize_executor(
-                code=SAMPLE_OPERATOR_CODE,
-                is_source=False,
-                language="r-tuple"
+                code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-tuple"
             )
-        
+
         # Verify the error message mentions R UDF support has been dropped
-        assert "not supported" in str(exc_info.value) or "dropped" in str(exc_info.value)
+        assert "not supported" in str(exc_info.value) or "dropped" in str(
+            exc_info.value
+        )
 
     def test_reject_r_table_language(self, executor_manager):
         """Test that 'r-table' language is rejected with AssertionError."""
         with pytest.raises(AssertionError) as exc_info:
             executor_manager.initialize_executor(
-                code=SAMPLE_OPERATOR_CODE,
-                is_source=False,
-                language="r-table"
+                code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-table"
             )
-        
+
         # Verify the error message mentions R UDF support has been dropped
-        assert "not supported" in str(exc_info.value) or "dropped" in str(exc_info.value)
+        assert "not supported" in str(exc_info.value) or "dropped" in str(
+            exc_info.value
+        )
 
     def test_accept_python_language_regular_operator(self, executor_manager):
         """Test that 'python' language is accepted for regular operators."""
         # This should not raise any assertion error
         executor_manager.initialize_executor(
-            code=SAMPLE_OPERATOR_CODE,
-            is_source=False,
-            language="python"
+            code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
         )
-        
+
         # Verify executor was initialized
         assert executor_manager.executor is not None
         assert executor_manager.operator_module_name == "udf-v1"
@@ -101,11 +97,9 @@ class TestExecutorManager:
         """Test that 'python' language is accepted for source operators."""
         # This should not raise any assertion error
         executor_manager.initialize_executor(
-            code=SAMPLE_SOURCE_OPERATOR_CODE,
-            is_source=True,
-            language="python"
+            code=SAMPLE_SOURCE_OPERATOR_CODE, is_source=True, language="python"
         )
-        
+
         # Verify executor was initialized
         assert executor_manager.executor is not None
         assert executor_manager.operator_module_name == "udf-v1"
@@ -120,7 +114,7 @@ class TestExecutorManager:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE,
                 is_source=False,
-                language="javascript"  # arbitrary language
+                language="javascript",  # arbitrary language
             )
             # If we get here, the assertion passed (which is correct behavior)
             # But the code execution might fail, which is fine
@@ -136,11 +130,11 @@ class TestExecutorManager:
         module1, file1 = executor_manager.gen_module_file_name()
         assert module1 == "udf-v1"
         assert file1 == "udf-v1.py"
-        
+
         module2, file2 = executor_manager.gen_module_file_name()
         assert module2 == "udf-v2"
         assert file2 == "udf-v2.py"
-        
+
         module3, file3 = executor_manager.gen_module_file_name()
         assert module3 == "udf-v3"
         assert file3 == "udf-v3.py"
@@ -149,15 +143,13 @@ class TestExecutorManager:
         """Test that update_executor preserves internal state."""
         # First initialize with valid Python code
         executor_manager.initialize_executor(
-            code=SAMPLE_OPERATOR_CODE,
-            is_source=False,
-            language="python"
+            code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
         )
-        
+
         # Add some internal state
         executor_manager.executor.custom_state = "preserved_value"
         original_dict_id = id(executor_manager.executor.__dict__)
-        
+
         # Update with new code
         new_code = """
 from pytexera import *
@@ -168,28 +160,30 @@ class UpdatedOperator(UDFOperatorV2):
         yield tuple_
 """
         executor_manager.update_executor(new_code, False)
-        
+
         # Verify the executor was updated but state was preserved
         assert executor_manager.executor is not None
         assert executor_manager.operator_module_name == "udf-v2"  # Version incremented
-        assert hasattr(executor_manager.executor, 'custom_state')
+        assert hasattr(executor_manager.executor, "custom_state")
         assert executor_manager.executor.custom_state == "preserved_value"
-        assert id(executor_manager.executor.__dict__) == original_dict_id  # Same dict reference
+        assert (
+            id(executor_manager.executor.__dict__) == original_dict_id
+        )  # Same dict reference
 
     def test_is_concrete_operator_static_method(self):
         """Test the is_concrete_operator static method."""
         from core.models import TupleOperatorV2
-        
+
         # Should return True for concrete operator classes
         # Note: We can't easily test with actual concrete classes here without imports
         # This test just verifies the method exists and is callable
-        assert hasattr(ExecutorManager, 'is_concrete_operator')
+        assert hasattr(ExecutorManager, "is_concrete_operator")
         assert callable(ExecutorManager.is_concrete_operator)
-        
+
         # Test with non-class
         assert ExecutorManager.is_concrete_operator("not a class") is False
         assert ExecutorManager.is_concrete_operator(123) is False
-        
+
         # Test with abstract base classes (TupleOperatorV2 has abstract methods)
         assert ExecutorManager.is_concrete_operator(TupleOperatorV2) is False
 
@@ -197,26 +191,21 @@ class UpdatedOperator(UDFOperatorV2):
         """Test that source operator validation works correctly."""
         # Test 1: Regular operator with is_source=False should pass
         executor_manager.initialize_executor(
-            code=SAMPLE_OPERATOR_CODE,
-            is_source=False,
-            language="python"
+            code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
         )
         assert executor_manager.executor.is_source is False
-        
+
         # Test 2: Source operator with is_source=True should pass
         executor_manager.initialize_executor(
-            code=SAMPLE_SOURCE_OPERATOR_CODE,
-            is_source=True,
-            language="python"
+            code=SAMPLE_SOURCE_OPERATOR_CODE, is_source=True, language="python"
         )
         assert executor_manager.executor.is_source is True
-        
+
         # Test 3: Mismatch should raise AssertionError
         with pytest.raises(AssertionError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE,
                 is_source=True,  # Wrong: regular operator but marked as source
-                language="python"
+                language="python",
             )
         assert "SourceOperator API" in str(exc_info.value)
-
