@@ -19,21 +19,21 @@
 
 import { Component, OnInit } from "@angular/core";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import { DataInconsistencyService } from "../../service/data-inconsistency/data-inconsistency.service";
+import { DataCheckService } from "../../service/data-check/data-check.service";
 
 @Component({
-  selector: "texera-add-inconsistency-modal",
-  templateUrl: "./add-inconsistency-modal.component.html",
-  styleUrls: ["./add-inconsistency-modal.component.scss"],
+  selector: "texera-add-data-check-modal",
+  templateUrl: "./add-data-check-modal.component.html",
+  styleUrls: ["./add-data-check-modal.component.scss"],
 })
-export class AddInconsistencyModalComponent implements OnInit {
+export class AddDataCheckModalComponent implements OnInit {
   name: string = "";
   description: string = "";
   operatorId: string = "";
 
   constructor(
     private modalRef: NzModalRef,
-    private dataInconsistencyService: DataInconsistencyService
+    private dataCheckService: DataCheckService
   ) {}
 
   ngOnInit(): void {
@@ -46,7 +46,7 @@ export class AddInconsistencyModalComponent implements OnInit {
 
   onSubmit(): void {
     if (this.name.trim() && this.description.trim()) {
-      this.dataInconsistencyService.addInconsistency(this.name.trim(), this.description.trim(), this.operatorId);
+      this.dataCheckService.addDataCheck(this.name.trim(), this.description.trim(), this.operatorId);
       this.modalRef.close();
     }
   }

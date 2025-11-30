@@ -43,7 +43,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
   isDocked = true;
 
   // Tab management
-  selectedTabIndex: number = 0; // 0 = registration tab, 1 = action plans tab, 2 = data inconsistencies tab, 3+ = agent tabs
+  selectedTabIndex: number = 0; // 0 = registration tab, 1 = action plans tab, 2 = data checks tab, 3+ = agent tabs
   agents: AgentInfo[] = [];
 
   constructor(private copilotManagerService: TexeraCopilotManagerService) {}
@@ -95,10 +95,10 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
   public onAgentCreated(agentId: string): void {
     // The agent is already added to the agents array by the manager service
     // Find the index of the newly created agent and switch to that tab
-    // Tab index 0 is registration, 1 is action plans, 2 is data inconsistencies, so agent tabs start at index 3
+    // Tab index 0 is registration, 1 is action plans, 2 is data checks, so agent tabs start at index 3
     const agentIndex = this.agents.findIndex(agent => agent.id === agentId);
     if (agentIndex !== -1) {
-      this.selectedTabIndex = agentIndex + 3; // +3 because tab 0 is registration, tab 1 is action plans, tab 2 is data inconsistencies
+      this.selectedTabIndex = agentIndex + 3; // +3 because tab 0 is registration, tab 1 is action plans, tab 2 is data checks
     }
   }
 

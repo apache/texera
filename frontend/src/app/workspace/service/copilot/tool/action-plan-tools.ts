@@ -142,7 +142,9 @@ export function createAddToWorkflowTool(
           z.object({
             operatorType: z.string().describe("Type of operator"),
             customDisplayName: z.string().describe("Brief custom name summarizing what this operator does"),
-            properties: z.record(z.any()).describe("Properties to set for this operator. Must obey the schema of this type of operator"),
+            properties: z
+              .record(z.any())
+              .describe("Properties to set for this operator. Must obey the schema of this type of operator"),
           })
         )
         .optional()

@@ -301,9 +301,7 @@ export function executeWorkflowAndGetResults$(
         map(finalState => ({ finalState, allOperators })),
         catchError((error: unknown) => {
           if (error instanceof Error && error.name === "TimeoutError") {
-            return throwError(
-              () => new Error(`Execution timed out after ${EXECUTION_TIMEOUT_MS / 1000}s.`)
-            );
+            return throwError(() => new Error(`Execution timed out after ${EXECUTION_TIMEOUT_MS / 1000}s.`));
           }
           return throwError(() => error);
         })
@@ -556,7 +554,10 @@ export function createGetCurrentExecutionStateTool(
     inputSchema: z.object({}),
     execute: async () => {
       try {
-        const allOperatorIds = workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+        const allOperatorIds = workflowActionService
+          .getTexeraGraph()
+          .getAllOperators()
+          .map(op => op.operatorID);
         return createSuccessResult(
           {
             state: executeWorkflowService.getExecutionState(),

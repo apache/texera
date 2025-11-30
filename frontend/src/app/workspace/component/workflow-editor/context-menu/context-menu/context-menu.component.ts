@@ -27,7 +27,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
-import { AddInconsistencyModalComponent } from "../../../add-inconsistency-modal/add-inconsistency-modal.component";
+import { AddDataCheckModalComponent } from "../../../add-data-check-modal/add-data-check-modal.component";
 
 @UntilDestroy()
 @Component({
@@ -147,13 +147,13 @@ export class ContextMenuComponent {
   }
 
   /**
-   * This is the handler for adding an operator to the inconsistency list
+   * This is the handler for adding an operator to the data check list
    */
-  public onAddToInconsistency(): void {
+  public onAddToDataCheck(): void {
     const operatorId = this.getSelectedOperatorID();
     this.modalService.create({
-      nzTitle: "Add to Inconsistency List",
-      nzContent: AddInconsistencyModalComponent,
+      nzTitle: "Add Data Check",
+      nzContent: AddDataCheckModalComponent,
       nzData: {
         operatorId: operatorId,
       },

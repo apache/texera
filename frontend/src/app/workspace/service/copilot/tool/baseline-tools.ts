@@ -170,11 +170,12 @@ export function createExecuteToOperatorTool(
       "This runs only the operators necessary to produce results for the target operator. " +
       "Returns console logs and execution state for the target operator.",
     inputSchema: z.object({
-      operatorId: z.string().describe("The ID of the operator to execute up to. The workflow will run all upstream operators needed to produce results for this operator."),
-      executionName: z
+      operatorId: z
         .string()
-        .optional()
-        .describe("Optional name for this execution (for logging/display purposes)"),
+        .describe(
+          "The ID of the operator to execute up to. The workflow will run all upstream operators needed to produce results for this operator."
+        ),
+      executionName: z.string().optional().describe("Optional name for this execution (for logging/display purposes)"),
     }),
     execute: async (args: { operatorId: string; executionName?: string }) => {
       try {

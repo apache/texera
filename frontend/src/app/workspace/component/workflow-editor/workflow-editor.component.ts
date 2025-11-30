@@ -46,7 +46,7 @@ import concaveman from "concaveman";
 import { ActionPlanService } from "../../service/action-plan/action-plan.service";
 import { ContextHighlightService } from "../../service/context-highlight/context-highlight.service";
 import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
-import { DataInconsistencyService } from "../../service/data-inconsistency/data-inconsistency.service";
+import { DataCheckService } from "../../service/data-check/data-check.service";
 import { isPythonUdf } from "../../service/workflow-graph/model/workflow-graph";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -148,7 +148,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private actionPlanService: ActionPlanService,
     private contextHighlightService: ContextHighlightService,
     private copilotManagerService: TexeraCopilotManagerService,
-    private dataInconsistencyService: DataInconsistencyService
+    private dataCheckService: DataCheckService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -201,7 +201,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
     // this.handleActionPlanHighlight(); // Temporarily disabled
-    this.handleInconsistencyHighlight();
+    this.handleDataCheckHighlight();
     this.handleContextHighlight();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -588,13 +588,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Handle inconsistency highlighting - shows upstream path for selected inconsistency
+   * Handle data check highlighting - shows upstream path for selected data check
    * Uses the same visual style as action plan highlighting (transparent fill with dashed border)
    */
-  private handleInconsistencyHighlight(): void {
-    // Define Inconsistency JointJS element with same style as action plan
-    const InconsistencyHighlight = joint.dia.Element.define(
-      "inconsistency-highlight",
+  private handleDataCheckHighlight(): void {
+    // Define DataCheck JointJS element with same style as action plan
+    const DataCheckHighlightElement = joint.dia.Element.define(
+      "data-check-highlight",
       {
         attrs: {
           body: {
@@ -603,7 +603,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             strokeWidth: 2,
             strokeDasharray: "5,5",
             pointerEvents: "none",
-            class: "inconsistency-highlight",
+            class: "data-check-highlight",
           },
         },
       },
@@ -616,13 +616,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const currentElements: joint.dia.Element[] = [];
     let currentPositionHandler: ((operator: joint.dia.Cell) => void) | null = null;
 
-    // Subscribe to inconsistency highlight events
-    this.dataInconsistencyService
+    // Subscribe to data check highlight events
+    this.dataCheckService
       .getHighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(highlight => {
         // Clear any existing highlights first to prevent orphaned elements
-        this.clearInconsistencyHighlightElements(currentElements, currentPositionHandler);
+        this.clearDataCheckHighlightElements(currentElements, currentPositionHandler);
 
         // Get operator elements from IDs
         const operators = highlight.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
@@ -631,8 +631,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           return; // No valid operators found
         }
 
-        // Create inconsistency highlight element
-        const highlightElement = new InconsistencyHighlight();
+        // Create data check highlight element
+        const highlightElement = new DataCheckHighlightElement();
         this.paper.model.addCell(highlightElement);
         currentElements.push(highlightElement);
 
@@ -649,19 +649,19 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
 
     // Subscribe to cleanup stream - triggered when user clicks same item or selects different one
-    this.dataInconsistencyService
+    this.dataCheckService
       .getCleanupStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.clearInconsistencyHighlightElements(currentElements, currentPositionHandler);
+        this.clearDataCheckHighlightElements(currentElements, currentPositionHandler);
         currentPositionHandler = null;
       });
   }
 
   /**
-   * Clear all inconsistency highlight elements and remove position handler.
+   * Clear all data check highlight elements and remove position handler.
    */
-  private clearInconsistencyHighlightElements(
+  private clearDataCheckHighlightElements(
     elements: joint.dia.Element[],
     positionHandler: ((cell: joint.dia.Cell) => void) | null
   ): void {

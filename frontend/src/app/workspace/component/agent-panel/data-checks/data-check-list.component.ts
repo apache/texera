@@ -19,65 +19,62 @@
 
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {
-  DataInconsistencyService,
-  DataInconsistency,
-} from "../../../service/data-inconsistency/data-inconsistency.service";
+import { DataCheckService, DataCheck } from "../../../service/data-check/data-check.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-inconsistency-list",
-  templateUrl: "./inconsistency-list.component.html",
-  styleUrls: ["./inconsistency-list.component.scss"],
+  selector: "texera-data-check-list",
+  templateUrl: "./data-check-list.component.html",
+  styleUrls: ["./data-check-list.component.scss"],
 })
-export class InconsistencyListComponent implements OnInit {
-  inconsistencies: DataInconsistency[] = [];
+export class DataCheckListComponent implements OnInit {
+  dataChecks: DataCheck[] = [];
 
   constructor(
-    private inconsistencyService: DataInconsistencyService,
+    private dataCheckService: DataCheckService,
     private workflowActionService: WorkflowActionService
   ) {}
 
   ngOnInit(): void {
-    // Subscribe to inconsistency updates
-    this.inconsistencyService
-      .getInconsistencies()
+    // Subscribe to data check updates
+    this.dataCheckService
+      .getDataChecks()
       .pipe(untilDestroyed(this))
-      .subscribe(inconsistencies => {
-        this.inconsistencies = inconsistencies;
+      .subscribe(dataChecks => {
+        this.dataChecks = dataChecks;
       });
   }
 
   // Cleanup handled by @UntilDestroy decorator
 
   /**
-   * Delete an inconsistency
+   * Delete a data check
    */
-  deleteInconsistency(id: string): void {
-    this.inconsistencyService.deleteInconsistency(id);
+  deleteDataCheck(id: string): void {
+    this.dataCheckService.deleteDataCheck(id);
   }
 
   /**
-   * Clear all inconsistencies
+   * Clear all data checks
    */
   clearAll(): void {
-    this.inconsistencyService.clearAll();
+    this.dataCheckService.clearAll();
   }
 
   /**
-   * Handle click on inconsistency card to highlight the upstream path
+   * Handle click on data check card to highlight the upstream path
    * Delegates to service which handles toggle behavior
    */
-  onInconsistencyClick(inconsistency: DataInconsistency): void {
-    if (!inconsistency.operatorId) {
+  onDataCheckClick(dataCheck: DataCheck): void {
+    if (!dataCheck.operatorId) {
       return;
     }
 
     // Find all upstream operators and links leading to this operator
-    const pathResult = this.workflowActionService.findUpstreamPath(inconsistency.operatorId);
+    const pathResult = this.workflowActionService.findUpstreamPath(dataCheck.operatorId);
 
     // Trigger highlight via service (which handles toggle logic)
-    this.inconsistencyService.toggleHighlight(inconsistency.id, pathResult.operators, pathResult.links);
+    this.dataCheckService.toggleHighlight(dataCheck.id, pathResult.operators, pathResult.links);
   }
 }

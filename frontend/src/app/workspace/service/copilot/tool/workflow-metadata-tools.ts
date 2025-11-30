@@ -42,6 +42,63 @@ export const ALLOWED_OPERATOR_TYPES = [
 export type AllowedOperatorType = (typeof ALLOWED_OPERATOR_TYPES)[number];
 
 /**
+ * Operator schema info structure
+ */
+export interface OperatorSchemaInfo {
+  properties: any;
+  required: any;
+  definitions: any;
+}
+
+/**
+ * Result of gathering all allowed operator schemas
+ */
+export interface AllowedOperatorSchemasResult {
+  operators: Record<string, OperatorSchemaInfo>;
+  operatorTypes: string[];
+  count: number;
+}
+
+/**
+ * Gather all allowed operator types with their properties schemas.
+ * This is a pure function that can be called directly to get schema info.
+ */
+export function getAllowedOperatorSchemas(
+  operatorMetadataService: OperatorMetadataService
+): AllowedOperatorSchemasResult {
+  const operatorsWithSchemas: Record<string, OperatorSchemaInfo> = {};
+
+  for (const operatorType of ALLOWED_OPERATOR_TYPES) {
+    try {
+      const schema = operatorMetadataService.getOperatorSchema(operatorType);
+      operatorsWithSchemas[operatorType] = {
+        properties: schema.jsonSchema.properties,
+        required: schema.jsonSchema.required,
+        definitions: schema.jsonSchema.definitions,
+      };
+    } catch {
+      // Skip operators that don't exist in this installation
+    }
+  }
+
+  const availableTypes = Object.keys(operatorsWithSchemas);
+
+  return {
+    operators: operatorsWithSchemas,
+    operatorTypes: availableTypes,
+    count: availableTypes.length,
+  };
+}
+
+/**
+ * Generate a JSON string representation of allowed operator schemas for embedding in prompts.
+ */
+export function getAllowedOperatorSchemasAsJson(operatorMetadataService: OperatorMetadataService): string {
+  const result = getAllowedOperatorSchemas(operatorMetadataService);
+  return JSON.stringify(result.operators, null, 2);
+}
+
+/**
  * Combined tool that returns all allowed operator types with their properties schemas.
  * This reduces the number of tool calls needed and saves network bandwidth/tokens.
  */
@@ -55,35 +112,12 @@ export function createListAllOperatorTypesAndSchemasTool(operatorMetadataService
     inputSchema: z.object({}),
     execute: async () => {
       try {
-        const operatorsWithSchemas: Record<
-          string,
-          {
-            properties: any;
-            required: any;
-            definitions: any;
-          }
-        > = {};
-
-        for (const operatorType of ALLOWED_OPERATOR_TYPES) {
-          try {
-            const schema = operatorMetadataService.getOperatorSchema(operatorType);
-            operatorsWithSchemas[operatorType] = {
-              properties: schema.jsonSchema.properties,
-              required: schema.jsonSchema.required,
-              definitions: schema.jsonSchema.definitions,
-            };
-          } catch {
-            // Skip operators that don't exist in this installation
-          }
-        }
-
-        const availableTypes = Object.keys(operatorsWithSchemas);
-
+        const result = getAllowedOperatorSchemas(operatorMetadataService);
         return {
           success: true,
-          operators: operatorsWithSchemas,
-          operatorTypes: availableTypes,
-          count: availableTypes.length,
+          operators: result.operators,
+          operatorTypes: result.operatorTypes,
+          count: result.count,
         };
       } catch (error: any) {
         return { success: false, error: error.message };

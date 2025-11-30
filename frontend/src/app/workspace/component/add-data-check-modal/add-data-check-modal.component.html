@@ -17,7 +17,7 @@
  under the License.
 -->
 
-<div class="add-inconsistency-form">
+<div class="add-data-check-form">
   <nz-form-item>
     <nz-form-label
       [nzSpan]="24"
@@ -43,7 +43,7 @@
       <textarea
         nz-input
         [(ngModel)]="description"
-        placeholder="Describe the data inconsistency found"
+        placeholder="Describe the data check found"
         [nzAutosize]="{ minRows: 3, maxRows: 6 }"
         [maxlength]="500"></textarea>
     </nz-form-control>
@@ -72,7 +72,7 @@
       nzType="primary"
       (click)="onSubmit()"
       [disabled]="!name.trim() || !description.trim()">
-      Add Inconsistency
+      Add Data Check
     </button>
   </div>
 </div>

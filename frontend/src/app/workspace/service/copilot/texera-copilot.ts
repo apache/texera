@@ -27,7 +27,7 @@ import * as currentWorkflowEditingObservingTools from "./tool/current-workflow-e
 import * as currentWorkflowValidationTools from "./tool/current-workflow-validation-tools";
 import * as currentWorkflowExecutionTools from "./tool/current-workflow-execution-tools";
 import * as actionPlanTools from "./tool/action-plan-tools";
-import * as dataInconsistencyTools from "./tool/data-inconsistency-tools";
+import * as dataCheckTools from "./tool/data-check-tools";
 import * as baselineTools from "./tool/baseline-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -47,8 +47,9 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { COPILOT_SYSTEM_PROMPT, PLANNING_MODE_PROMPT, BASELINE_SYSTEM_PROMPT } from "./copilot-prompts";
-import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
+import { getCopilotSystemPrompt, PLANNING_MODE_PROMPT, BASELINE_SYSTEM_PROMPT } from "./copilot-prompts";
+import { getAllowedOperatorSchemasAsJson } from "./tool/workflow-metadata-tools";
+import { DataCheckService } from "../data-check/data-check.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
@@ -163,7 +164,7 @@ export class TexeraCopilot {
     private workflowResultService: WorkflowResultService,
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
-    private dataInconsistencyService: DataInconsistencyService,
+    private dataCheckService: DataCheckService,
     private actionPlanService: ActionPlanService,
     private notificationService: NotificationService,
     private computingUnitStatusService: ComputingUnitStatusService,
@@ -198,6 +199,15 @@ export class TexeraCopilot {
 
   public getBaselineMode(): boolean {
     return this.baselineMode;
+  }
+
+  /**
+   * Get the copilot system prompt with operator schemas embedded.
+   * For non-baseline mode, fetches operator schemas and embeds them in the prompt.
+   */
+  private getCopilotPromptWithSchemas(): string {
+    const operatorSchemasJson = getAllowedOperatorSchemasAsJson(this.operatorMetadataService);
+    return getCopilotSystemPrompt(operatorSchemasJson);
   }
 
   /**
@@ -251,9 +261,9 @@ export class TexeraCopilot {
       if (this.baselineMode) {
         systemPrompt = BASELINE_SYSTEM_PROMPT;
       } else if (this.planningMode) {
-        systemPrompt = COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT;
+        systemPrompt = this.getCopilotPromptWithSchemas() + "\n\n" + PLANNING_MODE_PROMPT;
       } else {
-        systemPrompt = COPILOT_SYSTEM_PROMPT;
+        systemPrompt = this.getCopilotPromptWithSchemas();
       }
 
       let lastError: unknown = null;
@@ -633,22 +643,12 @@ export class TexeraCopilot {
       currentWorkflowExecutionTools.createGetCurrentComputingUnitStatusTool(this.computingUnitStatusService)
     );
 
-    // Data inconsistency tools
-    const addInconsistencyTool = toolWithTimeout(
-      dataInconsistencyTools.createAddInconsistencyTool(this.dataInconsistencyService)
-    );
-    const listInconsistenciesTool = toolWithTimeout(
-      dataInconsistencyTools.createListInconsistenciesTool(this.dataInconsistencyService)
-    );
-    const updateInconsistencyTool = toolWithTimeout(
-      dataInconsistencyTools.createUpdateInconsistencyTool(this.dataInconsistencyService)
-    );
-    const deleteInconsistencyTool = toolWithTimeout(
-      dataInconsistencyTools.createDeleteInconsistencyTool(this.dataInconsistencyService)
-    );
-    const clearInconsistenciesTool = toolWithTimeout(
-      dataInconsistencyTools.createClearInconsistenciesTool(this.dataInconsistencyService)
-    );
+    // Data check tools
+    const addDataCheckTool = toolWithTimeout(dataCheckTools.createAddDataCheckTool(this.dataCheckService));
+    const listDataChecksTool = toolWithTimeout(dataCheckTools.createListDataChecksTool(this.dataCheckService));
+    const updateDataCheckTool = toolWithTimeout(dataCheckTools.createUpdateDataCheckTool(this.dataCheckService));
+    const deleteDataCheckTool = toolWithTimeout(dataCheckTools.createDeleteDataCheckTool(this.dataCheckService));
+    const clearDataChecksTool = toolWithTimeout(dataCheckTools.createClearDataChecksTool(this.dataCheckService));
 
     const addToWorkflowTool = toolWithTimeout(
       actionPlanTools.createAddToWorkflowTool(
@@ -715,12 +715,12 @@ export class TexeraCopilot {
       // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: getCurrentOperatorResultTool,
       // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: getCurrentOperatorResultInfoTool,
       [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: getCurrentComputingUnitStatusTool,
-      // Data inconsistency tools
-      [dataInconsistencyTools.TOOL_NAME_ADD_INCONSISTENCY]: addInconsistencyTool,
-      [dataInconsistencyTools.TOOL_NAME_LIST_INCONSISTENCIES]: listInconsistenciesTool,
-      // [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
-      // [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
-      // [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
+      // Data check tools
+      [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: addDataCheckTool,
+      [dataCheckTools.TOOL_NAME_LIST_DATA_CHECKS]: listDataChecksTool,
+      // [dataCheckTools.TOOL_NAME_UPDATE_DATA_CHECK]: updateDataCheckTool,
+      // [dataCheckTools.TOOL_NAME_DELETE_DATA_CHECK]: deleteDataCheckTool,
+      // [dataCheckTools.TOOL_NAME_CLEAR_DATA_CHECKS]: clearDataChecksTool,
       // Workflow action tools - always available
       [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: addToWorkflowTool,
       [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: modifyInWorkflowTool,
@@ -732,7 +732,7 @@ export class TexeraCopilot {
 
   /**
    * Create tools for baseline mode.
-   * Baseline mode only has: createPythonUDF, executeToOperator, and data inconsistency tools.
+   * Baseline mode only has: createPythonUDF, executeToOperator, and data check tools.
    */
   private createBaselineTools(): Record<string, any> {
     // Python UDF creation tool - only creates the operator (no execution)
@@ -759,21 +759,17 @@ export class TexeraCopilot {
       )
     );
 
-    // Data inconsistency tools
-    const addInconsistencyTool = toolWithTimeout(
-      dataInconsistencyTools.createAddInconsistencyTool(this.dataInconsistencyService)
-    );
-    const listInconsistenciesTool = toolWithTimeout(
-      dataInconsistencyTools.createListInconsistenciesTool(this.dataInconsistencyService)
-    );
+    // Data check tools
+    const addDataCheckTool = toolWithTimeout(dataCheckTools.createAddDataCheckTool(this.dataCheckService));
+    const listDataChecksTool = toolWithTimeout(dataCheckTools.createListDataChecksTool(this.dataCheckService));
 
     return {
       // Baseline mode primary tools
       [baselineTools.TOOL_NAME_CREATE_PYTHON_UDF]: createPythonUDFTool,
       [baselineTools.TOOL_NAME_EXECUTE_TO_OPERATOR]: executeToOperatorTool,
-      // Data inconsistency tools
-      [dataInconsistencyTools.TOOL_NAME_ADD_INCONSISTENCY]: addInconsistencyTool,
-      [dataInconsistencyTools.TOOL_NAME_LIST_INCONSISTENCIES]: listInconsistenciesTool,
+      // Data check tools
+      [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: addDataCheckTool,
+      [dataCheckTools.TOOL_NAME_LIST_DATA_CHECKS]: listDataChecksTool,
     };
   }
 
@@ -873,7 +869,8 @@ export class TexeraCopilot {
     if (this.baselineMode) {
       return BASELINE_SYSTEM_PROMPT;
     }
-    return this.planningMode ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT : COPILOT_SYSTEM_PROMPT;
+    const copilotPrompt = this.getCopilotPromptWithSchemas();
+    return this.planningMode ? copilotPrompt + "\n\n" + PLANNING_MODE_PROMPT : copilotPrompt;
   }
 
   public getToolsInfo(): Array<{ name: string; description: string; inputSchema: any }> {

@@ -58,9 +58,9 @@ export const TOOL_GROUP_CONFIGS: Record<ToolGroup, ToolGroupConfig> = {
   },
   [ToolGroup.RECORD]: {
     group: ToolGroup.RECORD,
-    color: "#722ed1", // Purple - for data inconsistency recording operations
+    color: "#722ed1", // Purple - for data check recording operations
     icon: "file-text",
-    description: "Tools that record and manage data inconsistencies",
+    description: "Tools that record and manage data checks",
   },
 };
 
@@ -112,12 +112,12 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   setOperatorPropertyInCurrentWorkflow: ToolGroup.MODIFY,
   setPortPropertyInCurrentWorkflow: ToolGroup.MODIFY,
 
-  // Record group - data inconsistency tools
-  addInconsistency: ToolGroup.RECORD,
-  listInconsistencies: ToolGroup.RECORD,
-  updateInconsistency: ToolGroup.RECORD,
-  deleteInconsistency: ToolGroup.RECORD,
-  clearInconsistencies: ToolGroup.RECORD,
+  // Record group - data check tools
+  addDataCheck: ToolGroup.RECORD,
+  listDataChecks: ToolGroup.RECORD,
+  updateDataCheck: ToolGroup.RECORD,
+  deleteDataCheck: ToolGroup.RECORD,
+  clearDataChecks: ToolGroup.RECORD,
 };
 
 /**
