@@ -59,9 +59,32 @@ export interface AllowedOperatorSchemasResult {
   count: number;
 }
 
+// Keys to filter out from properties
+const FILTERED_PROPERTY_KEYS = ["dummyPropertyList"];
+
+// Keys to filter out from definitions
+const FILTERED_DEFINITION_KEYS = ["DummyProperties", "PortDescription", "HashPartition", "RangePartition", "SinglePartition", "BroadcastPartition", "UnknownPartition"];
+
+/**
+ * Filter an object by excluding specified keys.
+ */
+function filterObjectKeys(obj: any, keysToExclude: string[]): any {
+  if (!obj || typeof obj !== "object") {
+    return obj;
+  }
+  const filtered: any = {};
+  for (const key of Object.keys(obj)) {
+    if (!keysToExclude.includes(key)) {
+      filtered[key] = obj[key];
+    }
+  }
+  return filtered;
+}
+
 /**
  * Gather all allowed operator types with their properties schemas.
  * This is a pure function that can be called directly to get schema info.
+ * Filters out internal properties (dummyPropertyList) and definitions (DummyProperties, PortDescription).
  */
 export function getAllowedOperatorSchemas(
   operatorMetadataService: OperatorMetadataService
@@ -72,9 +95,9 @@ export function getAllowedOperatorSchemas(
     try {
       const schema = operatorMetadataService.getOperatorSchema(operatorType);
       operatorsWithSchemas[operatorType] = {
-        properties: schema.jsonSchema.properties,
+        properties: filterObjectKeys(schema.jsonSchema.properties, FILTERED_PROPERTY_KEYS),
         required: schema.jsonSchema.required,
-        definitions: schema.jsonSchema.definitions,
+        definitions: filterObjectKeys(schema.jsonSchema.definitions, FILTERED_DEFINITION_KEYS),
       };
     } catch {
       // Skip operators that don't exist in this installation

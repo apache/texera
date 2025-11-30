@@ -682,7 +682,7 @@ export class TexeraCopilot {
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // meta level knowledge - combined tool for operator types and schemas
-      [workflowMetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES_AND_SCHEMAS]: listAllOperatorTypesAndSchemasTool,
+      // [workflowMetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES_AND_SCHEMAS]: listAllOperatorTypesAndSchemasTool,
       // [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: getOperatorPortsInfoTool,
       // [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: getOperatorMetadataTool,
       // current workflow editing - TEMPORARILY COMMENTED OUT

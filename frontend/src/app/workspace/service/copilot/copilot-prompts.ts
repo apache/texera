@@ -135,7 +135,7 @@ class ProcessTableOperator(UDFTableOperator):
 - **Handle the output Columns Carefully**: YOUR CODE CAN ONLY YIELD COLUMNS/ATTRIBUTES ARE IN THE OUTPUT COLUMNS
   - Set the output columns and toggle the retain intput column option to align the output schema with the output of the code
 
-## Available Texera Operator Types and their schemas
+## Available Texera Operator Types and their JSON schemas
 
 \`\`\`json
 {{OPERATOR_SCHEMAS}}
