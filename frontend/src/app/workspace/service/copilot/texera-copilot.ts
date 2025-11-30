@@ -519,12 +519,9 @@ export class TexeraCopilot {
    * Create workflow manipulation tools with timeout protection.
    */
   private createWorkflowTools(): Record<string, any> {
-    // Workflow metadata tools
-    const listAllOperatorTypesTool = toolWithTimeout(
-      workflowMetadataTools.createListAllOperatorTypesTool(this.workflowUtilService)
-    );
-    const getOperatorPropertiesSchemaTool = toolWithTimeout(
-      workflowMetadataTools.createGetOperatorPropertiesSchemaTool(this.operatorMetadataService)
+    // Workflow metadata tools - combined tool for operator types and schemas
+    const listAllOperatorTypesAndSchemasTool = toolWithTimeout(
+      workflowMetadataTools.createListAllOperatorTypesAndSchemasTool(this.operatorMetadataService)
     );
     const getOperatorPortsInfoTool = toolWithTimeout(
       workflowMetadataTools.createGetOperatorPortsInfoTool(this.operatorMetadataService)
@@ -684,11 +681,10 @@ export class TexeraCopilot {
     );
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
-      // meta level knowledge
-      [workflowMetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES]: listAllOperatorTypesTool,
-      [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA]: getOperatorPropertiesSchemaTool,
-      [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: getOperatorPortsInfoTool,
-      [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: getOperatorMetadataTool,
+      // meta level knowledge - combined tool for operator types and schemas
+      [workflowMetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES_AND_SCHEMAS]: listAllOperatorTypesAndSchemasTool,
+      // [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: getOperatorPortsInfoTool,
+      // [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: getOperatorMetadataTool,
       // current workflow editing - TEMPORARILY COMMENTED OUT
       // [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW]:
       //   addOperatorToCurrentWorkflowTool,
@@ -701,30 +697,30 @@ export class TexeraCopilot {
       // [currentWorkflowEditingObservingTools.TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW]:
       //   setPortPropertyInCurrentWorkflowTool,
       // current workflow validation
-      [currentWorkflowValidationTools.TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO]:
-        getCurrentWorkflowValidationInfoTool,
-      [currentWorkflowValidationTools.TOOL_NAME_VALIDATE_CURRENT_OPERATOR]: validateCurrentOperatorTool,
+      // [currentWorkflowValidationTools.TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO]:
+      //   getCurrentWorkflowValidationInfoTool,
+      // [currentWorkflowValidationTools.TOOL_NAME_VALIDATE_CURRENT_OPERATOR]: validateCurrentOperatorTool,
       // current workflow inspecting
       [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS]:
         listCurrentRelevantOperatorIdsTool,
       [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_LINKS]: listCurrentLinksTool,
       [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: getCurrentOperatorTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE]:
-        getCurrentWorkflowCompilationStateTool,
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE]:
+      //   getCurrentWorkflowCompilationStateTool,
       // current workflow execution
       [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: executeCurrentWorkflowTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: getCurrentExecutionStateTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: killCurrentWorkflowTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT]: hasCurrentOperatorResultTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: getCurrentOperatorResultTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: getCurrentOperatorResultInfoTool,
+      // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: getCurrentExecutionStateTool,
+      // [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: killCurrentWorkflowTool,
+      // [currentWorkflowExecutionTools.TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT]: hasCurrentOperatorResultTool,
+      // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: getCurrentOperatorResultTool,
+      // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: getCurrentOperatorResultInfoTool,
       [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: getCurrentComputingUnitStatusTool,
       // Data inconsistency tools
       [dataInconsistencyTools.TOOL_NAME_ADD_INCONSISTENCY]: addInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_LIST_INCONSISTENCIES]: listInconsistenciesTool,
-      [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
-      [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
-      [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
+      // [dataInconsistencyTools.TOOL_NAME_UPDATE_INCONSISTENCY]: updateInconsistencyTool,
+      // [dataInconsistencyTools.TOOL_NAME_DELETE_INCONSISTENCY]: deleteInconsistencyTool,
+      // [dataInconsistencyTools.TOOL_NAME_CLEAR_INCONSISTENCIES]: clearInconsistenciesTool,
       // Workflow action tools - always available
       [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: addToWorkflowTool,
       [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: modifyInWorkflowTool,

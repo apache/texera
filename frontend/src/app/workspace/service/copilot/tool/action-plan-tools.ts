@@ -140,8 +140,9 @@ export function createAddToWorkflowTool(
       operators: z
         .array(
           z.object({
-            operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
+            operatorType: z.string().describe("Type of operator"),
             customDisplayName: z.string().describe("Brief custom name summarizing what this operator does"),
+            properties: z.record(z.any()).describe("Properties to set for this operator. Must obey the schema of this type of operator"),
           })
         )
         .optional()
@@ -164,7 +165,11 @@ export function createAddToWorkflowTool(
     }),
     execute: async (args: {
       summary: string;
-      operators?: Array<{ operatorType: string; customDisplayName?: string }>;
+      operators?: Array<{
+        operatorType: string;
+        customDisplayName?: string;
+        properties?: Record<string, any>;
+      }>;
       links?: Array<{
         sourceOperatorId: string;
         targetOperatorId: string;
@@ -244,7 +249,7 @@ export function createModifyInWorkflowTool(
         .array(
           z.object({
             operatorId: z.string().describe("ID of the operator to modify"),
-            properties: z.record(z.any()).describe("Properties to update (e.g., {delimiter: '|', limit: 100})"),
+            properties: z.record(z.any()).describe("Properties to update"),
           })
         )
         .describe("List of operators to modify with their new properties"),
@@ -343,146 +348,6 @@ export function createDeleteFromWorkflowTool(
         };
       } catch (error: any) {
         return { success: false, error: error.message };
-      }
-    },
-  });
-}
-
-/**
- * Create getActionPlan tool for retrieving a specific action plan by ID
- */
-export function createGetActionPlanTool(actionPlanService: ActionPlanService) {
-  return tool({
-    name: TOOL_NAME_GET_ACTION_PLAN,
-    description: "Retrieve a specific action plan by its ID",
-    inputSchema: z.object({
-      actionPlanId: z.string().describe("The ID of the action plan to retrieve"),
-    }),
-    execute: async (args: { actionPlanId: string }) => {
-      try {
-        const plan = actionPlanService.getActionPlan(args.actionPlanId);
-        if (!plan) {
-          return { success: false, error: "Action plan not found" };
-        }
-
-        // Convert to a serializable format
-        return {
-          success: true,
-          actionPlan: {
-            id: plan.id,
-            agentId: plan.agentId,
-            agentName: plan.agentName,
-            executorAgentId: plan.executorAgentId,
-            summary: plan.summary,
-            createdAt: plan.createdAt.toISOString(),
-            operatorIds: plan.operatorIds,
-            linkIds: plan.linkIds,
-            operations: plan.operations,
-          },
-        };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : "Failed to retrieve action plan" };
-      }
-    },
-  });
-}
-
-/**
- * Create listActionPlans tool for retrieving all action plans
- */
-export function createListActionPlansTool(actionPlanService: ActionPlanService) {
-  return tool({
-    name: TOOL_NAME_LIST_ACTION_PLANS,
-    description: "List all action plans in the system",
-    inputSchema: z.object({
-      filterByAgent: z.string().optional().describe("Optional: Filter by agent ID"),
-    }),
-    execute: async (args: { filterByAgent?: string }) => {
-      try {
-        let plans = actionPlanService.getAllActionPlans();
-
-        // Apply filters if provided
-        if (args.filterByAgent) {
-          plans = plans.filter(plan => plan.agentId === args.filterByAgent);
-        }
-
-        // Convert to serializable format
-        const serializedPlans = plans.map(plan => ({
-          id: plan.id,
-          agentId: plan.agentId,
-          agentName: plan.agentName,
-          executorAgentId: plan.executorAgentId,
-          summary: plan.summary,
-          createdAt: plan.createdAt.toISOString(),
-          operations: plan.operations,
-        }));
-
-        return {
-          success: true,
-          actionPlans: serializedPlans,
-          totalCount: serializedPlans.length,
-        };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : "Failed to list action plans" };
-      }
-    },
-  });
-}
-
-/**
- * Create deleteActionPlan tool for deleting an action plan
- */
-export function createDeleteActionPlanTool(actionPlanService: ActionPlanService) {
-  return tool({
-    name: TOOL_NAME_DELETE_ACTION_PLAN,
-    description: "Delete an action plan by its ID",
-    inputSchema: z.object({
-      actionPlanId: z.string().describe("The ID of the action plan to delete"),
-    }),
-    execute: async (args: { actionPlanId: string }) => {
-      try {
-        const success = actionPlanService.deleteActionPlan(args.actionPlanId);
-        if (!success) {
-          return { success: false, error: "Action plan not found or could not be deleted" };
-        }
-        return { success: true, message: `Action plan ${args.actionPlanId} deleted successfully` };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : "Failed to delete action plan" };
-      }
-    },
-  });
-}
-
-/**
- * Create updateActionPlan tool for updating an action plan
- */
-export function createUpdateActionPlanTool(actionPlanService: ActionPlanService) {
-  return tool({
-    name: TOOL_NAME_UPDATE_ACTION_PLAN,
-    description: "Update an action plan's properties",
-    inputSchema: z.object({
-      actionPlanId: z.string().describe("The ID of the action plan to update"),
-      summary: z.string().optional().describe("New summary for the action plan"),
-    }),
-    execute: async (args: { actionPlanId: string; summary?: string }) => {
-      try {
-        const plan = actionPlanService.getActionPlan(args.actionPlanId);
-        if (!plan) {
-          return { success: false, error: "Action plan not found" };
-        }
-
-        // Update fields if provided
-        if (args.summary !== undefined) {
-          plan.summary = args.summary;
-        }
-
-        return {
-          success: true,
-          message: `Action plan ${args.actionPlanId} updated successfully`,
-          updatedFields: Object.keys(args).filter(k => k !== "actionPlanId"),
-        };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : "Failed to update action plan" };
       }
     },
   });

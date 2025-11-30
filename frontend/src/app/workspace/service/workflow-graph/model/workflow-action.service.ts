@@ -1149,11 +1149,6 @@ export class WorkflowActionService {
             operatorSpec.customDisplayName
           );
 
-          // Apply custom properties if provided
-          if (operatorSpec.properties) {
-            Object.assign(operator, operatorSpec.properties);
-          }
-
           // Calculate a default position with better spacing for batch operations
           const defaultX = 100 + ((startIndex + i) % 5) * 200;
           const defaultY = 100 + Math.floor((startIndex + i) / 5) * 150;
@@ -1163,6 +1158,12 @@ export class WorkflowActionService {
           this.texeraGraph.assertOperatorNotExists(operator.operatorID);
           this.texeraGraph.addOperator(operator);
           this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, position);
+
+          // Apply custom properties if provided (must be done after operator is added)
+          if (operatorSpec.properties) {
+            this.texeraGraph.setOperatorProperty(operator.operatorID, operatorSpec.properties);
+          }
+
           results.addedOperatorIds.push(operator.operatorID);
         }
       }

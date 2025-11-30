@@ -392,7 +392,7 @@ export function executeWorkflowAndGetResults$(
       }
 
       return {
-        success: false,
+        ...baseError,
         executionState: String(finalState.state),
         message: `Unexpected state: ${finalState.state}`,
         error: `Unexpected state: ${finalState.state}`,
@@ -404,6 +404,7 @@ export function executeWorkflowAndGetResults$(
         executionState: "Error",
         message: "Execution error",
         error: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        // Note: consoleLogs may not be available in catchError since we failed before collecting them
       })
     )
   );
@@ -474,7 +475,17 @@ export function createExecuteCurrentWorkflowTool(
           []
         );
       } else {
-        return createErrorResult(result.error || result.message);
+        // Include console logs and operator states even on failure for debugging
+        return {
+          success: false,
+          error: result.error || result.message,
+          executionState: result.executionState,
+          message: result.message,
+          operatorStates: result.operatorStates,
+          consoleLogs: result.consoleLogs,
+          viewedOperatorIds: [],
+          modifiedOperatorIds: [],
+        };
       }
     },
   });

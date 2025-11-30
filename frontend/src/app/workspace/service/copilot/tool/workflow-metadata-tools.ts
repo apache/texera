@@ -20,59 +20,70 @@
 import { z } from "zod";
 import { tool } from "ai";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 
 // Tool name constants
-export const TOOL_NAME_LIST_ALL_OPERATOR_TYPES = "listAllOperatorTypes";
-export const TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA = "getOperatorPropertiesSchema";
+export const TOOL_NAME_LIST_ALL_OPERATOR_TYPES_AND_SCHEMAS = "listAllOperatorTypesAndSchemas";
 export const TOOL_NAME_GET_OPERATOR_PORTS_INFO = "getOperatorPortsInfo";
 export const TOOL_NAME_GET_OPERATOR_METADATA = "getOperatorMetadata";
 
-export function createListAllOperatorTypesTool(workflowUtilService: WorkflowUtilService) {
+// Whitelist of allowed operator types for the copilot
+export const ALLOWED_OPERATOR_TYPES = [
+  "PythonUDFV2",
+  "Aggregate",
+  "Projection",
+  "HashJoin",
+  "Sort",
+  "Union",
+  "Intersect",
+  "CartesianProduct",
+  "CSVFileScan",
+] as const;
+
+export type AllowedOperatorType = (typeof ALLOWED_OPERATOR_TYPES)[number];
+
+/**
+ * Combined tool that returns all allowed operator types with their properties schemas.
+ * This reduces the number of tool calls needed and saves network bandwidth/tokens.
+ */
+export function createListAllOperatorTypesAndSchemasTool(operatorMetadataService: OperatorMetadataService) {
   return tool({
-    name: TOOL_NAME_LIST_ALL_OPERATOR_TYPES,
-    description: "Get all available operator types in the system",
+    name: TOOL_NAME_LIST_ALL_OPERATOR_TYPES_AND_SCHEMAS,
+    description:
+      "Get all available operator types and their properties schemas. " +
+      "Returns operator types with their full properties schema for configuring operators. " +
+      "Use this to understand what operators are available and how to configure them.",
     inputSchema: z.object({}),
     execute: async () => {
       try {
-        const operatorTypes = workflowUtilService.getOperatorTypeList();
-        return {
-          success: true,
-          operatorTypes: operatorTypes,
-          count: operatorTypes.length,
-        };
-      } catch (error: any) {
-        return { success: false, error: error.message };
-      }
-    },
-  });
-}
+        const operatorsWithSchemas: Record<
+          string,
+          {
+            properties: any;
+            required: any;
+            definitions: any;
+          }
+        > = {};
 
-/**
- * Create getOperatorPropertiesSchema tool for getting just the properties schema
- * More token-efficient than getOperatorSchema for property-focused queries
- */
-export function createGetOperatorPropertiesSchemaTool(operatorMetadataService: OperatorMetadataService) {
-  return tool({
-    name: TOOL_NAME_GET_OPERATOR_PROPERTIES_SCHEMA,
-    description: "Get only the properties schema for an operator type. Use this before setting operator properties.",
-    inputSchema: z.object({
-      operatorType: z.string().describe("Type of the operator to get properties schema for"),
-    }),
-    execute: async (args: { operatorType: string }) => {
-      try {
-        const schema = operatorMetadataService.getOperatorSchema(args.operatorType);
-        const propertiesSchema = {
-          properties: schema.jsonSchema.properties,
-          required: schema.jsonSchema.required,
-          definitions: schema.jsonSchema.definitions,
-        };
+        for (const operatorType of ALLOWED_OPERATOR_TYPES) {
+          try {
+            const schema = operatorMetadataService.getOperatorSchema(operatorType);
+            operatorsWithSchemas[operatorType] = {
+              properties: schema.jsonSchema.properties,
+              required: schema.jsonSchema.required,
+              definitions: schema.jsonSchema.definitions,
+            };
+          } catch {
+            // Skip operators that don't exist in this installation
+          }
+        }
+
+        const availableTypes = Object.keys(operatorsWithSchemas);
 
         return {
           success: true,
-          propertiesSchema: propertiesSchema,
-          operatorType: args.operatorType,
-          message: `Retrieved properties schema for operator type ${args.operatorType}`,
+          operators: operatorsWithSchemas,
+          operatorTypes: availableTypes,
+          count: availableTypes.length,
         };
       } catch (error: any) {
         return { success: false, error: error.message };

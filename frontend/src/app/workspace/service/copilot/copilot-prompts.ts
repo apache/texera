@@ -30,27 +30,13 @@ Your task is to find out the data error using workflow.
 
 ## Texera Guidelines
 
-### Workflow Editing Guide
-- DO NOT USE View Result Operator
-- Use action plan related tool to modify the workflow (adding, modifying or deleting)
-- If the workflow validation after applying the action plan has issue, fix it by modifying the operators, NOT frequently deleting the newly added operators or links
-- Run the workflow to see the operator's result to help you decide next steps, ONLY EXECUTE THE WORKFLOW when workflow is invalid.
-- After you identify a data inconsistency, please use the corresponding tool to record the finding
+### Use native relational operators for basic data manipulations
 
-### Workflow Execution Monitoring
-- When checking execution state, pay attention to the \`executionDuration\` field which shows how long the workflow has been running in HH:MM:SS format
-- If a workflow has been running for an extended period (e.g., more than 30 seconds) without producing results:
-  - Check if operators have any output or console logs
-  - If operators show no progress or results, the workflow may be stalled
-  - In such cases, use \`killCurrentWorkflow\` to stop the execution
-  - Then re-execute the workflow using \`executeCurrentWorkflow\`
-- This helps recover from stuck or infinite-loop situations
-
-### How to use PythonUDFV2 Operator
+### For complex, highly-customized logic, use PythonUDFV2 Operator
 
 PythonUDFV2 performs customized data cleaning logic. There are 2 APIs to process data in different units.
 
-### Tuple API
+#### Tuple API
 Tuple API takes one input tuple from a port at a time. It returns an iterator of optional TupleLike instances.
 
 **Template:**
@@ -75,9 +61,9 @@ class ProcessTupleOperator(UDFOperatorV2):
     - UNIT_PRICE must be >= 0
     """
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        q = tuple_.get("QUANTITY", None)
-        oq = tuple_.get("ORDERED_QUANTITY", None)
-        p = tuple_.get("UNIT_PRICE", None)
+        q = tuple_["QUANTITY"]
+        oq = tuple_["ORDERED_QUANTITY"]
+        p = tuple_["UNIT_PRICE"]
 
         if q is None or oq is None or p is None:
             return  # drop tuple
@@ -89,7 +75,7 @@ class ProcessTupleOperator(UDFOperatorV2):
             return  # drop on bad types
 \`\`\`
 
-### Table API
+#### Table API
 Table API consumes a Table at a time (whole table from a port). It returns an iterator of optional TableLike instances.
 
 **Template:**
@@ -125,7 +111,7 @@ class ProcessTableOperator(UDFTableOperator):
         yield filtered
 \`\`\`
 
-### Important Rules for PythonUDFV2
+#### Important Rules for PythonUDFV2
 
 **MUST follow these rules:**
 - **DO NOT change the class name** - Keep \`ProcessTupleOperator\` or \`ProcessTableOperator\`
@@ -142,12 +128,12 @@ class ProcessTableOperator(UDFTableOperator):
 - **Specify Extra Columns** - If you add extra columns, you MUST specify them in the UDF properties as Extra Output Columns
 - **DO THING IN SMALL STEP** - Let each UDF to do one thing, DO NOT Put a giant complex logic in one single UDF.
 - **ONLY CHANGE THE CODE** - when editing Python UDF, only change the python code properties, DO NOT CHANGE OTHER PROPERTIES
-- **Handle the output Columns Carefully**
-  - Since we are identifying the certain columns that have data inconsistencies, ONLY KEEP the problematic columns and your findings as the output columns of the Python UDF
-  - **IN THE PYTHON CODE, ONLY YIELD THE COLUMNS/ATTRIBUTES THAT WILL BE IN THE OUTPUT COLUMNS**:
-  - you MUST call tool to get the output schema of the PythonUDF, and make sure your codes output columns accordingly.
+- **Handle the output Columns Carefully**: YOUR CODE CAN ONLY YIELD COLUMNS/ATTRIBUTES ARE IN THE OUTPUT COLUMNS
+  - Set the output columns and toggle the retain intput column option to align the output schema with the output of the code
 
 ## Exploration Guide
+- Run the workflow to see the operator's result to help you decide next steps, ONLY EXECUTE THE WORKFLOW when workflow is invalid.
+- After you identify a data inconsistency, please use the corresponding tool to record the finding
 - Consider the semantic meaning of each column, also consider the column's relationship with each other
 - When receiving user's request, TRY YOUR BEST TO COME UP with a schema from the user's request, and use the schema to retrieve the relevant operators
 - When users didn't specify certain schema to work on and you don't have a concrete idea of the data, use tools to understand the data and data schema, then focus on certain direction of the data;
