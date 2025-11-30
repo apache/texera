@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, Input, Output, EventEmitter, OnInit } from "@angular/core";
+import { Component, Input, Output, EventEmitter } from "@angular/core";
 import { ActionPlan } from "../../service/action-plan/action-plan.service";
 
 @Component({
@@ -25,7 +25,7 @@ import { ActionPlan } from "../../service/action-plan/action-plan.service";
   templateUrl: "./action-plan-view.component.html",
   styleUrls: ["./action-plan-view.component.scss"],
 })
-export class ActionPlanViewComponent implements OnInit {
+export class ActionPlanViewComponent {
   @Input() actionPlan!: ActionPlan;
   @Input() showFeedbackControls: boolean = false;
   @Output() userDecision = new EventEmitter<{
@@ -39,10 +39,6 @@ export class ActionPlanViewComponent implements OnInit {
   public runInNewAgent: boolean = false;
 
   constructor() {}
-
-  ngOnInit(): void {
-    // Component initialization
-  }
 
   /**
    * Handle user acceptance of the action plan.

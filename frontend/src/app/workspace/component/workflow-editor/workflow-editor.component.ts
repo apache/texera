@@ -1886,9 +1886,43 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private handleAgentHoverHighlight(): void {
     // Subscribe to all agents and their hover events
     this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
-      this.copilotManagerService.getAllAgents().subscribe(agents => {
+      this.copilotManagerService
+        .getAllAgents()
+        .pipe(untilDestroyed(this))
+        .subscribe(agents => {
+          agents.forEach(agent => {
+            // Subscribe to each agent's hover operators stream
+            this.copilotManagerService
+              .getHoveredMessageOperatorsObservable(agent.id)
+              .pipe(untilDestroyed(this))
+              .subscribe(({ viewedOperatorIds, modifiedOperatorIds }) => {
+                // Clear all previous labels first
+                this.clearAllAgentActionLabels();
+
+                // Show "Viewing" labels on viewed operators
+                viewedOperatorIds.forEach(operatorId => {
+                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing", agent.name);
+                  }
+                });
+
+                // Show "Modifying" labels on modified operators
+                modifiedOperatorIds.forEach(operatorId => {
+                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying", agent.name);
+                  }
+                });
+              });
+          });
+        });
+    });
+
+    // Initial setup
+    this.copilotManagerService
+      .getAllAgents()
+      .pipe(untilDestroyed(this))
+      .subscribe(agents => {
         agents.forEach(agent => {
-          // Subscribe to each agent's hover operators stream
           this.copilotManagerService
             .getHoveredMessageOperatorsObservable(agent.id)
             .pipe(untilDestroyed(this))
@@ -1912,34 +1946,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             });
         });
       });
-    });
-
-    // Initial setup
-    this.copilotManagerService.getAllAgents().subscribe(agents => {
-      agents.forEach(agent => {
-        this.copilotManagerService
-          .getHoveredMessageOperatorsObservable(agent.id)
-          .pipe(untilDestroyed(this))
-          .subscribe(({ viewedOperatorIds, modifiedOperatorIds }) => {
-            // Clear all previous labels first
-            this.clearAllAgentActionLabels();
-
-            // Show "Viewing" labels on viewed operators
-            viewedOperatorIds.forEach(operatorId => {
-              if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewing", agent.name);
-              }
-            });
-
-            // Show "Modifying" labels on modified operators
-            modifiedOperatorIds.forEach(operatorId => {
-              if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
-                this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modifying", agent.name);
-              }
-            });
-          });
-      });
-    });
   }
 
   /**

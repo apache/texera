@@ -28,6 +28,7 @@ import * as currentWorkflowValidationTools from "./tool/current-workflow-validat
 import * as currentWorkflowExecutionTools from "./tool/current-workflow-execution-tools";
 import * as actionPlanTools from "./tool/action-plan-tools";
 import * as dataInconsistencyTools from "./tool/data-inconsistency-tools";
+import * as baselineTools from "./tool/baseline-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
@@ -46,7 +47,7 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { COPILOT_SYSTEM_PROMPT, PLANNING_MODE_PROMPT } from "./copilot-prompts";
+import { COPILOT_SYSTEM_PROMPT, PLANNING_MODE_PROMPT, BASELINE_SYSTEM_PROMPT } from "./copilot-prompts";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -133,6 +134,7 @@ export class TexeraCopilot {
   public state$ = this.stateSubject.asObservable();
   private shouldStopAfterActionPlan: boolean = false;
   private planningMode: boolean = false;
+  private baselineMode: boolean = false;
   private relevantOperators: string[] = [];
   private relevantOperatorsSubject = new BehaviorSubject<string[]>([]);
   public relevantOperators$ = this.relevantOperatorsSubject.asObservable();
@@ -190,6 +192,14 @@ export class TexeraCopilot {
     return this.planningMode;
   }
 
+  public setBaselineMode(baselineMode: boolean): void {
+    this.baselineMode = baselineMode;
+  }
+
+  public getBaselineMode(): boolean {
+    return this.baselineMode;
+  }
+
   /**
    * Update the state and emit to the observable.
    */
@@ -236,9 +246,15 @@ export class TexeraCopilot {
       this.setState(CopilotState.GENERATING);
       this.shouldStopAfterActionPlan = false;
 
-      const systemPrompt = this.planningMode
-        ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT
-        : COPILOT_SYSTEM_PROMPT;
+      // Determine the system prompt based on mode
+      let systemPrompt: string;
+      if (this.baselineMode) {
+        systemPrompt = BASELINE_SYSTEM_PROMPT;
+      } else if (this.planningMode) {
+        systemPrompt = COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT;
+      } else {
+        systemPrompt = COPILOT_SYSTEM_PROMPT;
+      }
 
       let lastError: unknown = null;
 
@@ -277,7 +293,7 @@ export class TexeraCopilot {
         this.reActSteps.push(userUIMessage);
         this.reActStepsSubject.next([...this.reActSteps]);
 
-        const tools = this.createWorkflowTools();
+        const tools = this.baselineMode ? this.createBaselineTools() : this.createWorkflowTools();
         let isFirstStep = true;
         let stepIndex = 0;
         let wasStopped = false;
@@ -718,6 +734,76 @@ export class TexeraCopilot {
     return baseTools;
   }
 
+  /**
+   * Create tools for baseline mode.
+   * Baseline mode only has: createPythonUDF, execute, get results, and data inconsistency tools.
+   */
+  private createBaselineTools(): Record<string, any> {
+    // Python UDF creation tool - includes auto-execution, console log retrieval, and action plan recording
+    const createPythonUDFTool = toolWithTimeout(
+      baselineTools.createPythonUDFTool(
+        this.workflowActionService,
+        this.workflowUtilService,
+        this.operatorMetadataService,
+        this.executeWorkflowService,
+        this.validationWorkflowService,
+        this.workflowConsoleService,
+        this.workflowStatusService,
+        this.workflowResultService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+
+    // Workflow execution tools
+    const executeCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createExecuteCurrentWorkflowTool(
+        this.executeWorkflowService,
+        this.validationWorkflowService,
+        this.workflowActionService,
+        this.workflowConsoleService,
+        this.workflowStatusService,
+        this.workflowResultService
+      )
+    );
+    const getCurrentExecutionStateTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createGetCurrentExecutionStateTool(
+        this.executeWorkflowService,
+        this.workflowActionService,
+        this.workflowConsoleService,
+        this.workflowStatusService
+      )
+    );
+    const killCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createKillCurrentWorkflowTool(this.executeWorkflowService)
+    );
+    const getCurrentOperatorResultTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createGetCurrentOperatorResultTool(this.workflowResultService)
+    );
+
+    // Data inconsistency tools
+    const addInconsistencyTool = toolWithTimeout(
+      dataInconsistencyTools.createAddInconsistencyTool(this.dataInconsistencyService)
+    );
+    const listInconsistenciesTool = toolWithTimeout(
+      dataInconsistencyTools.createListInconsistenciesTool(this.dataInconsistencyService)
+    );
+
+    return {
+      // Baseline mode primary tool
+      [baselineTools.TOOL_NAME_CREATE_PYTHON_UDF]: createPythonUDFTool,
+      // Execution tools
+      [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: executeCurrentWorkflowTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: getCurrentExecutionStateTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: killCurrentWorkflowTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: getCurrentOperatorResultTool,
+      // Data inconsistency tools
+      [dataInconsistencyTools.TOOL_NAME_ADD_INCONSISTENCY]: addInconsistencyTool,
+      [dataInconsistencyTools.TOOL_NAME_LIST_INCONSISTENCIES]: listInconsistenciesTool,
+    };
+  }
+
   public getReActSteps(): ReActStep[] {
     return [...this.reActSteps];
   }
@@ -811,11 +897,14 @@ export class TexeraCopilot {
   }
 
   public getSystemPrompt(): string {
+    if (this.baselineMode) {
+      return BASELINE_SYSTEM_PROMPT;
+    }
     return this.planningMode ? COPILOT_SYSTEM_PROMPT + "\n\n" + PLANNING_MODE_PROMPT : COPILOT_SYSTEM_PROMPT;
   }
 
   public getToolsInfo(): Array<{ name: string; description: string; inputSchema: any }> {
-    const tools = this.createWorkflowTools();
+    const tools = this.baselineMode ? this.createBaselineTools() : this.createWorkflowTools();
     return Object.entries(tools).map(([name, tool]) => ({
       name: name,
       description: tool.description || "No description available",

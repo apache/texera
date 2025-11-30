@@ -105,6 +105,336 @@ function filterByTokenLimit(rows: readonly any[]): { limited: any[]; tokenCount:
 }
 
 /**
+ * Options for the common execution function
+ */
+export interface ExecuteWorkflowOptions {
+  executionName?: string;
+  targetOperatorId?: string;
+  includeOperatorResults?: boolean; // Default: true
+  signal?: AbortSignal;
+}
+
+/**
+ * Result of workflow execution
+ */
+export interface ExecuteWorkflowResult {
+  success: boolean;
+  executionState: string;
+  message: string;
+  state?: any;
+  operatorStates?: Record<string, any>;
+  consoleLogs?: Record<string, ReadonlyArray<any>>;
+  operatorResults?: Record<string, any>;
+  error?: string;
+}
+
+/**
+ * Services required for workflow execution
+ */
+export interface WorkflowExecutionServices {
+  executeWorkflowService: ExecuteWorkflowService;
+  validationWorkflowService: ValidationWorkflowService;
+  workflowActionService: WorkflowActionService;
+  workflowConsoleService: WorkflowConsoleService;
+  workflowStatusService: WorkflowStatusService;
+  workflowResultService: WorkflowResultService;
+}
+
+/**
+ * Common function to execute workflow and get results.
+ * This is the core logic shared by both the executeCurrentWorkflow tool and baseline tools.
+ *
+ * @param services - Required workflow services
+ * @param options - Execution options including whether to include operator results
+ * @returns Promise with execution result
+ */
+export function executeWorkflowAndGetResults(
+  services: WorkflowExecutionServices,
+  options: ExecuteWorkflowOptions = {}
+): Promise<ExecuteWorkflowResult> {
+  const {
+    executeWorkflowService,
+    validationWorkflowService,
+    workflowActionService,
+    workflowConsoleService,
+    workflowStatusService,
+    workflowResultService,
+  } = services;
+
+  const name = options.executionName || "Copilot Execution";
+  const includeResults = options.includeOperatorResults !== false; // Default to true
+
+  // Create the execution observable
+  const execution$ = defer(() => {
+    // Step 1: Kill existing execution if any
+    const currentState = executeWorkflowService.getExecutionState();
+    if (
+      currentState.state !== ExecutionState.Uninitialized &&
+      currentState.state !== ExecutionState.Completed &&
+      currentState.state !== ExecutionState.Failed &&
+      currentState.state !== ExecutionState.Killed
+    ) {
+      return of(null).pipe(
+        switchMap(() => {
+          try {
+            executeWorkflowService.killWorkflow();
+            // Wait 500ms for the workflow to be killed
+            return timer(500);
+          } catch (killError: any) {
+            // If kill fails, it's likely because the workflow is already in a terminal state
+            console.warn("Failed to kill existing execution:", killError.message);
+            return of(null);
+          }
+        })
+      );
+    }
+    return of(null);
+  }).pipe(
+    // Step 2: Validate the workflow
+    switchMap(() => {
+      const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
+      const errorCount = Object.keys(validationOutput.errors).length;
+
+      if (errorCount > 0) {
+        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+        const validGraph = validationWorkflowService.getValidTexeraGraph();
+        const validOperators = validGraph.getAllOperators();
+
+        return throwError(
+          () =>
+            new Error(
+              `Cannot execute workflow: Found ${errorCount} operator(s) with validation errors. ` +
+                `${validOperators.length} valid operator(s) out of ${allOperators.length} total. ` +
+                `Validation errors: ${JSON.stringify(validationOutput.errors, null, 2)}`
+            )
+        );
+      }
+
+      const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+      if (allOperators.length === 0) {
+        return throwError(
+          () => new Error("Cannot execute workflow: The workflow is empty. Please add operators first.")
+        );
+      }
+
+      return of(allOperators);
+    }),
+    // Step 3: Start execution and monitor until completion
+    switchMap(allOperators => {
+      // Start the execution
+      executeWorkflowService.executeWorkflow(name, options.targetOperatorId);
+
+      // Stream 1: Monitor execution state changes
+      const executionState$ = executeWorkflowService.getExecutionStateStream().pipe(
+        filter(
+          stateChange =>
+            stateChange.current.state === ExecutionState.Completed ||
+            stateChange.current.state === ExecutionState.Failed ||
+            stateChange.current.state === ExecutionState.Killed ||
+            stateChange.current.state === ExecutionState.Paused
+        ),
+        map(stateChange => stateChange.current)
+      );
+
+      // Stream 2: Detect stuck state (workflow Running but operator Paused due to error)
+      const stuckDetection$ = interval(1000).pipe(
+        filter(() => {
+          const execState = executeWorkflowService.getExecutionState();
+          if (execState.state !== ExecutionState.Running) return false;
+
+          // Check if any operator is in Paused state (purple = error)
+          const operatorStates = workflowStatusService.getCurrentStatus();
+          return Object.values(operatorStates).some((stats: any) => stats.operatorState === "Paused");
+        }),
+        take(1),
+        tap(() => {
+          // Kill the workflow to trigger proper cleanup and error reporting
+          try {
+            executeWorkflowService.killWorkflow();
+          } catch (e) {
+            // Ignore if already in terminal state
+          }
+        }),
+        switchMap(() => EMPTY) // Let the Killed state be caught by executionState$
+      );
+
+      // Race between normal completion and stuck detection
+      return merge(executionState$, stuckDetection$).pipe(
+        take(1),
+        timeout(EXECUTION_TIMEOUT_MS),
+        map(finalState => ({ finalState, allOperators })),
+        catchError((error: unknown) => {
+          if (error instanceof Error && error.name === "TimeoutError") {
+            return throwError(
+              () =>
+                new Error(
+                  `Workflow execution timed out after ${EXECUTION_TIMEOUT_MS / 1000} seconds. ` +
+                    "The workflow may still be running. Use getCurrentExecutionState to check status."
+                )
+            );
+          }
+          return throwError(() => error);
+        })
+      );
+    }),
+    // Step 4: Collect comprehensive results after execution completes
+    switchMap(({ finalState, allOperators }) => {
+      const finalStateInfo = executeWorkflowService.getExecutionState();
+      const consoleLogs = collectConsoleLogs(allOperators, workflowConsoleService);
+      const formattedOperatorStates = formatOperatorStates(workflowStatusService.getCurrentStatus());
+
+      // Only collect results if includeResults is true
+      if (!includeResults) {
+        return of({
+          finalState,
+          finalStateInfo,
+          formattedOperatorStates,
+          consoleLogs,
+          operatorResults: {},
+        });
+      }
+
+      // Collect results for operators that have results (in parallel)
+      const resultObservables: Observable<{ operatorId: string; result: any }>[] = [];
+      for (const operator of allOperators) {
+        const operatorId = operator.operatorID;
+        if (workflowResultService.hasAnyResult(operatorId)) {
+          resultObservables.push(
+            getOperatorResult$(operatorId, workflowResultService).pipe(
+              map(result => ({ operatorId, result })),
+              catchError((error: unknown) =>
+                of({
+                  operatorId,
+                  result: {
+                    error: `Failed to fetch results: ${error instanceof Error ? error.message : String(error)}`,
+                  },
+                })
+              )
+            )
+          );
+        }
+      }
+
+      // Wait for all result fetches to complete
+      const resultsStream$ =
+        resultObservables.length > 0
+          ? forkJoin(resultObservables).pipe(
+              map(results => {
+                const operatorResults: Record<string, any> = {};
+                for (const { operatorId, result } of results) {
+                  operatorResults[operatorId] = result;
+                }
+                return operatorResults;
+              })
+            )
+          : of({});
+
+      return resultsStream$.pipe(
+        map(operatorResults => ({
+          finalState,
+          finalStateInfo,
+          formattedOperatorStates,
+          consoleLogs,
+          operatorResults,
+        }))
+      );
+    }),
+    // Build final result based on execution state
+    map(({ finalState, finalStateInfo, formattedOperatorStates, consoleLogs, operatorResults }) => {
+      const errorMessages = executeWorkflowService.getErrorMessages();
+
+      if (finalState.state === ExecutionState.Completed) {
+        return {
+          success: true,
+          executionState: "Completed",
+          message: options.targetOperatorId
+            ? `Workflow executed successfully up to operator ${options.targetOperatorId}`
+            : "Workflow executed successfully",
+          state: finalStateInfo,
+          operatorStates: formattedOperatorStates,
+          consoleLogs: consoleLogs,
+          operatorResults: operatorResults,
+        } as ExecuteWorkflowResult;
+      } else if (finalState.state === ExecutionState.Failed) {
+        return {
+          success: false,
+          executionState: "Failed",
+          message: "Workflow execution failed",
+          error:
+            `Workflow execution failed. Error messages: ${JSON.stringify(errorMessages, null, 2)}. ` +
+            `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
+            `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`,
+          operatorStates: formattedOperatorStates,
+          consoleLogs: consoleLogs,
+        } as ExecuteWorkflowResult;
+      } else if (finalState.state === ExecutionState.Killed) {
+        return {
+          success: false,
+          executionState: "Killed",
+          message: "Workflow execution was killed",
+          error:
+            "Workflow execution was killed. " +
+            `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
+            `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`,
+          operatorStates: formattedOperatorStates,
+          consoleLogs: consoleLogs,
+        } as ExecuteWorkflowResult;
+      } else if (finalState.state === ExecutionState.Paused) {
+        return {
+          success: false,
+          executionState: "Paused",
+          message: "Workflow execution paused (likely due to an error)",
+          error:
+            "Workflow execution paused (likely due to an error). " +
+            `Error messages: ${JSON.stringify(errorMessages, null, 2)}. ` +
+            `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
+            `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`,
+          operatorStates: formattedOperatorStates,
+          consoleLogs: consoleLogs,
+        } as ExecuteWorkflowResult;
+      } else {
+        return {
+          success: false,
+          executionState: String(finalState.state),
+          message: `Unexpected execution state: ${finalState.state}`,
+          error: `Unexpected execution state: ${finalState.state}`,
+        } as ExecuteWorkflowResult;
+      }
+    }),
+    catchError((error: unknown) =>
+      of({
+        success: false,
+        executionState: "Error",
+        message: "Execution error",
+        error: `Execution error: ${error instanceof Error ? error.message : String(error)}`,
+      } as ExecuteWorkflowResult)
+    )
+  );
+
+  // Convert observable to promise
+  return new Promise((resolve, reject) => {
+    const subscription = execution$.subscribe({
+      next: result => {
+        subscription.unsubscribe();
+        resolve(result);
+      },
+      error: (err: unknown) => {
+        subscription.unsubscribe();
+        reject(err);
+      },
+    });
+
+    // Handle abort signal
+    if (options.signal) {
+      options.signal.addEventListener("abort", () => {
+        subscription.unsubscribe();
+        reject(new Error("Operation aborted by user"));
+      });
+    }
+  });
+}
+
+/**
  * Create unified executeWorkflow tool that validates, executes, monitors, and returns results
  */
 export function createExecuteCurrentWorkflowTool(
@@ -115,6 +445,15 @@ export function createExecuteCurrentWorkflowTool(
   workflowStatusService: WorkflowStatusService,
   workflowResultService: WorkflowResultService
 ) {
+  const services: WorkflowExecutionServices = {
+    executeWorkflowService,
+    validationWorkflowService,
+    workflowActionService,
+    workflowConsoleService,
+    workflowStatusService,
+    workflowResultService,
+  };
+
   return tool({
     name: TOOL_NAME_EXECUTE_CURRENT_WORKFLOW,
     description:
@@ -126,239 +465,31 @@ export function createExecuteCurrentWorkflowTool(
         .optional()
         .describe("Optional operator ID to execute up to (executes entire workflow if not specified)"),
     }),
-    execute: (args: { executionName?: string; targetOperatorId?: string; signal?: AbortSignal }) => {
-      const name = args.executionName || "Copilot Execution";
-
-      // Create the execution observable
-      const execution$ = defer(() => {
-        // Step 1: Kill existing execution if any
-        const currentState = executeWorkflowService.getExecutionState();
-        if (
-          currentState.state !== ExecutionState.Uninitialized &&
-          currentState.state !== ExecutionState.Completed &&
-          currentState.state !== ExecutionState.Failed &&
-          currentState.state !== ExecutionState.Killed
-        ) {
-          return of(null).pipe(
-            switchMap(() => {
-              try {
-                executeWorkflowService.killWorkflow();
-                // Wait 500ms for the workflow to be killed
-                return timer(500);
-              } catch (killError: any) {
-                // If kill fails, it's likely because the workflow is already in a terminal state
-                console.warn("Failed to kill existing execution:", killError.message);
-                return of(null);
-              }
-            })
-          );
-        }
-        return of(null);
-      }).pipe(
-        // Step 2: Validate the workflow
-        switchMap(() => {
-          const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
-          const errorCount = Object.keys(validationOutput.errors).length;
-
-          if (errorCount > 0) {
-            const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-            const validGraph = validationWorkflowService.getValidTexeraGraph();
-            const validOperators = validGraph.getAllOperators();
-
-            return throwError(
-              () =>
-                new Error(
-                  `Cannot execute workflow: Found ${errorCount} operator(s) with validation errors. ` +
-                    `${validOperators.length} valid operator(s) out of ${allOperators.length} total. ` +
-                    `Validation errors: ${JSON.stringify(validationOutput.errors, null, 2)}`
-                )
-            );
-          }
-
-          const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-          if (allOperators.length === 0) {
-            return throwError(
-              () => new Error("Cannot execute workflow: The workflow is empty. Please add operators first.")
-            );
-          }
-
-          return of(allOperators);
-        }),
-        // Step 3: Start execution and monitor until completion
-        switchMap(allOperators => {
-          // Start the execution
-          executeWorkflowService.executeWorkflow(name, args.targetOperatorId);
-
-          // Stream 1: Monitor execution state changes
-          const executionState$ = executeWorkflowService.getExecutionStateStream().pipe(
-            filter(
-              stateChange =>
-                stateChange.current.state === ExecutionState.Completed ||
-                stateChange.current.state === ExecutionState.Failed ||
-                stateChange.current.state === ExecutionState.Killed ||
-                stateChange.current.state === ExecutionState.Paused
-            ),
-            map(stateChange => stateChange.current)
-          );
-
-          // Stream 2: Detect stuck state (workflow Running but operator Paused due to error)
-          const stuckDetection$ = interval(1000).pipe(
-            filter(() => {
-              const execState = executeWorkflowService.getExecutionState();
-              if (execState.state !== ExecutionState.Running) return false;
-
-              // Check if any operator is in Paused state (purple = error)
-              const operatorStates = workflowStatusService.getCurrentStatus();
-              return Object.values(operatorStates).some((stats: any) => stats.operatorState === "Paused");
-            }),
-            take(1),
-            tap(() => {
-              // Kill the workflow to trigger proper cleanup and error reporting
-              try {
-                executeWorkflowService.killWorkflow();
-              } catch (e) {
-                // Ignore if already in terminal state
-              }
-            }),
-            switchMap(() => EMPTY) // Let the Killed state be caught by executionState$
-          );
-
-          // Race between normal completion and stuck detection
-          return merge(executionState$, stuckDetection$).pipe(
-            take(1),
-            timeout(EXECUTION_TIMEOUT_MS),
-            map(finalState => ({ finalState, allOperators })),
-            catchError((error: Error) => {
-              if (error.name === "TimeoutError") {
-                return throwError(
-                  () =>
-                    new Error(
-                      `Workflow execution timed out after ${EXECUTION_TIMEOUT_MS / 1000} seconds. ` +
-                        "The workflow may still be running. Use getCurrentExecutionState to check status."
-                    )
-                );
-              }
-              return throwError(() => error);
-            })
-          );
-        }),
-        // Step 4: Collect comprehensive results after execution completes
-        switchMap(({ finalState, allOperators }) => {
-          const finalStateInfo = executeWorkflowService.getExecutionState();
-          const consoleLogs = collectConsoleLogs(allOperators, workflowConsoleService);
-          const formattedOperatorStates = formatOperatorStates(workflowStatusService.getCurrentStatus());
-
-          // Collect results for operators that have results (in parallel)
-          const resultObservables: Observable<{ operatorId: string; result: any }>[] = [];
-          for (const operator of allOperators) {
-            const operatorId = operator.operatorID;
-            if (workflowResultService.hasAnyResult(operatorId)) {
-              resultObservables.push(
-                getOperatorResult$(operatorId, workflowResultService).pipe(
-                  map(result => ({ operatorId, result })),
-                  catchError((error: Error) =>
-                    of({
-                      operatorId,
-                      result: { error: `Failed to fetch results: ${error.message}` },
-                    })
-                  )
-                )
-              );
-            }
-          }
-
-          // Wait for all result fetches to complete
-          const resultsStream$ =
-            resultObservables.length > 0
-              ? forkJoin(resultObservables).pipe(
-                  map(results => {
-                    const operatorResults: Record<string, any> = {};
-                    for (const { operatorId, result } of results) {
-                      operatorResults[operatorId] = result;
-                    }
-                    return operatorResults;
-                  })
-                )
-              : of({});
-
-          return resultsStream$.pipe(
-            map(operatorResults => ({
-              finalState,
-              finalStateInfo,
-              formattedOperatorStates,
-              consoleLogs,
-              operatorResults,
-            }))
-          );
-        }),
-        // Build final result based on execution state
-        map(({ finalState, finalStateInfo, formattedOperatorStates, consoleLogs, operatorResults }) => {
-          const errorMessages = executeWorkflowService.getErrorMessages();
-
-          if (finalState.state === ExecutionState.Completed) {
-            return createSuccessResult(
-              {
-                executionState: "Completed",
-                message: args.targetOperatorId
-                  ? `Workflow executed successfully up to operator ${args.targetOperatorId}`
-                  : "Workflow executed successfully",
-                state: finalStateInfo,
-                operatorStates: formattedOperatorStates,
-                consoleLogs: consoleLogs,
-                operatorResults: operatorResults,
-              },
-              [],
-              []
-            );
-          } else if (finalState.state === ExecutionState.Failed) {
-            return createErrorResult(
-              `Workflow execution failed. Error messages: ${JSON.stringify(errorMessages, null, 2)}. ` +
-                `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
-                `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`
-            );
-          } else if (finalState.state === ExecutionState.Killed) {
-            return createErrorResult(
-              "Workflow execution was killed. " +
-                `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
-                `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`
-            );
-          } else if (finalState.state === ExecutionState.Paused) {
-            return createErrorResult(
-              "Workflow execution paused (likely due to an error). " +
-                `Error messages: ${JSON.stringify(errorMessages, null, 2)}. ` +
-                `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
-                `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`
-            );
-          } else {
-            return createErrorResult(`Unexpected execution state: ${finalState.state}`);
-          }
-        }),
-        catchError((error: unknown) =>
-          of(createErrorResult(`Execution error: ${error instanceof Error ? error.message : String(error)}`))
-        )
-      );
-
-      // Convert observable to promise for the tool framework
-      return new Promise((resolve, reject) => {
-        const subscription = execution$.subscribe({
-          next: result => {
-            subscription.unsubscribe();
-            resolve(result);
-          },
-          error: (err: Error) => {
-            subscription.unsubscribe();
-            reject(err);
-          },
-        });
-
-        // Handle abort signal
-        if (args.signal) {
-          args.signal.addEventListener("abort", () => {
-            subscription.unsubscribe();
-            reject(new Error("Operation aborted by user"));
-          });
-        }
+    execute: async (args: { executionName?: string; targetOperatorId?: string; signal?: AbortSignal }) => {
+      const result = await executeWorkflowAndGetResults(services, {
+        executionName: args.executionName,
+        targetOperatorId: args.targetOperatorId,
+        includeOperatorResults: true,
+        signal: args.signal,
       });
+
+      // Convert ExecuteWorkflowResult to tool result format
+      if (result.success) {
+        return createSuccessResult(
+          {
+            executionState: result.executionState,
+            message: result.message,
+            state: result.state,
+            operatorStates: result.operatorStates,
+            consoleLogs: result.consoleLogs,
+            operatorResults: result.operatorResults,
+          },
+          [],
+          []
+        );
+      } else {
+        return createErrorResult(result.error || result.message);
+      }
     },
   });
 }

@@ -23,7 +23,6 @@ import {
   ElementRef,
   Input,
   OnInit,
-  OnDestroy,
   AfterViewChecked,
   ChangeDetectorRef,
   ChangeDetectionStrategy,
@@ -69,7 +68,7 @@ export interface TimelineNode {
   templateUrl: "agent-chat.component.html",
   styleUrls: ["agent-chat.component.scss"],
 })
-export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class AgentChatComponent implements OnInit, AfterViewChecked {
   @Input() agentInfo!: AgentInfo;
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
@@ -193,9 +192,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       });
   }
 
-  ngOnDestroy(): void {
-    // Cleanup handled by @UntilDestroy
-  }
+  // Cleanup handled by @UntilDestroy decorator
 
   ngAfterViewChecked(): void {
     if (this.shouldScrollToBottom) {
@@ -232,11 +229,6 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   public showSystemInfo(): void {
-    this.copilotManagerService.getSystemInfo(this.agentInfo.id).subscribe(systemInfo => {
-      this.systemPrompt = systemInfo.systemPrompt;
-      this.availableTools = systemInfo.tools;
-      this.isSystemInfoModalVisible = true;
-    });
     this.copilotManagerService
       .getSystemInfo(this.agentInfo.id)
       .pipe(untilDestroyed(this))

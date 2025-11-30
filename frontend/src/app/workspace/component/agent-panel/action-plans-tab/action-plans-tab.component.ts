@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, OnInit, OnDestroy } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 
@@ -27,7 +27,7 @@ import { ActionPlan, ActionPlanService } from "../../../service/action-plan/acti
   templateUrl: "./action-plans-tab.component.html",
   styleUrls: ["./action-plans-tab.component.scss"],
 })
-export class ActionPlansTabComponent implements OnInit, OnDestroy {
+export class ActionPlansTabComponent implements OnInit {
   public actionPlans: ActionPlan[] = [];
 
   constructor(private actionPlanService: ActionPlanService) {}
@@ -43,9 +43,7 @@ export class ActionPlansTabComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy(): void {
-    // Cleanup handled by UntilDestroy decorator
-  }
+  // Cleanup handled by @UntilDestroy decorator
 
   /**
    * Delete an action plan

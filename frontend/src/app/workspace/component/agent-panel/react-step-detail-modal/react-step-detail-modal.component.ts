@@ -18,6 +18,7 @@
  */
 
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from "@angular/core";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ReActStep } from "../../../service/copilot/texera-copilot";
 import { TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { ToolOperatorAccess } from "../../../service/copilot/tool/react-step-operator-parser";
@@ -26,6 +27,7 @@ import { ToolOperatorAccess } from "../../../service/copilot/tool/react-step-ope
  * Reusable modal component for displaying ReActStep details.
  * Shows step identification, token usage, tool calls, and dependent steps.
  */
+@UntilDestroy()
 @Component({
   selector: "texera-react-step-detail-modal",
   templateUrl: "./react-step-detail-modal.component.html",
@@ -46,6 +48,7 @@ export class ReActStepDetailModalComponent implements OnChanges {
       // Load dependent steps when step changes
       this.copilotManagerService
         .getDependentReActSteps(this.agentId, this.step.messageId, this.step.stepId)
+        .pipe(untilDestroyed(this))
         .subscribe(steps => {
           this.dependentSteps = steps;
         });

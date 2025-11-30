@@ -72,6 +72,9 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   getOperatorPortsInfo: ToolGroup.OBSERVE,
   getOperatorMetadata: ToolGroup.OBSERVE,
 
+  // Baseline mode tools
+  createPythonUDF: ToolGroup.MODIFY,
+
   // Observe group - workflow inspection tools
   listCurrentRelevantOperatorIds: ToolGroup.OBSERVE,
   listCurrentLinks: ToolGroup.OBSERVE,

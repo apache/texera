@@ -43,6 +43,7 @@ export interface AgentInfo {
   id: string;
   name: string;
   modelType: string;
+  isBaselineMode: boolean;
   instance: TexeraCopilot;
   createdAt: Date;
 }
@@ -97,12 +98,12 @@ export class TexeraCopilotManagerService {
    * Create a new agent with the specified model type.
    * Returns an Observable that emits the created AgentInfo.
    */
-  public createAgent(modelType: string, customName?: string): Observable<AgentInfo> {
+  public createAgent(modelType: string, customName?: string, isBaselineMode: boolean = false): Observable<AgentInfo> {
     return defer(() => {
       const agentId = `agent-${++this.agentCounter}`;
       const agentName = customName || `Agent ${this.agentCounter}`;
 
-      const agentInstance = this.createCopilotInstance(modelType);
+      const agentInstance = this.createCopilotInstance(modelType, isBaselineMode);
       agentInstance.setAgentInfo(agentId, agentName);
 
       return agentInstance.initialize().pipe(
@@ -111,6 +112,7 @@ export class TexeraCopilotManagerService {
             id: agentId,
             name: agentName,
             modelType,
+            isBaselineMode,
             instance: agentInstance,
             createdAt: new Date(),
           };
@@ -592,7 +594,7 @@ export class TexeraCopilotManagerService {
    * Create a copilot instance using Angular's dependency injection.
    * Each agent receives a unique instance via a child injector.
    */
-  private createCopilotInstance(modelType: string): TexeraCopilot {
+  private createCopilotInstance(modelType: string, isBaselineMode: boolean = false): TexeraCopilot {
     const childInjector = Injector.create({
       providers: [
         {
@@ -604,6 +606,7 @@ export class TexeraCopilotManagerService {
 
     const copilotInstance = childInjector.get(TexeraCopilot);
     copilotInstance.setModelType(modelType);
+    copilotInstance.setBaselineMode(isBaselineMode);
 
     return copilotInstance;
   }

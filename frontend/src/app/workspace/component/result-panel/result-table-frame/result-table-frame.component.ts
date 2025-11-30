@@ -494,9 +494,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
             });
           }
         },
-        error: (err: Error) => {
+        error: (err: unknown) => {
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
           modalRef.updateConfig({
-            nzContent: `<div style="color: red; padding: 20px;">Error loading content: ${err.message || "Unknown error"}</div>`,
+            nzContent: `<div style="color: red; padding: 20px;">Error loading content: ${errorMessage}</div>`,
             nzFooter: [
               {
                 label: "Close",

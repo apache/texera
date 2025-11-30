@@ -218,29 +218,34 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   private loadModifyingReActSteps(operatorId: string): void {
     this.modifyingReActSteps = [];
 
-    this.copilotManagerService.getAllAgents().subscribe(agents => {
-      if (agents.length === 0) {
-        return;
-      }
+    this.copilotManagerService
+      .getAllAgents()
+      .pipe(untilDestroyed(this))
+      .subscribe(agents => {
+        if (agents.length === 0) {
+          return;
+        }
 
-      // For each agent, get steps that modified this operator
-      const allStepObservables = agents.map(agent =>
-        this.copilotManagerService.getReActStepsByOperatorAccess(agent.id, operatorId)
-      );
+        // For each agent, get steps that modified this operator
+        const allStepObservables = agents.map(agent =>
+          this.copilotManagerService.getReActStepsByOperatorAccess(agent.id, operatorId)
+        );
 
-      // Combine all results
-      combineLatest(allStepObservables).subscribe(results => {
-        const allModifyingSteps: ReActStep[] = [];
-        results.forEach(result => {
-          allModifyingSteps.push(...result.modifiedBy);
-        });
+        // Combine all results
+        combineLatest(allStepObservables)
+          .pipe(untilDestroyed(this))
+          .subscribe(results => {
+            const allModifyingSteps: ReActStep[] = [];
+            results.forEach(result => {
+              allModifyingSteps.push(...result.modifiedBy);
+            });
 
-        // Sort by timestamp (newest first)
-        this.modifyingReActSteps = allModifyingSteps.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+            // Sort by timestamp (newest first)
+            this.modifyingReActSteps = allModifyingSteps.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-        this.changeDetectorRef.detectChanges();
+            this.changeDetectorRef.detectChanges();
+          });
       });
-    });
   }
 
   async ngOnDestroy() {
@@ -846,19 +851,22 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    * Load available agents from the copilot manager service.
    */
   private loadAvailableAgents(): void {
-    this.copilotManagerService.getAllAgents().subscribe(agents => {
-      this.availableAgents = agents.map(agent => ({
-        id: agent.id,
-        name: agent.name,
-      }));
+    this.copilotManagerService
+      .getAllAgents()
+      .pipe(untilDestroyed(this))
+      .subscribe(agents => {
+        this.availableAgents = agents.map(agent => ({
+          id: agent.id,
+          name: agent.name,
+        }));
 
-      // If there's only one agent, auto-select it
-      if (this.availableAgents.length === 1) {
-        this.selectedAgentId = this.availableAgents[0].id;
-      }
+        // If there's only one agent, auto-select it
+        if (this.availableAgents.length === 1) {
+          this.selectedAgentId = this.availableAgents[0].id;
+        }
 
-      this.changeDetectorRef.detectChanges();
-    });
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   /**

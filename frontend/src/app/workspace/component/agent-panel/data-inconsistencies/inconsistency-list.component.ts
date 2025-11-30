@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, OnInit, OnDestroy } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   DataInconsistencyService,
@@ -31,7 +31,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
   templateUrl: "./inconsistency-list.component.html",
   styleUrls: ["./inconsistency-list.component.scss"],
 })
-export class InconsistencyListComponent implements OnInit, OnDestroy {
+export class InconsistencyListComponent implements OnInit {
   inconsistencies: DataInconsistency[] = [];
 
   constructor(
@@ -49,9 +49,7 @@ export class InconsistencyListComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy(): void {
-    // Cleanup handled by @UntilDestroy
-  }
+  // Cleanup handled by @UntilDestroy decorator
 
   /**
    * Delete an inconsistency
