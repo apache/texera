@@ -736,29 +736,24 @@ export class TexeraCopilot {
 
   /**
    * Create tools for baseline mode.
-   * Baseline mode only has: createPythonUDF, execute, get results, and data inconsistency tools.
+   * Baseline mode only has: createPythonUDF, executeToOperator, and data inconsistency tools.
    */
   private createBaselineTools(): Record<string, any> {
-    // Python UDF creation tool - includes auto-execution, console log retrieval, and action plan recording
+    // Python UDF creation tool - only creates the operator (no execution)
     const createPythonUDFTool = toolWithTimeout(
       baselineTools.createPythonUDFTool(
         this.workflowActionService,
         this.workflowUtilService,
         this.operatorMetadataService,
-        this.executeWorkflowService,
-        this.validationWorkflowService,
-        this.workflowConsoleService,
-        this.workflowStatusService,
-        this.workflowResultService,
         this.actionPlanService,
         this.agentId,
         this.agentName
       )
     );
 
-    // Workflow execution tools
-    const executeCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createExecuteCurrentWorkflowTool(
+    // Execute to operator tool - executes workflow up to a specific operator
+    const executeToOperatorTool = toolWithTimeout(
+      baselineTools.createExecuteToOperatorTool(
         this.executeWorkflowService,
         this.validationWorkflowService,
         this.workflowActionService,
@@ -766,20 +761,6 @@ export class TexeraCopilot {
         this.workflowStatusService,
         this.workflowResultService
       )
-    );
-    const getCurrentExecutionStateTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createGetCurrentExecutionStateTool(
-        this.executeWorkflowService,
-        this.workflowActionService,
-        this.workflowConsoleService,
-        this.workflowStatusService
-      )
-    );
-    const killCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createKillCurrentWorkflowTool(this.executeWorkflowService)
-    );
-    const getCurrentOperatorResultTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createGetCurrentOperatorResultTool(this.workflowResultService)
     );
 
     // Data inconsistency tools
@@ -791,13 +772,9 @@ export class TexeraCopilot {
     );
 
     return {
-      // Baseline mode primary tool
+      // Baseline mode primary tools
       [baselineTools.TOOL_NAME_CREATE_PYTHON_UDF]: createPythonUDFTool,
-      // Execution tools
-      [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: executeCurrentWorkflowTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: getCurrentExecutionStateTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: killCurrentWorkflowTool,
-      [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: getCurrentOperatorResultTool,
+      [baselineTools.TOOL_NAME_EXECUTE_TO_OPERATOR]: executeToOperatorTool,
       // Data inconsistency tools
       [dataInconsistencyTools.TOOL_NAME_ADD_INCONSISTENCY]: addInconsistencyTool,
       [dataInconsistencyTools.TOOL_NAME_LIST_INCONSISTENCIES]: listInconsistenciesTool,

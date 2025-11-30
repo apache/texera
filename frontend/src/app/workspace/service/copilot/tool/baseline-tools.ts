@@ -22,52 +22,38 @@ import { tool } from "ai";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
+import { ActionPlanService } from "../../action-plan/action-plan.service";
 import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
 import { WorkflowStatusService } from "../../workflow-status/workflow-status.service";
 import { WorkflowResultService } from "../../workflow-result/workflow-result.service";
-import { ActionPlanService } from "../../action-plan/action-plan.service";
 import { createSuccessResult, createErrorResult } from "./tools-utility";
 import { executeWorkflowAndGetResults, WorkflowExecutionServices } from "./current-workflow-execution-tools";
 
 // Tool name constants for baseline mode
 export const TOOL_NAME_CREATE_PYTHON_UDF = "createPythonUDF";
+export const TOOL_NAME_EXECUTE_TO_OPERATOR = "executeToOperator";
 
 /**
  * Create a tool for adding a PythonUDFSource operator with code
- * This is the primary tool for baseline mode - it creates a Python UDF Source and sets its code.
+ * This tool only creates the operator - use executeToOperator to run it.
  * The operator uses GenerateOperator class with produce() method that uses print() for output
  * and yields nothing at the end.
- * After creating the operator, it automatically executes the workflow and retrieves console logs.
  */
 export function createPythonUDFTool(
   workflowActionService: WorkflowActionService,
   workflowUtilService: WorkflowUtilService,
   operatorMetadataService: OperatorMetadataService,
-  executeWorkflowService: ExecuteWorkflowService,
-  validationWorkflowService: ValidationWorkflowService,
-  workflowConsoleService: WorkflowConsoleService,
-  workflowStatusService: WorkflowStatusService,
-  workflowResultService: WorkflowResultService,
   actionPlanService: ActionPlanService,
   agentId: string = "",
   agentName: string = ""
 ) {
-  // Build services object for execution
-  const executionServices: WorkflowExecutionServices = {
-    executeWorkflowService,
-    validationWorkflowService,
-    workflowActionService,
-    workflowConsoleService,
-    workflowStatusService,
-    workflowResultService,
-  };
   return tool({
     name: TOOL_NAME_CREATE_PYTHON_UDF,
     description:
       "Create a new PythonUDFSource operator with the specified Python code. " +
-      "This is the primary tool for data analysis in baseline mode. " +
+      "This tool only creates the operator - use executeToOperator to run it. " +
       "The code should use the DatasetFileDocument API to read data and perform analysis. " +
       "Use the GenerateOperator class template with the produce() method. " +
       "Use print() to output results and always end with an empty yield.",
@@ -137,40 +123,97 @@ export function createPythonUDFTool(
           afterContent
         );
 
-        // Execute the workflow and get console logs (baseline mode: no operator results, only console logs)
-        // Single operator ID triggers executeTo mode
+        return createSuccessResult(
+          {
+            operatorId: operator.operatorID,
+            actionPlanId: actionPlan.id,
+            message: `Created PythonUDFSource operator${args.customDisplayName ? ` "${args.customDisplayName}"` : ""}. Use executeToOperator to run it.`,
+            code: args.code,
+          },
+          [],
+          [operator.operatorID]
+        );
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return createErrorResult(errorMessage);
+      }
+    },
+  });
+}
+
+/**
+ * Create a tool for executing the workflow up to a specific operator and retrieving results.
+ * This tool executes the workflow in "executeTo" mode, running only the operators
+ * necessary to produce results for the target operator.
+ */
+export function createExecuteToOperatorTool(
+  executeWorkflowService: ExecuteWorkflowService,
+  validationWorkflowService: ValidationWorkflowService,
+  workflowActionService: WorkflowActionService,
+  workflowConsoleService: WorkflowConsoleService,
+  workflowStatusService: WorkflowStatusService,
+  workflowResultService: WorkflowResultService
+) {
+  const executionServices: WorkflowExecutionServices = {
+    executeWorkflowService,
+    validationWorkflowService,
+    workflowActionService,
+    workflowConsoleService,
+    workflowStatusService,
+    workflowResultService,
+  };
+
+  return tool({
+    name: TOOL_NAME_EXECUTE_TO_OPERATOR,
+    description:
+      "Execute the workflow up to a specific operator and retrieve results. " +
+      "This runs only the operators necessary to produce results for the target operator. " +
+      "Returns console logs and execution state for the target operator.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("The ID of the operator to execute up to. The workflow will run all upstream operators needed to produce results for this operator."),
+      executionName: z
+        .string()
+        .optional()
+        .describe("Optional name for this execution (for logging/display purposes)"),
+    }),
+    execute: async (args: { operatorId: string; executionName?: string }) => {
+      try {
+        // Validate that the operator exists in the workflow
+        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+        const targetOperator = allOperators.find(op => op.operatorID === args.operatorId);
+
+        if (!targetOperator) {
+          return createErrorResult(`Operator with ID "${args.operatorId}" not found in the workflow.`);
+        }
+
+        // Execute the workflow up to the target operator
         const executionResult = await executeWorkflowAndGetResults(executionServices, {
-          executionName: args.customDisplayName || "Baseline Python Analysis",
-          targetOperatorIds: [operator.operatorID],
-          includeOperatorResults: false, // Baseline mode doesn't include operator results
+          executionName: args.executionName || `Execute to ${targetOperator.customDisplayName || args.operatorId}`,
+          targetOperatorIds: [args.operatorId],
+          includeOperatorResults: false, // Baseline mode: console logs only
         });
 
-        // Get console logs for the newly created operator
-        const operatorConsoleLogs = executionResult.consoleLogs?.[operator.operatorID] || [];
+        // Get console logs for the target operator
+        const operatorConsoleLogs = executionResult.consoleLogs?.[args.operatorId] || [];
 
         if (executionResult.success) {
           return createSuccessResult(
             {
-              operatorId: operator.operatorID,
-              actionPlanId: actionPlan.id,
-              message: `Created and executed PythonUDFSource operator${args.customDisplayName ? ` "${args.customDisplayName}"` : ""}`,
-              code: args.code,
+              operatorId: args.operatorId,
+              message: `Executed workflow up to operator "${targetOperator.customDisplayName || args.operatorId}"`,
               executionState: executionResult.executionState,
               consoleLogs: operatorConsoleLogs,
               allConsoleLogs: executionResult.consoleLogs,
               operatorStates: executionResult.operatorStates,
             },
             [],
-            [operator.operatorID]
+            [args.operatorId]
           );
         } else {
-          // Even on execution failure, return the operator info with error details
           return createSuccessResult(
             {
-              operatorId: operator.operatorID,
-              actionPlanId: actionPlan.id,
-              message: `Created PythonUDFSource operator${args.customDisplayName ? ` "${args.customDisplayName}"` : ""}, but execution failed`,
-              code: args.code,
+              operatorId: args.operatorId,
+              message: `Execution failed for operator "${targetOperator.customDisplayName || args.operatorId}"`,
               executionState: executionResult.executionState,
               executionError: executionResult.error,
               consoleLogs: operatorConsoleLogs,
@@ -178,7 +221,7 @@ export function createPythonUDFTool(
               operatorStates: executionResult.operatorStates,
             },
             [],
-            [operator.operatorID]
+            [args.operatorId]
           );
         }
       } catch (error: unknown) {
