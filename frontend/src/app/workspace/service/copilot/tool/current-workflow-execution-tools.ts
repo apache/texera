@@ -25,14 +25,22 @@ import { WorkflowActionService } from "../../workflow-graph/model/workflow-actio
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
 import { WorkflowStatusService } from "../../workflow-status/workflow-status.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
-import { ExecutionState } from "../../../types/execute-workflow.interface";
+import {
+  ExecutionState,
+  ExecutionStateInfo,
+  OperatorStatistics,
+  WorkflowResultTableStats,
+} from "../../../types/execute-workflow.interface";
+import { ConsoleMessage, OperatorPredicate } from "../../../types/workflow-common.interface";
+import { IndexableObject } from "../../../types/result-table.interface";
+import { PaginatedResultEvent } from "../../../types/workflow-websocket.interface";
 import {
   estimateTokenCount,
   MAX_OPERATOR_RESULT_TOKEN_LIMIT,
   createSuccessResult,
   createErrorResult,
 } from "./tools-utility";
-import { Observable, of, throwError, defer, timer, forkJoin, interval, merge, EMPTY } from "rxjs";
+import { Observable, of, throwError, defer, timer, forkJoin, interval, merge, EMPTY, firstValueFrom } from "rxjs";
 import { filter, timeout, map, switchMap, catchError, take, tap } from "rxjs/operators";
 
 // Tool name constants
@@ -48,15 +56,14 @@ export const TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS = "getCurrentComputingU
 const EXECUTION_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
- * Helper to collect console logs for all operators
+ * Helper to collect console logs for specified operators
  */
 function collectConsoleLogs(
-  operators: any[],
+  operatorIds: readonly string[],
   workflowConsoleService: WorkflowConsoleService
-): Record<string, ReadonlyArray<any>> {
-  const consoleLogs: Record<string, ReadonlyArray<any>> = {};
-  for (const operator of operators) {
-    const operatorId = operator.operatorID;
+): Record<string, ReadonlyArray<ConsoleMessage>> {
+  const consoleLogs: Record<string, ReadonlyArray<ConsoleMessage>> = {};
+  for (const operatorId of operatorIds) {
     if (workflowConsoleService.hasConsoleMessages(operatorId)) {
       const messages = workflowConsoleService.getConsoleMessages(operatorId);
       if (messages && messages.length > 0) {
@@ -68,10 +75,24 @@ function collectConsoleLogs(
 }
 
 /**
+ * Formatted operator state for readability
+ */
+interface FormattedOperatorState {
+  state: string;
+  inputRows: string;
+  outputRows: string;
+  inputPortMetrics: Record<string, string>;
+  outputPortMetrics: Record<string, string>;
+  numWorkers?: string;
+}
+
+/**
  * Helper to format operator states with units for readability
  */
-function formatOperatorStates(operatorStates: Record<string, any>): Record<string, any> {
-  const formatted: Record<string, any> = {};
+function formatOperatorStates(
+  operatorStates: Record<string, OperatorStatistics>
+): Record<string, FormattedOperatorState> {
+  const formatted: Record<string, FormattedOperatorState> = {};
   for (const [operatorId, stats] of Object.entries(operatorStates)) {
     formatted[operatorId] = {
       state: stats.operatorState,
@@ -92,8 +113,12 @@ function formatOperatorStates(operatorStates: Record<string, any>): Record<strin
 /**
  * Helper to filter results by token limit
  */
-function filterByTokenLimit(rows: readonly any[]): { limited: any[]; tokenCount: number; truncated: boolean } {
-  const limited: any[] = [];
+function filterByTokenLimit(rows: readonly IndexableObject[]): {
+  limited: IndexableObject[];
+  tokenCount: number;
+  truncated: boolean;
+} {
+  const limited: IndexableObject[] = [];
   let tokenCount = 0;
   for (const row of rows) {
     const rowTokens = estimateTokenCount(row);
@@ -105,13 +130,25 @@ function filterByTokenLimit(rows: readonly any[]): { limited: any[]; tokenCount:
 }
 
 /**
+ * Operator result with metadata
+ */
+export interface OperatorResultInfo {
+  mode: "pagination" | "snapshot";
+  totalRows: number;
+  displayedRows: number;
+  estimatedTokens: number;
+  truncated: boolean;
+  tableStats?: Record<string, Record<string, number>>;
+  result: PaginatedResultEvent | IndexableObject[];
+}
+
+/**
  * Options for the common execution function
  */
 export interface ExecuteWorkflowOptions {
   executionName?: string;
-  targetOperatorId?: string;
+  targetOperatorIds: readonly string[]; // Required: operator IDs to monitor results for
   includeOperatorResults?: boolean; // Default: true
-  signal?: AbortSignal;
 }
 
 /**
@@ -121,10 +158,10 @@ export interface ExecuteWorkflowResult {
   success: boolean;
   executionState: string;
   message: string;
-  state?: any;
-  operatorStates?: Record<string, any>;
-  consoleLogs?: Record<string, ReadonlyArray<any>>;
-  operatorResults?: Record<string, any>;
+  state?: ExecutionStateInfo;
+  operatorStates?: Record<string, FormattedOperatorState>;
+  consoleLogs?: Record<string, ReadonlyArray<ConsoleMessage>>;
+  operatorResults?: Record<string, OperatorResultInfo>;
   error?: string;
 }
 
@@ -141,17 +178,21 @@ export interface WorkflowExecutionServices {
 }
 
 /**
- * Common function to execute workflow and get results.
+ * Common function to execute workflow and get results as an Observable.
  * This is the core logic shared by both the executeCurrentWorkflow tool and baseline tools.
  *
+ * Execution behavior based on targetOperatorIds:
+ * - Empty array or multiple elements: Execute entire workflow, collect results for specified operators
+ * - Single element: Execute up to that operator only (executeTo mode)
+ *
  * @param services - Required workflow services
- * @param options - Execution options including whether to include operator results
- * @returns Promise with execution result
+ * @param options - Execution options including target operators to monitor
+ * @returns Observable with execution result
  */
-export function executeWorkflowAndGetResults(
+export function executeWorkflowAndGetResults$(
   services: WorkflowExecutionServices,
-  options: ExecuteWorkflowOptions = {}
-): Promise<ExecuteWorkflowResult> {
+  options: ExecuteWorkflowOptions
+): Observable<ExecuteWorkflowResult> {
   const {
     executeWorkflowService,
     validationWorkflowService,
@@ -162,103 +203,98 @@ export function executeWorkflowAndGetResults(
   } = services;
 
   const name = options.executionName || "Copilot Execution";
-  const includeResults = options.includeOperatorResults !== false; // Default to true
+  const includeResults = options.includeOperatorResults !== false;
+  const targetIds = options.targetOperatorIds;
 
-  // Create the execution observable
-  const execution$ = defer(() => {
-    // Step 1: Kill existing execution if any
+  // Determine execution mode: single operator = executeTo, else full workflow
+  const isSingleOperatorMode = targetIds.length === 1;
+  const executeToOperatorId = isSingleOperatorMode ? targetIds[0] : undefined;
+
+  return defer(() => {
+    // Step 1: Kill existing execution if needed
     const currentState = executeWorkflowService.getExecutionState();
-    if (
+    const needsKill =
       currentState.state !== ExecutionState.Uninitialized &&
       currentState.state !== ExecutionState.Completed &&
       currentState.state !== ExecutionState.Failed &&
-      currentState.state !== ExecutionState.Killed
-    ) {
-      return of(null).pipe(
-        switchMap(() => {
-          try {
-            executeWorkflowService.killWorkflow();
-            // Wait 500ms for the workflow to be killed
-            return timer(500);
-          } catch (killError: any) {
-            // If kill fails, it's likely because the workflow is already in a terminal state
-            console.warn("Failed to kill existing execution:", killError.message);
-            return of(null);
-          }
-        })
-      );
+      currentState.state !== ExecutionState.Killed;
+
+    if (needsKill) {
+      try {
+        executeWorkflowService.killWorkflow();
+      } catch (e: unknown) {
+        console.warn("Failed to kill existing execution:", e instanceof Error ? e.message : String(e));
+      }
+      return timer(500).pipe(map(() => null));
     }
     return of(null);
   }).pipe(
-    // Step 2: Validate the workflow
+    // Step 2: Validate workflow
     switchMap(() => {
       const validationOutput = validationWorkflowService.getCurrentWorkflowValidationError();
       const errorCount = Object.keys(validationOutput.errors).length;
 
       if (errorCount > 0) {
         const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-        const validGraph = validationWorkflowService.getValidTexeraGraph();
-        const validOperators = validGraph.getAllOperators();
-
+        const validOperators = validationWorkflowService.getValidTexeraGraph().getAllOperators();
         return throwError(
           () =>
             new Error(
-              `Cannot execute workflow: Found ${errorCount} operator(s) with validation errors. ` +
-                `${validOperators.length} valid operator(s) out of ${allOperators.length} total. ` +
-                `Validation errors: ${JSON.stringify(validationOutput.errors, null, 2)}`
+              `Cannot execute: ${errorCount} operator(s) with validation errors. ` +
+                `${validOperators.length}/${allOperators.length} valid. ` +
+                `Errors: ${JSON.stringify(validationOutput.errors, null, 2)}`
             )
         );
       }
 
       const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
       if (allOperators.length === 0) {
-        return throwError(
-          () => new Error("Cannot execute workflow: The workflow is empty. Please add operators first.")
-        );
+        return throwError(() => new Error("Cannot execute: workflow is empty."));
       }
 
       return of(allOperators);
     }),
-    // Step 3: Start execution and monitor until completion
-    switchMap(allOperators => {
-      // Start the execution
-      executeWorkflowService.executeWorkflow(name, options.targetOperatorId);
+    // Step 3: Set view results and start execution
+    switchMap((allOperators: readonly OperatorPredicate[]) => {
+      // For non-single mode with specified operators, set view results first
+      if (!isSingleOperatorMode && targetIds.length > 0) {
+        workflowActionService.setViewOperatorResults(targetIds);
+      }
 
-      // Stream 1: Monitor execution state changes
+      // Start execution
+      executeWorkflowService.executeWorkflow(name, executeToOperatorId);
+
+      // Monitor execution state
       const executionState$ = executeWorkflowService.getExecutionStateStream().pipe(
         filter(
-          stateChange =>
-            stateChange.current.state === ExecutionState.Completed ||
-            stateChange.current.state === ExecutionState.Failed ||
-            stateChange.current.state === ExecutionState.Killed ||
-            stateChange.current.state === ExecutionState.Paused
+          change =>
+            change.current.state === ExecutionState.Completed ||
+            change.current.state === ExecutionState.Failed ||
+            change.current.state === ExecutionState.Killed ||
+            change.current.state === ExecutionState.Paused
         ),
-        map(stateChange => stateChange.current)
+        map(change => change.current)
       );
 
-      // Stream 2: Detect stuck state (workflow Running but operator Paused due to error)
+      // Detect stuck state (Running but operator Paused)
       const stuckDetection$ = interval(1000).pipe(
         filter(() => {
-          const execState = executeWorkflowService.getExecutionState();
-          if (execState.state !== ExecutionState.Running) return false;
-
-          // Check if any operator is in Paused state (purple = error)
-          const operatorStates = workflowStatusService.getCurrentStatus();
-          return Object.values(operatorStates).some((stats: any) => stats.operatorState === "Paused");
+          const state = executeWorkflowService.getExecutionState();
+          if (state.state !== ExecutionState.Running) return false;
+          const opStates = workflowStatusService.getCurrentStatus();
+          return Object.values(opStates).some(s => s.operatorState === "Paused");
         }),
         take(1),
         tap(() => {
-          // Kill the workflow to trigger proper cleanup and error reporting
           try {
             executeWorkflowService.killWorkflow();
-          } catch (e) {
-            // Ignore if already in terminal state
+          } catch {
+            /* ignore */
           }
         }),
-        switchMap(() => EMPTY) // Let the Killed state be caught by executionState$
+        switchMap(() => EMPTY)
       );
 
-      // Race between normal completion and stuck detection
       return merge(executionState$, stuckDetection$).pipe(
         take(1),
         timeout(EXECUTION_TIMEOUT_MS),
@@ -266,172 +302,122 @@ export function executeWorkflowAndGetResults(
         catchError((error: unknown) => {
           if (error instanceof Error && error.name === "TimeoutError") {
             return throwError(
-              () =>
-                new Error(
-                  `Workflow execution timed out after ${EXECUTION_TIMEOUT_MS / 1000} seconds. ` +
-                    "The workflow may still be running. Use getCurrentExecutionState to check status."
-                )
+              () => new Error(`Execution timed out after ${EXECUTION_TIMEOUT_MS / 1000}s.`)
             );
           }
           return throwError(() => error);
         })
       );
     }),
-    // Step 4: Collect comprehensive results after execution completes
+    // Step 4: Collect results
     switchMap(({ finalState, allOperators }) => {
       const finalStateInfo = executeWorkflowService.getExecutionState();
-      const consoleLogs = collectConsoleLogs(allOperators, workflowConsoleService);
-      const formattedOperatorStates = formatOperatorStates(workflowStatusService.getCurrentStatus());
+      const allOperatorIds = allOperators.map(op => op.operatorID);
+      const consoleLogs = collectConsoleLogs(allOperatorIds, workflowConsoleService);
+      const formattedStates = formatOperatorStates(workflowStatusService.getCurrentStatus());
 
-      // Only collect results if includeResults is true
       if (!includeResults) {
-        return of({
-          finalState,
-          finalStateInfo,
-          formattedOperatorStates,
-          consoleLogs,
-          operatorResults: {},
-        });
+        return of({ finalState, finalStateInfo, formattedStates, consoleLogs, operatorResults: {} });
       }
 
-      // Collect results for operators that have results (in parallel)
-      const resultObservables: Observable<{ operatorId: string; result: any }>[] = [];
-      for (const operator of allOperators) {
-        const operatorId = operator.operatorID;
-        if (workflowResultService.hasAnyResult(operatorId)) {
-          resultObservables.push(
-            getOperatorResult$(operatorId, workflowResultService).pipe(
-              map(result => ({ operatorId, result })),
-              catchError((error: unknown) =>
-                of({
-                  operatorId,
-                  result: {
-                    error: `Failed to fetch results: ${error instanceof Error ? error.message : String(error)}`,
-                  },
-                })
-              )
-            )
-          );
-        }
-      }
+      // Collect results only for target operators (or all if empty)
+      const opsToFetch = targetIds.length > 0 ? targetIds : allOperatorIds;
+      const resultObs: Observable<{ operatorId: string; result: OperatorResultInfo | null }>[] = opsToFetch
+        .filter(id => workflowResultService.hasAnyResult(id))
+        .map(operatorId =>
+          getOperatorResult$(operatorId, workflowResultService).pipe(
+            map(result => ({ operatorId, result })),
+            catchError(() => of({ operatorId, result: null }))
+          )
+        );
 
-      // Wait for all result fetches to complete
-      const resultsStream$ =
-        resultObservables.length > 0
-          ? forkJoin(resultObservables).pipe(
-              map(results => {
-                const operatorResults: Record<string, any> = {};
-                for (const { operatorId, result } of results) {
-                  operatorResults[operatorId] = result;
-                }
-                return operatorResults;
-              })
-            )
-          : of({});
+      const results$ = resultObs.length > 0 ? forkJoin(resultObs) : of([]);
 
-      return resultsStream$.pipe(
-        map(operatorResults => ({
-          finalState,
-          finalStateInfo,
-          formattedOperatorStates,
-          consoleLogs,
-          operatorResults,
-        }))
+      return results$.pipe(
+        map(results => {
+          const operatorResults: Record<string, OperatorResultInfo> = {};
+          for (const { operatorId, result } of results) {
+            if (result) operatorResults[operatorId] = result;
+          }
+          return { finalState, finalStateInfo, formattedStates, consoleLogs, operatorResults };
+        })
       );
     }),
-    // Build final result based on execution state
-    map(({ finalState, finalStateInfo, formattedOperatorStates, consoleLogs, operatorResults }) => {
+    // Step 5: Build result
+    map(({ finalState, finalStateInfo, formattedStates, consoleLogs, operatorResults }) => {
       const errorMessages = executeWorkflowService.getErrorMessages();
+      const targetMsg = isSingleOperatorMode ? ` up to operator ${executeToOperatorId}` : "";
 
       if (finalState.state === ExecutionState.Completed) {
         return {
           success: true,
           executionState: "Completed",
-          message: options.targetOperatorId
-            ? `Workflow executed successfully up to operator ${options.targetOperatorId}`
-            : "Workflow executed successfully",
+          message: `Workflow executed successfully${targetMsg}`,
           state: finalStateInfo,
-          operatorStates: formattedOperatorStates,
-          consoleLogs: consoleLogs,
-          operatorResults: operatorResults,
-        } as ExecuteWorkflowResult;
-      } else if (finalState.state === ExecutionState.Failed) {
+          operatorStates: formattedStates,
+          consoleLogs,
+          operatorResults,
+        };
+      }
+
+      const baseError = {
+        success: false,
+        operatorStates: formattedStates,
+        consoleLogs,
+      };
+
+      if (finalState.state === ExecutionState.Failed) {
         return {
-          success: false,
+          ...baseError,
           executionState: "Failed",
           message: "Workflow execution failed",
-          error:
-            `Workflow execution failed. Error messages: ${JSON.stringify(errorMessages, null, 2)}. ` +
-            `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
-            `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`,
-          operatorStates: formattedOperatorStates,
-          consoleLogs: consoleLogs,
-        } as ExecuteWorkflowResult;
-      } else if (finalState.state === ExecutionState.Killed) {
+          error: `Failed. Errors: ${JSON.stringify(errorMessages)}`,
+        };
+      }
+      if (finalState.state === ExecutionState.Killed) {
         return {
-          success: false,
+          ...baseError,
           executionState: "Killed",
           message: "Workflow execution was killed",
-          error:
-            "Workflow execution was killed. " +
-            `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
-            `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`,
-          operatorStates: formattedOperatorStates,
-          consoleLogs: consoleLogs,
-        } as ExecuteWorkflowResult;
-      } else if (finalState.state === ExecutionState.Paused) {
-        return {
-          success: false,
-          executionState: "Paused",
-          message: "Workflow execution paused (likely due to an error)",
-          error:
-            "Workflow execution paused (likely due to an error). " +
-            `Error messages: ${JSON.stringify(errorMessages, null, 2)}. ` +
-            `Console logs: ${JSON.stringify(consoleLogs, null, 2)}. ` +
-            `Operator states: ${JSON.stringify(formattedOperatorStates, null, 2)}`,
-          operatorStates: formattedOperatorStates,
-          consoleLogs: consoleLogs,
-        } as ExecuteWorkflowResult;
-      } else {
-        return {
-          success: false,
-          executionState: String(finalState.state),
-          message: `Unexpected execution state: ${finalState.state}`,
-          error: `Unexpected execution state: ${finalState.state}`,
-        } as ExecuteWorkflowResult;
+          error: "Execution was killed.",
+        };
       }
+      if (finalState.state === ExecutionState.Paused) {
+        return {
+          ...baseError,
+          executionState: "Paused",
+          message: "Workflow paused (likely error)",
+          error: `Paused. Errors: ${JSON.stringify(errorMessages)}`,
+        };
+      }
+
+      return {
+        success: false,
+        executionState: String(finalState.state),
+        message: `Unexpected state: ${finalState.state}`,
+        error: `Unexpected state: ${finalState.state}`,
+      };
     }),
     catchError((error: unknown) =>
       of({
         success: false,
         executionState: "Error",
         message: "Execution error",
-        error: `Execution error: ${error instanceof Error ? error.message : String(error)}`,
-      } as ExecuteWorkflowResult)
+        error: `Error: ${error instanceof Error ? error.message : String(error)}`,
+      })
     )
   );
+}
 
-  // Convert observable to promise
-  return new Promise((resolve, reject) => {
-    const subscription = execution$.subscribe({
-      next: result => {
-        subscription.unsubscribe();
-        resolve(result);
-      },
-      error: (err: unknown) => {
-        subscription.unsubscribe();
-        reject(err);
-      },
-    });
-
-    // Handle abort signal
-    if (options.signal) {
-      options.signal.addEventListener("abort", () => {
-        subscription.unsubscribe();
-        reject(new Error("Operation aborted by user"));
-      });
-    }
-  });
+/**
+ * Convenience wrapper that converts the Observable to a Promise.
+ * Use executeWorkflowAndGetResults$ directly for better RxJS integration.
+ */
+export function executeWorkflowAndGetResults(
+  services: WorkflowExecutionServices,
+  options: ExecuteWorkflowOptions
+): Promise<ExecuteWorkflowResult> {
+  return firstValueFrom(executeWorkflowAndGetResults$(services, options));
 }
 
 /**
@@ -460,20 +446,20 @@ export function createExecuteCurrentWorkflowTool(
       "Execute the current workflow with full validation and monitoring. This tool will: 1) Kill any existing execution, 2) Validate the workflow, 3) Execute it if valid, 4) Monitor execution until completion, 5) Return comprehensive results including operator outputs, stats, console logs, and any errors. This is the primary tool for workflow execution.",
     inputSchema: z.object({
       executionName: z.string().optional().describe("Name for this execution (default: 'Copilot Execution')"),
-      targetOperatorId: z
-        .string()
-        .optional()
-        .describe("Optional operator ID to execute up to (executes entire workflow if not specified)"),
+      targetOperatorIds: z
+        .array(z.string())
+        .describe(
+          "Operator IDs to monitor results for. If single ID, executes up to that operator only. " +
+            "If empty or multiple IDs, executes entire workflow and collects results for target operators."
+        ),
     }),
-    execute: async (args: { executionName?: string; targetOperatorId?: string; signal?: AbortSignal }) => {
+    execute: async (args: { executionName?: string; targetOperatorIds: string[] }) => {
       const result = await executeWorkflowAndGetResults(services, {
         executionName: args.executionName,
-        targetOperatorId: args.targetOperatorId,
+        targetOperatorIds: args.targetOperatorIds,
         includeOperatorResults: true,
-        signal: args.signal,
       });
 
-      // Convert ExecuteWorkflowResult to tool result format
       if (result.success) {
         return createSuccessResult(
           {
@@ -497,14 +483,18 @@ export function createExecuteCurrentWorkflowTool(
 /**
  * Helper function to get operator result with token limit (Observable-based)
  */
-function getOperatorResult$(operatorId: string, workflowResultService: WorkflowResultService): Observable<any> {
+function getOperatorResult$(
+  operatorId: string,
+  workflowResultService: WorkflowResultService
+): Observable<OperatorResultInfo> {
   return defer(() => {
     const paginatedResultService = workflowResultService.getPaginatedResultService(operatorId);
     if (paginatedResultService) {
       return paginatedResultService.selectPage(1, 200).pipe(
         take(1),
-        map(resultEvent => {
-          const { limited, tokenCount, truncated } = filterByTokenLimit(resultEvent.table || []);
+        map((resultEvent): OperatorResultInfo => {
+          const table = (resultEvent.table || []) as IndexableObject[];
+          const { limited, tokenCount, truncated } = filterByTokenLimit(table);
           return {
             mode: "pagination",
             totalRows: paginatedResultService.getCurrentTotalNumTuples(),
@@ -512,7 +502,7 @@ function getOperatorResult$(operatorId: string, workflowResultService: WorkflowR
             estimatedTokens: tokenCount,
             truncated,
             tableStats: paginatedResultService.getStats(),
-            result: { ...resultEvent, table: limited },
+            result: { ...resultEvent, table: limited } as PaginatedResultEvent,
           };
         })
       );
@@ -520,12 +510,12 @@ function getOperatorResult$(operatorId: string, workflowResultService: WorkflowR
 
     const resultService = workflowResultService.getResultService(operatorId);
     if (resultService) {
-      const snapshot = resultService.getCurrentResultSnapshot();
+      const snapshot = resultService.getCurrentResultSnapshot() as IndexableObject[] | null;
       if (!snapshot?.length) {
         return throwError(() => new Error("Result snapshot is empty"));
       }
       const { limited, tokenCount, truncated } = filterByTokenLimit(snapshot);
-      return of({
+      return of<OperatorResultInfo>({
         mode: "snapshot",
         totalRows: snapshot.length,
         displayedRows: limited.length,
@@ -555,18 +545,18 @@ export function createGetCurrentExecutionStateTool(
     inputSchema: z.object({}),
     execute: async () => {
       try {
-        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+        const allOperatorIds = workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
         return createSuccessResult(
           {
             state: executeWorkflowService.getExecutionState(),
-            consoleLogs: collectConsoleLogs(allOperators, workflowConsoleService),
+            consoleLogs: collectConsoleLogs(allOperatorIds, workflowConsoleService),
             operatorStates: formatOperatorStates(workflowStatusService.getCurrentStatus()),
           },
           [],
           []
         );
-      } catch (error: any) {
-        return createErrorResult(error.message);
+      } catch (error: unknown) {
+        return createErrorResult(error instanceof Error ? error.message : String(error));
       }
     },
   });
@@ -591,8 +581,8 @@ export function createKillCurrentWorkflowTool(executeWorkflowService: ExecuteWor
           [],
           []
         );
-      } catch (error: any) {
-        return createErrorResult(error.message);
+      } catch (error: unknown) {
+        return createErrorResult(error instanceof Error ? error.message : String(error));
       }
     },
   });
@@ -625,8 +615,8 @@ export function createHasCurrentOperatorResultTool(
           [args.operatorId],
           []
         );
-      } catch (error: any) {
-        return createErrorResult(error.message);
+      } catch (error: unknown) {
+        return createErrorResult(error instanceof Error ? error.message : String(error));
       }
     },
   });
@@ -663,26 +653,9 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
         const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
         if (paginatedResultService) {
           try {
-            const resultEvent: any = await new Promise((resolve, reject) => {
-              const subscription = paginatedResultService.selectPage(1, 200).subscribe({
-                next: event => {
-                  subscription.unsubscribe();
-                  resolve(event);
-                },
-                error: (err: unknown) => {
-                  subscription.unsubscribe();
-                  reject(err);
-                },
-              });
-              if (args.signal) {
-                args.signal.addEventListener("abort", () => {
-                  subscription.unsubscribe();
-                  reject(new Error("Operation aborted"));
-                });
-              }
-            });
-
-            const { limited, tokenCount, truncated } = filterByTokenLimit(resultEvent.table || []);
+            const resultEvent = await firstValueFrom(paginatedResultService.selectPage(1, 200));
+            const table = (resultEvent.table || []) as IndexableObject[];
+            const { limited, tokenCount, truncated } = filterByTokenLimit(table);
             const totalRows = paginatedResultService.getCurrentTotalNumTuples();
 
             return createSuccessResult(
@@ -707,16 +680,17 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
               [args.operatorId],
               []
             );
-          } catch (error: any) {
+          } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
             return createErrorResult(
-              `Failed to fetch paginated results: ${error.message}. This may be due to backend storage issues or results not being ready yet.`
+              `Failed to fetch paginated results: ${msg}. This may be due to backend storage issues or results not being ready yet.`
             );
           }
         }
 
         const resultService = workflowResultService.getResultService(args.operatorId);
         if (resultService) {
-          const snapshot = resultService.getCurrentResultSnapshot();
+          const snapshot = resultService.getCurrentResultSnapshot() as IndexableObject[] | null;
           if (!snapshot?.length) {
             return createErrorResult(
               `Result snapshot is empty for operator ${args.operatorId}. Results might not be ready yet.`
@@ -751,8 +725,8 @@ export function createGetCurrentOperatorResultTool(workflowResultService: Workfl
         return createErrorResult(
           `No results available for operator ${args.operatorId}. The operator may not have been executed yet, or it may not produce viewable results.`
         );
-      } catch (error: any) {
-        return createErrorResult(error.message);
+      } catch (error: unknown) {
+        return createErrorResult(error instanceof Error ? error.message : String(error));
       }
     },
   });
@@ -793,17 +767,24 @@ export function createGetCurrentOperatorResultInfoTool(
           [args.operatorId],
           []
         );
-      } catch (error: any) {
-        return createErrorResult(error.message);
+      } catch (error: unknown) {
+        return createErrorResult(error instanceof Error ? error.message : String(error));
       }
     },
   });
 }
 
 /**
+ * Computing unit status service interface (minimal for type safety)
+ */
+interface ComputingUnitStatusService {
+  getSelectedComputingUnitValue(): { status: string; computingUnit: { cuid: number; name: string } } | null;
+}
+
+/**
  * Create getComputingUnitStatus tool for checking computing unit connection status
  */
-export function createGetCurrentComputingUnitStatusTool(computingUnitStatusService: any) {
+export function createGetCurrentComputingUnitStatusTool(computingUnitStatusService: ComputingUnitStatusService) {
   return tool({
     name: TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS,
     description:
@@ -846,8 +827,8 @@ export function createGetCurrentComputingUnitStatusTool(computingUnitStatusServi
           [],
           []
         );
-      } catch (error: any) {
-        return createErrorResult(error.message);
+      } catch (error: unknown) {
+        return createErrorResult(error instanceof Error ? error.message : String(error));
       }
     },
   });

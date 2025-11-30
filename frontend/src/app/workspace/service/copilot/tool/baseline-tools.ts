@@ -138,9 +138,10 @@ export function createPythonUDFTool(
         );
 
         // Execute the workflow and get console logs (baseline mode: no operator results, only console logs)
+        // Single operator ID triggers executeTo mode
         const executionResult = await executeWorkflowAndGetResults(executionServices, {
           executionName: args.customDisplayName || "Baseline Python Analysis",
-          targetOperatorId: operator.operatorID,
+          targetOperatorIds: [operator.operatorID],
           includeOperatorResults: false, // Baseline mode doesn't include operator results
         });
 
