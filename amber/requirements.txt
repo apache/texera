@@ -17,7 +17,7 @@
 
 wheel==0.41.2
 numpy==1.26.4
-pandas==2.2.2
+pandas==2.2.3
 flake8==7.1.1
 Flake8-pyproject==1.2.3
 black==24.3.0
