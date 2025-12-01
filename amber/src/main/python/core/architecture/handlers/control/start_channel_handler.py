@@ -17,7 +17,10 @@
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.models.internal_marker import StartChannel
-from proto.org.apache.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    EmptyRequest,
+)
 
 
 class StartChannelHandler(ControlHandler):

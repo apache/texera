@@ -25,9 +25,9 @@ import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
-import org.apache.amber.config.StorageConfig
-import org.apache.amber.engine.common.Utils
-import org.apache.amber.util.ObjectMapperUtils
+import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.amber.engine.common.Utils
+import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth

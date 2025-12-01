@@ -1,0 +1,149 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.engine.e2e
+
+import org.apache.pekko.actor.{ActorSystem, Props}
+import org.apache.pekko.testkit.{ImplicitSender, TestKit}
+import org.apache.pekko.util.Timeout
+import com.twitter.util.{Await, Duration, Promise}
+import com.typesafe.scalalogging.Logger
+import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStateUpdate
+}
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
+import org.apache.texera.amber.engine.common.AmberRuntime
+import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.engine.e2e.TestUtils.{
+  cleanupWorkflowExecutionData,
+  initiateTexeraDBForTestCases,
+  setUpWorkflowExecutionData
+}
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
+import org.apache.texera.workflow.LogicalLink
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
+
+import scala.concurrent.duration._
+
+class PauseSpec
+    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
+    with ImplicitSender
+    with AnyFlatSpecLike
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with Retries {
+
+  /**
+    * This block retries each test once if it fails.
+    * In the CI environment, there is a chance that shouldPause does not receive "COMPLETED" status.
+    * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
+    */
+  override def withFixture(test: NoArgTest): Outcome =
+    withRetry { super.withFixture(test) }
+
+  implicit val timeout: Timeout = Timeout(5.seconds)
+
+  val logger = Logger("PauseSpecLogger")
+
+  override protected def beforeEach(): Unit = {
+    setUpWorkflowExecutionData()
+  }
+
+  override protected def afterEach(): Unit = {
+    cleanupWorkflowExecutionData()
+  }
+
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
+    // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
+    // Explicitly load the JDBC driver to avoid flaky CI failures.
+    Class.forName("org.postgresql.Driver")
+    initiateTexeraDBForTestCases()
+  }
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
+  def shouldPause(
+      operators: List[LogicalOp],
+      links: List[LogicalLink]
+  ): Unit = {
+    val workflow =
+      TestUtils.buildWorkflow(operators, links, new WorkflowContext())
+    val client =
+      new AmberClient(
+        system,
+        workflow.context,
+        workflow.physicalPlan,
+        ControllerConfig.default,
+        error => {}
+      )
+    val completion = Promise[Unit]()
+    client
+      .registerCallback[ExecutionStateUpdate](evt => {
+        if (evt.state == COMPLETED) {
+          completion.setDone()
+        }
+      })
+    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+    Thread.sleep(4000)
+    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+    Thread.sleep(400)
+    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+    Thread.sleep(4000)
+    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+    Await.result(completion, Duration.fromMinutes(1))
+  }
+
+  "Engine" should "be able to pause csv workflow" in {
+    val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
+    logger.info(s"csv-id ${csvOpDesc.operatorIdentifier}")
+    shouldPause(
+      List(csvOpDesc),
+      List()
+    )
+  }
+
+  "Engine" should "be able to pause csv->keyword workflow" in {
+    val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    logger.info(
+      s"csv-id ${csvOpDesc.operatorIdentifier}, keyword-id ${keywordOpDesc.operatorIdentifier}"
+    )
+    shouldPause(
+      List(csvOpDesc, keywordOpDesc),
+      List(
+        LogicalLink(
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      )
+    )
+  }
+
+}

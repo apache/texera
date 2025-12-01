@@ -25,12 +25,12 @@ from core.models.payload import DataFrame, DataPayload, StateFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,
 )
-from proto.org.apache.amber.engine.architecture.sendsemantics import Partitioning
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import Partitioning
 
 
 class Channel:

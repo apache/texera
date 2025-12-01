@@ -20,7 +20,7 @@
 package org.apache.texera.service.`type`
 
 import io.lakefs.clients.sdk.model.ObjectStats
-import org.apache.amber.core.storage.util.dataset.PhysicalFileNode
+import org.apache.texera.amber.core.storage.util.dataset.PhysicalFileNode
 
 import java.util
 import scala.collection.mutable
