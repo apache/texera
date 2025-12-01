@@ -597,7 +597,7 @@ export class JointGraphWrapper {
         graphlib: graphlib,
         nodeSep: 100,
         edgeSep: 150,
-        rankSep: 80,
+        rankSep: 130, // Increased from 80 to add 50px more horizontal spacing between connected operators
         ranker: "tight-tree",
         rankDir: "LR",
         resizeClusters: true,

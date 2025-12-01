@@ -204,6 +204,9 @@ export function createAddToWorkflowTool(
           };
         });
 
+        // Auto layout the workflow after adding operators/links
+        workflowActionService.autoLayoutWorkflow();
+
         const actionPlan = createAndRecordActionPlan(
           workflowActionService,
           actionPlanService,
@@ -212,7 +215,7 @@ export function createAddToWorkflowTool(
           args.summary,
           { add: { operatorIds: results.addedOperatorIds, linkIds: results.addedLinkIds } },
           beforeContent,
-          afterContent
+          workflowActionService.getWorkflowContent() // Get updated content after auto layout
         );
 
         return {
@@ -268,12 +271,13 @@ export function createModifyInWorkflowTool(
           return { success: false, error: results.error || "Failed to modify operators" };
         }
 
-        const afterContent = workflowActionService.getWorkflowContent();
-
         // Get updated operator info after modification
         const modifiedOperators = results.modifiedOperatorIds.map(id =>
           getOperatorInfo(id, workflowActionService, workflowCompilingService)
         );
+
+        // Auto layout the workflow after modifying operators
+        workflowActionService.autoLayoutWorkflow();
 
         const actionPlan = createAndRecordActionPlan(
           workflowActionService,
@@ -283,7 +287,7 @@ export function createModifyInWorkflowTool(
           args.summary,
           { modify: { operatorIds: results.modifiedOperatorIds } },
           beforeContent,
-          afterContent
+          workflowActionService.getWorkflowContent() // Get updated content after auto layout
         );
 
         return {
@@ -327,7 +331,8 @@ export function createDeleteFromWorkflowTool(
           return { success: false, error: results.error || "Failed to delete operators/links" };
         }
 
-        const afterContent = workflowActionService.getWorkflowContent();
+        // Auto layout the workflow after deleting operators/links
+        workflowActionService.autoLayoutWorkflow();
 
         const actionPlan = createAndRecordActionPlan(
           workflowActionService,
@@ -337,7 +342,7 @@ export function createDeleteFromWorkflowTool(
           args.summary,
           { delete: { operatorIds: results.deletedOperatorIds, linkIds: results.deletedLinkIds } },
           beforeContent,
-          afterContent
+          workflowActionService.getWorkflowContent() // Get updated content after auto layout
         );
 
         return {
