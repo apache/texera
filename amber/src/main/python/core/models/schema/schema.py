@@ -89,7 +89,8 @@ class Schema:
         for attr_name in arrow_schema.names:
             field = arrow_schema.field(attr_name)
 
-            # Check metadata for BIG_OBJECT type (can be stored by either Scala ArrowUtils or Python)
+            # Check metadata for BIG_OBJECT type
+            # (can be stored by either Scala ArrowUtils or Python)
             is_big_object = (
                 field.metadata and field.metadata.get(b"texera_type") == b"BIG_OBJECT"
             )

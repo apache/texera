@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pytest
 import pyarrow as pa
 from pyiceberg import types as iceberg_types
 from pyiceberg.schema import Schema as IcebergSchema

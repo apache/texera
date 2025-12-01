@@ -17,7 +17,7 @@
 
 import pytest
 import time
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 from core.models.schema.big_object import BigObject
 from pytexera.storage.big_object_output_stream import BigObjectOutputStream
 from pytexera.storage import big_object_manager

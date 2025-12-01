@@ -16,7 +16,7 @@
 # under the License.
 
 import pytest
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 from pytexera.storage.big_object_manager import BigObjectManager
 from core.storage.storage_config import StorageConfig
 

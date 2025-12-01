@@ -266,7 +266,8 @@ class OutputManager:
                 {
                     name: [
                         (
-                            # Convert BigObject objects to URI strings for Arrow serialization
+                            # Convert BigObject objects to URI strings
+                            # for Arrow serialization
                             t[name].uri
                             if isinstance(t[name], BigObject)
                             else t[name]

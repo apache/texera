@@ -16,7 +16,7 @@
 # under the License.
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from core.models.schema.big_object import BigObject
 
 

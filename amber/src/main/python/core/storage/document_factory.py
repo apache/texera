@@ -64,7 +64,8 @@ class DocumentFactory:
             if resource_type in {VFSResourceType.RESULT}:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
-                # Convert Amber Schema to Iceberg Schema with BIG_OBJECT field name encoding
+                # Convert Amber Schema to Iceberg Schema with BIG_OBJECT
+                # field name encoding
                 iceberg_schema = amber_schema_to_iceberg_schema(schema)
 
                 create_table(

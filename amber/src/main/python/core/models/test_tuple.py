@@ -289,7 +289,6 @@ class TestTuple:
     def test_tuple_with_null_big_object(self):
         """Test tuple with null BigObject field."""
         import pyarrow as pa
-        from core.models.schema.big_object import BigObject
 
         # Create Arrow schema with BIG_OBJECT metadata
         arrow_schema = pa.schema(

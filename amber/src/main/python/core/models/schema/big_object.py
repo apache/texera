@@ -17,7 +17,8 @@
 
 """
 BigObject represents a reference to a large object stored externally (e.g., S3).
-This is a schema type class used throughout the system for handling BIG_OBJECT attribute types.
+This is a schema type class used throughout the system for handling
+BIG_OBJECT attribute types.
 """
 
 from typing import Optional
@@ -29,7 +30,8 @@ class BigObject:
     BigObject represents a reference to a large object stored in S3.
 
     Each BigObject is identified by an S3 URI (s3://bucket/path/to/object).
-    BigObjects are automatically tracked and cleaned up when the workflow execution completes.
+    BigObjects are automatically tracked and cleaned up when the workflow
+    execution completes.
 
     Usage:
       from pytexera import BigObject, BigObjectInputStream, BigObjectOutputStream
