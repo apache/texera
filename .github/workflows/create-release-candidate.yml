@@ -171,9 +171,8 @@ jobs:
           GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | awk '{print $2}' | cut -d'/' -f2)
           GPG_EMAIL=$(gpg --list-secret-keys | grep 'uid' | head -n1 | grep -oP '[\w\.-]+@[\w\.-]+')
 
-          # Fetch template from GitHub wiki
-          WIKI_URL="https://raw.githubusercontent.com/wiki/apache/texera/%5BVOTE%5D-Release-Apache-Texera-(incubating)-Email-Template.md"
-          curl -fsSL "$WIKI_URL" -o vote-email.txt
+          # Copy template from repository
+          cp .github/release/vote-email-template.md vote-email.txt
 
           # Substitute variables in the template
           sed -i "s/\${VERSION}/${VERSION}/g" vote-email.txt
@@ -184,7 +183,7 @@ jobs:
           sed -i "s/\${GPG_KEY_ID}/${GPG_KEY_ID}/g" vote-email.txt
           sed -i "s/\${GPG_EMAIL}/${GPG_EMAIL}/g" vote-email.txt
 
-          echo "✓ Vote email template fetched and generated!"
+          echo "✓ Vote email template generated!"
 
       - name: Upload RC artifacts
         uses: actions/upload-artifact@v4
