@@ -259,6 +259,8 @@ class OutputManager:
         )
 
     def tuple_to_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
+        from core.models.schema.big_object import BigObject
+
         return DataFrame(
             frame=Table.from_pydict(
                 {

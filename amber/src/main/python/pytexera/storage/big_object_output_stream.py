@@ -20,7 +20,7 @@ BigObjectOutputStream for streaming BigObject data to S3.
 
 Usage:
     from pytexera import BigObject, BigObjectOutputStream
-
+    
     big_object = BigObject()
     with BigObjectOutputStream(big_object) as out:
         out.write(b"data")

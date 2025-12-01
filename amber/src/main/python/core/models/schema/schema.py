@@ -83,6 +83,7 @@ class Schema:
     def _from_arrow_schema(self, arrow_schema: pa.Schema) -> None:
         """
         Resets the Schema by converting a pyarrow.Schema.
+        Checks field metadata to detect BIG_OBJECT types.
         :param arrow_schema: a pyarrow.Schema.
         :return:
         """
@@ -95,6 +96,7 @@ class Schema:
     def as_arrow_schema(self) -> pa.Schema:
         """
         Creates a new pyarrow.Schema according to the current Schema.
+        Includes metadata for BIG_OBJECT types to preserve type information.
         :return: pyarrow.Schema
         """
         return attr_types_to_arrow_schema(self._name_type_mapping)
