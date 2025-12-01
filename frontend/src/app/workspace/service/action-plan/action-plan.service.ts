@@ -342,8 +342,8 @@ export class ActionPlanService {
     this.workflowPersistService.setWorkflowPersistFlag(false);
     this.undoRedoService.disableWorkFlowModification();
 
-    // Display the AFTER content on canvas as readonly
-    this.workflowActionService.reloadWorkflow(afterWorkflow);
+    // Display the AFTER content on canvas as readonly, preserving the current viewport
+    this.workflowActionService.reloadWorkflow(afterWorkflow, undefined, true);
     this.workflowActionService.disableWorkflowModification();
 
     // Render highlights with beforeWorkflowContent for deleted operator brackets
@@ -374,9 +374,9 @@ export class ActionPlanService {
     // Disable undo/redo to not capture the reload as an action
     this.undoRedoService.disableWorkFlowModification();
 
-    // Reload the workflow content
+    // Reload the workflow content, preserving the current viewport
     const workflow: Workflow = { ...metadata, content };
-    this.workflowActionService.reloadWorkflow(workflow);
+    this.workflowActionService.reloadWorkflow(workflow, undefined, true);
 
     // Re-enable undo/redo
     this.undoRedoService.enableWorkFlowModification();
