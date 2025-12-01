@@ -1,18 +1,4 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="FileService" type="Application" factoryName="Application">
-    <option name="MAIN_CLASS_NAME" value="org.apache.texera.service.FileService" />
-    <module name="texera.file-service.main" />
-    <extension name="coverage">
-      <pattern>
-        <option name="PATTERN" value="org.apache.texera.service.*" />
-        <option name="ENABLED" value="true" />
-      </pattern>
-    </extension>
-    <method v="2">
-      <option name="Make" enabled="true" />
-    </method>
-  </configuration>
-</component><!--
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements. See the NOTICE file
 distributed with this work for additional information
@@ -30,3 +16,18 @@ KIND, either express or implied. See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="FileService" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="org.apache.texera.service.FileService" />
+    <module name="texera.file-service.main" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="org.apache.texera.service.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
