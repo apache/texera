@@ -18,65 +18,242 @@
 -->
 
 <div class="data-check-container">
+  <!-- Header with controls -->
   <div class="data-check-header">
-    <h3>Data Checks</h3>
-    <button
-      *ngIf="dataChecks.length > 0"
-      nz-button
-      nzType="text"
-      nzSize="small"
-      (click)="clearAll()"
-      nz-tooltip
-      nzTooltipTitle="Clear all data checks">
-      <i
-        nz-icon
-        nzType="delete"
-        nzTheme="outline"></i>
-    </button>
+    <h3>Data Check Evaluation</h3>
+    <div class="header-buttons">
+      <button
+        *ngIf="dataChecks.length > 0"
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="clearAll()"
+        nz-tooltip
+        nzTooltipTitle="Clear all data checks">
+        <i
+          nz-icon
+          nzType="delete"
+          nzTheme="outline"></i>
+      </button>
+    </div>
   </div>
 
+  <!-- Ground Truth Upload Section -->
+  <div class="upload-section">
+    <div class="upload-row">
+      <input
+        type="file"
+        accept=".json"
+        (change)="onGroundTruthFileChange($event)"
+        #fileInput
+        style="display: none" />
+      <button
+        nz-button
+        nzType="default"
+        nzSize="small"
+        (click)="fileInput.click()">
+        <i
+          nz-icon
+          nzType="upload"
+          nzTheme="outline"></i>
+        Upload Ground Truth
+      </button>
+      <span
+        *ngIf="groundTruthFileName"
+        class="file-name">
+        {{ groundTruthFileName }}
+        <i
+          nz-icon
+          nzType="close-circle"
+          nzTheme="fill"
+          class="clear-file"
+          (click)="clearGroundTruth()"
+          nz-tooltip
+          nzTooltipTitle="Clear ground truth"></i>
+      </span>
+    </div>
+
+    <!-- Model Selection and Evaluate Button -->
+    <div
+      *ngIf="groundTruth"
+      class="evaluate-row">
+      <nz-select
+        [(ngModel)]="selectedModelId"
+        nzSize="small"
+        nzPlaceHolder="Select Model"
+        class="model-select">
+        <nz-option
+          *ngFor="let model of availableModels"
+          [nzValue]="model.id"
+          [nzLabel]="model.name">
+        </nz-option>
+      </nz-select>
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        [nzLoading]="isEvaluating"
+        [disabled]="dataChecks.length === 0 || !selectedModelId"
+        (click)="evaluateWithLLM()">
+        <i
+          nz-icon
+          nzType="experiment"
+          nzTheme="outline"></i>
+        Evaluate
+      </button>
+    </div>
+
+    <!-- Evaluation Metrics -->
+    <div
+      *ngIf="evaluationResult"
+      class="metrics-row">
+      <nz-tag nzColor="blue"> Precision: {{ (evaluationResult.precision * 100).toFixed(0) }}% </nz-tag>
+      <nz-tag nzColor="green"> Recall: {{ (evaluationResult.recall * 100).toFixed(0) }}% </nz-tag>
+      <nz-tag nzColor="purple"> F1: {{ (evaluationResult.f1Score * 100).toFixed(0) }}% </nz-tag>
+    </div>
+  </div>
+
+  <!-- Split View Container -->
   <div
-    *ngIf="dataChecks.length === 0"
-    class="empty-state">
-    <nz-empty
-      nzNotFoundContent="No data checks found"
-      [nzNotFoundImage]="'simple'"></nz-empty>
-  </div>
-
-  <nz-list
-    *ngIf="dataChecks.length > 0"
-    [nzDataSource]="dataChecks"
-    [nzRenderItem]="item">
-    <ng-template
-      #item
-      let-dataCheck>
-      <nz-list-item>
-        <nz-card
-          [nzTitle]="dataCheck.name"
-          [nzExtra]="extraTemplate"
-          class="data-check-card"
-          (click)="onDataCheckClick(dataCheck)"
-          style="cursor: pointer">
-          <p>{{ dataCheck.description }}</p>
-          <p class="operator-id"><strong>Operator:</strong> {{ dataCheck.operatorId }}</p>
-
-          <ng-template #extraTemplate>
-            <button
-              nz-button
-              nzType="text"
-              nzSize="small"
-              nzDanger
-              (click)="deleteDataCheck(dataCheck.id); $event.stopPropagation()"
-              nz-tooltip
-              nzTooltipTitle="Delete">
+    class="split-view"
+    [class.has-ground-truth]="groundTruth">
+    <!-- Left Panel: Discovered Checks -->
+    <div class="panel discovered-panel">
+      <div class="panel-header">
+        <span>Discovered Checks ({{ dataChecks.length }})</span>
+      </div>
+      <div class="panel-content">
+        <div
+          *ngIf="dataChecks.length === 0"
+          class="empty-state">
+          <nz-empty
+            nzNotFoundContent="No data checks discovered"
+            [nzNotFoundImage]="'simple'">
+          </nz-empty>
+        </div>
+        <div
+          *ngFor="let dataCheck of dataChecks"
+          class="check-card"
+          [class.selected]="isSelected(dataCheck)"
+          (click)="onDataCheckClick(dataCheck)">
+          <div class="check-card-header">
+            <span class="check-id">{{ dataCheck.checkId }}</span>
+            <div class="check-actions">
+              <nz-tag
+                *ngIf="getBestSimilarity(dataCheck) !== null"
+                [ngClass]="getSimilarityColor(getBestSimilarity(dataCheck)!)"
+                class="similarity-tag"
+                (click)="onDataCheckSelect(dataCheck, $event)"
+                nz-tooltip
+                nzTooltipTitle="Click to see matching ground truth checks">
+                {{ formatSimilarity(getBestSimilarity(dataCheck)!) }}
+              </nz-tag>
               <i
                 nz-icon
                 nzType="close"
+                nzTheme="outline"
+                class="delete-icon"
+                (click)="deleteDataCheck(dataCheck.id); $event.stopPropagation()"
+                nz-tooltip
+                nzTooltipTitle="Delete">
+              </i>
+            </div>
+          </div>
+          <p class="check-description">{{ dataCheck.description }}</p>
+          <div class="check-meta">
+            <span class="tables">
+              <i
+                nz-icon
+                nzType="table"
                 nzTheme="outline"></i>
-            </button>
-          </ng-template>
-        </nz-card>
-      </nz-list-item>
-    </ng-template>
-  </nz-list>
+              {{ dataCheck.tables.join(', ') }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Ground Truth Checks -->
+    <div
+      *ngIf="groundTruth"
+      class="panel ground-truth-panel">
+      <div class="panel-header">
+        <span *ngIf="!selectedDataCheck"> Ground Truth ({{ groundTruth.checks.length }}) </span>
+        <span *ngIf="selectedDataCheck">
+          Matches for "{{ selectedDataCheck.checkId }}"
+          <button
+            nz-button
+            nzType="link"
+            nzSize="small"
+            (click)="clearSelection()"
+            class="clear-selection">
+            Clear
+          </button>
+        </span>
+      </div>
+      <div class="panel-content">
+        <!-- Show all ground truth checks when no selection -->
+        <ng-container *ngIf="!selectedDataCheck">
+          <div
+            *ngFor="let gtCheck of groundTruth.checks"
+            class="check-card ground-truth">
+            <div class="check-card-header">
+              <span class="check-id">{{ gtCheck.check_id }}</span>
+            </div>
+            <p class="check-description">{{ gtCheck.description }}</p>
+            <div class="check-meta">
+              <span class="tables">
+                <i
+                  nz-icon
+                  nzType="table"
+                  nzTheme="outline"></i>
+                {{ gtCheck.tables.join(', ') }}
+              </span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Show matched checks when a discovered check is selected -->
+        <ng-container *ngIf="selectedDataCheck">
+          <div
+            *ngIf="matchedGroundTruthChecks.length === 0"
+            class="empty-state">
+            <nz-empty
+              nzNotFoundContent="No matching ground truth checks"
+              [nzNotFoundImage]="'simple'">
+            </nz-empty>
+          </div>
+          <div
+            *ngFor="let match of matchedGroundTruthChecks"
+            class="check-card ground-truth matched">
+            <div class="check-card-header">
+              <span class="check-id">{{ match.check_id }}</span>
+              <nz-tag
+                [ngClass]="getSimilarityColor(match.similarity)"
+                class="similarity-tag">
+                {{ formatSimilarity(match.similarity) }}
+              </nz-tag>
+            </div>
+            <p class="check-description">{{ match.description }}</p>
+            <p class="match-explanation">
+              <i
+                nz-icon
+                nzType="info-circle"
+                nzTheme="outline"></i>
+              {{ match.explanation }}
+            </p>
+            <div class="check-meta">
+              <span class="tables">
+                <i
+                  nz-icon
+                  nzType="table"
+                  nzTheme="outline"></i>
+                {{ match.tables.join(', ') }}
+              </span>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
 </div>

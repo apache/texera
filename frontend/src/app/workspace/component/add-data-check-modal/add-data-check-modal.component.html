@@ -22,13 +22,13 @@
     <nz-form-label
       [nzSpan]="24"
       nzRequired
-      >Name</nz-form-label
+      >Check ID</nz-form-label
     >
     <nz-form-control [nzSpan]="24">
       <input
         nz-input
-        [(ngModel)]="name"
-        placeholder="e.g., Negative Prices, Missing Values"
+        [(ngModel)]="checkId"
+        placeholder="e.g., negative_prices, missing_values"
         [maxlength]="100" />
     </nz-form-control>
   </nz-form-item>
@@ -46,6 +46,16 @@
         placeholder="Describe the data check found"
         [nzAutosize]="{ minRows: 3, maxRows: 6 }"
         [maxlength]="500"></textarea>
+    </nz-form-control>
+  </nz-form-item>
+
+  <nz-form-item>
+    <nz-form-label [nzSpan]="24">Tables</nz-form-label>
+    <nz-form-control [nzSpan]="24">
+      <input
+        nz-input
+        [(ngModel)]="tables"
+        placeholder="Comma-separated table names (e.g., orders, products)" />
     </nz-form-control>
   </nz-form-item>
 
@@ -71,7 +81,7 @@
       nz-button
       nzType="primary"
       (click)="onSubmit()"
-      [disabled]="!name.trim() || !description.trim()">
+      [disabled]="!checkId.trim() || !description.trim()">
       Add Data Check
     </button>
   </div>

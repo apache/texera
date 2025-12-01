@@ -63,7 +63,15 @@ export interface AllowedOperatorSchemasResult {
 const FILTERED_PROPERTY_KEYS = ["dummyPropertyList"];
 
 // Keys to filter out from definitions
-const FILTERED_DEFINITION_KEYS = ["DummyProperties", "PortDescription", "HashPartition", "RangePartition", "SinglePartition", "BroadcastPartition", "UnknownPartition"];
+const FILTERED_DEFINITION_KEYS = [
+  "DummyProperties",
+  "PortDescription",
+  "HashPartition",
+  "RangePartition",
+  "SinglePartition",
+  "BroadcastPartition",
+  "UnknownPartition",
+];
 
 /**
  * Filter an object by excluding specified keys.

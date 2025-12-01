@@ -25,9 +25,10 @@ import { BehaviorSubject, Observable, Subject } from "rxjs";
  */
 export interface DataCheck {
   id: string;
-  name: string;
-  description: string;
-  operatorId: string;
+  checkId: string; // Unique identifier for the check type (e.g., 'invalid_rating')
+  description: string; // Human-readable description of the check
+  tables: string[]; // Tables involved in the check
+  operatorId: string; // ID of the operator that implements this check
 }
 
 /**
@@ -80,19 +81,20 @@ export class DataCheckService {
    * Add a new data check
    * Returns the created data check
    */
-  public addDataCheck(name: string, description: string, operatorId: string): DataCheck {
+  public addDataCheck(checkId: string, description: string, tables: string[], operatorId: string): DataCheck {
     const id = this.generateId();
     const dataCheck: DataCheck = {
       id,
-      name,
+      checkId,
       description,
+      tables,
       operatorId,
     };
 
     this.dataChecks.set(id, dataCheck);
     this.emitUpdate();
 
-    console.log(`Added data check: ${name} (ID: ${id})`);
+    console.log(`Added data check: ${checkId} (ID: ${id})`);
     return dataCheck;
   }
 

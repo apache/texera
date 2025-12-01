@@ -35,18 +35,21 @@ export function createAddDataCheckTool(service: DataCheckService) {
   return tool({
     name: TOOL_NAME_ADD_DATA_CHECK,
     description:
-      "Add a data check finding to the data check list. Use this when you find data errors or anomalies in the workflow results.",
+      "Add a data check finding to the data check list. Use this when you find data quality rules or constraints that should be checked.",
     inputSchema: z.object({
-      name: z.string().describe("Short name for the data check (e.g., 'Negative Prices', 'Missing Values')"),
-      description: z.string().describe("Detailed description of the data check found"),
-      operatorId: z.string().describe("ID of the operator that revealed this data check"),
+      checkId: z
+        .string()
+        .describe("Unique identifier for the check type (e.g., 'invalid_rating', 'negative_price', 'missing_value')"),
+      description: z.string().describe("Human-readable description of the data quality rule being checked"),
+      tables: z.array(z.string()).describe("List of table names involved in the check"),
+      operatorId: z.string().describe("ID of the operator that implements this check"),
     }),
-    execute: async (args: { name: string; description: string; operatorId: string }) => {
+    execute: async (args: { checkId: string; description: string; tables: string[]; operatorId: string }) => {
       try {
-        const dataCheck = service.addDataCheck(args.name, args.description, args.operatorId);
+        const dataCheck = service.addDataCheck(args.checkId, args.description, args.tables, args.operatorId);
         return {
           success: true,
-          message: `Added data check: ${args.name}`,
+          message: `Added data check: ${args.checkId}`,
           dataCheck,
         };
       } catch (error: any) {
@@ -94,15 +97,23 @@ export function createUpdateDataCheckTool(service: DataCheckService) {
     description: "Update an existing data check",
     inputSchema: z.object({
       id: z.string().describe("ID of the data check to update"),
-      name: z.string().optional().describe("New name for the data check"),
+      checkId: z.string().optional().describe("New check ID"),
       description: z.string().optional().describe("New description"),
+      tables: z.array(z.string()).optional().describe("New list of tables"),
       operatorId: z.string().optional().describe("New operator ID"),
     }),
-    execute: async (args: { id: string; name?: string; description?: string; operatorId?: string }) => {
+    execute: async (args: {
+      id: string;
+      checkId?: string;
+      description?: string;
+      tables?: string[];
+      operatorId?: string;
+    }) => {
       try {
         const updates: any = {};
-        if (args.name !== undefined) updates.name = args.name;
+        if (args.checkId !== undefined) updates.checkId = args.checkId;
         if (args.description !== undefined) updates.description = args.description;
+        if (args.tables !== undefined) updates.tables = args.tables;
         if (args.operatorId !== undefined) updates.operatorId = args.operatorId;
 
         const updated = service.updateDataCheck(args.id, updates);

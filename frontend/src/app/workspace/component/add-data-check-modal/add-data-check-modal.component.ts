@@ -27,8 +27,9 @@ import { DataCheckService } from "../../service/data-check/data-check.service";
   styleUrls: ["./add-data-check-modal.component.scss"],
 })
 export class AddDataCheckModalComponent implements OnInit {
-  name: string = "";
+  checkId: string = "";
   description: string = "";
+  tables: string = "";
   operatorId: string = "";
 
   constructor(
@@ -45,8 +46,12 @@ export class AddDataCheckModalComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (this.name.trim() && this.description.trim()) {
-      this.dataCheckService.addDataCheck(this.name.trim(), this.description.trim(), this.operatorId);
+    if (this.checkId.trim() && this.description.trim()) {
+      const tableList = this.tables
+        .split(",")
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      this.dataCheckService.addDataCheck(this.checkId.trim(), this.description.trim(), tableList, this.operatorId);
       this.modalRef.close();
     }
   }
