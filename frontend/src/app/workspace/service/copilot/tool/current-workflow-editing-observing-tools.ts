@@ -431,10 +431,13 @@ export function createListCurrentRelevantOperatorIdsTool(
     }),
     execute: async (args: { targetSchema: Array<{ attributeName: string; attributeType: string }> }) => {
       try {
-        // If no schema provided (empty array), return all operators with details
+        const texeraGraph = workflowActionService.getTexeraGraph();
+
+        // If no schema provided (empty array), return all enabled operators with details
         if (!args.targetSchema || args.targetSchema.length === 0) {
-          const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
-          const operatorDetails = allOperators.map(op => {
+          // Use getAllEnabledOperators to filter out disabled operators
+          const enabledOperators = texeraGraph.getAllEnabledOperators();
+          const operatorDetails = enabledOperators.map(op => {
             const operatorID = op.operatorID;
             const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorID);
             const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorID);
@@ -453,7 +456,7 @@ export function createListCurrentRelevantOperatorIdsTool(
             {
               operators: operatorDetails,
               count: operatorDetails.length,
-              message: `No specific schema provided. Returning all ${operatorDetails.length} operator(s) in the workflow with their schemas.`,
+              message: `No specific schema provided. Returning all ${operatorDetails.length} enabled operator(s) in the workflow with their schemas.`,
             },
             operatorIds,
             []
@@ -465,9 +468,14 @@ export function createListCurrentRelevantOperatorIdsTool(
           workflowCompilingService
         );
 
-        // Get detailed information for matching operators
-        const operatorDetails = matchingOperatorIds.map(operatorID => {
-          const operator = workflowActionService.getTexeraGraph().getOperator(operatorID);
+        // Filter out disabled operators from matching results
+        const enabledMatchingOperatorIds = matchingOperatorIds.filter(
+          operatorID => !texeraGraph.isOperatorDisabled(operatorID)
+        );
+
+        // Get detailed information for matching enabled operators
+        const operatorDetails = enabledMatchingOperatorIds.map(operatorID => {
+          const operator = texeraGraph.getOperator(operatorID);
           const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorID);
           const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorID);
 
@@ -484,9 +492,9 @@ export function createListCurrentRelevantOperatorIdsTool(
           {
             operators: operatorDetails,
             count: operatorDetails.length,
-            message: `Found ${operatorDetails.length} operator(s) with output schema matching the target attributes: ${args.targetSchema.map(attr => attr.attributeName).join(", ")}`,
+            message: `Found ${operatorDetails.length} enabled operator(s) with output schema matching the target attributes: ${args.targetSchema.map(attr => attr.attributeName).join(", ")}`,
           },
-          matchingOperatorIds,
+          enabledMatchingOperatorIds,
           []
         );
       } catch (error: any) {
