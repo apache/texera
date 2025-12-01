@@ -289,6 +289,36 @@
               <span class="preview-title"
                 >{{ previewState.isPending ? 'Pending Action Plan' : 'Action Plan Preview' }}</span
               >
+              <!-- Navigation arrows for action plans -->
+              <div class="preview-navigation">
+                <button
+                  nz-button
+                  nzType="text"
+                  nzSize="small"
+                  [disabled]="!hasPreviousActionPlan()"
+                  (click)="navigateToPreviousActionPlan()"
+                  nz-tooltip
+                  nzTooltipTitle="Previous action plan">
+                  <i
+                    nz-icon
+                    nzType="left"
+                    nzTheme="outline"></i>
+                </button>
+                <span class="preview-position">{{ getActionPlanPositionLabel() }}</span>
+                <button
+                  nz-button
+                  nzType="text"
+                  nzSize="small"
+                  [disabled]="!hasNextActionPlan()"
+                  (click)="navigateToNextActionPlan()"
+                  nz-tooltip
+                  nzTooltipTitle="Next action plan">
+                  <i
+                    nz-icon
+                    nzType="right"
+                    nzTheme="outline"></i>
+                </button>
+              </div>
             </div>
             <div class="preview-summary">{{ previewState.actionPlan.summary }}</div>
             <div class="preview-operations">

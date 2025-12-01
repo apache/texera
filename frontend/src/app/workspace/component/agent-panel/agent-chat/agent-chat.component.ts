@@ -718,4 +718,89 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       this.notificationService.error("Failed to preview action plan");
     }
   }
+
+  // =====================
+  // Action Plan Navigation
+  // =====================
+
+  /**
+   * Get all action plans for this agent sorted by creation time (chronological order).
+   */
+  private getActionPlansForAgent(): ActionPlan[] {
+    return this.actionPlanService
+      .getAllActionPlans()
+      .filter(plan => plan.agentId === this.agentInfo.id)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  /**
+   * Get the index of the current preview action plan in the sorted list.
+   */
+  private getCurrentActionPlanIndex(): number {
+    if (!this.previewState) {
+      return -1;
+    }
+    const plans = this.getActionPlansForAgent();
+    return plans.findIndex(p => p.id === this.previewState!.actionPlan.id);
+  }
+
+  /**
+   * Check if there is a previous action plan to navigate to.
+   */
+  public hasPreviousActionPlan(): boolean {
+    return this.getCurrentActionPlanIndex() > 0;
+  }
+
+  /**
+   * Check if there is a next action plan to navigate to.
+   */
+  public hasNextActionPlan(): boolean {
+    const plans = this.getActionPlansForAgent();
+    const currentIndex = this.getCurrentActionPlanIndex();
+    return currentIndex >= 0 && currentIndex < plans.length - 1;
+  }
+
+  /**
+   * Navigate to the previous action plan in chronological order.
+   */
+  public navigateToPreviousActionPlan(): void {
+    if (!this.hasPreviousActionPlan()) {
+      return;
+    }
+    const plans = this.getActionPlansForAgent();
+    const currentIndex = this.getCurrentActionPlanIndex();
+    const previousPlan = plans[currentIndex - 1];
+
+    // End current preview without applying changes, then start new preview
+    this.actionPlanService.endPreview(false);
+    this.actionPlanService.startHistoricalPreview(previousPlan.id);
+  }
+
+  /**
+   * Navigate to the next action plan in chronological order.
+   */
+  public navigateToNextActionPlan(): void {
+    if (!this.hasNextActionPlan()) {
+      return;
+    }
+    const plans = this.getActionPlansForAgent();
+    const currentIndex = this.getCurrentActionPlanIndex();
+    const nextPlan = plans[currentIndex + 1];
+
+    // End current preview without applying changes, then start new preview
+    this.actionPlanService.endPreview(false);
+    this.actionPlanService.startHistoricalPreview(nextPlan.id);
+  }
+
+  /**
+   * Get the current action plan position string (e.g., "2 / 5").
+   */
+  public getActionPlanPositionLabel(): string {
+    const plans = this.getActionPlansForAgent();
+    const currentIndex = this.getCurrentActionPlanIndex();
+    if (currentIndex < 0 || plans.length === 0) {
+      return "";
+    }
+    return `${currentIndex + 1} / ${plans.length}`;
+  }
 }

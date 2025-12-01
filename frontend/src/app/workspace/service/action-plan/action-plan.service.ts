@@ -116,6 +116,9 @@ export class ActionPlanService {
   // Diff preview state
   private currentDiff: DifferentOpIDsList | null = null;
 
+  // Saved workflow content before starting a historical preview (for cancel/restore)
+  private savedWorkflowContentBeforePreview: WorkflowContent | null = null;
+
   constructor(
     private workflowVersionService: WorkflowVersionService,
     private undoRedoService: UndoRedoService,
@@ -225,15 +228,7 @@ export class ActionPlanService {
    * This is called in planning mode when a new action plan is created.
    */
   public startPendingPreview(actionPlanId: string): void {
-    const actionPlan = this.actionPlans.get(actionPlanId);
-    if (!actionPlan) {
-      console.error(`Action plan ${actionPlanId} not found`);
-      return;
-    }
-
-    this.previewActionPlanDiffInternal(actionPlan);
-    this.previewStateSubject.next({ actionPlan, isPending: true });
-    console.log(`[ActionPlanService] Started pending preview for action plan: ${actionPlanId}`);
+    this.startPreview(actionPlanId, true);
   }
 
   /**
@@ -241,20 +236,34 @@ export class ActionPlanService {
    * This is called when clicking on a timeline node.
    */
   public startHistoricalPreview(actionPlanId: string): void {
+    this.startPreview(actionPlanId, false);
+  }
+
+  /**
+   * Unified method to start a preview.
+   * Always saves the current workflow content before showing the preview.
+   */
+  private startPreview(actionPlanId: string, isPending: boolean): void {
     const actionPlan = this.actionPlans.get(actionPlanId);
     if (!actionPlan) {
       console.error(`Action plan ${actionPlanId} not found`);
       return;
     }
 
-    this.previewActionPlanDiffInternal(actionPlan);
-    this.previewStateSubject.next({ actionPlan, isPending: false });
-    console.log(`[ActionPlanService] Started historical preview for action plan: ${actionPlanId}`);
+    // Always save the current workflow content BEFORE showing the preview
+    // This is what we'll restore to if the user cancels
+    this.savedWorkflowContentBeforePreview = this.workflowActionService.getWorkflowContent();
+
+    this.showPreviewDiff(actionPlan);
+    this.previewStateSubject.next({ actionPlan, isPending });
+    console.log(
+      `[ActionPlanService] Started ${isPending ? "pending" : "historical"} preview for action plan: ${actionPlanId}`
+    );
   }
 
   /**
-   * Clear the current preview and optionally apply changes.
-   * @param accept If true, apply the after version; if false, restore the before version.
+   * End the current preview.
+   * @param accept If true, apply the action plan's afterWorkflowContent; if false, restore to saved content.
    */
   public endPreview(accept: boolean): void {
     const previewState = this.previewStateSubject.getValue();
@@ -263,7 +272,15 @@ export class ActionPlanService {
       return;
     }
 
-    this.setWorkflowToActionPlanInternal(previewState.actionPlan, !accept);
+    // Determine which content to load
+    const contentToLoad = accept
+      ? previewState.actionPlan.afterWorkflowContent
+      : this.savedWorkflowContentBeforePreview!;
+
+    this.loadWorkflowContent(previewState.actionPlan.workflowMetadata, contentToLoad);
+
+    // Clear state
+    this.savedWorkflowContentBeforePreview = null;
     this.previewStateSubject.next(null);
     console.log(`[ActionPlanService] Ended preview, accept=${accept}`);
   }
@@ -302,20 +319,20 @@ export class ActionPlanService {
     this.actionPlansSubject.next(this.getAllActionPlans());
   }
 
-  // ===== DIFF PREVIEW INTERNAL METHODS =====
+  // ===== PREVIEW INTERNAL METHODS =====
 
   /**
-   * Internal method to display action plan diff on canvas.
-   * Displays the AFTER content with highlights showing what changed from BEFORE.
+   * Display action plan diff on canvas.
+   * Shows the AFTER content with highlights indicating what changed from BEFORE.
    */
-  private previewActionPlanDiffInternal(actionPlan: ActionPlan): void {
+  private showPreviewDiff(actionPlan: ActionPlan): void {
     // Calculate diff between BEFORE and AFTER
     const diff = this.workflowVersionService.getWorkflowsDifference(
       actionPlan.beforeWorkflowContent,
       actionPlan.afterWorkflowContent
     );
 
-    // Create AFTER workflow (spread metadata first to prevent overwriting)
+    // Create AFTER workflow
     const afterWorkflow: Workflow = { ...actionPlan.workflowMetadata, content: actionPlan.afterWorkflowContent };
 
     // Save modification state
@@ -337,10 +354,10 @@ export class ActionPlanService {
   }
 
   /**
-   * Internal method to set workflow to either before or after state.
-   * Clears highlights, reloads the specified version, and enables modifications.
+   * Load workflow content and restore normal editing state.
+   * Clears highlights, loads the specified content, and re-enables modifications.
    */
-  private setWorkflowToActionPlanInternal(actionPlan: ActionPlan, isBefore: boolean): void {
+  private loadWorkflowContent(metadata: WorkflowMetadata, content: WorkflowContent): void {
     // Clear highlights
     if (this.currentDiff) {
       this.workflowVersionService.unhighlightOpVersionDiff(this.currentDiff);
@@ -357,9 +374,8 @@ export class ActionPlanService {
     // Disable undo/redo to not capture the reload as an action
     this.undoRedoService.disableWorkFlowModification();
 
-    // Reload the selected version (spread metadata first to prevent overwriting)
-    const workflowContent = isBefore ? actionPlan.beforeWorkflowContent : actionPlan.afterWorkflowContent;
-    const workflow: Workflow = { ...actionPlan.workflowMetadata, content: workflowContent };
+    // Reload the workflow content
+    const workflow: Workflow = { ...metadata, content };
     this.workflowActionService.reloadWorkflow(workflow);
 
     // Re-enable undo/redo
@@ -370,7 +386,5 @@ export class ActionPlanService {
 
     // Restore modification state
     this.workflowVersionService.restoreModificationState();
-
-    console.log(`Action plan ${isBefore ? "rejected - before" : "accepted - after"} version reloaded`);
   }
 }

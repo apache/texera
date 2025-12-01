@@ -379,6 +379,39 @@
       i {
         font-size: 14px;
       }
+
+      .preview-navigation {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        button {
+          padding: 0 4px;
+          height: 20px;
+          min-width: 20px;
+          color: #8c8c8c;
+
+          &:not([disabled]):hover {
+            color: #fa8c16;
+          }
+
+          &[disabled] {
+            opacity: 0.4;
+          }
+
+          i {
+            font-size: 12px;
+          }
+        }
+
+        .preview-position {
+          font-size: 11px;
+          color: #8c8c8c;
+          min-width: 32px;
+          text-align: center;
+        }
+      }
     }
 
     .preview-summary {
