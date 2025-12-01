@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.model.websocket.event
 
-import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 
 case class WorkflowErrorEvent(
     fatalErrors: Seq[WorkflowFatalError]

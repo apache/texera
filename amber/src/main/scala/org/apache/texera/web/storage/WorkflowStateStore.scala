@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.storage
 
-import org.apache.amber.core.storage.result.WorkflowResultStore
+import org.apache.texera.amber.core.storage.result.WorkflowResultStore
 
 // states that across executions.
 class WorkflowStateStore {

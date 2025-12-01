@@ -18,7 +18,7 @@
 from typing import Iterator
 
 from core.util.buffer.timed_buffer import TimedBuffer
-from proto.org.apache.amber.engine.architecture.rpc import ConsoleMessage
+from proto.org.apache.texera.amber.engine.architecture.rpc import ConsoleMessage
 
 
 class ConsoleMessageManager:

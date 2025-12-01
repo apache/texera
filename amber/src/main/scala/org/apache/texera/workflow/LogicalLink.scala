@@ -20,8 +20,8 @@
 package org.apache.texera.workflow
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
-import org.apache.amber.core.virtualidentity.OperatorIdentity
-import org.apache.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.workflow.PortIdentity
 
 case class LogicalLink(
     @JsonProperty("fromOpId") fromOpId: OperatorIdentity,

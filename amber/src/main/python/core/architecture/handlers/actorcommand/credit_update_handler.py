@@ -19,7 +19,7 @@ from core.architecture.handlers.actorcommand.actor_handler_base import (
     ActorCommandHandler,
 )
 from core.models import InternalQueue
-from proto.org.apache.amber.engine.common import CreditUpdate
+from proto.org.apache.texera.amber.engine.common import CreditUpdate
 
 
 class CreditUpdateHandler(ActorCommandHandler):

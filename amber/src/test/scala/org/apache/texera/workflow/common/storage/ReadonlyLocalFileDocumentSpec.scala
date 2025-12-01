@@ -17,10 +17,10 @@
  * under the License.
  */
 
-package org.apache.amber.engine.common.storage
+package org.apache.texera.amber.engine.common.storage
 
-import org.apache.amber.core.storage.DocumentFactory
-import org.apache.amber.core.storage.model.ReadonlyVirtualDocument
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.model.ReadonlyVirtualDocument
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

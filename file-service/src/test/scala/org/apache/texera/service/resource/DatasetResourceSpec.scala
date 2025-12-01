@@ -20,7 +20,7 @@
 package org.apache.texera.service.resource
 
 import jakarta.ws.rs.{BadRequestException, ForbiddenException}
-import org.apache.amber.core.storage.util.LakeFSStorageClient
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}

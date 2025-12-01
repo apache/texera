@@ -19,8 +19,8 @@
 
 package org.apache.texera.web.service
 
-import org.apache.amber.engine.architecture.controller.Workflow
-import org.apache.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.engine.architecture.controller.Workflow
+import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.ModifyLogicRequest
@@ -112,7 +112,7 @@ class ExecutionReconfigurationService(
     //      case (op, stateTransferFunc) =>
     //        val bytes = AmberRuntime.serde.serialize(op.opExecInitInfo).get
     //        val protoAny = Any.of(
-    //          "org.apache.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
+    //          "org.apache.texera.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
     //          ByteString.copyFrom(bytes)
     //        )
     //        val stateTransferFuncOpt = stateTransferFunc.map { func =>

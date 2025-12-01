@@ -22,34 +22,34 @@ package org.apache.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.config.ApplicationConfig
-import org.apache.amber.core.storage.model.BufferedItemWriter
-import org.apache.amber.core.storage.result.ResultSchema
-import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
-import org.apache.amber.core.workflow.WorkflowContext
-import org.apache.amber.engine.architecture.controller.ExecutionStateUpdate
-import org.apache.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
+import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.amber.core.storage.model.BufferedItemWriter
+import org.apache.texera.amber.core.storage.result.ResultSchema
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
+import org.apache.texera.amber.core.workflow.WorkflowContext
+import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
   ConsoleMessageType,
   EvaluatePythonExpressionRequest,
   DebugCommandRequest => AmberDebugCommandRequest
 }
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   KILLED
 }
-import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.common.executionruntimestate.{
+import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.engine.common.executionruntimestate.{
   EvaluatedValueList,
   ExecutionConsoleStore,
   OperatorConsole
 }
-import org.apache.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import org.apache.texera.web.model.websocket.request.RetryRequest

@@ -16,11 +16,11 @@
 # under the License.
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     WorkerMetricsResponse,
     EmptyRequest,
 )
-from proto.org.apache.amber.engine.architecture.worker import (
+from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerMetrics,
 )
 

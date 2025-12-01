@@ -20,9 +20,9 @@
 package org.apache.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.core.virtualidentity.OperatorIdentity
-import org.apache.amber.core.workflow._
-import org.apache.amber.engine.architecture.controller.Workflow
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.workflow._
+import org.apache.texera.amber.engine.architecture.controller.Workflow
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 
 import scala.collection.mutable

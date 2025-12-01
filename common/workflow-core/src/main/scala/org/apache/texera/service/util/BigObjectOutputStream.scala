@@ -20,7 +20,7 @@
 package org.apache.texera.service.util
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.core.tuple.BigObject
+import org.apache.texera.amber.core.tuple.BigObject
 
 import java.io.{IOException, OutputStream, PipedInputStream, PipedOutputStream}
 import java.util.concurrent.atomic.AtomicReference

@@ -20,8 +20,8 @@
 package org.apache.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import org.apache.amber.core.workflow.WorkflowSettings
-import org.apache.amber.operator.LogicalOp
+import org.apache.texera.amber.core.workflow.WorkflowSettings
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.workflow.LogicalLink
 
 case class ReplayExecutionInfo(

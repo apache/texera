@@ -18,8 +18,8 @@
 from collections import defaultdict
 from typing import DefaultDict
 
-from proto.org.apache.amber.core import PortIdentity
-from proto.org.apache.amber.engine.architecture.worker import (
+from proto.org.apache.texera.amber.core import PortIdentity
+from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerStatistics,
     PortTupleMetricsMapping,
     TupleMetrics,

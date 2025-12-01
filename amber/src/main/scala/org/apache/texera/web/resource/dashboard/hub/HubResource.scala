@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.dashboard.hub
 
 import io.dropwizard.auth.Auth
-import org.apache.amber.core.storage.util.LakeFSStorageClient
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
