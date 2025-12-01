@@ -276,13 +276,29 @@ export function executeWorkflowAndGetResults$(
         map(change => change.current)
       );
 
-      // Detect stuck state (Running but operator Paused)
+      // Detect stuck state (Running but operator Paused) or error console logs
       const stuckDetection$ = interval(1000).pipe(
         filter(() => {
           const state = executeWorkflowService.getExecutionState();
           if (state.state !== ExecutionState.Running) return false;
+
+          // Check for paused operators
           const opStates = workflowStatusService.getCurrentStatus();
-          return Object.values(opStates).some(s => s.operatorState === "Paused");
+          const hasPausedOperator = Object.values(opStates).some(s => s.operatorState === "Paused");
+          if (hasPausedOperator) return true;
+
+          // Check for ERROR level console logs in any operator
+          const allOperatorIds = allOperators.map(op => op.operatorID);
+          for (const operatorId of allOperatorIds) {
+            if (workflowConsoleService.hasConsoleMessages(operatorId)) {
+              const messages = workflowConsoleService.getConsoleMessages(operatorId);
+              if (messages && messages.some(msg => msg.msgType.name === "ERROR")) {
+                return true;
+              }
+            }
+          }
+
+          return false;
         }),
         take(1),
         tap(() => {
