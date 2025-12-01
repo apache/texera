@@ -18,8 +18,8 @@
 syntax = "proto3";
 package org.apache.texera.amber.engine.architecture.rpc;
 
-import "org/apache/amber/engine/architecture/rpc/controlcommands.proto";
-import "org/apache/amber/engine/architecture/rpc/controlreturns.proto";
+import "org/apache/texera/amber/engine/architecture/rpc/controlcommands.proto";
+import "org/apache/texera/amber/engine/architecture/rpc/controlreturns.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {

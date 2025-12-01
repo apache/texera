@@ -19,7 +19,7 @@ syntax = "proto3";
 
 package org.apache.texera.amber.core;
 
-import "org/apache/amber/core/virtualidentity.proto";
+import "org/apache/texera/amber/core/virtualidentity.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {

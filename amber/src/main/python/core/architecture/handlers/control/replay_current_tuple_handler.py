@@ -19,7 +19,10 @@ import itertools
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.pause_manager import PauseType
-from proto.org.apache.texera.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    EmptyRequest,
+)
 from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
 )

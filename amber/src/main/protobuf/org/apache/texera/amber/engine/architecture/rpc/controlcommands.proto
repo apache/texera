@@ -18,11 +18,11 @@
 syntax = "proto3";
 package org.apache.texera.amber.engine.architecture.rpc;
 
-import "org/apache/amber/core/virtualidentity.proto";
-import "org/apache/amber/core/workflow.proto";
-import "org/apache/amber/core/executor.proto";
-import "org/apache/amber/engine/architecture/worker/statistics.proto";
-import "org/apache/amber/engine/architecture/sendsemantics/partitionings.proto";
+import "org/apache/texera/amber/core/virtualidentity.proto";
+import "org/apache/texera/amber/core/workflow.proto";
+import "org/apache/texera/amber/core/executor.proto";
+import "org/apache/texera/amber/engine/architecture/worker/statistics.proto";
+import "org/apache/texera/amber/engine/architecture/sendsemantics/partitionings.proto";
 import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";

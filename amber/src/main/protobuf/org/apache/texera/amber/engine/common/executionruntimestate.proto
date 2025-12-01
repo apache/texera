@@ -19,11 +19,11 @@ syntax = "proto3";
 
 package org.apache.texera.amber.engine.common;
 
-import "org/apache/amber/engine/architecture/rpc/controlcommands.proto";
-import "org/apache/amber/engine/architecture/rpc/controlreturns.proto";
-import "org/apache/amber/engine/architecture/worker/statistics.proto";
-import "org/apache/amber/core/virtualidentity.proto";
-import "org/apache/amber/core/workflowruntimestate.proto";
+import "org/apache/texera/amber/engine/architecture/rpc/controlcommands.proto";
+import "org/apache/texera/amber/engine/architecture/rpc/controlreturns.proto";
+import "org/apache/texera/amber/engine/architecture/worker/statistics.proto";
+import "org/apache/texera/amber/core/virtualidentity.proto";
+import "org/apache/texera/amber/core/workflowruntimestate.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {

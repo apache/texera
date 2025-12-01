@@ -19,7 +19,7 @@ syntax = "proto3";
 
 package org.apache.texera.amber.engine.architecture.worker;
 
-import "org/apache/amber/core/workflow.proto";
+import "org/apache/texera/amber/core/workflow.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
