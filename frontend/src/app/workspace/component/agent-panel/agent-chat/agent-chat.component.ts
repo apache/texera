@@ -25,9 +25,6 @@ import {
   OnInit,
   AfterViewChecked,
   ChangeDetectorRef,
-  ChangeDetectionStrategy,
-  QueryList,
-  ViewChildren,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
@@ -73,7 +70,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
   @ViewChild("timelineContainer", { static: false }) timelineContainer?: ElementRef;
-  @ViewChildren("timelineNode") timelineNodeElements?: QueryList<ElementRef>;
 
   public agentResponses: ReActStep[] = [];
   public currentMessage = "";
@@ -211,11 +207,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     // Notify the copilot service about the hovered message
     const hoveredStep = index !== null && index >= 0 ? this.agentResponses[index] : null;
     this.copilotManagerService.setHoveredMessage(this.agentInfo.id, hoveredStep);
-
-    // Scroll timeline to show the highlighted nodes
-    if (index !== null) {
-      this.scrollTimelineToStep(index);
-    }
   }
 
   public showResponseDetails(response: ReActStep): void {
@@ -515,13 +506,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Get timeline nodes for a specific step index.
-   */
-  public getTimelineNodesForStep(stepIndex: number): TimelineNode[] {
-    return this.timelineNodes.filter(node => node.stepIndex === stepIndex);
-  }
-
-  /**
    * Check if a timeline node belongs to the currently hovered message.
    */
   public isNodeHighlighted(node: TimelineNode): boolean {
@@ -548,40 +532,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
    */
   public onTimelineNodeLeave(): void {
     this.hoveredTimelineNodeId = null;
-  }
-
-  /**
-   * Scroll timeline to show nodes for the hovered message.
-   */
-  private scrollTimelineToStep(stepIndex: number): void {
-    if (!this.timelineContainer || !this.timelineNodeElements) {
-      return;
-    }
-
-    // Find the first node for this step
-    const nodesForStep = this.getTimelineNodesForStep(stepIndex);
-    if (nodesForStep.length === 0) {
-      return;
-    }
-
-    const nodeIndex = this.timelineNodes.findIndex(n => n.stepIndex === stepIndex);
-    if (nodeIndex === -1) {
-      return;
-    }
-
-    const nodeElements = this.timelineNodeElements.toArray();
-    if (nodeIndex < nodeElements.length) {
-      const element = nodeElements[nodeIndex].nativeElement;
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }
-
-  /**
-   * Get the tooltip text for a timeline node.
-   */
-  public getTimelineNodeTooltip(node: TimelineNode): string {
-    const groupConfig = getToolGroupConfig(node.toolGroup);
-    return `${node.toolName}\nGroup: ${groupConfig.group}\nStep: ${node.stepIndex}`;
   }
 
   /**

@@ -131,9 +131,7 @@
           [class.modify-node]="node.toolGroup === ToolGroup.MODIFY"
           (click)="onTimelineNodeClick(node)"
           (mouseenter)="onTimelineNodeHover(node)"
-          (mouseleave)="onTimelineNodeLeave()"
-          nz-tooltip
-          [nzTooltipTitle]="getTimelineNodeTooltip(node)">
+          (mouseleave)="onTimelineNodeLeave()">
           <div
             class="node-circle"
             [style.background-color]="node.color"
