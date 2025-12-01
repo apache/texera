@@ -242,6 +242,20 @@ export class DataCheckListComponent implements OnInit {
   }
 
   /**
+   * Check if there is an active highlight
+   */
+  hasActiveHighlight(): boolean {
+    return this.dataCheckService.getCurrentHighlightedDataCheckId() !== null;
+  }
+
+  /**
+   * Clear the current highlight from the workflow graph
+   */
+  clearHighlights(): void {
+    this.dataCheckService.clearHighlight();
+  }
+
+  /**
    * Run evaluation using LLM as a judge
    */
   evaluateWithLLM(): void {

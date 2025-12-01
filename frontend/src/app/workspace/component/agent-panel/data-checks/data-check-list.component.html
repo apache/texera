@@ -23,6 +23,19 @@
     <h3>Data Check Evaluation</h3>
     <div class="header-buttons">
       <button
+        *ngIf="hasActiveHighlight()"
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="clearHighlights()"
+        nz-tooltip
+        nzTooltipTitle="Clear highlights from workflow">
+        <i
+          nz-icon
+          nzType="eye-invisible"
+          nzTheme="outline"></i>
+      </button>
+      <button
         *ngIf="dataChecks.length > 0"
         nz-button
         nzType="text"
