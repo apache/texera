@@ -20,14 +20,15 @@
 package org.apache.texera.amber.util
 
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{AttributeType, BigObject, Schema, Tuple}
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, IntervalUnit, TimeUnit}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
+import java.util
 import scala.jdk.CollectionConverters.IterableHasAsJava
 class ArrowUtilsSpec extends AnyFlatSpec {
 
@@ -98,6 +99,9 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     // a special case that's not symmetric, AttributeType.ANY will be converted to ArrowType.Utf8
     // but not the other way around.
     assert(ArrowUtils.fromAttributeType(AttributeType.ANY) == string)
+
+    // BIG_OBJECT is converted to ArrowType.Utf8 (same as STRING)
+    assert(ArrowUtils.fromAttributeType(AttributeType.BIG_OBJECT) == string)
 
   }
 
@@ -237,6 +241,142 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     // get the Tuple from the Vectors
     assert(ArrowUtils.getTexeraTuple(0, vectorSchemaRoot) == tuple)
 
+  }
+
+  it should "convert from AttributeType to ArrowType for BIG_OBJECT correctly" in {
+    // BIG_OBJECT is converted to ArrowType.Utf8 (stored as string)
+    assert(ArrowUtils.fromAttributeType(AttributeType.BIG_OBJECT) == string)
+  }
+
+  it should "convert Texera Schema with BIG_OBJECT to Arrow Schema with metadata correctly" in {
+    val texeraSchemaWithBigObject = Schema()
+      .add("regular_string", AttributeType.STRING)
+      .add("big_object_field", AttributeType.BIG_OBJECT)
+
+    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithBigObject)
+
+    // Check that regular string field has no metadata
+    val regularStringField = arrowSchema.getFields.get(0)
+    assert(regularStringField.getName == "regular_string")
+    assert(regularStringField.getType == string)
+    assert(
+      regularStringField.getMetadata == null || !regularStringField.getMetadata.containsKey(
+        "texera_type"
+      )
+    )
+
+    // Check that BIG_OBJECT field has metadata
+    val bigObjectField = arrowSchema.getFields.get(1)
+    assert(bigObjectField.getName == "big_object_field")
+    assert(bigObjectField.getType == string) // BIG_OBJECT is stored as Utf8
+    assert(bigObjectField.getMetadata != null)
+    assert(bigObjectField.getMetadata.get("texera_type") == "BIG_OBJECT")
+  }
+
+  it should "convert Arrow Schema with BIG_OBJECT metadata to Texera Schema correctly" in {
+    // Create Arrow schema with BIG_OBJECT metadata
+    val bigObjectMetadata = new util.HashMap[String, String]()
+    bigObjectMetadata.put("texera_type", "BIG_OBJECT")
+
+    val arrowSchemaWithBigObject = new org.apache.arrow.vector.types.pojo.Schema(
+      Array(
+        Field.nullablePrimitive("regular_string", string),
+        new Field(
+          "big_object_field",
+          new FieldType(true, string, null, bigObjectMetadata),
+          null
+        )
+      ).toList.asJava
+    )
+
+    val texeraSchema = ArrowUtils.toTexeraSchema(arrowSchemaWithBigObject)
+
+    assert(texeraSchema.getAttribute("regular_string").getName == "regular_string")
+    assert(texeraSchema.getAttribute("regular_string").getType == AttributeType.STRING)
+
+    assert(texeraSchema.getAttribute("big_object_field").getName == "big_object_field")
+    assert(texeraSchema.getAttribute("big_object_field").getType == AttributeType.BIG_OBJECT)
+  }
+
+  it should "set and get Texera Tuple with BIG_OBJECT correctly" in {
+    val texeraSchemaWithBigObject = Schema()
+      .add("big_object_field", AttributeType.BIG_OBJECT)
+      .add("regular_string", AttributeType.STRING)
+
+    val bigObject = new BigObject("s3://test-bucket/path/to/object")
+    val tuple = Tuple
+      .builder(texeraSchemaWithBigObject)
+      .addSequentially(
+        Array(
+          bigObject,
+          "regular string value"
+        )
+      )
+      .build()
+
+    val allocator: BufferAllocator = new RootAllocator()
+    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithBigObject)
+    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
+    vectorSchemaRoot.allocateNew()
+
+    // Set Tuple into the Vectors
+    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+
+    // Verify the BIG_OBJECT is stored as string (URI) in Arrow
+    val storedValue = vectorSchemaRoot.getVector(0).getObject(0)
+    assert(storedValue.toString == "s3://test-bucket/path/to/object")
+
+    // Get the Tuple from the Vectors
+    val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
+    assert(retrievedTuple.getField[BigObject](0) == bigObject)
+    assert(retrievedTuple.getField[String](1) == "regular string value")
+  }
+
+  it should "handle null BIG_OBJECT values correctly" in {
+    val texeraSchemaWithBigObject = Schema()
+      .add("big_object_field", AttributeType.BIG_OBJECT)
+
+    val tuple = Tuple
+      .builder(texeraSchemaWithBigObject)
+      .addSequentially(
+        Array(
+          null.asInstanceOf[BigObject]
+        )
+      )
+      .build()
+
+    val allocator: BufferAllocator = new RootAllocator()
+    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithBigObject)
+    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
+    vectorSchemaRoot.allocateNew()
+
+    // Set Tuple into the Vectors
+    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+
+    // Verify null is stored correctly
+    assert(vectorSchemaRoot.getVector(0).getObject(0) == null)
+
+    // Get the Tuple from the Vectors
+    val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
+    assert(retrievedTuple.getField[BigObject](0) == null)
+  }
+
+  it should "round-trip BIG_OBJECT schema conversion correctly" in {
+    val originalSchema = Schema()
+      .add("field1", AttributeType.STRING)
+      .add("field2", AttributeType.BIG_OBJECT)
+      .add("field3", AttributeType.INTEGER)
+      .add("field4", AttributeType.BIG_OBJECT)
+
+    // Convert to Arrow and back
+    val arrowSchema = ArrowUtils.fromTexeraSchema(originalSchema)
+    val roundTripSchema = ArrowUtils.toTexeraSchema(arrowSchema)
+
+    assert(roundTripSchema.getAttribute("field1").getType == AttributeType.STRING)
+    assert(roundTripSchema.getAttribute("field2").getType == AttributeType.BIG_OBJECT)
+    assert(roundTripSchema.getAttribute("field3").getType == AttributeType.INTEGER)
+    assert(roundTripSchema.getAttribute("field4").getType == AttributeType.BIG_OBJECT)
+    assert(roundTripSchema == originalSchema)
   }
 
 }

@@ -221,3 +221,102 @@ class TestTuple:
             schema,
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
+
+    def test_tuple_with_big_object(self):
+        """Test tuple with BigObject field."""
+        from core.models.schema.big_object import BigObject
+
+        schema = Schema(
+            raw_schema={
+                "regular_field": "STRING",
+                "big_object_field": "BIG_OBJECT",
+            }
+        )
+
+        big_object = BigObject("s3://test-bucket/path/to/object")
+        tuple_ = Tuple(
+            {
+                "regular_field": "test string",
+                "big_object_field": big_object,
+            },
+            schema=schema,
+        )
+
+        assert tuple_["regular_field"] == "test string"
+        assert tuple_["big_object_field"] == big_object
+        assert isinstance(tuple_["big_object_field"], BigObject)
+        assert tuple_["big_object_field"].uri == "s3://test-bucket/path/to/object"
+
+    def test_tuple_from_arrow_with_big_object(self):
+        """Test creating tuple from Arrow table with BIG_OBJECT metadata."""
+        import pyarrow as pa
+        from core.models.schema.big_object import BigObject
+
+        # Create Arrow schema with BIG_OBJECT metadata
+        arrow_schema = pa.schema(
+            [
+                pa.field("regular_field", pa.string()),
+                pa.field(
+                    "big_object_field",
+                    pa.string(),
+                    metadata={b"texera_type": b"BIG_OBJECT"},
+                ),
+            ]
+        )
+
+        # Create Arrow table with URI string for big_object_field
+        arrow_table = pa.Table.from_pydict(
+            {
+                "regular_field": ["test"],
+                "big_object_field": ["s3://test-bucket/path/to/object"],
+            },
+            schema=arrow_schema,
+        )
+
+        # Create tuple from Arrow table
+        tuple_provider = ArrowTableTupleProvider(arrow_table)
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in tuple_provider
+        ]
+
+        assert len(tuples) == 1
+        tuple_ = tuples[0]
+        assert tuple_["regular_field"] == "test"
+        assert isinstance(tuple_["big_object_field"], BigObject)
+        assert tuple_["big_object_field"].uri == "s3://test-bucket/path/to/object"
+
+    def test_tuple_with_null_big_object(self):
+        """Test tuple with null BigObject field."""
+        import pyarrow as pa
+        from core.models.schema.big_object import BigObject
+
+        # Create Arrow schema with BIG_OBJECT metadata
+        arrow_schema = pa.schema(
+            [
+                pa.field(
+                    "big_object_field",
+                    pa.string(),
+                    metadata={b"texera_type": b"BIG_OBJECT"},
+                ),
+            ]
+        )
+
+        # Create Arrow table with null value
+        arrow_table = pa.Table.from_pydict(
+            {
+                "big_object_field": [None],
+            },
+            schema=arrow_schema,
+        )
+
+        # Create tuple from Arrow table
+        tuple_provider = ArrowTableTupleProvider(arrow_table)
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in tuple_provider
+        ]
+
+        assert len(tuples) == 1
+        tuple_ = tuples[0]
+        assert tuple_["big_object_field"] is None

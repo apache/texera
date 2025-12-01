@@ -16,12 +16,14 @@
 # under the License.
 
 from .attribute_type import AttributeType
+from .big_object import BigObject
 from .field import Field
 from .schema import Schema
 
 
 __all__ = [
     "AttributeType",
+    "BigObject",
     "Field",
     "Schema",
 ]

@@ -43,6 +43,10 @@ StorageConfig.initialize(
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../amber/user-resources/workflow-results",
     commit_batch_size=4096,
+    s3_endpoint="http://localhost:9000",
+    s3_region="us-east-1",
+    s3_auth_username="minioadmin",
+    s3_auth_password="minioadmin",
 )
 
 

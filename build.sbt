@@ -84,7 +84,19 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "org.slf4j" % "slf4j-api" % "1.7.26",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813"
+      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
+      // Netty dependency overrides to ensure compatibility with Arrow 14.0.1
+      // Arrow requires Netty 4.1.96.Final to avoid NoSuchFieldError: chunkSize
+      "io.netty" % "netty-all" % "4.1.96.Final",
+      "io.netty" % "netty-buffer" % "4.1.96.Final",
+      "io.netty" % "netty-codec" % "4.1.96.Final",
+      "io.netty" % "netty-codec-http" % "4.1.96.Final",
+      "io.netty" % "netty-codec-http2" % "4.1.96.Final",
+      "io.netty" % "netty-common" % "4.1.96.Final",
+      "io.netty" % "netty-handler" % "4.1.96.Final",
+      "io.netty" % "netty-resolver" % "4.1.96.Final",
+      "io.netty" % "netty-transport" % "4.1.96.Final",
+      "io.netty" % "netty-transport-native-unix-common" % "4.1.96.Final"
     ),
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0

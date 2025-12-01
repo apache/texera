@@ -81,26 +81,46 @@ class Schema:
     def _from_arrow_schema(self, arrow_schema: pa.Schema) -> None:
         """
         Resets the Schema by converting a pyarrow.Schema.
+        Checks field metadata to detect BIG_OBJECT types.
         :param arrow_schema: a pyarrow.Schema.
         :return:
         """
         self._name_type_mapping = OrderedDict()
         for attr_name in arrow_schema.names:
-            arrow_type = arrow_schema.field(attr_name).type  # type: ignore
-            attr_type = FROM_ARROW_MAPPING[arrow_type.id]
+            field = arrow_schema.field(attr_name)
+
+            # Check metadata for BIG_OBJECT type (can be stored by either Scala ArrowUtils or Python)
+            is_big_object = (
+                field.metadata and field.metadata.get(b"texera_type") == b"BIG_OBJECT"
+            )
+
+            attr_type = (
+                AttributeType.BIG_OBJECT
+                if is_big_object
+                else FROM_ARROW_MAPPING[field.type.id]
+            )
+
             self.add(attr_name, attr_type)
 
     def as_arrow_schema(self) -> pa.Schema:
         """
         Creates a new pyarrow.Schema according to the current Schema.
+        Includes metadata for BIG_OBJECT types to preserve type information.
         :return: pyarrow.Schema
         """
-        return pa.schema(
-            [
-                pa.field(attr_name, TO_ARROW_MAPPING[attr_type])
-                for attr_name, attr_type in self._name_type_mapping.items()
-            ]
-        )
+        fields = [
+            pa.field(
+                attr_name,
+                TO_ARROW_MAPPING[attr_type],
+                metadata=(
+                    {b"texera_type": b"BIG_OBJECT"}
+                    if attr_type == AttributeType.BIG_OBJECT
+                    else None
+                ),
+            )
+            for attr_name, attr_type in self._name_type_mapping.items()
+        ]
+        return pa.schema(fields)
 
     def get_attr_names(self) -> List[str]:
         """
