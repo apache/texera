@@ -227,13 +227,9 @@ export class TexeraCopilotManagerService {
    *
    * @param agentId - The ID of the agent to send the message to
    * @param message - The message to send
-   * @param relevantSteps - Optional array of relevant ReAct steps for context
+   * @param relevantOperatorIds - Optional array of operator IDs to retrieve relevant ReAct steps for context
    */
-  public sendMessage(
-    agentId: string,
-    message: string,
-    relevantSteps: Array<{ agentId: string; messageId: string; stepId: number }> = []
-  ): void {
+  public sendMessage(agentId: string, message: string, relevantOperatorIds: string[] = []): void {
     const agent = this.agents.get(agentId);
     if (!agent) {
       console.error(`Agent with ID ${agentId} not found`);
@@ -241,31 +237,53 @@ export class TexeraCopilotManagerService {
       return;
     }
 
-    // Prepare the final message with relevant steps if provided
+    // Prepare the final message with relevant steps retrieved from operator IDs
+    // User's message is appended at the end for better context
     const prepareFinalMessage = (): string => {
-      let finalMessage = message;
-      if (relevantSteps.length > 0) {
-        const retrievedSteps: any[] = [];
-        for (const stepRef of relevantSteps) {
-          const sourceAgent = this.agents.get(stepRef.agentId);
-          if (sourceAgent) {
-            const step = sourceAgent.instance.getReActStepById(stepRef.messageId, stepRef.stepId);
-            if (step) {
+      if (relevantOperatorIds.length === 0) {
+        return message;
+      }
+
+      const retrievedSteps: any[] = [];
+
+      // Iterate through all agents to find steps that modified these operators
+      for (const [sourceAgentId, sourceAgent] of this.agents.entries()) {
+        const allSteps = sourceAgent.instance.getReActSteps();
+
+        for (const step of allSteps) {
+          if (step.operatorAccess) {
+            // Check if this step modified any of the relevant operators
+            let hasModifiedRelevantOperator = false;
+            step.operatorAccess.forEach(access => {
+              for (const opId of access.modifiedOperatorIds) {
+                if (relevantOperatorIds.includes(opId)) {
+                  hasModifiedRelevantOperator = true;
+                  break;
+                }
+              }
+            });
+
+            if (hasModifiedRelevantOperator) {
               retrievedSteps.push({
-                agentId: stepRef.agentId,
+                agentId: sourceAgentId,
                 agentName: sourceAgent.name,
                 step: step,
               });
             }
           }
         }
-
-        if (retrievedSteps.length > 0) {
-          const stepsJson = JSON.stringify(retrievedSteps, null, 2);
-          finalMessage = `${message}\n\nRelevant ReAct Steps (Full Data):\n\`\`\`json\n${stepsJson}\n\`\`\`\n\nPlease use the information from these steps for context.`;
-        }
       }
-      return finalMessage;
+
+      if (retrievedSteps.length === 0) {
+        return message;
+      }
+
+      // Sort by timestamp (newest first)
+      retrievedSteps.sort((a, b) => b.step.timestamp.getTime() - a.step.timestamp.getTime());
+      const stepsJson = JSON.stringify(retrievedSteps, null, 2);
+
+      // Context first, then user's message at the end
+      return `Relevant ReAct Steps that modified the operators (Full Data):\n\`\`\`json\n${stepsJson}\n\`\`\`\n\nUser's feedback:\n${message}`;
     };
 
     // Helper to actually send the message

@@ -21,6 +21,7 @@ import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { ActionPlanService } from "../../action-plan/action-plan.service";
+import { createSuccessResult, createErrorResult } from "./tools-utility";
 
 // Tool name constants for operator-specific tools
 export const TOOL_NAME_ADD_PYTHON_UDF_V2 = "addPythonUDFV2";
@@ -84,7 +85,7 @@ function addOperatorHelper(
   operatorType: string,
   customDisplayName: string,
   properties: Record<string, any>
-): { success: boolean; operatorId?: string; actionPlanId?: string; error?: string } {
+) {
   try {
     const beforeContent = workflowActionService.getWorkflowContent();
     const results = workflowActionService.applyAgentAction({
@@ -100,7 +101,7 @@ function addOperatorHelper(
     });
 
     if (!results.success) {
-      return { success: false, error: results.error || "Failed to add operator" };
+      return createErrorResult(results.error || "Failed to add operator");
     }
 
     // Auto layout the workflow after adding operator
@@ -120,13 +121,17 @@ function addOperatorHelper(
       afterContent
     );
 
-    return {
-      success: true,
-      operatorId: results.addedOperatorIds[0],
-      actionPlanId: actionPlan.id,
-    };
+    // Return success with the added operator marked as modified
+    return createSuccessResult(
+      {
+        operatorId: results.addedOperatorIds[0],
+        actionPlanId: actionPlan.id,
+      },
+      [], // viewedOperatorIds - none for add
+      results.addedOperatorIds // modifiedOperatorIds - the newly added operator
+    );
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return createErrorResult(error.message);
   }
 }
 
@@ -574,7 +579,7 @@ export function createAddLinkTool(
         });
 
         if (!results.success) {
-          return { success: false, error: results.error || "Failed to add link" };
+          return createErrorResult(results.error || "Failed to add link");
         }
 
         // Auto layout the workflow after adding link
@@ -594,14 +599,18 @@ export function createAddLinkTool(
           afterContent
         );
 
-        return {
-          success: true,
-          linkId: results.addedLinkIds[0],
-          actionPlanId: actionPlan.id,
-          message: "Added link successfully",
-        };
+        // Return success with source and target operators as viewed
+        return createSuccessResult(
+          {
+            linkId: results.addedLinkIds[0],
+            actionPlanId: actionPlan.id,
+            message: "Added link successfully",
+          },
+          [args.sourceOperatorId, args.targetOperatorId], // viewedOperatorIds - both ends of the link
+          [] // modifiedOperatorIds - adding a link doesn't modify operators
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -639,7 +648,7 @@ export function createModifyOperatorTool(
         });
 
         if (!results.success) {
-          return { success: false, error: results.error || "Failed to modify operator" };
+          return createErrorResult(results.error || "Failed to modify operator");
         }
 
         // Auto layout the workflow after modifying operator
@@ -659,14 +668,18 @@ export function createModifyOperatorTool(
           afterContent
         );
 
-        return {
-          success: true,
-          operatorId: args.operatorId,
-          actionPlanId: actionPlan.id,
-          message: `Modified operator ${args.operatorId}`,
-        };
+        // Return success with the modified operator marked as modified
+        return createSuccessResult(
+          {
+            operatorId: args.operatorId,
+            actionPlanId: actionPlan.id,
+            message: `Modified operator ${args.operatorId}`,
+          },
+          [], // viewedOperatorIds - none for modify
+          results.modifiedOperatorIds // modifiedOperatorIds - the operators that were modified
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });
@@ -695,7 +708,7 @@ export function createDeleteFromWorkflowTool(
         const results = workflowActionService.applyAgentAction({ delete: args });
 
         if (!results.success) {
-          return { success: false, error: results.error || "Failed to delete operators/links" };
+          return createErrorResult(results.error || "Failed to delete operators/links");
         }
 
         // Auto layout the workflow after deleting operators/links
@@ -714,15 +727,19 @@ export function createDeleteFromWorkflowTool(
           afterContent
         );
 
-        return {
-          success: true,
-          actionPlanId: actionPlan.id,
-          deletedOperatorIds: results.deletedOperatorIds,
-          deletedLinkIds: results.deletedLinkIds,
-          message: `Deleted ${results.deletedOperatorIds.length} operator(s) and ${results.deletedLinkIds.length} link(s)`,
-        };
+        // Return success with the deleted operators marked as modified (they were affected by deletion)
+        return createSuccessResult(
+          {
+            actionPlanId: actionPlan.id,
+            deletedOperatorIds: results.deletedOperatorIds,
+            deletedLinkIds: results.deletedLinkIds,
+            message: `Deleted ${results.deletedOperatorIds.length} operator(s) and ${results.deletedLinkIds.length} link(s)`,
+          },
+          [], // viewedOperatorIds - none for delete
+          results.deletedOperatorIds // modifiedOperatorIds - the operators that were deleted
+        );
       } catch (error: any) {
-        return { success: false, error: error.message };
+        return createErrorResult(error.message);
       }
     },
   });

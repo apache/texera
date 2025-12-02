@@ -17,13 +17,11 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { combineLatest } from "rxjs";
 import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
-import { ReActStep } from "../../service/copilot/texera-copilot";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -36,7 +34,7 @@ import { ReActStep } from "../../service/copilot/texera-copilot";
   templateUrl: "./agent-interaction.component.html",
   styleUrls: ["./agent-interaction.component.scss"],
 })
-export class AgentInteractionComponent implements OnInit, OnChanges {
+export class AgentInteractionComponent implements OnInit {
   @Input() operatorId!: string;
   @Input() operatorDisplayName?: string;
   @Input() compact: boolean = true;
@@ -44,8 +42,6 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   public availableAgents: Array<{ id: string; name: string }> = [];
   public selectedAgentId: string | null = null;
   public feedbackMessage: string = "";
-
-  private modifyingReActSteps: ReActStep[] = [];
 
   constructor(
     private copilotManagerService: TexeraCopilotManagerService,
@@ -59,12 +55,6 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
       this.loadAvailableAgents();
     });
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes["operatorId"] && this.operatorId) {
-      this.loadModifyingReActSteps(this.operatorId);
-    }
   }
 
   private loadAvailableAgents(): void {
@@ -85,50 +75,16 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
       });
   }
 
-  private loadModifyingReActSteps(operatorId: string): void {
-    this.modifyingReActSteps = [];
-
-    this.copilotManagerService
-      .getAllAgents()
-      .pipe(untilDestroyed(this))
-      .subscribe(agents => {
-        if (agents.length === 0) {
-          return;
-        }
-
-        const allStepObservables = agents.map(agent =>
-          this.copilotManagerService.getReActStepsByOperatorAccess(agent.id, operatorId)
-        );
-
-        combineLatest(allStepObservables)
-          .pipe(untilDestroyed(this))
-          .subscribe(results => {
-            const allModifyingSteps: ReActStep[] = [];
-            results.forEach(result => {
-              allModifyingSteps.push(...result.modifiedBy);
-            });
-
-            this.modifyingReActSteps = allModifyingSteps.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-            this.changeDetectorRef.detectChanges();
-          });
-      });
-  }
-
   public sendFeedbackToAgent(): void {
     if (!this.selectedAgentId || !this.feedbackMessage.trim() || !this.operatorId) {
       return;
     }
 
-    const relevantSteps = this.modifyingReActSteps.map(step => ({
-      agentId: this.selectedAgentId!,
-      messageId: step.messageId,
-      stepId: step.stepId,
-    }));
-
     const operatorName = this.operatorDisplayName || this.getOperatorName() || "this operator";
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.operatorId}): ${this.feedbackMessage.trim()}`;
 
-    this.copilotManagerService.sendMessage(this.selectedAgentId, contextMessage, relevantSteps);
+    // Pass the operatorId as relevantOperatorIds - the manager service handles retrieving relevant steps
+    this.copilotManagerService.sendMessage(this.selectedAgentId, contextMessage, [this.operatorId]);
 
     this.notificationService.success("Message sent to agent successfully");
     this.feedbackMessage = "";
