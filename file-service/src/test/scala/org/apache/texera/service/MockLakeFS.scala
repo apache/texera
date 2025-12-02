@@ -20,7 +20,7 @@
 package org.apache.texera.service
 
 import com.dimafeng.testcontainers._
-import org.apache.amber.config.StorageConfig
+import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.service.util.S3StorageClient
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import org.testcontainers.containers.Network

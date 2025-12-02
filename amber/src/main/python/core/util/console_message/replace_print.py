@@ -23,7 +23,7 @@ from typing import ContextManager
 
 from core.util.buffer.buffer_base import IBuffer
 from core.util.console_message.timestamp import current_time_in_local_timezone
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ConsoleMessageType,
 )

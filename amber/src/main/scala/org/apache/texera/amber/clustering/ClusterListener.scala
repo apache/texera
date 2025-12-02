@@ -1,0 +1,151 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.clustering
+
+import org.apache.pekko.actor.{Actor, Address}
+import org.apache.pekko.cluster.Cluster
+import org.apache.pekko.cluster.ClusterEvent._
+import com.google.protobuf.timestamp.Timestamp
+import com.twitter.util.{Await, Future}
+import org.apache.texera.amber.clustering.ClusterListener.numWorkerNodesInCluster
+import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
+import org.apache.texera.amber.engine.common.AmberLogging
+import org.apache.texera.amber.error.ErrorUtils.getStackTraceWithAllCauses
+import org.apache.texera.web.SessionState
+import org.apache.texera.web.model.websocket.response.ClusterStatusUpdateEvent
+import org.apache.texera.web.service.{WorkflowExecutionService, WorkflowService}
+import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
+
+import java.time.Instant
+import scala.collection.mutable.ArrayBuffer
+
+object ClusterListener {
+  final case class GetAvailableNodeAddresses()
+
+  var numWorkerNodesInCluster = 0
+}
+
+class ClusterListener extends Actor with AmberLogging {
+
+  val actorId: ActorVirtualIdentity = ActorVirtualIdentity("ClusterListener")
+  val cluster: Cluster = Cluster(context.system)
+
+  // subscribe to cluster changes, re-subscribe when restart
+  override def preStart(): Unit = {
+    cluster.subscribe(
+      self,
+      initialStateMode = InitialStateAsEvents,
+      classOf[MemberEvent]
+    )
+  }
+
+  override def postStop(): Unit = cluster.unsubscribe(self)
+
+  def receive: Receive = {
+    case evt: MemberEvent =>
+      logger.info(s"received member event = $evt")
+      updateClusterStatus(evt)
+    case ClusterListener.GetAvailableNodeAddresses() =>
+      sender() ! getAllAddress.toArray
+    case other =>
+      println(other)
+  }
+
+  private def getAllAddress: Iterable[Address] = {
+    cluster.state.members
+      .map(_.address)
+  }
+
+  private def forcefullyStop(executionService: WorkflowExecutionService, cause: Throwable): Unit = {
+    executionService.client.shutdown()
+    executionService.executionStateStore.statsStore.updateState(stats =>
+      stats.withEndTimeStamp(System.currentTimeMillis())
+    )
+    executionService.executionStateStore.metadataStore.updateState { metadataStore =>
+      logger.error("forcefully stopping execution", cause)
+      updateWorkflowState(FAILED, metadataStore).addFatalErrors(
+        WorkflowFatalError(
+          EXECUTION_FAILURE,
+          Timestamp(Instant.now),
+          cause.toString,
+          getStackTraceWithAllCauses(cause),
+          "unknown operator"
+        )
+      )
+    }
+  }
+
+  private def updateClusterStatus(evt: MemberEvent): Unit = {
+    evt match {
+      case MemberRemoved(member, status) =>
+        logger.info("Cluster node " + member + " is down!")
+        val futures = new ArrayBuffer[Future[_]]
+        WorkflowService.getAllWorkflowServices.foreach { workflow =>
+          val executionService = workflow.executionService.getValue
+          if (
+            executionService != null && executionService.executionStateStore.metadataStore.getState.state != COMPLETED
+          ) {
+            if (ApplicationConfig.isFaultToleranceEnabled) {
+              logger.info(
+                s"Trigger recovery process for execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
+              )
+              try {
+                futures.append(executionService.client.notifyNodeFailure(member.address))
+              } catch {
+                case t: Throwable =>
+                  logger.warn(
+                    s"execution ${executionService.workflowContext.executionId.id} cannot recover! forcing it to stop"
+                  )
+                  forcefullyStop(executionService, t)
+              }
+            } else {
+              logger.info(
+                s"Kill execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
+              )
+              forcefullyStop(
+                executionService,
+                new RuntimeException("fault tolerance is not enabled")
+              )
+            }
+          }
+        }
+        Await.all(futures.toSeq: _*)
+      case other => //skip
+    }
+
+    numWorkerNodesInCluster = getAllAddress.size
+    SessionState.getAllSessionStates.foreach { state =>
+      state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
+    }
+
+    logger.info(
+      "---------Now we have " + numWorkerNodesInCluster + s" nodes in the cluster---------"
+    )
+
+  }
+
+}

@@ -23,20 +23,20 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}
-import org.apache.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.amber.core.tuple.{Attribute, AttributeType}
-import org.apache.amber.core.workflow.PortIdentity
-import org.apache.amber.operator.filter.{
+import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterOpDesc,
   FilterPredicate,
   SpecializedFilterOpDesc
 }
-import org.apache.amber.operator.limit.LimitOpDesc
-import org.apache.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
-import org.apache.amber.operator.source.scan.csv.CSVScanSourceOpDesc
-import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.util.serde.PortIdentityKeySerializer
+import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.serde.PortIdentityKeySerializer
 import org.assertj.core.api.Assertions.assertThat
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec

@@ -25,8 +25,8 @@ import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.amber.config.StorageConfig
-import org.apache.amber.core.storage.util.LakeFSStorageClient
+import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.`type`.DatasetFileNode

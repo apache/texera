@@ -20,7 +20,7 @@
 package org.apache.texera.web.model.websocket.event
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import org.apache.amber.core.tuple.Attribute
+import org.apache.texera.amber.core.tuple.Attribute
 import org.apache.texera.web.model.websocket.request.ResultPaginationRequest
 
 object PaginatedResultEvent {
