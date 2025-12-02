@@ -17,15 +17,7 @@
  * under the License.
  */
 
-import {
-  Component,
-  ViewChild,
-  ElementRef,
-  Input,
-  OnInit,
-  AfterViewChecked,
-  ChangeDetectorRef,
-} from "@angular/core";
+import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked, ChangeDetectorRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
