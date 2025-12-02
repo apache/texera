@@ -171,6 +171,7 @@ import { BreakpointConditionInputComponent } from "./workspace/component/code-ed
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
 import { InlineCodePanelComponent } from "./workspace/component/inline-code-panel/inline-code-panel.component";
 import { InlinePropertyPanelComponent } from "./workspace/component/inline-property-panel/inline-property-panel.component";
+import { AgentInteractionComponent } from "./workspace/component/agent-interaction/agent-interaction.component";
 import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import {
   GoogleLoginProvider,
@@ -294,6 +295,7 @@ registerLocaleData(en);
     AdminSettingsComponent,
     InlineCodePanelComponent,
     InlinePropertyPanelComponent,
+    AgentInteractionComponent,
   ],
   imports: [
     BrowserModule,

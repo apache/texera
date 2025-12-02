@@ -29,10 +29,8 @@ import {
 } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
-import { Subject, combineLatest } from "rxjs";
+import { Subject } from "rxjs";
 import { AbstractControl, FormGroup } from "@angular/forms";
-import { ReActStep } from "../../../service/copilot/texera-copilot";
-import { TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
@@ -147,14 +145,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
 
-  // ReActSteps that modified this operator
-  public modifyingReActSteps: ReActStep[] = [];
-
-  // Agent interaction properties
-  public availableAgents: Array<{ id: string; name: string }> = [];
-  public selectedAgentId: string | null = null;
-  public feedbackMessage: string = "";
-
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -165,8 +155,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
-    private config: GuiConfigService,
-    private copilotManagerService: TexeraCopilotManagerService
+    private config: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -204,48 +193,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           this.currentOperatorStatus = update[this.currentOperatorId];
         }
       });
-
-    // Load available agents and subscribe to changes
-    this.loadAvailableAgents();
-    this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
-      this.loadAvailableAgents();
-    });
-  }
-
-  /**
-   * Load all ReActSteps that modified this operator from all active agents.
-   */
-  private loadModifyingReActSteps(operatorId: string): void {
-    this.modifyingReActSteps = [];
-
-    this.copilotManagerService
-      .getAllAgents()
-      .pipe(untilDestroyed(this))
-      .subscribe(agents => {
-        if (agents.length === 0) {
-          return;
-        }
-
-        // For each agent, get steps that modified this operator
-        const allStepObservables = agents.map(agent =>
-          this.copilotManagerService.getReActStepsByOperatorAccess(agent.id, operatorId)
-        );
-
-        // Combine all results
-        combineLatest(allStepObservables)
-          .pipe(untilDestroyed(this))
-          .subscribe(results => {
-            const allModifyingSteps: ReActStep[] = [];
-            results.forEach(result => {
-              allModifyingSteps.push(...result.modifiedBy);
-            });
-
-            // Sort by timestamp (newest first)
-            this.modifyingReActSteps = allModifyingSteps.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-            this.changeDetectorRef.detectChanges();
-          });
-      });
   }
 
   async ngOnDestroy() {
@@ -273,9 +220,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
     this.currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
     this.currentOperatorStatus = this.workflowStatusSerivce.getCurrentStatus()[this.currentOperatorId];
-
-    // Load ReActSteps that modified this operator from all agents
-    this.loadModifyingReActSteps(this.currentOperatorId);
 
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
@@ -845,57 +789,5 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       placeholder: "Start collaborating...",
       theme: "snow",
     });
-  }
-
-  /**
-   * Load available agents from the copilot manager service.
-   */
-  private loadAvailableAgents(): void {
-    this.copilotManagerService
-      .getAllAgents()
-      .pipe(untilDestroyed(this))
-      .subscribe(agents => {
-        this.availableAgents = agents.map(agent => ({
-          id: agent.id,
-          name: agent.name,
-        }));
-
-        // If there's only one agent, auto-select it
-        if (this.availableAgents.length === 1) {
-          this.selectedAgentId = this.availableAgents[0].id;
-        }
-
-        this.changeDetectorRef.detectChanges();
-      });
-  }
-
-  /**
-   * Send feedback message to the selected agent with relevant steps.
-   */
-  public sendFeedbackToAgent(): void {
-    if (!this.selectedAgentId || !this.feedbackMessage.trim() || !this.currentOperatorId) {
-      return;
-    }
-
-    // Collect relevant steps from modifyingReActSteps
-    const relevantSteps = this.modifyingReActSteps.map(step => ({
-      agentId: this.selectedAgentId!,
-      messageId: step.messageId,
-      stepId: step.stepId,
-    }));
-
-    // Construct the message with context about the operator
-    const operatorName = this.formTitle || "this operator";
-    const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.currentOperatorId}): ${this.feedbackMessage.trim()}`;
-
-    // Send message to the selected agent
-    // This is fire-and-forget - the copilot manager handles the subscription internally.
-    // The agent will continue processing even if this component is destroyed.
-    this.copilotManagerService.sendMessage(this.selectedAgentId, contextMessage, relevantSteps);
-
-    // Clear the feedback input and show success message
-    this.notificationService.success("Message sent to agent successfully");
-    this.feedbackMessage = "";
-    this.changeDetectorRef.detectChanges();
   }
 }

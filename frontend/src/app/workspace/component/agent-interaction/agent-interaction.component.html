@@ -1,0 +1,59 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div
+  class="agent-interaction"
+  [class.compact]="compact">
+  <div class="feedback-row">
+    <textarea
+      nz-input
+      [(ngModel)]="feedbackMessage"
+      [placeholder]="compact ? 'Send feedback to agent...' : 'Provide feedback or ask questions about this operator...'"
+      [nzAutosize]="{ minRows: compact ? 1 : 2, maxRows: compact ? 2 : 4 }"
+      class="feedback-input"></textarea>
+  </div>
+
+  <div class="controls-row">
+    <nz-select
+      [(ngModel)]="selectedAgentId"
+      nzPlaceHolder="Agent"
+      class="agent-select"
+      nzSize="small">
+      <nz-option
+        *ngFor="let agent of availableAgents"
+        [nzValue]="agent.id"
+        [nzLabel]="agent.name">
+      </nz-option>
+    </nz-select>
+
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="small"
+      [disabled]="!canSend()"
+      (click)="sendFeedbackToAgent()"
+      class="send-btn">
+      <i
+        nz-icon
+        nzType="send"
+        nzTheme="outline"></i>
+      <span *ngIf="!compact">Send</span>
+    </button>
+  </div>
+</div>
