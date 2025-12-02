@@ -25,12 +25,7 @@ import { WorkflowActionService } from "../../workflow-graph/model/workflow-actio
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
 import { WorkflowStatusService } from "../../workflow-status/workflow-status.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
-import {
-  ExecutionState,
-  ExecutionStateInfo,
-  OperatorStatistics,
-  WorkflowResultTableStats,
-} from "../../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo, OperatorStatistics } from "../../../types/execute-workflow.interface";
 import { ConsoleMessage, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { IndexableObject } from "../../../types/result-table.interface";
 import { PaginatedResultEvent } from "../../../types/workflow-websocket.interface";
@@ -40,7 +35,7 @@ import {
   createSuccessResult,
   createErrorResult,
 } from "./tools-utility";
-import { Observable, of, throwError, defer, timer, forkJoin, interval, merge, EMPTY, firstValueFrom } from "rxjs";
+import { Observable, of, throwError, defer, timer, interval, merge, EMPTY, firstValueFrom, forkJoin } from "rxjs";
 import { filter, timeout, map, switchMap, catchError, take, tap } from "rxjs/operators";
 
 // Tool name constants
@@ -323,38 +318,21 @@ export function executeWorkflowAndGetResults$(
         })
       );
     }),
-    // Step 4: Collect results
+    // Step 4: Collect results at the end
     switchMap(({ finalState, allOperators }) => {
       const finalStateInfo = executeWorkflowService.getExecutionState();
       const allOperatorIds = allOperators.map(op => op.operatorID);
       const consoleLogs = collectConsoleLogs(allOperatorIds, workflowConsoleService);
       const formattedStates = formatOperatorStates(workflowStatusService.getCurrentStatus());
 
+      // Collect results at the end using RxJS
       if (!includeResults) {
         return of({ finalState, finalStateInfo, formattedStates, consoleLogs, operatorResults: {} });
       }
 
-      // Collect results only for target operators (or all if empty)
       const opsToFetch = targetIds.length > 0 ? targetIds : allOperatorIds;
-      const resultObs: Observable<{ operatorId: string; result: OperatorResultInfo | null }>[] = opsToFetch
-        .filter(id => workflowResultService.hasAnyResult(id))
-        .map(operatorId =>
-          getOperatorResult$(operatorId, workflowResultService).pipe(
-            map(result => ({ operatorId, result })),
-            catchError(() => of({ operatorId, result: null }))
-          )
-        );
-
-      const results$ = resultObs.length > 0 ? forkJoin(resultObs) : of([]);
-
-      return results$.pipe(
-        map(results => {
-          const operatorResults: Record<string, OperatorResultInfo> = {};
-          for (const { operatorId, result } of results) {
-            if (result) operatorResults[operatorId] = result;
-          }
-          return { finalState, finalStateInfo, formattedStates, consoleLogs, operatorResults };
-        })
+      return collectOperatorResults$(opsToFetch, workflowResultService).pipe(
+        map(operatorResults => ({ finalState, finalStateInfo, formattedStates, consoleLogs, operatorResults }))
       );
     }),
     // Step 5: Build result
@@ -425,17 +403,6 @@ export function executeWorkflowAndGetResults$(
 }
 
 /**
- * Convenience wrapper that converts the Observable to a Promise.
- * Use executeWorkflowAndGetResults$ directly for better RxJS integration.
- */
-export function executeWorkflowAndGetResults(
-  services: WorkflowExecutionServices,
-  options: ExecuteWorkflowOptions
-): Promise<ExecuteWorkflowResult> {
-  return firstValueFrom(executeWorkflowAndGetResults$(services, options));
-}
-
-/**
  * Create unified executeWorkflow tool that validates, executes, monitors, and returns results
  */
 export function createExecuteCurrentWorkflowTool(
@@ -469,11 +436,13 @@ export function createExecuteCurrentWorkflowTool(
         ),
     }),
     execute: async (args: { executionName?: string; targetOperatorIds: string[] }) => {
-      const result = await executeWorkflowAndGetResults(services, {
-        executionName: args.executionName,
-        targetOperatorIds: args.targetOperatorIds,
-        includeOperatorResults: true,
-      });
+      const result = await firstValueFrom(
+        executeWorkflowAndGetResults$(services, {
+          executionName: args.executionName,
+          targetOperatorIds: args.targetOperatorIds,
+          includeOperatorResults: true,
+        })
+      );
 
       if (result.success) {
         return createSuccessResult(
@@ -505,18 +474,25 @@ export function createExecuteCurrentWorkflowTool(
   });
 }
 
+// Timeout for fetching paginated results (5 seconds)
+const RESULT_FETCH_TIMEOUT_MS = 5000;
+// Retry configuration for waiting for results
+const RESULT_WAIT_MAX_RETRIES = 10;
+const RESULT_WAIT_DELAY_MS = 200;
+
 /**
- * Helper function to get operator result with token limit (Observable-based)
+ * Get operator result as Observable with token limit
  */
 function getOperatorResult$(
   operatorId: string,
   workflowResultService: WorkflowResultService
-): Observable<OperatorResultInfo> {
+): Observable<OperatorResultInfo | null> {
   return defer(() => {
+    // Try paginated result service first
     const paginatedResultService = workflowResultService.getPaginatedResultService(operatorId);
     if (paginatedResultService) {
       return paginatedResultService.selectPage(1, 200).pipe(
-        take(1),
+        timeout(RESULT_FETCH_TIMEOUT_MS),
         map((resultEvent): OperatorResultInfo => {
           const table = (resultEvent.table || []) as IndexableObject[];
           const { limited, tokenCount, truncated } = filterByTokenLimit(table);
@@ -527,21 +503,35 @@ function getOperatorResult$(
             estimatedTokens: tokenCount,
             truncated,
             tableStats: paginatedResultService.getStats(),
-            result: { ...resultEvent, table: limited } as PaginatedResultEvent,
+            result: limited,
           };
+        }),
+        catchError(() => {
+          // Fall through to try snapshot result service
+          return getSnapshotResult$(operatorId, workflowResultService);
         })
       );
     }
 
-    const resultService = workflowResultService.getResultService(operatorId);
-    if (resultService) {
-      const snapshot = resultService.getCurrentResultSnapshot() as IndexableObject[] | null;
-      if (!snapshot?.length) {
-        return throwError(() => new Error("Result snapshot is empty"));
-      }
+    // Try snapshot result service
+    return getSnapshotResult$(operatorId, workflowResultService);
+  });
+}
+
+/**
+ * Get snapshot result as Observable
+ */
+function getSnapshotResult$(
+  operatorId: string,
+  workflowResultService: WorkflowResultService
+): Observable<OperatorResultInfo | null> {
+  const resultService = workflowResultService.getResultService(operatorId);
+  if (resultService) {
+    const snapshot = resultService.getCurrentResultSnapshot() as IndexableObject[] | null;
+    if (snapshot && snapshot.length > 0) {
       const { limited, tokenCount, truncated } = filterByTokenLimit(snapshot);
-      return of<OperatorResultInfo>({
-        mode: "snapshot",
+      return of({
+        mode: "snapshot" as const,
         totalRows: snapshot.length,
         displayedRows: limited.length,
         estimatedTokens: tokenCount,
@@ -549,9 +539,61 @@ function getOperatorResult$(
         result: limited,
       });
     }
+  }
+  return of(null);
+}
 
-    return throwError(() => new Error("No results available"));
-  });
+/**
+ * Wait for results to become available with retry using RxJS
+ */
+function waitForResults$(
+  operatorIds: readonly string[],
+  workflowResultService: WorkflowResultService
+): Observable<string[]> {
+  return interval(RESULT_WAIT_DELAY_MS).pipe(
+    take(RESULT_WAIT_MAX_RETRIES),
+    map(() => operatorIds.filter(id => workflowResultService.hasAnyResult(id))),
+    filter(available => available.length > 0 || operatorIds.length === 0),
+    take(1),
+    // If no results found after retries, return empty array
+    catchError(() => of([] as string[]))
+  );
+}
+
+/**
+ * Collect operator results for given operator IDs using RxJS
+ */
+function collectOperatorResults$(
+  operatorIds: readonly string[],
+  workflowResultService: WorkflowResultService
+): Observable<Record<string, OperatorResultInfo>> {
+  if (operatorIds.length === 0) {
+    return of({});
+  }
+
+  return waitForResults$(operatorIds, workflowResultService).pipe(
+    switchMap(availableIds => {
+      if (availableIds.length === 0) {
+        return of({});
+      }
+
+      const resultObservables = availableIds.map(operatorId =>
+        getOperatorResult$(operatorId, workflowResultService).pipe(map(result => ({ operatorId, result })))
+      );
+
+      return forkJoin(resultObservables).pipe(
+        map(results => {
+          const operatorResults: Record<string, OperatorResultInfo> = {};
+          for (const { operatorId, result } of results) {
+            if (result) {
+              operatorResults[operatorId] = result;
+            }
+          }
+          return operatorResults;
+        })
+      );
+    })
+  );
 }
 
 /**

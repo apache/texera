@@ -29,7 +29,8 @@ import { WorkflowConsoleService } from "../../workflow-console/workflow-console.
 import { WorkflowStatusService } from "../../workflow-status/workflow-status.service";
 import { WorkflowResultService } from "../../workflow-result/workflow-result.service";
 import { createSuccessResult, createErrorResult } from "./tools-utility";
-import { executeWorkflowAndGetResults, WorkflowExecutionServices } from "./current-workflow-execution-tools";
+import { executeWorkflowAndGetResults$, WorkflowExecutionServices } from "./current-workflow-execution-tools";
+import { firstValueFrom } from "rxjs";
 
 // Tool name constants for baseline mode
 export const TOOL_NAME_CREATE_PYTHON_UDF = "createPythonUDF";
@@ -188,11 +189,13 @@ export function createExecuteToOperatorTool(
         }
 
         // Execute the workflow up to the target operator
-        const executionResult = await executeWorkflowAndGetResults(executionServices, {
-          executionName: args.executionName || `Execute to ${targetOperator.customDisplayName || args.operatorId}`,
-          targetOperatorIds: [args.operatorId],
-          includeOperatorResults: false, // Baseline mode: console logs only
-        });
+        const executionResult = await firstValueFrom(
+          executeWorkflowAndGetResults$(executionServices, {
+            executionName: args.executionName || `Execute to ${targetOperator.customDisplayName || args.operatorId}`,
+            targetOperatorIds: [args.operatorId],
+            includeOperatorResults: false, // Baseline mode: console logs only
+          })
+        );
 
         // Get console logs for the target operator
         const operatorConsoleLogs = executionResult.consoleLogs?.[args.operatorId] || [];
