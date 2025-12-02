@@ -60,13 +60,13 @@
   z-index: 10;
 }
 
-// Property panel wrapper - smaller for key-value display
+// Property panel wrapper - same width as code panel for consistency
 .property-panel-wrapper {
   position: absolute;
-  width: 200px;
+  width: 400px;
   height: auto;
   min-height: 60px;
-  max-height: 120px;
+  max-height: 180px;
   pointer-events: auto;
   z-index: 10;
 }
