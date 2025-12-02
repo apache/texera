@@ -86,6 +86,7 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   [baselineTools.TOOL_NAME_EXECUTE_TO_OPERATOR]: ToolGroup.EXECUTE,
 
   // Observe group - workflow inspection tools
+  [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW]: ToolGroup.OBSERVE,
   [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS]: ToolGroup.OBSERVE,
   [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_LINKS]: ToolGroup.OBSERVE,
   [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: ToolGroup.OBSERVE,
@@ -98,10 +99,10 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
 
   // Execute group - workflow execution tools
   [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_GET_EXISTING_WORKFLOW_EXECUTION_RESULT]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT]: ToolGroup.EXECUTE,
-  [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: ToolGroup.EXECUTE,
 

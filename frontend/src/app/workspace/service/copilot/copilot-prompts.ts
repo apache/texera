@@ -122,13 +122,12 @@ class ProcessTableOperator(UDFTableOperator):
 - **Import packages explicitly** - Import pandas, numpy when needed
 - **No typing imports needed** - Type annotations work without importing typing
 - **Tuple field access** - Use \`tuple_["field"]\` ONLY. DO NOT use \`tuple_.get()\`, \`tuple_.set()\`, or \`tuple_.values()\`
-- **Think of types:**
-   - \`Tuple\` = Python dict (key-value pairs)
-    For Tuple, DO NOT USE APIs like tuple.get, just use ["key"] to access/change the kv pairs
-   - \`Table\` = pandas DataFrame
+- \`Tuple\` = key-value pairs. For Tuple, DO NOT USE APIs like tuple.get, just use ["key"] to access/change the kv pairs
+- \`Table\` = pandas DataFrame
 - **Use yield** - Return results with \`yield\`; emit at most once per API call
 - **Handle None values** - \`tuple_["key"]\` or \`df["column"]\` can be None
 - **DO NOT cast types** - Do not cast values in tuple or table
+- **DO NOT USE APIs like tuple.get()**
 - **Specify Extra Columns** - If you add extra columns, you MUST specify them in the UDF properties as Extra Output Columns
 - **ONLY CHANGE THE CODE** - when editing Python UDF, only change the python code properties, DO NOT CHANGE OTHER PROPERTIES
 - **Handle the output Columns Carefully**: YOUR CODE CAN ONLY YIELD COLUMNS/ATTRIBUTES ARE IN THE OUTPUT COLUMNS
@@ -137,11 +136,12 @@ class ProcessTableOperator(UDFTableOperator):
 ## Exploration Guide
 - Read the data schema and the actual data to decide what to check on the data
 - Try to execute the whole DAG and observe the result of multiple operators to efficiently find violations.
-- After you identify a data check, please use the corresponding tool to record the finding
-- When receiving user's request, TRY YOUR BEST TO COME UP with a schema from the user's request, and use the schema to retrieve the relevant operators
+- After you identify a data check, please find the data violations and use the corresponding tool to record the finding RIGHT AWAY
 - Consider the semantic meaning of each column, also consider the column's relationship with each other
+- If there are many independent data operations you can do, You MUST add at MOST 5 operators and multiple links at the same time to maximize the efficiency
+- PythonUDFV2 do NOT support two inputs. You MUST use HashJoin if you want to work on multiple tables.
 - Each branch of workflow graph should focus on certain data check and violation discovery. DO NOT HAVE a giant operator that covers everything
-- Each data consistency check should correspond some violations in the data, which is calculated using operators
+- If some operators encounter errors, FIX IT BY MODIFYING THE OPERATOR in place instead of deleting and recreating.
 `;
 
 /**
@@ -259,7 +259,7 @@ class GenerateOperator(UDFSourceOperator):
 - **Always end with \`yield\`** - The yield statement must be at the end with no value
 - **Handle None values** - Check for None/NaN in data
 
-## Workflow
+## Exploration Guide
 
 1. User provides a dataset file path and describes what data checks to look for
 2. You create a PythonUDFSource with code that:
@@ -269,13 +269,5 @@ class GenerateOperator(UDFSourceOperator):
    - Ends with an empty yield
 3. Execute the workflow to see results in the console output
 4. Record any found data checks using the addDataCheck tool
-
-## Tools Available
-
-You have access to:
-- \`createPythonUDF\`: Create a Python UDF Source operator with your analysis code
-- \`executeCurrentWorkflow\`: Execute the workflow to see results
-- \`getCurrentOperatorResult\`: Get results from an operator
-- \`addDataCheck\`: Record found data checks
-- \`listDataChecks\`: List all recorded data checks
+5. For each data check you derive, you MUST calculate its corresponding violations in the data and corresponds it to the data check
 `;

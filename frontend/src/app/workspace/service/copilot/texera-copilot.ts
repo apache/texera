@@ -58,7 +58,7 @@ import { WorkflowConsoleService } from "../workflow-console/workflow-console.ser
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS } from "./tool/current-workflow-editing-observing-tools";
+import { TOOL_NAME_GET_CURRENT_WORKFLOW } from "./tool/current-workflow-editing-observing-tools";
 import { parseOperatorAccessFromStep, ToolOperatorAccess } from "./tool/react-step-operator-parser";
 
 /**
@@ -530,12 +530,9 @@ export class TexeraCopilot {
    * Create workflow manipulation tools with timeout protection.
    */
   private createWorkflowTools(): Record<string, any> {
-    // Current workflow editing and observing tools
-    const listCurrentLinksTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createListCurrentLinksTool(this.workflowActionService)
-    );
-    const listCurrentRelevantOperatorIdsTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createListCurrentRelevantOperatorIdsTool(
+    // Current workflow editing and observing tools - merged into single getCurrentWorkflow tool
+    const getCurrentWorkflowTool = toolWithTimeout(
+      currentWorkflowEditingObservingTools.createGetCurrentWorkflowTool(
         this.workflowActionService,
         this.workflowCompilingService
       )
@@ -550,6 +547,13 @@ export class TexeraCopilot {
         this.workflowConsoleService,
         this.workflowStatusService,
         this.workflowResultService
+      )
+    );
+    const getExistingWorkflowExecutionResultTool = toolWithTimeout(
+      currentWorkflowExecutionTools.createGetExistingWorkflowExecutionResultTool(
+        this.workflowResultService,
+        this.workflowConsoleService,
+        this.workflowActionService
       )
     );
     const getCurrentComputingUnitStatusTool = toolWithTimeout(
@@ -644,11 +648,13 @@ export class TexeraCopilot {
 
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
-      [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS]:
-        listCurrentRelevantOperatorIdsTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_LINKS]: listCurrentLinksTool,
+      // Merged workflow observing tool (replaces listCurrentLinks and listCurrentRelevantOperatorIds)
+      [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW]: getCurrentWorkflowTool,
 
+      // Workflow execution tools
       [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: executeCurrentWorkflowTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_GET_EXISTING_WORKFLOW_EXECUTION_RESULT]:
+        getExistingWorkflowExecutionResultTool,
       [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: getCurrentComputingUnitStatusTool,
       // Data check tools
       [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: addDataCheckTool,

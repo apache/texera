@@ -43,7 +43,7 @@ export const TOOL_NAME_EXECUTE_CURRENT_WORKFLOW = "executeCurrentWorkflow";
 export const TOOL_NAME_GET_CURRENT_EXECUTION_STATE = "getCurrentExecutionState";
 export const TOOL_NAME_KILL_CURRENT_WORKFLOW = "killCurrentWorkflow";
 export const TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT = "hasCurrentOperatorResult";
-export const TOOL_NAME_GET_CURRENT_OPERATOR_RESULT = "getCurrentOperatorResult";
+export const TOOL_NAME_GET_EXISTING_WORKFLOW_EXECUTION_RESULT = "getExistingWorkflowExecutionResult";
 export const TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO = "getCurrentOperatorResultInfo";
 export const TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS = "getCurrentComputingUnitStatus";
 
@@ -619,102 +619,6 @@ function collectOperatorResults$(
 }
 
 /**
- * Create getExecutionState tool for checking workflow execution status
- */
-export function createGetCurrentExecutionStateTool(
-  executeWorkflowService: ExecuteWorkflowService,
-  workflowActionService: WorkflowActionService,
-  workflowConsoleService: WorkflowConsoleService,
-  workflowStatusService: WorkflowStatusService
-) {
-  return tool({
-    name: TOOL_NAME_GET_CURRENT_EXECUTION_STATE,
-    description:
-      "Get the current execution state of the workflow, including console logs, execution duration, and operator states (Running=orange, Completed=green, Ready=lime, Paused=magenta)",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const allOperatorIds = workflowActionService
-          .getTexeraGraph()
-          .getAllOperators()
-          .map(op => op.operatorID);
-        return createSuccessResult(
-          {
-            state: executeWorkflowService.getExecutionState(),
-            consoleLogs: collectConsoleLogs(allOperatorIds, workflowConsoleService),
-            operatorStates: formatOperatorStates(workflowStatusService.getCurrentStatus()),
-          },
-          [],
-          []
-        );
-      } catch (error: unknown) {
-        return createErrorResult(error instanceof Error ? error.message : String(error));
-      }
-    },
-  });
-}
-
-/**
- * Create killWorkflow tool for stopping workflow execution
- */
-export function createKillCurrentWorkflowTool(executeWorkflowService: ExecuteWorkflowService) {
-  return tool({
-    name: TOOL_NAME_KILL_CURRENT_WORKFLOW,
-    description:
-      "Kill the currently running workflow execution. Use this when the workflow is stuck or you need to stop it. Cannot kill if workflow is uninitialized or already completed.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        executeWorkflowService.killWorkflow();
-        return createSuccessResult(
-          {
-            message: "Workflow execution killed successfully",
-          },
-          [],
-          []
-        );
-      } catch (error: unknown) {
-        return createErrorResult(error instanceof Error ? error.message : String(error));
-      }
-    },
-  });
-}
-
-/**
- * Create hasOperatorResult tool for checking if an operator has results
- */
-export function createHasCurrentOperatorResultTool(
-  workflowResultService: WorkflowResultService,
-  workflowActionService: WorkflowActionService
-) {
-  return tool({
-    name: TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT,
-    description: "Check if an operator in the current workflow has any execution results available",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to check"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        const hasResult = workflowResultService.hasAnyResult(args.operatorId);
-
-        return createSuccessResult(
-          {
-            hasResult: hasResult,
-            message: hasResult
-              ? `Operator ${args.operatorId} has results available`
-              : `Operator ${args.operatorId} has no results`,
-          },
-          [args.operatorId],
-          []
-        );
-      } catch (error: unknown) {
-        return createErrorResult(error instanceof Error ? error.message : String(error));
-      }
-    },
-  });
-}
-
-/**
  * Helper to build result message
  */
 function buildResultMessage(
@@ -730,92 +634,110 @@ function buildResultMessage(
 }
 
 /**
- * Create unified getOperatorResult tool that automatically handles both pagination and snapshot modes
+ * Create getExistingWorkflowExecutionResult tool that retrieves results and console logs
+ * from a previous workflow execution. Optionally filters by operator IDs.
  */
-export function createGetCurrentOperatorResultTool(workflowResultService: WorkflowResultService) {
+export function createGetExistingWorkflowExecutionResultTool(
+  workflowResultService: WorkflowResultService,
+  workflowConsoleService: WorkflowConsoleService,
+  workflowActionService: WorkflowActionService
+) {
   return tool({
-    name: TOOL_NAME_GET_CURRENT_OPERATOR_RESULT,
+    name: TOOL_NAME_GET_EXISTING_WORKFLOW_EXECUTION_RESULT,
     description:
-      "Get result data for an operator in the current workflow. Automatically detects and uses the appropriate mode (pagination for tables, snapshot for visualizations). Returns rows limited by token count (~3000 tokens) to avoid overwhelming LLM context.",
+      "Get results and console logs from a previous workflow execution. If targetOperatorIds is empty or not provided, " +
+      "retrieves results for all operators in the workflow. Returns operator results (limited by token count ~3000 tokens) " +
+      "and console logs for each operator. Use this to inspect existing execution results without re-running the workflow.",
     inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to get results for"),
+      targetOperatorIds: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional list of operator IDs to retrieve results for. If empty or not provided, retrieves results for all operators."
+        ),
     }),
-    execute: async (args: { operatorId: string; signal?: AbortSignal }) => {
+    execute: async (args: { targetOperatorIds?: string[] }) => {
       try {
-        const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
-        if (paginatedResultService) {
-          try {
-            const resultEvent = await firstValueFrom(paginatedResultService.selectPage(1, 200));
-            const table = (resultEvent.table || []) as IndexableObject[];
-            const { limited, tokenCount, truncated } = filterByTokenLimit(table);
-            const totalRows = paginatedResultService.getCurrentTotalNumTuples();
+        // Determine which operators to check
+        const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
+        const allOperatorIds = allOperators.map(op => op.operatorID);
+        const targetIds =
+          args.targetOperatorIds && args.targetOperatorIds.length > 0 ? args.targetOperatorIds : allOperatorIds;
 
-            return createSuccessResult(
-              {
-                operatorId: args.operatorId,
+        // Collect console logs for all target operators
+        const consoleLogs = collectConsoleLogs(targetIds, workflowConsoleService);
+
+        // Collect results for all target operators
+        const operatorResults: Record<string, OperatorResultInfo | { error: string }> = {};
+
+        for (const operatorId of targetIds) {
+          // Try paginated result service first
+          const paginatedResultService = workflowResultService.getPaginatedResultService(operatorId);
+          if (paginatedResultService) {
+            try {
+              const resultEvent = await firstValueFrom(
+                paginatedResultService.selectPage(1, 200).pipe(timeout(RESULT_FETCH_TIMEOUT_MS))
+              );
+              const table = (resultEvent.table || []) as IndexableObject[];
+              const { limited, tokenCount, truncated } = filterByTokenLimit(table);
+              const totalRows = paginatedResultService.getCurrentTotalNumTuples();
+
+              operatorResults[operatorId] = {
                 mode: "pagination",
                 totalRows,
                 displayedRows: limited.length,
                 estimatedTokens: tokenCount,
                 truncated,
                 tableStats: paginatedResultService.getStats(),
-                result: { ...resultEvent, table: limited },
-                message: buildResultMessage(
-                  args.operatorId,
-                  "paginated table",
-                  limited.length,
-                  totalRows,
-                  tokenCount,
-                  truncated
-                ),
-              },
-              [args.operatorId],
-              []
-            );
-          } catch (error: unknown) {
-            const msg = error instanceof Error ? error.message : String(error);
-            return createErrorResult(
-              `Failed to fetch paginated results: ${msg}. This may be due to backend storage issues or results not being ready yet.`
-            );
+                result: limited,
+              };
+              continue;
+            } catch {
+              // Fall through to try snapshot
+            }
           }
+
+          // Try snapshot result service
+          const resultService = workflowResultService.getResultService(operatorId);
+          if (resultService) {
+            const snapshot = resultService.getCurrentResultSnapshot() as IndexableObject[] | null;
+            if (snapshot && snapshot.length > 0) {
+              const { limited, tokenCount, truncated } = filterByTokenLimit(snapshot);
+              operatorResults[operatorId] = {
+                mode: "snapshot",
+                totalRows: snapshot.length,
+                displayedRows: limited.length,
+                estimatedTokens: tokenCount,
+                truncated,
+                result: limited,
+              };
+              continue;
+            }
+          }
+
+          // No results available for this operator - mark as empty (not an error)
+          // Don't add anything, the operator simply has no results
         }
 
-        const resultService = workflowResultService.getResultService(args.operatorId);
-        if (resultService) {
-          const snapshot = resultService.getCurrentResultSnapshot() as IndexableObject[] | null;
-          if (!snapshot?.length) {
-            return createErrorResult(
-              `Result snapshot is empty for operator ${args.operatorId}. Results might not be ready yet.`
-            );
-          }
+        const operatorsWithResults = Object.keys(operatorResults).length;
+        const operatorsWithLogs = Object.keys(consoleLogs).length;
 
-          const { limited, tokenCount, truncated } = filterByTokenLimit(snapshot);
-
-          return createSuccessResult(
-            {
-              operatorId: args.operatorId,
-              mode: "snapshot",
-              totalRows: snapshot.length,
-              displayedRows: limited.length,
-              estimatedTokens: tokenCount,
-              truncated,
-              result: limited,
-              message: buildResultMessage(
-                args.operatorId,
-                "snapshot",
-                limited.length,
-                snapshot.length,
-                tokenCount,
-                truncated
-              ),
+        return createSuccessResult(
+          {
+            targetOperatorIds: targetIds,
+            operatorResults,
+            consoleLogs,
+            summary: {
+              totalOperatorsChecked: targetIds.length,
+              operatorsWithResults,
+              operatorsWithConsoleLogs: operatorsWithLogs,
             },
-            [args.operatorId],
-            []
-          );
-        }
-
-        return createErrorResult(
-          `No results available for operator ${args.operatorId}. The operator may not have been executed yet, or it may not produce viewable results.`
+            message:
+              `Retrieved execution results for ${operatorsWithResults}/${targetIds.length} operators ` +
+              `and console logs for ${operatorsWithLogs} operators.`,
+          },
+          targetIds,
+          []
         );
       } catch (error: unknown) {
         return createErrorResult(error instanceof Error ? error.message : String(error));

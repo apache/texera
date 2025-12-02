@@ -38,275 +38,8 @@ export const TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW = "listOperatorsInCurr
 export const TOOL_NAME_LIST_CURRENT_LINKS = "listCurrentLinks";
 export const TOOL_NAME_GET_CURRENT_OPERATOR = "getCurrentOperator";
 export const TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS = "listCurrentRelevantOperatorIds";
+export const TOOL_NAME_GET_CURRENT_WORKFLOW = "getCurrentWorkflow";
 export const TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE = "getCurrentWorkflowCompilationState";
-
-/**
- * Create addOperator tool for adding a new operator to the workflow
- */
-export function createAddOperatorToCurrentWorkflowTool(
-  workflowActionService: WorkflowActionService,
-  workflowUtilService: WorkflowUtilService,
-  operatorMetadataService: OperatorMetadataService
-) {
-  return tool({
-    name: TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW,
-    description: "Add a new operator to the current workflow",
-    inputSchema: z.object({
-      operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
-      customDisplayName: z
-        .string()
-        .optional()
-        .describe("Brief custom name summarizing what this operator does in one sentence"),
-    }),
-    execute: async (args: { operatorType: string; customDisplayName?: string }) => {
-      try {
-        // Validate operator type exists
-        if (!operatorMetadataService.operatorTypeExists(args.operatorType)) {
-          return createErrorResult(`Unknown operator type: ${args.operatorType}.Use tools to see available types.`);
-        }
-
-        // Get a new operator predicate with default settings and optional custom display name
-        const operator = workflowUtilService.getNewOperatorPredicate(args.operatorType, args.customDisplayName);
-
-        // Calculate a default position (can be adjusted by auto-layout later)
-        const existingOperators = workflowActionService.getTexeraGraph().getAllOperators();
-        const defaultX = 100 + (existingOperators.length % 5) * 200;
-        const defaultY = 100 + Math.floor(existingOperators.length / 5) * 150;
-        const position = { x: defaultX, y: defaultY };
-
-        // Add the operator to the workflow first
-        workflowActionService.addOperator(operator, position);
-
-        // Auto-layout the workflow after adding operator
-        workflowActionService.autoLayoutWorkflow();
-
-        // Show copilot is adding this operator (after it's added to graph)
-        setTimeout(() => {}, 100);
-
-        return createSuccessResult(
-          {
-            operatorId: operator.operatorID,
-            message: `Added ${args.operatorType} operator to workflow`,
-          },
-          [],
-          [operator.operatorID]
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message);
-      }
-    },
-  });
-}
-
-/**
- * Create addLink tool for connecting two operators
- */
-export function createAddLinkToCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW,
-    description: "Connect two operators with a link",
-    inputSchema: z.object({
-      sourceOperatorId: z.string().describe("ID of the source operator"),
-      sourcePortId: z.string().optional().describe("Port ID on source operator (e.g., 'output-0')"),
-      targetOperatorId: z.string().describe("ID of the target operator"),
-      targetPortId: z.string().optional().describe("Port ID on target operator (e.g., 'input-0')"),
-    }),
-    execute: async (args: {
-      sourceOperatorId: string;
-      sourcePortId?: string;
-      targetOperatorId: string;
-      targetPortId?: string;
-    }) => {
-      try {
-        // Default port IDs if not specified
-        const sourcePId = args.sourcePortId || "output-0";
-        const targetPId = args.targetPortId || "input-0";
-
-        const link: OperatorLink = {
-          linkID: `link_${Date.now()}`,
-          source: {
-            operatorID: args.sourceOperatorId,
-            portID: sourcePId,
-          },
-          target: {
-            operatorID: args.targetOperatorId,
-            portID: targetPId,
-          },
-        };
-
-        workflowActionService.addLink(link);
-
-        // Auto-layout the workflow after adding link
-        workflowActionService.autoLayoutWorkflow();
-
-        return createSuccessResult(
-          {
-            linkId: link.linkID,
-            message: `Connected ${args.sourceOperatorId}:${sourcePId} to ${args.targetOperatorId}:${targetPId}`,
-          },
-          [args.sourceOperatorId, args.targetOperatorId]
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message);
-      }
-    },
-  });
-}
-
-/**
- * Create deleteOperator tool for removing an operator from the workflow
- */
-export function createDeleteOperatorInCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW,
-    description: "Delete an operator from the current workflow",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to delete"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        workflowActionService.deleteOperator(args.operatorId);
-
-        return createSuccessResult(
-          {
-            message: `Deleted operator ${args.operatorId}`,
-          },
-          [],
-          [args.operatorId]
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message);
-      }
-    },
-  });
-}
-
-/**
- * Create deleteLink tool for removing a link from the workflow
- */
-export function createDeleteLinkInCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW,
-    description: "Delete a link between two operators in the current workflow by link ID",
-    inputSchema: z.object({
-      linkId: z.string().describe("ID of the link to delete"),
-    }),
-    execute: async (args: { linkId: string }) => {
-      try {
-        workflowActionService.deleteLinkWithID(args.linkId);
-        return createSuccessResult(
-          {
-            message: `Deleted link ${args.linkId}`,
-          },
-          [],
-          []
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message);
-      }
-    },
-  });
-}
-
-/**
- * Create setOperatorProperty tool for modifying operator properties
- */
-export function createSetOperatorPropertyInCurrentWorkflowTool(
-  workflowActionService: WorkflowActionService,
-  validationWorkflowService: ValidationWorkflowService
-) {
-  return tool({
-    name: TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW,
-    description:
-      "Set or update properties of an operator in the current workflow. Properties must match the operator's schema. Use getOperatorPropertiesSchema first to understand required properties and their types.",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to modify"),
-      properties: z.record(z.any()).describe("Properties object to set on the operator"),
-    }),
-    execute: async (args: { operatorId: string; properties: Record<string, any> }) => {
-      try {
-        // Set the properties first
-        workflowActionService.setOperatorProperty(args.operatorId, args.properties);
-
-        // Validate the operator after setting properties
-        const validation = validationWorkflowService.validateOperator(args.operatorId);
-
-        if (!validation.isValid) {
-          // Properties are set but invalid - return error with details
-          return createErrorResult(
-            `Property validation failed: ${JSON.stringify(validation.messages)}. Use getOperatorPropertiesSchema tool to see the expected schema structure for this operator`
-          );
-        }
-
-        // Show property was changed
-
-        return createSuccessResult(
-          {
-            message: `Updated properties for operator ${args.operatorId}`,
-            properties: args.properties,
-          },
-          [],
-          [args.operatorId]
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message);
-      }
-    },
-  });
-}
-
-/**
- * Create setPortProperty tool for modifying port properties
- */
-export function createSetPortPropertyInCurrentWorkflowTool(
-  workflowActionService: WorkflowActionService,
-  validationWorkflowService: ValidationWorkflowService
-) {
-  return tool({
-    name: TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW,
-    description:
-      "Set or update properties of a port on an operator in the current workflow (e.g., partition information, dependencies). Use getOperatorPortsInfo first to see available ports.",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator that owns the port"),
-      portId: z.string().describe("ID of the port to modify (e.g., 'input-0', 'output-0')"),
-      properties: z.record(z.any()).describe("Port properties to set (partitionInfo, dependencies)"),
-    }),
-    execute: async (args: { operatorId: string; portId: string; properties: Record<string, any> }) => {
-      try {
-        const logicalPort = {
-          operatorID: args.operatorId,
-          portID: args.portId,
-        };
-
-        // Set the port properties using the high-level service method
-        workflowActionService.setPortProperty(logicalPort, args.properties);
-
-        // Validate the operator after setting port properties
-        const validation = validationWorkflowService.validateOperator(args.operatorId);
-
-        if (!validation.isValid) {
-          // Properties are set but invalid - return error with details
-          return createErrorResult(
-            `Port property validation failed: ${JSON.stringify(validation.messages)}. Use getOperatorPortsInfo tool to see the available ports and their current configuration`
-          );
-        }
-
-        // Show property was changed
-
-        return createSuccessResult(
-          {
-            message: `Updated port ${args.portId} properties for operator ${args.operatorId}`,
-            properties: args.properties,
-          },
-          [],
-          [args.operatorId]
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message);
-      }
-    },
-  });
-}
 
 /**
  * Create listLinksInCurrentWorkflow tool for getting all links in the workflow
@@ -329,70 +62,6 @@ export function createListCurrentLinksTool(workflowActionService: WorkflowAction
         );
       } catch (error: any) {
         return createErrorResult(error.message);
-      }
-    },
-  });
-}
-
-export function createListOperatorsInCurrentWorkflowTool(workflowActionService: WorkflowActionService) {
-  return tool({
-    name: TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW,
-    description: "Get all operators in the current workflow",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const operators = workflowActionService.getTexeraGraph().getAllOperators();
-        const operatorIds = operators.map(op => op.operatorID);
-        return createSuccessResult(
-          {
-            operators: operators,
-            count: operators.length,
-          },
-          operatorIds,
-          []
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message);
-      }
-    },
-  });
-}
-
-export function createGetCurrentOperatorTool(
-  workflowActionService: WorkflowActionService,
-  workflowCompilingService: WorkflowCompilingService
-) {
-  return tool({
-    name: TOOL_NAME_GET_CURRENT_OPERATOR,
-    description:
-      "Get detailed information about a specific operator in the current workflow, including its input and output schemas",
-    inputSchema: z.object({
-      operatorId: z.string().describe("ID of the operator to retrieve"),
-    }),
-    execute: async (args: { operatorId: string }) => {
-      try {
-        const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
-
-        // Get input schema (empty map if not available)
-        const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(args.operatorId);
-        const inputSchema = inputSchemaMap || {};
-
-        // Get output schema (empty map if not available)
-        const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(args.operatorId);
-        const outputSchema = outputSchemaMap || {};
-
-        return createSuccessResult(
-          {
-            operator: operator,
-            inputSchema: inputSchema,
-            outputSchema: outputSchema,
-            message: `Retrieved operator ${args.operatorId}`,
-          },
-          [args.operatorId],
-          []
-        );
-      } catch (error: any) {
-        return createErrorResult(error.message || `Operator ${args.operatorId} not found`);
       }
     },
   });
@@ -505,35 +174,114 @@ export function createListCurrentRelevantOperatorIdsTool(
 }
 
 /**
- * Create getWorkflowCompilationState tool for checking compilation status and errors
+ * Operator detail information including properties (not port properties)
  */
-export function createGetCurrentWorkflowCompilationStateTool(workflowCompilingService: WorkflowCompilingService) {
-  return tool({
-    name: TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE,
-    description:
-      "Get the current workflow compilation state and any compilation errors. Use this to check if the workflow is valid and identify any operator configuration issues.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      try {
-        const compilationState = workflowCompilingService.getWorkflowCompilationState();
-        const compilationErrors = workflowCompilingService.getWorkflowCompilationErrors();
+interface OperatorDetail {
+  operatorId: string;
+  operatorType: string;
+  customDisplayName?: string;
+  properties: Record<string, any>;
+  inputSchema: Record<string, any>;
+  outputSchema: Record<string, any>;
+}
 
-        const hasErrors = Object.keys(compilationErrors).length > 0;
+/**
+ * Create unified getCurrentWorkflow tool that returns both operators and links
+ * This merges the functionality of listCurrentLinks and listCurrentRelevantOperatorIds
+ */
+export function createGetCurrentWorkflowTool(
+  workflowActionService: WorkflowActionService,
+  workflowCompilingService: WorkflowCompilingService
+) {
+  return tool({
+    name: TOOL_NAME_GET_CURRENT_WORKFLOW,
+    description:
+      "Get the current workflow structure including operators and links. " +
+      "Returns a list of operators (with id, type, name, properties, input/output schemas) and a list of links. " +
+      "Optionally filter to specific operator IDs. If no operatorIds provided, returns all enabled operators.",
+    inputSchema: z.object({
+      operatorIds: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional list of operator IDs to retrieve. If empty or not provided, returns all enabled operators in the workflow."
+        ),
+    }),
+    execute: async (args: { operatorIds?: string[] }) => {
+      try {
+        const texeraGraph = workflowActionService.getTexeraGraph();
+
+        // Get all links
+        const links = texeraGraph.getAllLinks();
+
+        // Determine which operators to return
+        let operatorsToReturn: OperatorDetail[];
+
+        if (args.operatorIds && args.operatorIds.length > 0) {
+          // Filter to specific operator IDs
+          const mappedOperators = args.operatorIds.map(operatorId => {
+            try {
+              const operator = texeraGraph.getOperator(operatorId);
+              if (!operator) return null;
+
+              const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorId);
+              const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorId);
+
+              // Extract operator properties (excluding internal fields)
+              const { operatorID, operatorType, operatorVersion, customDisplayName, ...properties } = operator;
+
+              return {
+                operatorId: operatorID,
+                operatorType: operatorType,
+                customDisplayName: customDisplayName,
+                properties: properties,
+                inputSchema: inputSchemaMap || {},
+                outputSchema: outputSchemaMap || {},
+              } as OperatorDetail;
+            } catch {
+              return null;
+            }
+          });
+          operatorsToReturn = mappedOperators.filter((op): op is NonNullable<typeof op> => op !== null) as OperatorDetail[];
+        } else {
+          // Return all enabled operators
+          const enabledOperators = texeraGraph.getAllEnabledOperators();
+          operatorsToReturn = enabledOperators.map(operator => {
+            const operatorId = operator.operatorID;
+            const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorId);
+            const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorId);
+
+            // Extract operator properties (excluding internal fields)
+            const { operatorID, operatorType, operatorVersion, customDisplayName, ...properties } = operator;
+
+            return {
+              operatorId: operatorID,
+              operatorType: operatorType,
+              customDisplayName: customDisplayName,
+              properties: properties,
+              inputSchema: inputSchemaMap || {},
+              outputSchema: outputSchemaMap || {},
+            };
+          });
+        }
+
+        const operatorIds = operatorsToReturn.map(op => op.operatorId);
 
         return createSuccessResult(
           {
-            state: compilationState,
-            hasErrors: hasErrors,
-            errors: hasErrors ? compilationErrors : undefined,
-            message: hasErrors
-              ? `Workflow compilation failed with ${Object.keys(compilationErrors).length} error(s)`
-              : `Workflow compilation state: ${compilationState}`,
+            operators: operatorsToReturn,
+            links: links,
+            summary: {
+              operatorCount: operatorsToReturn.length,
+              linkCount: links.length,
+            },
+            message: `Retrieved ${operatorsToReturn.length} operator(s) and ${links.length} link(s) from the workflow.`,
           },
-          [],
+          operatorIds,
           []
         );
       } catch (error: any) {
-        return createErrorResult(error.message);
+        return createErrorResult(error.message || String(error));
       }
     },
   });
