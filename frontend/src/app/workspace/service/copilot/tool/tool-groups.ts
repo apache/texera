@@ -22,6 +22,16 @@
  * Groups: Observe, Execute, Modify, Record
  */
 
+// Import tool name constants from each tool file
+import * as workflowMetadataTools from "./workflow-metadata-tools";
+import * as baselineTools from "./baseline-tools";
+import * as currentWorkflowEditingObservingTools from "./current-workflow-editing-observing-tools";
+import * as currentWorkflowValidationTools from "./current-workflow-validation-tools";
+import * as currentWorkflowExecutionTools from "./current-workflow-execution-tools";
+import * as actionPlanTools from "./action-plan-tools";
+import * as operatorTools from "./operator-tools";
+import * as dataCheckTools from "./data-check-tools";
+
 export enum ToolGroup {
   OBSERVE = "Observe",
   EXECUTE = "Execute",
@@ -67,57 +77,70 @@ export const TOOL_GROUP_CONFIGS: Record<ToolGroup, ToolGroupConfig> = {
 // Mapping of tool names to their groups
 export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   // Observe group - metadata tools
-  listAllOperatorTypes: ToolGroup.OBSERVE,
-  getOperatorPropertiesSchema: ToolGroup.OBSERVE,
-  getOperatorPortsInfo: ToolGroup.OBSERVE,
-  getOperatorMetadata: ToolGroup.OBSERVE,
+  [workflowMetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES_AND_SCHEMAS]: ToolGroup.OBSERVE,
+  [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: ToolGroup.OBSERVE,
+  [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: ToolGroup.OBSERVE,
 
   // Baseline mode tools
-  createPythonUDF: ToolGroup.MODIFY,
+  [baselineTools.TOOL_NAME_CREATE_PYTHON_UDF]: ToolGroup.MODIFY,
+  [baselineTools.TOOL_NAME_EXECUTE_TO_OPERATOR]: ToolGroup.EXECUTE,
 
   // Observe group - workflow inspection tools
-  listCurrentRelevantOperatorIds: ToolGroup.OBSERVE,
-  listCurrentLinks: ToolGroup.OBSERVE,
-  getCurrentOperator: ToolGroup.OBSERVE,
-  getCurrentWorkflowCompilationState: ToolGroup.OBSERVE,
-  listOperatorsInCurrentWorkflow: ToolGroup.OBSERVE,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS]: ToolGroup.OBSERVE,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_LINKS]: ToolGroup.OBSERVE,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: ToolGroup.OBSERVE,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE]: ToolGroup.OBSERVE,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW]: ToolGroup.OBSERVE,
 
   // Observe group - validation tools
-  getCurrentWorkflowValidationInfo: ToolGroup.OBSERVE,
-  validateCurrentOperator: ToolGroup.OBSERVE,
+  [currentWorkflowValidationTools.TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO]: ToolGroup.OBSERVE,
+  [currentWorkflowValidationTools.TOOL_NAME_VALIDATE_CURRENT_OPERATOR]: ToolGroup.OBSERVE,
 
   // Execute group - workflow execution tools
-  executeCurrentWorkflow: ToolGroup.EXECUTE,
-  getCurrentExecutionState: ToolGroup.EXECUTE,
-  killCurrentWorkflow: ToolGroup.EXECUTE,
-  hasCurrentOperatorResult: ToolGroup.EXECUTE,
-  getCurrentOperatorResult: ToolGroup.EXECUTE,
-  getCurrentOperatorResultInfo: ToolGroup.EXECUTE,
-  getCurrentComputingUnitStatus: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: ToolGroup.EXECUTE,
 
   // Modify group - action plan tools (workflow modifications)
-  addToWorkflow: ToolGroup.MODIFY,
-  modifyInWorkflow: ToolGroup.MODIFY,
-  deleteFromWorkflow: ToolGroup.MODIFY,
-  getActionPlan: ToolGroup.MODIFY,
-  listActionPlans: ToolGroup.MODIFY,
-  deleteActionPlan: ToolGroup.MODIFY,
-  updateActionPlan: ToolGroup.MODIFY,
+  [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: ToolGroup.MODIFY,
+  [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: ToolGroup.MODIFY,
+  [actionPlanTools.TOOL_NAME_GET_ACTION_PLAN]: ToolGroup.MODIFY,
+  [actionPlanTools.TOOL_NAME_LIST_ACTION_PLANS]: ToolGroup.MODIFY,
+  [actionPlanTools.TOOL_NAME_DELETE_ACTION_PLAN]: ToolGroup.MODIFY,
+  [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN]: ToolGroup.MODIFY,
+
+  // Modify group - operator-specific tools
+  [operatorTools.TOOL_NAME_ADD_PYTHON_UDF_V2]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_AGGREGATE]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_PROJECTION]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_HASH_JOIN]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_SORT]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_UNION]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_INTERSECT]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_CARTESIAN_PRODUCT]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_CSV_FILE_SCAN]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_ADD_LINK]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_MODIFY_OPERATOR]: ToolGroup.MODIFY,
+  [operatorTools.TOOL_NAME_DELETE_FROM_WORKFLOW]: ToolGroup.MODIFY,
 
   // Modify group - direct workflow editing tools (currently commented out in copilot)
-  addOperatorToCurrentWorkflow: ToolGroup.MODIFY,
-  addLinkToCurrentWorkflow: ToolGroup.MODIFY,
-  deleteOperatorInCurrentWorkflow: ToolGroup.MODIFY,
-  deleteLinkInCurrentWorkflow: ToolGroup.MODIFY,
-  setOperatorPropertyInCurrentWorkflow: ToolGroup.MODIFY,
-  setPortPropertyInCurrentWorkflow: ToolGroup.MODIFY,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
+  [currentWorkflowEditingObservingTools.TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
 
   // Record group - data check tools
-  addDataCheck: ToolGroup.RECORD,
-  listDataChecks: ToolGroup.RECORD,
-  updateDataCheck: ToolGroup.RECORD,
-  deleteDataCheck: ToolGroup.RECORD,
-  clearDataChecks: ToolGroup.RECORD,
+  [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: ToolGroup.RECORD,
+  [dataCheckTools.TOOL_NAME_LIST_DATA_CHECKS]: ToolGroup.RECORD,
+  [dataCheckTools.TOOL_NAME_UPDATE_DATA_CHECK]: ToolGroup.RECORD,
+  [dataCheckTools.TOOL_NAME_DELETE_DATA_CHECK]: ToolGroup.RECORD,
+  [dataCheckTools.TOOL_NAME_CLEAR_DATA_CHECKS]: ToolGroup.RECORD,
 };
 
 /**

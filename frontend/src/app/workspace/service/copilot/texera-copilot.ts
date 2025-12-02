@@ -29,6 +29,7 @@ import * as currentWorkflowExecutionTools from "./tool/current-workflow-executio
 import * as actionPlanTools from "./tool/action-plan-tools";
 import * as dataCheckTools from "./tool/data-check-tools";
 import * as baselineTools from "./tool/baseline-tools";
+import * as operatorTools from "./tool/operator-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
@@ -670,15 +671,89 @@ export class TexeraCopilot {
         this.agentName
       )
     );
-    const deleteFromWorkflowTool = toolWithTimeout(
-      actionPlanTools.createDeleteFromWorkflowTool(
+    // Operator-specific tools
+    const addPythonUDFV2Tool = toolWithTimeout(
+      operatorTools.createAddPythonUDFV2Tool(
         this.workflowActionService,
         this.actionPlanService,
-        this.validationWorkflowService,
         this.agentId,
         this.agentName
       )
     );
+    const addAggregateTool = toolWithTimeout(
+      operatorTools.createAddAggregateTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const addProjectionTool = toolWithTimeout(
+      operatorTools.createAddProjectionTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const addHashJoinTool = toolWithTimeout(
+      operatorTools.createAddHashJoinTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const addSortTool = toolWithTimeout(
+      operatorTools.createAddSortTool(this.workflowActionService, this.actionPlanService, this.agentId, this.agentName)
+    );
+    const addUnionTool = toolWithTimeout(
+      operatorTools.createAddUnionTool(this.workflowActionService, this.actionPlanService, this.agentId, this.agentName)
+    );
+    const addIntersectTool = toolWithTimeout(
+      operatorTools.createAddIntersectTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const addCartesianProductTool = toolWithTimeout(
+      operatorTools.createAddCartesianProductTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const addCSVFileScanTool = toolWithTimeout(
+      operatorTools.createAddCSVFileScanTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const addLinkTool = toolWithTimeout(
+      operatorTools.createAddLinkTool(this.workflowActionService, this.actionPlanService, this.agentId, this.agentName)
+    );
+    const modifyOperatorTool = toolWithTimeout(
+      operatorTools.createModifyOperatorTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+    const deleteFromWorkflowTool = toolWithTimeout(
+      operatorTools.createDeleteFromWorkflowTool(
+        this.workflowActionService,
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
+      )
+    );
+
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
       // meta level knowledge - combined tool for operator types and schemas
@@ -704,7 +779,7 @@ export class TexeraCopilot {
       [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS]:
         listCurrentRelevantOperatorIdsTool,
       [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_LINKS]: listCurrentLinksTool,
-      [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: getCurrentOperatorTool,
+      // [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: getCurrentOperatorTool,
       // [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE]:
       //   getCurrentWorkflowCompilationStateTool,
       // current workflow execution
@@ -722,9 +797,22 @@ export class TexeraCopilot {
       // [dataCheckTools.TOOL_NAME_DELETE_DATA_CHECK]: deleteDataCheckTool,
       // [dataCheckTools.TOOL_NAME_CLEAR_DATA_CHECKS]: clearDataChecksTool,
       // Workflow action tools - always available
-      [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: addToWorkflowTool,
-      [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: modifyInWorkflowTool,
-      [actionPlanTools.TOOL_NAME_DELETE_FROM_WORKFLOW]: deleteFromWorkflowTool,
+      // [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: addToWorkflowTool,
+      // [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: modifyInWorkflowTool,
+      // [actionPlanTools.TOOL_NAME_DELETE_FROM_WORKFLOW]: deleteFromWorkflowTool,
+      // Operator-specific tools
+      [operatorTools.TOOL_NAME_ADD_PYTHON_UDF_V2]: addPythonUDFV2Tool,
+      [operatorTools.TOOL_NAME_ADD_AGGREGATE]: addAggregateTool,
+      [operatorTools.TOOL_NAME_ADD_PROJECTION]: addProjectionTool,
+      [operatorTools.TOOL_NAME_ADD_HASH_JOIN]: addHashJoinTool,
+      [operatorTools.TOOL_NAME_ADD_SORT]: addSortTool,
+      [operatorTools.TOOL_NAME_ADD_UNION]: addUnionTool,
+      [operatorTools.TOOL_NAME_ADD_INTERSECT]: addIntersectTool,
+      [operatorTools.TOOL_NAME_ADD_CARTESIAN_PRODUCT]: addCartesianProductTool,
+      [operatorTools.TOOL_NAME_ADD_CSV_FILE_SCAN]: addCSVFileScanTool,
+      [operatorTools.TOOL_NAME_ADD_LINK]: addLinkTool,
+      [operatorTools.TOOL_NAME_MODIFY_OPERATOR]: modifyOperatorTool,
+      [operatorTools.TOOL_NAME_DELETE_FROM_WORKFLOW]: deleteFromWorkflowTool,
     };
 
     return baseTools;
