@@ -35,7 +35,7 @@ import {
   createSuccessResult,
   createErrorResult,
 } from "./tools-utility";
-import { Observable, of, throwError, defer, timer, interval, merge, EMPTY, firstValueFrom, forkJoin } from "rxjs";
+import { Observable, of, throwError, defer, timer, interval, EMPTY, firstValueFrom, forkJoin } from "rxjs";
 import { filter, timeout, map, switchMap, catchError, take, tap } from "rxjs/operators";
 
 // Tool name constants
@@ -272,6 +272,7 @@ export function executeWorkflowAndGetResults$(
       );
 
       // Detect stuck state (Running but operator Paused) or error console logs
+      // When detected, kill the workflow - the executionState$ will then emit the Killed state
       const stuckDetection$ = interval(1000).pipe(
         filter(() => {
           const state = executeWorkflowService.getExecutionState();
@@ -303,14 +304,21 @@ export function executeWorkflowAndGetResults$(
             /* ignore */
           }
         }),
+        // Don't emit anything - let executionState$ catch the Killed state
         switchMap(() => EMPTY)
       );
 
-      return merge(executionState$, stuckDetection$).pipe(
+      // Subscribe to stuckDetection$ to trigger kill, but only wait for executionState$
+      // Use a shared subscription so stuckDetection$ side effects happen
+      const stuckDetectionSubscription = stuckDetection$.subscribe();
+
+      return executionState$.pipe(
         take(1),
         timeout(EXECUTION_TIMEOUT_MS),
         map(finalState => ({ finalState, allOperators })),
+        tap(() => stuckDetectionSubscription.unsubscribe()),
         catchError((error: unknown) => {
+          stuckDetectionSubscription.unsubscribe();
           if (error instanceof Error && error.name === "TimeoutError") {
             return throwError(() => new Error(`Execution timed out after ${EXECUTION_TIMEOUT_MS / 1000}s.`));
           }
@@ -358,9 +366,15 @@ export function executeWorkflowAndGetResults$(
         consoleLogs,
       };
 
+      // Include operatorResults in all failure cases for debugging
+      const baseErrorWithResults = {
+        ...baseError,
+        operatorResults,
+      };
+
       if (finalState.state === ExecutionState.Failed) {
         return {
-          ...baseError,
+          ...baseErrorWithResults,
           executionState: "Failed",
           message: "Workflow execution failed",
           error: `Failed. Errors: ${JSON.stringify(errorMessages)}`,
@@ -368,15 +382,15 @@ export function executeWorkflowAndGetResults$(
       }
       if (finalState.state === ExecutionState.Killed) {
         return {
-          ...baseError,
+          ...baseErrorWithResults,
           executionState: "Killed",
-          message: "Workflow execution was killed",
-          error: "Execution was killed.",
+          message: "Workflow execution was killed (possibly due to paused operator or error console logs)",
+          error: `Execution was killed. Errors: ${JSON.stringify(errorMessages)}`,
         };
       }
       if (finalState.state === ExecutionState.Paused) {
         return {
-          ...baseError,
+          ...baseErrorWithResults,
           executionState: "Paused",
           message: "Workflow paused (likely error)",
           error: `Paused. Errors: ${JSON.stringify(errorMessages)}`,
@@ -384,7 +398,7 @@ export function executeWorkflowAndGetResults$(
       }
 
       return {
-        ...baseError,
+        ...baseErrorWithResults,
         executionState: String(finalState.state),
         message: `Unexpected state: ${finalState.state}`,
         error: `Unexpected state: ${finalState.state}`,
@@ -436,39 +450,47 @@ export function createExecuteCurrentWorkflowTool(
         ),
     }),
     execute: async (args: { executionName?: string; targetOperatorIds: string[] }) => {
-      const result = await firstValueFrom(
-        executeWorkflowAndGetResults$(services, {
-          executionName: args.executionName,
-          targetOperatorIds: args.targetOperatorIds,
-          includeOperatorResults: true,
-        })
-      );
+      try {
+        const result = await firstValueFrom(
+          executeWorkflowAndGetResults$(services, {
+            executionName: args.executionName,
+            targetOperatorIds: args.targetOperatorIds,
+            includeOperatorResults: true,
+          })
+        );
 
-      if (result.success) {
-        return createSuccessResult(
-          {
+        if (result.success) {
+          return createSuccessResult(
+            {
+              executionState: result.executionState,
+              message: result.message,
+              state: result.state,
+              operatorStates: result.operatorStates,
+              consoleLogs: result.consoleLogs,
+              operatorResults: result.operatorResults,
+            },
+            [],
+            []
+          );
+        } else {
+          // Include console logs, operator states, and operator results even on failure for debugging
+          return {
+            success: false,
+            error: result.error || result.message,
             executionState: result.executionState,
             message: result.message,
-            state: result.state,
             operatorStates: result.operatorStates,
             consoleLogs: result.consoleLogs,
             operatorResults: result.operatorResults,
-          },
-          [],
-          []
+            viewedOperatorIds: [],
+            modifiedOperatorIds: [],
+          };
+        }
+      } catch (error: unknown) {
+        // Catch any unhandled errors from the Observable
+        return createErrorResult(
+          `Execution failed unexpectedly: ${error instanceof Error ? error.message : String(error)}`
         );
-      } else {
-        // Include console logs and operator states even on failure for debugging
-        return {
-          success: false,
-          error: result.error || result.message,
-          executionState: result.executionState,
-          message: result.message,
-          operatorStates: result.operatorStates,
-          consoleLogs: result.consoleLogs,
-          viewedOperatorIds: [],
-          modifiedOperatorIds: [],
-        };
       }
     },
   });
