@@ -25,3 +25,4 @@ header:
     - '.gitignore'
     - '.licenserc.yaml'
     - 'frontend/.yarn/**'
+    - 'amber/src/main/python/proto/**'
