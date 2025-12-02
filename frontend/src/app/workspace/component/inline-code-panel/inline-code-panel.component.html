@@ -35,6 +35,8 @@
     </button>
   </div>
   <div
-    #editorContainer
-    class="code-editor-container"></div>
+    #codeContainer
+    class="code-container">
+    <pre class="code-pre"><code [class]="'language-' + language">{{ codeContent }}</code></pre>
+  </div>
 </div>

@@ -29,8 +29,7 @@ import {
   SimpleChanges,
   ViewChild,
 } from "@angular/core";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import * as monaco from "monaco-editor";
+import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { YType } from "../../types/shared-editing.interface";
@@ -40,6 +39,11 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
  * InlineCodePanelComponent displays a small read-only code preview for Python UDF operators.
  * It shows the code content from the operator's properties and updates in real-time.
  * The panel header shows the operator's custom display name and can be closed.
+ *
+ * NOTE: This component intentionally uses a simple <pre><code> element instead of Monaco editor
+ * to avoid conflicts with the MonacoEditorLanguageClientWrapper used by code-editor-dialog.
+ * The wrapper's initServices() can only be called once globally, and using multiple Monaco
+ * instances with different initialization methods causes blank editors.
  */
 @UntilDestroy()
 @Component({
@@ -55,50 +59,43 @@ export class InlineCodePanelComponent implements AfterViewInit, OnDestroy, OnCha
 
   @Output() closePanel = new EventEmitter<string>();
 
-  @ViewChild("editorContainer", { static: true }) editorContainer!: ElementRef;
+  @ViewChild("codeContainer", { static: true }) codeContainer!: ElementRef;
 
-  private editor?: monaco.editor.IStandaloneCodeEditor;
-  private diffEditor?: monaco.editor.IStandaloneDiffEditor;
+  public codeContent: string = "";
+  public language: string = "python";
+
   private codeYText?: YText;
   private observer?: () => void;
 
   constructor(private workflowActionService: WorkflowActionService) {}
 
   ngAfterViewInit(): void {
-    this.initializeEditor();
+    this.initializeCodeDisplay();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Re-initialize editor if operatorId, diffMode or originalCode changes
     if (changes["operatorId"] || changes["isDiffMode"] || changes["originalCode"]) {
-      this.disposeEditor();
-      this.initializeEditor();
+      this.disposeObserver();
+      this.initializeCodeDisplay();
     }
   }
 
   ngOnDestroy(): void {
-    this.disposeEditor();
+    this.disposeObserver();
   }
 
   onClose(): void {
     this.closePanel.emit(this.operatorId);
   }
 
-  private disposeEditor(): void {
+  private disposeObserver(): void {
     if (this.observer && this.codeYText) {
       this.codeYText.unobserve(this.observer);
-    }
-    if (this.editor) {
-      this.editor.dispose();
-      this.editor = undefined;
-    }
-    if (this.diffEditor) {
-      this.diffEditor.dispose();
-      this.diffEditor = undefined;
+      this.observer = undefined;
     }
   }
 
-  private initializeEditor(): void {
+  private initializeCodeDisplay(): void {
     if (!this.operatorId) {
       return;
     }
@@ -108,75 +105,9 @@ export class InlineCodePanelComponent implements AfterViewInit, OnDestroy, OnCha
       return;
     }
 
-    const language = this.getLanguageFromOperator(operator);
-    const code = this.getCodeFromOperator(operator);
-
-    if (this.isDiffMode && this.originalCode !== undefined) {
-      this.initializeDiffEditor(code, language);
-    } else {
-      this.initializeNormalEditor(code, language);
-      this.setupYTextObserver();
-    }
-  }
-
-  private initializeNormalEditor(code: string, language: string): void {
-    this.editor = monaco.editor.create(this.editorContainer.nativeElement, {
-      value: code,
-      language: language,
-      readOnly: true,
-      minimap: { enabled: false },
-      scrollBeyondLastLine: false,
-      lineNumbers: "on",
-      lineNumbersMinChars: 3,
-      folding: false,
-      renderLineHighlight: "none",
-      overviewRulerBorder: false,
-      hideCursorInOverviewRuler: true,
-      scrollbar: {
-        vertical: "auto",
-        horizontal: "auto",
-        verticalScrollbarSize: 8,
-        horizontalScrollbarSize: 8,
-      },
-      fontSize: 11,
-      lineHeight: 16,
-      padding: { top: 4, bottom: 4 },
-      automaticLayout: true,
-      wordWrap: "off",
-      theme: "vs",
-    });
-  }
-
-  private initializeDiffEditor(modifiedCode: string, language: string): void {
-    this.diffEditor = monaco.editor.createDiffEditor(this.editorContainer.nativeElement, {
-      readOnly: true,
-      minimap: { enabled: false },
-      scrollBeyondLastLine: false,
-      lineNumbers: "on",
-      lineNumbersMinChars: 3,
-      folding: false,
-      renderLineHighlight: "none",
-      overviewRulerBorder: false,
-      scrollbar: {
-        vertical: "auto",
-        horizontal: "auto",
-        verticalScrollbarSize: 8,
-        horizontalScrollbarSize: 8,
-      },
-      fontSize: 11,
-      lineHeight: 16,
-      automaticLayout: true,
-      renderSideBySide: false,
-      renderIndicators: true,
-    });
-
-    const originalModel = monaco.editor.createModel(this.originalCode || "", language);
-    const modifiedModel = monaco.editor.createModel(modifiedCode, language);
-
-    this.diffEditor.setModel({
-      original: originalModel,
-      modified: modifiedModel,
-    });
+    this.language = this.getLanguageFromOperator(operator);
+    this.codeContent = this.getCodeFromOperator(operator);
+    this.setupYTextObserver();
   }
 
   private setupYTextObserver(): void {
@@ -190,12 +121,9 @@ export class InlineCodePanelComponent implements AfterViewInit, OnDestroy, OnCha
 
       if (this.codeYText) {
         this.observer = () => {
-          if (this.editor) {
-            const newCode = this.codeYText?.toString() || "";
-            const currentCode = this.editor.getValue();
-            if (newCode !== currentCode) {
-              this.editor.setValue(newCode);
-            }
+          const newCode = this.codeYText?.toString() || "";
+          if (newCode !== this.codeContent) {
+            this.codeContent = newCode;
           }
         };
         this.codeYText.observe(this.observer);

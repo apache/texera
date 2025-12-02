@@ -76,8 +76,27 @@
   }
 }
 
-.code-editor-container {
+.code-container {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  background: #ffffff;
+}
+
+.code-pre {
+  margin: 0;
+  padding: 8px;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre;
+  overflow-x: auto;
+  background: #ffffff;
+
+  code {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: #333;
+  }
 }

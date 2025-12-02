@@ -109,11 +109,12 @@ export class InlinePropertyPanelComponent implements OnChanges {
       icon: isDrop ? "minus-circle" : "check-circle",
     });
 
-    const attributes = props["attributes"] as Array<{ attribute?: string; alias?: string }> | undefined;
+    // Note: Projection operator uses "originalAttribute" property, not "attribute"
+    const attributes = props["attributes"] as Array<{ originalAttribute?: string; alias?: string }> | undefined;
     if (attributes && attributes.length > 0) {
       const attrNames = attributes
         .map(a => {
-          const original = a.attribute || "";
+          const original = a.originalAttribute || "";
           const alias = a.alias;
           return alias && alias !== original ? `${original} → ${alias}` : original;
         })
@@ -130,12 +131,13 @@ export class InlinePropertyPanelComponent implements OnChanges {
 
   private extractSortProperties(props: Record<string, any>): PropertyItem[] {
     const items: PropertyItem[] = [];
-    const attributes = props["attributes"] as Array<{ attributeName?: string; sortPreference?: string }> | undefined;
+    // Note: Sort operator uses "attribute" property, not "attributeName"
+    const attributes = props["attributes"] as Array<{ attribute?: string; sortPreference?: string }> | undefined;
 
     if (attributes && attributes.length > 0) {
       const sortSpec = attributes
         .map(a => {
-          const name = a.attributeName || "";
+          const name = a.attribute || "";
           const order = a.sortPreference === "DESC" ? "↓" : "↑";
           return `${name} ${order}`;
         })
