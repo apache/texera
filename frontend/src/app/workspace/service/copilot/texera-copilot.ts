@@ -530,77 +530,15 @@ export class TexeraCopilot {
    * Create workflow manipulation tools with timeout protection.
    */
   private createWorkflowTools(): Record<string, any> {
-    // Workflow metadata tools - combined tool for operator types and schemas
-    const listAllOperatorTypesAndSchemasTool = toolWithTimeout(
-      workflowMetadataTools.createListAllOperatorTypesAndSchemasTool(this.operatorMetadataService)
-    );
-    const getOperatorPortsInfoTool = toolWithTimeout(
-      workflowMetadataTools.createGetOperatorPortsInfoTool(this.operatorMetadataService)
-    );
-    const getOperatorMetadataTool = toolWithTimeout(
-      workflowMetadataTools.createGetOperatorMetadataTool(this.operatorMetadataService)
-    );
-
     // Current workflow editing and observing tools
     const listCurrentLinksTool = toolWithTimeout(
       currentWorkflowEditingObservingTools.createListCurrentLinksTool(this.workflowActionService)
-    );
-    const listOperatorsInCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createListOperatorsInCurrentWorkflowTool(this.workflowActionService)
-    );
-    const getCurrentOperatorTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createGetCurrentOperatorTool(
-        this.workflowActionService,
-        this.workflowCompilingService
-      )
     );
     const listCurrentRelevantOperatorIdsTool = toolWithTimeout(
       currentWorkflowEditingObservingTools.createListCurrentRelevantOperatorIdsTool(
         this.workflowActionService,
         this.workflowCompilingService
       )
-    );
-    const getCurrentWorkflowCompilationStateTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createGetCurrentWorkflowCompilationStateTool(this.workflowCompilingService)
-    );
-    const addOperatorToCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createAddOperatorToCurrentWorkflowTool(
-        this.workflowActionService,
-        this.workflowUtilService,
-        this.operatorMetadataService
-      )
-    );
-    const addLinkToCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createAddLinkToCurrentWorkflowTool(this.workflowActionService)
-    );
-    const deleteOperatorInCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createDeleteOperatorInCurrentWorkflowTool(this.workflowActionService)
-    );
-    const deleteLinkInCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createDeleteLinkInCurrentWorkflowTool(this.workflowActionService)
-    );
-    const setOperatorPropertyInCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createSetOperatorPropertyInCurrentWorkflowTool(
-        this.workflowActionService,
-        this.validationWorkflowService
-      )
-    );
-    const setPortPropertyInCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowEditingObservingTools.createSetPortPropertyInCurrentWorkflowTool(
-        this.workflowActionService,
-        this.validationWorkflowService
-      )
-    );
-
-    // Workflow validation tools
-    const getCurrentWorkflowValidationInfoTool = toolWithTimeout(
-      currentWorkflowValidationTools.createGetCurrentWorkflowValidationInfoTool(
-        this.validationWorkflowService,
-        this.workflowActionService
-      )
-    );
-    const validateCurrentOperatorTool = toolWithTimeout(
-      currentWorkflowValidationTools.createValidateCurrentOperatorTool(this.validationWorkflowService)
     );
 
     // Workflow execution tools
@@ -614,32 +552,6 @@ export class TexeraCopilot {
         this.workflowResultService
       )
     );
-    const getCurrentExecutionStateTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createGetCurrentExecutionStateTool(
-        this.executeWorkflowService,
-        this.workflowActionService,
-        this.workflowConsoleService,
-        this.workflowStatusService
-      )
-    );
-    const killCurrentWorkflowTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createKillCurrentWorkflowTool(this.executeWorkflowService)
-    );
-    const hasCurrentOperatorResultTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createHasCurrentOperatorResultTool(
-        this.workflowResultService,
-        this.workflowActionService
-      )
-    );
-    const getCurrentOperatorResultTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createGetCurrentOperatorResultTool(this.workflowResultService)
-    );
-    const getCurrentOperatorResultInfoTool = toolWithTimeout(
-      currentWorkflowExecutionTools.createGetCurrentOperatorResultInfoTool(
-        this.workflowResultService,
-        this.workflowActionService
-      )
-    );
     const getCurrentComputingUnitStatusTool = toolWithTimeout(
       currentWorkflowExecutionTools.createGetCurrentComputingUnitStatusTool(this.computingUnitStatusService)
     );
@@ -647,30 +559,6 @@ export class TexeraCopilot {
     // Data check tools
     const addDataCheckTool = toolWithTimeout(dataCheckTools.createAddDataCheckTool(this.dataCheckService));
     const listDataChecksTool = toolWithTimeout(dataCheckTools.createListDataChecksTool(this.dataCheckService));
-    const updateDataCheckTool = toolWithTimeout(dataCheckTools.createUpdateDataCheckTool(this.dataCheckService));
-    const deleteDataCheckTool = toolWithTimeout(dataCheckTools.createDeleteDataCheckTool(this.dataCheckService));
-    const clearDataChecksTool = toolWithTimeout(dataCheckTools.createClearDataChecksTool(this.dataCheckService));
-
-    const addToWorkflowTool = toolWithTimeout(
-      actionPlanTools.createAddToWorkflowTool(
-        this.workflowActionService,
-        this.actionPlanService,
-        this.validationWorkflowService,
-        this.workflowCompilingService,
-        this.agentId,
-        this.agentName
-      )
-    );
-    const modifyInWorkflowTool = toolWithTimeout(
-      actionPlanTools.createModifyInWorkflowTool(
-        this.workflowActionService,
-        this.actionPlanService,
-        this.validationWorkflowService,
-        this.workflowCompilingService,
-        this.agentId,
-        this.agentName
-      )
-    );
     // Operator-specific tools
     const addPythonUDFV2Tool = toolWithTimeout(
       operatorTools.createAddPythonUDFV2Tool(
@@ -756,50 +644,15 @@ export class TexeraCopilot {
 
     // Base tools available in both modes
     const baseTools: Record<string, any> = {
-      // meta level knowledge - combined tool for operator types and schemas
-      // [workflowMetadataTools.TOOL_NAME_LIST_ALL_OPERATOR_TYPES_AND_SCHEMAS]: listAllOperatorTypesAndSchemasTool,
-      // [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_PORTS_INFO]: getOperatorPortsInfoTool,
-      // [workflowMetadataTools.TOOL_NAME_GET_OPERATOR_METADATA]: getOperatorMetadataTool,
-      // current workflow editing - TEMPORARILY COMMENTED OUT
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_OPERATOR_TO_CURRENT_WORKFLOW]:
-      //   addOperatorToCurrentWorkflowTool,
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_ADD_LINK_TO_CURRENT_WORKFLOW]: addLinkToCurrentWorkflowTool,
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_OPERATOR_IN_CURRENT_WORKFLOW]:
-      //   deleteOperatorInCurrentWorkflowTool,
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW]: deleteLinkInCurrentWorkflowTool,
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW]:
-      //   setOperatorPropertyInCurrentWorkflowTool,
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW]:
-      //   setPortPropertyInCurrentWorkflowTool,
-      // current workflow validation
-      // [currentWorkflowValidationTools.TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO]:
-      //   getCurrentWorkflowValidationInfoTool,
-      // [currentWorkflowValidationTools.TOOL_NAME_VALIDATE_CURRENT_OPERATOR]: validateCurrentOperatorTool,
-      // current workflow inspecting
       [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_RELEVANT_OPERATOR_IDS]:
         listCurrentRelevantOperatorIdsTool,
       [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_CURRENT_LINKS]: listCurrentLinksTool,
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: getCurrentOperatorTool,
-      // [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE]:
-      //   getCurrentWorkflowCompilationStateTool,
-      // current workflow execution
+
       [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: executeCurrentWorkflowTool,
-      // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: getCurrentExecutionStateTool,
-      // [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: killCurrentWorkflowTool,
-      // [currentWorkflowExecutionTools.TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT]: hasCurrentOperatorResultTool,
-      // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT]: getCurrentOperatorResultTool,
-      // [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: getCurrentOperatorResultInfoTool,
       [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: getCurrentComputingUnitStatusTool,
       // Data check tools
       [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: addDataCheckTool,
       [dataCheckTools.TOOL_NAME_LIST_DATA_CHECKS]: listDataChecksTool,
-      // [dataCheckTools.TOOL_NAME_UPDATE_DATA_CHECK]: updateDataCheckTool,
-      // [dataCheckTools.TOOL_NAME_DELETE_DATA_CHECK]: deleteDataCheckTool,
-      // [dataCheckTools.TOOL_NAME_CLEAR_DATA_CHECKS]: clearDataChecksTool,
-      // Workflow action tools - always available
-      // [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: addToWorkflowTool,
-      // [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: modifyInWorkflowTool,
-      // [actionPlanTools.TOOL_NAME_DELETE_FROM_WORKFLOW]: deleteFromWorkflowTool,
       // Operator-specific tools
       [operatorTools.TOOL_NAME_ADD_PYTHON_UDF_V2]: addPythonUDFV2Tool,
       [operatorTools.TOOL_NAME_ADD_AGGREGATE]: addAggregateTool,
