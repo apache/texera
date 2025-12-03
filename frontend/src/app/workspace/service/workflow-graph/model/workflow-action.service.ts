@@ -1055,11 +1055,11 @@ export class WorkflowActionService {
   }
 
   /**
-   * Apply agent action plan operations to the workflow atomically.
+   * Apply agent action operations to the workflow atomically.
    * This includes adding operators/links, modifying operators, and deleting operators/links.
    * All operations are bundled together to ensure atomicity.
    *
-   * @param args Action plan arguments with add, modify, and delete operations
+   * @param args Agent action arguments with add, modify, and delete operations
    * @returns Result object with IDs of added/modified/deleted items or error message
    */
   public applyAgentAction(args: {

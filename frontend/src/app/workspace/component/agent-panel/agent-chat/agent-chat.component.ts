@@ -22,10 +22,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/texera-copilot";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import {
-  ActionPlan,
-  ActionPlanService,
-  ActionPlanPreviewState,
-} from "../../../service/action-plan/action-plan.service";
+  AgentAction,
+  AgentActionService,
+  AgentActionPreviewState,
+} from "../../../service/agent-action/agent-action.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -83,11 +83,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public toolGroupConfigs = TOOL_GROUP_CONFIGS;
   public ToolGroup = ToolGroup;
 
-  // Unified action plan preview state
-  public previewState: ActionPlanPreviewState | null = null;
+  // Unified agent action preview state
+  public previewState: AgentActionPreviewState | null = null;
 
   constructor(
-    private actionPlanService: ActionPlanService,
+    private agentActionService: AgentActionService,
     private copilotManagerService: TexeraCopilotManagerService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
@@ -155,12 +155,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       });
 
     // Subscribe to unified preview state
-    this.actionPlanService
+    this.agentActionService
       .getPreviewStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(state => {
-        // Only show preview UI if the action plan belongs to this agent
-        if (state && state.actionPlan.agentId === this.agentInfo.id) {
+        // Only show preview UI if the agent action belongs to this agent
+        if (state && state.agentAction.agentId === this.agentInfo.id) {
           this.previewState = state;
           this.shouldScrollToBottom = true;
           console.log("[Agent Chat] Preview state updated", state);
@@ -420,44 +420,44 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Accept the action plan (for pending mode) or Apply (for historical mode)
+   * Accept the agent action (for pending mode) or Apply (for historical mode)
    */
-  public onAcceptActionPlan(): void {
+  public onAcceptAgentAction(): void {
     if (!this.previewState) {
       return;
     }
 
     // End preview and apply the changes
-    this.actionPlanService.endPreview(true);
+    this.agentActionService.endPreview(true);
 
     // In pending mode, send approval message to continue the agent
     if (this.previewState.isPending) {
       const feedback = this.currentMessage.trim();
       const message = feedback
-        ? `I approve this action plan. Additional feedback: ${feedback}`
-        : "I approve this action plan. Please proceed with execution.";
+        ? `I approve this agent action. Additional feedback: ${feedback}`
+        : "I approve this agent action. Please proceed with execution.";
       this.copilotManagerService.sendMessage(this.agentInfo.id, message);
       this.currentMessage = "";
     }
   }
 
   /**
-   * Reject the action plan (for pending mode) or Cancel (for historical mode)
+   * Reject the agent action (for pending mode) or Cancel (for historical mode)
    */
-  public onRejectActionPlan(): void {
+  public onRejectAgentAction(): void {
     if (!this.previewState) {
       return;
     }
 
     // End preview and reject the changes (restore to before state)
-    this.actionPlanService.endPreview(false);
+    this.agentActionService.endPreview(false);
 
     // In pending mode, send rejection message to the agent
     if (this.previewState.isPending) {
       const feedback = this.currentMessage.trim();
       const message = feedback
-        ? `I reject this action plan. Reason: ${feedback}`
-        : "I reject this action plan. Please revise your approach.";
+        ? `I reject this agent action. Reason: ${feedback}`
+        : "I reject this agent action. Please revise your approach.";
       this.copilotManagerService.sendMessage(this.agentInfo.id, message);
       this.currentMessage = "";
     }
@@ -535,12 +535,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
 
   /**
    * Handle click on a timeline node.
-   * Shows action plan preview for Modify group nodes.
+   * Shows agent action preview for Modify group nodes.
    */
   public onTimelineNodeClick(node: TimelineNode): void {
-    // For Modify group nodes, show the action plan preview
+    // For Modify group nodes, show the agent action preview
     if (node.toolGroup === ToolGroup.MODIFY) {
-      this.showActionPlanPreviewForNode(node);
+      this.showAgentActionPreviewForNode(node);
     }
   }
 
@@ -561,10 +561,10 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Show action plan preview for a Modify group timeline node.
-   * Finds the action plan associated with the tool call and displays diff preview.
+   * Show agent action preview for a Modify group timeline node.
+   * Finds the agent action associated with the tool call and displays diff preview.
    */
-  private showActionPlanPreviewForNode(node: TimelineNode): void {
+  private showAgentActionPreviewForNode(node: TimelineNode): void {
     const step = this.agentResponses[node.stepIndex];
     if (!step || !step.toolCalls || node.toolCallIndex >= step.toolCalls.length) {
       console.log("[Timeline] No step or tool calls found for node", node);
@@ -574,175 +574,175 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     const toolCall = step.toolCalls[node.toolCallIndex];
     const toolResult = step.toolResults?.[node.toolCallIndex];
 
-    console.log("[Timeline] Looking for action plan in tool call:", toolCall.toolName, {
+    console.log("[Timeline] Looking for agent action in tool call:", toolCall.toolName, {
       toolCall,
       toolResult,
       nodeTimestamp: node.timestamp,
     });
 
-    // Try to extract action plan ID from the tool result
-    let actionPlanId: string | null = null;
+    // Try to extract agent action ID from the tool result
+    let agentActionId: string | null = null;
 
     if (toolResult) {
-      // Check if result contains action plan ID directly
-      if (typeof toolResult === "object" && toolResult.actionPlanId) {
-        actionPlanId = toolResult.actionPlanId;
+      // Check if result contains agent action ID directly
+      if (typeof toolResult === "object" && toolResult.agentActionId) {
+        agentActionId = toolResult.agentActionId;
       } else if (typeof toolResult === "object" && toolResult.id) {
-        actionPlanId = toolResult.id;
+        agentActionId = toolResult.id;
       } else if (typeof toolResult === "string") {
         // Try to parse JSON result
         try {
           const parsed = JSON.parse(toolResult);
-          actionPlanId = parsed.actionPlanId || parsed.id;
+          agentActionId = parsed.agentActionId || parsed.id;
         } catch {
           // Not JSON, check for ID pattern in string
-          const match = toolResult.match(/action-plan-[\w-]+/);
+          const match = toolResult.match(/agent-action-[\w-]+/);
           if (match) {
-            actionPlanId = match[0];
+            agentActionId = match[0];
           }
         }
       }
     }
 
-    // Also check tool call input for action plan ID
-    if (!actionPlanId && toolCall.input) {
+    // Also check tool call input for agent action ID
+    if (!agentActionId && toolCall.input) {
       try {
         const input = typeof toolCall.input === "string" ? JSON.parse(toolCall.input) : toolCall.input;
-        actionPlanId = input.actionPlanId || input.id;
+        agentActionId = input.agentActionId || input.id;
       } catch {
         // Ignore parse errors
       }
     }
 
-    // Fallback: Find action plan by matching timestamp (closest before or at the node timestamp)
-    if (!actionPlanId) {
-      const allPlans = this.actionPlanService.getAllActionPlans();
-      console.log("[Timeline] No action plan ID found, matching by timestamp. Plans:", allPlans.length);
+    // Fallback: Find agent action by matching timestamp (closest before or at the node timestamp)
+    if (!agentActionId) {
+      const allActions = this.agentActionService.getAllAgentActions();
+      console.log("[Timeline] No agent action ID found, matching by timestamp. Actions:", allActions.length);
 
-      if (allPlans.length > 0) {
+      if (allActions.length > 0) {
         const nodeTime = node.timestamp.getTime();
 
-        // Sort plans by creation time (oldest first)
-        const sortedPlans = [...allPlans].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        // Sort actions by creation time (oldest first)
+        const sortedActions = [...allActions].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-        // Find plans created before or at the node timestamp
-        const plansBeforeNode = sortedPlans.filter(p => p.createdAt.getTime() <= nodeTime);
+        // Find actions created before or at the node timestamp
+        const actionsBeforeNode = sortedActions.filter(a => a.createdAt.getTime() <= nodeTime);
 
-        if (plansBeforeNode.length > 0) {
-          // Get the latest plan that was created before or at the node timestamp
-          actionPlanId = plansBeforeNode[plansBeforeNode.length - 1].id;
+        if (actionsBeforeNode.length > 0) {
+          // Get the latest action that was created before or at the node timestamp
+          agentActionId = actionsBeforeNode[actionsBeforeNode.length - 1].id;
         } else {
-          // If no plans before, use the first (oldest) plan
-          actionPlanId = sortedPlans[0].id;
+          // If no actions before, use the first (oldest) action
+          agentActionId = sortedActions[0].id;
         }
 
-        console.log("[Timeline] Found action plan by timestamp:", actionPlanId);
+        console.log("[Timeline] Found agent action by timestamp:", agentActionId);
       }
     }
 
-    if (actionPlanId) {
-      console.log("[Timeline] Previewing action plan:", actionPlanId);
-      this.previewActionPlan(actionPlanId);
+    if (agentActionId) {
+      console.log("[Timeline] Previewing agent action:", agentActionId);
+      this.previewAgentAction(agentActionId);
     } else {
-      console.log("[Timeline] No action plan found to preview");
-      this.notificationService.warning("No action plan found for this operation");
+      console.log("[Timeline] No agent action found to preview");
+      this.notificationService.warning("No agent action found for this operation");
     }
   }
 
   /**
-   * Preview an action plan by ID (historical mode - from timeline click).
+   * Preview an agent action by ID (historical mode - from timeline click).
    */
-  public previewActionPlan(actionPlanId: string): void {
+  public previewAgentAction(agentActionId: string): void {
     try {
-      this.actionPlanService.startHistoricalPreview(actionPlanId);
+      this.agentActionService.startHistoricalPreview(agentActionId);
     } catch (err) {
-      console.error("Failed to preview action plan:", err);
-      this.notificationService.error("Failed to preview action plan");
+      console.error("Failed to preview agent action:", err);
+      this.notificationService.error("Failed to preview agent action");
     }
   }
 
   // =====================
-  // Action Plan Navigation
+  // Agent Action Navigation
   // =====================
 
   /**
-   * Get all action plans for this agent sorted by creation time (chronological order).
+   * Get all agent actions for this agent sorted by creation time (chronological order).
    */
-  private getActionPlansForAgent(): ActionPlan[] {
-    return this.actionPlanService
-      .getAllActionPlans()
-      .filter(plan => plan.agentId === this.agentInfo.id)
+  private getAgentActionsForAgent(): AgentAction[] {
+    return this.agentActionService
+      .getAllAgentActions()
+      .filter(action => action.agentId === this.agentInfo.id)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
   /**
-   * Get the index of the current preview action plan in the sorted list.
+   * Get the index of the current preview agent action in the sorted list.
    */
-  private getCurrentActionPlanIndex(): number {
+  private getCurrentAgentActionIndex(): number {
     if (!this.previewState) {
       return -1;
     }
-    const plans = this.getActionPlansForAgent();
-    return plans.findIndex(p => p.id === this.previewState!.actionPlan.id);
+    const actions = this.getAgentActionsForAgent();
+    return actions.findIndex(a => a.id === this.previewState!.agentAction.id);
   }
 
   /**
-   * Check if there is a previous action plan to navigate to.
+   * Check if there is a previous agent action to navigate to.
    */
-  public hasPreviousActionPlan(): boolean {
-    return this.getCurrentActionPlanIndex() > 0;
+  public hasPreviousAgentAction(): boolean {
+    return this.getCurrentAgentActionIndex() > 0;
   }
 
   /**
-   * Check if there is a next action plan to navigate to.
+   * Check if there is a next agent action to navigate to.
    */
-  public hasNextActionPlan(): boolean {
-    const plans = this.getActionPlansForAgent();
-    const currentIndex = this.getCurrentActionPlanIndex();
-    return currentIndex >= 0 && currentIndex < plans.length - 1;
+  public hasNextAgentAction(): boolean {
+    const actions = this.getAgentActionsForAgent();
+    const currentIndex = this.getCurrentAgentActionIndex();
+    return currentIndex >= 0 && currentIndex < actions.length - 1;
   }
 
   /**
-   * Navigate to the previous action plan in chronological order.
+   * Navigate to the previous agent action in chronological order.
    */
-  public navigateToPreviousActionPlan(): void {
-    if (!this.hasPreviousActionPlan()) {
+  public navigateToPreviousAgentAction(): void {
+    if (!this.hasPreviousAgentAction()) {
       return;
     }
-    const plans = this.getActionPlansForAgent();
-    const currentIndex = this.getCurrentActionPlanIndex();
-    const previousPlan = plans[currentIndex - 1];
+    const actions = this.getAgentActionsForAgent();
+    const currentIndex = this.getCurrentAgentActionIndex();
+    const previousAction = actions[currentIndex - 1];
 
     // End current preview without applying changes, then start new preview
-    this.actionPlanService.endPreview(false);
-    this.actionPlanService.startHistoricalPreview(previousPlan.id);
+    this.agentActionService.endPreview(false);
+    this.agentActionService.startHistoricalPreview(previousAction.id);
   }
 
   /**
-   * Navigate to the next action plan in chronological order.
+   * Navigate to the next agent action in chronological order.
    */
-  public navigateToNextActionPlan(): void {
-    if (!this.hasNextActionPlan()) {
+  public navigateToNextAgentAction(): void {
+    if (!this.hasNextAgentAction()) {
       return;
     }
-    const plans = this.getActionPlansForAgent();
-    const currentIndex = this.getCurrentActionPlanIndex();
-    const nextPlan = plans[currentIndex + 1];
+    const actions = this.getAgentActionsForAgent();
+    const currentIndex = this.getCurrentAgentActionIndex();
+    const nextAction = actions[currentIndex + 1];
 
     // End current preview without applying changes, then start new preview
-    this.actionPlanService.endPreview(false);
-    this.actionPlanService.startHistoricalPreview(nextPlan.id);
+    this.agentActionService.endPreview(false);
+    this.agentActionService.startHistoricalPreview(nextAction.id);
   }
 
   /**
-   * Get the current action plan position string (e.g., "2 / 5").
+   * Get the current agent action position string (e.g., "2 / 5").
    */
-  public getActionPlanPositionLabel(): string {
-    const plans = this.getActionPlansForAgent();
-    const currentIndex = this.getCurrentActionPlanIndex();
-    if (currentIndex < 0 || plans.length === 0) {
+  public getAgentActionPositionLabel(): string {
+    const actions = this.getAgentActionsForAgent();
+    const currentIndex = this.getCurrentAgentActionIndex();
+    if (currentIndex < 0 || actions.length === 0) {
       return "";
     }
-    return `${currentIndex + 1} / ${plans.length}`;
+    return `${currentIndex + 1} / ${actions.length}`;
   }
 }

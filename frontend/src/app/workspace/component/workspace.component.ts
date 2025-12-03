@@ -42,7 +42,7 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
-import { ActionPlanService } from "../service/action-plan/action-plan.service";
+import { AgentActionService } from "../service/agent-action/agent-action.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -89,7 +89,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
     private config: GuiConfigService,
-    private actionPlanService: ActionPlanService
+    private agentActionService: AgentActionService
   ) {}
 
   ngOnInit() {

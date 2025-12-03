@@ -276,7 +276,7 @@
 
       <!-- Input Area -->
       <div class="input-area">
-        <!-- Unified Action Plan Preview state -->
+        <!-- Unified Agent Action Preview state -->
         <ng-container *ngIf="previewState">
           <div class="preview-details">
             <div class="preview-header">
@@ -285,32 +285,32 @@
                 [nzType]="previewState.isPending ? 'bulb' : 'eye'"
                 nzTheme="outline"></i>
               <span class="preview-title"
-                >{{ previewState.isPending ? 'Pending Action Plan' : 'Action Plan Preview' }}</span
+                >{{ previewState.isPending ? 'Pending Agent Action' : 'Agent Action Preview' }}</span
               >
-              <!-- Navigation arrows for action plans -->
+              <!-- Navigation arrows for agent actions -->
               <div class="preview-navigation">
                 <button
                   nz-button
                   nzType="text"
                   nzSize="small"
-                  [disabled]="!hasPreviousActionPlan()"
-                  (click)="navigateToPreviousActionPlan()"
+                  [disabled]="!hasPreviousAgentAction()"
+                  (click)="navigateToPreviousAgentAction()"
                   nz-tooltip
-                  nzTooltipTitle="Previous action plan">
+                  nzTooltipTitle="Previous agent action">
                   <i
                     nz-icon
                     nzType="left"
                     nzTheme="outline"></i>
                 </button>
-                <span class="preview-position">{{ getActionPlanPositionLabel() }}</span>
+                <span class="preview-position">{{ getAgentActionPositionLabel() }}</span>
                 <button
                   nz-button
                   nzType="text"
                   nzSize="small"
-                  [disabled]="!hasNextActionPlan()"
-                  (click)="navigateToNextActionPlan()"
+                  [disabled]="!hasNextAgentAction()"
+                  (click)="navigateToNextAgentAction()"
                   nz-tooltip
-                  nzTooltipTitle="Next action plan">
+                  nzTooltipTitle="Next agent action">
                   <i
                     nz-icon
                     nzType="right"
@@ -318,32 +318,32 @@
                 </button>
               </div>
             </div>
-            <div class="preview-summary">{{ previewState.actionPlan.summary }}</div>
+            <div class="preview-summary">{{ previewState.agentAction.summary }}</div>
             <div class="preview-operations">
               <span
-                *ngIf="previewState.actionPlan.operations.add.operatorIds.length > 0"
+                *ngIf="previewState.agentAction.operations.add.operatorIds.length > 0"
                 class="op-badge add">
-                +{{ previewState.actionPlan.operations.add.operatorIds.length }} operators
+                +{{ previewState.agentAction.operations.add.operatorIds.length }} operators
               </span>
               <span
-                *ngIf="previewState.actionPlan.operations.add.linkIds.length > 0"
+                *ngIf="previewState.agentAction.operations.add.linkIds.length > 0"
                 class="op-badge add">
-                +{{ previewState.actionPlan.operations.add.linkIds.length }} links
+                +{{ previewState.agentAction.operations.add.linkIds.length }} links
               </span>
               <span
-                *ngIf="previewState.actionPlan.operations.modify.operatorIds.length > 0"
+                *ngIf="previewState.agentAction.operations.modify.operatorIds.length > 0"
                 class="op-badge modify">
-                ~{{ previewState.actionPlan.operations.modify.operatorIds.length }} modified
+                ~{{ previewState.agentAction.operations.modify.operatorIds.length }} modified
               </span>
               <span
-                *ngIf="previewState.actionPlan.operations.delete.operatorIds.length > 0"
+                *ngIf="previewState.agentAction.operations.delete.operatorIds.length > 0"
                 class="op-badge delete">
-                -{{ previewState.actionPlan.operations.delete.operatorIds.length }} operators
+                -{{ previewState.agentAction.operations.delete.operatorIds.length }} operators
               </span>
               <span
-                *ngIf="previewState.actionPlan.operations.delete.linkIds.length > 0"
+                *ngIf="previewState.agentAction.operations.delete.linkIds.length > 0"
                 class="op-badge delete">
-                -{{ previewState.actionPlan.operations.delete.linkIds.length }} links
+                -{{ previewState.agentAction.operations.delete.linkIds.length }} links
               </span>
             </div>
           </div>
@@ -359,9 +359,9 @@
               nz-button
               nzType="primary"
               nzSize="small"
-              (click)="onAcceptActionPlan()"
+              (click)="onAcceptAgentAction()"
               nz-tooltip
-              [nzTooltipTitle]="previewState.isPending ? 'Accept the action plan and proceed' : 'Apply this version to the workflow'">
+              [nzTooltipTitle]="previewState.isPending ? 'Accept the agent action and proceed' : 'Apply this version to the workflow'">
               <i
                 nz-icon
                 nzType="check"
@@ -373,9 +373,9 @@
               nzType="default"
               nzSize="small"
               [nzDanger]="previewState.isPending"
-              (click)="onRejectActionPlan()"
+              (click)="onRejectAgentAction()"
               nz-tooltip
-              [nzTooltipTitle]="previewState.isPending ? 'Reject the action plan' : 'Cancel preview and restore original'">
+              [nzTooltipTitle]="previewState.isPending ? 'Reject the agent action' : 'Cancel preview and restore original'">
               <i
                 nz-icon
                 nzType="close"

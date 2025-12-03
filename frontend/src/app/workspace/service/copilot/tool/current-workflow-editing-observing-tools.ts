@@ -110,7 +110,9 @@ export function createGetCurrentWorkflowTool(
               return null;
             }
           });
-          operatorsToReturn = mappedOperators.filter((op): op is NonNullable<typeof op> => op !== null) as OperatorDetail[];
+          operatorsToReturn = mappedOperators.filter(
+            (op): op is NonNullable<typeof op> => op !== null
+          ) as OperatorDetail[];
         } else {
           // Return all enabled operators
           const enabledOperators = texeraGraph.getAllEnabledOperators();

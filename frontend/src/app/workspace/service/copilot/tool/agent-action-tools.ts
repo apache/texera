@@ -20,7 +20,7 @@
 import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
-import { ActionPlanService } from "../../action-plan/action-plan.service";
+import { AgentActionService } from "../../agent-action/agent-action.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 import { WorkflowCompilingService } from "../../compile-workflow/workflow-compiling.service";
 
@@ -28,10 +28,10 @@ import { WorkflowCompilingService } from "../../compile-workflow/workflow-compil
 export const TOOL_NAME_ADD_TO_WORKFLOW = "addToWorkflow";
 export const TOOL_NAME_MODIFY_IN_WORKFLOW = "modifyInWorkflow";
 export const TOOL_NAME_DELETE_FROM_WORKFLOW = "deleteFromWorkflow";
-export const TOOL_NAME_GET_ACTION_PLAN = "getActionPlan";
-export const TOOL_NAME_LIST_ACTION_PLANS = "listActionPlans";
-export const TOOL_NAME_DELETE_ACTION_PLAN = "deleteActionPlan";
-export const TOOL_NAME_UPDATE_ACTION_PLAN = "updateActionPlan";
+export const TOOL_NAME_GET_AGENT_ACTION = "getAgentAction";
+export const TOOL_NAME_LIST_AGENT_ACTIONS = "listAgentActions";
+export const TOOL_NAME_DELETE_AGENT_ACTION = "deleteAgentAction";
+export const TOOL_NAME_UPDATE_AGENT_ACTION = "updateAgentAction";
 
 /**
  * Helper to get validation info for the current workflow
@@ -84,11 +84,11 @@ function getOperatorInfo(
 }
 
 /**
- * Helper to create action plan and return its ID
+ * Helper to create agent action and return its ID
  */
-function createAndRecordActionPlan(
+function createAndRecordAgentAction(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string,
   agentName: string,
   summary: string,
@@ -103,7 +103,7 @@ function createAndRecordActionPlan(
   const allOperatorIds = [...(operations.add?.operatorIds || []), ...(operations.modify?.operatorIds || [])];
   const allLinkIds = operations.add?.linkIds || [];
 
-  return actionPlanService.createActionPlan(
+  return agentActionService.createAgentAction(
     agentId,
     agentName || "AI Agent",
     summary,
@@ -125,7 +125,7 @@ function createAndRecordActionPlan(
  */
 export function createAddToWorkflowTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   validationWorkflowService: ValidationWorkflowService,
   workflowCompilingService: WorkflowCompilingService,
   agentId: string = "",
@@ -207,9 +207,9 @@ export function createAddToWorkflowTool(
         // Auto layout the workflow after adding operators/links
         workflowActionService.autoLayoutWorkflow();
 
-        const actionPlan = createAndRecordActionPlan(
+        const agentAction = createAndRecordAgentAction(
           workflowActionService,
-          actionPlanService,
+          agentActionService,
           agentId,
           agentName,
           args.summary,
@@ -220,7 +220,7 @@ export function createAddToWorkflowTool(
 
         return {
           success: true,
-          actionPlanId: actionPlan.id,
+          agentActionId: agentAction.id,
           addedOperators,
           addedLinks,
           validation: getWorkflowValidationInfo(workflowActionService, validationWorkflowService),
@@ -238,7 +238,7 @@ export function createAddToWorkflowTool(
  */
 export function createModifyInWorkflowTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   validationWorkflowService: ValidationWorkflowService,
   workflowCompilingService: WorkflowCompilingService,
   agentId: string = "",
@@ -279,9 +279,9 @@ export function createModifyInWorkflowTool(
         // Auto layout the workflow after modifying operators
         workflowActionService.autoLayoutWorkflow();
 
-        const actionPlan = createAndRecordActionPlan(
+        const agentAction = createAndRecordAgentAction(
           workflowActionService,
-          actionPlanService,
+          agentActionService,
           agentId,
           agentName,
           args.summary,
@@ -292,7 +292,7 @@ export function createModifyInWorkflowTool(
 
         return {
           success: true,
-          actionPlanId: actionPlan.id,
+          agentActionId: agentAction.id,
           modifiedOperators,
           validation: getWorkflowValidationInfo(workflowActionService, validationWorkflowService),
           message: `Modified ${results.modifiedOperatorIds.length} operator(s)`,
@@ -309,7 +309,7 @@ export function createModifyInWorkflowTool(
  */
 export function createDeleteFromWorkflowTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   validationWorkflowService: ValidationWorkflowService,
   agentId: string = "",
   agentName: string = ""
@@ -334,9 +334,9 @@ export function createDeleteFromWorkflowTool(
         // Auto layout the workflow after deleting operators/links
         workflowActionService.autoLayoutWorkflow();
 
-        const actionPlan = createAndRecordActionPlan(
+        const agentAction = createAndRecordAgentAction(
           workflowActionService,
-          actionPlanService,
+          agentActionService,
           agentId,
           agentName,
           args.summary,
@@ -347,7 +347,7 @@ export function createDeleteFromWorkflowTool(
 
         return {
           success: true,
-          actionPlanId: actionPlan.id,
+          agentActionId: agentAction.id,
           deletedOperatorIds: results.deletedOperatorIds,
           deletedLinkIds: results.deletedLinkIds,
           validation: getWorkflowValidationInfo(workflowActionService, validationWorkflowService),

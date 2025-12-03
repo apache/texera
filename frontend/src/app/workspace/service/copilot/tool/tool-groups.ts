@@ -27,7 +27,7 @@ import * as workflowMetadataTools from "./workflow-metadata-tools";
 import * as baselineTools from "./baseline-tools";
 import * as currentWorkflowEditingObservingTools from "./current-workflow-editing-observing-tools";
 import * as currentWorkflowExecutionTools from "./current-workflow-execution-tools";
-import * as actionPlanTools from "./action-plan-tools";
+import * as agentActionTools from "./agent-action-tools";
 import * as operatorTools from "./operator-tools";
 
 export enum ToolGroup {
@@ -59,7 +59,7 @@ export const TOOL_GROUP_CONFIGS: Record<ToolGroup, ToolGroupConfig> = {
   },
   [ToolGroup.MODIFY]: {
     group: ToolGroup.MODIFY,
-    color: "#fa8c16", // Orange - for modification operations (action plans)
+    color: "#fa8c16", // Orange - for modification operations (agent actions)
     icon: "edit",
     description: "Tools that modify workflow structure",
   },
@@ -93,13 +93,13 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_OPERATOR_RESULT_INFO]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: ToolGroup.EXECUTE,
 
-  // Modify group - action plan tools (workflow modifications)
-  [actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW]: ToolGroup.MODIFY,
-  [actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: ToolGroup.MODIFY,
-  [actionPlanTools.TOOL_NAME_GET_ACTION_PLAN]: ToolGroup.MODIFY,
-  [actionPlanTools.TOOL_NAME_LIST_ACTION_PLANS]: ToolGroup.MODIFY,
-  [actionPlanTools.TOOL_NAME_DELETE_ACTION_PLAN]: ToolGroup.MODIFY,
-  [actionPlanTools.TOOL_NAME_UPDATE_ACTION_PLAN]: ToolGroup.MODIFY,
+  // Modify group - agent action tools (workflow modifications)
+  [agentActionTools.TOOL_NAME_ADD_TO_WORKFLOW]: ToolGroup.MODIFY,
+  [agentActionTools.TOOL_NAME_MODIFY_IN_WORKFLOW]: ToolGroup.MODIFY,
+  [agentActionTools.TOOL_NAME_GET_AGENT_ACTION]: ToolGroup.MODIFY,
+  [agentActionTools.TOOL_NAME_LIST_AGENT_ACTIONS]: ToolGroup.MODIFY,
+  [agentActionTools.TOOL_NAME_DELETE_AGENT_ACTION]: ToolGroup.MODIFY,
+  [agentActionTools.TOOL_NAME_UPDATE_AGENT_ACTION]: ToolGroup.MODIFY,
 
   // Modify group - operator-specific tools
   [operatorTools.TOOL_NAME_ADD_PYTHON_UDF_V2]: ToolGroup.MODIFY,

@@ -29,7 +29,7 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { ActionPlanService } from "../action-plan/action-plan.service";
+import { AgentActionService } from "../agent-action/agent-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
@@ -483,14 +483,14 @@ export class TexeraCopilotManagerService {
     return agent.instance.messageStats$;
   }
 
-  public getActionPlanApprovalObservable(
+  public getAgentActionApprovalObservable(
     agentId: string
-  ): Observable<{ isWaitingForApproval: boolean; actionPlanId?: string }> {
+  ): Observable<{ isWaitingForApproval: boolean; agentActionId?: string }> {
     const agent = this.agents.get(agentId);
     if (!agent) {
       throw new Error(`Agent with ID ${agentId} not found`);
     }
-    return agent.instance.actionPlanApproval$;
+    return agent.instance.agentActionApproval$;
   }
 
   /**

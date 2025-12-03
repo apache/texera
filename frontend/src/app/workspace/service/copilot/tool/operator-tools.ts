@@ -20,7 +20,7 @@
 import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
-import { ActionPlanService } from "../../action-plan/action-plan.service";
+import { AgentActionService } from "../../agent-action/agent-action.service";
 import { createSuccessResult, createErrorResult } from "./tools-utility";
 
 // Tool name constants for operator-specific tools
@@ -38,11 +38,11 @@ export const TOOL_NAME_MODIFY_OPERATOR = "modifyOperator";
 export const TOOL_NAME_DELETE_FROM_WORKFLOW = "deleteFromWorkflow";
 
 /**
- * Helper to create action plan and return its ID
+ * Helper to create agent action and return its ID
  */
-function createAndRecordActionPlan(
+function createAndRecordAgentAction(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string,
   agentName: string,
   summary: string,
@@ -57,7 +57,7 @@ function createAndRecordActionPlan(
   const allOperatorIds = [...(operations.add?.operatorIds || []), ...(operations.modify?.operatorIds || [])];
   const allLinkIds = operations.add?.linkIds || [];
 
-  return actionPlanService.createActionPlan(
+  return agentActionService.createAgentAction(
     agentId,
     agentName || "AI Agent",
     summary,
@@ -79,7 +79,7 @@ function createAndRecordActionPlan(
  */
 function addOperatorHelper(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string,
   agentName: string,
   operatorType: string,
@@ -109,10 +109,10 @@ function addOperatorHelper(
 
     const afterContent = workflowActionService.getWorkflowContent();
 
-    // Create action plan
-    const actionPlan = createAndRecordActionPlan(
+    // Create agent action
+    const agentAction = createAndRecordAgentAction(
       workflowActionService,
-      actionPlanService,
+      agentActionService,
       agentId,
       agentName,
       customDisplayName,
@@ -125,7 +125,7 @@ function addOperatorHelper(
     return createSuccessResult(
       {
         operatorId: results.addedOperatorIds[0],
-        actionPlanId: actionPlan.id,
+        agentActionId: agentAction.id,
       },
       [], // viewedOperatorIds - none for add
       results.addedOperatorIds // modifiedOperatorIds - the newly added operator
@@ -140,7 +140,7 @@ function addOperatorHelper(
  */
 export function createAddPythonUDFV2Tool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -186,7 +186,7 @@ export function createAddPythonUDFV2Tool(
       }
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "PythonUDFV2",
@@ -202,7 +202,7 @@ export function createAddPythonUDFV2Tool(
  */
 export function createAddAggregateTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -239,7 +239,7 @@ export function createAddAggregateTool(
       }
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "Aggregate",
@@ -255,7 +255,7 @@ export function createAddAggregateTool(
  */
 export function createAddProjectionTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -292,7 +292,7 @@ export function createAddProjectionTool(
       }
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "Projection",
@@ -308,7 +308,7 @@ export function createAddProjectionTool(
  */
 export function createAddHashJoinTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -338,7 +338,7 @@ export function createAddHashJoinTool(
       };
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "HashJoin",
@@ -354,7 +354,7 @@ export function createAddHashJoinTool(
  */
 export function createAddSortTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -382,7 +382,7 @@ export function createAddSortTool(
       };
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "Sort",
@@ -398,7 +398,7 @@ export function createAddSortTool(
  */
 export function createAddUnionTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -412,7 +412,7 @@ export function createAddUnionTool(
     execute: async (args: { customDisplayName: string }) => {
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "Union",
@@ -428,7 +428,7 @@ export function createAddUnionTool(
  */
 export function createAddIntersectTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -441,7 +441,7 @@ export function createAddIntersectTool(
     execute: async (args: { customDisplayName: string }) => {
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "Intersect",
@@ -457,7 +457,7 @@ export function createAddIntersectTool(
  */
 export function createAddCartesianProductTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -471,7 +471,7 @@ export function createAddCartesianProductTool(
     execute: async (args: { customDisplayName: string }) => {
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "CartesianProduct",
@@ -487,7 +487,7 @@ export function createAddCartesianProductTool(
  */
 export function createAddCSVFileScanTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -528,7 +528,7 @@ export function createAddCSVFileScanTool(
       }
       return addOperatorHelper(
         workflowActionService,
-        actionPlanService,
+        agentActionService,
         agentId,
         agentName,
         "CSVFileScan",
@@ -544,7 +544,7 @@ export function createAddCSVFileScanTool(
  */
 export function createAddLinkTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -587,10 +587,10 @@ export function createAddLinkTool(
 
         const afterContent = workflowActionService.getWorkflowContent();
 
-        // Create action plan
-        const actionPlan = createAndRecordActionPlan(
+        // Create agent action
+        const agentAction = createAndRecordAgentAction(
           workflowActionService,
-          actionPlanService,
+          agentActionService,
           agentId,
           agentName,
           `Link ${args.sourceOperatorId} to ${args.targetOperatorId}`,
@@ -603,7 +603,7 @@ export function createAddLinkTool(
         return createSuccessResult(
           {
             linkId: results.addedLinkIds[0],
-            actionPlanId: actionPlan.id,
+            agentActionId: agentAction.id,
             message: "Added link successfully",
           },
           [args.sourceOperatorId, args.targetOperatorId], // viewedOperatorIds - both ends of the link
@@ -621,7 +621,7 @@ export function createAddLinkTool(
  */
 export function createModifyOperatorTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -656,10 +656,10 @@ export function createModifyOperatorTool(
 
         const afterContent = workflowActionService.getWorkflowContent();
 
-        // Create action plan
-        const actionPlan = createAndRecordActionPlan(
+        // Create agent action
+        const agentAction = createAndRecordAgentAction(
           workflowActionService,
-          actionPlanService,
+          agentActionService,
           agentId,
           agentName,
           args.summary,
@@ -672,7 +672,7 @@ export function createModifyOperatorTool(
         return createSuccessResult(
           {
             operatorId: args.operatorId,
-            actionPlanId: actionPlan.id,
+            agentActionId: agentAction.id,
             message: `Modified operator ${args.operatorId}`,
           },
           [], // viewedOperatorIds - none for modify
@@ -690,7 +690,7 @@ export function createModifyOperatorTool(
  */
 export function createDeleteFromWorkflowTool(
   workflowActionService: WorkflowActionService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -716,9 +716,9 @@ export function createDeleteFromWorkflowTool(
 
         const afterContent = workflowActionService.getWorkflowContent();
 
-        const actionPlan = createAndRecordActionPlan(
+        const agentAction = createAndRecordAgentAction(
           workflowActionService,
-          actionPlanService,
+          agentActionService,
           agentId,
           agentName,
           args.summary,
@@ -730,7 +730,7 @@ export function createDeleteFromWorkflowTool(
         // Return success with the deleted operators marked as modified (they were affected by deletion)
         return createSuccessResult(
           {
-            actionPlanId: actionPlan.id,
+            agentActionId: agentAction.id,
             deletedOperatorIds: results.deletedOperatorIds,
             deletedLinkIds: results.deletedLinkIds,
             message: `Deleted ${results.deletedOperatorIds.length} operator(s) and ${results.deletedLinkIds.length} link(s)`,

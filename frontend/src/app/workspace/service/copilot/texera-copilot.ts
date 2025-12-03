@@ -25,7 +25,7 @@ import { toolWithTimeout } from "./tool/tools-utility";
 import * as workflowMetadataTools from "./tool/workflow-metadata-tools";
 import * as currentWorkflowEditingObservingTools from "./tool/current-workflow-editing-observing-tools";
 import * as currentWorkflowExecutionTools from "./tool/current-workflow-execution-tools";
-import * as actionPlanTools from "./tool/action-plan-tools";
+import * as agentActionTools from "./tool/agent-action-tools";
 import * as baselineTools from "./tool/baseline-tools";
 import * as operatorTools from "./tool/operator-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -48,7 +48,7 @@ import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { getCopilotSystemPrompt, PLANNING_MODE_PROMPT, BASELINE_SYSTEM_PROMPT } from "./copilot-prompts";
 import { getAllowedOperatorSchemasAsJson } from "./tool/workflow-metadata-tools";
-import { ActionPlanService } from "../action-plan/action-plan.service";
+import { AgentActionService } from "../agent-action/agent-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
@@ -131,7 +131,7 @@ export class TexeraCopilot {
   private state: CopilotState = CopilotState.UNAVAILABLE;
   private stateSubject = new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE);
   public state$ = this.stateSubject.asObservable();
-  private shouldStopAfterActionPlan: boolean = false;
+  private shouldStopAfterAgentAction: boolean = false;
   private planningMode: boolean = false;
   private baselineMode: boolean = false;
   private relevantOperators: string[] = [];
@@ -147,12 +147,12 @@ export class TexeraCopilot {
     modifiedOperatorIds: string[];
   }>({ viewedOperatorIds: [], modifiedOperatorIds: [] });
   public hoveredMessageOperators$ = this.hoveredMessageOperatorsSubject.asObservable();
-  // Action plan approval blocking state
-  private actionPlanApprovalSubject = new BehaviorSubject<{
+  // Agent action approval blocking state
+  private agentActionApprovalSubject = new BehaviorSubject<{
     isWaitingForApproval: boolean;
-    actionPlanId?: string;
+    agentActionId?: string;
   }>({ isWaitingForApproval: false });
-  public actionPlanApproval$ = this.actionPlanApprovalSubject.asObservable();
+  public agentActionApproval$ = this.agentActionApprovalSubject.asObservable();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -162,7 +162,7 @@ export class TexeraCopilot {
     private workflowResultService: WorkflowResultService,
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
-    private actionPlanService: ActionPlanService,
+    private agentActionService: AgentActionService,
     private notificationService: NotificationService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowConsoleService: WorkflowConsoleService,
@@ -246,12 +246,12 @@ export class TexeraCopilot {
         throw new Error(`Cannot send message: agent is ${this.state}`);
       }
 
-      // Clear action plan approval state when any message is sent
-      this.actionPlanApprovalSubject.next({ isWaitingForApproval: false });
+      // Clear agent action approval state when any message is sent
+      this.agentActionApprovalSubject.next({ isWaitingForApproval: false });
 
       // Set state to generating once at the start
       this.setState(CopilotState.GENERATING);
-      this.shouldStopAfterActionPlan = false;
+      this.shouldStopAfterAgentAction = false;
 
       // Determine the system prompt based on mode
       let systemPrompt: string;
@@ -358,7 +358,7 @@ export class TexeraCopilot {
                 this.notificationService.info(`Agent ${this.agentName} has stopped generation`);
                 return true;
               }
-              if (this.shouldStopAfterActionPlan) {
+              if (this.shouldStopAfterAgentAction) {
                 return true;
               }
               return stepCountIs(500)({ steps });
@@ -379,25 +379,25 @@ export class TexeraCopilot {
               // Check if planning mode is on and there's any workflow action tool call
               if (this.planningMode && toolCalls && toolResults) {
                 const workflowActionToolNames = [
-                  actionPlanTools.TOOL_NAME_ADD_TO_WORKFLOW,
-                  actionPlanTools.TOOL_NAME_MODIFY_IN_WORKFLOW,
-                  actionPlanTools.TOOL_NAME_DELETE_FROM_WORKFLOW,
+                  agentActionTools.TOOL_NAME_ADD_TO_WORKFLOW,
+                  agentActionTools.TOOL_NAME_MODIFY_IN_WORKFLOW,
+                  agentActionTools.TOOL_NAME_DELETE_FROM_WORKFLOW,
                 ];
-                const actionPlanCallIndex = toolCalls.findIndex(call =>
+                const agentActionCallIndex = toolCalls.findIndex(call =>
                   workflowActionToolNames.includes(call.toolName)
                 );
 
-                if (actionPlanCallIndex !== -1) {
-                  // Extract action plan ID from the result
-                  const actionPlanResult = toolResults[actionPlanCallIndex];
-                  const actionPlanId = actionPlanResult?.result?.actionPlanId;
+                if (agentActionCallIndex !== -1) {
+                  // Extract agent action ID from the result
+                  const agentActionResult = toolResults[agentActionCallIndex];
+                  const agentActionId = agentActionResult?.result?.agentActionId;
 
                   // Stop generation after this step to wait for user approval
-                  this.shouldStopAfterActionPlan = true;
+                  this.shouldStopAfterAgentAction = true;
 
-                  // Start pending preview in the action plan service
-                  if (actionPlanId) {
-                    this.actionPlanService.startPendingPreview(actionPlanId);
+                  // Start pending preview in the agent action service
+                  if (agentActionId) {
+                    this.agentActionService.startPendingPreview(agentActionId);
                   }
                 }
               }
@@ -559,7 +559,7 @@ export class TexeraCopilot {
     const addPythonUDFV2Tool = toolWithTimeout(
       operatorTools.createAddPythonUDFV2Tool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
@@ -567,7 +567,7 @@ export class TexeraCopilot {
     const addAggregateTool = toolWithTimeout(
       operatorTools.createAddAggregateTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
@@ -575,7 +575,7 @@ export class TexeraCopilot {
     const addProjectionTool = toolWithTimeout(
       operatorTools.createAddProjectionTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
@@ -583,21 +583,26 @@ export class TexeraCopilot {
     const addHashJoinTool = toolWithTimeout(
       operatorTools.createAddHashJoinTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
     );
     const addSortTool = toolWithTimeout(
-      operatorTools.createAddSortTool(this.workflowActionService, this.actionPlanService, this.agentId, this.agentName)
+      operatorTools.createAddSortTool(this.workflowActionService, this.agentActionService, this.agentId, this.agentName)
     );
     const addUnionTool = toolWithTimeout(
-      operatorTools.createAddUnionTool(this.workflowActionService, this.actionPlanService, this.agentId, this.agentName)
+      operatorTools.createAddUnionTool(
+        this.workflowActionService,
+        this.agentActionService,
+        this.agentId,
+        this.agentName
+      )
     );
     const addIntersectTool = toolWithTimeout(
       operatorTools.createAddIntersectTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
@@ -605,7 +610,7 @@ export class TexeraCopilot {
     const addCartesianProductTool = toolWithTimeout(
       operatorTools.createAddCartesianProductTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
@@ -613,18 +618,18 @@ export class TexeraCopilot {
     const addCSVFileScanTool = toolWithTimeout(
       operatorTools.createAddCSVFileScanTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
     );
     const addLinkTool = toolWithTimeout(
-      operatorTools.createAddLinkTool(this.workflowActionService, this.actionPlanService, this.agentId, this.agentName)
+      operatorTools.createAddLinkTool(this.workflowActionService, this.agentActionService, this.agentId, this.agentName)
     );
     const modifyOperatorTool = toolWithTimeout(
       operatorTools.createModifyOperatorTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
@@ -632,7 +637,7 @@ export class TexeraCopilot {
     const deleteFromWorkflowTool = toolWithTimeout(
       operatorTools.createDeleteFromWorkflowTool(
         this.workflowActionService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )
@@ -677,7 +682,7 @@ export class TexeraCopilot {
         this.workflowActionService,
         this.workflowUtilService,
         this.operatorMetadataService,
-        this.actionPlanService,
+        this.agentActionService,
         this.agentId,
         this.agentName
       )

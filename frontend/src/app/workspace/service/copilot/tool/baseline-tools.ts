@@ -22,7 +22,7 @@ import { tool } from "ai";
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../workflow-graph/util/workflow-util.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { ActionPlanService } from "../../action-plan/action-plan.service";
+import { AgentActionService } from "../../agent-action/agent-action.service";
 import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
@@ -46,7 +46,7 @@ export function createPythonUDFTool(
   workflowActionService: WorkflowActionService,
   workflowUtilService: WorkflowUtilService,
   operatorMetadataService: OperatorMetadataService,
-  actionPlanService: ActionPlanService,
+  agentActionService: AgentActionService,
   agentId: string = "",
   agentName: string = ""
 ) {
@@ -80,7 +80,7 @@ export function createPythonUDFTool(
           return createErrorResult("PythonUDFSourceV2 operator type not found in this Texera installation.");
         }
 
-        // Capture workflow state before adding operator for action plan
+        // Capture workflow state before adding operator for agent action
         const beforeContent = workflowActionService.getWorkflowContent();
 
         // Get a new operator predicate with default settings and optional custom display name
@@ -104,11 +104,11 @@ export function createPythonUDFTool(
         // Auto-layout the workflow after adding operator
         workflowActionService.autoLayoutWorkflow();
 
-        // Capture workflow state after adding operator for action plan
+        // Capture workflow state after adding operator for agent action
         const afterContent = workflowActionService.getWorkflowContent();
 
-        // Create action plan to record this addition
-        const actionPlan = actionPlanService.createActionPlan(
+        // Create agent action to record this addition
+        const agentAction = agentActionService.createAgentAction(
           agentId,
           agentName || "Baseline Agent",
           args.customDisplayName || "Add PythonUDFSource for data analysis",
@@ -127,7 +127,7 @@ export function createPythonUDFTool(
         return createSuccessResult(
           {
             operatorId: operator.operatorID,
-            actionPlanId: actionPlan.id,
+            agentActionId: agentAction.id,
             message: `Created PythonUDFSource operator${args.customDisplayName ? ` "${args.customDisplayName}"` : ""}. Use executeToOperator to run it.`,
             code: args.code,
           },

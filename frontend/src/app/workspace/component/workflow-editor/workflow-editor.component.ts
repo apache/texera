@@ -43,7 +43,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
-import { ActionPlanService } from "../../service/action-plan/action-plan.service";
+import { AgentActionService } from "../../service/agent-action/agent-action.service";
 import { ContextHighlightService } from "../../service/context-highlight/context-highlight.service";
 import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 import { isPythonUdf } from "../../service/workflow-graph/model/workflow-graph";
@@ -114,7 +114,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     displayName: string;
     position: { x: number; y: number };
   }[] = [];
-  private actionPlanPreviewActive: boolean = false;
+  private agentActionPreviewActive: boolean = false;
   private beforeWorkflowOperatorCodes: Map<string, string> = new Map();
 
   // Operator types that support property panel display
@@ -144,7 +144,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private actionPlanService: ActionPlanService,
+    private agentActionService: AgentActionService,
     private contextHighlightService: ContextHighlightService,
     private copilotManagerService: TexeraCopilotManagerService
   ) {
@@ -198,7 +198,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
-    // this.handleActionPlanHighlight(); // Temporarily disabled
+    // this.handleAgentActionHighlight(); // Temporarily disabled
     this.handleContextHighlight();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -443,10 +443,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
   }
 
-  private handleActionPlanHighlight(): void {
-    // Define ActionPlan JointJS element with transparent fill and border only
-    const ActionPlan = joint.dia.Element.define(
-      "action-plan",
+  private handleAgentActionHighlight(): void {
+    // Define AgentAction JointJS element with transparent fill and border only
+    const AgentAction = joint.dia.Element.define(
+      "agent-action",
       {
         attrs: {
           body: {
@@ -455,7 +455,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             strokeWidth: 2,
             strokeDasharray: "5,5",
             pointerEvents: "none",
-            class: "action-plan",
+            class: "agent-action",
           },
         },
       },
@@ -468,36 +468,36 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     let currentElement: joint.dia.Element | null = null;
     let currentPositionHandler: ((operator: joint.dia.Cell) => void) | null = null;
 
-    // Subscribe to action plan highlight events
-    this.actionPlanService
-      .getActionPlanHighlightStream()
+    // Subscribe to agent action highlight events
+    this.agentActionService
+      .getAgentActionHighlightStream()
       .pipe(untilDestroyed(this))
-      .subscribe(actionPlan => {
+      .subscribe(agentAction => {
         // Get operator elements from IDs
-        const operators = actionPlan.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
+        const operators = agentAction.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
 
         if (operators.length === 0) {
           return; // No valid operators found
         }
 
-        // Create action plan highlight element
-        currentElement = new ActionPlan();
+        // Create agent action highlight element
+        currentElement = new AgentAction();
         this.paper.model.addCell(currentElement);
 
         // Update the highlight to wrap around operators
-        this.updateActionPlanElement(currentElement, operators);
+        this.updateAgentActionElement(currentElement, operators);
 
         // Listen to operator position changes to update the highlight
         currentPositionHandler = (operator: joint.dia.Cell) => {
           if (operators.includes(operator) && currentElement) {
-            this.updateActionPlanElement(currentElement, operators);
+            this.updateAgentActionElement(currentElement, operators);
           }
         };
         this.paper.model.on("change:position", currentPositionHandler);
       });
 
     // Subscribe to cleanup stream - triggered when user accepts/rejects
-    this.actionPlanService
+    this.agentActionService
       .getCleanupStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
@@ -570,7 +570,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     return { x, y };
   }
 
-  private updateActionPlanElement(element: joint.dia.Element, operators: joint.dia.Cell[]) {
+  private updateAgentActionElement(element: joint.dia.Element, operators: joint.dia.Cell[]) {
     const points = operators.flatMap(op => {
       const { x, y, width, height } = op.getBBox(),
         padding = 20; // Slightly larger padding than regions
@@ -586,7 +586,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Handle context highlighting for relevant operators.
-   * Similar to action plan highlighting but uses a different color (light blue).
+   * Similar to agent action highlighting but uses a different color (light blue).
    * Supports multiple disconnected components by creating separate highlight regions.
    */
   private handleContextHighlight(): void {
@@ -755,7 +755,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Update context highlight element to wrap around operators.
-   * Similar to updateActionPlanElement but for context highlights.
+   * Similar to updateAgentActionElement but for context highlights.
    */
   private updateContextHighlightElement(element: joint.dia.Element, operators: joint.dia.Cell[]) {
     const points = operators.flatMap(op => {
@@ -1894,16 +1894,16 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
 
     // Subscribe to preview state changes for diff mode
-    this.actionPlanService
+    this.agentActionService
       .getPreviewStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(previewState => {
         if (previewState) {
-          // Action plan preview is active - store the original code from beforeWorkflowContent
-          this.actionPlanPreviewActive = true;
+          // Agent action preview is active - store the original code from beforeWorkflowContent
+          this.agentActionPreviewActive = true;
           this.beforeWorkflowOperatorCodes.clear();
 
-          const beforeOperators = previewState.actionPlan.beforeWorkflowContent?.operators || [];
+          const beforeOperators = previewState.agentAction.beforeWorkflowContent?.operators || [];
           beforeOperators.forEach(op => {
             if (isPythonUdf(op)) {
               const properties = op.operatorProperties as { code?: string };
@@ -1913,8 +1913,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             }
           });
         } else {
-          // Action plan preview is not active
-          this.actionPlanPreviewActive = false;
+          // Agent action preview is not active
+          this.agentActionPreviewActive = false;
           this.beforeWorkflowOperatorCodes.clear();
         }
 
@@ -2044,9 +2044,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         const operatorSchema = this.dynamicSchemaService.getDynamicSchema(op.operatorID);
         const displayName = op.customDisplayName ?? operatorSchema?.additionalMetadata.userFriendlyName ?? "Code";
 
-        // Check if this operator has code changes in action plan preview
+        // Check if this operator has code changes in agent action preview
         const originalCode = this.beforeWorkflowOperatorCodes.get(op.operatorID);
-        const isDiffMode = this.actionPlanPreviewActive && originalCode !== undefined && originalCode !== code;
+        const isDiffMode = this.agentActionPreviewActive && originalCode !== undefined && originalCode !== code;
 
         return {
           operatorId: op.operatorID,
