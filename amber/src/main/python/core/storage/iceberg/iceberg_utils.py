@@ -231,7 +231,7 @@ def amber_tuples_to_arrow_table(
     Converts a list of amber tuples to a pyarrow table for serialization.
     Handles BIG_OBJECT field name encoding and serialization.
     """
-    from core.models.schema.big_object import BigObject
+    from core.models.schema.large_binary import largebinary
 
     tuple_list = list(tuple_list)  # Convert to list to allow multiple iterations
     data_dict = {}
@@ -240,7 +240,7 @@ def amber_tuples_to_arrow_table(
         data_dict[encoded_name] = [
             (
                 t[decoded_name].uri
-                if isinstance(t[decoded_name], BigObject)
+                if isinstance(t[decoded_name], largebinary)
                 else t[decoded_name]
             )
             for t in tuple_list

@@ -16,7 +16,7 @@
 # under the License.
 
 """
-BigObject represents a reference to a large object stored externally (e.g., S3).
+largebinary represents a reference to a large object stored externally (e.g., S3).
 This is a schema type class used throughout the system for handling
 BIG_OBJECT attribute types.
 """
@@ -25,56 +25,56 @@ from typing import Optional
 from urllib.parse import urlparse
 
 
-class BigObject:
+class largebinary:
     """
-    BigObject represents a reference to a large object stored in S3.
+    largebinary represents a reference to a large object stored in S3.
 
-    Each BigObject is identified by an S3 URI (s3://bucket/path/to/object).
-    BigObjects are automatically tracked and cleaned up when the workflow
+    Each largebinary is identified by an S3 URI (s3://bucket/path/to/object).
+    largebinary objects are automatically tracked and cleaned up when the workflow
     execution completes.
 
     Usage:
-      from pytexera import BigObject, BigObjectInputStream, BigObjectOutputStream
+      from pytexera import largebinary, LargeBinaryInputStream, LargeBinaryOutputStream
 
-      # Create a new BigObject for writing
-      big_object = BigObject()
-      with BigObjectOutputStream(big_object) as out:
+      # Create a new largebinary for writing
+      big_object = largebinary()
+      with LargeBinaryOutputStream(big_object) as out:
           out.write(b"data")
       # big_object is now ready to be added to tuples
 
-      # Read from an existing BigObject
-      with BigObjectInputStream(big_object) as stream:
+      # Read from an existing largebinary
+      with LargeBinaryInputStream(big_object) as stream:
           content = stream.read()
 
       # Create from existing URI (e.g., from deserialization)
-      big_object = BigObject("s3://bucket/path/to/object")
+      big_object = largebinary("s3://bucket/path/to/object")
     """
 
     def __init__(self, uri: Optional[str] = None):
         """
-        Create a BigObject.
+        Create a largebinary.
 
         Args:
             uri: Optional S3 URI in the format s3://bucket/path/to/object.
-                 If None, creates a new BigObject with a unique S3 URI.
+                 If None, creates a new largebinary with a unique S3 URI.
 
         Raises:
             ValueError: If URI is provided but doesn't start with "s3://"
         """
         if uri is None:
             # Lazy import to avoid circular dependencies
-            from pytexera.storage.big_object_manager import BigObjectManager
+            from pytexera.storage.large_binary_manager import LargeBinaryManager
 
-            uri = BigObjectManager.create()
+            uri = LargeBinaryManager.create()
 
         if not uri.startswith("s3://"):
-            raise ValueError(f"BigObject URI must start with 's3://', got: {uri}")
+            raise ValueError(f"largebinary URI must start with 's3://', got: {uri}")
 
         self._uri = uri
 
     @property
     def uri(self) -> str:
-        """Get the S3 URI of this BigObject."""
+        """Get the S3 URI of this largebinary."""
         return self._uri
 
     def get_bucket_name(self) -> str:
@@ -89,10 +89,10 @@ class BigObject:
         return self._uri
 
     def __repr__(self) -> str:
-        return f"BigObject('{self._uri}')"
+        return f"largebinary('{self._uri}')"
 
     def __eq__(self, other) -> bool:
-        return isinstance(other, BigObject) and self._uri == other._uri
+        return isinstance(other, largebinary) and self._uri == other._uri
 
     def __hash__(self) -> int:
         return hash(self._uri)

@@ -20,7 +20,7 @@ import pyarrow as pa
 from bidict import bidict
 from enum import Enum
 from pyarrow import lib
-from core.models.schema.big_object import BigObject
+from core.models.schema.large_binary import largebinary
 
 
 class AttributeType(Enum):
@@ -87,7 +87,7 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.BOOL: bool,
     AttributeType.BINARY: bytes,
     AttributeType.TIMESTAMP: datetime.datetime,
-    AttributeType.BIG_OBJECT: BigObject,
+    AttributeType.BIG_OBJECT: largebinary,
 }
 
 FROM_PYOBJECT_MAPPING = {
@@ -97,5 +97,5 @@ FROM_PYOBJECT_MAPPING = {
     bool: AttributeType.BOOL,
     bytes: AttributeType.BINARY,
     datetime.datetime: AttributeType.TIMESTAMP,
-    BigObject: AttributeType.BIG_OBJECT,
+    largebinary: AttributeType.BIG_OBJECT,
 }

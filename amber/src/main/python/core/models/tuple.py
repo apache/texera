@@ -29,7 +29,7 @@ from pympler import asizeof
 from typing import Any, List, Iterator, Callable
 from typing_extensions import Protocol, runtime_checkable
 
-from core.models.schema.big_object import BigObject
+from core.models.schema.large_binary import largebinary
 from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
 from .schema.field import Field
 from .schema.schema import Schema
@@ -97,14 +97,14 @@ class ArrowTableTupleProvider:
             ):
                 value = pickle.loads(value[10:])
 
-            # Convert URI string to BigObject for BIG_OBJECT types
+            # Convert URI string to largebinary for BIG_OBJECT types
             # Metadata is set by Scala ArrowUtils or Python iceberg_utils
             elif (
                 value is not None
                 and field_metadata
                 and field_metadata.get(b"texera_type") == b"BIG_OBJECT"
             ):
-                value = BigObject(value)
+                value = largebinary(value)
 
             return value
 
@@ -249,19 +249,19 @@ class Tuple:
     def get_serialized_field(self, field_name: str) -> Field:
         """
         Get a field value serialized for Arrow table conversion.
-        For BIG_OBJECT fields, converts BigObject instances to URI strings.
+        For BIG_OBJECT fields, converts largebinary instances to URI strings.
         For other fields, returns the value as-is.
 
         :param field_name: field name
-        :return: field value (URI string for BIG_OBJECT fields with BigObject values)
+        :return: field value (URI string for BIG_OBJECT fields with largebinary values)
         """
         value = self[field_name]
 
-        # Convert BigObject to URI string for BIG_OBJECT fields when schema is available
+        # Convert largebinary to URI string for BIG_OBJECT fields when schema is available
         if (
             self._schema is not None
             and self._schema.get_attr_type(field_name) == AttributeType.BIG_OBJECT
-            and isinstance(value, BigObject)
+            and isinstance(value, largebinary)
         ):
             return value.uri
 

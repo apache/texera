@@ -223,8 +223,8 @@ class TestTuple:
         assert hash(tuple5) == -2099556631  # calculated with Java
 
     def test_tuple_with_big_object(self):
-        """Test tuple with BigObject field."""
-        from core.models.schema.big_object import BigObject
+        """Test tuple with largebinary field."""
+        from core.models.schema.large_binary import largebinary
 
         schema = Schema(
             raw_schema={
@@ -233,7 +233,7 @@ class TestTuple:
             }
         )
 
-        big_object = BigObject("s3://test-bucket/path/to/object")
+        big_object = largebinary("s3://test-bucket/path/to/object")
         tuple_ = Tuple(
             {
                 "regular_field": "test string",
@@ -244,13 +244,13 @@ class TestTuple:
 
         assert tuple_["regular_field"] == "test string"
         assert tuple_["big_object_field"] == big_object
-        assert isinstance(tuple_["big_object_field"], BigObject)
+        assert isinstance(tuple_["big_object_field"], largebinary)
         assert tuple_["big_object_field"].uri == "s3://test-bucket/path/to/object"
 
     def test_tuple_from_arrow_with_big_object(self):
         """Test creating tuple from Arrow table with BIG_OBJECT metadata."""
         import pyarrow as pa
-        from core.models.schema.big_object import BigObject
+        from core.models.schema.large_binary import largebinary
 
         # Create Arrow schema with BIG_OBJECT metadata
         arrow_schema = pa.schema(
@@ -283,11 +283,11 @@ class TestTuple:
         assert len(tuples) == 1
         tuple_ = tuples[0]
         assert tuple_["regular_field"] == "test"
-        assert isinstance(tuple_["big_object_field"], BigObject)
+        assert isinstance(tuple_["big_object_field"], largebinary)
         assert tuple_["big_object_field"].uri == "s3://test-bucket/path/to/object"
 
     def test_tuple_with_null_big_object(self):
-        """Test tuple with null BigObject field."""
+        """Test tuple with null largebinary field."""
         import pyarrow as pa
 
         # Create Arrow schema with BIG_OBJECT metadata

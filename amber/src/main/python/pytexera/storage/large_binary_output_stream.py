@@ -16,20 +16,20 @@
 # under the License.
 
 """
-BigObjectOutputStream for streaming BigObject data to S3.
+LargeBinaryOutputStream for streaming largebinary data to S3.
 
 Usage:
-    from pytexera import BigObject, BigObjectOutputStream
+    from pytexera import largebinary, LargeBinaryOutputStream
 
-    big_object = BigObject()
-    with BigObjectOutputStream(big_object) as out:
+    big_object = largebinary()
+    with LargeBinaryOutputStream(big_object) as out:
         out.write(b"data")
 """
 
 from typing import Optional, Union
 from io import IOBase
-from core.models.schema.big_object import BigObject
-from pytexera.storage.big_object_manager import BigObjectManager
+from core.models.schema.large_binary import largebinary
+from pytexera.storage.large_binary_manager import LargeBinaryManager
 import threading
 import queue
 
@@ -78,9 +78,9 @@ class _QueueReader:
         return result
 
 
-class BigObjectOutputStream(IOBase):
+class LargeBinaryOutputStream(IOBase):
     """
-    OutputStream for streaming BigObject data to S3.
+    OutputStream for streaming largebinary data to S3.
 
     Data is uploaded in the background using multipart upload as you write.
     Call close() to complete the upload and ensure all data is persisted.
@@ -88,11 +88,11 @@ class BigObjectOutputStream(IOBase):
     This class follows Python's standard I/O interface (io.IOBase).
 
     Usage:
-        from pytexera import BigObject, BigObjectOutputStream
+        from pytexera import largebinary, LargeBinaryOutputStream
 
-        # Create a new BigObject and write to it
-        big_object = BigObject()
-        with BigObjectOutputStream(big_object) as out:
+        # Create a new largebinary and write to it
+        big_object = largebinary()
+        with LargeBinaryOutputStream(big_object) as out:
             out.write(b"Hello, World!")
             out.write(b"More data")
         # big_object is now ready to be added to tuples
@@ -100,19 +100,19 @@ class BigObjectOutputStream(IOBase):
     Note: Not thread-safe. Do not access from multiple threads concurrently.
     """
 
-    def __init__(self, big_object: BigObject):
+    def __init__(self, big_object: largebinary):
         """
-        Initialize a BigObjectOutputStream.
+        Initialize a LargeBinaryOutputStream.
 
         Args:
-            big_object: The BigObject reference to write to
+            big_object: The largebinary reference to write to
 
         Raises:
             ValueError: If big_object is None
         """
         super().__init__()
         if big_object is None:
-            raise ValueError("BigObject cannot be None")
+            raise ValueError("largebinary cannot be None")
 
         self._big_object = big_object
         self._bucket_name = big_object.get_bucket_name()
@@ -155,8 +155,8 @@ class BigObjectOutputStream(IOBase):
 
             def upload_worker():
                 try:
-                    BigObjectManager._ensure_bucket_exists(self._bucket_name)
-                    s3 = BigObjectManager._get_s3_client()
+                    LargeBinaryManager._ensure_bucket_exists(self._bucket_name)
+                    s3 = LargeBinaryManager._get_s3_client()
                     reader = _QueueReader(self._queue)
                     s3.upload_fileobj(reader, self._bucket_name, self._object_key)
                 except Exception as e:
@@ -228,7 +228,7 @@ class BigObjectOutputStream(IOBase):
     def _cleanup_failed_upload(self):
         """Clean up a failed upload by deleting the S3 object."""
         try:
-            s3 = BigObjectManager._get_s3_client()
+            s3 = LargeBinaryManager._get_s3_client()
             s3.delete_object(Bucket=self._bucket_name, Key=self._object_key)
         except Exception:
             # Ignore cleanup errors - we're already handling an upload failure

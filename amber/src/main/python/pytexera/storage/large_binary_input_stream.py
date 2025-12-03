@@ -16,17 +16,17 @@
 # under the License.
 
 """
-BigObjectInputStream for reading BigObject data from S3.
+LargeBinaryInputStream for reading largebinary data from S3.
 
 Usage:
-    with BigObjectInputStream(big_object) as stream:
+    with LargeBinaryInputStream(big_object) as stream:
         content = stream.read()
 """
 
 from typing import BinaryIO, Optional
 from functools import wraps
 from io import IOBase
-from core.models.schema.big_object import BigObject
+from core.models.schema.large_binary import largebinary
 
 
 def _require_open(func):
@@ -43,27 +43,27 @@ def _require_open(func):
     return wrapper
 
 
-class BigObjectInputStream(IOBase):
+class LargeBinaryInputStream(IOBase):
     """
-    InputStream for reading BigObject data from S3.
+    InputStream for reading largebinary data from S3.
 
     Lazily downloads from S3 on first read. Supports context manager and iteration.
     """
 
-    def __init__(self, big_object: BigObject):
-        """Initialize stream for reading the given BigObject."""
+    def __init__(self, big_object: largebinary):
+        """Initialize stream for reading the given largebinary."""
         super().__init__()
         if big_object is None:
-            raise ValueError("BigObject cannot be None")
+            raise ValueError("largebinary cannot be None")
         self._big_object = big_object
         self._underlying: Optional[BinaryIO] = None
         self._closed = False
 
     def _lazy_init(self):
         """Download from S3 on first read operation."""
-        from pytexera.storage.big_object_manager import BigObjectManager
+        from pytexera.storage.large_binary_manager import LargeBinaryManager
 
-        s3 = BigObjectManager._get_s3_client()
+        s3 = LargeBinaryManager._get_s3_client()
         response = s3.get_object(
             Bucket=self._big_object.get_bucket_name(),
             Key=self._big_object.get_object_key(),

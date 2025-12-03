@@ -17,11 +17,11 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
-from pytexera.storage.big_object_manager import BigObjectManager
+from pytexera.storage.large_binary_manager import LargeBinaryManager
 from core.storage.storage_config import StorageConfig
 
 
-class TestBigObjectManager:
+class TestLargeBinaryManager:
     @pytest.fixture(autouse=True)
     def setup_storage_config(self):
         """Initialize StorageConfig for tests."""
@@ -42,25 +42,25 @@ class TestBigObjectManager:
     def test_get_s3_client_initializes_once(self):
         """Test that S3 client is initialized and cached."""
         # Reset the client
-        BigObjectManager._s3_client = None
+        LargeBinaryManager._s3_client = None
 
         with patch("boto3.client") as mock_boto3_client:
             mock_client = MagicMock()
             mock_boto3_client.return_value = mock_client
 
             # First call should create client
-            client1 = BigObjectManager._get_s3_client()
+            client1 = LargeBinaryManager._get_s3_client()
             assert client1 == mock_client
             assert mock_boto3_client.call_count == 1
 
             # Second call should return cached client
-            client2 = BigObjectManager._get_s3_client()
+            client2 = LargeBinaryManager._get_s3_client()
             assert client2 == mock_client
             assert mock_boto3_client.call_count == 1  # Still 1, not 2
 
     def test_get_s3_client_without_boto3_raises_error(self):
         """Test that missing boto3 raises RuntimeError."""
-        BigObjectManager._s3_client = None
+        LargeBinaryManager._s3_client = None
 
         import sys
 
@@ -77,7 +77,7 @@ class TestBigObjectManager:
 
             with patch("builtins.__import__", side_effect=mock_import):
                 with pytest.raises(RuntimeError, match="boto3 required"):
-                    BigObjectManager._get_s3_client()
+                    LargeBinaryManager._get_s3_client()
         finally:
             # Restore boto3 if it was there
             if boto3_backup is not None:
@@ -85,7 +85,7 @@ class TestBigObjectManager:
 
     def test_ensure_bucket_exists_when_bucket_exists(self):
         """Test that existing bucket doesn't trigger creation."""
-        BigObjectManager._s3_client = None
+        LargeBinaryManager._s3_client = None
 
         with patch("boto3.client") as mock_boto3_client:
             mock_client = MagicMock()
@@ -94,13 +94,13 @@ class TestBigObjectManager:
             mock_client.head_bucket.return_value = None
             mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
 
-            BigObjectManager._ensure_bucket_exists("test-bucket")
+            LargeBinaryManager._ensure_bucket_exists("test-bucket")
             mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
             mock_client.create_bucket.assert_not_called()
 
     def test_ensure_bucket_exists_creates_bucket_when_missing(self):
         """Test that missing bucket triggers creation."""
-        BigObjectManager._s3_client = None
+        LargeBinaryManager._s3_client = None
 
         with patch("boto3.client") as mock_boto3_client:
             mock_client = MagicMock()
@@ -110,13 +110,13 @@ class TestBigObjectManager:
             mock_client.exceptions.NoSuchBucket = no_such_bucket
             mock_client.head_bucket.side_effect = no_such_bucket()
 
-            BigObjectManager._ensure_bucket_exists("test-bucket")
+            LargeBinaryManager._ensure_bucket_exists("test-bucket")
             mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
             mock_client.create_bucket.assert_called_once_with(Bucket="test-bucket")
 
     def test_create_generates_unique_uri(self):
         """Test that create() generates a unique S3 URI."""
-        BigObjectManager._s3_client = None
+        LargeBinaryManager._s3_client = None
 
         with patch("boto3.client") as mock_boto3_client:
             mock_client = MagicMock()
@@ -124,21 +124,21 @@ class TestBigObjectManager:
             mock_client.head_bucket.return_value = None
             mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
 
-            uri = BigObjectManager.create()
+            uri = LargeBinaryManager.create()
 
             # Check URI format
             assert uri.startswith("s3://")
-            assert uri.startswith(f"s3://{BigObjectManager.DEFAULT_BUCKET}/")
+            assert uri.startswith(f"s3://{LargeBinaryManager.DEFAULT_BUCKET}/")
             assert "objects/" in uri
 
             # Verify bucket was checked/created
             mock_client.head_bucket.assert_called_once_with(
-                Bucket=BigObjectManager.DEFAULT_BUCKET
+                Bucket=LargeBinaryManager.DEFAULT_BUCKET
             )
 
     def test_create_uses_default_bucket(self):
         """Test that create() uses the default bucket."""
-        BigObjectManager._s3_client = None
+        LargeBinaryManager._s3_client = None
 
         with patch("boto3.client") as mock_boto3_client:
             mock_client = MagicMock()
@@ -146,5 +146,5 @@ class TestBigObjectManager:
             mock_client.head_bucket.return_value = None
             mock_client.exceptions.NoSuchBucket = type("NoSuchBucket", (Exception,), {})
 
-            uri = BigObjectManager.create()
-            assert BigObjectManager.DEFAULT_BUCKET in uri
+            uri = LargeBinaryManager.create()
+            assert LargeBinaryManager.DEFAULT_BUCKET in uri

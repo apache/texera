@@ -16,10 +16,10 @@
 # under the License.
 
 """
-Internal BigObject manager for S3 operations.
+Internal largebinary manager for S3 operations.
 
-Users should not interact with this module directly. Use BigObject() constructor
-and BigObjectInputStream/BigObjectOutputStream instead.
+Users should not interact with this module directly. Use largebinary() constructor
+and LargeBinaryInputStream/LargeBinaryOutputStream instead.
 """
 
 import logging
@@ -30,8 +30,8 @@ from core.storage.storage_config import StorageConfig
 logger = logging.getLogger(__name__)
 
 
-class BigObjectManager:
-    """Internal manager for BigObject S3 operations."""
+class LargeBinaryManager:
+    """Internal manager for largebinary S3 operations."""
 
     _s3_client = None
     DEFAULT_BUCKET = "texera-big-objects"
@@ -74,7 +74,7 @@ class BigObjectManager:
     @classmethod
     def create(cls) -> str:
         """
-        Creates a new BigObject reference with a unique S3 URI.
+        Creates a new largebinary reference with a unique S3 URI.
 
         Returns:
             S3 URI string (format: s3://bucket/key)

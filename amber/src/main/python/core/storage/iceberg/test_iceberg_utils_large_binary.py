@@ -20,7 +20,7 @@ from pyiceberg import types as iceberg_types
 from pyiceberg.schema import Schema as IcebergSchema
 from core.models import Schema, Tuple
 from core.models.schema.attribute_type import AttributeType
-from core.models.schema.big_object import BigObject
+from core.models.schema.large_binary import largebinary
 from core.storage.iceberg.iceberg_utils import (
     encode_big_object_field_name,
     decode_big_object_field_name,
@@ -31,7 +31,7 @@ from core.storage.iceberg.iceberg_utils import (
 )
 
 
-class TestIcebergUtilsBigObject:
+class TestIcebergUtilsLargeBinary:
     def test_encode_big_object_field_name(self):
         """Test encoding BIG_OBJECT field names with suffix."""
         assert (
@@ -103,13 +103,13 @@ class TestIcebergUtilsBigObject:
         assert big_object_field.metadata.get(b"texera_type") == b"BIG_OBJECT"
 
     def test_amber_tuples_to_arrow_table_with_big_object(self):
-        """Test converting Amber tuples with BigObject to Arrow table."""
+        """Test converting Amber tuples with largebinary to Arrow table."""
         amber_schema = Schema()
         amber_schema.add("regular_field", AttributeType.STRING)
         amber_schema.add("big_object_field", AttributeType.BIG_OBJECT)
 
-        big_object1 = BigObject("s3://bucket/path1")
-        big_object2 = BigObject("s3://bucket/path2")
+        big_object1 = largebinary("s3://bucket/path1")
+        big_object2 = largebinary("s3://bucket/path2")
 
         tuples = [
             Tuple(
@@ -125,7 +125,7 @@ class TestIcebergUtilsBigObject:
         iceberg_schema = amber_schema_to_iceberg_schema(amber_schema)
         arrow_table = amber_tuples_to_arrow_table(iceberg_schema, tuples)
 
-        # Check that BigObject values are converted to URI strings
+        # Check that largebinary values are converted to URI strings
         regular_values = arrow_table.column("regular_field").to_pylist()
         big_object_values = arrow_table.column(
             "big_object_field__texera_big_obj_ptr"
@@ -164,20 +164,20 @@ class TestIcebergUtilsBigObject:
 
         assert len(tuples) == 2
         assert tuples[0]["regular_field"] == "value1"
-        assert isinstance(tuples[0]["big_object_field"], BigObject)
+        assert isinstance(tuples[0]["big_object_field"], largebinary)
         assert tuples[0]["big_object_field"].uri == "s3://bucket/path1"
 
         assert tuples[1]["regular_field"] == "value2"
-        assert isinstance(tuples[1]["big_object_field"], BigObject)
+        assert isinstance(tuples[1]["big_object_field"], largebinary)
         assert tuples[1]["big_object_field"].uri == "s3://bucket/path2"
 
     def test_round_trip_big_object_tuples(self):
-        """Test round-trip conversion of tuples with BigObject."""
+        """Test round-trip conversion of tuples with largebinary."""
         amber_schema = Schema()
         amber_schema.add("regular_field", AttributeType.STRING)
         amber_schema.add("big_object_field", AttributeType.BIG_OBJECT)
 
-        big_object = BigObject("s3://bucket/path/to/object")
+        big_object = largebinary("s3://bucket/path/to/object")
         original_tuples = [
             Tuple(
                 {"regular_field": "value1", "big_object_field": big_object},
@@ -196,11 +196,11 @@ class TestIcebergUtilsBigObject:
 
         assert len(retrieved_tuples) == 1
         assert retrieved_tuples[0]["regular_field"] == "value1"
-        assert isinstance(retrieved_tuples[0]["big_object_field"], BigObject)
+        assert isinstance(retrieved_tuples[0]["big_object_field"], largebinary)
         assert retrieved_tuples[0]["big_object_field"].uri == big_object.uri
 
     def test_arrow_table_to_amber_tuples_with_null_big_object(self):
-        """Test converting Arrow table with null BigObject values."""
+        """Test converting Arrow table with null largebinary values."""
         iceberg_schema = IcebergSchema(
             iceberg_types.NestedField(
                 1, "regular_field", iceberg_types.StringType(), required=False
