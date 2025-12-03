@@ -259,21 +259,10 @@ class OutputManager:
         )
 
     def tuple_to_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
-        from core.models.schema.big_object import BigObject
-
         return DataFrame(
             frame=Table.from_pydict(
                 {
-                    name: [
-                        (
-                            # Convert BigObject objects to URI strings
-                            # for Arrow serialization
-                            t[name].uri
-                            if isinstance(t[name], BigObject)
-                            else t[name]
-                        )
-                        for t in tuples
-                    ]
+                    name: [t.get_serialized_field(name) for t in tuples]
                     for name in self.get_port().get_schema().get_attr_names()
                 },
                 schema=self.get_port().get_schema().as_arrow_schema(),

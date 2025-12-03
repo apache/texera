@@ -246,6 +246,27 @@ class Tuple:
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Field]]:
         return [(k, v) for k, v in self.as_dict().items()]
 
+    def get_serialized_field(self, field_name: str) -> Field:
+        """
+        Get a field value serialized for Arrow table conversion.
+        For BIG_OBJECT fields, converts BigObject instances to URI strings.
+        For other fields, returns the value as-is.
+
+        :param field_name: field name
+        :return: field value (URI string for BIG_OBJECT fields with BigObject values)
+        """
+        value = self[field_name]
+
+        # Convert BigObject to URI string for BIG_OBJECT fields when schema is available
+        if (
+            self._schema is not None
+            and self._schema.get_attr_type(field_name) == AttributeType.BIG_OBJECT
+            and isinstance(value, BigObject)
+        ):
+            return value.uri
+
+        return value
+
     def get_field_names(self) -> typing.Tuple[str]:
         return tuple(map(str, self._field_data.keys()))
 
