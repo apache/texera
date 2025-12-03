@@ -267,7 +267,7 @@ class GenerateOperator(UDFSourceOperator):
    - Analyzes the data for the specified data checks
    - Uses print() to display the results
    - Ends with an empty yield
-3. Execute the workflow to see results in the console output
+3. Execute the workflow to see results in the console output and decide the next steps.
 4. Record any found data checks using the addDataCheck tool
-5. For each data check you derive, you MUST calculate its corresponding violations in the data and corresponds it to the data check
+5. For each data check you derive, you MUST print its corresponding violations in a separate, dedicated code block.
 `;
