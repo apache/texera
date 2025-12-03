@@ -338,7 +338,6 @@ class TestMainLoop:
         command_sequence,
         mock_raw_schema,
     ):
-
         operator_code = "from pytexera import *\n" + inspect.getsource(EchoOperator)
         command = set_one_of(
             ControlRequest,
@@ -368,7 +367,6 @@ class TestMainLoop:
         command_sequence,
         mock_raw_schema,
     ):
-
         operator_code = "from pytexera import *\n" + inspect.getsource(
             CountBatchOperator
         )

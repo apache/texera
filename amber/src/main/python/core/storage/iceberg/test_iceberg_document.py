@@ -47,7 +47,6 @@ StorageConfig.initialize(
 
 
 class TestIcebergDocument:
-
     @pytest.fixture
     def amber_schema(self):
         """Sample Amber schema"""
@@ -204,8 +203,7 @@ class TestIcebergDocument:
         # Create writer's batches
         item_batches = [
             all_items[
-                i * batch_size
-                + min(i, remainder) : i * batch_size
+                i * batch_size + min(i, remainder) : i * batch_size
                 + min(i, remainder)
                 + batch_size
                 + (1 if i < remainder else 0)
@@ -213,9 +211,9 @@ class TestIcebergDocument:
             for i in range(num_writers)
         ]
 
-        assert (
-            len(item_batches) == num_writers
-        ), f"Expected {num_writers} batches but got {len(item_batches)}"
+        assert len(item_batches) == num_writers, (
+            f"Expected {num_writers} batches but got {len(item_batches)}"
+        )
 
         # Perform concurrent writes
         def write_batch(batch):
@@ -233,9 +231,9 @@ class TestIcebergDocument:
         # Read all items back
         retrieved_items = list(iceberg_document.get())
         # Verify that the retrieved items match the original items
-        assert set(retrieved_items) == set(
-            all_items
-        ), "All items should be read correctly after concurrent writes."
+        assert set(retrieved_items) == set(all_items), (
+            "All items should be read correctly after concurrent writes."
+        )
 
     def test_read_using_range(self, iceberg_document, sample_items):
         """
@@ -259,14 +257,14 @@ class TestIcebergDocument:
             item for r in ranges for item in iceberg_document.get_range(r.start, r.stop)
         ]
 
-        assert len(retrieved_items) == len(
-            sample_items
-        ), "The number of retrieved items does not match the number of all items."
+        assert len(retrieved_items) == len(sample_items), (
+            "The number of retrieved items does not match the number of all items."
+        )
 
         # Verify that the retrieved items match the original items
-        assert set(retrieved_items) == set(
-            sample_items
-        ), "All items should be retrieved correctly using ranges."
+        assert set(retrieved_items) == set(sample_items), (
+            "All items should be retrieved correctly using ranges."
+        )
 
     def test_get_after(self, iceberg_document, sample_items):
         """
@@ -309,6 +307,6 @@ class TestIcebergDocument:
             writer.put_one(item)
         writer.close()
 
-        assert iceberg_document.get_count() == len(
-            sample_items
-        ), "get_count should return the same number as the length of sample_items"
+        assert iceberg_document.get_count() == len(sample_items), (
+            "get_count should return the same number as the length of sample_items"
+        )
