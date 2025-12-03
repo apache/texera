@@ -39,6 +39,9 @@ import {
   UserModelMessage,
   LanguageModelUsage,
 } from "ai";
+
+// Re-export ModelMessage for use in other modules
+export type { ModelMessage };
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
@@ -709,6 +712,14 @@ export class TexeraCopilot {
 
   public getReActSteps(): ReActStep[] {
     return [...this.reActSteps];
+  }
+
+  /**
+   * Get all model messages for export purposes.
+   * Returns a copy of the messages array.
+   */
+  public getMessages(): ModelMessage[] {
+    return [...this.messages];
   }
 
   /**

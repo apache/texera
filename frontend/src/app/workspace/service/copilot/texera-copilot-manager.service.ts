@@ -19,7 +19,7 @@
 
 import { Injectable, Injector } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { TexeraCopilot, ReActStep, CopilotState } from "./texera-copilot";
+import { TexeraCopilot, ReActStep, CopilotState, ModelMessage } from "./texera-copilot";
 import { Observable, Subject, catchError, map, of, shareReplay, tap, defer, throwError, filter, first } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
@@ -481,6 +481,18 @@ export class TexeraCopilotManagerService {
       throw new Error(`Agent with ID ${agentId} not found`);
     }
     return agent.instance.messageStats$;
+  }
+
+  /**
+   * Get all model messages for a specific agent.
+   * Used for exporting conversation history.
+   */
+  public getMessages(agentId: string): ModelMessage[] {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    return agent.instance.getMessages();
   }
 
   public getAgentActionApprovalObservable(

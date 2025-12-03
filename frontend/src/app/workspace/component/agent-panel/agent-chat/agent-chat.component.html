@@ -81,6 +81,22 @@
         </button>
       </div>
 
+      <!-- Export button -->
+      <div class="toolbar-item">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="exportMessages()"
+          nz-tooltip
+          nzTooltipTitle="Export chat history as JSON">
+          <i
+            nz-icon
+            nzType="export"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+
       <!-- Clear button (when available) -->
       <div class="toolbar-item">
         <button

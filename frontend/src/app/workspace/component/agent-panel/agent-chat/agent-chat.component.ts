@@ -399,6 +399,34 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     this.copilotManagerService.clearMessages(this.agentInfo.id);
   }
 
+  /**
+   * Export the model messages as a JSON file.
+   */
+  public exportMessages(): void {
+    try {
+      const messages = this.copilotManagerService.getMessages(this.agentInfo.id);
+      const jsonString = JSON.stringify(messages, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      // Create a temporary link and trigger download
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${this.agentInfo.name}-messages-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL object
+      URL.revokeObjectURL(url);
+
+      this.notificationService.success("Messages exported successfully");
+    } catch (error) {
+      console.error("Failed to export messages:", error);
+      this.notificationService.error("Failed to export messages");
+    }
+  }
+
   public isGenerating(): boolean {
     return this.agentState === CopilotState.GENERATING;
   }
