@@ -30,7 +30,7 @@ class TestLargeBinary:
         assert repr(big_object) == f"largebinary('{uri}')"
 
     def test_create_without_uri(self):
-        """Test creating largebinary without URI (should call LargeBinaryManager.create)."""
+        """Test creating largebinary without URI (calls LargeBinaryManager.create)."""
         with patch(
             "pytexera.storage.large_binary_manager.LargeBinaryManager"
         ) as mock_manager:

@@ -257,7 +257,7 @@ class Tuple:
         """
         value = self[field_name]
 
-        # Convert largebinary to URI string for BIG_OBJECT fields when schema is available
+        # Convert largebinary to URI string for BIG_OBJECT fields when schema available
         if (
             self._schema is not None
             and self._schema.get_attr_type(field_name) == AttributeType.BIG_OBJECT
