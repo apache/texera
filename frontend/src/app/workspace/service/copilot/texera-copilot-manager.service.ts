@@ -29,7 +29,6 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
-import { DataCheckService } from "../data-check/data-check.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";

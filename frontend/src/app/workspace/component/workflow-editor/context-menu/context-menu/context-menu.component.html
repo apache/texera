@@ -166,19 +166,6 @@
   </li>
 
   <li
-    nz-menu-item
-    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 &&
-  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
-  !hasHighlightedLinks()"
-    (click)="onAddToDataCheck()">
-    <span
-      nz-icon
-      nzType="warning"
-      nzTheme="outline"></span>
-    Add Data Check
-  </li>
-
-  <li
     *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators &&
            this.config.env.exportExecutionResultEnabled &&
            !hasHighlightedLinks()"

@@ -26,17 +26,14 @@
 import * as workflowMetadataTools from "./workflow-metadata-tools";
 import * as baselineTools from "./baseline-tools";
 import * as currentWorkflowEditingObservingTools from "./current-workflow-editing-observing-tools";
-import * as currentWorkflowValidationTools from "./current-workflow-validation-tools";
 import * as currentWorkflowExecutionTools from "./current-workflow-execution-tools";
 import * as actionPlanTools from "./action-plan-tools";
 import * as operatorTools from "./operator-tools";
-import * as dataCheckTools from "./data-check-tools";
 
 export enum ToolGroup {
   OBSERVE = "Observe",
   EXECUTE = "Execute",
   MODIFY = "Modify",
-  RECORD = "Record",
 }
 
 export interface ToolGroupConfig {
@@ -66,12 +63,6 @@ export const TOOL_GROUP_CONFIGS: Record<ToolGroup, ToolGroupConfig> = {
     icon: "edit",
     description: "Tools that modify workflow structure",
   },
-  [ToolGroup.RECORD]: {
-    group: ToolGroup.RECORD,
-    color: "#722ed1", // Purple - for data check recording operations
-    icon: "file-text",
-    description: "Tools that record and manage data checks",
-  },
 };
 
 // Mapping of tool names to their groups
@@ -92,10 +83,6 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_OPERATOR]: ToolGroup.OBSERVE,
   [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE]: ToolGroup.OBSERVE,
   [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW]: ToolGroup.OBSERVE,
-
-  // Observe group - validation tools
-  [currentWorkflowValidationTools.TOOL_NAME_GET_CURRENT_WORKFLOW_VALIDATION_INFO]: ToolGroup.OBSERVE,
-  [currentWorkflowValidationTools.TOOL_NAME_VALIDATE_CURRENT_OPERATOR]: ToolGroup.OBSERVE,
 
   // Execute group - workflow execution tools
   [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: ToolGroup.EXECUTE,
@@ -135,13 +122,6 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   [currentWorkflowEditingObservingTools.TOOL_NAME_DELETE_LINK_IN_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
   [currentWorkflowEditingObservingTools.TOOL_NAME_SET_OPERATOR_PROPERTY_IN_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
   [currentWorkflowEditingObservingTools.TOOL_NAME_SET_PORT_PROPERTY_IN_CURRENT_WORKFLOW]: ToolGroup.MODIFY,
-
-  // Record group - data check tools
-  [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: ToolGroup.RECORD,
-  [dataCheckTools.TOOL_NAME_LIST_DATA_CHECKS]: ToolGroup.RECORD,
-  [dataCheckTools.TOOL_NAME_UPDATE_DATA_CHECK]: ToolGroup.RECORD,
-  [dataCheckTools.TOOL_NAME_DELETE_DATA_CHECK]: ToolGroup.RECORD,
-  [dataCheckTools.TOOL_NAME_CLEAR_DATA_CHECKS]: ToolGroup.RECORD,
 };
 
 /**

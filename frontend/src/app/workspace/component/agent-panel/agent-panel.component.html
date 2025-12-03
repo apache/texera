@@ -108,15 +108,6 @@
         </ng-template>
       </nz-tab>
 
-      <!-- Data Checks Tab -->
-      <nz-tab
-        nzTitle="Data Checks"
-        [nzForceRender]="true">
-        <ng-template nz-tab>
-          <texera-data-check-list></texera-data-check-list>
-        </ng-template>
-      </nz-tab>
-
       <!-- Agent Tabs -->
       <nz-tab
         *ngFor="let agent of agents; let i = index"

@@ -46,7 +46,6 @@ import concaveman from "concaveman";
 import { ActionPlanService } from "../../service/action-plan/action-plan.service";
 import { ContextHighlightService } from "../../service/context-highlight/context-highlight.service";
 import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
-import { DataCheckService } from "../../service/data-check/data-check.service";
 import { isPythonUdf } from "../../service/workflow-graph/model/workflow-graph";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -147,8 +146,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private config: GuiConfigService,
     private actionPlanService: ActionPlanService,
     private contextHighlightService: ContextHighlightService,
-    private copilotManagerService: TexeraCopilotManagerService,
-    private dataCheckService: DataCheckService
+    private copilotManagerService: TexeraCopilotManagerService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -201,7 +199,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
     // this.handleActionPlanHighlight(); // Temporarily disabled
-    this.handleDataCheckHighlight();
     this.handleContextHighlight();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -585,94 +582,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       ];
     });
     element.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
-  }
-
-  /**
-   * Handle data check highlighting - shows upstream path for selected data check
-   * Uses the same visual style as action plan highlighting (transparent fill with dashed border)
-   */
-  private handleDataCheckHighlight(): void {
-    // Define DataCheck JointJS element with same style as action plan
-    const DataCheckHighlightElement = joint.dia.Element.define(
-      "data-check-highlight",
-      {
-        attrs: {
-          body: {
-            fill: "transparent",
-            stroke: "rgba(79,195,255,0.6)",
-            strokeWidth: 2,
-            strokeDasharray: "5,5",
-            pointerEvents: "none",
-            class: "data-check-highlight",
-          },
-        },
-      },
-      {
-        markup: [{ tagName: "path", selector: "body" }],
-      }
-    );
-
-    // Track current highlight elements (using array for consistent cleanup pattern)
-    const currentElements: joint.dia.Element[] = [];
-    let currentPositionHandler: ((operator: joint.dia.Cell) => void) | null = null;
-
-    // Subscribe to data check highlight events
-    this.dataCheckService
-      .getHighlightStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(highlight => {
-        // Clear any existing highlights first to prevent orphaned elements
-        this.clearDataCheckHighlightElements(currentElements, currentPositionHandler);
-
-        // Get operator elements from IDs
-        const operators = highlight.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
-
-        if (operators.length === 0) {
-          return; // No valid operators found
-        }
-
-        // Create data check highlight element
-        const highlightElement = new DataCheckHighlightElement();
-        this.paper.model.addCell(highlightElement);
-        currentElements.push(highlightElement);
-
-        // Update the highlight to wrap around operators
-        this.updateActionPlanElement(highlightElement, operators);
-
-        // Listen to operator position changes to update the highlight
-        currentPositionHandler = (operator: joint.dia.Cell) => {
-          if (operators.includes(operator) && currentElements.length > 0) {
-            this.updateActionPlanElement(currentElements[0], operators);
-          }
-        };
-        this.paper.model.on("change:position", currentPositionHandler);
-      });
-
-    // Subscribe to cleanup stream - triggered when user clicks same item or selects different one
-    this.dataCheckService
-      .getCleanupStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.clearDataCheckHighlightElements(currentElements, currentPositionHandler);
-        currentPositionHandler = null;
-      });
-  }
-
-  /**
-   * Clear all data check highlight elements and remove position handler.
-   */
-  private clearDataCheckHighlightElements(
-    elements: joint.dia.Element[],
-    positionHandler: ((cell: joint.dia.Cell) => void) | null
-  ): void {
-    // Remove all highlight elements
-    elements.forEach(element => element.remove());
-    elements.length = 0; // Clear the array
-
-    // Remove position handler
-    if (positionHandler) {
-      this.paper.model.off("change:position", positionHandler);
-    }
   }
 
   /**

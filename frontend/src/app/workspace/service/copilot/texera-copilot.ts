@@ -24,10 +24,8 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { toolWithTimeout } from "./tool/tools-utility";
 import * as workflowMetadataTools from "./tool/workflow-metadata-tools";
 import * as currentWorkflowEditingObservingTools from "./tool/current-workflow-editing-observing-tools";
-import * as currentWorkflowValidationTools from "./tool/current-workflow-validation-tools";
 import * as currentWorkflowExecutionTools from "./tool/current-workflow-execution-tools";
 import * as actionPlanTools from "./tool/action-plan-tools";
-import * as dataCheckTools from "./tool/data-check-tools";
 import * as baselineTools from "./tool/baseline-tools";
 import * as operatorTools from "./tool/operator-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -50,7 +48,6 @@ import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { getCopilotSystemPrompt, PLANNING_MODE_PROMPT, BASELINE_SYSTEM_PROMPT } from "./copilot-prompts";
 import { getAllowedOperatorSchemasAsJson } from "./tool/workflow-metadata-tools";
-import { DataCheckService } from "../data-check/data-check.service";
 import { ActionPlanService } from "../action-plan/action-plan.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
@@ -165,7 +162,6 @@ export class TexeraCopilot {
     private workflowResultService: WorkflowResultService,
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
-    private dataCheckService: DataCheckService,
     private actionPlanService: ActionPlanService,
     private notificationService: NotificationService,
     private computingUnitStatusService: ComputingUnitStatusService,
@@ -341,7 +337,7 @@ export class TexeraCopilot {
                 // Replace escaped newlines and quotes that are incorrectly double-escaped
                 let repaired = rawInput
                   .replace(/\\\\n/g, "\\n") // \\n -> \n
-                  .replace(/\\\\"/g, "\\\"") // \\" -> \"
+                  .replace(/\\\\"/g, '\\"') // \\" -> \"
                   .replace(/\\\\t/g, "\\t"); // \\t -> \t
 
                 const parsed = JSON.parse(repaired);
@@ -559,10 +555,6 @@ export class TexeraCopilot {
     const getCurrentComputingUnitStatusTool = toolWithTimeout(
       currentWorkflowExecutionTools.createGetCurrentComputingUnitStatusTool(this.computingUnitStatusService)
     );
-
-    // Data check tools
-    const addDataCheckTool = toolWithTimeout(dataCheckTools.createAddDataCheckTool(this.dataCheckService));
-    const listDataChecksTool = toolWithTimeout(dataCheckTools.createListDataChecksTool(this.dataCheckService));
     // Operator-specific tools
     const addPythonUDFV2Tool = toolWithTimeout(
       operatorTools.createAddPythonUDFV2Tool(
@@ -656,9 +648,6 @@ export class TexeraCopilot {
       [currentWorkflowExecutionTools.TOOL_NAME_GET_EXISTING_WORKFLOW_EXECUTION_RESULT]:
         getExistingWorkflowExecutionResultTool,
       [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: getCurrentComputingUnitStatusTool,
-      // Data check tools
-      [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: addDataCheckTool,
-      [dataCheckTools.TOOL_NAME_LIST_DATA_CHECKS]: listDataChecksTool,
       // Operator-specific tools
       [operatorTools.TOOL_NAME_ADD_PYTHON_UDF_V2]: addPythonUDFV2Tool,
       [operatorTools.TOOL_NAME_ADD_AGGREGATE]: addAggregateTool,
@@ -679,7 +668,7 @@ export class TexeraCopilot {
 
   /**
    * Create tools for baseline mode.
-   * Baseline mode only has: createPythonUDF, executeToOperator, and data check tools.
+   * Baseline mode only has: createPythonUDF and executeToOperator.
    */
   private createBaselineTools(): Record<string, any> {
     // Python UDF creation tool - only creates the operator (no execution)
@@ -706,17 +695,10 @@ export class TexeraCopilot {
       )
     );
 
-    // Data check tools
-    const addDataCheckTool = toolWithTimeout(dataCheckTools.createAddDataCheckTool(this.dataCheckService));
-    const listDataChecksTool = toolWithTimeout(dataCheckTools.createListDataChecksTool(this.dataCheckService));
-
     return {
       // Baseline mode primary tools
       [baselineTools.TOOL_NAME_CREATE_PYTHON_UDF]: createPythonUDFTool,
       [baselineTools.TOOL_NAME_EXECUTE_TO_OPERATOR]: executeToOperatorTool,
-      // Data check tools
-      [dataCheckTools.TOOL_NAME_ADD_DATA_CHECK]: addDataCheckTool,
-      [dataCheckTools.TOOL_NAME_LIST_DATA_CHECKS]: listDataChecksTool,
     };
   }
 
