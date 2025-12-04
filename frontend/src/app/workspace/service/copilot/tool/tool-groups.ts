@@ -85,7 +85,7 @@ export const TOOL_NAME_TO_GROUP: Record<string, ToolGroup> = {
   [currentWorkflowEditingObservingTools.TOOL_NAME_LIST_OPERATORS_IN_CURRENT_WORKFLOW]: ToolGroup.OBSERVE,
 
   // Execute group - workflow execution tools
-  [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: ToolGroup.EXECUTE,
+  [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW_AND_RETRIEVE_RESULTS]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_GET_EXISTING_WORKFLOW_EXECUTION_RESULT]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_EXECUTION_STATE]: ToolGroup.EXECUTE,
   [currentWorkflowExecutionTools.TOOL_NAME_KILL_CURRENT_WORKFLOW]: ToolGroup.EXECUTE,

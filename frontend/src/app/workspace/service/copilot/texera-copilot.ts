@@ -542,6 +542,7 @@ export class TexeraCopilot {
       currentWorkflowExecutionTools.createExecuteCurrentWorkflowTool(
         this.executeWorkflowService,
         this.validationWorkflowService,
+        this.workflowCompilingService,
         this.workflowActionService,
         this.workflowConsoleService,
         this.workflowStatusService,
@@ -652,7 +653,8 @@ export class TexeraCopilot {
       [currentWorkflowEditingObservingTools.TOOL_NAME_GET_CURRENT_WORKFLOW]: getCurrentWorkflowTool,
 
       // Workflow execution tools
-      [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW]: executeCurrentWorkflowTool,
+      [currentWorkflowExecutionTools.TOOL_NAME_EXECUTE_CURRENT_WORKFLOW_AND_RETRIEVE_RESULTS]:
+        executeCurrentWorkflowTool,
       [currentWorkflowExecutionTools.TOOL_NAME_GET_EXISTING_WORKFLOW_EXECUTION_RESULT]:
         getExistingWorkflowExecutionResultTool,
       [currentWorkflowExecutionTools.TOOL_NAME_GET_CURRENT_COMPUTING_UNIT_STATUS]: getCurrentComputingUnitStatusTool,
@@ -696,6 +698,7 @@ export class TexeraCopilot {
       baselineTools.createExecuteToOperatorTool(
         this.executeWorkflowService,
         this.validationWorkflowService,
+        this.workflowCompilingService,
         this.workflowActionService,
         this.workflowConsoleService,
         this.workflowStatusService,

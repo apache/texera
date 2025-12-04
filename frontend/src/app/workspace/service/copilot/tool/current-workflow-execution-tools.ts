@@ -25,7 +25,9 @@ import { WorkflowActionService } from "../../workflow-graph/model/workflow-actio
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
 import { WorkflowStatusService } from "../../workflow-status/workflow-status.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
+import { WorkflowCompilingService } from "../../compile-workflow/workflow-compiling.service";
 import { ExecutionState, ExecutionStateInfo, OperatorStatistics } from "../../../types/execute-workflow.interface";
+import { CompilationState } from "../../../types/workflow-compiling.interface";
 import { ConsoleMessage, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { IndexableObject } from "../../../types/result-table.interface";
 import { PaginatedResultEvent } from "../../../types/workflow-websocket.interface";
@@ -36,10 +38,10 @@ import {
   createErrorResult,
 } from "./tools-utility";
 import { Observable, of, throwError, defer, timer, interval, EMPTY, firstValueFrom, forkJoin } from "rxjs";
-import { filter, timeout, map, switchMap, catchError, take, tap } from "rxjs/operators";
+import { filter, timeout, map, switchMap, catchError, take, tap, defaultIfEmpty } from "rxjs/operators";
 
 // Tool name constants
-export const TOOL_NAME_EXECUTE_CURRENT_WORKFLOW = "executeCurrentWorkflow";
+export const TOOL_NAME_EXECUTE_CURRENT_WORKFLOW_AND_RETRIEVE_RESULTS = "executeCurrentWorkflowAndRetrieveResults";
 export const TOOL_NAME_GET_CURRENT_EXECUTION_STATE = "getCurrentExecutionState";
 export const TOOL_NAME_KILL_CURRENT_WORKFLOW = "killCurrentWorkflow";
 export const TOOL_NAME_HAS_CURRENT_OPERATOR_RESULT = "hasCurrentOperatorResult";
@@ -78,7 +80,6 @@ interface FormattedOperatorState {
   outputRows: string;
   inputPortMetrics: Record<string, string>;
   outputPortMetrics: Record<string, string>;
-  numWorkers?: string;
 }
 
 /**
@@ -99,7 +100,6 @@ function formatOperatorStates(
       outputPortMetrics: Object.fromEntries(
         Object.entries(stats.outputPortMetrics).map(([port, count]) => [port, `${count} rows`])
       ),
-      ...(stats.numWorkers !== undefined && { numWorkers: `${stats.numWorkers} workers` }),
     };
   }
   return formatted;
@@ -166,6 +166,7 @@ export interface ExecuteWorkflowResult {
 export interface WorkflowExecutionServices {
   executeWorkflowService: ExecuteWorkflowService;
   validationWorkflowService: ValidationWorkflowService;
+  workflowCompilingService: WorkflowCompilingService;
   workflowActionService: WorkflowActionService;
   workflowConsoleService: WorkflowConsoleService;
   workflowStatusService: WorkflowStatusService;
@@ -191,6 +192,7 @@ export function executeWorkflowAndGetResults$(
   const {
     executeWorkflowService,
     validationWorkflowService,
+    workflowCompilingService,
     workflowActionService,
     workflowConsoleService,
     workflowStatusService,
@@ -245,6 +247,20 @@ export function executeWorkflowAndGetResults$(
       const allOperators = workflowActionService.getTexeraGraph().getAllOperators();
       if (allOperators.length === 0) {
         return throwError(() => new Error("Cannot execute: workflow is empty."));
+      }
+
+      // Check compilation state
+      const compilationState = workflowCompilingService.getWorkflowCompilationState();
+      if (compilationState === CompilationState.Failed) {
+        const compilationErrors = workflowCompilingService.getWorkflowCompilationErrors();
+        const errorCount = Object.keys(compilationErrors).length;
+        return throwError(
+          () =>
+            new Error(
+              `Cannot execute: workflow compilation failed with ${errorCount} error(s). ` +
+                `Errors: ${JSON.stringify(compilationErrors, null, 2)}`
+            )
+        );
       }
 
       return of(allOperators);
@@ -422,6 +438,7 @@ export function executeWorkflowAndGetResults$(
 export function createExecuteCurrentWorkflowTool(
   executeWorkflowService: ExecuteWorkflowService,
   validationWorkflowService: ValidationWorkflowService,
+  workflowCompilingService: WorkflowCompilingService,
   workflowActionService: WorkflowActionService,
   workflowConsoleService: WorkflowConsoleService,
   workflowStatusService: WorkflowStatusService,
@@ -430,6 +447,7 @@ export function createExecuteCurrentWorkflowTool(
   const services: WorkflowExecutionServices = {
     executeWorkflowService,
     validationWorkflowService,
+    workflowCompilingService,
     workflowActionService,
     workflowConsoleService,
     workflowStatusService,
@@ -437,7 +455,7 @@ export function createExecuteCurrentWorkflowTool(
   };
 
   return tool({
-    name: TOOL_NAME_EXECUTE_CURRENT_WORKFLOW,
+    name: TOOL_NAME_EXECUTE_CURRENT_WORKFLOW_AND_RETRIEVE_RESULTS,
     description:
       "Execute the current workflow with full validation and monitoring. This tool will: 1) Kill any existing execution, 2) Validate the workflow, 3) Execute it if valid, 4) Monitor execution until completion, 5) Return comprehensive results including operator outputs, stats, console logs, and any errors. This is the primary tool for workflow execution.",
     inputSchema: z.object({
@@ -572,12 +590,19 @@ function waitForResults$(
   operatorIds: readonly string[],
   workflowResultService: WorkflowResultService
 ): Observable<string[]> {
+  // If no operators to check, return empty immediately
+  if (operatorIds.length === 0) {
+    return of([]);
+  }
+
   return interval(RESULT_WAIT_DELAY_MS).pipe(
     take(RESULT_WAIT_MAX_RETRIES),
     map(() => operatorIds.filter(id => workflowResultService.hasAnyResult(id))),
-    filter(available => available.length > 0 || operatorIds.length === 0),
+    filter(available => available.length > 0),
     take(1),
-    // If no results found after retries, return empty array
+    // If no results found after all retries (stream completes without emitting), return empty array
+    defaultIfEmpty([] as string[]),
+    // If any error occurs, also return empty array
     catchError(() => of([] as string[]))
   );
 }

@@ -25,6 +25,7 @@ import { OperatorMetadataService } from "../../operator-metadata/operator-metada
 import { AgentActionService } from "../../agent-action/agent-action.service";
 import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
+import { WorkflowCompilingService } from "../../compile-workflow/workflow-compiling.service";
 import { WorkflowConsoleService } from "../../workflow-console/workflow-console.service";
 import { WorkflowStatusService } from "../../workflow-status/workflow-status.service";
 import { WorkflowResultService } from "../../workflow-result/workflow-result.service";
@@ -150,6 +151,7 @@ export function createPythonUDFTool(
 export function createExecuteToOperatorTool(
   executeWorkflowService: ExecuteWorkflowService,
   validationWorkflowService: ValidationWorkflowService,
+  workflowCompilingService: WorkflowCompilingService,
   workflowActionService: WorkflowActionService,
   workflowConsoleService: WorkflowConsoleService,
   workflowStatusService: WorkflowStatusService,
@@ -158,6 +160,7 @@ export function createExecuteToOperatorTool(
   const executionServices: WorkflowExecutionServices = {
     executeWorkflowService,
     validationWorkflowService,
+    workflowCompilingService,
     workflowActionService,
     workflowConsoleService,
     workflowStatusService,
