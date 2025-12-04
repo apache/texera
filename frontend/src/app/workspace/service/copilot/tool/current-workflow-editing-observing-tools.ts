@@ -42,13 +42,13 @@ export const TOOL_NAME_GET_CURRENT_WORKFLOW = "getCurrentWorkflow";
 export const TOOL_NAME_GET_CURRENT_WORKFLOW_COMPILATION_STATE = "getCurrentWorkflowCompilationState";
 
 /**
- * Operator detail information including properties (not port properties)
+ * Operator detail information including operatorProperties (not port properties)
  */
 interface OperatorDetail {
   operatorId: string;
   operatorType: string;
   customDisplayName?: string;
-  properties: Record<string, any>;
+  operatorProperties: Record<string, any>;
   inputSchema: Record<string, any>;
   outputSchema: Record<string, any>;
 }
@@ -95,14 +95,11 @@ export function createGetCurrentWorkflowTool(
               const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorId);
               const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorId);
 
-              // Extract operator properties (excluding internal fields)
-              const { operatorID, operatorType, operatorVersion, customDisplayName, ...properties } = operator;
-
               return {
-                operatorId: operatorID,
-                operatorType: operatorType,
-                customDisplayName: customDisplayName,
-                properties: properties,
+                operatorId: operator.operatorID,
+                operatorType: operator.operatorType,
+                customDisplayName: operator.customDisplayName,
+                operatorProperties: operator.operatorProperties,
                 inputSchema: inputSchemaMap || {},
                 outputSchema: outputSchemaMap || {},
               } as OperatorDetail;
@@ -121,14 +118,11 @@ export function createGetCurrentWorkflowTool(
             const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(operatorId);
             const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorId);
 
-            // Extract operator properties (excluding internal fields)
-            const { operatorID, operatorType, operatorVersion, customDisplayName, ...properties } = operator;
-
             return {
-              operatorId: operatorID,
-              operatorType: operatorType,
-              customDisplayName: customDisplayName,
-              properties: properties,
+              operatorId: operator.operatorID,
+              operatorType: operator.operatorType,
+              customDisplayName: operator.customDisplayName,
+              operatorProperties: operator.operatorProperties,
               inputSchema: inputSchemaMap || {},
               outputSchema: outputSchemaMap || {},
             };

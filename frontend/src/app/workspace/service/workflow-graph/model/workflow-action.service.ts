@@ -1067,7 +1067,7 @@ export class WorkflowActionService {
       operators?: Array<{
         operatorType: string;
         customDisplayName?: string;
-        properties?: Record<string, any>;
+        operatorProperties?: Record<string, any>;
       }>;
       links?: Array<{
         sourceOperatorId: string;
@@ -1077,7 +1077,7 @@ export class WorkflowActionService {
       }>;
     };
     modify?: {
-      operators?: Array<{ operatorId: string; properties: Record<string, any> }>;
+      operators?: Array<{ operatorId: string; operatorProperties: Record<string, any> }>;
     };
     delete?: {
       operatorIds?: string[];
@@ -1162,9 +1162,9 @@ export class WorkflowActionService {
           this.texeraGraph.addOperator(operator);
           this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, position);
 
-          // Apply custom properties if provided (must be done after operator is added)
-          if (operatorSpec.properties) {
-            this.texeraGraph.setOperatorProperty(operator.operatorID, operatorSpec.properties);
+          // Apply custom operatorProperties if provided (must be done after operator is added)
+          if (operatorSpec.operatorProperties) {
+            this.texeraGraph.setOperatorProperty(operator.operatorID, operatorSpec.operatorProperties);
           }
 
           results.addedOperatorIds.push(operator.operatorID);
@@ -1222,8 +1222,8 @@ export class WorkflowActionService {
             return;
           }
 
-          // Apply property updates using native method (already in bundleActions)
-          this.texeraGraph.setOperatorProperty(modifySpec.operatorId, modifySpec.properties);
+          // Apply operatorProperties updates using native method (already in bundleActions)
+          this.texeraGraph.setOperatorProperty(modifySpec.operatorId, modifySpec.operatorProperties);
           results.modifiedOperatorIds.push(modifySpec.operatorId);
         }
       }

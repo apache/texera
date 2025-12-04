@@ -84,7 +84,7 @@ function addOperatorHelper(
   agentName: string,
   operatorType: string,
   customDisplayName: string,
-  properties: Record<string, any>
+  operatorProperties: Record<string, any>
 ) {
   try {
     const beforeContent = workflowActionService.getWorkflowContent();
@@ -94,7 +94,7 @@ function addOperatorHelper(
           {
             operatorType,
             customDisplayName,
-            properties,
+            operatorProperties,
           },
         ],
       },
@@ -176,13 +176,13 @@ export function createAddPythonUDFV2Tool(
       retainInputColumns: boolean;
       outputColumns?: Array<{ attributeName: string; attributeType: string }>;
     }) => {
-      const properties: Record<string, any> = {
+      const operatorProperties: Record<string, any> = {
         code: args.code,
         retainInputColumns: args.retainInputColumns,
         workers: 1,
       };
       if (args.outputColumns) {
-        properties.outputColumns = args.outputColumns;
+        operatorProperties.outputColumns = args.outputColumns;
       }
       return addOperatorHelper(
         workflowActionService,
@@ -191,7 +191,7 @@ export function createAddPythonUDFV2Tool(
         agentName,
         "PythonUDFV2",
         args.customDisplayName,
-        properties
+        operatorProperties
       );
     },
   });
@@ -231,11 +231,11 @@ export function createAddAggregateTool(
       aggregations: Array<{ aggFunction: string; attribute: string; "result attribute": string }>;
       groupByKeys?: string[];
     }) => {
-      const properties: Record<string, any> = {
+      const operatorProperties: Record<string, any> = {
         aggregations: args.aggregations,
       };
       if (args.groupByKeys) {
-        properties.groupByKeys = args.groupByKeys;
+        operatorProperties.groupByKeys = args.groupByKeys;
       }
       return addOperatorHelper(
         workflowActionService,
@@ -244,7 +244,7 @@ export function createAddAggregateTool(
         agentName,
         "Aggregate",
         args.customDisplayName,
-        properties
+        operatorProperties
       );
     },
   });
@@ -284,11 +284,11 @@ export function createAddProjectionTool(
       isDrop: boolean;
       attributes?: Array<{ originalAttribute: string; alias?: string }>;
     }) => {
-      const properties: Record<string, any> = {
+      const operatorProperties: Record<string, any> = {
         isDrop: args.isDrop,
       };
       if (args.attributes) {
-        properties.attributes = args.attributes;
+        operatorProperties.attributes = args.attributes;
       }
       return addOperatorHelper(
         workflowActionService,
@@ -297,7 +297,7 @@ export function createAddProjectionTool(
         agentName,
         "Projection",
         args.customDisplayName,
-        properties
+        operatorProperties
       );
     },
   });
@@ -331,7 +331,7 @@ export function createAddHashJoinTool(
       probeAttributeName: string;
       joinType: string;
     }) => {
-      const properties: Record<string, any> = {
+      const operatorProperties: Record<string, any> = {
         buildAttributeName: args.buildAttributeName,
         probeAttributeName: args.probeAttributeName,
         joinType: args.joinType,
@@ -343,7 +343,7 @@ export function createAddHashJoinTool(
         agentName,
         "HashJoin",
         args.customDisplayName,
-        properties
+        operatorProperties
       );
     },
   });
@@ -377,7 +377,7 @@ export function createAddSortTool(
       customDisplayName: string;
       attributes: Array<{ attribute: string; sortPreference: string }>;
     }) => {
-      const properties: Record<string, any> = {
+      const operatorProperties: Record<string, any> = {
         attributes: args.attributes,
       };
       return addOperatorHelper(
@@ -387,7 +387,7 @@ export function createAddSortTool(
         agentName,
         "Sort",
         args.customDisplayName,
-        properties
+        operatorProperties
       );
     },
   });
@@ -512,19 +512,19 @@ export function createAddCSVFileScanTool(
       limit?: number;
       offset?: number;
     }) => {
-      const properties: Record<string, any> = {
+      const operatorProperties: Record<string, any> = {
         fileName: args.fileName,
         fileEncoding: args.fileEncoding,
         hasHeader: args.hasHeader,
       };
       if (args.customDelimiter !== undefined) {
-        properties.customDelimiter = args.customDelimiter;
+        operatorProperties.customDelimiter = args.customDelimiter;
       }
       if (args.limit !== undefined) {
-        properties.limit = args.limit;
+        operatorProperties.limit = args.limit;
       }
       if (args.offset !== undefined) {
-        properties.offset = args.offset;
+        operatorProperties.offset = args.offset;
       }
       return addOperatorHelper(
         workflowActionService,
@@ -533,7 +533,7 @@ export function createAddCSVFileScanTool(
         agentName,
         "CSVFileScan",
         args.customDisplayName,
-        properties
+        operatorProperties
       );
     },
   });
@@ -630,10 +630,16 @@ export function createModifyOperatorTool(
     description: "Modify properties of an existing operator in the workflow",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to modify"),
-      properties: z.record(z.any()).describe("Properties to update on the operator"),
+      operatorProperties: z
+        .record(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+        .describe("Flat map of operator properties to update (no nested objects allowed)"),
       summary: z.string().describe("A brief summary of what this modification accomplishes"),
     }),
-    execute: async (args: { operatorId: string; properties: Record<string, any>; summary: string }) => {
+    execute: async (args: {
+      operatorId: string;
+      operatorProperties: Record<string, string | number | boolean | null>;
+      summary: string;
+    }) => {
       try {
         const beforeContent = workflowActionService.getWorkflowContent();
         const results = workflowActionService.applyAgentAction({
@@ -641,7 +647,7 @@ export function createModifyOperatorTool(
             operators: [
               {
                 operatorId: args.operatorId,
-                properties: args.properties,
+                operatorProperties: args.operatorProperties,
               },
             ],
           },

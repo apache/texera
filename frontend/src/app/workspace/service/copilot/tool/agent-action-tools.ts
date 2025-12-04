@@ -254,14 +254,14 @@ export function createModifyInWorkflowTool(
         .array(
           z.object({
             operatorId: z.string().describe("ID of the operator to modify"),
-            properties: z.record(z.any()).describe("Properties to update"),
+            operatorProperties: z.record(z.any()).describe("Operator properties to update"),
           })
         )
         .describe("List of operators to modify with their new properties"),
     }),
     execute: async (args: {
       summary: string;
-      operators: Array<{ operatorId: string; properties: Record<string, any> }>;
+      operators: Array<{ operatorId: string; operatorProperties: Record<string, any> }>;
     }) => {
       try {
         const beforeContent = workflowActionService.getWorkflowContent();
