@@ -17,3 +17,13 @@
  * under the License.
  */
 
+\c texera_db
+
+SET search_path TO texera_db;
+
+BEGIN;
+
+ALTER TABLE "user"
+    ADD COLUMN IF NOT EXISTS affiliation varchar(128);
+
+COMMIT;
