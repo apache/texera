@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.model.websocket.event.python
 
-import org.apache.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 
 object ConsoleUpdateEvent {}

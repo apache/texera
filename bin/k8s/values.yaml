@@ -113,7 +113,7 @@ texeraImages:
 # Example data loader configuration
 exampleDataLoader:
   enabled: true
-  image: texera/texera-example-data-loader:cluster
+  image: apache/texera-example-data-loader:latest
   username: texera
   password: texera
   datasetDir: datasets
@@ -122,7 +122,7 @@ exampleDataLoader:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:cluster # image name of the texera
+  imageName: apache/texera-dashboard-service:latest # image name of the texera
   service:
     type: ClusterIP
     port: 8080
@@ -131,7 +131,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: texera/workflow-computing-unit-managing-service:cluster
+  imageName: apache/texera-workflow-computing-unit-managing-service:latest
   service:
     type: ClusterIP
     port: 8888
@@ -139,7 +139,7 @@ workflowComputingUnitManager:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: texera/workflow-compiling-service:cluster
+  imageName: apache/texera-workflow-compiling-service:latest
   service:
     type: ClusterIP
     port: 9090
@@ -147,7 +147,7 @@ workflowCompilingService:
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: texera/file-service:cluster
+  imageName: apache/texera-file-service:latest
   service:
     type: ClusterIP
     port: 9092
@@ -155,7 +155,7 @@ fileService:
 configService:
   name: config-service
   numOfPods: 1
-  imageName: texera/config-service:cluster
+  imageName: apache/texera-config-service:latest
   service:
     type: ClusterIP
     port: 9094
@@ -163,7 +163,7 @@ configService:
 accessControlService:
   name: access-control-service
   numOfPods: 1
-  imageName: texera/access-control-service:cluster
+  imageName: apache/texera-access-control-service:latest
   service:
     type: ClusterIP
     port: 9096
@@ -193,7 +193,7 @@ workflowComputingUnitPool:
     cpu: 100
     memory: 100Gi
     nvidiaGpu: 5
-  imageName: texera/computing-unit-master:cluster
+  imageName: apache/texera-workflow-execution-coordinator:latest
   service:
     port: 8085
     targetPort: 8085

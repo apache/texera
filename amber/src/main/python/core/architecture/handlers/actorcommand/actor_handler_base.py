@@ -18,7 +18,7 @@
 from abc import ABC
 
 from core.models import InternalQueue
-from proto.org.apache.amber.engine.common import ActorCommand
+from proto.org.apache.texera.amber.engine.common import ActorCommand
 
 
 class ActorCommandHandler(ABC):

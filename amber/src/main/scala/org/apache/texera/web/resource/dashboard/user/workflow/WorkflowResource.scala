@@ -23,8 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import org.apache.amber.core.storage.DocumentFactory
-import org.apache.amber.core.virtualidentity.ExecutionIdentity
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
@@ -36,6 +36,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos._
+import org.apache.texera.service.util.BigObjectManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -599,6 +600,8 @@ class WorkflowResource extends LazyLogging {
         .fetchInto(classOf[Integer])
         .asScala
         .toList
+
+      BigObjectManager.deleteAllObjects()
 
       // Collect all URIs related to executions for cleanup
       val uris = eids.flatMap { eid =>

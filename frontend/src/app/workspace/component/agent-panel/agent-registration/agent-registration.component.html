@@ -1,0 +1,101 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="agent-registration-container">
+  <div class="registration-header">
+    <h3>Create New Agent</h3>
+    <p>Select a model type and create an AI agent to assist with your workflows</p>
+  </div>
+
+  <div class="model-type-selection">
+    <h4>Select Model Type</h4>
+    <div
+      *ngIf="isLoadingModels"
+      style="text-align: center; padding: 40px">
+      <nz-spin
+        nzSimple
+        nzSize="large"></nz-spin>
+      <p style="margin-top: 16px; color: #8c8c8c">Loading available models...</p>
+    </div>
+    <div
+      *ngIf="!isLoadingModels && modelTypes.length === 0"
+      style="text-align: center; padding: 40px">
+      <i
+        nz-icon
+        nzType="warning"
+        nzTheme="outline"
+        style="font-size: 48px; color: #faad14"></i>
+      <p style="margin-top: 16px; color: #8c8c8c">No models available</p>
+    </div>
+    <div
+      *ngIf="!isLoadingModels && modelTypes.length > 0"
+      class="model-cards">
+      <div
+        *ngFor="let modelType of modelTypes"
+        class="model-card"
+        [class.selected]="selectedModelType === modelType.id"
+        (click)="selectModelType(modelType.id)">
+        <div class="model-icon">
+          <i
+            nz-icon
+            [nzType]="modelType.icon"
+            nzTheme="outline"></i>
+        </div>
+        <div class="model-info">
+          <h5>{{ modelType.name }}</h5>
+          <p>{{ modelType.description }}</p>
+        </div>
+        <div
+          *ngIf="selectedModelType === modelType.id"
+          class="selected-indicator">
+          <i
+            nz-icon
+            nzType="check-circle"
+            nzTheme="fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="agent-name-input">
+    <h4>Agent Name (Optional)</h4>
+    <input
+      nz-input
+      [(ngModel)]="customAgentName"
+      placeholder="Enter a custom name for your agent"
+      [disabled]="!selectedModelType" />
+  </div>
+
+  <div class="action-buttons">
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="large"
+      [nzLoading]="isCreating"
+      [disabled]="!canCreate()"
+      (click)="createAgent()">
+      <i
+        *ngIf="!isCreating"
+        nz-icon
+        nzType="plus-circle"
+        nzTheme="outline"></i>
+      {{ isCreating ? 'Creating...' : 'Create Agent' }}
+    </button>
+  </div>
+</div>

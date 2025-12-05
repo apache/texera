@@ -20,14 +20,14 @@ from core.architecture.handlers.actorcommand.actor_handler_base import (
 )
 from core.models.internal_queue import DCMElement, InternalQueue
 from core.util import set_one_of
-from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlInvocation,
     ControlRequest,
     EmptyRequest,
     AsyncRpcContext,
 )
-from proto.org.apache.amber.engine.common import (
+from proto.org.apache.texera.amber.engine.common import (
     Backpressure,
     DirectControlMessagePayloadV2,
 )

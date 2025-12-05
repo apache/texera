@@ -21,7 +21,7 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import io.dropwizard.auth.Auth
-import org.apache.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer

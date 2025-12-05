@@ -16,7 +16,10 @@
 # under the License.
 
 from core.util.expression_evaluator import ExpressionEvaluator
-from proto.org.apache.amber.engine.architecture.rpc import EvaluatedValue, TypedValue
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    EvaluatedValue,
+    TypedValue,
+)
 
 
 class TestExpressionEvaluator:

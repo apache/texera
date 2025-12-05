@@ -39,6 +39,7 @@ export interface GuiConfig {
   defaultLocalUser?: { username?: string; password?: string };
   expirationTimeInMinutes: number;
   activeTimeInMinutes: number;
+  copilotEnabled: boolean;
 }
 
 export interface SidebarTabs {

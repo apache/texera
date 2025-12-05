@@ -30,12 +30,12 @@ from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
     EmbeddedControlMessageIdentity,
 )
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlInvocation,
     EmbeddedControlMessage,
     EmbeddedControlMessageType,
@@ -43,7 +43,7 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ControlRequest,
 )
-from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
+from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 
 
 class TestNetworkReceiver:

@@ -19,8 +19,8 @@ import datetime
 import pandas
 import pyarrow
 import pytest
+import numpy as np
 from copy import deepcopy
-from numpy import NaN
 
 from core.models import Tuple, ArrowTableTupleProvider
 from core.models.schema.schema import Schema
@@ -123,7 +123,7 @@ class TestTuple:
 
     def test_finalize_tuple(self):
         tuple_ = Tuple(
-            {"name": "texera", "age": 21, "scores": [85, 94, 100], "height": NaN}
+            {"name": "texera", "age": 21, "scores": [85, 94, 100], "height": np.nan}
         )
         schema = Schema(
             raw_schema={

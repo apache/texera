@@ -20,8 +20,8 @@ from enum import Enum
 from loguru import logger
 from typing import Set, Dict
 
-from proto.org.apache.amber.core import ChannelIdentity
-from proto.org.apache.amber.engine.architecture.worker import WorkerState
+from proto.org.apache.texera.amber.core import ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.worker import WorkerState
 from . import state_manager
 from ...models import InternalQueue
 
