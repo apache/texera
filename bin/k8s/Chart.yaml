@@ -51,6 +51,12 @@ dependencies:
     version: 16.5.6
     repository: https://charts.bitnami.com/bitnami
 
+  - name: postgresql
+    version: 16.5.6
+    repository: https://charts.bitnami.com/bitnami
+    alias: postgresql-litellm
+    condition: litellm.persistence.enabled
+
   - name: minio
     version: 15.0.7
     repository: https://charts.bitnami.com/bitnami

@@ -59,14 +59,34 @@ to access services in the main namespace using the same service names.
 
 ---
 {{/* PostgreSQL ExternalName */}}
-{{- include "external-name-service" (dict 
+{{- include "external-name-service" (dict
   "name" (printf "%s-postgresql" .Release.Name)
   "namespace" $workflowComputingUnitPoolNamespace
   "externalName" (printf "%s-postgresql.%s.svc.cluster.local" .Release.Name $namespace)
 ) | nindent 0 }}
 
 ---
-{{/* Webserver ExternalName */}}
+{{/* PostgreSQL LiteLLM ExternalName */}}
+{{- if .Values.litellm.persistence.enabled }}
+{{- include "external-name-service" (dict
+  "name" (printf "%s-postgresql-litellm" .Release.Name)
+  "namespace" $workflowComputingUnitPoolNamespace
+  "externalName" (printf "%s-postgresql-litellm.%s.svc.cluster.local" .Release.Name $namespace)
+) | nindent 0 }}
+
+---
+{{- end }}
+{{/* LiteLLM service ExternalName */}}
+{{- if .Values.litellm.enabled }}
+{{- include "external-name-service" (dict
+  "name" (printf "%s-svc" .Values.litellm.name)
+  "namespace" $workflowComputingUnitPoolNamespace
+  "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.litellm.name $namespace)
+) | nindent 0 }}
+
+---
+{{- end }}
+{{/* Webserver ExternalName */}
 {{- include "external-name-service" (dict 
   "name" (printf "%s-svc" .Values.webserver.name)
   "namespace" $workflowComputingUnitPoolNamespace

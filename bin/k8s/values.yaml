@@ -293,6 +293,66 @@ pythonLanguageServer:
       cpu: "100m"
       memory: "100Mi"
 
+# LiteLLM Proxy configuration
+litellm:
+  enabled: true
+  name: litellm
+  replicaCount: 1
+  image:
+    repository: ghcr.io/berriai/litellm-database
+    tag: main-stable
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 4000
+  resources:
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  # Database persistence configuration
+  persistence:
+    enabled: true
+  # Master key for LiteLLM admin API (must start with "sk-")
+  masterKey: "sk-texera-litellm-masterkey"  # Change this in production
+  apiKeys:
+    # Set your Anthropic API key here
+    # IMPORTANT: In production, use external secrets management (e.g., sealed-secrets, external-secrets)
+    anthropic: ""  # Replace with your actual API key or use external secret
+    # Set your OpenAI API key here
+    openai: ""  # Replace with your actual API key or use external secret
+
+# PostgreSQL database for LiteLLM persistence
+postgresql-litellm:
+  image:
+    repository: texera/postgres17-pgroonga
+    tag: latest
+    debug: true
+  auth:
+    postgresPassword: litellm_root_password  # Change this in production
+    username: litellm
+    password: litellm_password  # Should match litellm.persistence.database.password
+    database: litellm
+  primary:
+    livenessProbe:
+      initialDelaySeconds: 30
+    readinessProbe:
+      initialDelaySeconds: 30
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClass: local-path
+      existingClaim: "postgresql-litellm-data-pvc"
+
 # Metrics Server configuration
 metrics-server:
   enabled: true # set to false if metrics-server is already installed
@@ -349,6 +409,12 @@ ingressPaths:
       pathType: ImplementationSpecific
       serviceName: envoy-svc
       servicePort: 10000
+    - path: /api/models
+      serviceName: texera-access-control-service-svc
+      servicePort: 9096
+    - path: /api/chat
+      serviceName: texera-access-control-service-svc
+      servicePort: 9096
     - path: /api
       serviceName: webserver-svc
       servicePort: 8080
