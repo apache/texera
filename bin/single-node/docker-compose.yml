@@ -94,6 +94,54 @@ services:
       timeout: 3s
       retries: 10
 
+  # ConfigService provides endpoints for configuration management
+  config-service:
+    image: apache/texera-config-service:latest
+    container_name: texera-config-service
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9094/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # AccessControlService handles user permissions and access control
+  access-control-service:
+    image: apache/texera-access-control-service:latest
+    container_name: texera-access-control-service
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9096/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # WorkflowComputingUnitManagingService provides endpoints for managing computing units
+  workflow-computing-unit-managing-service:
+    image: apache/texera-workflow-computing-unit-managing-service:latest
+    container_name: texera-workflow-computing-unit-managing-service
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8888/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
   workflow-compiling-service:
     image: apache/texera-workflow-compiling-service:latest
@@ -146,42 +194,6 @@ services:
       timeout: 3s
       retries: 10
 
-  texera-example-data-loader:
-    image: apache/texera-example-data-loader:latest
-    container_name: texera-example-data-loader
-    depends_on:
-      texera-web-application:
-        condition: service_healthy
-    environment:
-      TEXERA_WEB_APPLICATION_URL: http://texera-web-application:8080/api
-      TEXERA_FILE_SERVICE_URL: http://texera-file-service:9092/api
-    restart: "no"
-
-  texera-access-message:
-    image: alpine:latest
-    container_name: texera-access-message
-    depends_on:
-      texera-example-data-loader:
-        condition: service_completed_successfully
-    env_file:
-      - .env
-    command: >
-      /bin/sh -c "
-        echo '===============================================';
-        echo 'Texera is ready!';
-        echo '===============================================';
-        echo '';
-        echo 'To access Texera, open your browser and navigate to:';
-        echo '    ${TEXERA_HOST}:8080';
-        echo '';
-        echo 'The following account has been created for you:';
-        echo '    Username: texera';
-        echo '    Password: texera';
-        echo '';
-        echo '==============================================='
-      "
-    restart: "no"
-
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
     image: nginx:alpine
@@ -191,6 +203,9 @@ services:
       - file-service
       - texera-web-application
       - computing-unit-master
+      - config-service
+      - access-control-service
+      - workflow-computing-unit-managing-service
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
