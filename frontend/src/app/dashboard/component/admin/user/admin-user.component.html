@@ -69,6 +69,9 @@
             nzType="search"></span>
         </nz-filter-trigger>
       </th>
+      <th>
+        Affiliation
+      </th>
       <th
         [nzSortFn]="sortByComment"
         [nzSortDirections]="['ascend', 'descend']"
@@ -229,6 +232,9 @@
               type="email" />
           </ng-template>
         </div>
+      </td>
+      <td>
+        {{ user.affiliation }}
       </td>
       <td>
         <div (focusout)="saveEdit()">
