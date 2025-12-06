@@ -18,11 +18,13 @@
  */
 
 import { Injectable } from "@angular/core";
+import { HttpClient } from "@angular/common/http";
+import { AppSettings } from "../../app-setting";
 import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
-import { catchError, map, shareReplay } from "rxjs/operators";
+import { catchError, map, shareReplay } from "rxjs/operators"
 
 /**
  * User Service manages User information. It relies on different
@@ -39,7 +41,8 @@ export class UserService {
 
   constructor(
     private authService: AuthService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private http: HttpClient
   ) {
     const user = this.authService.loginWithExistingToken();
     this.changeUser(user);
@@ -80,6 +83,23 @@ export class UserService {
     return this.authService
       .register(username, password)
       .pipe(map(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
+  /**
+   * updates a new registered user's affiliation
+   * @param affiliation
+   */
+  public updateAffiliation(affiliation: string): Observable<void> {
+    const user = this.currentUser;
+
+    if (!user) {
+      return of(void 0);
+    }
+
+    return this.http.put<void>(`${AppSettings.getApiEndpoint()}/user/affiliation`, {
+      uid: user.uid,
+      affiliation: affiliation,
+    });
   }
 
   /**
