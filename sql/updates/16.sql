@@ -26,4 +26,8 @@ BEGIN;
 ALTER TABLE "user"
     ADD COLUMN IF NOT EXISTS affiliation varchar(128);
 
+UPDATE "user"
+SET affiliation = ''
+WHERE affiliation IS NULL;
+
 COMMIT;
