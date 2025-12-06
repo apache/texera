@@ -24,7 +24,6 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 
 class ResumeWorkerHandler(ControlHandler):
-
     async def resume_worker(self, req: EmptyRequest) -> WorkerStateResponse:
         self.context.pause_manager.resume(PauseType.USER_PAUSE)
         state = self.context.state_manager.get_current_state()

@@ -136,7 +136,6 @@ class AsyncRPCClient:
         rpc_client = self  # to distinguish outer and inner self
 
         class Proxy(service_class):
-
             def __init__(self, target_actor: ActorVirtualIdentity):
                 self.target_actor = target_actor
 

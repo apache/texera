@@ -44,7 +44,7 @@ class StorageConfig:
     ):
         if cls._initialized:
             raise RuntimeError(
-                "Storage config has already been initialized" "and cannot be modified."
+                "Storage config has already been initializedand cannot be modified."
             )
 
         cls.ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME = postgres_uri_without_scheme

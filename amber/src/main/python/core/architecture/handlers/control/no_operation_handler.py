@@ -23,6 +23,5 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 
 class NoOperationHandler(ControlHandler):
-
     async def no_operation(self, req: EmptyRequest) -> EmptyReturn:
         return EmptyReturn()

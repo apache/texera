@@ -18,9 +18,7 @@
 wheel==0.41.2
 numpy==2.1.0
 pandas==2.2.3
-flake8==7.1.1
-Flake8-pyproject==1.2.3
-black==24.3.0
+ruff==0.14.7
 iniconfig==1.1.1
 loguru==0.7.0
 pyarrow==21.0.0
@@ -48,5 +46,5 @@ pyiceberg==0.8.1
 readerwriterlock==1.0.9
 tenacity==8.5.0
 SQLAlchemy==2.0.37
-pg8000==1.31.2
+pg8000==1.31.5
 pympler==1.1

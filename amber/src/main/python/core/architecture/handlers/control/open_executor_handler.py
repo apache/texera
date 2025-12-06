@@ -23,7 +23,6 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 
 class OpenExecutorHandler(ControlHandler):
-
     async def open_executor(self, req: EmptyRequest) -> EmptyReturn:
         self.context.executor_manager.executor.open()
         return EmptyReturn()
