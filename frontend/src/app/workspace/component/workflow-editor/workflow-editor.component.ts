@@ -334,7 +334,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private handleRegionEvents(): void {
-    this.editor.classList.add("hide-region");
+    //this.editor.classList.add("hide-region");
     const Region = joint.dia.Element.define(
       "region",
       {
