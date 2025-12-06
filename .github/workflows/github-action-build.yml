@@ -157,4 +157,4 @@ jobs:
           cd amber/src/main/python && flake8 && black . --check
       - name: Test with pytest
         run: |
-          cd amber/src/main/python && pytest -sv --ignore=core/models/test_RTableExecutor.py
+          cd amber/src/main/python && pytest -sv
