@@ -235,7 +235,7 @@ object IcebergUtil {
       case AttributeType.TIMESTAMP => Types.TimestampType.withoutZone()
       case AttributeType.BINARY    => Types.BinaryType.get()
       case AttributeType.LARGE_BINARY =>
-        Types.StringType.get() // Store LargeBinaryPointer URI as string
+        Types.StringType.get() // Store LargeBinary URI as string
       case AttributeType.ANY =>
         throw new IllegalArgumentException("ANY type is not supported in Iceberg")
     }
