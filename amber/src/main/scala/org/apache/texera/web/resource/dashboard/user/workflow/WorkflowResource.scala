@@ -23,8 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import org.apache.amber.core.storage.DocumentFactory
-import org.apache.amber.core.virtualidentity.ExecutionIdentity
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._

@@ -51,14 +51,14 @@ from core.storage.runnables.port_storage_writer import (
 )
 from core.util import get_one_of
 from core.util.virtual_identity import get_worker_index
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PhysicalLink,
     PortIdentity,
     ChannelIdentity,
 )
-from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.org.apache.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
     Partitioning,

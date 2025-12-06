@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.util
 
-import org.apache.amber.config.StorageConfig
+import org.apache.texera.amber.config.StorageConfig
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model._

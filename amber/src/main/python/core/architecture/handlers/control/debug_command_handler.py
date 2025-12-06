@@ -18,7 +18,7 @@
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmptyReturn,
     DebugCommandRequest,
 )

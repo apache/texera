@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.util
 
-import org.apache.amber.core.tuple.BigObject
+import org.apache.texera.amber.core.tuple.BigObject
 
 import java.io.InputStream
 

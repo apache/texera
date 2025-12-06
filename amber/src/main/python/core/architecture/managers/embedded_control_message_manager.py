@@ -19,8 +19,8 @@ from collections import defaultdict
 from typing import Set, Dict
 
 from core.architecture.packaging.input_manager import Channel
-from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmbeddedControlMessage,
     EmbeddedControlMessageType,
 )
