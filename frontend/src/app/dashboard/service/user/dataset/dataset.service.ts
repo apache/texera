@@ -539,4 +539,14 @@ export class DatasetService {
   public retrieveOwners(): Observable<string[]> {
     return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}`);
   }
+
+  public updateDatasetCoverImage(did: number, coverImagePath: string): Observable<Response> {
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/update/cover`,
+      coverImagePath,
+      {
+        headers: { "Content-Type": "text/plain" },
+      }
+    );
+  }
 }

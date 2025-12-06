@@ -89,4 +89,8 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
       throw new Error("Unexpected type in DashboardEntry.");
     }
   }
+
+  getCoverImage(entity: DashboardEntry): string {
+    return entity.coverImageUrl || this.defaultBackground;
+  }
 }

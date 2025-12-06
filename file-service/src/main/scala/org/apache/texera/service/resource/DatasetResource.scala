@@ -1372,4 +1372,28 @@ class DatasetResource {
         Right(response)
     }
   }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/update/cover")
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  def updateDatasetCoverImage(
+                               @PathParam("did") did: Integer,
+                               coverImage: String,
+                               @Auth sessionUser: SessionUser
+                             ): Response = {
+    withTransaction(context) { ctx =>
+      val uid = sessionUser.getUid
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val dataset = getDatasetByID(ctx, did)
+
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      dataset.setCoverImage(coverImage)
+      datasetDao.update(dataset)
+      Response.ok().build()
+    }
+  }
 }
