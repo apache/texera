@@ -73,8 +73,7 @@ class DatasetFileDocument:
 
         if response.status_code != 200:
             raise RuntimeError(
-                f"Failed to get presigned URL: "
-                f"{response.status_code} {response.text}"
+                f"Failed to get presigned URL: {response.status_code} {response.text}"
             )
 
         return response.json().get("presignedUrl")

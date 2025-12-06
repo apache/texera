@@ -152,9 +152,9 @@ jobs:
       - name: Create Database and User
         run: |
           cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
-      - name: Lint with flake8 and black
+      - name: Lint with Ruff
         run: |
-          cd amber/src/main/python && flake8 && black . --check
+          cd amber/src/main/python && ruff check . && ruff format --check .
       - name: Test with pytest
         run: |
           cd amber/src/main/python && pytest -sv
