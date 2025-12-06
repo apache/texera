@@ -348,7 +348,7 @@ class WorkflowService(
           logger.debug(s"Error processing document at $uri: ${error.getMessage}")
       }
     }
-    // Delete big objects
+    // Delete large binaries
     LargeBinaryManager.deleteAllObjects()
   }
 }
