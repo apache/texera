@@ -473,10 +473,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   public toggleRegion(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .jointGraph
-      .getElements()
-      .filter(el => el.get('type') === 'region')   // small improvement here too
-      .forEach(el => el.attr('body/visibility', this.showRegion ? 'visible' : 'hidden'));
+      .jointGraph.getElements()
+      .filter(el => el.get("type") === "region") // small improvement here too
+      .forEach(el => el.attr("body/visibility", this.showRegion ? "visible" : "hidden"));
   }
 
   /**
