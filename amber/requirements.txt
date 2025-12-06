@@ -25,7 +25,7 @@ pyarrow==21.0.0
 pytest==7.4.0
 python-dateutil==2.8.2
 pytest-timeout==2.2.0
-protobuf==3.20.3
+protobuf==4.25.8
 betterproto==2.0.0b7
 typing==3.7.4.3
 pampy==0.3.0
