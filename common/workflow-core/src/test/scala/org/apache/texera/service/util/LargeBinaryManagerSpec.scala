@@ -183,7 +183,7 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase {
     }
   }
 
-  test("LargeBinaryManager should delete all large binarys") {
+  test("LargeBinaryManager should delete all large binaries") {
     val pointer1 = new LargeBinary()
     val out1 = new LargeBinaryOutputStream(pointer1)
     try {
