@@ -86,6 +86,22 @@ export class UserService {
   }
 
   /**
+   * Retrieves affiliation from backend and return if affiliation has been prompted
+   * true: already prompted
+   * false: never prompted
+   */
+  public checkAffiliation(): Observable<Boolean> {
+    const user = this.currentUser;
+    if (!user) {
+      return of(false);
+    }
+    return this.http.get<Boolean>(
+      `${AppSettings.getApiEndpoint()}/user/affiliation`,
+      { params: { uid: user.uid.toString() } }
+    );
+  }
+
+  /**
    * updates a new registered user's affiliation
    * @param affiliation
    */

@@ -24,10 +24,13 @@ SET search_path TO texera_db;
 BEGIN;
 
 ALTER TABLE "user"
-    ADD COLUMN IF NOT EXISTS affiliation varchar(128);
+    ADD COLUMN IF NOT EXISTS affiliation VARCHAR(128);
+
+ALTER TABLE "user"
+    ALTER COLUMN affiliation DROP DEFAULT;
 
 UPDATE "user"
-SET affiliation = ''
-WHERE affiliation IS NULL;
+SET affiliation = NULL
+WHERE affiliation IS NOT NULL;
 
 COMMIT;

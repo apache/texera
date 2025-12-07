@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.dashboard.user
 
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
+import org.apache.texera.dao.jooq.generated.tables.User.USER
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
@@ -42,13 +43,33 @@ class UserResource {
   @Path("/affiliation")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def updateAffiliation(request: AffiliationUpdateRequest): Unit = {
-    val user = UserResource.userDao.fetchOneByUid(request.uid)
+    val rowsUpdated = UserResource.context
+      .update(USER)
+      .set(USER.AFFILIATION, request.affiliation)
+      .where(USER.UID.eq(request.uid))
+      .execute()
+
+    if (rowsUpdated == 0) {
+      throw new WebApplicationException("User not found", Response.Status.NOT_FOUND)
+    }
+  }
+
+  /**
+   * Gets affiliation with uid. Returns "", null or affiliation.
+   * "": Prompted and no response
+   * null: never prompted
+   * @param uid
+   * @return
+   */
+  @GET
+  @Path("/affiliation")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def needsAffiliation(@QueryParam("uid") uid: Int): java.lang.Boolean = {
+    val user = UserResource.userDao.fetchOneByUid(uid)
     if (user == null) {
       throw new WebApplicationException("User not found", Response.Status.NOT_FOUND)
     }
-
-    // set affiliation; empty string: user saw the prompt and skipped
-    user.setAffiliation(request.affiliation)
-    UserResource.userDao.update(user)
+    java.lang.Boolean.valueOf(user.getAffiliation == null)
   }
 }
+

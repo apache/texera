@@ -206,10 +206,21 @@ export class DashboardComponent implements OnInit {
    */
   checkAffiliationPrompt(user: User | undefined): void {
     // Null affiliation = never prompted before
-    if (user && user.affiliation == null && this.config.env.googleLogin) {
-      this.affiliationInput = "";
-      this.affiliationModalVisible = true;
+    if (!user || !this.config.env.googleLogin) {
+      return;
     }
+
+    this.userService
+      .checkAffiliation()
+      .pipe(untilDestroyed(this))
+      .subscribe(response => {
+        if (response) {
+          this.affiliationInput = "";
+          this.affiliationModalVisible = true;
+        } else {
+          this.affiliationModalVisible = false;
+        }
+      });
   }
 
   /**
