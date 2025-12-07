@@ -150,7 +150,6 @@ export class AuthService {
       googleAvatar: this.jwtHelperService.decodeToken(token).googleAvatar,
       role: role,
       comment: this.jwtHelperService.decodeToken(token).comment,
-      affiliation: this.jwtHelperService.decodeToken(token).affiliation,
     };
   }
 

@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS "user"
     uid                     SERIAL PRIMARY KEY,
     name                    VARCHAR(256) NOT NULL,
     email                   VARCHAR(256) UNIQUE,
-    password VARCHAR(256),
+    password                VARCHAR(256),
     google_id               VARCHAR(256) UNIQUE,
     google_avatar           VARCHAR(100),
     role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
