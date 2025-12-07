@@ -131,9 +131,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   @Output()
   loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
-  @Output()
-  setCoverImage = new EventEmitter<string>();
-
   constructor(
     private datasetService: DatasetService,
     private sanitizer: DomSanitizer,
