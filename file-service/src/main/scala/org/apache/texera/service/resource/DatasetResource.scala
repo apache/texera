@@ -1376,15 +1376,13 @@ class DatasetResource {
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/update/cover")
-  @Consumes(Array(MediaType.TEXT_PLAIN))
   def updateDatasetCoverImage(
-                               @PathParam("did") did: Integer,
-                               coverImage: String,
-                               @Auth sessionUser: SessionUser
-                             ): Response = {
+      @PathParam("did") did: Integer,
+      coverImage: String,
+      @Auth sessionUser: SessionUser
+  ): Response = {
     withTransaction(context) { ctx =>
       val uid = sessionUser.getUid
-      val datasetDao = new DatasetDao(ctx.configuration())
       val dataset = getDatasetByID(ctx, did)
 
       if (!userHasWriteAccess(ctx, did, uid)) {
@@ -1392,7 +1390,7 @@ class DatasetResource {
       }
 
       dataset.setCoverImage(coverImage)
-      datasetDao.update(dataset)
+      new DatasetDao(ctx.configuration()).update(dataset)
       Response.ok().build()
     }
   }

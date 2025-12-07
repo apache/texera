@@ -88,7 +88,6 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
 
   onSetCover(nodeData: DatasetFileNode): void {
     const path = getRelativePathFromDatasetFileNode(nodeData);
-    console.log('Setting cover to:', path);
     this.setCoverImage.emit(path);
   }
 }

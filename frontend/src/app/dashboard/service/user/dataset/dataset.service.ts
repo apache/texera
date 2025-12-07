@@ -541,12 +541,6 @@ export class DatasetService {
   }
 
   public updateDatasetCoverImage(did: number, coverImagePath: string): Observable<Response> {
-    return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/update/cover`,
-      coverImagePath,
-      {
-        headers: { "Content-Type": "text/plain" },
-      }
-    );
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/dataset/${did}/update/cover`, coverImagePath);
   }
 }

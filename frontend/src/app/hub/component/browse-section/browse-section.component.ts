@@ -91,6 +91,10 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   }
 
   getCoverImage(entity: DashboardEntry): string {
-    return entity.coverImageUrl || this.defaultBackground;
+    if (entity.type === "dataset" && entity.coverImageUrl) {
+      const fullPath = `${entity.ownerEmail}/${entity.name}/${entity.coverImageUrl}`;
+      return `/api/dataset/file?path=${encodeURIComponent(fullPath)}`;
+    }
+    return this.defaultBackground;
   }
 }
