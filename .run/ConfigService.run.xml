@@ -20,6 +20,7 @@ under the License.
   <configuration default="false" name="ConfigService" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="org.apache.texera.service.ConfigService" />
     <module name="texera.config-service.main" />
+    <shortenClasspath name="ARGS_FILE" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="org.apache.texera.service.*" />

@@ -189,9 +189,9 @@ class Tuple:
         :param item: field name or field index
         :return: field value
         """
-        assert isinstance(
-            item, (int, str)
-        ), "field can only be retrieved by index or name"
+        assert isinstance(item, (int, str)), (
+            "field can only be retrieved by index or name"
+        )
 
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
