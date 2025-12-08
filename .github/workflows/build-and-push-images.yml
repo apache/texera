@@ -49,11 +49,6 @@ on:
           - both
           - amd64
           - arm64
-      with_r_support:
-        description: 'Enable R support for workflow-execution-coordinator'
-        required: false
-        default: false
-        type: boolean
   schedule:
     # Run nightly at 2:00 AM UTC
     - cron: '0 2 * * *'
@@ -75,7 +70,6 @@ jobs:
       docker_registry: ${{ steps.set-params.outputs.docker_registry }}
       services: ${{ steps.set-params.outputs.services }}
       platforms: ${{ steps.set-params.outputs.platforms }}
-      with_r_support: ${{ steps.set-params.outputs.with_r_support }}
     steps:
       - name: Set build parameters
         id: set-params
@@ -88,7 +82,6 @@ jobs:
             echo "docker_registry=apache" >> $GITHUB_OUTPUT
             echo "services=*" >> $GITHUB_OUTPUT
             echo "platforms=both" >> $GITHUB_OUTPUT
-            echo "with_r_support=false" >> $GITHUB_OUTPUT
           else
             echo "Manual workflow_dispatch - using user inputs"
             echo "branch=${{ github.event.inputs.branch || 'main' }}" >> $GITHUB_OUTPUT
@@ -96,7 +89,6 @@ jobs:
             echo "docker_registry=${{ github.event.inputs.docker_registry || 'apache' }}" >> $GITHUB_OUTPUT
             echo "services=${{ github.event.inputs.services || '*' }}" >> $GITHUB_OUTPUT
             echo "platforms=${{ github.event.inputs.platforms || 'both' }}" >> $GITHUB_OUTPUT
-            echo "with_r_support=${{ github.event.inputs.with_r_support || 'false' }}" >> $GITHUB_OUTPUT
           fi
 
   # Step 1: Generate JOOQ code once and share it
@@ -358,8 +350,6 @@ jobs:
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64
           cache-from: type=gha,scope=${{ matrix.image_name }}-amd64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-amd64
-          build-args: |
-            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
           labels: |
             org.opencontainers.image.title=${{ matrix.image_name }}
             org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (AMD64)
@@ -437,8 +427,6 @@ jobs:
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
           cache-from: type=gha,scope=${{ matrix.image_name }}-arm64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-arm64
-          build-args: |
-            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
           labels: |
             org.opencontainers.image.title=${{ matrix.image_name }}
             org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (ARM64)
@@ -499,7 +487,6 @@ jobs:
           echo "- **Tag:** \`${{ needs.set-parameters.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Services:** ${{ needs.set-parameters.outputs.services }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms:** ${{ needs.set-parameters.outputs.platforms }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **R Support:** ${{ needs.set-parameters.outputs.with_r_support }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Build Method" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel platform builds** (faster)" >> $GITHUB_STEP_SUMMARY

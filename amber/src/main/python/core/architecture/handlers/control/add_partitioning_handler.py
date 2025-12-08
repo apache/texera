@@ -23,7 +23,6 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 
 class AddPartitioningHandler(ControlHandler):
-
     async def add_partitioning(self, req: AddPartitioningRequest) -> EmptyReturn:
         self.context.output_manager.add_partitioning(req.tag, req.partitioning)
         return EmptyReturn()

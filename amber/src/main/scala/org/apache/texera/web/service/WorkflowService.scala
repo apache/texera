@@ -49,7 +49,7 @@ import org.apache.texera.amber.error.ErrorUtils.{
   getStackTraceWithAllCauses
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.service.util.BigObjectManager
+import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -348,7 +348,7 @@ class WorkflowService(
           logger.debug(s"Error processing document at $uri: ${error.getMessage}")
       }
     }
-    // Delete big objects
-    BigObjectManager.deleteAllObjects()
+    // Delete large binaries
+    LargeBinaryManager.deleteAllObjects()
   }
 }

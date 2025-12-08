@@ -74,9 +74,9 @@ class EmbeddedControlMessageManager:
 
         return ecm_completed
 
-    def get_channels_within_scope(
-        self, ecm: EmbeddedControlMessage
-    ) -> Dict["ChannelIdentity", "Channel"].keys:
+    def get_channels_within_scope(self, ecm: EmbeddedControlMessage) -> Dict[
+        "ChannelIdentity", "Channel"
+    ].keys:
         if ecm.scope:
             upstreams = {
                 channel_id

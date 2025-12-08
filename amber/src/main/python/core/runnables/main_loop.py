@@ -296,7 +296,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         command = ecm.command_mapping.get(self.context.worker_id)
         channel_id = self.context.current_input_channel_id
         logger.info(
-            f"receive channel ECM from {channel_id}," f" id = {ecm.id}, cmd = {command}"
+            f"receive channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
         )
         if ecm.ecm_type != EmbeddedControlMessageType.NO_ALIGNMENT:
             self.context.pause_manager.pause_input_channel(
@@ -305,8 +305,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         if self.context.ecm_manager.is_ecm_aligned(channel_id, ecm):
             logger.info(
-                f"process channel ECM from {channel_id},"
-                f" id = {ecm.id}, cmd = {command}"
+                f"process channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
             )
 
             if command is not None:
@@ -431,7 +430,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
     def _send_console_message(self, console_message: ConsoleMessage):
-
         self._async_rpc_client.controller_stub().console_message_triggered(
             ConsoleMessageTriggeredRequest(console_message=console_message)
         )
