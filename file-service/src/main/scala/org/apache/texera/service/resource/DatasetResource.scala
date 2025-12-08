@@ -1184,6 +1184,8 @@ class DatasetResource {
       val contentType = decodedPathStr.split("\\.").lastOption.map(_.toLowerCase) match {
         case Some("jpg") | Some("jpeg") => "image/jpeg"
         case Some("png")                => "image/png"
+        case Some("webp")               => "image/webp"
+        case Some("gif")                => "image/gif"
         case Some("csv")                => "text/csv"
         case Some("md")                 => "text/markdown"
         case Some("txt")                => "text/plain"
