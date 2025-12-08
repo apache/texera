@@ -20,7 +20,7 @@
 package org.apache.texera.amber.util
 
 import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, BigObject, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
@@ -52,8 +52,8 @@ import scala.jdk.CollectionConverters._
   */
 object IcebergUtil {
 
-  // Unique suffix for BIG_OBJECT field encoding
-  private val BIG_OBJECT_FIELD_SUFFIX = "__texera_big_obj_ptr"
+  // Unique suffix for LARGE_BINARY field encoding
+  private val LARGE_BINARY_FIELD_SUFFIX = "__texera_large_binary_ptr"
 
   /**
     * Creates and initializes a HadoopCatalog with the given parameters.
@@ -203,7 +203,7 @@ object IcebergUtil {
 
   /**
     * Converts a custom Amber `Schema` to an Iceberg `Schema`.
-    * Field names are encoded to preserve BIG_OBJECT type information.
+    * Field names are encoded to preserve LARGE_BINARY type information.
     *
     * @param amberSchema The custom Amber Schema.
     * @return An Iceberg Schema.
@@ -211,7 +211,7 @@ object IcebergUtil {
   def toIcebergSchema(amberSchema: Schema): IcebergSchema = {
     val icebergFields = amberSchema.getAttributes.zipWithIndex.map {
       case (attribute, index) =>
-        val encodedName = encodeBigObjectFieldName(attribute.getName, attribute.getType)
+        val encodedName = encodeLargeBinaryFieldName(attribute.getName, attribute.getType)
         val icebergType = toIcebergType(attribute.getType)
         Types.NestedField.optional(index + 1, encodedName, icebergType)
     }
@@ -220,7 +220,7 @@ object IcebergUtil {
 
   /**
     * Converts a custom Amber `AttributeType` to an Iceberg `Type`.
-    * Note: BIG_OBJECT is stored as StringType; field name encoding is used to distinguish it.
+    * Note: LARGE_BINARY is stored as StringType; field name encoding is used to distinguish it.
     *
     * @param attributeType The custom Amber AttributeType.
     * @return The corresponding Iceberg Type.
@@ -234,8 +234,8 @@ object IcebergUtil {
       case AttributeType.BOOLEAN   => Types.BooleanType.get()
       case AttributeType.TIMESTAMP => Types.TimestampType.withoutZone()
       case AttributeType.BINARY    => Types.BinaryType.get()
-      case AttributeType.BIG_OBJECT =>
-        Types.StringType.get() // Store BigObjectPointer URI as string
+      case AttributeType.LARGE_BINARY =>
+        Types.StringType.get() // Store LargeBinary URI as string
       case AttributeType.ANY =>
         throw new IllegalArgumentException("ANY type is not supported in Iceberg")
     }
@@ -252,13 +252,13 @@ object IcebergUtil {
 
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
-        val fieldName = encodeBigObjectFieldName(attribute.getName, attribute.getType)
+        val fieldName = encodeLargeBinaryFieldName(attribute.getName, attribute.getType)
         val value = tuple.getField[AnyRef](index) match {
-          case null                 => null
-          case ts: Timestamp        => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
-          case bytes: Array[Byte]   => ByteBuffer.wrap(bytes)
-          case bigObjPtr: BigObject => bigObjPtr.getUri
-          case other                => other
+          case null                        => null
+          case ts: Timestamp               => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+          case bytes: Array[Byte]          => ByteBuffer.wrap(bytes)
+          case largeBinaryPtr: LargeBinary => largeBinaryPtr.getUri
+          case other                       => other
         }
         record.setField(fieldName, value)
     }
@@ -275,7 +275,7 @@ object IcebergUtil {
     */
   def fromRecord(record: Record, amberSchema: Schema): Tuple = {
     val fieldValues = amberSchema.getAttributes.map { attribute =>
-      val fieldName = encodeBigObjectFieldName(attribute.getName, attribute.getType)
+      val fieldName = encodeLargeBinaryFieldName(attribute.getName, attribute.getType)
       val rawValue = record.getField(fieldName)
 
       rawValue match {
@@ -285,8 +285,8 @@ object IcebergUtil {
           val bytes = new Array[Byte](buffer.remaining())
           buffer.get(bytes)
           bytes
-        case uri: String if attribute.getType == AttributeType.BIG_OBJECT =>
-          new BigObject(uri)
+        case uri: String if attribute.getType == AttributeType.LARGE_BINARY =>
+          new LargeBinary(uri)
         case other => other
       }
     }
@@ -295,16 +295,19 @@ object IcebergUtil {
   }
 
   /**
-    * Encodes a field name for BIG_OBJECT types by adding a unique system suffix.
-    * This ensures BIG_OBJECT fields can be identified when reading from Iceberg.
+    * Encodes a field name for LARGE_BINARY types by adding a unique system suffix.
+    * This ensures LARGE_BINARY fields can be identified when reading from Iceberg.
     *
     * @param fieldName The original field name
     * @param attributeType The attribute type
-    * @return The encoded field name with a unique suffix for BIG_OBJECT types
+    * @return The encoded field name with a unique suffix for LARGE_BINARY types
     */
-  private def encodeBigObjectFieldName(fieldName: String, attributeType: AttributeType): String = {
-    if (attributeType == AttributeType.BIG_OBJECT) {
-      s"${fieldName}${BIG_OBJECT_FIELD_SUFFIX}"
+  private def encodeLargeBinaryFieldName(
+      fieldName: String,
+      attributeType: AttributeType
+  ): String = {
+    if (attributeType == AttributeType.LARGE_BINARY) {
+      s"${fieldName}${LARGE_BINARY_FIELD_SUFFIX}"
     } else {
       fieldName
     }
@@ -317,27 +320,27 @@ object IcebergUtil {
     * @param fieldName The encoded field name
     * @return The original field name with system suffix removed
     */
-  private def decodeBigObjectFieldName(fieldName: String): String = {
-    if (isBigObjectField(fieldName)) {
-      fieldName.substring(0, fieldName.length - BIG_OBJECT_FIELD_SUFFIX.length)
+  private def decodeLargeBinaryFieldName(fieldName: String): String = {
+    if (isLargeBinaryField(fieldName)) {
+      fieldName.substring(0, fieldName.length - LARGE_BINARY_FIELD_SUFFIX.length)
     } else {
       fieldName
     }
   }
 
   /**
-    * Checks if a field name indicates a BIG_OBJECT type by examining the unique suffix.
+    * Checks if a field name indicates a LARGE_BINARY type by examining the unique suffix.
     *
     * @param fieldName The field name to check
-    * @return true if the field represents a BIG_OBJECT type, false otherwise
+    * @return true if the field represents a LARGE_BINARY type, false otherwise
     */
-  private def isBigObjectField(fieldName: String): Boolean = {
-    fieldName.endsWith(BIG_OBJECT_FIELD_SUFFIX)
+  private def isLargeBinaryField(fieldName: String): Boolean = {
+    fieldName.endsWith(LARGE_BINARY_FIELD_SUFFIX)
   }
 
   /**
     * Converts an Iceberg `Schema` to an Amber `Schema`.
-    * Field names are decoded to restore original names and detect BIG_OBJECT types.
+    * Field names are decoded to restore original names and detect LARGE_BINARY types.
     *
     * @param icebergSchema The Iceberg Schema.
     * @return The corresponding Amber Schema.
@@ -349,7 +352,7 @@ object IcebergUtil {
       .map { field =>
         val fieldName = field.name()
         val attributeType = fromIcebergType(field.`type`().asPrimitiveType(), fieldName)
-        val originalName = decodeBigObjectFieldName(fieldName)
+        val originalName = decodeLargeBinaryFieldName(fieldName)
         new Attribute(originalName, attributeType)
       }
       .toList
@@ -361,7 +364,7 @@ object IcebergUtil {
     * Converts an Iceberg `Type` to an Amber `AttributeType`.
     *
     * @param icebergType The Iceberg Type.
-    * @param fieldName The field name (used to detect BIG_OBJECT by suffix).
+    * @param fieldName The field name (used to detect LARGE_BINARY by suffix).
     * @return The corresponding Amber AttributeType.
     */
   def fromIcebergType(
@@ -370,7 +373,7 @@ object IcebergUtil {
   ): AttributeType = {
     icebergType match {
       case _: Types.StringType =>
-        if (isBigObjectField(fieldName)) AttributeType.BIG_OBJECT else AttributeType.STRING
+        if (isLargeBinaryField(fieldName)) AttributeType.LARGE_BINARY else AttributeType.STRING
       case _: Types.IntegerType   => AttributeType.INTEGER
       case _: Types.LongType      => AttributeType.LONG
       case _: Types.DoubleType    => AttributeType.DOUBLE

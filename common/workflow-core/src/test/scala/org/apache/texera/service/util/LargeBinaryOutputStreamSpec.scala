@@ -19,20 +19,20 @@
 
 package org.apache.texera.service.util
 
-import org.apache.texera.amber.core.tuple.BigObject
+import org.apache.texera.amber.core.tuple.LargeBinary
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.IOException
 import scala.util.Random
 
-class BigObjectOutputStreamSpec
+class LargeBinaryOutputStreamSpec
     extends AnyFunSuite
     with S3StorageTestBase
     with BeforeAndAfterAll
     with BeforeAndAfterEach {
 
-  private val testBucketName = "test-big-object-output-stream"
+  private val testBucketName = "test-large-binary-output-stream"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -49,43 +49,43 @@ class BigObjectOutputStreamSpec
   }
 
   // Helper methods
-  private def createBigObject(key: String): BigObject =
-    new BigObject(s"s3://$testBucketName/$key")
+  private def createLargeBinary(key: String): LargeBinary =
+    new LargeBinary(s"s3://$testBucketName/$key")
 
   private def generateRandomData(size: Int): Array[Byte] =
     Array.fill[Byte](size)((Random.nextInt(256) - 128).toByte)
 
-  private def withStream[T](bigObject: BigObject)(f: BigObjectOutputStream => T): T = {
-    val stream = new BigObjectOutputStream(bigObject)
+  private def withStream[T](largeBinary: LargeBinary)(f: LargeBinaryOutputStream => T): T = {
+    val stream = new LargeBinaryOutputStream(largeBinary)
     try f(stream)
     finally stream.close()
   }
 
-  private def readBack(bigObject: BigObject): Array[Byte] = {
-    val inputStream = new BigObjectInputStream(bigObject)
+  private def readBack(largeBinary: LargeBinary): Array[Byte] = {
+    val inputStream = new LargeBinaryInputStream(largeBinary)
     try inputStream.readAllBytes()
     finally inputStream.close()
   }
 
   private def writeAndVerify(key: String, data: Array[Byte]): Unit = {
-    val bigObject = createBigObject(key)
-    withStream(bigObject)(_.write(data, 0, data.length))
-    assert(readBack(bigObject).sameElements(data))
+    val largeBinary = createLargeBinary(key)
+    withStream(largeBinary)(_.write(data, 0, data.length))
+    assert(readBack(largeBinary).sameElements(data))
   }
 
   // === Constructor Tests ===
-  test("should reject null BigObject") {
-    val exception = intercept[IllegalArgumentException](new BigObjectOutputStream(null))
-    assert(exception.getMessage.contains("BigObject cannot be null"))
+  test("should reject null LargeBinary") {
+    val exception = intercept[IllegalArgumentException](new LargeBinaryOutputStream(null))
+    assert(exception.getMessage.contains("LargeBinary cannot be null"))
   }
 
   // === Basic Write Tests ===
   test("should write single bytes correctly") {
-    val bigObject = createBigObject("test/single-bytes.txt")
-    withStream(bigObject) { stream =>
+    val largeBinary = createLargeBinary("test/single-bytes.txt")
+    withStream(largeBinary) { stream =>
       "Hello".foreach(c => stream.write(c.toByte))
     }
-    assert(new String(readBack(bigObject)) == "Hello")
+    assert(new String(readBack(largeBinary)) == "Hello")
   }
 
   test("should write byte arrays correctly") {
@@ -95,58 +95,58 @@ class BigObjectOutputStreamSpec
 
   test("should handle partial writes with offset and length") {
     val testData = "Hello, World!".getBytes
-    val bigObject = createBigObject("test/partial-write.txt")
+    val largeBinary = createLargeBinary("test/partial-write.txt")
 
-    withStream(bigObject) { stream =>
+    withStream(largeBinary) { stream =>
       stream.write(testData, 0, 5) // "Hello"
       stream.write(testData, 7, 5) // "World"
     }
 
-    assert(new String(readBack(bigObject)) == "HelloWorld")
+    assert(new String(readBack(largeBinary)) == "HelloWorld")
   }
 
   test("should handle multiple consecutive writes") {
-    val bigObject = createBigObject("test/multiple-writes.txt")
-    withStream(bigObject) { stream =>
+    val largeBinary = createLargeBinary("test/multiple-writes.txt")
+    withStream(largeBinary) { stream =>
       stream.write("Hello".getBytes)
       stream.write(", ".getBytes)
       stream.write("World!".getBytes)
     }
-    assert(new String(readBack(bigObject)) == "Hello, World!")
+    assert(new String(readBack(largeBinary)) == "Hello, World!")
   }
 
   // === Stream Lifecycle Tests ===
   test("flush should not throw") {
-    val bigObject = createBigObject("test/flush.txt")
-    withStream(bigObject) { stream =>
+    val largeBinary = createLargeBinary("test/flush.txt")
+    withStream(largeBinary) { stream =>
       stream.write("test".getBytes)
       stream.flush()
       stream.write(" data".getBytes)
     }
-    assert(new String(readBack(bigObject)) == "test data")
+    assert(new String(readBack(largeBinary)) == "test data")
   }
 
   test("close should be idempotent") {
-    val bigObject = createBigObject("test/close-idempotent.txt")
-    val stream = new BigObjectOutputStream(bigObject)
+    val largeBinary = createLargeBinary("test/close-idempotent.txt")
+    val stream = new LargeBinaryOutputStream(largeBinary)
     stream.write("data".getBytes)
     stream.close()
     stream.close() // Should not throw
     stream.flush() // Should not throw after close
-    assert(new String(readBack(bigObject)) == "data")
+    assert(new String(readBack(largeBinary)) == "data")
   }
 
   test("close should handle empty stream") {
-    val bigObject = createBigObject("test/empty-stream.txt")
-    val stream = new BigObjectOutputStream(bigObject)
+    val largeBinary = createLargeBinary("test/empty-stream.txt")
+    val stream = new LargeBinaryOutputStream(largeBinary)
     stream.close()
-    assert(readBack(bigObject).length == 0)
+    assert(readBack(largeBinary).length == 0)
   }
 
   // === Error Handling ===
   test("write operations should throw IOException when stream is closed") {
-    val bigObject = createBigObject("test/closed-stream.txt")
-    val stream = new BigObjectOutputStream(bigObject)
+    val largeBinary = createLargeBinary("test/closed-stream.txt")
+    val stream = new LargeBinaryOutputStream(largeBinary)
     stream.close()
 
     val ex1 = intercept[IOException](stream.write('A'.toByte))
@@ -171,13 +171,13 @@ class BigObjectOutputStreamSpec
     val totalSize = 1024 * 1024 // 1MB
     val chunkSize = 8 * 1024 // 8KB
     val data = generateRandomData(totalSize)
-    val bigObject = createBigObject("test/chunked.bin")
+    val largeBinary = createLargeBinary("test/chunked.bin")
 
-    withStream(bigObject) { stream =>
+    withStream(largeBinary) { stream =>
       data.grouped(chunkSize).foreach(chunk => stream.write(chunk))
     }
 
-    assert(readBack(bigObject).sameElements(data))
+    assert(readBack(largeBinary).sameElements(data))
   }
 
   // === Binary Data Tests ===
@@ -189,8 +189,8 @@ class BigObjectOutputStreamSpec
   // === Integration Tests ===
   test("should handle concurrent writes to different objects") {
     val streams = (1 to 3).map { i =>
-      val obj = createBigObject(s"test/concurrent-$i.txt")
-      val stream = new BigObjectOutputStream(obj)
+      val obj = createLargeBinary(s"test/concurrent-$i.txt")
+      val stream = new LargeBinaryOutputStream(obj)
       (obj, stream, s"Data $i")
     }
 
@@ -207,32 +207,32 @@ class BigObjectOutputStreamSpec
   }
 
   test("should overwrite existing object") {
-    val bigObject = createBigObject("test/overwrite.txt")
-    withStream(bigObject)(_.write("original data".getBytes))
-    withStream(bigObject)(_.write("new data".getBytes))
-    assert(new String(readBack(bigObject)) == "new data")
+    val largeBinary = createLargeBinary("test/overwrite.txt")
+    withStream(largeBinary)(_.write("original data".getBytes))
+    withStream(largeBinary)(_.write("new data".getBytes))
+    assert(new String(readBack(largeBinary)) == "new data")
   }
 
   test("should handle mixed write operations") {
-    val bigObject = createBigObject("test/mixed-writes.txt")
-    withStream(bigObject) { stream =>
+    val largeBinary = createLargeBinary("test/mixed-writes.txt")
+    withStream(largeBinary) { stream =>
       stream.write('A'.toByte)
       stream.write(" test ".getBytes)
       stream.write('B'.toByte)
       val data = "Hello, World!".getBytes
       stream.write(data, 7, 6) // "World!"
     }
-    assert(new String(readBack(bigObject)) == "A test BWorld!")
+    assert(new String(readBack(largeBinary)) == "A test BWorld!")
   }
 
   // === Edge Cases ===
   test("should create bucket automatically") {
     val newBucketName = s"new-bucket-${Random.nextInt(10000)}"
-    val bigObject = new BigObject(s"s3://$newBucketName/test/auto-create.txt")
+    val largeBinary = new LargeBinary(s"s3://$newBucketName/test/auto-create.txt")
 
     try {
-      withStream(bigObject)(_.write("test".getBytes))
-      assert(new String(readBack(bigObject)) == "test")
+      withStream(largeBinary)(_.write("test".getBytes))
+      assert(new String(readBack(largeBinary)) == "test")
     } finally {
       try S3StorageClient.deleteDirectory(newBucketName, "")
       catch { case _: Exception => /* ignore */ }
@@ -241,11 +241,11 @@ class BigObjectOutputStreamSpec
 
   test("should handle rapid open/close cycles") {
     (1 to 10).foreach { i =>
-      withStream(createBigObject(s"test/rapid-$i.txt"))(_.write(s"data-$i".getBytes))
+      withStream(createLargeBinary(s"test/rapid-$i.txt"))(_.write(s"data-$i".getBytes))
     }
 
     (1 to 10).foreach { i =>
-      val result = readBack(createBigObject(s"test/rapid-$i.txt"))
+      val result = readBack(createLargeBinary(s"test/rapid-$i.txt"))
       assert(new String(result) == s"data-$i")
     }
   }

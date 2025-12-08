@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.util
 
-import org.apache.texera.amber.core.tuple.{AttributeType, BigObject, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil.toIcebergSchema
 import org.apache.iceberg.data.GenericRecord
 import org.apache.iceberg.types.Types
@@ -200,90 +200,91 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(tuple.getField[Array[Byte]]("test-7") sameElements Array[Byte](1, 2, 3, 4))
   }
 
-  // BIG_OBJECT type tests
+  // LARGE_BINARY type tests
 
-  it should "convert BIG_OBJECT type correctly between Texera and Iceberg" in {
-    // BIG_OBJECT stored as StringType with field name suffix
-    assert(IcebergUtil.toIcebergType(AttributeType.BIG_OBJECT) == Types.StringType.get())
+  it should "convert LARGE_BINARY type correctly between Texera and Iceberg" in {
+    // LARGE_BINARY stored as StringType with field name suffix
+    assert(IcebergUtil.toIcebergType(AttributeType.LARGE_BINARY) == Types.StringType.get())
     assert(IcebergUtil.fromIcebergType(Types.StringType.get(), "field") == AttributeType.STRING)
     assert(
       IcebergUtil.fromIcebergType(
         Types.StringType.get(),
-        "field__texera_big_obj_ptr"
-      ) == AttributeType.BIG_OBJECT
+        "field__texera_large_binary_ptr"
+      ) == AttributeType.LARGE_BINARY
     )
   }
 
-  it should "convert schemas with BIG_OBJECT fields correctly" in {
+  it should "convert schemas with LARGE_BINARY fields correctly" in {
     val texeraSchema = Schema()
       .add("id", AttributeType.INTEGER)
-      .add("large_data", AttributeType.BIG_OBJECT)
+      .add("large_data", AttributeType.LARGE_BINARY)
 
     val icebergSchema = IcebergUtil.toIcebergSchema(texeraSchema)
 
-    // BIG_OBJECT field gets encoded name with suffix
-    assert(icebergSchema.findField("large_data__texera_big_obj_ptr") != null)
+    // LARGE_BINARY field gets encoded name with suffix
+    assert(icebergSchema.findField("large_data__texera_large_binary_ptr") != null)
     assert(
-      icebergSchema.findField("large_data__texera_big_obj_ptr").`type`() == Types.StringType.get()
+      icebergSchema.findField("large_data__texera_large_binary_ptr").`type`() == Types.StringType
+        .get()
     )
 
     // Round-trip preserves schema
     val roundTripSchema = IcebergUtil.fromIcebergSchema(icebergSchema)
-    assert(roundTripSchema.getAttribute("large_data").getType == AttributeType.BIG_OBJECT)
+    assert(roundTripSchema.getAttribute("large_data").getType == AttributeType.LARGE_BINARY)
   }
 
-  it should "convert tuples with BIG_OBJECT to records and back correctly" in {
+  it should "convert tuples with LARGE_BINARY to records and back correctly" in {
     val schema = Schema()
       .add("id", AttributeType.INTEGER)
-      .add("large_data", AttributeType.BIG_OBJECT)
+      .add("large_data", AttributeType.LARGE_BINARY)
 
     val tuple = Tuple
       .builder(schema)
-      .addSequentially(Array(Int.box(42), new BigObject("s3://bucket/object/key.data")))
+      .addSequentially(Array(Int.box(42), new LargeBinary("s3://bucket/object/key.data")))
       .build()
 
     val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tuple)
 
-    // BIG_OBJECT stored as URI string with encoded field name
+    // LARGE_BINARY stored as URI string with encoded field name
     assert(record.getField("id") == 42)
-    assert(record.getField("large_data__texera_big_obj_ptr") == "s3://bucket/object/key.data")
+    assert(record.getField("large_data__texera_large_binary_ptr") == "s3://bucket/object/key.data")
 
     // Round-trip preserves data
     val roundTripTuple = IcebergUtil.fromRecord(record, schema)
     assert(roundTripTuple == tuple)
 
-    // BigObject properties are accessible
-    val bigObj = roundTripTuple.getField[BigObject]("large_data")
-    assert(bigObj.getUri == "s3://bucket/object/key.data")
-    assert(bigObj.getBucketName == "bucket")
-    assert(bigObj.getObjectKey == "object/key.data")
+    // LargeBinary properties are accessible
+    val largeBinary = roundTripTuple.getField[LargeBinary]("large_data")
+    assert(largeBinary.getUri == "s3://bucket/object/key.data")
+    assert(largeBinary.getBucketName == "bucket")
+    assert(largeBinary.getObjectKey == "object/key.data")
   }
 
-  it should "handle null BIG_OBJECT values correctly" in {
-    val schema = Schema().add("data", AttributeType.BIG_OBJECT)
+  it should "handle null LARGE_BINARY values correctly" in {
+    val schema = Schema().add("data", AttributeType.LARGE_BINARY)
 
     val tupleWithNull = Tuple.builder(schema).addSequentially(Array(null)).build()
     val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tupleWithNull)
 
-    assert(record.getField("data__texera_big_obj_ptr") == null)
+    assert(record.getField("data__texera_large_binary_ptr") == null)
     assert(IcebergUtil.fromRecord(record, schema) == tupleWithNull)
   }
 
-  it should "handle multiple BIG_OBJECT fields and mixed types correctly" in {
+  it should "handle multiple LARGE_BINARY fields and mixed types correctly" in {
     val schema = Schema()
       .add("int_field", AttributeType.INTEGER)
-      .add("big_obj_1", AttributeType.BIG_OBJECT)
+      .add("large_binary_1", AttributeType.LARGE_BINARY)
       .add("string_field", AttributeType.STRING)
-      .add("big_obj_2", AttributeType.BIG_OBJECT)
+      .add("large_binary_2", AttributeType.LARGE_BINARY)
 
     val tuple = Tuple
       .builder(schema)
       .addSequentially(
         Array(
           Int.box(123),
-          new BigObject("s3://bucket1/file1.dat"),
+          new LargeBinary("s3://bucket1/file1.dat"),
           "normal string",
-          null // null BIG_OBJECT
+          null // null LARGE_BINARY
         )
       )
       .build()
@@ -291,9 +292,9 @@ class IcebergUtilSpec extends AnyFlatSpec {
     val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tuple)
 
     assert(record.getField("int_field") == 123)
-    assert(record.getField("big_obj_1__texera_big_obj_ptr") == "s3://bucket1/file1.dat")
+    assert(record.getField("large_binary_1__texera_large_binary_ptr") == "s3://bucket1/file1.dat")
     assert(record.getField("string_field") == "normal string")
-    assert(record.getField("big_obj_2__texera_big_obj_ptr") == null)
+    assert(record.getField("large_binary_2__texera_large_binary_ptr") == null)
 
     assert(IcebergUtil.fromRecord(record, schema) == tuple)
   }

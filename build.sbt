@@ -110,7 +110,7 @@ lazy val TexeraProject = (project in file("."))
   )
   .settings(
     name := "texera",
-    version := "1.0.0",
+    version := "1.1.0-incubating",
     organization := "org.apache",
     scalaVersion := "2.13.12",
     publishMavenStyle := true

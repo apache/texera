@@ -196,24 +196,24 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assert(parseField("anything", AttributeType.ANY) == "anything")
   }
 
-  test("parseField correctly parses to BIG_OBJECT") {
-    // Valid S3 URI strings are converted to BigObject
-    val pointer1 = parseField("s3://bucket/path/to/object", AttributeType.BIG_OBJECT)
-      .asInstanceOf[BigObject]
+  test("parseField correctly parses to LARGE_BINARY") {
+    // Valid S3 URI strings are converted to LargeBinary
+    val pointer1 = parseField("s3://bucket/path/to/object", AttributeType.LARGE_BINARY)
+      .asInstanceOf[LargeBinary]
     assert(pointer1.getUri == "s3://bucket/path/to/object")
     assert(pointer1.getBucketName == "bucket")
     assert(pointer1.getObjectKey == "path/to/object")
 
     // Null input returns null
-    assert(parseField(null, AttributeType.BIG_OBJECT) == null)
+    assert(parseField(null, AttributeType.LARGE_BINARY) == null)
   }
 
-  test("BIG_OBJECT type is preserved but never inferred from data") {
-    // BIG_OBJECT remains BIG_OBJECT when passed as typeSoFar
-    assert(inferField(AttributeType.BIG_OBJECT, "any-value") == AttributeType.BIG_OBJECT)
-    assert(inferField(AttributeType.BIG_OBJECT, null) == AttributeType.BIG_OBJECT)
+  test("LARGE_BINARY type is preserved but never inferred from data") {
+    // LARGE_BINARY remains LARGE_BINARY when passed as typeSoFar
+    assert(inferField(AttributeType.LARGE_BINARY, "any-value") == AttributeType.LARGE_BINARY)
+    assert(inferField(AttributeType.LARGE_BINARY, null) == AttributeType.LARGE_BINARY)
 
-    // String data is inferred as STRING, never BIG_OBJECT
+    // String data is inferred as STRING, never LARGE_BINARY
     assert(inferField("s3://bucket/path") == AttributeType.STRING)
   }
 
