@@ -23,56 +23,56 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.texera.amber.core.executor.OperatorExecutor;
-import org.apache.texera.service.util.BigObjectManager;
+import org.apache.texera.service.util.LargeBinaryManager;
 
 import java.net.URI;
 import java.util.Objects;
 
 /**
- * BigObject represents a reference to a large object stored in S3.
+ * LargeBinary represents a reference to a large object stored in S3.
  * 
- * Each BigObject is identified by an S3 URI (s3://bucket/path/to/object).
- * BigObjects are automatically tracked and cleaned up when the workflow execution completes.
+ * Each LargeBinary is identified by an S3 URI (s3://bucket/path/to/object).
+ * LargeBinaries are automatically tracked and cleaned up when the workflow execution completes.
  */
-public class BigObject {
+public class LargeBinary {
     
     private final String uri;
     
     /**
-     * Creates a BigObject from an existing S3 URI.
+     * Creates a LargeBinary from an existing S3 URI.
      * Used primarily for deserialization from JSON.
      * 
      * @param uri S3 URI in the format s3://bucket/path/to/object
      * @throws IllegalArgumentException if URI is null or doesn't start with "s3://"
      */
     @JsonCreator
-    public BigObject(@JsonProperty("uri") String uri) {
+    public LargeBinary(@JsonProperty("uri") String uri) {
         if (uri == null) {
-            throw new IllegalArgumentException("BigObject URI cannot be null");
+            throw new IllegalArgumentException("LargeBinary URI cannot be null");
         }
         if (!uri.startsWith("s3://")) {
             throw new IllegalArgumentException(
-                "BigObject URI must start with 's3://', got: " + uri
+                "LargeBinary URI must start with 's3://', got: " + uri
             );
         }
         this.uri = uri;
     }
     
     /**
-     * Creates a new BigObject for writing data.
+     * Creates a new LargeBinary for writing data.
      * Generates a unique S3 URI.
      * 
      * Usage example:
      * 
-     *   BigObject bigObject = new BigObject();
-     *   try (BigObjectOutputStream out = new BigObjectOutputStream(bigObject)) {
+     *   LargeBinary largeBinary = new LargeBinary();
+     *   try (LargeBinaryOutputStream out = new LargeBinaryOutputStream(largeBinary)) {
      *     out.write(data);
      *   }
-     *   // bigObject is now ready to be added to tuples
+     *   // largeBinary is now ready to be added to tuples
      * 
      */
-    public BigObject() {
-        this(BigObjectManager.create());
+    public LargeBinary() {
+        this(LargeBinaryManager.create());
     }
     
     @JsonValue
@@ -97,8 +97,8 @@ public class BigObject {
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof BigObject)) return false;
-        BigObject that = (BigObject) obj;
+        if (!(obj instanceof LargeBinary)) return false;
+        LargeBinary that = (LargeBinary) obj;
         return Objects.equals(uri, that.uri);
     }
     
