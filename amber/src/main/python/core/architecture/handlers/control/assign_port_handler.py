@@ -26,7 +26,6 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 
 class AssignPortHandler(ControlHandler):
-
     async def assign_port(self, req: AssignPortRequest) -> EmptyReturn:
         if req.input:
             self.context.input_manager.add_input_port(
