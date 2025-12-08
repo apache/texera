@@ -19,7 +19,8 @@ under the License.
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="AccessControlService" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="org.apache.texera.service.AccessControlService" />
-    <module name="texera.access-control-service.main" />
+    <module name="texera.access-control-service" />
+    <shortenClasspath name="ARGS_FILE" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="org.apache.texera.service.*" />

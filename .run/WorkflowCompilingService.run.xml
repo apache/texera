@@ -19,7 +19,7 @@ under the License.
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="WorkflowCompilingService" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="org.apache.texera.service.WorkflowCompilingService" />
-    <module name="texera.workflow-compiling-service.main" />
+    <module name="texera.workflow-compiling-service" />
     <shortenClasspath name="ARGS_FILE" />
     <extension name="coverage">
       <pattern>
