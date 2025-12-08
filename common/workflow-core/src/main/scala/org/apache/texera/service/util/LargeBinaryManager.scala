@@ -24,19 +24,19 @@ import com.typesafe.scalalogging.LazyLogging
 import java.util.UUID
 
 /**
-  * Manages the lifecycle of BigObjects stored in S3.
+  * Manages the lifecycle of LargeBinaries stored in S3.
   *
   * Handles creation and deletion of large objects that exceed
   * normal tuple size limits.
   */
-object BigObjectManager extends LazyLogging {
-  private val DEFAULT_BUCKET = "texera-big-objects"
+object LargeBinaryManager extends LazyLogging {
+  private val DEFAULT_BUCKET = "texera-large-binaries"
 
   /**
-    * Creates a new BigObject reference.
-    * The actual data upload happens separately via BigObjectOutputStream.
+    * Creates a new LargeBinary reference.
+    * The actual data upload happens separately via LargeBinaryOutputStream.
     *
-    * @return S3 URI string for the new BigObject (format: s3://bucket/key)
+    * @return S3 URI string for the new LargeBinary (format: s3://bucket/key)
     */
   def create(): String = {
     S3StorageClient.createBucketIfNotExist(DEFAULT_BUCKET)
@@ -48,7 +48,7 @@ object BigObjectManager extends LazyLogging {
   }
 
   /**
-    * Deletes all big objects from the bucket.
+    * Deletes all large binaries from the bucket.
     *
     * @throws Exception if the deletion fails
     * @return Unit
@@ -56,10 +56,10 @@ object BigObjectManager extends LazyLogging {
   def deleteAllObjects(): Unit = {
     try {
       S3StorageClient.deleteDirectory(DEFAULT_BUCKET, "objects")
-      logger.info(s"Successfully deleted all big objects from bucket: $DEFAULT_BUCKET")
+      logger.info(s"Successfully deleted all large binaries from bucket: $DEFAULT_BUCKET")
     } catch {
       case e: Exception =>
-        logger.warn(s"Failed to delete big objects from bucket: $DEFAULT_BUCKET", e)
+        logger.warn(s"Failed to delete large binaries from bucket: $DEFAULT_BUCKET", e)
     }
   }
 
