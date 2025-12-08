@@ -24,7 +24,6 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 
 class EvaluateExpressionHandler(ControlHandler):
-
     async def evaluate_python_expression(
         self, req: EvaluatePythonExpressionRequest
     ) -> EvaluatedValue:

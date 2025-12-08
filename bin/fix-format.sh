@@ -95,14 +95,14 @@ fi
 
 # --- 3) Python formatting ---
 if $run_python; then
-  tx_info "Running black in amber/src/main/python..."
-  if ! command -v black >/dev/null 2>&1; then
-    tx_error "black not found. Install with: pip install black"
+  tx_info "Running ruff in amber/src/main/python..."
+  if ! command -v ruff >/dev/null 2>&1; then
+    tx_error "ruff not found. Install with: pip install ruff"
     exit 1
   fi
   (
     cd "$AMBER_PY_DIR"
-    black .
+    ruff format .
   )
   tx_success "Python formatting completed."
 fi
