@@ -1384,9 +1384,27 @@ class DatasetResource {
     withTransaction(context) { ctx =>
       val uid = sessionUser.getUid
       val dataset = getDatasetByID(ctx, did)
-
       if (!userHasWriteAccess(ctx, did, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val document = DocumentFactory
+        .openReadonlyDocument(
+          FileResolver.resolve(s"${getOwner(ctx, did).getEmail}/${dataset.getName}/$coverImage")
+        )
+        .asInstanceOf[OnDataset]
+
+      val file = LakeFSStorageClient.getFileFromRepo(
+        document.getRepositoryName(),
+        document.getVersionHash(),
+        document.getFileRelativePath()
+      )
+      val coverSizeLimit = 10 * 1024 * 1024 // 10 MB
+
+      if (file.length() > coverSizeLimit) {
+        throw new BadRequestException(
+          s"Cover image must be less than ${coverSizeLimit / (1024 * 1024)} MB"
+        )
       }
 
       dataset.setCoverImage(coverImage)

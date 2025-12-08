@@ -670,8 +670,8 @@ export class DatasetDetailComponent implements OnInit {
         next: () => {
           this.notificationService.success("Cover image set successfully");
         },
-        error: (err: unknown) => {
-          this.notificationService.error("Failed to set cover image");
+        error: (err: HttpErrorResponse) => {
+          this.notificationService.error(err.error?.message || "Failed to set cover image");
         },
       });
   }
