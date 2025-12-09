@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: texera-single-node-release-1-0-0
+name: texera-single-node-release-1-1-0-incubating
 services:
   # Part1: Specification of the storage services used by Texera
   # MinIO is an S3-compatible object storage used to store datasets and files.
@@ -78,7 +78,7 @@ services:
   # Part2: Specification of Texera's micro-services
   # FileService provides endpoints for Texera's dataset management
   file-service:
-    image: apache/texera-file-service:latest
+    image: apache/texera-file-service:1.1.0-incubating
     container_name: texera-file-service
     restart: always
     depends_on:
@@ -96,7 +96,7 @@ services:
 
   # ConfigService provides endpoints for configuration management
   config-service:
-    image: apache/texera-config-service:latest
+    image: apache/texera-config-service:1.1.0-incubating
     container_name: texera-config-service
     restart: always
     depends_on:
@@ -112,7 +112,7 @@ services:
 
   # AccessControlService handles user permissions and access control
   access-control-service:
-    image: apache/texera-access-control-service:latest
+    image: apache/texera-access-control-service:1.1.0-incubating
     container_name: texera-access-control-service
     restart: always
     depends_on:
@@ -128,7 +128,7 @@ services:
 
   # WorkflowComputingUnitManagingService provides endpoints for managing computing units
   workflow-computing-unit-managing-service:
-    image: apache/texera-workflow-computing-unit-managing-service:latest
+    image: apache/texera-workflow-computing-unit-managing-service:1.1.0-incubating
     container_name: texera-workflow-computing-unit-managing-service
     restart: always
     depends_on:
@@ -144,7 +144,7 @@ services:
 
   # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
   workflow-compiling-service:
-    image: apache/texera-workflow-compiling-service:latest
+    image: apache/texera-workflow-compiling-service:1.1.0-incubating
     container_name: texera-workflow-compiling-service
     restart: always
     depends_on:
@@ -160,8 +160,8 @@ services:
 
   # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
   computing-unit-master:
-    # to enable R operators, change the image tag to single-node-release-1-0-0-R
-    image: apache/texera-workflow-execution-coordinator:latest
+    # to enable R operators, change the image tag to single-node-release-1-1-0-incubating-R
+    image: apache/texera-workflow-execution-coordinator:1.1.0-incubating
     container_name: texera-computing-unit-master
     restart: always
     depends_on:
@@ -174,7 +174,7 @@ services:
 
   # TexeraWebApplication provides endpoints for hub resource management.
   texera-web-application:
-    image: apache/texera-dashboard-service:latest
+    image: apache/texera-dashboard-service:1.1.0-incubating
     container_name: texera-web-application
     restart: always
     depends_on:
@@ -213,7 +213,7 @@ services:
 
 networks:
   default:
-    name: texera-single-node-release-1-0-0
+    name: texera-single-node-release-1-1-0-incubating
 
 # persistent volumes
 volumes:

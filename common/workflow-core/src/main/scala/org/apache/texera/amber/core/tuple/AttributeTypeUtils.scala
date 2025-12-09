@@ -121,15 +121,15 @@ object AttributeTypeUtils extends Serializable {
   ): Any = {
     if (field == null) return null
     attributeType match {
-      case AttributeType.INTEGER    => parseInteger(field, force)
-      case AttributeType.LONG       => parseLong(field, force)
-      case AttributeType.DOUBLE     => parseDouble(field)
-      case AttributeType.BOOLEAN    => parseBoolean(field)
-      case AttributeType.TIMESTAMP  => parseTimestamp(field)
-      case AttributeType.STRING     => field.toString
-      case AttributeType.BINARY     => field
-      case AttributeType.BIG_OBJECT => new BigObject(field.toString)
-      case AttributeType.ANY | _    => field
+      case AttributeType.INTEGER      => parseInteger(field, force)
+      case AttributeType.LONG         => parseLong(field, force)
+      case AttributeType.DOUBLE       => parseDouble(field)
+      case AttributeType.BOOLEAN      => parseBoolean(field)
+      case AttributeType.TIMESTAMP    => parseTimestamp(field)
+      case AttributeType.STRING       => field.toString
+      case AttributeType.BINARY       => field
+      case AttributeType.LARGE_BINARY => new LargeBinary(field.toString)
+      case AttributeType.ANY | _      => field
     }
   }
 
@@ -384,8 +384,8 @@ object AttributeTypeUtils extends Serializable {
       case AttributeType.INTEGER   => tryParseInteger(fieldValue)
       case AttributeType.TIMESTAMP => tryParseTimestamp(fieldValue)
       case AttributeType.BINARY    => tryParseString()
-      case AttributeType.BIG_OBJECT =>
-        AttributeType.BIG_OBJECT // Big objects are never inferred from data
+      case AttributeType.LARGE_BINARY =>
+        AttributeType.LARGE_BINARY // Large binaries are never inferred from data
       case _ => tryParseString()
     }
   }

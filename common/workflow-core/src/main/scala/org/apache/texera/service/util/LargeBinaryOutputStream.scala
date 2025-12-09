@@ -20,7 +20,7 @@
 package org.apache.texera.service.util
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.tuple.BigObject
+import org.apache.texera.amber.core.tuple.LargeBinary
 
 import java.io.{IOException, OutputStream, PipedInputStream, PipedOutputStream}
 import java.util.concurrent.atomic.AtomicReference
@@ -28,32 +28,32 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
 /**
-  * OutputStream for streaming BigObject data to S3.
+  * OutputStream for streaming LargeBinary data to S3.
   *
   * Data is uploaded in the background using multipart upload as you write.
   * Call close() to complete the upload and ensure all data is persisted.
   *
   * Usage:
   * {{{
-  *   val bigObject = new BigObject()
-  *   try (val out = new BigObjectOutputStream(bigObject)) {
+  *   val largeBinary = new LargeBinary()
+  *   try (val out = new LargeBinaryOutputStream(largeBinary)) {
   *     out.write(myBytes)
   *   }
-  *   // bigObject is now ready to use
+  *   // largeBinary is now ready to use
   * }}}
   *
   * Note: Not thread-safe. Do not access from multiple threads concurrently.
   *
-  * @param bigObject The BigObject reference to write to
+  * @param largeBinary The LargeBinary reference to write to
   */
-class BigObjectOutputStream(bigObject: BigObject) extends OutputStream with LazyLogging {
+class LargeBinaryOutputStream(largeBinary: LargeBinary) extends OutputStream with LazyLogging {
 
   private val PIPE_BUFFER_SIZE = 64 * 1024 // 64KB
 
-  require(bigObject != null, "BigObject cannot be null")
+  require(largeBinary != null, "LargeBinary cannot be null")
 
-  private val bucketName: String = bigObject.getBucketName
-  private val objectKey: String = bigObject.getObjectKey
+  private val bucketName: String = largeBinary.getBucketName
+  private val objectKey: String = largeBinary.getObjectKey
   private implicit val ec: ExecutionContext = ExecutionContext.global
 
   // Pipe: we write to pipedOut, and S3 reads from pipedIn
@@ -68,11 +68,11 @@ class BigObjectOutputStream(bigObject: BigObject) extends OutputStream with Lazy
     try {
       S3StorageClient.createBucketIfNotExist(bucketName)
       S3StorageClient.uploadObject(bucketName, objectKey, pipedIn)
-      logger.debug(s"Upload completed: ${bigObject.getUri}")
+      logger.debug(s"Upload completed: ${largeBinary.getUri}")
     } catch {
       case e: Exception =>
         uploadException.set(Some(e))
-        logger.error(s"Upload failed: ${bigObject.getUri}", e)
+        logger.error(s"Upload failed: ${largeBinary.getUri}", e)
     } finally {
       pipedIn.close()
     }
