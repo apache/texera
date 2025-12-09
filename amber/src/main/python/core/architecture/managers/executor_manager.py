@@ -139,9 +139,9 @@ class ExecutorManager:
         executor: type(Operator) = self.load_executor_definition(code)
         self.executor = executor()
         self.executor.is_source = is_source
-        assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
-        ), "Please use SourceOperator API for source operators."
+        assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
+            "Please use SourceOperator API for source operators."
+        )
 
     def update_executor(self, code: str, is_source: bool) -> None:
         """
@@ -157,9 +157,9 @@ class ExecutorManager:
         executor: type(Operator) = self.load_executor_definition(code)
         self.executor = executor()
         self.executor.is_source = is_source
-        assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
-        ), "Please use SourceOperator API for source operators."
+        assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
+            "Please use SourceOperator API for source operators."
+        )
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
         # TODO:
