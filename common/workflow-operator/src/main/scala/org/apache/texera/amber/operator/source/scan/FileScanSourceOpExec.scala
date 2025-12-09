@@ -22,9 +22,9 @@ package org.apache.texera.amber.operator.source.scan
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseField
-import org.apache.texera.amber.core.tuple.{BigObject, TupleLike}
+import org.apache.texera.amber.core.tuple.{LargeBinary, TupleLike}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.service.util.BigObjectOutputStream
+import org.apache.texera.service.util.LargeBinaryOutputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import org.apache.commons.io.IOUtils.toByteArray
@@ -85,10 +85,10 @@ class FileScanSourceOpExec private[scan] (
             fields.addOne(desc.attributeType match {
               case FileAttributeType.SINGLE_STRING =>
                 new String(toByteArray(entry), desc.fileEncoding.getCharset)
-              case FileAttributeType.BIG_OBJECT =>
-                // For big objects, create reference and upload via streaming
-                val bigObject = new BigObject()
-                val out = new BigObjectOutputStream(bigObject)
+              case FileAttributeType.LARGE_BINARY =>
+                // For large binaries, create reference and upload via streaming
+                val largeBinary = new LargeBinary()
+                val out = new LargeBinaryOutputStream(largeBinary)
                 try {
                   val buffer = new Array[Byte](8192)
                   var bytesRead = entry.read(buffer)
@@ -99,7 +99,7 @@ class FileScanSourceOpExec private[scan] (
                 } finally {
                   out.close()
                 }
-                bigObject
+                largeBinary
               case _ => parseField(toByteArray(entry), desc.attributeType.getType)
             })
             TupleLike(fields.toSeq: _*)

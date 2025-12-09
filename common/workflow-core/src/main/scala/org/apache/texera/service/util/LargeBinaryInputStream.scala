@@ -19,31 +19,31 @@
 
 package org.apache.texera.service.util
 
-import org.apache.texera.amber.core.tuple.BigObject
+import org.apache.texera.amber.core.tuple.LargeBinary
 
 import java.io.InputStream
 
 /**
-  * InputStream for reading BigObject data from S3.
+  * InputStream for reading LargeBinary data from S3.
   *
   * The underlying S3 download is lazily initialized on first read.
   * The stream will fail if the S3 object doesn't exist when read is attempted.
   *
   * Usage:
   * {{{
-  *   val bigObject: BigObject = ...
-  *   try (val in = new BigObjectInputStream(bigObject)) {
+  *   val largeBinary: LargeBinary = ...
+  *   try (val in = new LargeBinaryInputStream(largeBinary)) {
   *     val bytes = in.readAllBytes()
   *   }
   * }}}
   */
-class BigObjectInputStream(bigObject: BigObject) extends InputStream {
+class LargeBinaryInputStream(largeBinary: LargeBinary) extends InputStream {
 
-  require(bigObject != null, "BigObject cannot be null")
+  require(largeBinary != null, "LargeBinary cannot be null")
 
   // Lazy initialization - downloads only when first read() is called
   private lazy val underlying: InputStream =
-    S3StorageClient.downloadObject(bigObject.getBucketName, bigObject.getObjectKey)
+    S3StorageClient.downloadObject(largeBinary.getBucketName, largeBinary.getObjectKey)
 
   @volatile private var closed = false
 
