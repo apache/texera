@@ -20,7 +20,7 @@
 package org.apache.texera.amber.util
 
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
-import org.apache.texera.amber.core.tuple.{AttributeType, BigObject, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
@@ -100,8 +100,8 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     // but not the other way around.
     assert(ArrowUtils.fromAttributeType(AttributeType.ANY) == string)
 
-    // BIG_OBJECT is converted to ArrowType.Utf8 (same as STRING)
-    assert(ArrowUtils.fromAttributeType(AttributeType.BIG_OBJECT) == string)
+    // LARGE_BINARY is converted to ArrowType.Utf8 (same as STRING)
+    assert(ArrowUtils.fromAttributeType(AttributeType.LARGE_BINARY) == string)
 
   }
 
@@ -243,17 +243,17 @@ class ArrowUtilsSpec extends AnyFlatSpec {
 
   }
 
-  it should "convert from AttributeType to ArrowType for BIG_OBJECT correctly" in {
-    // BIG_OBJECT is converted to ArrowType.Utf8 (stored as string)
-    assert(ArrowUtils.fromAttributeType(AttributeType.BIG_OBJECT) == string)
+  it should "convert from AttributeType to ArrowType for LARGE_BINARY correctly" in {
+    // LARGE_BINARY is converted to ArrowType.Utf8 (stored as string)
+    assert(ArrowUtils.fromAttributeType(AttributeType.LARGE_BINARY) == string)
   }
 
-  it should "convert Texera Schema with BIG_OBJECT to Arrow Schema with metadata correctly" in {
-    val texeraSchemaWithBigObject = Schema()
+  it should "convert Texera Schema with LARGE_BINARY to Arrow Schema with metadata correctly" in {
+    val texeraSchemaWithLargeBinary = Schema()
       .add("regular_string", AttributeType.STRING)
-      .add("big_object_field", AttributeType.BIG_OBJECT)
+      .add("large_binary_field", AttributeType.LARGE_BINARY)
 
-    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithBigObject)
+    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithLargeBinary)
 
     // Check that regular string field has no metadata
     val regularStringField = arrowSchema.getFields.get(0)
@@ -265,88 +265,88 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       )
     )
 
-    // Check that BIG_OBJECT field has metadata
-    val bigObjectField = arrowSchema.getFields.get(1)
-    assert(bigObjectField.getName == "big_object_field")
-    assert(bigObjectField.getType == string) // BIG_OBJECT is stored as Utf8
-    assert(bigObjectField.getMetadata != null)
-    assert(bigObjectField.getMetadata.get("texera_type") == "BIG_OBJECT")
+    // Check that LARGE_BINARY field has metadata
+    val largeBinaryField = arrowSchema.getFields.get(1)
+    assert(largeBinaryField.getName == "large_binary_field")
+    assert(largeBinaryField.getType == string) // LARGE_BINARY is stored as Utf8
+    assert(largeBinaryField.getMetadata != null)
+    assert(largeBinaryField.getMetadata.get("texera_type") == "LARGE_BINARY")
   }
 
-  it should "convert Arrow Schema with BIG_OBJECT metadata to Texera Schema correctly" in {
-    // Create Arrow schema with BIG_OBJECT metadata
-    val bigObjectMetadata = new util.HashMap[String, String]()
-    bigObjectMetadata.put("texera_type", "BIG_OBJECT")
+  it should "convert Arrow Schema with LARGE_BINARY metadata to Texera Schema correctly" in {
+    // Create Arrow schema with LARGE_BINARY metadata
+    val largeBinaryMetadata = new util.HashMap[String, String]()
+    largeBinaryMetadata.put("texera_type", "LARGE_BINARY")
 
-    val arrowSchemaWithBigObject = new org.apache.arrow.vector.types.pojo.Schema(
+    val arrowSchemaWithLargeBinary = new org.apache.arrow.vector.types.pojo.Schema(
       Array(
         Field.nullablePrimitive("regular_string", string),
         new Field(
-          "big_object_field",
-          new FieldType(true, string, null, bigObjectMetadata),
+          "large_binary_field",
+          new FieldType(true, string, null, largeBinaryMetadata),
           null
         )
       ).toList.asJava
     )
 
-    val texeraSchema = ArrowUtils.toTexeraSchema(arrowSchemaWithBigObject)
+    val texeraSchema = ArrowUtils.toTexeraSchema(arrowSchemaWithLargeBinary)
 
     assert(texeraSchema.getAttribute("regular_string").getName == "regular_string")
     assert(texeraSchema.getAttribute("regular_string").getType == AttributeType.STRING)
 
-    assert(texeraSchema.getAttribute("big_object_field").getName == "big_object_field")
-    assert(texeraSchema.getAttribute("big_object_field").getType == AttributeType.BIG_OBJECT)
+    assert(texeraSchema.getAttribute("large_binary_field").getName == "large_binary_field")
+    assert(texeraSchema.getAttribute("large_binary_field").getType == AttributeType.LARGE_BINARY)
   }
 
-  it should "set and get Texera Tuple with BIG_OBJECT correctly" in {
-    val texeraSchemaWithBigObject = Schema()
-      .add("big_object_field", AttributeType.BIG_OBJECT)
+  it should "set and get Texera Tuple with LARGE_BINARY correctly" in {
+    val texeraSchemaWithLargeBinary = Schema()
+      .add("large_binary_field", AttributeType.LARGE_BINARY)
       .add("regular_string", AttributeType.STRING)
 
-    val bigObject = new BigObject("s3://test-bucket/path/to/object")
+    val largeBinary = new LargeBinary("s3://test-bucket/path/to/object")
     val tuple = Tuple
-      .builder(texeraSchemaWithBigObject)
+      .builder(texeraSchemaWithLargeBinary)
       .addSequentially(
         Array(
-          bigObject,
+          largeBinary,
           "regular string value"
         )
       )
       .build()
 
     val allocator: BufferAllocator = new RootAllocator()
-    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithBigObject)
+    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithLargeBinary)
     val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
     vectorSchemaRoot.allocateNew()
 
     // Set Tuple into the Vectors
     ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
 
-    // Verify the BIG_OBJECT is stored as string (URI) in Arrow
+    // Verify the LARGE_BINARY is stored as string (URI) in Arrow
     val storedValue = vectorSchemaRoot.getVector(0).getObject(0)
     assert(storedValue.toString == "s3://test-bucket/path/to/object")
 
     // Get the Tuple from the Vectors
     val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
-    assert(retrievedTuple.getField[BigObject](0) == bigObject)
+    assert(retrievedTuple.getField[LargeBinary](0) == largeBinary)
     assert(retrievedTuple.getField[String](1) == "regular string value")
   }
 
-  it should "handle null BIG_OBJECT values correctly" in {
-    val texeraSchemaWithBigObject = Schema()
-      .add("big_object_field", AttributeType.BIG_OBJECT)
+  it should "handle null LARGE_BINARY values correctly" in {
+    val texeraSchemaWithLargeBinary = Schema()
+      .add("large_binary_field", AttributeType.LARGE_BINARY)
 
     val tuple = Tuple
-      .builder(texeraSchemaWithBigObject)
+      .builder(texeraSchemaWithLargeBinary)
       .addSequentially(
         Array(
-          null.asInstanceOf[BigObject]
+          null.asInstanceOf[LargeBinary]
         )
       )
       .build()
 
     val allocator: BufferAllocator = new RootAllocator()
-    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithBigObject)
+    val arrowSchema = ArrowUtils.fromTexeraSchema(texeraSchemaWithLargeBinary)
     val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
     vectorSchemaRoot.allocateNew()
 
@@ -358,24 +358,24 @@ class ArrowUtilsSpec extends AnyFlatSpec {
 
     // Get the Tuple from the Vectors
     val retrievedTuple = ArrowUtils.getTexeraTuple(0, vectorSchemaRoot)
-    assert(retrievedTuple.getField[BigObject](0) == null)
+    assert(retrievedTuple.getField[LargeBinary](0) == null)
   }
 
-  it should "round-trip BIG_OBJECT schema conversion correctly" in {
+  it should "round-trip LARGE_BINARY schema conversion correctly" in {
     val originalSchema = Schema()
       .add("field1", AttributeType.STRING)
-      .add("field2", AttributeType.BIG_OBJECT)
+      .add("field2", AttributeType.LARGE_BINARY)
       .add("field3", AttributeType.INTEGER)
-      .add("field4", AttributeType.BIG_OBJECT)
+      .add("field4", AttributeType.LARGE_BINARY)
 
     // Convert to Arrow and back
     val arrowSchema = ArrowUtils.fromTexeraSchema(originalSchema)
     val roundTripSchema = ArrowUtils.toTexeraSchema(arrowSchema)
 
     assert(roundTripSchema.getAttribute("field1").getType == AttributeType.STRING)
-    assert(roundTripSchema.getAttribute("field2").getType == AttributeType.BIG_OBJECT)
+    assert(roundTripSchema.getAttribute("field2").getType == AttributeType.LARGE_BINARY)
     assert(roundTripSchema.getAttribute("field3").getType == AttributeType.INTEGER)
-    assert(roundTripSchema.getAttribute("field4").getType == AttributeType.BIG_OBJECT)
+    assert(roundTripSchema.getAttribute("field4").getType == AttributeType.LARGE_BINARY)
     assert(roundTripSchema == originalSchema)
   }
 

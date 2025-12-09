@@ -18,7 +18,7 @@
 """
 largebinary represents a reference to a large object stored externally (e.g., S3).
 This is a schema type class used throughout the system for handling
-BIG_OBJECT attribute types.
+LARGE_BINARY attribute types.
 """
 
 from typing import Optional
@@ -37,17 +37,17 @@ class largebinary:
       from pytexera import largebinary, LargeBinaryInputStream, LargeBinaryOutputStream
 
       # Create a new largebinary for writing
-      big_object = largebinary()
-      with LargeBinaryOutputStream(big_object) as out:
+      large_binary = largebinary()
+      with LargeBinaryOutputStream(large_binary) as out:
           out.write(b"data")
-      # big_object is now ready to be added to tuples
+      # large_binary is now ready to be added to tuples
 
       # Read from an existing largebinary
-      with LargeBinaryInputStream(big_object) as stream:
+      with LargeBinaryInputStream(large_binary) as stream:
           content = stream.read()
 
       # Create from existing URI (e.g., from deserialization)
-      big_object = largebinary("s3://bucket/path/to/object")
+      large_binary = largebinary("s3://bucket/path/to/object")
     """
 
     def __init__(self, uri: Optional[str] = None):

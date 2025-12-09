@@ -19,7 +19,7 @@
 LargeBinaryInputStream for reading largebinary data from S3.
 
 Usage:
-    with LargeBinaryInputStream(big_object) as stream:
+    with LargeBinaryInputStream(large_binary) as stream:
         content = stream.read()
 """
 
@@ -50,12 +50,12 @@ class LargeBinaryInputStream(IOBase):
     Lazily downloads from S3 on first read. Supports context manager and iteration.
     """
 
-    def __init__(self, big_object: largebinary):
+    def __init__(self, large_binary: largebinary):
         """Initialize stream for reading the given largebinary."""
         super().__init__()
-        if big_object is None:
+        if large_binary is None:
             raise ValueError("largebinary cannot be None")
-        self._big_object = big_object
+        self._large_binary = large_binary
         self._underlying: Optional[BinaryIO] = None
         self._closed = False
 
@@ -65,8 +65,8 @@ class LargeBinaryInputStream(IOBase):
 
         s3 = LargeBinaryManager._get_s3_client()
         response = s3.get_object(
-            Bucket=self._big_object.get_bucket_name(),
-            Key=self._big_object.get_object_key(),
+            Bucket=self._large_binary.get_bucket_name(),
+            Key=self._large_binary.get_object_key(),
         )
         self._underlying = response["Body"]
 

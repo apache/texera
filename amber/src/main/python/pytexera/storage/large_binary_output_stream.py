@@ -21,8 +21,8 @@ LargeBinaryOutputStream for streaming largebinary data to S3.
 Usage:
     from pytexera import largebinary, LargeBinaryOutputStream
 
-    big_object = largebinary()
-    with LargeBinaryOutputStream(big_object) as out:
+    large_binary = largebinary()
+    with LargeBinaryOutputStream(large_binary) as out:
         out.write(b"data")
 """
 
@@ -91,32 +91,32 @@ class LargeBinaryOutputStream(IOBase):
         from pytexera import largebinary, LargeBinaryOutputStream
 
         # Create a new largebinary and write to it
-        big_object = largebinary()
-        with LargeBinaryOutputStream(big_object) as out:
+        large_binary = largebinary()
+        with LargeBinaryOutputStream(large_binary) as out:
             out.write(b"Hello, World!")
             out.write(b"More data")
-        # big_object is now ready to be added to tuples
+        # large_binary is now ready to be added to tuples
 
     Note: Not thread-safe. Do not access from multiple threads concurrently.
     """
 
-    def __init__(self, big_object: largebinary):
+    def __init__(self, large_binary: largebinary):
         """
         Initialize a LargeBinaryOutputStream.
 
         Args:
-            big_object: The largebinary reference to write to
+            large_binary: The largebinary reference to write to
 
         Raises:
-            ValueError: If big_object is None
+            ValueError: If large_binary is None
         """
         super().__init__()
-        if big_object is None:
+        if large_binary is None:
             raise ValueError("largebinary cannot be None")
 
-        self._big_object = big_object
-        self._bucket_name = big_object.get_bucket_name()
-        self._object_key = big_object.get_object_key()
+        self._large_binary = large_binary
+        self._bucket_name = large_binary.get_bucket_name()
+        self._object_key = large_binary.get_object_key()
         self._closed = False
 
         # Background upload thread state

@@ -222,53 +222,53 @@ class TestTuple:
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
 
-    def test_tuple_with_big_object(self):
+    def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
         from core.models.schema.large_binary import largebinary
 
         schema = Schema(
             raw_schema={
                 "regular_field": "STRING",
-                "big_object_field": "BIG_OBJECT",
+                "large_binary_field": "LARGE_BINARY",
             }
         )
 
-        big_object = largebinary("s3://test-bucket/path/to/object")
+        large_binary = largebinary("s3://test-bucket/path/to/object")
         tuple_ = Tuple(
             {
                 "regular_field": "test string",
-                "big_object_field": big_object,
+                "large_binary_field": large_binary,
             },
             schema=schema,
         )
 
         assert tuple_["regular_field"] == "test string"
-        assert tuple_["big_object_field"] == big_object
-        assert isinstance(tuple_["big_object_field"], largebinary)
-        assert tuple_["big_object_field"].uri == "s3://test-bucket/path/to/object"
+        assert tuple_["large_binary_field"] == large_binary
+        assert isinstance(tuple_["large_binary_field"], largebinary)
+        assert tuple_["large_binary_field"].uri == "s3://test-bucket/path/to/object"
 
-    def test_tuple_from_arrow_with_big_object(self):
-        """Test creating tuple from Arrow table with BIG_OBJECT metadata."""
+    def test_tuple_from_arrow_with_large_binary(self):
+        """Test creating tuple from Arrow table with LARGE_BINARY metadata."""
         import pyarrow as pa
         from core.models.schema.large_binary import largebinary
 
-        # Create Arrow schema with BIG_OBJECT metadata
+        # Create Arrow schema with LARGE_BINARY metadata
         arrow_schema = pa.schema(
             [
                 pa.field("regular_field", pa.string()),
                 pa.field(
-                    "big_object_field",
+                    "large_binary_field",
                     pa.string(),
-                    metadata={b"texera_type": b"BIG_OBJECT"},
+                    metadata={b"texera_type": b"LARGE_BINARY"},
                 ),
             ]
         )
 
-        # Create Arrow table with URI string for big_object_field
+        # Create Arrow table with URI string for large_binary_field
         arrow_table = pa.Table.from_pydict(
             {
                 "regular_field": ["test"],
-                "big_object_field": ["s3://test-bucket/path/to/object"],
+                "large_binary_field": ["s3://test-bucket/path/to/object"],
             },
             schema=arrow_schema,
         )
@@ -283,20 +283,20 @@ class TestTuple:
         assert len(tuples) == 1
         tuple_ = tuples[0]
         assert tuple_["regular_field"] == "test"
-        assert isinstance(tuple_["big_object_field"], largebinary)
-        assert tuple_["big_object_field"].uri == "s3://test-bucket/path/to/object"
+        assert isinstance(tuple_["large_binary_field"], largebinary)
+        assert tuple_["large_binary_field"].uri == "s3://test-bucket/path/to/object"
 
-    def test_tuple_with_null_big_object(self):
+    def test_tuple_with_null_large_binary(self):
         """Test tuple with null largebinary field."""
         import pyarrow as pa
 
-        # Create Arrow schema with BIG_OBJECT metadata
+        # Create Arrow schema with LARGE_BINARY metadata
         arrow_schema = pa.schema(
             [
                 pa.field(
-                    "big_object_field",
+                    "large_binary_field",
                     pa.string(),
-                    metadata={b"texera_type": b"BIG_OBJECT"},
+                    metadata={b"texera_type": b"LARGE_BINARY"},
                 ),
             ]
         )
@@ -304,7 +304,7 @@ class TestTuple:
         # Create Arrow table with null value
         arrow_table = pa.Table.from_pydict(
             {
-                "big_object_field": [None],
+                "large_binary_field": [None],
             },
             schema=arrow_schema,
         )
@@ -318,4 +318,4 @@ class TestTuple:
 
         assert len(tuples) == 1
         tuple_ = tuples[0]
-        assert tuple_["big_object_field"] is None
+        assert tuple_["large_binary_field"] is None

@@ -94,7 +94,7 @@ object ArrowUtils extends LazyLogging {
 
   /**
     * Converts an Arrow Schema into Texera Schema.
-    * Checks field metadata to detect BIG_OBJECT types.
+    * Checks field metadata to detect LARGE_BINARY types.
     *
     * @param arrowSchema The Arrow Schema to be converted.
     * @return A Texera Schema.
@@ -102,11 +102,11 @@ object ArrowUtils extends LazyLogging {
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema(
       arrowSchema.getFields.asScala.map { field =>
-        val isBigObject = Option(field.getMetadata)
-          .exists(m => m.containsKey("texera_type") && m.get("texera_type") == "BIG_OBJECT")
+        val isLargeBinary = Option(field.getMetadata)
+          .exists(m => m.containsKey("texera_type") && m.get("texera_type") == "LARGE_BINARY")
 
         val attributeType =
-          if (isBigObject) AttributeType.BIG_OBJECT else toAttributeType(field.getType)
+          if (isLargeBinary) AttributeType.LARGE_BINARY else toAttributeType(field.getType)
         new Attribute(field.getName, attributeType)
       }.toList
     )
@@ -232,16 +232,16 @@ object ArrowUtils extends LazyLogging {
 
   /**
     * Converts an Amber schema into Arrow schema.
-    * Stores AttributeType in field metadata to preserve BIG_OBJECT type information.
+    * Stores AttributeType in field metadata to preserve LARGE_BINARY type information.
     *
     * @param schema The Texera Schema.
     * @return An Arrow Schema.
     */
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
     val arrowFields = schema.getAttributes.map { attribute =>
-      val metadata = if (attribute.getType == AttributeType.BIG_OBJECT) {
+      val metadata = if (attribute.getType == AttributeType.LARGE_BINARY) {
         val map = new util.HashMap[String, String]()
-        map.put("texera_type", "BIG_OBJECT")
+        map.put("texera_type", "LARGE_BINARY")
         map
       } else null
 
@@ -283,7 +283,7 @@ object ArrowUtils extends LazyLogging {
       case AttributeType.BINARY =>
         new ArrowType.Binary
 
-      case AttributeType.STRING | AttributeType.BIG_OBJECT | AttributeType.ANY =>
+      case AttributeType.STRING | AttributeType.LARGE_BINARY | AttributeType.ANY =>
         ArrowType.Utf8.INSTANCE
 
       case _ =>

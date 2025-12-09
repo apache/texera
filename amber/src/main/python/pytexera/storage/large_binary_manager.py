@@ -34,7 +34,7 @@ class LargeBinaryManager:
     """Internal manager for largebinary S3 operations."""
 
     _s3_client = None
-    DEFAULT_BUCKET = "texera-big-objects"
+    DEFAULT_BUCKET = "texera-large-binaries"
 
     @classmethod
     def _get_s3_client(cls):

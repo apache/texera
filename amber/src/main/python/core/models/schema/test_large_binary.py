@@ -24,10 +24,10 @@ class TestLargeBinary:
     def test_create_with_uri(self):
         """Test creating largebinary with a valid S3 URI."""
         uri = "s3://test-bucket/path/to/object"
-        big_object = largebinary(uri)
-        assert big_object.uri == uri
-        assert str(big_object) == uri
-        assert repr(big_object) == f"largebinary('{uri}')"
+        large_binary = largebinary(uri)
+        assert large_binary.uri == uri
+        assert str(large_binary) == uri
+        assert repr(large_binary) == f"largebinary('{uri}')"
 
     def test_create_without_uri(self):
         """Test creating largebinary without URI (calls LargeBinaryManager.create)."""
@@ -35,8 +35,8 @@ class TestLargeBinary:
             "pytexera.storage.large_binary_manager.LargeBinaryManager"
         ) as mock_manager:
             mock_manager.create.return_value = "s3://bucket/objects/123/uuid"
-            big_object = largebinary()
-            assert big_object.uri == "s3://bucket/objects/123/uuid"
+            large_binary = largebinary()
+            assert large_binary.uri == "s3://bucket/objects/123/uuid"
             mock_manager.create.assert_called_once()
 
     def test_invalid_uri_raises_value_error(self):
@@ -49,19 +49,19 @@ class TestLargeBinary:
 
     def test_get_bucket_name(self):
         """Test extracting bucket name from URI."""
-        big_object = largebinary("s3://my-bucket/path/to/object")
-        assert big_object.get_bucket_name() == "my-bucket"
+        large_binary = largebinary("s3://my-bucket/path/to/object")
+        assert large_binary.get_bucket_name() == "my-bucket"
 
     def test_get_object_key(self):
         """Test extracting object key from URI."""
-        big_object = largebinary("s3://my-bucket/path/to/object")
-        assert big_object.get_object_key() == "path/to/object"
+        large_binary = largebinary("s3://my-bucket/path/to/object")
+        assert large_binary.get_object_key() == "path/to/object"
 
     def test_get_object_key_with_leading_slash(self):
         """Test extracting object key when URI has leading slash."""
-        big_object = largebinary("s3://my-bucket/path/to/object")
+        large_binary = largebinary("s3://my-bucket/path/to/object")
         # urlparse includes leading slash, but get_object_key removes it
-        assert big_object.get_object_key() == "path/to/object"
+        assert large_binary.get_object_key() == "path/to/object"
 
     def test_equality(self):
         """Test largebinary equality comparison."""
@@ -86,5 +86,5 @@ class TestLargeBinary:
     def test_uri_property(self):
         """Test URI property access."""
         uri = "s3://test-bucket/test/path"
-        big_object = largebinary(uri)
-        assert big_object.uri == uri
+        large_binary = largebinary(uri)
+        assert large_binary.uri == uri

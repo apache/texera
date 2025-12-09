@@ -97,12 +97,12 @@ class ArrowTableTupleProvider:
             ):
                 value = pickle.loads(value[10:])
 
-            # Convert URI string to largebinary for BIG_OBJECT types
+            # Convert URI string to largebinary for LARGE_BINARY types
             # Metadata is set by Scala ArrowUtils or Python iceberg_utils
             elif (
                 value is not None
                 and field_metadata
-                and field_metadata.get(b"texera_type") == b"BIG_OBJECT"
+                and field_metadata.get(b"texera_type") == b"LARGE_BINARY"
             ):
                 value = largebinary(value)
 
@@ -201,9 +201,9 @@ class Tuple:
         :param item: field name or field index
         :return: field value
         """
-        assert isinstance(item, (int, str)), (
-            "field can only be retrieved by index or name"
-        )
+        assert isinstance(
+            item, (int, str)
+        ), "field can only be retrieved by index or name"
 
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
@@ -249,18 +249,18 @@ class Tuple:
     def get_serialized_field(self, field_name: str) -> Field:
         """
         Get a field value serialized for Arrow table conversion.
-        For BIG_OBJECT fields, converts largebinary instances to URI strings.
+        For LARGE_BINARY fields, converts largebinary instances to URI strings.
         For other fields, returns the value as-is.
 
         :param field_name: field name
-        :return: field value (URI string for BIG_OBJECT fields with largebinary values)
+        :return: field value (URI string for LARGE_BINARY fields with largebinary values)
         """
         value = self[field_name]
 
-        # Convert largebinary to URI string for BIG_OBJECT fields when schema available
+        # Convert largebinary to URI string for LARGE_BINARY fields when schema available
         if (
             self._schema is not None
-            and self._schema.get_attr_type(field_name) == AttributeType.BIG_OBJECT
+            and self._schema.get_attr_type(field_name) == AttributeType.LARGE_BINARY
             and isinstance(value, largebinary)
         ):
             return value.uri

@@ -17,7 +17,7 @@
 
 """
 Utilities for converting between Arrow schemas and Amber schemas,
-handling BIG_OBJECT metadata preservation.
+handling LARGE_BINARY metadata preservation.
 """
 
 import pyarrow as pa
@@ -29,27 +29,27 @@ from core.models.schema.attribute_type import (
     TO_ARROW_MAPPING,
 )
 
-# Metadata key used to mark BIG_OBJECT fields in Arrow schemas
+# Metadata key used to mark LARGE_BINARY fields in Arrow schemas
 TEXERA_TYPE_METADATA_KEY = b"texera_type"
-BIG_OBJECT_METADATA_VALUE = b"BIG_OBJECT"
+LARGE_BINARY_METADATA_VALUE = b"LARGE_BINARY"
 
 
 def detect_attribute_type_from_arrow_field(field: pa.Field) -> AttributeType:
     """
-    Detects the AttributeType from an Arrow field, checking metadata for BIG_OBJECT.
+    Detects the AttributeType from an Arrow field, checking metadata for LARGE_BINARY.
 
     :param field: PyArrow field that may contain metadata
     :return: The detected AttributeType
     """
-    # Check metadata for BIG_OBJECT type
+    # Check metadata for LARGE_BINARY type
     # (can be stored by either Scala ArrowUtils or Python)
-    is_big_object = (
+    is_large_binary = (
         field.metadata
-        and field.metadata.get(TEXERA_TYPE_METADATA_KEY) == BIG_OBJECT_METADATA_VALUE
+        and field.metadata.get(TEXERA_TYPE_METADATA_KEY) == LARGE_BINARY_METADATA_VALUE
     )
 
-    if is_big_object:
-        return AttributeType.BIG_OBJECT
+    if is_large_binary:
+        return AttributeType.LARGE_BINARY
     else:
         return FROM_ARROW_MAPPING[field.type.id]
 
@@ -65,8 +65,8 @@ def create_arrow_field_with_metadata(
     :return: PyArrow field with metadata if needed
     """
     metadata = (
-        {TEXERA_TYPE_METADATA_KEY: BIG_OBJECT_METADATA_VALUE}
-        if attr_type == AttributeType.BIG_OBJECT
+        {TEXERA_TYPE_METADATA_KEY: LARGE_BINARY_METADATA_VALUE}
+        if attr_type == AttributeType.LARGE_BINARY
         else None
     )
 
@@ -76,9 +76,9 @@ def create_arrow_field_with_metadata(
 def arrow_schema_to_attr_types(arrow_schema: pa.Schema) -> dict[str, AttributeType]:
     """
     Converts an Arrow schema to a dictionary of attribute name to AttributeType.
-    Handles BIG_OBJECT metadata detection.
+    Handles LARGE_BINARY metadata detection.
 
-    :param arrow_schema: PyArrow schema that may contain BIG_OBJECT metadata
+    :param arrow_schema: PyArrow schema that may contain LARGE_BINARY metadata
     :return: Dictionary mapping attribute names to AttributeTypes
     """
     attr_types = {}
@@ -93,11 +93,11 @@ def attr_types_to_arrow_schema(
 ) -> pa.Schema:
     """
     Converts a mapping of attribute name to AttributeType into an Arrow schema.
-    Adds metadata for BIG_OBJECT types.
+    Adds metadata for LARGE_BINARY types.
     Preserves the order of attributes from the input mapping.
 
     :param attr_types: Mapping of attribute names to AttributeTypes (e.g., OrderedDict)
-    :return: PyArrow schema with metadata for BIG_OBJECT types
+    :return: PyArrow schema with metadata for LARGE_BINARY types
     """
     fields = [
         create_arrow_field_with_metadata(attr_name, attr_type)

@@ -90,37 +90,37 @@ class TestSchema:
         assert schema == Schema(arrow_schema=arrow_schema)
         assert schema.as_arrow_schema() == arrow_schema
 
-    def test_big_object_in_raw_schema(self):
-        """Test creating schema with BIG_OBJECT from raw schema."""
+    def test_large_binary_in_raw_schema(self):
+        """Test creating schema with LARGE_BINARY from raw schema."""
         raw_schema = {
             "regular_field": "STRING",
-            "big_object_field": "BIG_OBJECT",
+            "large_binary_field": "LARGE_BINARY",
         }
         schema = Schema(raw_schema=raw_schema)
         assert schema.get_attr_type("regular_field") == AttributeType.STRING
-        assert schema.get_attr_type("big_object_field") == AttributeType.BIG_OBJECT
+        assert schema.get_attr_type("large_binary_field") == AttributeType.LARGE_BINARY
 
-    def test_big_object_in_arrow_schema_with_metadata(self):
-        """Test creating schema with BIG_OBJECT from Arrow schema with metadata."""
+    def test_large_binary_in_arrow_schema_with_metadata(self):
+        """Test creating schema with LARGE_BINARY from Arrow schema with metadata."""
         arrow_schema = pa.schema(
             [
                 pa.field("regular_field", pa.string()),
                 pa.field(
-                    "big_object_field",
+                    "large_binary_field",
                     pa.string(),
-                    metadata={b"texera_type": b"BIG_OBJECT"},
+                    metadata={b"texera_type": b"LARGE_BINARY"},
                 ),
             ]
         )
         schema = Schema(arrow_schema=arrow_schema)
         assert schema.get_attr_type("regular_field") == AttributeType.STRING
-        assert schema.get_attr_type("big_object_field") == AttributeType.BIG_OBJECT
+        assert schema.get_attr_type("large_binary_field") == AttributeType.LARGE_BINARY
 
-    def test_big_object_as_arrow_schema_includes_metadata(self):
-        """Test that BIG_OBJECT fields include metadata in Arrow schema."""
+    def test_large_binary_as_arrow_schema_includes_metadata(self):
+        """Test that LARGE_BINARY fields include metadata in Arrow schema."""
         schema = Schema()
         schema.add("regular_field", AttributeType.STRING)
-        schema.add("big_object_field", AttributeType.BIG_OBJECT)
+        schema.add("large_binary_field", AttributeType.LARGE_BINARY)
 
         arrow_schema = schema.as_arrow_schema()
 
@@ -131,17 +131,19 @@ class TestSchema:
             or b"texera_type" not in regular_field.metadata
         )
 
-        # BIG_OBJECT field should have metadata
-        big_object_field = arrow_schema.field("big_object_field")
-        assert big_object_field.metadata is not None
-        assert big_object_field.metadata.get(b"texera_type") == b"BIG_OBJECT"
-        assert big_object_field.type == pa.string()  # BIG_OBJECT is stored as string
+        # LARGE_BINARY field should have metadata
+        large_binary_field = arrow_schema.field("large_binary_field")
+        assert large_binary_field.metadata is not None
+        assert large_binary_field.metadata.get(b"texera_type") == b"LARGE_BINARY"
+        assert (
+            large_binary_field.type == pa.string()
+        )  # LARGE_BINARY is stored as string
 
-    def test_round_trip_big_object_schema(self):
-        """Test round-trip conversion of schema with BIG_OBJECT."""
+    def test_round_trip_large_binary_schema(self):
+        """Test round-trip conversion of schema with LARGE_BINARY."""
         original_schema = Schema()
         original_schema.add("field1", AttributeType.STRING)
-        original_schema.add("field2", AttributeType.BIG_OBJECT)
+        original_schema.add("field2", AttributeType.LARGE_BINARY)
         original_schema.add("field3", AttributeType.INT)
 
         # Convert to Arrow and back
@@ -150,5 +152,5 @@ class TestSchema:
 
         assert round_trip_schema == original_schema
         assert round_trip_schema.get_attr_type("field1") == AttributeType.STRING
-        assert round_trip_schema.get_attr_type("field2") == AttributeType.BIG_OBJECT
+        assert round_trip_schema.get_attr_type("field2") == AttributeType.LARGE_BINARY
         assert round_trip_schema.get_attr_type("field3") == AttributeType.INT

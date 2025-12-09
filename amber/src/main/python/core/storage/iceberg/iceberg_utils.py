@@ -32,8 +32,8 @@ import core.models
 from core.models import ArrowTableTupleProvider, Tuple
 from core.models.schema.attribute_type import AttributeType, TO_ARROW_MAPPING
 
-# Suffix used to encode BIG_OBJECT fields in Iceberg (must match Scala IcebergUtil)
-BIG_OBJECT_FIELD_SUFFIX = "__texera_big_obj_ptr"
+# Suffix used to encode LARGE_BINARY fields in Iceberg (must match Scala IcebergUtil)
+LARGE_BINARY_FIELD_SUFFIX = "__texera_large_binary_ptr"
 
 # Type mappings
 _ICEBERG_TO_AMBER_TYPE_MAPPING = {
@@ -56,36 +56,36 @@ _AMBER_TO_ICEBERG_TYPE_MAPPING = {
     AttributeType.BOOL: iceberg_types.BooleanType(),
     AttributeType.TIMESTAMP: iceberg_types.TimestampType(),
     AttributeType.BINARY: iceberg_types.BinaryType(),
-    AttributeType.BIG_OBJECT: iceberg_types.StringType(),
+    AttributeType.LARGE_BINARY: iceberg_types.StringType(),
 }
 
 
-def encode_big_object_field_name(field_name: str, attr_type) -> str:
-    """Encodes BIG_OBJECT field names with suffix for Iceberg storage."""
-    if attr_type == AttributeType.BIG_OBJECT:
-        return f"{field_name}{BIG_OBJECT_FIELD_SUFFIX}"
+def encode_large_binary_field_name(field_name: str, attr_type) -> str:
+    """Encodes LARGE_BINARY field names with suffix for Iceberg storage."""
+    if attr_type == AttributeType.LARGE_BINARY:
+        return f"{field_name}{LARGE_BINARY_FIELD_SUFFIX}"
     return field_name
 
 
-def decode_big_object_field_name(field_name: str) -> str:
-    """Decodes field names by removing BIG_OBJECT suffix if present."""
-    if field_name.endswith(BIG_OBJECT_FIELD_SUFFIX):
-        return field_name[: -len(BIG_OBJECT_FIELD_SUFFIX)]
+def decode_large_binary_field_name(field_name: str) -> str:
+    """Decodes field names by removing LARGE_BINARY suffix if present."""
+    if field_name.endswith(LARGE_BINARY_FIELD_SUFFIX):
+        return field_name[: -len(LARGE_BINARY_FIELD_SUFFIX)]
     return field_name
 
 
 def iceberg_schema_to_amber_schema(iceberg_schema: Schema):
     """
     Converts PyIceberg Schema to Amber Schema.
-    Decodes BIG_OBJECT field names and adds Arrow metadata.
+    Decodes LARGE_BINARY field names and adds Arrow metadata.
     """
     arrow_fields = []
     for field in iceberg_schema.fields:
-        decoded_name = decode_big_object_field_name(field.name)
-        is_big_object = field.name != decoded_name
+        decoded_name = decode_large_binary_field_name(field.name)
+        is_large_binary = field.name != decoded_name
 
-        if is_big_object:
-            attr_type = AttributeType.BIG_OBJECT
+        if is_large_binary:
+            attr_type = AttributeType.LARGE_BINARY
         else:
             iceberg_type_str = str(field.field_type).lower()
             attr_type_name = _ICEBERG_TO_AMBER_TYPE_MAPPING.get(
@@ -97,7 +97,7 @@ def iceberg_schema_to_amber_schema(iceberg_schema: Schema):
             pa.field(
                 decoded_name,
                 TO_ARROW_MAPPING[attr_type],
-                metadata={b"texera_type": b"BIG_OBJECT"} if is_big_object else None,
+                metadata={b"texera_type": b"LARGE_BINARY"} if is_large_binary else None,
             )
         )
 
@@ -107,12 +107,12 @@ def iceberg_schema_to_amber_schema(iceberg_schema: Schema):
 def amber_schema_to_iceberg_schema(amber_schema) -> Schema:
     """
     Converts Amber Schema to PyIceberg Schema.
-    Encodes BIG_OBJECT field names with suffix.
+    Encodes LARGE_BINARY field names with suffix.
     """
     fields = [
         iceberg_types.NestedField(
             field_id=idx,
-            name=encode_big_object_field_name(field_name, attr_type),
+            name=encode_large_binary_field_name(field_name, attr_type),
             field_type=_AMBER_TO_ICEBERG_TYPE_MAPPING[attr_type],
             required=False,
         )
@@ -229,14 +229,14 @@ def amber_tuples_to_arrow_table(
 ) -> pa.Table:
     """
     Converts a list of amber tuples to a pyarrow table for serialization.
-    Handles BIG_OBJECT field name encoding and serialization.
+    Handles LARGE_BINARY field name encoding and serialization.
     """
     from core.models.schema.large_binary import largebinary
 
     tuple_list = list(tuple_list)  # Convert to list to allow multiple iterations
     data_dict = {}
     for encoded_name in iceberg_schema.as_arrow().names:
-        decoded_name = decode_big_object_field_name(encoded_name)
+        decoded_name = decode_large_binary_field_name(encoded_name)
         data_dict[encoded_name] = [
             (
                 t[decoded_name].uri
@@ -254,7 +254,7 @@ def arrow_table_to_amber_tuples(
 ) -> Iterable[Tuple]:
     """
     Converts an arrow table read from Iceberg to Amber tuples.
-    Properly handles BIG_OBJECT field name decoding and type detection.
+    Properly handles LARGE_BINARY field name decoding and type detection.
     """
     amber_schema = iceberg_schema_to_amber_schema(iceberg_schema)
     arrow_table_with_metadata = pa.Table.from_arrays(
@@ -266,7 +266,7 @@ def arrow_table_to_amber_tuples(
     return (
         Tuple(
             {
-                decode_big_object_field_name(name): field_accessor
+                decode_large_binary_field_name(name): field_accessor
                 for name in arrow_table.column_names
             },
             schema=amber_schema,
