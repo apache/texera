@@ -132,33 +132,16 @@ class ExecutorManager:
         :param language: The language of the operator code.
         :return:
         """
-        if language == "r-tuple":
-            # Have to import it here and not at the top in case R_HOME from udf.conf
-            # is not defined, otherwise an error will occur
-            # If R_HOME is not defined and rpy2 cannot find the
-            # R_HOME environment variable, an error will occur here
-            from core.models.RTupleExecutor import RTupleSourceExecutor, RTupleExecutor
-
-            self.executor = (
-                RTupleSourceExecutor(code) if is_source else RTupleExecutor(code)
-            )
-        elif language == "r-table":
-            # Have to import it here and not at the top in case R_HOME from udf.conf
-            # is not defined, otherwise an error will occur
-            # If R_HOME is not defined and rpy2 cannot find the
-            # R_HOME environment variable, an error will occur here
-            from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
-
-            self.executor = (
-                RTableSourceExecutor(code) if is_source else RTableExecutor(code)
-            )
-        else:
-            executor: type(Operator) = self.load_executor_definition(code)
-            self.executor = executor()
-            self.executor.is_source = is_source
-        assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
-        ), "Please use SourceOperator API for source operators."
+        assert language not in [
+            "r-tuple",
+            "r-table",
+        ], "R language is not supported by default. Please consult third party plugin."
+        executor: type(Operator) = self.load_executor_definition(code)
+        self.executor = executor()
+        self.executor.is_source = is_source
+        assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
+            "Please use SourceOperator API for source operators."
+        )
 
     def update_executor(self, code: str, is_source: bool) -> None:
         """
@@ -174,9 +157,9 @@ class ExecutorManager:
         executor: type(Operator) = self.load_executor_definition(code)
         self.executor = executor()
         self.executor.is_source = is_source
-        assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
-        ), "Please use SourceOperator API for source operators."
+        assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
+            "Please use SourceOperator API for source operators."
+        )
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
         # TODO:

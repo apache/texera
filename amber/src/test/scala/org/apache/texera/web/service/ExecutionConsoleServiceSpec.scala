@@ -20,8 +20,11 @@
 package org.apache.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
-import org.apache.amber.engine.architecture.rpc.controlcommands.{ConsoleMessage, ConsoleMessageType}
-import org.apache.amber.engine.common.executionruntimestate.ExecutionConsoleStore
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  ConsoleMessage,
+  ConsoleMessageType
+}
+import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionConsoleStore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

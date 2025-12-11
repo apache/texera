@@ -40,12 +40,12 @@ from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
     EmbeddedControlMessageIdentity,
 )
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlInvocation,
     EmptyRequest,
     EmbeddedControlMessageType,
@@ -53,7 +53,7 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ControlRequest,
 )
-from proto.org.apache.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
     Partitioning,

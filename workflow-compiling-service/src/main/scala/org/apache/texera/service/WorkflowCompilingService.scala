@@ -22,8 +22,8 @@ package org.apache.texera.service
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import org.apache.amber.config.StorageConfig
-import org.apache.amber.util.ObjectMapperUtils
+import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
 

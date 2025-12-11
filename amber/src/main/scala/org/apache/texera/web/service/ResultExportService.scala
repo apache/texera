@@ -23,13 +23,13 @@ import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.tototoshi.csv.CSVWriter
-import org.apache.amber.config.EnvironmentalVariable
-import org.apache.amber.core.storage.DocumentFactory
-import org.apache.amber.core.storage.model.VirtualDocument
-import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.PortIdentity
-import org.apache.amber.util.ArrowUtils
+import org.apache.texera.amber.config.EnvironmentalVariable
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter

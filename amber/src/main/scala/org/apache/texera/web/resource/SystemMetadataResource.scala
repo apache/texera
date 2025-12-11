@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.resource
 
-import org.apache.amber.operator.metadata.{AllOperatorMetadata, OperatorMetadataGenerator}
+import org.apache.texera.amber.operator.metadata.{AllOperatorMetadata, OperatorMetadataGenerator}
 
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{GET, Path, Produces}

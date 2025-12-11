@@ -23,10 +23,10 @@ import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
-import org.apache.amber.config.StorageConfig
-import org.apache.amber.core.storage.model.OnDataset
-import org.apache.amber.core.storage.util.LakeFSStorageClient
-import org.apache.amber.core.storage.{DocumentFactory, FileResolver}
+import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.amber.core.storage.model.OnDataset
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction

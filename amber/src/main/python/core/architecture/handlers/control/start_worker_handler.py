@@ -19,13 +19,13 @@ from core.architecture.handlers.control.control_handler_base import ControlHandl
 from core.architecture.packaging.input_manager import InputManager
 from core.models import Schema
 from core.models.internal_queue import ECMElement
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ChannelIdentity,
     ActorVirtualIdentity,
     PortIdentity,
     EmbeddedControlMessageIdentity,
 )
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     WorkerStateResponse,
     ControlInvocation,
     EmptyRequest,
@@ -34,7 +34,7 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     ControlRequest,
     EmbeddedControlMessageType,
 )
-from proto.org.apache.amber.engine.architecture.worker import (
+from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
 )
 

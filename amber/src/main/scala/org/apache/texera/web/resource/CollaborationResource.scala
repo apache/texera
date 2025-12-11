@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.util.JSONUtils
+import org.apache.texera.amber.util.JSONUtils
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.ServletAwareConfigurator
 import org.apache.texera.web.model.collab.event._

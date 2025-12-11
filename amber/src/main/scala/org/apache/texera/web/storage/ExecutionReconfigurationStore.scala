@@ -19,9 +19,9 @@
 
 package org.apache.texera.web.storage
 
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
-import org.apache.amber.core.workflow.PhysicalOp
-import org.apache.amber.operator.StateTransferFunc
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.operator.StateTransferFunc
 
 case class ExecutionReconfigurationStore(
     currentReconfigId: Option[String] = None,

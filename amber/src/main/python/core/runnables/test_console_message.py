@@ -21,14 +21,14 @@ import pytest
 from core.models.internal_queue import InternalQueue
 from core.util import set_one_of
 from core.util.buffer.timed_buffer import TimedBuffer
-from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlInvocation,
     ControlRequest,
     ConsoleMessage,
     ConsoleMessageType,
 )
-from proto.org.apache.amber.engine.common import (
+from proto.org.apache.texera.amber.engine.common import (
     DirectControlMessagePayloadV2,
     PythonControlMessage,
 )

@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.model.http.response
 
-import org.apache.amber.core.tuple.Attribute
+import org.apache.texera.amber.core.tuple.Attribute
 
 case class SchemaPropagationResponse(
     code: Int,
