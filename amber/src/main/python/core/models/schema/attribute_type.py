@@ -20,7 +20,7 @@ import pyarrow as pa
 from bidict import bidict
 from enum import Enum
 from pyarrow import lib
-from core.models.schema.large_binary import largebinary
+from core.models.type.large_binary import largebinary
 
 
 class AttributeType(Enum):

@@ -17,7 +17,7 @@
 
 import pytest
 from unittest.mock import patch
-from core.models.schema.large_binary import largebinary
+from core.models.type.large_binary import largebinary
 
 
 class TestLargeBinary:
@@ -30,14 +30,14 @@ class TestLargeBinary:
         assert repr(large_binary) == f"largebinary('{uri}')"
 
     def test_create_without_uri(self):
-        """Test creating largebinary without URI (calls LargeBinaryManager.create)."""
+        """Test creating largebinary without URI (calls large_binary_manager.create)."""
         with patch(
-            "pytexera.storage.large_binary_manager.LargeBinaryManager"
-        ) as mock_manager:
-            mock_manager.create.return_value = "s3://bucket/objects/123/uuid"
+            "pytexera.storage.large_binary_manager.create"
+        ) as mock_create:
+            mock_create.return_value = "s3://bucket/objects/123/uuid"
             large_binary = largebinary()
             assert large_binary.uri == "s3://bucket/objects/123/uuid"
-            mock_manager.create.assert_called_once()
+            mock_create.assert_called_once()
 
     def test_invalid_uri_raises_value_error(self):
         """Test that invalid URI (not starting with s3://) raises ValueError."""
@@ -88,3 +88,4 @@ class TestLargeBinary:
         uri = "s3://test-bucket/test/path"
         large_binary = largebinary(uri)
         assert large_binary.uri == uri
+

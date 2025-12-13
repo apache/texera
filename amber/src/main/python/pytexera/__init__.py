@@ -29,7 +29,7 @@ from .udf.udf_operator import (
     UDFBatchOperator,
     UDFSourceOperator,
 )
-from core.models.schema.large_binary import largebinary
+from core.models.type.large_binary import largebinary
 
 __all__ = [
     "State",

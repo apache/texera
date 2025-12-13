@@ -224,7 +224,7 @@ class TestTuple:
 
     def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
-        from core.models.schema.large_binary import largebinary
+        from core.models.type.large_binary import largebinary
 
         schema = Schema(
             raw_schema={
@@ -250,7 +250,7 @@ class TestTuple:
     def test_tuple_from_arrow_with_large_binary(self):
         """Test creating tuple from Arrow table with LARGE_BINARY metadata."""
         import pyarrow as pa
-        from core.models.schema.large_binary import largebinary
+        from core.models.type.large_binary import largebinary
 
         # Create Arrow schema with LARGE_BINARY metadata
         arrow_schema = pa.schema(

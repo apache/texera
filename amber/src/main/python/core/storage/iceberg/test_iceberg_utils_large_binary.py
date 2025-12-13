@@ -20,7 +20,7 @@ from pyiceberg import types as iceberg_types
 from pyiceberg.schema import Schema as IcebergSchema
 from core.models import Schema, Tuple
 from core.models.schema.attribute_type import AttributeType
-from core.models.schema.large_binary import largebinary
+from core.models.type.large_binary import largebinary
 from core.storage.iceberg.iceberg_utils import (
     encode_large_binary_field_name,
     decode_large_binary_field_name,

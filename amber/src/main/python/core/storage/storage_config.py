@@ -32,7 +32,7 @@ class StorageConfig:
     ICEBERG_FILE_STORAGE_DIRECTORY_PATH = None
     ICEBERG_TABLE_COMMIT_BATCH_SIZE = None
 
-    # S3 configs (for LargeBinaryManager)
+    # S3 configs (for large_binary_manager module)
     S3_ENDPOINT = None
     S3_REGION = None
     S3_AUTH_USERNAME = None

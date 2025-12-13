@@ -63,9 +63,9 @@ class largebinary:
         """
         if uri is None:
             # Lazy import to avoid circular dependencies
-            from pytexera.storage.large_binary_manager import LargeBinaryManager
+            from pytexera.storage import large_binary_manager
 
-            uri = LargeBinaryManager.create()
+            uri = large_binary_manager.create()
 
         if not uri.startswith("s3://"):
             raise ValueError(f"largebinary URI must start with 's3://', got: {uri}")
@@ -96,3 +96,4 @@ class largebinary:
 
     def __hash__(self) -> int:
         return hash(self._uri)
+
