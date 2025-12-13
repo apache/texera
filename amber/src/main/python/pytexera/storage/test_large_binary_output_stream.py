@@ -46,9 +46,7 @@ class TestLargeBinaryOutputStream:
     def test_write_starts_upload_thread(self, large_binary):
         """Test that write() starts the upload thread."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,
@@ -71,9 +69,7 @@ class TestLargeBinaryOutputStream:
     def test_write_data(self, large_binary):
         """Test writing data to the stream."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,
@@ -91,9 +87,7 @@ class TestLargeBinaryOutputStream:
     def test_write_multiple_chunks(self, large_binary):
         """Test writing multiple chunks of data."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,
@@ -139,9 +133,7 @@ class TestLargeBinaryOutputStream:
     def test_close_completes_upload(self, large_binary):
         """Test that close() completes the upload."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,
@@ -162,9 +154,7 @@ class TestLargeBinaryOutputStream:
     def test_context_manager(self, large_binary):
         """Test using as context manager."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,
@@ -191,9 +181,7 @@ class TestLargeBinaryOutputStream:
     def test_close_handles_upload_error(self, large_binary):
         """Test that close() raises IOError if upload fails."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,
@@ -212,9 +200,7 @@ class TestLargeBinaryOutputStream:
     def test_write_after_upload_error_raises_error(self, large_binary):
         """Test that writing after upload error raises IOError."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,
@@ -236,9 +222,7 @@ class TestLargeBinaryOutputStream:
     def test_multiple_close_calls(self, large_binary):
         """Test that multiple close() calls are safe."""
         with (
-            patch.object(
-                large_binary_manager, "_get_s3_client"
-            ) as mock_get_s3_client,
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
             patch.object(
                 large_binary_manager, "_ensure_bucket_exists"
             ) as mock_ensure_bucket,

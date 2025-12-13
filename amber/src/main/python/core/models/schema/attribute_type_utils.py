@@ -70,4 +70,3 @@ def create_arrow_field_with_metadata(
     )
 
     return pa.field(attr_name, TO_ARROW_MAPPING[attr_type], metadata=metadata)
-

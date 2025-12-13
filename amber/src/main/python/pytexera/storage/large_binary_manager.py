@@ -40,9 +40,7 @@ def _get_s3_client():
             import boto3
             from botocore.config import Config
         except ImportError as e:
-            raise RuntimeError(
-                "boto3 required. Install with: pip install boto3"
-            ) from e
+            raise RuntimeError("boto3 required. Install with: pip install boto3") from e
 
         _s3_client = boto3.client(
             "s3",
@@ -50,9 +48,7 @@ def _get_s3_client():
             aws_access_key_id=StorageConfig.S3_AUTH_USERNAME,
             aws_secret_access_key=StorageConfig.S3_AUTH_PASSWORD,
             region_name=StorageConfig.S3_REGION,
-            config=Config(
-                signature_version="s3v4", s3={"addressing_style": "path"}
-            ),
+            config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
         )
     return _s3_client
 
