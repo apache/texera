@@ -113,7 +113,7 @@ texeraImages:
 # Example data loader configuration
 exampleDataLoader:
   enabled: true
-  image: apache/texera-example-data-loader:1.1.0-incubating
+  image: texera/texera-example-data-loader:hub-deployment-amd64
   username: texera
   password: texera
   datasetDir: datasets
@@ -122,7 +122,7 @@ exampleDataLoader:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: apache/texera-dashboard-service:1.1.0-incubating # image name of the texera
+  imageName: texera/texera-web-application:hub-deployment-amd64 # image name of the texera
   service:
     type: ClusterIP
     port: 8080
@@ -131,7 +131,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: apache/texera-workflow-computing-unit-managing-service:1.1.0-incubating
+  imageName: texera/workflow-computing-unit-managing-service:hub-deployment-amd64
   service:
     type: ClusterIP
     port: 8888
@@ -139,7 +139,7 @@ workflowComputingUnitManager:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: apache/texera-workflow-compiling-service:1.1.0-incubating
+  imageName: texera/workflow-compiling-service:hub-deployment-amd64
   service:
     type: ClusterIP
     port: 9090
@@ -147,7 +147,7 @@ workflowCompilingService:
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: apache/texera-file-service:1.1.0-incubating
+  imageName: alirisheh876/texera-file-service:xuan
   service:
     type: ClusterIP
     port: 9092
@@ -155,7 +155,7 @@ fileService:
 configService:
   name: config-service
   numOfPods: 1
-  imageName: apache/texera-config-service:1.1.0-incubating
+  imageName: alirisheh876/texera-config-service:xuan
   service:
     type: ClusterIP
     port: 9094
@@ -163,23 +163,13 @@ configService:
 accessControlService:
   name: access-control-service
   numOfPods: 1
-  imageName: apache/texera-access-control-service:1.1.0-incubating
+  imageName: texera/access-control-service:hub-deployment-amd64
   service:
     type: ClusterIP
     port: 9096
 
 # Configs of the envoy proxy, used to routerequests to the computing units
-envoy:
-  replicas: 1
-  image:
-    repository: envoyproxy/envoy
-    tag: v1.31-latest
-  port:
-    10000
-  debug: false
-  service:
-    type: ClusterIP
-    port: 10000
+
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
@@ -193,7 +183,7 @@ workflowComputingUnitPool:
     cpu: 100
     memory: 100Gi
     nvidiaGpu: 5
-  imageName: apache/texera-workflow-execution-coordinator:1.1.0-incubating
+  imageName: texera/computing-unit-master:hub-deployment-amd64
   service:
     port: 8085
     targetPort: 8085
@@ -204,7 +194,7 @@ texeraEnvVars:
   - name: USER_SYS_ADMIN_PASSWORD
     value: "texera"
   - name: STORAGE_JDBC_USERNAME
-    value: postgres
+    value: "postgres"
   - name: USER_SYS_ENABLED
     value: "true"
   - name: SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR
@@ -253,28 +243,17 @@ texeraEnvVars:
     value: ""
   - name: USER_SYS_DOMAIN
     value: ""
+  - name: GUI_LOGIN_DEFAULT_LOCAL_USER_USERNAME
+    value: "texera"
+  - name: GUI_LOGIN_DEFAULT_LOCAL_USER_PASSWORD
+    value: "texera"
+  - name: GUI_WORKFLOW_WORKSPACE_USER_PRESET_ENABLED
+    value: "true"
+  - name: DATASET_SINGLE_FILE_UPLOAD_MAX_SIZE_MIB
+    value: "10000000"
 
 # Ingress dependency configs
-ingress-nginx:
-  enabled: true # set to true if nginx is not installed, should be false in production
-  controller:
-    replicaCount: 1
-    service:
-      type: NodePort
-      nodePorts:
-        http: 30080
-    ingressClassResource:
-      name: nginx
-      enabled: true
-    resources:
-      limits:
-        cpu: 100m
-        memory: 128Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  rbac:
-    create: true
+
 
 
 yWebsocketServer:
@@ -311,53 +290,4 @@ metrics-server:
   priorityClassName: system-cluster-critical
 
 # Custom Ingress resource configs
-ingressPaths:
-  enabled: true
-  ingressClassName: nginx  # Set to "alb" when deploying on AWS
-  hostname: ""
-  # Optional TLS secret (manually created)
-  tlsSecretName: ""  # e.g., "texera-tls"
-  # Optional Issuer name for cert-manager
-  issuer: ""  # e.g., "letsencrypt-prod"
-  paths:
-    - path: /api/computing-unit
-      serviceName: workflow-computing-unit-manager-svc
-      servicePort: 8888
-    - path: /api/compile
-      serviceName: workflow-compiling-service-svc
-      servicePort: 9090
-    - path: /api/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
-    - path: /api/access/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
-    - path: /api/access/computing-unit
-      serviceName: workflow-computing-unit-manager-svc
-      servicePort: 8888
-    - path: /api/config
-      serviceName: config-service-svc
-      servicePort: 9094
-    - path: /wsapi/workflow-websocket
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api/executions/*/stats/*
-      pathType: ImplementationSpecific
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api/executions/result/export/*
-      pathType: ImplementationSpecific
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api
-      serviceName: webserver-svc
-      servicePort: 8080
-    - path: /rtc
-      serviceName: y-websocket-server-svc
-      servicePort: 1234
-    - path: /python-language-server
-      serviceName: python-language-server-svc
-      servicePort: 3000
-    - path: /
-      serviceName: webserver-svc
-      servicePort: 8080
+

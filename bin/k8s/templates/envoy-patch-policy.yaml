@@ -1,0 +1,235 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: texera-envoy-patch
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: JSONPatch
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: {{ .Release.Name }}-gateway
+  jsonPatches:
+    # ------------------------------------------------------------------
+    # 1. Patch Auth Cluster to use STATIC DNS (Bypassing EDS issues)
+    # ------------------------------------------------------------------
+    # Target existing generated cluster (from routes-auth.yaml)
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-auth-route/rule/0"
+      operation:
+        op: "remove"
+        path: "/type"
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-auth-route/rule/0"
+      operation:
+        op: "remove"
+        path: "/eds_cluster_config"
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-auth-route/rule/0"
+      operation:
+        op: "add"
+        path: "/type"
+        value: "STRICT_DNS"
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-auth-route/rule/0"
+      operation:
+        op: "add"
+        path: "/load_assignment"
+        value:
+          cluster_name: "httproute/{{ .Release.Namespace }}/texera-auth-route/rule/0"
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: "{{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc.{{ .Release.Namespace }}.svc.cluster.local"
+                    port_value: {{ .Values.accessControlService.service.port }}
+
+    # ------------------------------------------------------------------
+    # 2. Convert Dynamic Route Cluster to DFP
+    # ------------------------------------------------------------------
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
+      operation:
+        op: "remove"
+        path: "/type"
+
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
+      operation:
+        op: "remove"
+        path: "/eds_cluster_config"
+
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
+      operation:
+        op: "add"
+        path: "/lb_policy"
+        value: "CLUSTER_PROVIDED"
+
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
+      operation:
+        op: "add"
+        path: "/cluster_type"
+        value:
+          name: envoy.clusters.dynamic_forward_proxy
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
+            dns_cache_config:
+              name: dynamic_dns_cache
+              dns_lookup_family: V4_ONLY
+              dns_refresh_rate: 1s
+              name: dynamic_dns_cache
+
+    # ------------------------------------------------------------------
+    # 3. Patch Listener: WebSocket Upgrades
+    # ------------------------------------------------------------------
+    - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/default_filter_chain/filters/0/typed_config/upgrade_configs"
+        value:
+          - upgrade_type: "websocket"
+
+    # ------------------------------------------------------------------
+    # 4. Patch Listener: Add HTTP Filters
+    # ------------------------------------------------------------------
+    - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
+        value:
+          name: envoy.filters.http.dynamic_forward_proxy
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.dynamic_forward_proxy.v3.FilterConfig
+            dns_cache_config:
+              name: dynamic_dns_cache
+              dns_lookup_family: V4_ONLY
+              dns_refresh_rate: 1s
+              name: dynamic_dns_cache
+
+    - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
+        value:
+          name: envoy.filters.http.lua
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+            inline_code: |
+              function envoy_on_request(request_handle)
+                  local uri = request_handle:headers():get(":path")
+                  local cuid = string.match(uri, "cuid=(%d+)")
+                  if cuid then
+                    local new_host = "computing-unit-" .. cuid .. ".{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}"
+                    request_handle:headers():replace(":authority", new_host)
+                  end
+                end
+
+    - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
+        value:
+          name: envoy.filters.http.ext_authz
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+            with_request_body:
+              max_request_bytes: 4294967295
+              allow_partial_message: true
+            http_service:
+              server_uri:
+                uri: http://{{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc.{{ .Release.Namespace }}.svc.cluster.local
+                # Use the generated cluster name (patched to STRICT_DNS)
+                cluster: httproute/{{ .Release.Namespace }}/texera-auth-route/rule/0
+                timeout: 5s
+              path_prefix: /api/auth
+              authorization_request:
+                allowed_headers:
+                  patterns:
+                    - exact: "authorization"
+                    - exact: "x-envoy-original-path"
+              authorization_response:
+                allowed_upstream_headers:
+                  patterns:
+                    - exact: "x-user-cu-access"
+                    - exact: "x-user-id"
+                    - exact: "x-user-name"
+                    - exact: "x-user-email"
+            failure_mode_allow: false
+
+    # ------------------------------------------------------------------
+    # 5. Patch Virtual Host: Disable AuthZ Globally
+    # ------------------------------------------------------------------
+    - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/virtual_hosts/0/typed_per_filter_config"
+        value:
+          envoy.filters.http.ext_authz:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+            disabled: true
+
+    # ------------------------------------------------------------------
+    # 6. Patch Routes: Enable AuthZ for Dynamic Routes
+    # ------------------------------------------------------------------
+    - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/virtual_hosts/0/routes/0"
+        value:
+          match:
+             prefix: "/api/executions/result/export"
+          route:
+             cluster: httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0
+             prefix_rewrite: "/api/executions/result/export"
+             timeout: "0s"
+          typed_per_filter_config:
+            envoy.filters.http.ext_authz:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+              check_settings:
+                context_extensions: {}
+
+    - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/virtual_hosts/0/routes/0"
+        value:
+          match:
+            safe_regex:
+               google_re2: {}
+               regex: "^/api/executions/\\d+/stats/\\d+$"
+          route:
+            cluster: httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0
+            timeout: "0s"
+          typed_per_filter_config:
+            envoy.filters.http.ext_authz:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+              check_settings:
+                context_extensions: {}
+
+    - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
+      operation:
+        op: "add"
+        path: "/virtual_hosts/0/routes/0"
+        value:
+          match:
+            prefix: "/wsapi"
+          route:
+            cluster: httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0
+            prefix_rewrite: "/wsapi"
+            timeout: "0s"
+          typed_per_filter_config:
+            envoy.filters.http.ext_authz:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+              check_settings:
+                context_extensions: {}
