@@ -440,7 +440,7 @@ class ExecutionResultService(
         val (document, schemaOption) = DocumentFactory.openDocument(storageUri)
         val virtualDocument = document.asInstanceOf[VirtualDocument[Tuple]]
 
-        val columns = if (request.columnLimit < Int.MaxValue && schemaOption.isDefined) {
+        val columns = {
           val schema = schemaOption.get
           val allColumns = schema.getAttributeNames
           val filteredColumns = request.columnSearch match {
@@ -451,8 +451,6 @@ class ExecutionResultService(
           Some(
             filteredColumns.slice(request.columnOffset, request.columnOffset + request.columnLimit)
           )
-        } else {
-          None
         }
 
         val paginationIterable = {
