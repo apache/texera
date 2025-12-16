@@ -55,20 +55,11 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
     * get an iterator of a sequence starting from index `from`, until index `until`
     * @param from the starting index (inclusive)
     * @param until the ending index (exclusive)
-    * @return an iterator that returns data items of type T
-    */
-  def getRange(from: Int, until: Int): Iterator[T] =
-    throw new NotImplementedError("getRange method is not implemented")
-
-  /**
-    * get an iterator of a sequence starting from index `from`, until index `until`
-    * @param from the starting index (inclusive)
-    * @param until the ending index (exclusive)
     * @param columns the columns to be projected
     * @return an iterator that returns data items of type T
     */
-  def getRange(from: Int, until: Int, columns: Option[Seq[String]]): Iterator[T] =
-    getRange(from, until)
+  def getRange(from: Int, until: Int, columns: Option[Seq[String]] = None): Iterator[T] =
+    throw new NotImplementedError("getRange method is not implemented")
 
   /**
     * get an iterator of all items after the specified index `offset`

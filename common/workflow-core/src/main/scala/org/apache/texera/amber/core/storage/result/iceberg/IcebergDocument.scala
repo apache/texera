@@ -100,19 +100,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   /**
     * Get an iterator for reading records from the table.
     */
-  override def get(): Iterator[T] = getUsingFileSequenceOrder(0, None, None)
+  override def get(): Iterator[T] = getUsingFileSequenceOrder(0, None)
 
   /**
     * Get records within a specified range [from, until).
     */
-  override def getRange(from: Int, until: Int): Iterator[T] = {
-    getUsingFileSequenceOrder(from, Some(until), None)
-  }
-
-  /**
-    * Get records within a specified range [from, until) with specific columns.
-    */
-  override def getRange(from: Int, until: Int, columns: Option[Seq[String]]): Iterator[T] = {
+  override def getRange(from: Int, until: Int, columns: Option[Seq[String]] = None): Iterator[T] = {
     getUsingFileSequenceOrder(from, Some(until), columns)
   }
 
@@ -120,7 +113,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     * Get records starting after a specified offset.
     */
   override def getAfter(offset: Int): Iterator[T] = {
-    getUsingFileSequenceOrder(offset, None, None)
+    getUsingFileSequenceOrder(offset, None)
   }
 
   /**
@@ -162,7 +155,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   private def getUsingFileSequenceOrder(
       from: Int,
       until: Option[Int],
-      columns: Option[Seq[String]]
+      columns: Option[Seq[String]] = None
   ): Iterator[T] =
     withReadLock(lock) {
       new Iterator[T] {

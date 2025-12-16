@@ -54,7 +54,7 @@ trait ReadonlyVirtualDocument[T] {
     * @param until the ending index (exclusive)
     * @return an iterator that returns data items of type T
     */
-  def getRange(from: Int, until: Int): Iterator[T]
+  def getRange(from: Int, until: Int, columns: Option[Seq[String]] = None): Iterator[T]
 
   /**
     * Get an iterator of all items after the specified index `offset`.
