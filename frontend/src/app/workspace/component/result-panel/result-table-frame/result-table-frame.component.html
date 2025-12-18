@@ -26,6 +26,15 @@
   [hidden]="!currentColumns"
   class="result-table">
   <div
+    class="column-search"
+    style="margin-bottom: 8px; display: flex; justify-content: flex-end">
+    <input
+      nz-input
+      placeholder="Search Columns"
+      (input)="onColumnSearch($event)"
+      style="width: 200px" />
+  </div>
+  <div
     class="column-navigation"
     style="margin-bottom: 8px; display: flex; justify-content: flex-end; gap: 8px">
     <button
@@ -48,15 +57,6 @@
         nz-icon
         nzType="right"></i>
     </button>
-  </div>
-  <div
-    class="column-search"
-    style="margin-bottom: 8px; display: flex; justify-content: flex-end">
-    <input
-      nz-input
-      placeholder="Search Columns"
-      (input)="onColumnSearch($event)"
-      style="width: 200px" />
   </div>
   <div class="table-container">
     <nz-table

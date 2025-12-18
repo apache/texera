@@ -236,8 +236,37 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return this.sanitizer.bypassSecurityTrustHtml(styledValue);
   }
 
+  /**
+   * Adjusts the number of result rows displayed per page based on the
+   * available vertical space of the Texera results panel.
+   *
+   * The method accounts for fixed UI elements within the panel—such as
+   * headers, column navigation controls, pagination, and the search bar—
+   * to determine the remaining space available for rendering result rows.
+   * The page size is then recalculated using the height of a single table row.
+   *
+   * To maintain a stable user experience during panel resizes, the current
+   * page index is recomputed so that the previously visible results remain
+   * in view and the user does not experience an abrupt jump in the dataset.
+   *
+   * @param panelHeight - The total height (in pixels) of the results panel.
+   */
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
+    const TABLE_HEADER_HEIGHT = 38.62;
+    const PANEL_HEADER_HEIGHT = 64.27; // Includes panel title and tab bar
+    const COLUMN_NAVIGATION_HEIGHT = 56.6; // Previous/Next columns controls
+    const PAGINATION_HEIGHT = 32.63;
+    const SEARCH_BAR_HEIGHT_WITH_MARGIN = 77; // Approximate height for search bar and margins
+    const ROW_HEIGHT = 38.62;
+
+    const usedHeight =
+      TABLE_HEADER_HEIGHT +
+      PANEL_HEADER_HEIGHT +
+      COLUMN_NAVIGATION_HEIGHT +
+      PAGINATION_HEIGHT +
+      SEARCH_BAR_HEIGHT_WITH_MARGIN;
+
+    const newPageSize = Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT));
 
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
