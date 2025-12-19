@@ -29,19 +29,7 @@ The vote will be open for at least 72 hours.
 
 [ ] +1 Approve the release
 [ ]  0 No opinion
-[ ] -1 Disapprove the release (please provide reason)
-
-== Convenience Binaries ==
-
-Docker images (tag: ${VERSION}):
-- https://hub.docker.com/r/apache/texera-workflow-compiling-service/tags?name=${VERSION}
-- https://hub.docker.com/r/apache/texera-workflow-execution-coordinator/tags?name=${VERSION}
-- https://hub.docker.com/r/apache/texera-workflow-computing-unit-managing-service/tags?name=${VERSION}
-- https://hub.docker.com/r/apache/texera-workflow-execution-runner/tags?name=${VERSION}
-- https://hub.docker.com/r/apache/texera-dashboard-service/tags?name=${VERSION}
-- https://hub.docker.com/r/apache/texera-access-control-service/tags?name=${VERSION}
-- https://hub.docker.com/r/apache/texera-config-service/tags?name=${VERSION}
-- https://hub.docker.com/r/apache/texera-file-service/tags?name=${VERSION}
+[ ] -1 Disapprove the release (please provide the reason)
 
 == Checklist ==
 
