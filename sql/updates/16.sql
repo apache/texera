@@ -26,11 +26,4 @@ BEGIN;
 ALTER TABLE "user"
     ADD COLUMN IF NOT EXISTS affiliation VARCHAR(128);
 
-ALTER TABLE "user"
-    ALTER COLUMN affiliation DROP DEFAULT;
-
-UPDATE "user"
-SET affiliation = NULL
-WHERE affiliation IS NOT NULL;
-
 COMMIT;
