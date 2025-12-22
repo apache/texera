@@ -31,6 +31,7 @@ import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 /**
  * The Component will display the result in an excel table format,
@@ -84,7 +85,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private guiConfigService: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -116,6 +118,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           this.isOperatorFinished = false;
         }
       });
+
+    this.columnLimit = this.guiConfigService.env.limitColumns;
 
     this.workflowResultService
       .getResultUpdateStream()
