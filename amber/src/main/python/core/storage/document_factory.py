@@ -25,6 +25,7 @@ from core.storage.iceberg.iceberg_catalog_instance import IcebergCatalogInstance
 from core.storage.iceberg.iceberg_document import IcebergDocument
 from core.storage.iceberg.iceberg_utils import (
     create_table,
+    amber_schema_to_iceberg_schema,
     amber_tuples_to_arrow_table,
     arrow_table_to_amber_tuples,
     load_table_metadata,
@@ -63,7 +64,9 @@ class DocumentFactory:
             if resource_type in {VFSResourceType.RESULT}:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
-                iceberg_schema = Schema.as_arrow_schema(schema)
+                # Convert Amber Schema to Iceberg Schema with LARGE_BINARY
+                # field name encoding
+                iceberg_schema = amber_schema_to_iceberg_schema(schema)
 
                 create_table(
                     IcebergCatalogInstance.get_instance(),
