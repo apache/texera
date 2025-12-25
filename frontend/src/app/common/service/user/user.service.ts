@@ -24,7 +24,7 @@ import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
-import { catchError, map, shareReplay } from "rxjs/operators"
+import { catchError, map, shareReplay } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -95,10 +95,9 @@ export class UserService {
     if (!user) {
       return of(false);
     }
-    return this.http.get<Boolean>(
-      `${AppSettings.getApiEndpoint()}/user/affiliation`,
-      { params: { uid: user.uid.toString() } }
-    );
+    return this.http.get<Boolean>(`${AppSettings.getApiEndpoint()}/user/affiliation`, {
+      params: { uid: user.uid.toString() },
+    });
   }
 
   /**
