@@ -36,9 +36,9 @@ object UserResource {
 class UserResource {
 
   /**
-   * Update the affiliation of a user.
-   * Used by a first-time user to set their own affiliation.
-   */
+    * Update the affiliation of a user.
+    * Used by a first-time user to set their own affiliation.
+    */
   @PUT
   @Path("/affiliation")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -55,12 +55,12 @@ class UserResource {
   }
 
   /**
-   * Gets affiliation with uid. Returns "", null or affiliation.
-   * "": Prompted and no response
-   * null: never prompted
-   * @param uid
-   * @return
-   */
+    * Gets affiliation with uid. Returns "", null or affiliation.
+    * "": Prompted and no response
+    * null: never prompted
+    * @param uid
+    * @return
+    */
   @GET
   @Path("/affiliation")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -72,4 +72,3 @@ class UserResource {
     java.lang.Boolean.valueOf(user.getAffiliation == null)
   }
 }
-
