@@ -84,4 +84,12 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   getAvatar(googleAvatar: string): Observable<string | undefined> {
     return of(undefined);
   }
+
+  checkAffiliation(): Observable<Boolean> {
+    return of(true);
+  }
+
+  updateAffiliation(_affiliation: string): Observable<void> {
+    return of(void 0);
+  }
 }
