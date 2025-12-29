@@ -22,16 +22,19 @@ package org.apache.texera.amber.core.tuple
 import org.apache.texera.amber.core.tuple.AttributeType._
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.{
   AttributeTypeException,
+  add,
+  compare,
   inferField,
   inferSchemaFromRows,
-  parseField,
-  compare,
-  add,
-  minValue,
   maxValue,
+  minValue,
+  parseField,
   zeroValue
 }
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.sql.Timestamp
+import java.time.{Instant, LocalDate, LocalDateTime, OffsetDateTime, ZoneId, ZonedDateTime}
 
 class AttributeTypeUtilsSpec extends AnyFunSuite {
 
@@ -179,8 +182,40 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
         .getTime == 1699820130000L
     )
 
+    val localDateTime = LocalDateTime.of(2023, 11, 13, 10, 15, 30)
+    val timestampFromLocalDateTime =
+      parseField(localDateTime, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromLocalDateTime == Timestamp.valueOf(localDateTime))
+
+    val instant = Instant.parse("2023-11-13T10:15:30Z")
+    val timestampFromInstant = parseField(instant, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromInstant == Timestamp.from(instant))
+
+    val offsetDateTime = OffsetDateTime.parse("2023-11-13T12:15:30+02:00")
+    val timestampFromOffsetDateTime =
+      parseField(offsetDateTime, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromOffsetDateTime == Timestamp.from(offsetDateTime.toInstant))
+
+    val zonedDateTime =
+      ZonedDateTime.of(2023, 11, 13, 2, 15, 30, 0, ZoneId.of("America/Los_Angeles"))
+    val timestampFromZonedDateTime =
+      parseField(zonedDateTime, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromZonedDateTime == Timestamp.from(zonedDateTime.toInstant))
+
+    val localDate = LocalDate.of(2023, 11, 13)
+    val timestampFromLocalDate =
+      parseField(localDate, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromLocalDate == Timestamp.valueOf(localDate.atStartOfDay()))
+
+    val utilDate = new java.util.Date(1699820130000L)
+    val timestampFromDate = parseField(utilDate, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromDate.getTime == 1699820130000L)
+
     assertThrows[AttributeTypeException] {
       parseField("invalid", AttributeType.TIMESTAMP)
+    }
+    assertThrows[AttributeTypeException] {
+      parseField(123.45, AttributeType.TIMESTAMP)
     }
   }
 
