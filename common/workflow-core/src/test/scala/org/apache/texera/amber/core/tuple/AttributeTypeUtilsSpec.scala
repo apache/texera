@@ -22,16 +22,19 @@ package org.apache.texera.amber.core.tuple
 import org.apache.texera.amber.core.tuple.AttributeType._
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.{
   AttributeTypeException,
+  add,
+  compare,
   inferField,
   inferSchemaFromRows,
-  parseField,
-  compare,
-  add,
-  minValue,
   maxValue,
+  minValue,
+  parseField,
   zeroValue
 }
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.sql.Timestamp
+import java.time.{Instant, LocalDate, LocalDateTime, OffsetDateTime, ZoneId, ZonedDateTime}
 
 class AttributeTypeUtilsSpec extends AnyFunSuite {
 
@@ -179,8 +182,40 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
         .getTime == 1699820130000L
     )
 
+    val localDateTime = LocalDateTime.of(2023, 11, 13, 10, 15, 30)
+    val timestampFromLocalDateTime =
+      parseField(localDateTime, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromLocalDateTime == Timestamp.valueOf(localDateTime))
+
+    val instant = Instant.parse("2023-11-13T10:15:30Z")
+    val timestampFromInstant = parseField(instant, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromInstant == Timestamp.from(instant))
+
+    val offsetDateTime = OffsetDateTime.parse("2023-11-13T12:15:30+02:00")
+    val timestampFromOffsetDateTime =
+      parseField(offsetDateTime, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromOffsetDateTime == Timestamp.from(offsetDateTime.toInstant))
+
+    val zonedDateTime =
+      ZonedDateTime.of(2023, 11, 13, 2, 15, 30, 0, ZoneId.of("America/Los_Angeles"))
+    val timestampFromZonedDateTime =
+      parseField(zonedDateTime, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromZonedDateTime == Timestamp.from(zonedDateTime.toInstant))
+
+    val localDate = LocalDate.of(2023, 11, 13)
+    val timestampFromLocalDate =
+      parseField(localDate, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromLocalDate == Timestamp.valueOf(localDate.atStartOfDay()))
+
+    val utilDate = new java.util.Date(1699820130000L)
+    val timestampFromDate = parseField(utilDate, AttributeType.TIMESTAMP).asInstanceOf[Timestamp]
+    assert(timestampFromDate.getTime == 1699820130000L)
+
     assertThrows[AttributeTypeException] {
       parseField("invalid", AttributeType.TIMESTAMP)
+    }
+    assertThrows[AttributeTypeException] {
+      parseField(123.45, AttributeType.TIMESTAMP)
     }
   }
 
@@ -196,24 +231,24 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assert(parseField("anything", AttributeType.ANY) == "anything")
   }
 
-  test("parseField correctly parses to BIG_OBJECT") {
-    // Valid S3 URI strings are converted to BigObject
-    val pointer1 = parseField("s3://bucket/path/to/object", AttributeType.BIG_OBJECT)
-      .asInstanceOf[BigObject]
+  test("parseField correctly parses to LARGE_BINARY") {
+    // Valid S3 URI strings are converted to LargeBinary
+    val pointer1 = parseField("s3://bucket/path/to/object", AttributeType.LARGE_BINARY)
+      .asInstanceOf[LargeBinary]
     assert(pointer1.getUri == "s3://bucket/path/to/object")
     assert(pointer1.getBucketName == "bucket")
     assert(pointer1.getObjectKey == "path/to/object")
 
     // Null input returns null
-    assert(parseField(null, AttributeType.BIG_OBJECT) == null)
+    assert(parseField(null, AttributeType.LARGE_BINARY) == null)
   }
 
-  test("BIG_OBJECT type is preserved but never inferred from data") {
-    // BIG_OBJECT remains BIG_OBJECT when passed as typeSoFar
-    assert(inferField(AttributeType.BIG_OBJECT, "any-value") == AttributeType.BIG_OBJECT)
-    assert(inferField(AttributeType.BIG_OBJECT, null) == AttributeType.BIG_OBJECT)
+  test("LARGE_BINARY type is preserved but never inferred from data") {
+    // LARGE_BINARY remains LARGE_BINARY when passed as typeSoFar
+    assert(inferField(AttributeType.LARGE_BINARY, "any-value") == AttributeType.LARGE_BINARY)
+    assert(inferField(AttributeType.LARGE_BINARY, null) == AttributeType.LARGE_BINARY)
 
-    // String data is inferred as STRING, never BIG_OBJECT
+    // String data is inferred as STRING, never LARGE_BINARY
     assert(inferField("s3://bucket/path") == AttributeType.STRING)
   }
 

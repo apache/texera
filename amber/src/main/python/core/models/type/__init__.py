@@ -15,5 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-rpy2==3.5.11
-rpy2-arrow==0.0.8
+from .large_binary import largebinary
+
+__all__ = ["largebinary"]

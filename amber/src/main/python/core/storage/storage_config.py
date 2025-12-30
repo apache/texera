@@ -32,6 +32,12 @@ class StorageConfig:
     ICEBERG_FILE_STORAGE_DIRECTORY_PATH = None
     ICEBERG_TABLE_COMMIT_BATCH_SIZE = None
 
+    # S3 configs (for large_binary_manager module)
+    S3_ENDPOINT = None
+    S3_REGION = None
+    S3_AUTH_USERNAME = None
+    S3_AUTH_PASSWORD = None
+
     @classmethod
     def initialize(
         cls,
@@ -41,10 +47,14 @@ class StorageConfig:
         table_result_namespace,
         directory_path,
         commit_batch_size,
+        s3_endpoint,
+        s3_region,
+        s3_auth_username,
+        s3_auth_password,
     ):
         if cls._initialized:
             raise RuntimeError(
-                "Storage config has already been initialized" "and cannot be modified."
+                "Storage config has already been initialized and cannot be modified."
             )
 
         cls.ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME = postgres_uri_without_scheme
@@ -53,6 +63,13 @@ class StorageConfig:
         cls.ICEBERG_TABLE_RESULT_NAMESPACE = table_result_namespace
         cls.ICEBERG_FILE_STORAGE_DIRECTORY_PATH = directory_path
         cls.ICEBERG_TABLE_COMMIT_BATCH_SIZE = int(commit_batch_size)
+
+        # S3 configs
+        cls.S3_ENDPOINT = s3_endpoint
+        cls.S3_REGION = s3_region
+        cls.S3_AUTH_USERNAME = s3_auth_username
+        cls.S3_AUTH_PASSWORD = s3_auth_password
+
         cls._initialized = True
 
     def __new__(cls, *args, **kwargs):

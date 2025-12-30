@@ -22,8 +22,10 @@ from typing import MutableMapping, Optional, Mapping, List, Tuple
 from core.models.schema.attribute_type import (
     AttributeType,
     RAW_TYPE_MAPPING,
-    FROM_ARROW_MAPPING,
-    TO_ARROW_MAPPING,
+)
+from core.models.schema.arrow_schema_utils import (
+    arrow_schema_to_attr_types,
+    attr_types_to_arrow_schema,
 )
 
 
@@ -85,22 +87,17 @@ class Schema:
         :return:
         """
         self._name_type_mapping = OrderedDict()
+        attr_types = arrow_schema_to_attr_types(arrow_schema)
+        # Preserve field order from arrow_schema
         for attr_name in arrow_schema.names:
-            arrow_type = arrow_schema.field(attr_name).type  # type: ignore
-            attr_type = FROM_ARROW_MAPPING[arrow_type.id]
-            self.add(attr_name, attr_type)
+            self.add(attr_name, attr_types[attr_name])
 
     def as_arrow_schema(self) -> pa.Schema:
         """
         Creates a new pyarrow.Schema according to the current Schema.
         :return: pyarrow.Schema
         """
-        return pa.schema(
-            [
-                pa.field(attr_name, TO_ARROW_MAPPING[attr_type])
-                for attr_name, attr_type in self._name_type_mapping.items()
-            ]
-        )
+        return attr_types_to_arrow_schema(self._name_type_mapping)
 
     def get_attr_names(self) -> List[str]:
         """

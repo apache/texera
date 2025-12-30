@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.source.scan
 
-import org.apache.texera.amber.core.tuple.{AttributeType, BigObject, Schema, SchemaEnforceable}
+import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, SchemaEnforceable}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -30,8 +30,8 @@ import java.nio.file.{Files, Path}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
 /**
-  * Unit tests for BIG_OBJECT logic in FileScanSourceOpExec.
-  * Full integration tests with S3 and database are in BigObjectManagerSpec.
+  * Unit tests for LARGE_BINARY logic in FileScanSourceOpExec.
+  * Full integration tests with S3 and database are in LargeBinaryManagerSpec.
   */
 class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
@@ -40,8 +40,8 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     .resolve("common/workflow-operator/src/test/resources")
     .toRealPath()
 
-  private val testFile = testDir.resolve("test_big_object.txt")
-  private val testZip = testDir.resolve("test_big_object.zip")
+  private val testFile = testDir.resolve("test_large_binary.txt")
+  private val testZip = testDir.resolve("test_large_binary.zip")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -75,7 +75,7 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
   ): FileScanSourceOpDesc = {
     val desc = new FileScanSourceOpDesc()
     desc.fileName = Some(file.toString)
-    desc.attributeType = FileAttributeType.BIG_OBJECT
+    desc.attributeType = FileAttributeType.LARGE_BINARY
     desc.attributeName = attributeName
     desc.fileEncoding = FileDecodingMethod.UTF_8
     desc
@@ -83,26 +83,26 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   private def assertSchema(schema: Schema, attributeName: String): Unit = {
     assert(schema.getAttributes.length == 1)
-    assert(schema.getAttribute(attributeName).getType == AttributeType.BIG_OBJECT)
+    assert(schema.getAttribute(attributeName).getType == AttributeType.LARGE_BINARY)
   }
 
   // Schema Tests
-  it should "infer BIG_OBJECT schema with default attribute name" in {
+  it should "infer LARGE_BINARY schema with default attribute name" in {
     assertSchema(createDescriptor().sourceSchema(), "line")
   }
 
-  it should "infer BIG_OBJECT schema with custom attribute name" in {
+  it should "infer LARGE_BINARY schema with custom attribute name" in {
     assertSchema(createDescriptor(attributeName = "custom_field").sourceSchema(), "custom_field")
   }
 
-  it should "map BIG_OBJECT to correct AttributeType" in {
-    assert(FileAttributeType.BIG_OBJECT.getType == AttributeType.BIG_OBJECT)
+  it should "map LARGE_BINARY to correct AttributeType" in {
+    assert(FileAttributeType.LARGE_BINARY.getType == AttributeType.LARGE_BINARY)
   }
 
   // Type Classification Tests
-  it should "correctly classify BIG_OBJECT as isSingle type" in {
+  it should "correctly classify LARGE_BINARY as isSingle type" in {
     val isSingleTypes = List(
-      FileAttributeType.BIG_OBJECT,
+      FileAttributeType.LARGE_BINARY,
       FileAttributeType.SINGLE_STRING,
       FileAttributeType.BINARY
     )
@@ -120,7 +120,7 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   // Execution Tests
-  it should "create BigObject when reading file with BIG_OBJECT type" in {
+  it should "create LargeBinary when reading file with LARGE_BINARY type" in {
     val desc = createDescriptor()
     desc.setResolvedFileName(URI.create(testFile.toUri.toString))
 
@@ -137,26 +137,26 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
         .enforceSchema(desc.sourceSchema())
         .getField[Any]("line")
 
-      assert(field.isInstanceOf[BigObject])
-      assert(field.asInstanceOf[BigObject].getUri.startsWith("s3://"))
+      assert(field.isInstanceOf[LargeBinary])
+      assert(field.asInstanceOf[LargeBinary].getUri.startsWith("s3://"))
     } catch {
       case e: Exception =>
         info(s"S3 not configured: ${e.getMessage}")
     }
   }
 
-  // BigObject Tests
-  it should "create valid BigObject with correct URI parsing" in {
-    val pointer = new BigObject("s3://bucket/path/to/object")
+  // LargeBinary Tests
+  it should "create valid LargeBinary with correct URI parsing" in {
+    val pointer = new LargeBinary("s3://bucket/path/to/object")
 
     assert(pointer.getUri == "s3://bucket/path/to/object")
     assert(pointer.getBucketName == "bucket")
     assert(pointer.getObjectKey == "path/to/object")
   }
 
-  it should "reject invalid BigObject URIs" in {
-    assertThrows[IllegalArgumentException](new BigObject("http://invalid"))
-    assertThrows[IllegalArgumentException](new BigObject("not-a-uri"))
-    assertThrows[IllegalArgumentException](new BigObject(null.asInstanceOf[String]))
+  it should "reject invalid LargeBinary URIs" in {
+    assertThrows[IllegalArgumentException](new LargeBinary("http://invalid"))
+    assertThrows[IllegalArgumentException](new LargeBinary("not-a-uri"))
+    assertThrows[IllegalArgumentException](new LargeBinary(null.asInstanceOf[String]))
   }
 }

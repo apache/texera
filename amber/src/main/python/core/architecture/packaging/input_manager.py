@@ -156,7 +156,6 @@ class InputManager:
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InternalMarker]]:
-
         self._current_channel_id = from_
 
         if isinstance(payload, DataFrame):
