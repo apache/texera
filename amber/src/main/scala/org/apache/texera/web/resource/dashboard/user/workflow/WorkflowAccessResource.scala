@@ -224,6 +224,11 @@ class WorkflowAccessResource() {
       val targetUserUid = userDao.fetchOneByEmail(email).getUid
       val workflowOwnerUid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
 
+      // Prevent owner from revoking their own access
+      if (targetUserUid == workflowOwnerUid) {
+        throw new ForbiddenException("The owner cannot revoke their own access")
+      }
+
       // Allow if: (1) user has WRITE access, OR (2) user is revoking their own access
       val isRevokingOwnAccess = targetUserUid == user.getUid
       if (!hasWriteAccess(wid, user.getUid) && !isRevokingOwnAccess) {
