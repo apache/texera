@@ -249,7 +249,7 @@ export class WorkflowActionService {
 
     const port: PortDescription = {
       portID,
-      displayName: portID,
+      displayName: "",
       allowMultiInputs,
       isDynamicPort: true,
       dependencies: [],
