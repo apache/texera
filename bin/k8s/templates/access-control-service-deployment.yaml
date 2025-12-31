@@ -55,6 +55,10 @@ spec:
             - name: LITELLM_BASE_URL
               value: "http://{{ .Values.litellm.name }}-svc:{{ .Values.litellm.service.port }}"
 {{- end }}
+            {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /api/healthcheck
