@@ -29,3 +29,6 @@ header:
     # Third-party code with MIT license - see LICENSE file for attribution
     - 'common/workflow-operator/src/main/scala/com/kjetland/**'
     - 'frontend/src/app/common/formly/array.type.ts'
+    - 'frontend/src/app/common/formly/object.type.ts'
+    - 'frontend/src/app/common/formly/multischema.type.ts'
+    - 'frontend/src/app/common/formly/null.type.ts'
