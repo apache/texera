@@ -20,6 +20,7 @@ import pyarrow as pa
 from bidict import bidict
 from enum import Enum
 from pyarrow import lib
+from core.models.type.large_binary import largebinary
 
 
 class AttributeType(Enum):
@@ -37,6 +38,7 @@ class AttributeType(Enum):
     DOUBLE = 5
     TIMESTAMP = 6
     BINARY = 7
+    LARGE_BINARY = 8
 
 
 RAW_TYPE_MAPPING = bidict(
@@ -48,6 +50,7 @@ RAW_TYPE_MAPPING = bidict(
         "BOOLEAN": AttributeType.BOOL,
         "TIMESTAMP": AttributeType.TIMESTAMP,
         "BINARY": AttributeType.BINARY,
+        "LARGE_BINARY": AttributeType.LARGE_BINARY,
     }
 )
 
@@ -59,6 +62,7 @@ TO_ARROW_MAPPING = {
     AttributeType.BOOL: pa.bool_(),
     AttributeType.BINARY: pa.binary(),
     AttributeType.TIMESTAMP: pa.timestamp("us"),
+    AttributeType.LARGE_BINARY: pa.string(),  # Serialized as URI string
 }
 
 FROM_ARROW_MAPPING = {
@@ -83,6 +87,7 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.BOOL: bool,
     AttributeType.BINARY: bytes,
     AttributeType.TIMESTAMP: datetime.datetime,
+    AttributeType.LARGE_BINARY: largebinary,
 }
 
 FROM_PYOBJECT_MAPPING = {
@@ -92,4 +97,5 @@ FROM_PYOBJECT_MAPPING = {
     bool: AttributeType.BOOL,
     bytes: AttributeType.BINARY,
     datetime.datetime: AttributeType.TIMESTAMP,
+    largebinary: AttributeType.LARGE_BINARY,
 }
