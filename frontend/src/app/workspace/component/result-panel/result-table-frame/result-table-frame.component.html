@@ -25,6 +25,40 @@
 <div
   [hidden]="!currentColumns"
   class="result-table">
+  <div
+    class="column-search"
+    style="margin-bottom: 8px; display: flex; justify-content: flex-end">
+    <input
+      nz-input
+      placeholder="Search Columns"
+      (input)="onColumnSearch($event)"
+      style="width: 200px" />
+  </div>
+  <div
+    class="column-navigation"
+    style="margin-bottom: 8px; display: flex; justify-content: flex-end; gap: 8px"
+    [hidden]="currentColumnOffset === 0 && (!currentColumns || currentColumns.length < columnLimit)">
+    <button
+      nz-button
+      nzType="default"
+      (click)="onColumnShiftLeft()"
+      [disabled]="currentColumnOffset === 0">
+      <i
+        nz-icon
+        nzType="left"></i>
+      Previous Columns
+    </button>
+    <button
+      nz-button
+      nzType="default"
+      (click)="onColumnShiftRight()"
+      [disabled]="!currentColumns || currentColumns.length < columnLimit">
+      Next Columns
+      <i
+        nz-icon
+        nzType="right"></i>
+    </button>
+  </div>
   <div class="table-container">
     <nz-table
       #basicTable
