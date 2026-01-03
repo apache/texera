@@ -22,6 +22,7 @@ import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../worksp
 
 export interface WorkflowSettings {
   dataTransferBatchSize: number;
+  batchProcessing: boolean;
 }
 
 /**

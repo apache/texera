@@ -230,7 +230,10 @@ export class UserWorkflowComponent implements AfterViewInit {
       commentBoxes: [],
       links: [],
       operatorPositions: {},
-      settings: { dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize },
+      settings: {
+        dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+        batchProcessing: false
+      },
     };
     let localPid = this.pid;
     this.workflowPersistService

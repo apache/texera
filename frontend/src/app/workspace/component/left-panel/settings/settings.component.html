@@ -16,9 +16,7 @@
  specific language governing permissions and limitations
  under the License.
 -->
-
 <div class="settings-container">
-  <h4>Workflow Settings</h4>
   <form
     [formGroup]="settingsForm"
     class="form-inline">
@@ -36,5 +34,6 @@
         Data Transfer Batch Size size must be at least 1.
       </div>
     </div>
+    <label nz-checkbox formControlName="batchProcessing">Batch Processing</label>
   </form>
 </div>

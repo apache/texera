@@ -127,6 +127,7 @@ export class WorkflowActionService {
   private getDefaultSettings(): WorkflowSettings {
     return {
       dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+      batchProcessing: false,
     };
   }
 
@@ -805,6 +806,10 @@ export class WorkflowActionService {
     if (size > 0 && size != null) {
       this.setWorkflowSettings({ ...this.workflowSettings, dataTransferBatchSize: size });
     }
+  }
+
+  public updateBatchProcessing(enabled: boolean): void {
+    this.setWorkflowSettings({ ...this.workflowSettings, batchProcessing: enabled });
   }
 
   public clearWorkflow(): void {

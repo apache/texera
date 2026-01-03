@@ -35,7 +35,6 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
 export class SettingsComponent implements OnInit {
   settingsForm!: FormGroup;
   currentDataTransferBatchSize!: number;
-  isSaving: boolean = false;
 
   constructor(
     private fb: FormBuilder,
@@ -53,6 +52,7 @@ export class SettingsComponent implements OnInit {
 
     this.settingsForm = this.fb.group({
       dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
+      batchProcessing: [this.workflowActionService.getWorkflowContent().settings.batchProcessing],
     });
 
     this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
@@ -60,6 +60,14 @@ export class SettingsComponent implements OnInit {
         this.confirmUpdateDataTransferBatchSize(value.dataTransferBatchSize);
       }
     });
+
+    this.settingsForm
+      .get('batchProcessing')!
+      .valueChanges
+      .pipe(untilDestroyed(this))
+      .subscribe((enabled: boolean) => {
+        this.updateBatchProcessing(enabled);
+      });
 
     this.workflowActionService
       .workflowChanged()
@@ -85,13 +93,16 @@ export class SettingsComponent implements OnInit {
   }
 
   public persistWorkflow(): void {
-    this.isSaving = true;
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
       .pipe(untilDestroyed(this))
       .subscribe({
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       })
-      .add(() => (this.isSaving = false));
+  }
+
+  public updateBatchProcessing(enabled: boolean) {
+    this.workflowActionService.updateBatchProcessing(enabled);
+    this.persistWorkflow();
   }
 }
