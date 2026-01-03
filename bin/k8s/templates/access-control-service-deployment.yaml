@@ -46,6 +46,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
+            {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
 {{- if .Values.litellm.enabled }}
             - name: LITELLM_MASTER_KEY
               valueFrom:
@@ -55,10 +59,6 @@ spec:
             - name: LITELLM_BASE_URL
               value: "http://{{ .Values.litellm.name }}-svc:{{ .Values.litellm.service.port }}"
 {{- end }}
-            {{- range .Values.texeraEnvVars }}
-            - name: {{ .name }}
-              value: "{{ .value }}"
-            {{- end }}
           livenessProbe:
             httpGet:
               path: /api/healthcheck

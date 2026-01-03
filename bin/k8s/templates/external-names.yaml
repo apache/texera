@@ -86,7 +86,7 @@ to access services in the main namespace using the same service names.
 
 ---
 {{- end }}
-{{/* Webserver ExternalName */}
+{{/* Webserver ExternalName */}}
 {{- include "external-name-service" (dict 
   "name" (printf "%s-svc" .Values.webserver.name)
   "namespace" $workflowComputingUnitPoolNamespace
