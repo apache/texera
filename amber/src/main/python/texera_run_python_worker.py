@@ -51,6 +51,10 @@ if __name__ == "__main__":
         iceberg_table_namespace,
         iceberg_file_storage_directory_path,
         iceberg_table_commit_batch_size,
+        s3_endpoint,
+        s3_region,
+        s3_auth_username,
+        s3_auth_password,
     ) = sys.argv
     init_loguru_logger(logger_level)
     StorageConfig.initialize(
@@ -60,6 +64,10 @@ if __name__ == "__main__":
         iceberg_table_namespace,
         iceberg_file_storage_directory_path,
         iceberg_table_commit_batch_size,
+        s3_endpoint,
+        s3_region,
+        s3_auth_username,
+        s3_auth_password,
     )
 
     # Setting R_HOME environment variable for R-UDF usage

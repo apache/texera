@@ -89,3 +89,68 @@ class TestSchema:
     def test_convert_from_arrow_schema(self, arrow_schema, schema):
         assert schema == Schema(arrow_schema=arrow_schema)
         assert schema.as_arrow_schema() == arrow_schema
+
+    def test_large_binary_in_raw_schema(self):
+        """Test creating schema with LARGE_BINARY from raw schema."""
+        raw_schema = {
+            "regular_field": "STRING",
+            "large_binary_field": "LARGE_BINARY",
+        }
+        schema = Schema(raw_schema=raw_schema)
+        assert schema.get_attr_type("regular_field") == AttributeType.STRING
+        assert schema.get_attr_type("large_binary_field") == AttributeType.LARGE_BINARY
+
+    def test_large_binary_in_arrow_schema_with_metadata(self):
+        """Test creating schema with LARGE_BINARY from Arrow schema with metadata."""
+        arrow_schema = pa.schema(
+            [
+                pa.field("regular_field", pa.string()),
+                pa.field(
+                    "large_binary_field",
+                    pa.string(),
+                    metadata={b"texera_type": b"LARGE_BINARY"},
+                ),
+            ]
+        )
+        schema = Schema(arrow_schema=arrow_schema)
+        assert schema.get_attr_type("regular_field") == AttributeType.STRING
+        assert schema.get_attr_type("large_binary_field") == AttributeType.LARGE_BINARY
+
+    def test_large_binary_as_arrow_schema_includes_metadata(self):
+        """Test that LARGE_BINARY fields include metadata in Arrow schema."""
+        schema = Schema()
+        schema.add("regular_field", AttributeType.STRING)
+        schema.add("large_binary_field", AttributeType.LARGE_BINARY)
+
+        arrow_schema = schema.as_arrow_schema()
+
+        # Regular field should have no metadata
+        regular_field = arrow_schema.field("regular_field")
+        assert (
+            regular_field.metadata is None
+            or b"texera_type" not in regular_field.metadata
+        )
+
+        # LARGE_BINARY field should have metadata
+        large_binary_field = arrow_schema.field("large_binary_field")
+        assert large_binary_field.metadata is not None
+        assert large_binary_field.metadata.get(b"texera_type") == b"LARGE_BINARY"
+        assert (
+            large_binary_field.type == pa.string()
+        )  # LARGE_BINARY is stored as string
+
+    def test_round_trip_large_binary_schema(self):
+        """Test round-trip conversion of schema with LARGE_BINARY."""
+        original_schema = Schema()
+        original_schema.add("field1", AttributeType.STRING)
+        original_schema.add("field2", AttributeType.LARGE_BINARY)
+        original_schema.add("field3", AttributeType.INT)
+
+        # Convert to Arrow and back
+        arrow_schema = original_schema.as_arrow_schema()
+        round_trip_schema = Schema(arrow_schema=arrow_schema)
+
+        assert round_trip_schema == original_schema
+        assert round_trip_schema.get_attr_type("field1") == AttributeType.STRING
+        assert round_trip_schema.get_attr_type("field2") == AttributeType.LARGE_BINARY
+        assert round_trip_schema.get_attr_type("field3") == AttributeType.INT

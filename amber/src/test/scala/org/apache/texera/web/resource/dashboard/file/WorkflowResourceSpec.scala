@@ -300,6 +300,23 @@ class WorkflowResourceSpec
     )
   }
 
+  "WorkflowResource /owner_name" should "return owner name as plain text" in {
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+
+    val workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+    assert(workflows.nonEmpty)
+
+    val wid =
+      workflows
+        .find(_.workflow.getName == testWorkflow1.getName)
+        .map(_.workflow.getWid)
+        .getOrElse(workflows.head.workflow.getWid)
+
+    val ownerName = workflowResource.getOwnerName(wid)
+
+    assert(ownerName == testUser.getName)
+  }
+
   "/search API " should "be able to search for workflows in different columns in Workflow table" in {
     // testWorkflow1: {name: test_name, descrption: test_description, content: test_content}
     // search "test_name" or "test_description" or "test_content" should return testWorkflow1
