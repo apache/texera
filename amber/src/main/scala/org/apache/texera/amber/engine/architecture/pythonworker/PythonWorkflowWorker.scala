@@ -183,7 +183,11 @@ class PythonWorkflowWorker(
         StorageConfig.icebergPostgresCatalogPassword,
         StorageConfig.icebergTableResultNamespace,
         StorageConfig.fileStorageDirectoryPath.toString,
-        StorageConfig.icebergTableCommitBatchSize.toString
+        StorageConfig.icebergTableCommitBatchSize.toString,
+        StorageConfig.s3Endpoint,
+        StorageConfig.s3Region,
+        StorageConfig.s3Username,
+        StorageConfig.s3Password
       )
     ).run(BasicIO.standard(false))
   }

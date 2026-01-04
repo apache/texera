@@ -262,7 +262,7 @@ class OutputManager:
         return DataFrame(
             frame=Table.from_pydict(
                 {
-                    name: [t[name] for t in tuples]
+                    name: [t.get_serialized_field(name) for t in tuples]
                     for name in self.get_port().get_schema().get_attr_names()
                 },
                 schema=self.get_port().get_schema().as_arrow_schema(),

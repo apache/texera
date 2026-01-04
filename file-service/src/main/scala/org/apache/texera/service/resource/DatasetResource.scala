@@ -1156,52 +1156,6 @@ class DatasetResource {
     withTransaction(context)(ctx => getDashboardDataset(ctx, did, None))
   }
 
-  @GET
-  @Path("/file")
-  def retrieveDatasetSingleFile(
-      @QueryParam("path") pathStr: String
-  ): Response = {
-    val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
-
-    withTransaction(context)(_ => {
-      val fileUri = FileResolver.resolve(decodedPathStr)
-      val streamingOutput = new StreamingOutput() {
-        override def write(output: OutputStream): Unit = {
-          val inputStream = DocumentFactory.openReadonlyDocument(fileUri).asInputStream()
-          try {
-            val buffer = new Array[Byte](8192) // buffer size
-            var bytesRead = inputStream.read(buffer)
-            while (bytesRead != -1) {
-              output.write(buffer, 0, bytesRead)
-              bytesRead = inputStream.read(buffer)
-            }
-          } finally {
-            inputStream.close()
-          }
-        }
-      }
-
-      val contentType = decodedPathStr.split("\\.").lastOption.map(_.toLowerCase) match {
-        case Some("jpg") | Some("jpeg") => "image/jpeg"
-        case Some("png")                => "image/png"
-        case Some("csv")                => "text/csv"
-        case Some("md")                 => "text/markdown"
-        case Some("txt")                => "text/plain"
-        case Some("html") | Some("htm") => "text/html"
-        case Some("json")               => "application/json"
-        case Some("pdf")                => "application/pdf"
-        case Some("doc") | Some("docx") => "application/msword"
-        case Some("xls") | Some("xlsx") => "application/vnd.ms-excel"
-        case Some("ppt") | Some("pptx") => "application/vnd.ms-powerpoint"
-        case Some("mp4")                => "video/mp4"
-        case Some("mp3")                => "audio/mpeg"
-        case _                          => "application/octet-stream" // default binary format
-      }
-
-      Response.ok(streamingOutput).`type`(contentType).build()
-    })
-  }
-
   /**
     * This method returns all owner user names of the dataset that the user has access to
     *

@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS "user"
     role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    affiliation             VARCHAR(128),
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );
