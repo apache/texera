@@ -25,6 +25,8 @@ import {
 } from "../../../../../../common/type/datasetVersionFileTree";
 import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
 
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"] as const;
+
 @UntilDestroy()
 @Component({
   selector: "texera-user-dataset-version-filetree",
@@ -82,12 +84,10 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   }
 
   isImageFile(fileName: string): boolean {
-    const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-    return imageExts.some(ext => fileName.toLowerCase().endsWith(ext));
+    return IMAGE_EXTENSIONS.some(ext => fileName.toLowerCase().endsWith(ext));
   }
 
   onSetCover(nodeData: DatasetFileNode): void {
-    const path = getRelativePathFromDatasetFileNode(nodeData);
-    this.setCoverImage.emit(path);
+    this.setCoverImage.emit(getRelativePathFromDatasetFileNode(nodeData));
   }
 }
