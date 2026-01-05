@@ -437,12 +437,25 @@ class ExecutionResultService(
 
     storageUriOption match {
       case Some(storageUri) =>
+        val (document, schemaOption) = DocumentFactory.openDocument(storageUri)
+        val virtualDocument = document.asInstanceOf[VirtualDocument[Tuple]]
+
+        val columns = {
+          val schema = schemaOption.get
+          val allColumns = schema.getAttributeNames
+          val filteredColumns = request.columnSearch match {
+            case Some(search) =>
+              allColumns.filter(col => col.toLowerCase.contains(search.toLowerCase))
+            case None => allColumns
+          }
+          Some(
+            filteredColumns.slice(request.columnOffset, request.columnOffset + request.columnLimit)
+          )
+        }
+
         val paginationIterable = {
-          DocumentFactory
-            .openDocument(storageUri)
-            ._1
-            .asInstanceOf[VirtualDocument[Tuple]]
-            .getRange(from, from + request.pageSize)
+          virtualDocument
+            .getRange(from, from + request.pageSize, columns)
             .to(Iterable)
         }
         val mappedResults = convertTuplesToJson(paginationIterable)

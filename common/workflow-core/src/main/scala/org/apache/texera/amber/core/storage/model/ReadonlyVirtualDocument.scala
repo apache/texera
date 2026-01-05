@@ -52,9 +52,10 @@ trait ReadonlyVirtualDocument[T] {
     * Get an iterator of a sequence starting from index `from`, until index `until`.
     * @param from the starting index (inclusive)
     * @param until the ending index (exclusive)
+    * @param columns optional sequence of column names to retrieve. If None, retrieves all columns.
     * @return an iterator that returns data items of type T
     */
-  def getRange(from: Int, until: Int): Iterator[T]
+  def getRange(from: Int, until: Int, columns: Option[Seq[String]] = None): Iterator[T]
 
   /**
     * Get an iterator of all items after the specified index `offset`.
