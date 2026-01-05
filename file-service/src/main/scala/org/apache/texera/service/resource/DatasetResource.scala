@@ -35,28 +35,17 @@ import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
-import org.apache.texera.service.util.S3StorageClient.{
-  MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
-  MINIMUM_NUM_OF_MULTIPART_S3_PART
-}
+import org.apache.texera.service.util.S3StorageClient.{MAXIMUM_NUM_OF_MULTIPART_S3_PARTS, MINIMUM_NUM_OF_MULTIPART_S3_PART}
 import org.jooq.{DSLContext, EnumType}
 
 import java.io.{InputStream, OutputStream}
-import java.net.{HttpURLConnection, URL, URLDecoder}
+import java.net.{HttpURLConnection, URI, URL, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
@@ -169,6 +158,8 @@ object DatasetResource {
       fileNodes: List[DatasetFileNode],
       size: Long
   )
+
+  case class CoverImageRequest(coverImage: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -177,6 +168,9 @@ class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
+
+  private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
+  private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -1327,12 +1321,23 @@ class DatasetResource {
     }
   }
 
+  /**
+    * Updates the cover image for a dataset.
+    *
+    * @param did Dataset ID
+    * @param request Cover image request containing the relative file path
+    * @param sessionUser Authenticated user session
+    * @return Response with updated cover image path
+    *
+    * Expected coverImage format: "version/folder/image.jpg" (relative to dataset root)
+    */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/update/cover")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
   def updateDatasetCoverImage(
       @PathParam("did") did: Integer,
-      coverImage: String,
+      request: CoverImageRequest,
       @Auth sessionUser: SessionUser
   ): Response = {
     withTransaction(context) { ctx =>
@@ -1342,9 +1347,23 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
+      if (request == null || request.coverImage == null || request.coverImage.trim.isEmpty) {
+        throw new BadRequestException("Cover image path is required")
+      }
+
+      val normalized = Paths.get(request.coverImage).normalize().toString
+      if (normalized.startsWith("..") || normalized.startsWith("/")) {
+        throw new BadRequestException("Invalid file path")
+      }
+
+      if (!ALLOWED_IMAGE_EXTENSIONS.exists(ext => normalized.toLowerCase.endsWith(ext))) {
+        throw new BadRequestException("Invalid file type")
+      }
+
+      val owner = getOwner(ctx, did)
       val document = DocumentFactory
         .openReadonlyDocument(
-          FileResolver.resolve(s"${getOwner(ctx, did).getEmail}/${dataset.getName}/$coverImage")
+          FileResolver.resolve(s"${owner.getEmail}/${dataset.getName}/$normalized")
         )
         .asInstanceOf[OnDataset]
 
@@ -1353,17 +1372,54 @@ class DatasetResource {
         document.getVersionHash(),
         document.getFileRelativePath()
       )
-      val coverSizeLimit = 10 * 1024 * 1024 // 10 MB
 
-      if (file.length() > coverSizeLimit) {
+      if (file.length() > COVER_IMAGE_SIZE_LIMIT_BYTES) {
         throw new BadRequestException(
-          s"Cover image must be less than ${coverSizeLimit / (1024 * 1024)} MB"
+          s"Cover image must be less than ${COVER_IMAGE_SIZE_LIMIT_BYTES / (1024 * 1024)} MB"
         )
       }
 
-      dataset.setCoverImage(coverImage)
+      dataset.setCoverImage(normalized)
       new DatasetDao(ctx.configuration()).update(dataset)
-      Response.ok().build()
+      Response.ok(Map("coverImage" -> normalized)).build()
+    }
+  }
+
+  /**
+    * Get the cover image for a public dataset.
+    * Returns a 307 redirect to the presigned S3 URL.
+    *
+    * @param did Dataset ID
+    * @return 307 Temporary Redirect to cover image
+    */
+  @GET
+  @Path("/{did}/cover")
+  def getDatasetCover(@PathParam("did") did: Integer): Response = {
+    withTransaction(context) { ctx =>
+      val dataset = getDatasetByID(ctx, did)
+
+      if (!dataset.getIsPublic) {
+        throw new ForbiddenException("Access denied")
+      }
+
+      val coverImage = Option(dataset.getCoverImage).getOrElse(
+        throw new NotFoundException("No cover image")
+      )
+
+      val owner = getOwner(ctx, did)
+      val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+
+      val document = DocumentFactory
+        .openReadonlyDocument(FileResolver.resolve(fullPath))
+        .asInstanceOf[OnDataset]
+
+      val presignedUrl = LakeFSStorageClient.getFilePresignedUrl(
+        document.getRepositoryName(),
+        document.getVersionHash(),
+        document.getFileRelativePath()
+      )
+
+      Response.temporaryRedirect(new URI(presignedUrl)).build()
     }
   }
 }
