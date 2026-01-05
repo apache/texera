@@ -105,8 +105,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   /**
     * Get records within a specified range [from, until).
     */
-  override def getRange(from: Int, until: Int): Iterator[T] = {
-    getUsingFileSequenceOrder(from, Some(until))
+  override def getRange(from: Int, until: Int, columns: Option[Seq[String]] = None): Iterator[T] = {
+    getUsingFileSequenceOrder(from, Some(until), columns)
   }
 
   /**
@@ -150,8 +150,13 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     *
     * @param from  start from which record inclusively, if 0 means start from the first
     * @param until end at which record exclusively, if None means read to the table's EOF
+    * @param columns columns to be projected
     */
-  private def getUsingFileSequenceOrder(from: Int, until: Option[Int]): Iterator[T] =
+  private def getUsingFileSequenceOrder(
+      from: Int,
+      until: Option[Int],
+      columns: Option[Seq[String]] = None
+  ): Iterator[T] =
     withReadLock(lock) {
       new Iterator[T] {
         private val iteLock = new ReentrantLock()
@@ -259,9 +264,13 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
           while (!currentRecordIterator.hasNext && usableFileIterator.hasNext) {
             val nextFile = usableFileIterator.next()
+            val schemaToUse = columns match {
+              case Some(cols) => tableSchema.select(cols.asJava)
+              case None       => tableSchema
+            }
             currentRecordIterator = IcebergUtil.readDataFileAsIterator(
               nextFile.file(),
-              tableSchema,
+              schemaToUse,
               table.get
             )
 
@@ -281,7 +290,11 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
           val record = currentRecordIterator.next()
           numOfReturnedRecords += 1
-          deserde(tableSchema, record)
+          val schemaToUse = columns match {
+            case Some(cols) => tableSchema.select(cols.asJava)
+            case None       => tableSchema
+          }
+          deserde(schemaToUse, record)
         }
       }
     }
