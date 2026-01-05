@@ -35,13 +35,24 @@ import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion
+}
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.resource.DatasetAccessResource._
 import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
-import org.apache.texera.service.util.S3StorageClient.{MAXIMUM_NUM_OF_MULTIPART_S3_PARTS, MINIMUM_NUM_OF_MULTIPART_S3_PART}
+import org.apache.texera.service.util.S3StorageClient.{
+  MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
+  MINIMUM_NUM_OF_MULTIPART_S3_PART
+}
 import org.jooq.{DSLContext, EnumType}
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{inline => inl}
@@ -1736,8 +1747,8 @@ class DatasetResource {
       Response.ok(Map("message" -> "Multipart upload aborted successfully")).build()
     }
   }
-  
-    /**
+
+  /**
     * Updates the cover image for a dataset.
     *
     * @param did Dataset ID
