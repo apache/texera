@@ -259,4 +259,59 @@ object S3StorageClient {
       DeleteObjectRequest.builder().bucket(bucketName).key(objectKey).build()
     )
   }
+
+  /**
+    * Uploads a single part for an in-progress S3 multipart upload.
+    *
+    * This method wraps the AWS SDK v2 {@code UploadPart} API:
+    * it builds an {@link software.amazon.awssdk.services.s3.model.UploadPartRequest}
+    * and streams the part payload via a {@link software.amazon.awssdk.core.sync.RequestBody}.
+    *
+    * Payload handling:
+    *   - If {@code contentLength} is provided, the payload is streamed directly from {@code inputStream}
+    *     using {@code RequestBody.fromInputStream(inputStream, len)}.
+    *   - If {@code contentLength} is {@code None}, the entire {@code inputStream} is read into memory
+    *     ({@code readAllBytes}) and uploaded using {@code RequestBody.fromBytes(bytes)}.
+    *     This is convenient but can be memory-expensive for large parts; prefer providing a known length.
+    *
+    * Notes:
+    *   - {@code partNumber} must be in the valid S3 range (typically 1..10,000).
+    *   - The caller is responsible for closing {@code inputStream}.
+    *   - This method is synchronous and will block the calling thread until the upload completes.
+    *
+    * @param bucket        S3 bucket name.
+    * @param key           Object key (path) being uploaded.
+    * @param uploadId      Multipart upload identifier returned by CreateMultipartUpload.
+    * @param partNumber    1-based part number for this upload.
+    * @param inputStream   Stream containing the bytes for this part.
+    * @param contentLength Optional size (in bytes) of this part; provide it to avoid buffering in memory.
+    * @return              The {@link software.amazon.awssdk.services.s3.model.UploadPartResponse},
+    *                      including the part ETag used for completing the multipart upload.
+    */
+  def uploadPartWithRequest(
+      bucket: String,
+      key: String,
+      uploadId: String,
+      partNumber: Int,
+      inputStream: InputStream,
+      contentLength: Option[Long]
+  ): UploadPartResponse = {
+    val requestBody: RequestBody = contentLength match {
+      case Some(len) => RequestBody.fromInputStream(inputStream, len)
+      case None =>
+        val bytes = inputStream.readAllBytes()
+        RequestBody.fromBytes(bytes)
+    }
+
+    val req = UploadPartRequest
+      .builder()
+      .bucket(bucket)
+      .key(key)
+      .uploadId(uploadId)
+      .partNumber(partNumber)
+      .build()
+
+    s3Client.uploadPart(req, requestBody)
+  }
+
 }
