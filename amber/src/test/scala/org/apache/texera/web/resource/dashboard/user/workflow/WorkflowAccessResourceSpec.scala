@@ -188,9 +188,11 @@ class WorkflowAccessResourceSpec
     val accessBefore = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
+          )
       )
       .fetchOne()
     assert(accessBefore != null, "Target user should have access before revocation")
@@ -202,9 +204,11 @@ class WorkflowAccessResourceSpec
     val accessAfter = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
+          )
       )
       .fetchOne()
 
@@ -218,9 +222,11 @@ class WorkflowAccessResourceSpec
     val accessBefore = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
+          )
       )
       .fetchOne()
     assert(accessBefore != null, "User should have access before revocation")
@@ -232,9 +238,11 @@ class WorkflowAccessResourceSpec
     val accessAfter = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
+          )
       )
       .fetchOne()
 
@@ -252,9 +260,11 @@ class WorkflowAccessResourceSpec
     val access = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
+          )
       )
       .fetchOne()
 
@@ -306,9 +316,11 @@ class WorkflowAccessResourceSpec
     val readAccessBefore = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
+          )
       )
       .fetchOne()
     assert(readAccessBefore != null, "Read user should have access before revocation")
@@ -316,9 +328,11 @@ class WorkflowAccessResourceSpec
     val targetAccessBefore = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
+          )
       )
       .fetchOne()
     assert(targetAccessBefore != null, "Target user should have access before revocation")
@@ -330,9 +344,11 @@ class WorkflowAccessResourceSpec
     val readAccessAfter = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(userWithReadUid)
+          )
       )
       .fetchOne()
     assert(readAccessAfter != null, "Read user's access should remain intact")
@@ -341,9 +357,11 @@ class WorkflowAccessResourceSpec
     val targetAccessAfter = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
+          )
       )
       .fetchOne()
     assert(targetAccessAfter == null, "Target user's access should be revoked")
@@ -359,9 +377,11 @@ class WorkflowAccessResourceSpec
     val accessAfterFirst = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
+          )
       )
       .fetchOne()
     assert(accessAfterFirst == null, "Target user's access should be revoked")
@@ -373,9 +393,11 @@ class WorkflowAccessResourceSpec
     val accessAfterSecond = getDSLContext
       .selectFrom(WORKFLOW_USER_ACCESS)
       .where(
-        WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid).and(
-          WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
-        )
+        WORKFLOW_USER_ACCESS.WID
+          .eq(testWorkflowWid)
+          .and(
+            WORKFLOW_USER_ACCESS.UID.eq(targetUserUid)
+          )
       )
       .fetchOne()
     assert(accessAfterSecond == null, "Target user's access should still be revoked")
