@@ -39,12 +39,14 @@ import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
-import { HttpErrorResponse } from "@angular/common/http";
+import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
 import { Subscription } from "rxjs";
 import { formatSpeed, formatTime } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 
 export const THROTTLE_TIME_MS = 1000;
+export const ABORT_RETRY_MAX_ATTEMPTS = 10;
+export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
 
 @UntilDestroy()
 @Component({
@@ -405,103 +407,107 @@ export class DatasetDetailComponent implements OnInit {
     if (this.did) {
       files.forEach(file => {
         // Check if currently uploading
-        this.cancelExistingUpload(file.name);
+        const continueWithUpload = () => {
+          // Create upload function
+          const startUpload = () => {
+            this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== file.name);
 
-        // Create upload function
-        const startUpload = () => {
-          this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== file.name);
+            // Add an initializing task placeholder to uploadTasks
+            this.uploadTasks.unshift({
+              filePath: file.name,
+              percentage: 0,
+              status: "initializing",
+            });
+            // Start multipart upload
+            const subscription = this.datasetService
+              .multipartUpload(
+                this.ownerEmail,
+                this.datasetName,
+                file.name,
+                file.file,
+                this.chunkSizeMiB * 1024 * 1024,
+                this.maxConcurrentChunks
+              )
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                next: progress => {
+                  // Find the task
+                  const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
 
-          // Add an initializing task placeholder to uploadTasks
-          this.uploadTasks.unshift({
-            filePath: file.name,
-            percentage: 0,
-            status: "initializing",
-            uploadId: "",
-            physicalAddress: "",
-          });
-          // Start multipart upload
-          const subscription = this.datasetService
-            .multipartUpload(
-              this.ownerEmail,
-              this.datasetName,
-              file.name,
-              file.file,
-              this.chunkSizeMiB * 1024 * 1024,
-              this.maxConcurrentChunks
-            )
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              next: progress => {
-                // Find the task
-                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+                  if (taskIndex !== -1) {
+                    // Update the task with new progress info
+                    this.uploadTasks[taskIndex] = {
+                      ...this.uploadTasks[taskIndex],
+                      ...progress,
+                      percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
+                    };
 
-                if (taskIndex !== -1) {
-                  // Update the task with new progress info
-                  this.uploadTasks[taskIndex] = {
-                    ...this.uploadTasks[taskIndex],
-                    ...progress,
-                    percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
-                  };
+                    // Auto-hide when upload is truly finished
+                    if (progress.status === "finished" && progress.totalTime) {
+                      const filename = file.name.split("/").pop() || file.name;
+                      this.uploadTimeMap.set(filename, progress.totalTime);
+                      this.userMakeChanges.emit();
+                      this.scheduleHide(taskIndex);
+                      this.onUploadComplete();
+                    }
+                  }
+                },
+                error: () => {
+                  // Handle upload error
+                  const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
 
-                  // Auto-hide when upload is truly finished
-                  if (progress.status === "finished" && progress.totalTime) {
-                    const filename = file.name.split("/").pop() || file.name;
-                    this.uploadTimeMap.set(filename, progress.totalTime);
+                  if (taskIndex !== -1) {
+                    this.uploadTasks[taskIndex] = {
+                      ...this.uploadTasks[taskIndex],
+                      percentage: 100,
+                      status: "aborted",
+                    };
+                    this.scheduleHide(taskIndex);
+                  }
+                  this.onUploadComplete();
+                },
+                complete: () => {
+                  const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+                  if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
+                    this.uploadTasks[taskIndex].status = "finished";
                     this.userMakeChanges.emit();
                     this.scheduleHide(taskIndex);
                     this.onUploadComplete();
                   }
-                }
-              },
-              error: () => {
-                // Handle upload error
-                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+                },
+              });
+            // Store the subscription for later cleanup
+            this.uploadSubscriptions.set(file.name, subscription);
+          };
 
-                if (taskIndex !== -1) {
-                  this.uploadTasks[taskIndex] = {
-                    ...this.uploadTasks[taskIndex],
-                    percentage: 100,
-                    status: "aborted",
-                  };
-                  this.scheduleHide(taskIndex);
-                }
-                this.onUploadComplete();
-              },
-              complete: () => {
-                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
-                if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
-                  this.uploadTasks[taskIndex].status = "finished";
-                  this.userMakeChanges.emit();
-                  this.scheduleHide(taskIndex);
-                  this.onUploadComplete();
-                }
-              },
-            });
-          // Store the subscription for later cleanup
-          this.uploadSubscriptions.set(file.name, subscription);
+          // Queue management
+          if (this.activeUploads < this.maxConcurrentFiles) {
+            this.activeUploads++;
+            startUpload();
+          } else {
+            this.pendingQueue.push({ fileName: file.name, startUpload });
+          }
         };
 
-        // Queue management
-        if (this.activeUploads < this.maxConcurrentFiles) {
-          this.activeUploads++;
-          startUpload();
-        } else {
-          this.pendingQueue.push({ fileName: file.name, startUpload });
-        }
+        // Check if currently uploading
+        this.cancelExistingUpload(file.name, continueWithUpload);
       });
     }
   }
 
-  cancelExistingUpload(fileName: string): void {
+  cancelExistingUpload(fileName: string, onCanceled?: () => void): void {
     const task = this.uploadTasks.find(t => t.filePath === fileName);
     if (task) {
       if (task.status === "uploading" || task.status === "initializing") {
-        this.onClickAbortUploadProgress(task);
+        this.onClickAbortUploadProgress(task, onCanceled);
         return;
       }
     }
     // Remove from pending queue if present
     this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== fileName);
+    if (onCanceled) {
+      onCanceled();
+    }
   }
 
   private processNextQueuedUpload(): void {
@@ -547,7 +553,7 @@ export class DatasetDetailComponent implements OnInit {
     }, 5000);
   }
 
-  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }) {
+  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }, onAborted?: () => void) {
     const subscription = this.uploadSubscriptions.get(task.filePath);
     if (subscription) {
       subscription.unsubscribe();
@@ -558,21 +564,54 @@ export class DatasetDetailComponent implements OnInit {
       this.onUploadComplete();
     }
 
-    this.datasetService
-      .finalizeMultipartUpload(
-        this.ownerEmail,
-        this.datasetName,
-        task.filePath,
-        task.uploadId,
-        [],
-        task.physicalAddress,
-        true // abort flag
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.notificationService.info(`${task.filePath} uploading has been terminated`);
-      });
-    // Remove the aborted task immediately
+    let doneCalled = false;
+    const done = () => {
+      if (doneCalled) {
+        return;
+      }
+      doneCalled = true;
+      if (onAborted) {
+        onAborted();
+      }
+    };
+
+    const abortWithRetry = (attempt: number) => {
+      this.datasetService
+        .finalizeMultipartUpload(
+          this.ownerEmail,
+          this.datasetName,
+          task.filePath,
+          true // abort flag
+        )
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => {
+            this.notificationService.info(`${task.filePath} uploading has been terminated`);
+            done();
+          },
+          error: (res: unknown) => {
+            const err = res as HttpErrorResponse;
+
+            // Already gone, treat as done
+            if (err.status === 404) {
+              done();
+              return;
+            }
+
+            // Backend is still finalizing/aborting; retry with a tiny backoff
+            if (err.status === HttpStatusCode.Conflict && attempt < ABORT_RETRY_MAX_ATTEMPTS) {
+              setTimeout(() => abortWithRetry(attempt + 1), ABORT_RETRY_BACKOFF_BASE_MS * (attempt + 1));
+              return;
+            }
+
+            // Keep current UX: still consider it "aborted" client-side
+            done();
+          },
+        });
+    };
+
+    abortWithRetry(0);
+
     this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== task.filePath);
   }
 

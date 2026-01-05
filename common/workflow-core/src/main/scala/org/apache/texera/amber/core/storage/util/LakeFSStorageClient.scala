@@ -25,6 +25,7 @@ import io.lakefs.clients.sdk.model._
 import org.apache.texera.amber.config.StorageConfig
 
 import java.io.{File, FileOutputStream, InputStream}
+import java.net.URI
 import java.nio.file.Files
 import scala.jdk.CollectionConverters._
 
@@ -358,4 +359,47 @@ object LakeFSStorageClient {
 
     branchesApi.resetBranch(repoName, branchName, resetCreation).execute()
   }
+
+  /**
+    * Parse a physical address URI of the form "<scheme>://<bucket>/<key...>" into (bucket, key).
+    *
+    * Expected examples:
+    *   - "s3://my-bucket/path/to/file.csv"
+    *   - "gs://my-bucket/some/prefix/data.json"
+    *
+    * @param address URI string in the form "<scheme>://<bucket>/<key...>"
+    * @return (bucket, key) where key does not start with "/"
+    * @throws IllegalArgumentException
+    *   if the address is empty, not a valid URI, missing bucket/host, or missing key/path
+    */
+  def parsePhysicalAddress(address: String): (String, String) = {
+    val raw = Option(address).getOrElse("").trim
+    if (raw.isEmpty)
+      throw new IllegalArgumentException("Address is empty (expected '<scheme>://<bucket>/<key>')")
+
+    val uri =
+      try new URI(raw)
+      catch {
+        case e: Exception =>
+          throw new IllegalArgumentException(
+            s"Invalid address URI: '$raw' (expected '<scheme>://<bucket>/<key>')",
+            e
+          )
+      }
+
+    val bucket = Option(uri.getHost).getOrElse("").trim
+    if (bucket.isEmpty)
+      throw new IllegalArgumentException(
+        s"Invalid address: missing host/bucket in '$raw' (expected '<scheme>://<bucket>/<key>')"
+      )
+
+    val key = Option(uri.getPath).getOrElse("").stripPrefix("/").trim
+    if (key.isEmpty)
+      throw new IllegalArgumentException(
+        s"Invalid address: missing key/path in '$raw' (expected '<scheme>://<bucket>/<key>')"
+      )
+
+    (bucket, key)
+  }
+
 }
