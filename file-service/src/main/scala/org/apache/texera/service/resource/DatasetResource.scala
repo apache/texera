@@ -70,6 +70,7 @@ import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
 import org.jooq.exception.DataAccessException
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
+import org.apache.commons.io.FilenameUtils
 
 import java.sql.SQLException
 import scala.util.Try
@@ -142,6 +143,25 @@ object DatasetResource {
       .limit(1)
       .fetchOptionalInto(classOf[DatasetVersion])
       .toScala
+  }
+
+  /**
+    * Validates a file path using Apache Commons IO.
+    */
+  def validateSafePath(path: String): String = {
+    if (path == null || path.trim.isEmpty) {
+      throw new BadRequestException("Path cannot be empty")
+    }
+
+    val normalized = FilenameUtils.normalize(path, true)
+    if (normalized == null) {
+      throw new BadRequestException("Invalid path")
+    }
+
+    if (FilenameUtils.getPrefixLength(normalized) > 0) {
+      throw new BadRequestException("Absolute paths not allowed")
+    }
+    normalized
   }
 
   case class DashboardDataset(
@@ -1774,16 +1794,14 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      if (request == null || request.coverImage == null || request.coverImage.trim.isEmpty) {
+      if (request.coverImage == null || request.coverImage.trim.isEmpty) {
         throw new BadRequestException("Cover image path is required")
       }
 
-      val normalized = Paths.get(request.coverImage).normalize().toString
-      if (normalized.startsWith("..") || normalized.startsWith("/")) {
-        throw new BadRequestException("Invalid file path")
-      }
+      val normalized = DatasetResource.validateSafePath(request.coverImage)
 
-      if (!ALLOWED_IMAGE_EXTENSIONS.exists(ext => normalized.toLowerCase.endsWith(ext))) {
+      val extension = FilenameUtils.getExtension(normalized)
+      if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {
         throw new BadRequestException("Invalid file type")
       }
 
@@ -1794,13 +1812,13 @@ class DatasetResource {
         )
         .asInstanceOf[OnDataset]
 
-      val file = LakeFSStorageClient.getFileFromRepo(
+      val fileSize = LakeFSStorageClient.getFileSize(
         document.getRepositoryName(),
         document.getVersionHash(),
         document.getFileRelativePath()
       )
 
-      if (file.length() > COVER_IMAGE_SIZE_LIMIT_BYTES) {
+      if (fileSize > COVER_IMAGE_SIZE_LIMIT_BYTES) {
         throw new BadRequestException(
           s"Cover image must be less than ${COVER_IMAGE_SIZE_LIMIT_BYTES / (1024 * 1024)} MB"
         )
@@ -1813,7 +1831,7 @@ class DatasetResource {
   }
 
   /**
-    * Get the cover image for a public dataset.
+    * Get the cover image for a dataset.
     * Returns a 307 redirect to the presigned S3 URL.
     *
     * @param did Dataset ID
@@ -1821,12 +1839,19 @@ class DatasetResource {
     */
   @GET
   @Path("/{did}/cover")
-  def getDatasetCover(@PathParam("did") did: Integer): Response = {
+  def getDatasetCover(
+      @PathParam("did") did: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
     withTransaction(context) { ctx =>
       val dataset = getDatasetByID(ctx, did)
 
-      if (!dataset.getIsPublic) {
-        throw new ForbiddenException("Access denied")
+      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
+
+      if (requesterUid.isEmpty && !dataset.getIsPublic) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
       val coverImage = Option(dataset.getCoverImage).getOrElse(

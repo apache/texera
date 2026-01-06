@@ -1328,4 +1328,180 @@ class DatasetResourceSpec
     val part1 = fetchPartRows(uploadId).find(_.getPartNumber == 1).get
     part1.getEtag.trim should not be ""
   }
+
+  // ===========================================================================
+  // Cover Image Tests
+  // ===========================================================================
+
+  "updateDatasetCoverImage" should "reject path traversal attempts" in {
+    val maliciousPaths = Seq(
+      "../../../etc/passwd",
+      "v1/../../secret.txt",
+      "../escape.jpg"
+    )
+
+    maliciousPaths.foreach { path =>
+      val request = DatasetResource.CoverImageRequest(path)
+
+      assertThrows[BadRequestException] {
+        datasetResource.updateDatasetCoverImage(
+          baseDataset.getDid,
+          request,
+          sessionUser
+        )
+      }
+    }
+  }
+
+  it should "reject absolute paths" in {
+    val absolutePaths = Seq(
+      "/etc/passwd",
+      "/var/log/system.log"
+    )
+
+    absolutePaths.foreach { path =>
+      val request = DatasetResource.CoverImageRequest(path)
+
+      assertThrows[BadRequestException] {
+        datasetResource.updateDatasetCoverImage(
+          baseDataset.getDid,
+          request,
+          sessionUser
+        )
+      }
+    }
+  }
+
+  it should "reject invalid file types" in {
+    val invalidPaths = Seq(
+      "v1/script.js",
+      "v1/document.pdf",
+      "v1/data.csv"
+    )
+
+    invalidPaths.foreach { path =>
+      val request = DatasetResource.CoverImageRequest(path)
+
+      assertThrows[BadRequestException] {
+        datasetResource.updateDatasetCoverImage(
+          baseDataset.getDid,
+          request,
+          sessionUser
+        )
+      }
+    }
+  }
+
+  it should "reject empty or null cover image path" in {
+    assertThrows[BadRequestException] {
+      datasetResource.updateDatasetCoverImage(
+        baseDataset.getDid,
+        DatasetResource.CoverImageRequest(""),
+        sessionUser
+      )
+    }
+
+    assertThrows[BadRequestException] {
+      datasetResource.updateDatasetCoverImage(
+        baseDataset.getDid,
+        DatasetResource.CoverImageRequest(null),
+        sessionUser
+      )
+    }
+  }
+
+  it should "reject when user lacks WRITE access" in {
+    val request = DatasetResource.CoverImageRequest("v1/cover.jpg")
+
+    assertThrows[ForbiddenException] {
+      datasetResource.updateDatasetCoverImage(
+        baseDataset.getDid,
+        request,
+        sessionUser2
+      )
+    }
+  }
+
+  "getDatasetCover" should "reject private dataset cover for anonymous users" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage("v1/cover.jpg")
+    datasetDao.update(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getDatasetCover(baseDataset.getDid, Optional.empty())
+    }
+  }
+
+  it should "reject private dataset cover for users without access" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage("v1/cover.jpg")
+    datasetDao.update(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getDatasetCover(baseDataset.getDid, Optional.of(sessionUser2))
+    }
+  }
+
+  it should "return 404 when no cover image is set" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setCoverImage(null)
+    dataset.setIsPublic(true)
+    datasetDao.update(dataset)
+
+    assertThrows[NotFoundException] {
+      datasetResource.getDatasetCover(baseDataset.getDid, Optional.of(sessionUser))
+    }
+  }
+
+  "validateSafePath" should "accept valid relative paths" in {
+    DatasetResource.validateSafePath("v1/image.jpg") shouldEqual "v1/image.jpg"
+    DatasetResource.validateSafePath("v1/folder/photo.png") shouldEqual "v1/folder/photo.png"
+  }
+
+  it should "normalize safe internal navigation" in {
+    DatasetResource.validateSafePath("v1/../v2/img.jpg") shouldEqual "v2/img.jpg"
+    DatasetResource.validateSafePath("./v1/image.jpg") shouldEqual "v1/image.jpg"
+    DatasetResource.validateSafePath("v1/./image.jpg") shouldEqual "v1/image.jpg"
+  }
+
+  it should "reject path traversal" in {
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath("../escape.txt")
+    }
+
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath("../../etc/passwd")
+    }
+
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath("v1/../../escape.txt")
+    }
+  }
+
+  it should "reject absolute paths" in {
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath("/etc/passwd")
+    }
+
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath("C:\\windows\\system32")
+    }
+  }
+
+  it should "reject empty or null paths" in {
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath(null)
+    }
+
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath("")
+    }
+
+    assertThrows[BadRequestException] {
+      DatasetResource.validateSafePath("   ")
+    }
+  }
 }
