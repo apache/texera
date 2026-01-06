@@ -100,7 +100,11 @@ lazy val WorkflowExecutionService = (project in file("amber"))
     ),
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
-    )
+    ),
+    // Disable parallel test execution to prevent MockTexeraDB tests from interfering
+    // Multiple tests (WorkflowAccessResourceSpec, WorkflowExecutionsResourceSpec, etc.)
+    // create separate embedded PostgreSQL instances but share the SqlServer singleton
+    Test / parallelExecution := false
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
