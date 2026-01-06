@@ -147,7 +147,7 @@ workflowCompilingService:
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: alirisheh876/texera-file-service:xuan
+  imageName: texera/file-service:hub-deployment-amd64
   service:
     type: ClusterIP
     port: 9092
@@ -155,7 +155,7 @@ fileService:
 configService:
   name: config-service
   numOfPods: 1
-  imageName: alirisheh876/texera-config-service:xuan
+  imageName: texera/config-service:hub-deployment-amd64
   service:
     type: ClusterIP
     port: 9094
