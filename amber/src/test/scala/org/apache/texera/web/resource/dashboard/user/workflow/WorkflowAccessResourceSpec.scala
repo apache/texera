@@ -47,11 +47,13 @@ class WorkflowAccessResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
-  private val ownerUid = 1000 + scala.util.Random.nextInt(1000)
-  private val userWithWriteUid = 2000 + scala.util.Random.nextInt(1000)
-  private val userWithReadUid = 3000 + scala.util.Random.nextInt(1000)
-  private val targetUserUid = 4000 + scala.util.Random.nextInt(1000)
-  private val testWorkflowWid = 5000 + scala.util.Random.nextInt(1000)
+  // Use non-overlapping ID ranges to avoid conflicts with other test specs when running in parallel
+  // WorkflowVersionResourceSpec uses 2000-3000, WorkflowExecutionsResourceSpec uses 1000-2000 and 3000-4000
+  private val ownerUid = 6000 + scala.util.Random.nextInt(1000)
+  private val userWithWriteUid = 7000 + scala.util.Random.nextInt(1000)
+  private val userWithReadUid = 8000 + scala.util.Random.nextInt(1000)
+  private val targetUserUid = 9000 + scala.util.Random.nextInt(1000)
+  private val testWorkflowWid = 10000 + scala.util.Random.nextInt(1000)
 
   private var owner: User = _
   private var userWithWrite: User = _
