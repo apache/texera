@@ -47,24 +47,25 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.settingsForm = this.fb.group({
-      dataTransferBatchSize: [this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize, [Validators.required, Validators.min(1)]],
+      dataTransferBatchSize: [
+        this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
+        [Validators.required, Validators.min(1)],
+      ],
       batchProcessing: [this.workflowActionService.getWorkflowContent().settings.batchProcessing],
     });
 
     this.settingsForm
-      .get('dataTransferBatchSize')!
-      .valueChanges
-      .pipe(untilDestroyed(this))
+      .get("dataTransferBatchSize")!
+      .valueChanges.pipe(untilDestroyed(this))
       .subscribe((batchSize: number) => {
-        if (this.settingsForm.get('dataTransferBatchSize')!.valid) {
+        if (this.settingsForm.get("dataTransferBatchSize")!.valid) {
           this.confirmUpdateDataTransferBatchSize(batchSize);
         }
       });
 
     this.settingsForm
-      .get('batchProcessing')!
-      .valueChanges
-      .pipe(untilDestroyed(this))
+      .get("batchProcessing")!
+      .valueChanges.pipe(untilDestroyed(this))
       .subscribe((enabled: boolean) => {
         this.updateBatchProcessing(enabled);
       });
@@ -74,8 +75,10 @@ export class SettingsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.settingsForm.patchValue(
-          { dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
-            batchProcessing: this.workflowActionService.getWorkflowContent().settings.batchProcessing},
+          {
+            dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
+            batchProcessing: this.workflowActionService.getWorkflowContent().settings.batchProcessing,
+          },
           { emitEvent: false }
         );
       });
@@ -96,7 +99,7 @@ export class SettingsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         error: (e: unknown) => this.notificationService.error((e as Error).message),
-      })
+      });
   }
 
   public updateBatchProcessing(enabled: boolean) {

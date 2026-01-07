@@ -232,7 +232,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       operatorPositions: {},
       settings: {
         dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
-        batchProcessing: false
+        batchProcessing: false,
       },
     };
     let localPid = this.pid;
