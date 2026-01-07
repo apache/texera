@@ -148,7 +148,7 @@ object DatasetResource {
   /**
     * Validates a file path using Apache Commons IO.
     */
-  def validateSafePath(path: String): String = {
+  def validateAndNormalizeFilePathOrThrow(path: String): String = {
     if (path == null || path.trim.isEmpty) {
       throw new BadRequestException("Path cannot be empty")
     }
@@ -1798,7 +1798,7 @@ class DatasetResource {
         throw new BadRequestException("Cover image path is required")
       }
 
-      val normalized = DatasetResource.validateSafePath(request.coverImage)
+      val normalized = DatasetResource.validateAndNormalizeFilePathOrThrow(request.coverImage)
 
       val extension = FilenameUtils.getExtension(normalized)
       if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {

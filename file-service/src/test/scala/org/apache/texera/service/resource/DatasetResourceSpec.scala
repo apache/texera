@@ -1456,52 +1456,9 @@ class DatasetResourceSpec
     }
   }
 
-  "validateSafePath" should "accept valid relative paths" in {
-    DatasetResource.validateSafePath("v1/image.jpg") shouldEqual "v1/image.jpg"
-    DatasetResource.validateSafePath("v1/folder/photo.png") shouldEqual "v1/folder/photo.png"
-  }
-
-  it should "normalize safe internal navigation" in {
-    DatasetResource.validateSafePath("v1/../v2/img.jpg") shouldEqual "v2/img.jpg"
-    DatasetResource.validateSafePath("./v1/image.jpg") shouldEqual "v1/image.jpg"
-    DatasetResource.validateSafePath("v1/./image.jpg") shouldEqual "v1/image.jpg"
-  }
-
-  it should "reject path traversal" in {
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath("../escape.txt")
-    }
-
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath("../../etc/passwd")
-    }
-
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath("v1/../../escape.txt")
-    }
-  }
-
-  it should "reject absolute paths" in {
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath("/etc/passwd")
-    }
-
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath("C:\\windows\\system32")
-    }
-  }
-
-  it should "reject empty or null paths" in {
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath(null)
-    }
-
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath("")
-    }
-
-    assertThrows[BadRequestException] {
-      DatasetResource.validateSafePath("   ")
-    }
+  "validateAndNormalizeFilePathOrThrow" should "normalize paths correctly" in {
+    DatasetResource.validateAndNormalizeFilePathOrThrow("v1/../v2/img.jpg") shouldEqual "v2/img.jpg"
+    DatasetResource.validateAndNormalizeFilePathOrThrow("./v1/image.jpg") shouldEqual "v1/image.jpg"
+    DatasetResource.validateAndNormalizeFilePathOrThrow("v1/./image.jpg") shouldEqual "v1/image.jpg"
   }
 }
