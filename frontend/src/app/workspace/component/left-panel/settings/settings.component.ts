@@ -46,20 +46,20 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.currentDataTransferBatchSize =
-      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
-      this.config.env.defaultDataTransferBatchSize;
-
     this.settingsForm = this.fb.group({
-      dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
+      dataTransferBatchSize: [this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize, [Validators.required, Validators.min(1)]],
       batchProcessing: [this.workflowActionService.getWorkflowContent().settings.batchProcessing],
     });
 
-    this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
-      if (this.settingsForm.valid) {
-        this.confirmUpdateDataTransferBatchSize(value.dataTransferBatchSize);
-      }
-    });
+    this.settingsForm
+      .get('dataTransferBatchSize')!
+      .valueChanges
+      .pipe(untilDestroyed(this))
+      .subscribe((batchSize: number) => {
+        if (this.settingsForm.get('dataTransferBatchSize')!.valid) {
+          this.confirmUpdateDataTransferBatchSize(batchSize);
+        }
+      });
 
     this.settingsForm
       .get('batchProcessing')!
@@ -73,11 +73,9 @@ export class SettingsComponent implements OnInit {
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.currentDataTransferBatchSize =
-          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
-          this.config.env.defaultDataTransferBatchSize;
         this.settingsForm.patchValue(
-          { dataTransferBatchSize: this.currentDataTransferBatchSize },
+          { dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
+            batchProcessing: this.workflowActionService.getWorkflowContent().settings.batchProcessing},
           { emitEvent: false }
         );
       });
