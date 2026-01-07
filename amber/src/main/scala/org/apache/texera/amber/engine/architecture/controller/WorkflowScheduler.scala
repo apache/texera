@@ -45,7 +45,7 @@ class WorkflowScheduler(
       // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
       new CostBasedScheduleGenerator(
         workflowContext,
-        physicalPlan,
+        physicalPlan.copy(batchProcessing = workflowContext.workflowSettings.batchProcessing),
         actorId
       ).generate()
     this.schedule = generatedSchedule
