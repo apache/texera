@@ -30,6 +30,8 @@ export const MIME_TYPES = {
   JPEG: "image/jpeg",
   JPG: "image/jpeg",
   PNG: "image/png",
+  WEBP: "image/webp",
+  GIF: "image/gif",
   CSV: "text/csv",
   TXT: "text/plain",
   MD: "text/markdown",
@@ -55,6 +57,8 @@ export function getMimeType(filename: string): string {
 export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.JPEG]: 5 * 1024 * 1024, // 5 MB
   [MIME_TYPES.PNG]: 5 * 1024 * 1024, // 5 MB
+  [MIME_TYPES.WEBP]: 5 * 1024 * 1024, // 5 MB
+  [MIME_TYPES.GIF]: 10 * 1024 * 1024, // 10 MB
   [MIME_TYPES.CSV]: 2 * 1024 * 1024, // 2 MB for text-based data files
   [MIME_TYPES.TXT]: 1 * 1024 * 1024, // 1 MB for plain text files
   [MIME_TYPES.MD]: 1 * 1024 * 1024, // 1 MB for MD files
@@ -200,6 +204,8 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
             switch (blobMimeType) {
               case MIME_TYPES.PNG:
               case MIME_TYPES.JPEG:
+              case MIME_TYPES.WEBP:
+              case MIME_TYPES.GIF:
                 this.displayImage = true;
                 this.loadSafeURL(blob);
                 break;

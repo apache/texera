@@ -21,8 +21,8 @@ import {
   ExecutionIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity,
-} from "./proto/org/apache/amber/engine/common/virtualidentity";
-import { PhysicalLink } from "./proto/org/apache/amber/engine/common/workflow";
+} from "./proto/org/apache/texera/amber/engine/common/virtualidentity";
+import { PhysicalLink } from "./proto/org/apache/texera/amber/engine/common/workflow";
 
 export interface PhysicalOp {
   id: PhysicalOpIdentity;

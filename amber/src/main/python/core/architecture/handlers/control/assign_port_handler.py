@@ -18,15 +18,14 @@
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.models import Schema
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
-from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmptyReturn,
     AssignPortRequest,
 )
 
 
 class AssignPortHandler(ControlHandler):
-
     async def assign_port(self, req: AssignPortRequest) -> EmptyReturn:
         if req.input:
             self.context.input_manager.add_input_port(

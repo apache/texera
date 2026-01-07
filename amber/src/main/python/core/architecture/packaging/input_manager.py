@@ -25,12 +25,12 @@ from core.models.payload import DataFrame, DataPayload, StateFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,
 )
-from proto.org.apache.amber.engine.architecture.sendsemantics import Partitioning
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import Partitioning
 
 
 class Channel:
@@ -156,7 +156,6 @@ class InputManager:
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InternalMarker]]:
-
         self._current_channel_id = from_
 
         if isinstance(payload, DataFrame):

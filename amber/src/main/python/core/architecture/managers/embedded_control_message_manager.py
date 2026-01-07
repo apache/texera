@@ -19,8 +19,8 @@ from collections import defaultdict
 from typing import Set, Dict
 
 from core.architecture.packaging.input_manager import Channel
-from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmbeddedControlMessage,
     EmbeddedControlMessageType,
 )
@@ -74,9 +74,9 @@ class EmbeddedControlMessageManager:
 
         return ecm_completed
 
-    def get_channels_within_scope(
-        self, ecm: EmbeddedControlMessage
-    ) -> Dict["ChannelIdentity", "Channel"].keys:
+    def get_channels_within_scope(self, ecm: EmbeddedControlMessage) -> Dict[
+        "ChannelIdentity", "Channel"
+    ].keys:
         if ecm.scope:
             upstreams = {
                 channel_id

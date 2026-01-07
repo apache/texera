@@ -25,7 +25,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
-import org.apache.amber.config.{EnvironmentalVariable, StorageConfig}
+import org.apache.texera.amber.config.{EnvironmentalVariable, StorageConfig}
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.auth.{JwtAuth, SessionUser}

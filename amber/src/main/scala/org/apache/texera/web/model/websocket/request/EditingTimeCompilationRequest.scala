@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.model.websocket.request
 
-import org.apache.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.workflow.LogicalLink
 
 case class EditingTimeCompilationRequest(

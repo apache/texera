@@ -17,8 +17,8 @@
 
 from typing import Optional
 
-from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.org.apache.amber.engine.architecture.worker import WorkerState
+from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.worker import WorkerState
 from .console_message_manager import ConsoleMessageManager
 from .debug_manager import DebugManager
 from .embedded_control_message_manager import EmbeddedControlMessageManager

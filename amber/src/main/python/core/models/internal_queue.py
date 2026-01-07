@@ -28,9 +28,9 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
-from proto.org.apache.amber.core import ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
+from proto.org.apache.texera.amber.core import ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 
 
 @dataclass
@@ -57,7 +57,6 @@ T = TypeVar("T", bound=InternalQueueElement)
 
 
 class InternalQueue(IQueue):
-
     class DisableType(Enum):
         DISABLE_BY_PAUSE = 1
         DISABLE_BY_BACKPRESSURE = 2

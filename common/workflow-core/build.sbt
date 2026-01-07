@@ -115,6 +115,7 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
 val arrowVersion = "14.0.1"
+val nettyVersion = "4.1.96.Final"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -123,6 +124,22 @@ val arrowDependencies = Seq(
 )
 
 libraryDependencies ++= arrowDependencies
+
+// Netty dependency overrides to ensure compatibility with Arrow
+// Arrow 14.0.1 requires Netty 4.1.96.Final for proper memory allocation
+// The chunkSize field issue occurs when Netty versions are mismatched
+dependencyOverrides ++= Seq(
+  "io.netty" % "netty-all" % nettyVersion,
+  "io.netty" % "netty-buffer" % nettyVersion,
+  "io.netty" % "netty-codec" % nettyVersion,
+  "io.netty" % "netty-codec-http" % nettyVersion,
+  "io.netty" % "netty-codec-http2" % nettyVersion,
+  "io.netty" % "netty-common" % nettyVersion,
+  "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-resolver" % nettyVersion,
+  "io.netty" % "netty-transport" % nettyVersion,
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Iceberg-related Dependencies

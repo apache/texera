@@ -19,8 +19,8 @@
 
 package org.apache.texera.web.resource.dashboard.user.dataset;
 
-import org.apache.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage;
-import org.apache.amber.core.storage.util.dataset.PhysicalFileNode;
+import org.apache.texera.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage;
+import org.apache.texera.amber.core.storage.util.dataset.PhysicalFileNode;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.junit.After;
 import org.junit.Assert;

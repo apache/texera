@@ -19,7 +19,7 @@ from threading import Event, Condition
 from typing import Optional, Tuple, Iterator
 
 from core.models import InternalMarker
-from proto.org.apache.amber.core import PortIdentity
+from proto.org.apache.texera.amber.core import PortIdentity
 
 
 class TupleProcessingManager:
