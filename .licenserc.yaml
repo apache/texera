@@ -26,6 +26,7 @@ header:
     - '.licenserc.yaml'
     - 'frontend/.yarn/**'
     - 'amber/src/main/python/proto/**'
+    - 'pyright-language-service/**'
     # Third-party code with MIT license - see LICENSE file for attribution
     - 'common/workflow-operator/src/main/scala/com/kjetland/**'
     - 'frontend/src/app/common/formly/array.type.ts'
