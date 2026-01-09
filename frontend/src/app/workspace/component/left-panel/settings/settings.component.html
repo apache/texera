@@ -20,6 +20,15 @@
   <form
     [formGroup]="settingsForm"
     class="form-inline">
+    <b>Execution Mode:</b>
+    <nz-radio-group formControlName="batchProcessing" nzSize="small">
+      <label nz-radio [nzValue]="true">Batch</label>
+      <label nz-radio [nzValue]="false">Streaming</label>
+    </nz-radio-group>
+    <br>
+    <br>
+    <br>
+    <br>
     <div class="form-group">
       <label for="dataTransferBatchSize">Data Transfer Batch Size:</label>
       <input
@@ -34,10 +43,5 @@
         Data Transfer Batch Size size must be at least 1.
       </div>
     </div>
-    <label
-      nz-checkbox
-      formControlName="batchProcessing"
-      >Batch Processing</label
-    >
   </form>
 </div>
