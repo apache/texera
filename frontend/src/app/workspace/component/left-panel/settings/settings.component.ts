@@ -24,7 +24,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import {ExecutionMode} from "../../../../common/type/workflow";
 
 @UntilDestroy()
 @Component({
@@ -34,7 +34,6 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
 })
 export class SettingsComponent implements OnInit {
   settingsForm!: FormGroup;
-  currentDataTransferBatchSize!: number;
 
   constructor(
     private fb: FormBuilder,
@@ -42,7 +41,6 @@ export class SettingsComponent implements OnInit {
     private workflowPersistService: WorkflowPersistService,
     private userService: UserService,
     private notificationService: NotificationService,
-    private config: GuiConfigService
   ) {}
 
   ngOnInit(): void {
@@ -51,7 +49,7 @@ export class SettingsComponent implements OnInit {
         this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
         [Validators.required, Validators.min(1)],
       ],
-      batchProcessing: [this.workflowActionService.getWorkflowContent().settings.batchProcessing],
+      executionMode: [this.workflowActionService.getWorkflowContent().settings.executionMode],
     });
 
     this.settingsForm
@@ -64,10 +62,10 @@ export class SettingsComponent implements OnInit {
       });
 
     this.settingsForm
-      .get("batchProcessing")!
+      .get("executionMode")!
       .valueChanges.pipe(untilDestroyed(this))
-      .subscribe((enabled: boolean) => {
-        this.updateBatchProcessing(enabled);
+      .subscribe((mode: ExecutionMode) => {
+        this.updateExecutionMode(mode);
       });
 
     this.workflowActionService
@@ -77,7 +75,7 @@ export class SettingsComponent implements OnInit {
         this.settingsForm.patchValue(
           {
             dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
-            batchProcessing: this.workflowActionService.getWorkflowContent().settings.batchProcessing,
+            executionMode: this.workflowActionService.getWorkflowContent().settings.executionMode,
           },
           { emitEvent: false }
         );
@@ -102,8 +100,10 @@ export class SettingsComponent implements OnInit {
       });
   }
 
-  public updateBatchProcessing(enabled: boolean) {
-    this.workflowActionService.updateBatchProcessing(enabled);
+  public updateExecutionMode(mode: ExecutionMode) {
+    this.workflowActionService.updateExecutionMode(mode);
     this.persistWorkflow();
   }
+
+  protected readonly ExecutionMode = ExecutionMode;
 }

@@ -20,9 +20,14 @@
 import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../workspace/types/workflow-common.interface";
 
+export enum ExecutionMode {
+  STREAMING,
+  BATCH,
+}
+
 export interface WorkflowSettings {
   dataTransferBatchSize: number;
-  batchProcessing: boolean;
+  executionMode: ExecutionMode;
 }
 
 /**

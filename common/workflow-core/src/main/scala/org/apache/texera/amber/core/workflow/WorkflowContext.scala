@@ -31,7 +31,7 @@ object WorkflowContext {
   val DEFAULT_WORKFLOW_ID: WorkflowIdentity = WorkflowIdentity(1L)
   val DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = WorkflowSettings(
     dataTransferBatchSize = 400,
-    batchProcessing = false
+    executionMode = ExecutionMode.STREAMING
   )
 }
 class WorkflowContext(

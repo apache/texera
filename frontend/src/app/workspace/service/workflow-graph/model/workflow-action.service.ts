@@ -17,12 +17,12 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
+import {Injectable} from "@angular/core";
 
 import * as joint from "jointjs";
-import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
-import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
+import {BehaviorSubject, merge, Observable, Subject} from "rxjs";
+import {ExecutionMode, Workflow, WorkflowContent, WorkflowSettings} from "../../../../common/type/workflow";
+import {WorkflowMetadata} from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
   CommentBox,
@@ -32,18 +32,18 @@ import {
   Point,
   PortDescription,
 } from "../../../types/workflow-common.interface";
-import { JointUIService } from "../../joint-ui/joint-ui.service";
-import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { UndoRedoService } from "../../undo-redo/undo-redo.service";
-import { WorkflowUtilService } from "../util/workflow-util.service";
-import { JointGraphWrapper } from "./joint-graph-wrapper";
-import { SyncTexeraModel } from "./sync-texera-model";
-import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
-import { filter } from "rxjs/operators";
-import { isDefined } from "../../../../common/util/predicate";
-import { User } from "../../../../common/type/user";
-import { SharedModelChangeHandler } from "./shared-model-change-handler";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import {JointUIService} from "../../joint-ui/joint-ui.service";
+import {OperatorMetadataService} from "../../operator-metadata/operator-metadata.service";
+import {UndoRedoService} from "../../undo-redo/undo-redo.service";
+import {WorkflowUtilService} from "../util/workflow-util.service";
+import {JointGraphWrapper} from "./joint-graph-wrapper";
+import {SyncTexeraModel} from "./sync-texera-model";
+import {WorkflowGraph, WorkflowGraphReadonly} from "./workflow-graph";
+import {filter} from "rxjs/operators";
+import {isDefined} from "../../../../common/util/predicate";
+import {User} from "../../../../common/type/user";
+import {SharedModelChangeHandler} from "./shared-model-change-handler";
+import {GuiConfigService} from "../../../../common/service/gui-config.service";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
@@ -127,7 +127,7 @@ export class WorkflowActionService {
   private getDefaultSettings(): WorkflowSettings {
     return {
       dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
-      batchProcessing: false,
+      executionMode: ExecutionMode.STREAMING,
     };
   }
 
@@ -808,8 +808,8 @@ export class WorkflowActionService {
     }
   }
 
-  public updateBatchProcessing(enabled: boolean): void {
-    this.setWorkflowSettings({ ...this.workflowSettings, batchProcessing: enabled });
+  public updateExecutionMode(mode: ExecutionMode): void {
+    this.setWorkflowSettings({ ...this.workflowSettings, executionMode: mode });
   }
 
   public clearWorkflow(): void {

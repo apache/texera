@@ -23,7 +23,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.workflow.{ExecutionMode, PortIdentity, WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.controller._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -119,7 +119,7 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for headerlessCsv workflow" in {
     val expectedBatchSize = 1
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, batchProcessing = false)
+    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -141,7 +141,7 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for headerlessCsv->keyword workflow" in {
     val expectedBatchSize = 500
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, batchProcessing = false)
+    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -171,7 +171,7 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for csv->keyword->count workflow" in {
     val expectedBatchSize = 100
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, batchProcessing = false)
+    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -209,7 +209,7 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for csv->keyword->averageAndGroupBy workflow" in {
     val expectedBatchSize = 300
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, batchProcessing = false)
+    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -250,7 +250,7 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for csv->(csv->)->join workflow" in {
     val expectedBatchSize = 1
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, batchProcessing = false)
+    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)

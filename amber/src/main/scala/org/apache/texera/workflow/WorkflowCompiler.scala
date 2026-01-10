@@ -154,7 +154,7 @@ class WorkflowCompiler(
     context.workflowSettings = WorkflowSettings(
       context.workflowSettings.dataTransferBatchSize,
       outputPortsNeedingStorage,
-      context.workflowSettings.batchProcessing
+      context.workflowSettings.executionMode
     )
 
     Workflow(context, logicalPlan, physicalPlan)

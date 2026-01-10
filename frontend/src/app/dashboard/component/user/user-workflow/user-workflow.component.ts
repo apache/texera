@@ -17,34 +17,38 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
-import { Router } from "@angular/router";
-import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
+import {AfterViewInit, Component, Input, ViewChild} from "@angular/core";
+import {Router} from "@angular/router";
+import {NzModalService} from "ng-zorro-antd/modal";
+import {firstValueFrom, from, lastValueFrom, Observable, of} from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
-import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
-import { UserService } from "../../../../common/service/user/user.service";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { WorkflowContent } from "../../../../common/type/workflow";
-import { NzUploadFile } from "ng-zorro-antd/upload";
+import {
+  NgbdModalAddProjectWorkflowComponent
+} from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
+import {
+  NgbdModalRemoveProjectWorkflowComponent
+} from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
+import {DashboardEntry, UserInfo} from "../../../type/dashboard-entry";
+import {UserService} from "../../../../common/service/user/user.service";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {NotificationService} from "../../../../common/service/notification/notification.service";
+import {ExecutionMode, WorkflowContent} from "../../../../common/type/workflow";
+import {NzUploadFile} from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
-import { FiltersComponent } from "../filters/filters.component";
-import { SearchResultsComponent } from "../search-results/search-results.component";
-import { SearchService } from "../../../service/user/search.service";
-import { SortMethod } from "../../../type/sort-method";
-import { isDefined } from "../../../../common/util/predicate";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { map, mergeMap, switchMap, tap } from "rxjs/operators";
-import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
-import { DownloadService } from "../../../service/user/download/download.service";
-import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import {FiltersComponent} from "../filters/filters.component";
+import {SearchResultsComponent} from "../search-results/search-results.component";
+import {SearchService} from "../../../service/user/search.service";
+import {SortMethod} from "../../../type/sort-method";
+import {isDefined} from "../../../../common/util/predicate";
+import {UserProjectService} from "../../../service/user/project/user-project.service";
+import {map, mergeMap, switchMap, tap} from "rxjs/operators";
+import {DashboardWorkflow} from "../../../type/dashboard-workflow.interface";
+import {DownloadService} from "../../../service/user/download/download.service";
+import {DASHBOARD_USER_WORKSPACE} from "../../../../app-routing.constant";
+import {GuiConfigService} from "../../../../common/service/gui-config.service";
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -232,7 +236,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       operatorPositions: {},
       settings: {
         dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
-        batchProcessing: false,
+        executionMode: ExecutionMode.STREAMING,
       },
     };
     let localPid = this.pid;

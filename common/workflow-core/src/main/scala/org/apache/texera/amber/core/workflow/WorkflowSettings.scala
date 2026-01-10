@@ -19,8 +19,10 @@
 
 package org.apache.texera.amber.core.workflow
 
+
+
 case class WorkflowSettings(
-    dataTransferBatchSize: Int,
-    outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty,
-    batchProcessing: Boolean
+                             dataTransferBatchSize: Int,
+                             outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty,
+                             executionMode: ExecutionMode
 )
