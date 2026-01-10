@@ -364,7 +364,7 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
 
     assert(integerMin == Int.MinValue)
     assert(longMin == Long.MinValue)
-    assert(doubleMin == java.lang.Double.MIN_VALUE)
+    assert(doubleMin == java.lang.Double.NEGATIVE_INFINITY)
   }
 
   test("minValue returns timestamp epoch and empty binary array, and fails for unsupported types") {
