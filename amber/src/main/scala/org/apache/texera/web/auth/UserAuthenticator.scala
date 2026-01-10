@@ -44,7 +44,18 @@ object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with Laz
       val accountCreation =
         context.getJwtClaims.getClaimValue("accountCreation").asInstanceOf[OffsetDateTime]
       val user =
-        new User(userId, userName, email, null, googleId, null, role, comment, accountCreation)
+        new User(
+          userId,
+          userName,
+          email,
+          null,
+          googleId,
+          null,
+          role,
+          comment,
+          accountCreation,
+          null
+        )
       Optional.of(new SessionUser(user))
     } catch {
       case e: Exception =>
