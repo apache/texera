@@ -33,7 +33,7 @@ import {ExecutionMode} from "../../../../common/type/workflow";
   styleUrls: ["./settings.component.scss"],
 })
 export class SettingsComponent implements OnInit {
-  settingsForm!: FormGroup;
+  settingsForm: FormGroup;
 
   constructor(
     private fb: FormBuilder,
@@ -41,17 +41,14 @@ export class SettingsComponent implements OnInit {
     private workflowPersistService: WorkflowPersistService,
     private userService: UserService,
     private notificationService: NotificationService,
-  ) {}
+  ) {
+    this.settingsForm = this.fb.group({
+      dataTransferBatchSize: [[Validators.required, Validators.min(1)],],
+      executionMode: [],
+    });
+  }
 
   ngOnInit(): void {
-    this.settingsForm = this.fb.group({
-      dataTransferBatchSize: [
-        this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
-        [Validators.required, Validators.min(1)],
-      ],
-      executionMode: [this.workflowActionService.getWorkflowContent().settings.executionMode],
-    });
-
     this.settingsForm
       .get("dataTransferBatchSize")!
       .valueChanges.pipe(untilDestroyed(this))
