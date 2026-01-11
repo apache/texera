@@ -431,8 +431,12 @@ class WorkflowResource extends LazyLogging {
       workflowDao.update(workflow)
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
-        // not owner and no access record --> new record
-        workflow.setWid(null)
+        // Check if this is an existing workflow (has a wid) or a new one (wid is null)
+        if (workflow.getWid != null) {
+          // User trying to persist an existing workflow without access - reject
+          throw new ForbiddenException("No sufficient access privilege.")
+        }
+        // This is a new workflow being created (wid is null)
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
