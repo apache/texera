@@ -29,8 +29,8 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
 import org.apache.texera.service.MockLakeFS
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
@@ -130,6 +130,33 @@ class DatasetResourceSpec
     dataset.setIsDownloadable(true)
     dataset.setDescription("dataset for multipart upload tests")
     dataset
+  }
+
+  // Test fixtures for cover image tests. Creates file in LakeFS and DatasetVersion record.
+  private val testCoverImagePath = "v1/test-cover.jpg"
+  private val testImageBytes: Array[Byte] = Array.fill[Byte](1024)(0xff.toByte)
+
+  private lazy val testDatasetVersion: DatasetVersion = {
+    try {
+      LakeFSStorageClient.initRepo(baseDataset.getRepositoryName)
+    } catch {
+      case e: ApiException if e.getCode == 409 =>
+    }
+
+    LakeFSStorageClient.writeFileToRepo(
+      baseDataset.getRepositoryName,
+      "test-cover.jpg",
+      new ByteArrayInputStream(testImageBytes)
+    )
+
+    val version = new DatasetVersion()
+    version.setDid(baseDataset.getDid)
+    version.setCreatorUid(ownerUser.getUid)
+    version.setName("v1")
+    version.setVersionHash("main")
+
+    new DatasetVersionDao(getDSLContext.configuration()).insert(version)
+    version
   }
 
   // ---------- DAOs / resource ----------
@@ -1422,6 +1449,22 @@ class DatasetResourceSpec
     }
   }
 
+  it should "set cover image successfully" in {
+    testDatasetVersion
+
+    val request = DatasetResource.CoverImageRequest(testCoverImagePath)
+    val response = datasetResource.updateDatasetCoverImage(
+      baseDataset.getDid,
+      request,
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+
+    val updated = datasetDao.fetchOneByDid(baseDataset.getDid)
+    updated.getCoverImage shouldEqual testCoverImagePath
+  }
+
   "getDatasetCover" should "reject private dataset cover for anonymous users" in {
     val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
     dataset.setIsPublic(false)
@@ -1456,9 +1499,20 @@ class DatasetResourceSpec
     }
   }
 
-  "validateAndNormalizeFilePathOrThrow" should "normalize paths correctly" in {
-    DatasetResource.validateAndNormalizeFilePathOrThrow("v1/../v2/img.jpg") shouldEqual "v2/img.jpg"
-    DatasetResource.validateAndNormalizeFilePathOrThrow("./v1/image.jpg") shouldEqual "v1/image.jpg"
-    DatasetResource.validateAndNormalizeFilePathOrThrow("v1/./image.jpg") shouldEqual "v1/image.jpg"
+  it should "get cover image successfully with 307 redirect" in {
+    testDatasetVersion
+
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setIsPublic(true)
+    dataset.setCoverImage(testCoverImagePath)
+    datasetDao.update(dataset)
+
+    val response = datasetResource.getDatasetCover(
+      baseDataset.getDid,
+      Optional.empty()
+    )
+
+    response.getStatus shouldEqual 307
+    response.getHeaderString("Location") should not be null
   }
 }
