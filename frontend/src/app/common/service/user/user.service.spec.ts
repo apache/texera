@@ -23,6 +23,7 @@ import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
 import { commonTestProviders } from "../../testing/test-utils";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 
 describe("UserService", () => {
   let service: UserService;
@@ -30,6 +31,7 @@ describe("UserService", () => {
   beforeEach(() => {
     AuthService.removeAccessToken();
     TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
       providers: [UserService, { provide: AuthService, useClass: StubAuthService }, ...commonTestProviders],
     });
 

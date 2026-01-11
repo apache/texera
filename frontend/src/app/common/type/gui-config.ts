@@ -40,6 +40,7 @@ export interface GuiConfig {
   expirationTimeInMinutes: number;
   activeTimeInMinutes: number;
   copilotEnabled: boolean;
+  limitColumns: number;
 }
 
 export interface SidebarTabs {

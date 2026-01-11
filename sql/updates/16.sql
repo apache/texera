@@ -17,14 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+\c texera_db
 
-case class ResultPaginationRequest(
-    requestID: String,
-    operatorID: String,
-    pageIndex: Int,
-    pageSize: Int,
-    columnOffset: Int = 0,
-    columnLimit: Int = Int.MaxValue,
-    columnSearch: Option[String] = None
-) extends TexeraWebSocketRequest
+SET search_path TO texera_db;
+
+BEGIN;
+
+ALTER TABLE "user"
+    ADD COLUMN IF NOT EXISTS affiliation VARCHAR(128);
+
+COMMIT;

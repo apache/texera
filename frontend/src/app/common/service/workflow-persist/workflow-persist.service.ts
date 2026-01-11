@@ -41,7 +41,7 @@ export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
 export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
-export const WORKFLOW_OWNER_USER = WORKFLOW_BASE_URL + "/owner_user";
+export const WORKFLOW_OWNER_NAME = WORKFLOW_BASE_URL + "/owner_name";
 export const WORKFLOW_NAME = WORKFLOW_BASE_URL + "/workflow_name";
 export const WORKFLOW_PUBLIC_WORKFLOW = WORKFLOW_BASE_URL + "/publicised";
 export const WORKFLOW_DESCRIPTION = WORKFLOW_BASE_URL + "/workflow_description";
@@ -238,13 +238,12 @@ export class WorkflowPersistService {
   }
 
   /**
-   * retrieve the complete information of the owner corresponding to the wid
-   * can be used without logging in
-   * @param wid
+   * Retrieve workflow owner name (no login required).
+   * @param wid workflow id
    */
-  public getOwnerUser(wid: number): Observable<User> {
+  public getOwnerName(wid: number): Observable<string> {
     const params = new HttpParams().set("wid", wid);
-    return this.http.get<User>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_USER}`, { params });
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_NAME}`, { params, responseType: "text" });
   }
 
   /**
