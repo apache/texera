@@ -207,7 +207,6 @@ THIRD-PARTY DEPENDENCIES
 This product bundles source code and assets from third-party projects.
 See licenses/ for the full text of these licenses:
   - licenses/LICENSE-MIT.txt
-  - licenses/LICENSE-CC-BY-3.0.txt
 
 MIT License (licenses/LICENSE-MIT.txt)
 --------------------------------------
@@ -232,19 +231,9 @@ This product bundles code derived from TypeFox monaco-languageclient:
   Copyright (c) 2024 TypeFox and others.
   Source: https://github.com/TypeFox/monaco-languageclient
 
-This product includes an SVG icon from SVGRepo:
+This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-view-result.svg
+  - frontend/src/assets/svg/operator-reuse-cache-valid.svg
+  - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
   Source: https://www.svgrepo.com
   License: MIT License
-
-CC BY 3.0 License (licenses/LICENSE-CC-BY-3.0.txt)
---------------------------------------------------
-
-NOTE: The following files use CC BY 3.0 license which requires attribution.
-Per ASF policy, these should be replaced with Apache-compatible licensed
-alternatives before official release.
-
-  - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
-  - frontend/src/assets/svg/operator-reuse-cache-valid.svg
-    Source: The Noun Project (https://thenounproject.com)
-    License: CC BY 3.0
