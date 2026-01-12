@@ -41,11 +41,24 @@
           nz-button
           nzType="link"
           *ngIf="isTreeNodeDeletable && !node.data.children"
-          class="delete-button"
+          class="icon-button"
           (click)="onNodeDeleted(node.data)">
           <i
             nz-icon
             nzType="delete"
+            nzTheme="outline"></i>
+        </button>
+
+        <button
+          nz-button
+          nzType="link"
+          *ngIf="!node.data.children && isImageFile(node.data.name)"
+          class="icon-button"
+          nz-tooltip="Set as cover"
+          (click)="onSetCover(node.data)">
+          <i
+            nz-icon
+            nzType="picture"
             nzTheme="outline"></i>
         </button>
       </span>
