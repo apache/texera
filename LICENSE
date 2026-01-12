@@ -205,7 +205,9 @@ THIRD-PARTY DEPENDENCIES
 --------------------------------------------------------------------------------
 
 This product bundles source code from third-party projects. See licenses/ for
-the full text of these licenses.
+the full text of these licenses:
+  - licenses/LICENSE-MIT.txt
+  - licenses/LICENSE-CC-BY-3.0.txt
 
 MIT License
 -----------
@@ -222,3 +224,21 @@ This product bundles code derived from Angular examples:
   - frontend/src/app/common/formly/null.type.ts
   Copyright (c) 2018 Google Inc. All Rights Reserved.
   Source: https://angular.io
+
+SVG Icons
+---------
+
+This product includes SVG icons from third-party sources:
+
+  - frontend/src/assets/svg/operator-view-result.svg
+    Source: SVGRepo (https://www.svgrepo.com)
+    License: MIT License
+
+  - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
+  - frontend/src/assets/svg/operator-reuse-cache-valid.svg
+    Source: The Noun Project (https://thenounproject.com)
+    License: CC BY 3.0
+
+  - frontend/src/assets/svg/hub_icon.svg
+    Source: Third-party stock illustration
+    License: To be verified

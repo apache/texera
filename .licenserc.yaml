@@ -33,3 +33,8 @@ header:
     - 'frontend/src/app/common/formly/object.type.ts'
     - 'frontend/src/app/common/formly/multischema.type.ts'
     - 'frontend/src/app/common/formly/null.type.ts'
+    # Third-party SVG assets - see LICENSE file for attribution
+    - 'frontend/src/assets/svg/operator-view-result.svg'
+    - 'frontend/src/assets/svg/operator-reuse-cache-invalid.svg'
+    - 'frontend/src/assets/svg/operator-reuse-cache-valid.svg'
+    - 'frontend/src/assets/svg/hub_icon.svg'
