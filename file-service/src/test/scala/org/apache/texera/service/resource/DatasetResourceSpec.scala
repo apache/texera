@@ -29,8 +29,8 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
+import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
 import org.apache.texera.service.MockLakeFS
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
@@ -130,6 +130,33 @@ class DatasetResourceSpec
     dataset.setIsDownloadable(true)
     dataset.setDescription("dataset for multipart upload tests")
     dataset
+  }
+
+  // Test fixtures for cover image tests. Creates file in LakeFS and DatasetVersion record.
+  private val testCoverImagePath = "v1/test-cover.jpg"
+  private val testImageBytes: Array[Byte] = Array.fill[Byte](1024)(0xff.toByte)
+
+  private lazy val testDatasetVersion: DatasetVersion = {
+    try {
+      LakeFSStorageClient.initRepo(baseDataset.getRepositoryName)
+    } catch {
+      case e: ApiException if e.getCode == 409 =>
+    }
+
+    LakeFSStorageClient.writeFileToRepo(
+      baseDataset.getRepositoryName,
+      "test-cover.jpg",
+      new ByteArrayInputStream(testImageBytes)
+    )
+
+    val version = new DatasetVersion()
+    version.setDid(baseDataset.getDid)
+    version.setCreatorUid(ownerUser.getUid)
+    version.setName("v1")
+    version.setVersionHash("main")
+
+    new DatasetVersionDao(getDSLContext.configuration()).insert(version)
+    version
   }
 
   // ---------- DAOs / resource ----------
@@ -1327,5 +1354,165 @@ class DatasetResourceSpec
     val uploadId = fetchUploadIdOrFail(filePath)
     val part1 = fetchPartRows(uploadId).find(_.getPartNumber == 1).get
     part1.getEtag.trim should not be ""
+  }
+
+  // ===========================================================================
+  // Cover Image Tests
+  // ===========================================================================
+
+  "updateDatasetCoverImage" should "reject path traversal attempts" in {
+    val maliciousPaths = Seq(
+      "../../../etc/passwd",
+      "v1/../../secret.txt",
+      "../escape.jpg"
+    )
+
+    maliciousPaths.foreach { path =>
+      val request = DatasetResource.CoverImageRequest(path)
+
+      assertThrows[BadRequestException] {
+        datasetResource.updateDatasetCoverImage(
+          baseDataset.getDid,
+          request,
+          sessionUser
+        )
+      }
+    }
+  }
+
+  it should "reject absolute paths" in {
+    val absolutePaths = Seq(
+      "/etc/passwd",
+      "/var/log/system.log"
+    )
+
+    absolutePaths.foreach { path =>
+      val request = DatasetResource.CoverImageRequest(path)
+
+      assertThrows[BadRequestException] {
+        datasetResource.updateDatasetCoverImage(
+          baseDataset.getDid,
+          request,
+          sessionUser
+        )
+      }
+    }
+  }
+
+  it should "reject invalid file types" in {
+    val invalidPaths = Seq(
+      "v1/script.js",
+      "v1/document.pdf",
+      "v1/data.csv"
+    )
+
+    invalidPaths.foreach { path =>
+      val request = DatasetResource.CoverImageRequest(path)
+
+      assertThrows[BadRequestException] {
+        datasetResource.updateDatasetCoverImage(
+          baseDataset.getDid,
+          request,
+          sessionUser
+        )
+      }
+    }
+  }
+
+  it should "reject empty or null cover image path" in {
+    assertThrows[BadRequestException] {
+      datasetResource.updateDatasetCoverImage(
+        baseDataset.getDid,
+        DatasetResource.CoverImageRequest(""),
+        sessionUser
+      )
+    }
+
+    assertThrows[BadRequestException] {
+      datasetResource.updateDatasetCoverImage(
+        baseDataset.getDid,
+        DatasetResource.CoverImageRequest(null),
+        sessionUser
+      )
+    }
+  }
+
+  it should "reject when user lacks WRITE access" in {
+    val request = DatasetResource.CoverImageRequest("v1/cover.jpg")
+
+    assertThrows[ForbiddenException] {
+      datasetResource.updateDatasetCoverImage(
+        baseDataset.getDid,
+        request,
+        sessionUser2
+      )
+    }
+  }
+
+  it should "set cover image successfully" in {
+    testDatasetVersion
+
+    val request = DatasetResource.CoverImageRequest(testCoverImagePath)
+    val response = datasetResource.updateDatasetCoverImage(
+      baseDataset.getDid,
+      request,
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+
+    val updated = datasetDao.fetchOneByDid(baseDataset.getDid)
+    updated.getCoverImage shouldEqual testCoverImagePath
+  }
+
+  "getDatasetCover" should "reject private dataset cover for anonymous users" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage("v1/cover.jpg")
+    datasetDao.update(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getDatasetCover(baseDataset.getDid, Optional.empty())
+    }
+  }
+
+  it should "reject private dataset cover for users without access" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(false)
+    dataset.setCoverImage("v1/cover.jpg")
+    datasetDao.update(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.getDatasetCover(baseDataset.getDid, Optional.of(sessionUser2))
+    }
+  }
+
+  it should "return 404 when no cover image is set" in {
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setCoverImage(null)
+    dataset.setIsPublic(true)
+    datasetDao.update(dataset)
+
+    assertThrows[NotFoundException] {
+      datasetResource.getDatasetCover(baseDataset.getDid, Optional.of(sessionUser))
+    }
+  }
+
+  it should "get cover image successfully with 307 redirect" in {
+    testDatasetVersion
+
+    val dataset = datasetDao.fetchOneByDid(baseDataset.getDid)
+    dataset.setIsPublic(true)
+    dataset.setCoverImage(testCoverImagePath)
+    datasetDao.update(dataset)
+
+    val response = datasetResource.getDatasetCover(
+      baseDataset.getDid,
+      Optional.empty()
+    )
+
+    response.getStatus shouldEqual 307
+    response.getHeaderString("Location") should not be null
   }
 }
