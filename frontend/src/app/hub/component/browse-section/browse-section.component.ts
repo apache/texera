@@ -28,6 +28,7 @@ import {
   DASHBOARD_USER_DATASET,
   DASHBOARD_USER_WORKSPACE,
 } from "../../../app-routing.constant";
+import { AppSettings } from "../../../common/app-setting";
 
 @UntilDestroy()
 @Component({
@@ -47,6 +48,8 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
   entityRoutes: { [key: number]: string[] } = {};
 
+  private coverImageUrls = new Map<number, string>();
+
   constructor(
     private workflowPersistService: WorkflowPersistService,
     private datasetService: DatasetService,
@@ -57,12 +60,14 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     this.entities.forEach(entity => {
       this.initializeEntry(entity);
     });
+    this.loadCoverImages();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.entities.forEach(entity => {
       this.initializeEntry(entity);
     });
+    this.loadCoverImages();
   }
 
   private initializeEntry(entity: DashboardEntry): void {
@@ -88,5 +93,26 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
+  }
+
+  private loadCoverImages(): void {
+    if (!this.entities) return;
+
+    this.entities
+      .filter(
+        (entity): entity is DashboardEntry & { id: number } =>
+          entity.type === "dataset" &&
+          entity.coverImageUrl !== undefined &&
+          entity.id !== undefined &&
+          !this.coverImageUrls.has(entity.id)
+      )
+      .forEach(entity => {
+        const coverUrl = `${AppSettings.getApiEndpoint()}/dataset/${entity.id}/cover`;
+        this.coverImageUrls.set(entity.id, coverUrl);
+      });
+  }
+
+  getCoverImage(entity: DashboardEntry): string {
+    return this.coverImageUrls.get(entity.id!) || this.defaultBackground;
   }
 }
