@@ -43,8 +43,8 @@ export class SettingsComponent implements OnInit {
     private notificationService: NotificationService,
   ) {
     this.settingsForm = this.fb.group({
-      dataTransferBatchSize: [[Validators.required, Validators.min(1)],],
-      executionMode: [],
+      dataTransferBatchSize: [this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize, [Validators.required, Validators.min(1)],],
+      executionMode: [this.workflowActionService.getWorkflowContent().settings.executionMode],
     });
   }
 
