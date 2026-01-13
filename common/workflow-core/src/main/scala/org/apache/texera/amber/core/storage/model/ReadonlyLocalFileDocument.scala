@@ -54,7 +54,11 @@ private[storage] class ReadonlyLocalFileDocument(uri: URI)
   override def get(): Iterator[Nothing] =
     throw new NotImplementedError("get is not supported for ReadonlyLocalFileDocument")
 
-  override def getRange(from: Int, until: Int): Iterator[Nothing] =
+  override def getRange(
+      from: Int,
+      until: Int,
+      columns: Option[Seq[String]] = None
+  ): Iterator[Nothing] =
     throw new NotImplementedError("getRange is not supported for ReadonlyLocalFileDocument")
 
   override def getAfter(offset: Int): Iterator[Nothing] =

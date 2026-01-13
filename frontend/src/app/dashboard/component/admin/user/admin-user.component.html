@@ -70,6 +70,11 @@
         </nz-filter-trigger>
       </th>
       <th
+        [nzSortFn]="sortByAffiliation"
+        [nzSortDirections]="['ascend', 'descend']">
+        Affiliation
+      </th>
+      <th
         [nzSortFn]="sortByComment"
         [nzSortDirections]="['ascend', 'descend']"
         nzCustomFilter>
@@ -230,6 +235,7 @@
           </ng-template>
         </div>
       </td>
+      <td>{{ user.affiliation }}</td>
       <td>
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">

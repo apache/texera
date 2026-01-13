@@ -25,9 +25,103 @@ from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 from typing import Optional, Iterable
+from pyiceberg import types as iceberg_types
 
 import core
+import core.models
 from core.models import ArrowTableTupleProvider, Tuple
+from core.models.schema.attribute_type import AttributeType, TO_ARROW_MAPPING
+
+# Suffix used to encode LARGE_BINARY fields in Iceberg (must match Scala IcebergUtil)
+LARGE_BINARY_FIELD_SUFFIX = "__texera_large_binary_ptr"
+
+# Type mappings
+_ICEBERG_TO_AMBER_TYPE_MAPPING = {
+    "string": "STRING",
+    "int": "INT",
+    "integer": "INT",
+    "long": "LONG",
+    "double": "DOUBLE",
+    "float": "DOUBLE",
+    "boolean": "BOOL",
+    "timestamp": "TIMESTAMP",
+    "binary": "BINARY",
+}
+
+_AMBER_TO_ICEBERG_TYPE_MAPPING = {
+    AttributeType.STRING: iceberg_types.StringType(),
+    AttributeType.INT: iceberg_types.IntegerType(),
+    AttributeType.LONG: iceberg_types.LongType(),
+    AttributeType.DOUBLE: iceberg_types.DoubleType(),
+    AttributeType.BOOL: iceberg_types.BooleanType(),
+    AttributeType.TIMESTAMP: iceberg_types.TimestampType(),
+    AttributeType.BINARY: iceberg_types.BinaryType(),
+    AttributeType.LARGE_BINARY: iceberg_types.StringType(),
+}
+
+
+def encode_large_binary_field_name(field_name: str, attr_type) -> str:
+    """Encodes LARGE_BINARY field names with suffix for Iceberg storage."""
+    if attr_type == AttributeType.LARGE_BINARY:
+        return f"{field_name}{LARGE_BINARY_FIELD_SUFFIX}"
+    return field_name
+
+
+def decode_large_binary_field_name(field_name: str) -> str:
+    """Decodes field names by removing LARGE_BINARY suffix if present."""
+    if field_name.endswith(LARGE_BINARY_FIELD_SUFFIX):
+        return field_name[: -len(LARGE_BINARY_FIELD_SUFFIX)]
+    return field_name
+
+
+def iceberg_schema_to_amber_schema(iceberg_schema: Schema):
+    """
+    Converts PyIceberg Schema to Amber Schema.
+    Decodes LARGE_BINARY field names and adds Arrow metadata.
+    """
+    arrow_fields = []
+    for field in iceberg_schema.fields:
+        decoded_name = decode_large_binary_field_name(field.name)
+        is_large_binary = field.name != decoded_name
+
+        if is_large_binary:
+            attr_type = AttributeType.LARGE_BINARY
+        else:
+            iceberg_type_str = str(field.field_type).lower()
+            attr_type_name = _ICEBERG_TO_AMBER_TYPE_MAPPING.get(
+                iceberg_type_str, "STRING"
+            )
+            attr_type = getattr(AttributeType, attr_type_name)
+
+        arrow_fields.append(
+            pa.field(
+                decoded_name,
+                TO_ARROW_MAPPING[attr_type],
+                metadata={b"texera_type": b"LARGE_BINARY"} if is_large_binary else None,
+            )
+        )
+
+    return core.models.Schema(pa.schema(arrow_fields))
+
+
+def amber_schema_to_iceberg_schema(amber_schema) -> Schema:
+    """
+    Converts Amber Schema to PyIceberg Schema.
+    Encodes LARGE_BINARY field names with suffix.
+    """
+    fields = [
+        iceberg_types.NestedField(
+            field_id=idx,
+            name=encode_large_binary_field_name(field_name, attr_type),
+            field_type=_AMBER_TO_ICEBERG_TYPE_MAPPING[attr_type],
+            required=False,
+        )
+        for idx, (field_name, attr_type) in enumerate(
+            amber_schema._name_type_mapping.items(), start=1
+        )
+    ]
+
+    return Schema(*fields)
 
 
 def create_postgres_catalog(
@@ -135,27 +229,47 @@ def amber_tuples_to_arrow_table(
 ) -> pa.Table:
     """
     Converts a list of amber tuples to a pyarrow table for serialization.
+    Handles LARGE_BINARY field name encoding and serialization.
     """
-    return pa.Table.from_pydict(
-        {
-            name: [t[name] for t in tuple_list]
-            for name in iceberg_schema.as_arrow().names
-        },
-        schema=iceberg_schema.as_arrow(),
-    )
+    from core.models.type.large_binary import largebinary
+
+    tuple_list = list(tuple_list)  # Convert to list to allow multiple iterations
+    data_dict = {}
+    for encoded_name in iceberg_schema.as_arrow().names:
+        decoded_name = decode_large_binary_field_name(encoded_name)
+        data_dict[encoded_name] = [
+            (
+                t[decoded_name].uri
+                if isinstance(t[decoded_name], largebinary)
+                else t[decoded_name]
+            )
+            for t in tuple_list
+        ]
+
+    return pa.Table.from_pydict(data_dict, schema=iceberg_schema.as_arrow())
 
 
 def arrow_table_to_amber_tuples(
     iceberg_schema: Schema, arrow_table: pa.Table
 ) -> Iterable[Tuple]:
     """
-    Converts an arrow table to a list of amber tuples for deserialization.
+    Converts an arrow table read from Iceberg to Amber tuples.
+    Properly handles LARGE_BINARY field name decoding and type detection.
     """
-    tuple_provider = ArrowTableTupleProvider(arrow_table)
+    amber_schema = iceberg_schema_to_amber_schema(iceberg_schema)
+    arrow_table_with_metadata = pa.Table.from_arrays(
+        [arrow_table.column(name) for name in arrow_table.column_names],
+        schema=amber_schema.as_arrow_schema(),
+    )
+
+    tuple_provider = ArrowTableTupleProvider(arrow_table_with_metadata)
     return (
         Tuple(
-            {name: field_accessor for name in arrow_table.column_names},
-            schema=core.models.Schema(iceberg_schema.as_arrow()),
+            {
+                decode_large_binary_field_name(name): field_accessor
+                for name in arrow_table.column_names
+            },
+            schema=amber_schema,
         )
         for field_accessor in tuple_provider
     )

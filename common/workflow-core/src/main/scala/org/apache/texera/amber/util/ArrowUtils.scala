@@ -26,7 +26,7 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 import org.apache.arrow.vector.{
   BigIntVector,
   BitVector,
@@ -73,28 +73,28 @@ object ArrowUtils extends LazyLogging {
     Tuple
       .builder(schema)
       .addSequentially(
-        vectorSchemaRoot.getFieldVectors.asScala
-          .map((fieldVector: FieldVector) => {
+        vectorSchemaRoot.getFieldVectors.asScala.zipWithIndex.map {
+          case (fieldVector: FieldVector, index: Int) =>
             val value: AnyRef = fieldVector.getObject(rowIndex)
             try {
-              val arrowType = fieldVector.getField.getFieldType.getType
-              val attributeType = toAttributeType(arrowType)
+              // Use the attribute type from the schema (which includes metadata)
+              // instead of deriving it from the Arrow type
+              val attributeType = schema.getAttributes(index).getType
               AttributeTypeUtils.parseField(value, attributeType)
-
             } catch {
               case e: Exception =>
                 logger.warn("Caught error during parsing Arrow value back to Texera value", e)
                 null
             }
 
-          })
-          .toArray
+        }.toArray
       )
       .build()
   }
 
   /**
     * Converts an Arrow Schema into Texera Schema.
+    * Checks field metadata to detect LARGE_BINARY types.
     *
     * @param arrowSchema The Arrow Schema to be converted.
     * @return A Texera Schema.
@@ -102,7 +102,12 @@ object ArrowUtils extends LazyLogging {
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema(
       arrowSchema.getFields.asScala.map { field =>
-        new Attribute(field.getName, toAttributeType(field.getType))
+        val isLargeBinary = Option(field.getMetadata)
+          .exists(m => m.containsKey("texera_type") && m.get("texera_type") == "LARGE_BINARY")
+
+        val attributeType =
+          if (isLargeBinary) AttributeType.LARGE_BINARY else toAttributeType(field.getType)
+        new Attribute(field.getName, attributeType)
       }.toList
     )
 
@@ -211,7 +216,7 @@ object ArrowUtils extends LazyLogging {
           else
             vector
               .asInstanceOf[VarCharVector]
-              .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
+              .setSafe(index, value.toString.getBytes(StandardCharsets.UTF_8))
         case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
           if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
           else
@@ -227,19 +232,27 @@ object ArrowUtils extends LazyLogging {
 
   /**
     * Converts an Amber schema into Arrow schema.
+    * Stores AttributeType in field metadata to preserve LARGE_BINARY type information.
     *
     * @param schema The Texera Schema.
     * @return An Arrow Schema.
     */
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
-    val arrowFields = new util.ArrayList[Field]
+    val arrowFields = schema.getAttributes.map { attribute =>
+      val metadata = if (attribute.getType == AttributeType.LARGE_BINARY) {
+        val map = new util.HashMap[String, String]()
+        map.put("texera_type", "LARGE_BINARY")
+        map
+      } else null
 
-    for (amberAttribute <- schema.getAttributes) {
-      val name = amberAttribute.getName
-      val field = Field.nullablePrimitive(name, fromAttributeType(amberAttribute.getType))
-      arrowFields.add(field)
+      new Field(
+        attribute.getName,
+        new FieldType(true, fromAttributeType(attribute.getType), null, metadata),
+        null
+      )
     }
-    new org.apache.arrow.vector.types.pojo.Schema(arrowFields)
+
+    new org.apache.arrow.vector.types.pojo.Schema(util.Arrays.asList(arrowFields: _*))
   }
 
   /**
@@ -270,7 +283,7 @@ object ArrowUtils extends LazyLogging {
       case AttributeType.BINARY =>
         new ArrowType.Binary
 
-      case AttributeType.STRING | AttributeType.ANY =>
+      case AttributeType.STRING | AttributeType.LARGE_BINARY | AttributeType.ANY =>
         ArrowType.Utf8.INSTANCE
 
       case _ =>

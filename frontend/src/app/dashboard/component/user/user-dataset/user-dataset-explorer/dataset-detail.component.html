@@ -263,7 +263,8 @@
             [fileTreeNodes]="fileTreeNodeList"
             [isTreeNodeDeletable]="true"
             (selectedTreeNode)="onVersionFileTreeNodeSelected($event)"
-            (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)">
+            (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"
+            (setCoverImage)="onSetCoverImage($event)">
           </texera-user-dataset-version-filetree>
         </nz-collapse-panel>
       </nz-collapse>
