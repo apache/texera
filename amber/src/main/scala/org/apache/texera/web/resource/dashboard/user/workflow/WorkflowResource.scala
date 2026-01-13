@@ -431,12 +431,15 @@ class WorkflowResource extends LazyLogging {
       workflowDao.update(workflow)
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
-        // Check if this is an existing workflow (has a wid) or a new one (wid is null)
-        if (workflow.getWid != null) {
+        // Check if this workflow exists in the database
+        val workflowExistsInDb =
+          workflow.getWid != null && workflowDao.existsById(workflow.getWid)
+        if (workflowExistsInDb) {
           // User trying to persist an existing workflow without access - reject
           throw new ForbiddenException("No sufficient access privilege.")
         }
-        // This is a new workflow being created (wid is null)
+        // This is a new workflow being created (wid is null or doesn't exist in DB)
+        workflow.setWid(null)
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
