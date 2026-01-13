@@ -38,6 +38,7 @@ export interface Dataset {
   storagePath: string | undefined;
   description: string;
   creationTime: number | undefined;
+  coverImage: string | undefined;
   contributors?: {
     name: string;
     creator?: boolean;

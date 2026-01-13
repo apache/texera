@@ -20,7 +20,7 @@ import pytest
 from core.architecture.managers import StateManager
 from core.architecture.managers.pause_manager import PauseManager, PauseType
 from core.models import InternalQueue
-from proto.org.apache.amber.engine.architecture.worker import WorkerState
+from proto.org.apache.texera.amber.engine.architecture.worker import WorkerState
 
 
 class TestPauseManager:

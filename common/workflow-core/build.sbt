@@ -83,11 +83,15 @@ Test / PB.protoSources += PB.externalSourcePath.value
 // Test-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
+val testcontainersVersion = "0.43.0"
+
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
   "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
-  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
+  "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
+  "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
+  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test        // MinIO Testcontainer Scala integration
 )
 
 
@@ -111,6 +115,7 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
 val arrowVersion = "14.0.1"
+val nettyVersion = "4.1.96.Final"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -119,6 +124,22 @@ val arrowDependencies = Seq(
 )
 
 libraryDependencies ++= arrowDependencies
+
+// Netty dependency overrides to ensure compatibility with Arrow
+// Arrow 14.0.1 requires Netty 4.1.96.Final for proper memory allocation
+// The chunkSize field issue occurs when Netty versions are mismatched
+dependencyOverrides ++= Seq(
+  "io.netty" % "netty-all" % nettyVersion,
+  "io.netty" % "netty-buffer" % nettyVersion,
+  "io.netty" % "netty-codec" % nettyVersion,
+  "io.netty" % "netty-codec-http" % nettyVersion,
+  "io.netty" % "netty-codec-http2" % nettyVersion,
+  "io.netty" % "netty-common" % nettyVersion,
+  "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-resolver" % nettyVersion,
+  "io.netty" % "netty-transport" % nettyVersion,
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Iceberg-related Dependencies
@@ -183,5 +204,10 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
   "com.typesafe" % "config" % "1.4.3",                                 // config reader
-  "org.apache.commons" % "commons-jcs3-core" % "3.2"                  // Apache Commons JCS
+  "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS
+  "software.amazon.awssdk" % "s3" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "auth" % "2.29.51",
+  "software.amazon.awssdk" % "regions" % "2.29.51",
 )

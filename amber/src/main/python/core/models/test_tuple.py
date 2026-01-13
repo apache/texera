@@ -19,8 +19,8 @@ import datetime
 import pandas
 import pyarrow
 import pytest
+import numpy as np
 from copy import deepcopy
-from numpy import NaN
 
 from core.models import Tuple, ArrowTableTupleProvider
 from core.models.schema.schema import Schema
@@ -123,7 +123,7 @@ class TestTuple:
 
     def test_finalize_tuple(self):
         tuple_ = Tuple(
-            {"name": "texera", "age": 21, "scores": [85, 94, 100], "height": NaN}
+            {"name": "texera", "age": 21, "scores": [85, 94, 100], "height": np.nan}
         )
         schema = Schema(
             raw_schema={
@@ -221,3 +221,101 @@ class TestTuple:
             schema,
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
+
+    def test_tuple_with_large_binary(self):
+        """Test tuple with largebinary field."""
+        from core.models.type.large_binary import largebinary
+
+        schema = Schema(
+            raw_schema={
+                "regular_field": "STRING",
+                "large_binary_field": "LARGE_BINARY",
+            }
+        )
+
+        large_binary = largebinary("s3://test-bucket/path/to/object")
+        tuple_ = Tuple(
+            {
+                "regular_field": "test string",
+                "large_binary_field": large_binary,
+            },
+            schema=schema,
+        )
+
+        assert tuple_["regular_field"] == "test string"
+        assert tuple_["large_binary_field"] == large_binary
+        assert isinstance(tuple_["large_binary_field"], largebinary)
+        assert tuple_["large_binary_field"].uri == "s3://test-bucket/path/to/object"
+
+    def test_tuple_from_arrow_with_large_binary(self):
+        """Test creating tuple from Arrow table with LARGE_BINARY metadata."""
+        import pyarrow as pa
+        from core.models.type.large_binary import largebinary
+
+        # Create Arrow schema with LARGE_BINARY metadata
+        arrow_schema = pa.schema(
+            [
+                pa.field("regular_field", pa.string()),
+                pa.field(
+                    "large_binary_field",
+                    pa.string(),
+                    metadata={b"texera_type": b"LARGE_BINARY"},
+                ),
+            ]
+        )
+
+        # Create Arrow table with URI string for large_binary_field
+        arrow_table = pa.Table.from_pydict(
+            {
+                "regular_field": ["test"],
+                "large_binary_field": ["s3://test-bucket/path/to/object"],
+            },
+            schema=arrow_schema,
+        )
+
+        # Create tuple from Arrow table
+        tuple_provider = ArrowTableTupleProvider(arrow_table)
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in tuple_provider
+        ]
+
+        assert len(tuples) == 1
+        tuple_ = tuples[0]
+        assert tuple_["regular_field"] == "test"
+        assert isinstance(tuple_["large_binary_field"], largebinary)
+        assert tuple_["large_binary_field"].uri == "s3://test-bucket/path/to/object"
+
+    def test_tuple_with_null_large_binary(self):
+        """Test tuple with null largebinary field."""
+        import pyarrow as pa
+
+        # Create Arrow schema with LARGE_BINARY metadata
+        arrow_schema = pa.schema(
+            [
+                pa.field(
+                    "large_binary_field",
+                    pa.string(),
+                    metadata={b"texera_type": b"LARGE_BINARY"},
+                ),
+            ]
+        )
+
+        # Create Arrow table with null value
+        arrow_table = pa.Table.from_pydict(
+            {
+                "large_binary_field": [None],
+            },
+            schema=arrow_schema,
+        )
+
+        # Create tuple from Arrow table
+        tuple_provider = ArrowTableTupleProvider(arrow_table)
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in tuple_provider
+        ]
+
+        assert len(tuples) == 1
+        tuple_ = tuples[0]
+        assert tuple_["large_binary_field"] is None

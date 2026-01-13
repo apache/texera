@@ -20,11 +20,13 @@ package org.apache.texera.service.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{GET, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
+import org.apache.texera.config.{GuiConfig, LLMConfig}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 
 import java.net.URLDecoder
@@ -201,5 +203,129 @@ class AccessControlResource extends LazyLogging {
   ): Response = {
     logger.info("Request body: " + body)
     AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+  }
+}
+
+@Path("/chat")
+@Produces(Array(MediaType.APPLICATION_JSON))
+@Consumes(Array(MediaType.APPLICATION_JSON))
+class LiteLLMProxyResource extends LazyLogging {
+
+  private val client: Client = ClientBuilder.newClient()
+  private val litellmBaseUrl: String = LLMConfig.baseUrl
+  private val litellmApiKey: String = LLMConfig.masterKey
+
+  @POST
+  @Path("/{path:.*}")
+  def proxyPost(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders,
+      body: String
+  ): Response = {
+    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .entity("""{"error": "Copilot feature is disabled"}""")
+        .build()
+    }
+
+    // uriInfo.getPath returns "chat/completions" for /api/chat/completions
+    // We want to forward as "/chat/completions" to LiteLLM
+    val fullPath = uriInfo.getPath
+    val targetUrl = s"$litellmBaseUrl/$fullPath"
+
+    logger.info(s"Proxying POST request to LiteLLM: $targetUrl")
+
+    try {
+      val requestBuilder = client
+        .target(targetUrl)
+        .request(MediaType.APPLICATION_JSON)
+        .header("Authorization", s"Bearer $litellmApiKey")
+
+      // Forward other relevant headers from the original request
+      headers.getRequestHeaders.asScala.foreach {
+        case (key, values)
+            if !key.equalsIgnoreCase("Authorization") &&
+              !key.equalsIgnoreCase("Host") &&
+              !key.equalsIgnoreCase("Content-Length") =>
+          values.asScala.foreach(value => requestBuilder.header(key, value))
+        case _ => // Skip Authorization, Host, and Content-Length headers
+      }
+
+      val response = requestBuilder.post(Entity.json(body))
+
+      // Build response with same status and body from LiteLLM
+      val responseBody = response.readEntity(classOf[String])
+      val responseBuilder = Response
+        .status(response.getStatus)
+        .entity(responseBody)
+
+      // Forward response headers
+      response.getHeaders.asScala.foreach {
+        case (key, values) =>
+          values.asScala.foreach(value => responseBuilder.header(key, value))
+      }
+
+      responseBuilder.build()
+    } catch {
+      case e: Exception =>
+        logger.error(s"Error proxying request to LiteLLM: ${e.getMessage}", e)
+        Response
+          .status(Response.Status.BAD_GATEWAY)
+          .entity(s"""{"error": "Failed to proxy request to LiteLLM: ${e.getMessage}"}""")
+          .build()
+    }
+  }
+}
+
+@Path("/models")
+@Produces(Array(MediaType.APPLICATION_JSON))
+class LiteLLMModelsResource extends LazyLogging {
+
+  private val client: Client = ClientBuilder.newClient()
+  private val litellmBaseUrl: String = LLMConfig.baseUrl
+  private val litellmApiKey: String = LLMConfig.masterKey
+
+  @GET
+  def getModels: Response = {
+    if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .entity("""{"error": "Copilot feature is disabled"}""")
+        .build()
+    }
+
+    val targetUrl = s"$litellmBaseUrl/models"
+
+    logger.info(s"Fetching models from LiteLLM: $targetUrl")
+
+    try {
+      val response = client
+        .target(targetUrl)
+        .request(MediaType.APPLICATION_JSON)
+        .header("Authorization", s"Bearer $litellmApiKey")
+        .get()
+
+      // Build response with same status and body from LiteLLM
+      val responseBody = response.readEntity(classOf[String])
+      val responseBuilder = Response
+        .status(response.getStatus)
+        .entity(responseBody)
+
+      // Forward response headers
+      response.getHeaders.asScala.foreach {
+        case (key, values) =>
+          values.asScala.foreach(value => responseBuilder.header(key, value))
+      }
+
+      responseBuilder.build()
+    } catch {
+      case e: Exception =>
+        logger.error(s"Error fetching models from LiteLLM: ${e.getMessage}", e)
+        Response
+          .status(Response.Status.BAD_GATEWAY)
+          .entity(s"""{"error": "Failed to fetch models from LiteLLM: ${e.getMessage}"}""")
+          .build()
+    }
   }
 }

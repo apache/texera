@@ -8,10 +8,10 @@
   "scripts": {
     "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve\"",
     "build": "ng build --configuration=production --progress=false --source-map=false",
-    "build:ci": "nx build --configuration=production --progress=false --source-map=false",
+    "build:ci": "node --max-old-space-size=8192 ./node_modules/nx/bin/nx build --configuration=production --progress=false --source-map=false",
     "analyze": "ng build --configuration=production --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test --watch=false",
-    "test:ci": "node --max-old-space-size=6144 ./node_modules/nx/bin/nx test --watch=false --progress=false",
+    "test:ci": "node --max-old-space-size=8192 ./node_modules/nx/bin/nx test --watch=false --progress=false",
     "prettier:fix": "prettier --write ./src",
     "lint": "ng lint",
     "eslint:fix": "yarn eslint --fix ./src",
@@ -22,6 +22,7 @@
   "private": true,
   "dependencies": {
     "@abacritt/angularx-social-login": "2.3.0",
+    "@ai-sdk/openai": "2.0.67",
     "@ali-hm/angular-tree-component": "12.0.5",
     "@angular/animations": "16.2.12",
     "@angular/cdk": "16.2.12",
@@ -45,6 +46,7 @@
     "@stoplight/json-ref-resolver": "3.1.5",
     "@types/lodash-es": "4.17.4",
     "@types/plotly.js-basic-dist-min": "2.12.4",
+    "ai": "5.0.93",
     "ajv": "8.10.0",
     "backbone": "1.4.1",
     "concaveman": "2.0.0",
@@ -94,6 +96,7 @@
     "y-quill": "0.1.5",
     "y-websocket": "1.4.0",
     "yjs": "13.5.41",
+    "zod": "3.25.76",
     "zone.js": "0.13.0"
   },
   "resolutions": {

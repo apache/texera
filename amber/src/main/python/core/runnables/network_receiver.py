@@ -44,8 +44,8 @@ from core.models.state import State
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
-from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.org.apache.amber.engine.common import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
     PythonActorMessage,

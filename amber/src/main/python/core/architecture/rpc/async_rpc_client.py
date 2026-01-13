@@ -26,8 +26,8 @@ from typing import Dict, TypeVar, Callable, Any, Coroutine
 from core.architecture.managers.context import Context
 from core.models.internal_queue import InternalQueue, DCMElement
 from core.util import set_one_of
-from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ReturnInvocation,
     ControlReturn,
@@ -36,7 +36,7 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     WorkerServiceStub,
     ControlRequest,
 )
-from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
+from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 
 R = TypeVar("R")
 
@@ -136,7 +136,6 @@ class AsyncRPCClient:
         rpc_client = self  # to distinguish outer and inner self
 
         class Proxy(service_class):
-
             def __init__(self, target_actor: ActorVirtualIdentity):
                 self.target_actor = target_actor
 

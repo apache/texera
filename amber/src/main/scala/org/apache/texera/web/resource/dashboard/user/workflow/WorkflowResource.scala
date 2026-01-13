@@ -23,8 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import org.apache.amber.core.storage.DocumentFactory
-import org.apache.amber.core.virtualidentity.ExecutionIdentity
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
@@ -36,6 +36,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos._
+import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -600,6 +601,8 @@ class WorkflowResource extends LazyLogging {
         .asScala
         .toList
 
+      LargeBinaryManager.deleteAllObjects()
+
       // Collect all URIs related to executions for cleanup
       val uris = eids.flatMap { eid =>
         val executionId = ExecutionIdentity(eid.longValue())
@@ -709,23 +712,16 @@ class WorkflowResource extends LazyLogging {
   }
 
   @GET
-  @Path("/owner_user")
-  def getOwnerUser(@QueryParam("wid") wid: Integer): User = {
+  @Produces(Array(MediaType.TEXT_PLAIN))
+  @Path("/owner_name")
+  def getOwnerName(@QueryParam("wid") wid: Integer): String = {
     context
-      .select(
-        USER.UID,
-        USER.NAME,
-        USER.EMAIL,
-        USER.PASSWORD,
-        USER.GOOGLE_ID,
-        USER.ROLE,
-        USER.GOOGLE_AVATAR
-      )
-      .from(WORKFLOW_OF_USER)
-      .join(USER)
-      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .select(USER.NAME)
+      .from(USER)
+      .join(WORKFLOW_OF_USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
       .where(WORKFLOW_OF_USER.WID.eq(wid))
-      .fetchOneInto(classOf[User])
+      .fetchOneInto(classOf[String])
   }
 
   @GET

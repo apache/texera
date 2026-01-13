@@ -49,11 +49,6 @@ on:
           - both
           - amd64
           - arm64
-      with_r_support:
-        description: 'Enable R support for workflow-execution-coordinator'
-        required: false
-        default: false
-        type: boolean
   schedule:
     # Run nightly at 2:00 AM UTC
     - cron: '0 2 * * *'
@@ -75,7 +70,6 @@ jobs:
       docker_registry: ${{ steps.set-params.outputs.docker_registry }}
       services: ${{ steps.set-params.outputs.services }}
       platforms: ${{ steps.set-params.outputs.platforms }}
-      with_r_support: ${{ steps.set-params.outputs.with_r_support }}
     steps:
       - name: Set build parameters
         id: set-params
@@ -88,7 +82,6 @@ jobs:
             echo "docker_registry=apache" >> $GITHUB_OUTPUT
             echo "services=*" >> $GITHUB_OUTPUT
             echo "platforms=both" >> $GITHUB_OUTPUT
-            echo "with_r_support=false" >> $GITHUB_OUTPUT
           else
             echo "Manual workflow_dispatch - using user inputs"
             echo "branch=${{ github.event.inputs.branch || 'main' }}" >> $GITHUB_OUTPUT
@@ -96,7 +89,6 @@ jobs:
             echo "docker_registry=${{ github.event.inputs.docker_registry || 'apache' }}" >> $GITHUB_OUTPUT
             echo "services=${{ github.event.inputs.services || '*' }}" >> $GITHUB_OUTPUT
             echo "platforms=${{ github.event.inputs.platforms || 'both' }}" >> $GITHUB_OUTPUT
-            echo "with_r_support=${{ github.event.inputs.with_r_support || 'false' }}" >> $GITHUB_OUTPUT
           fi
 
   # Step 1: Generate JOOQ code once and share it
@@ -120,9 +112,9 @@ jobs:
           java-version: 11
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@v1
+        uses: sbt/setup-sbt@3e125ece5c3e5248e18da9ed8d2cce3d335ec8dd # v1.1.14
 
-      - uses: coursier/cache-action@v6
+      - uses: coursier/cache-action@4e2615869d13561d626ed48655e1a39e5b192b3c # v6.4.9
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
@@ -319,9 +311,9 @@ jobs:
           java-version: 11
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@v1
+        uses: sbt/setup-sbt@3e125ece5c3e5248e18da9ed8d2cce3d335ec8dd # v1.1.14
 
-      - uses: coursier/cache-action@v6
+      - uses: coursier/cache-action@4e2615869d13561d626ed48655e1a39e5b192b3c # v6.4.9
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
@@ -340,16 +332,16 @@ jobs:
           df -h
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push AMD64 image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -358,8 +350,6 @@ jobs:
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64
           cache-from: type=gha,scope=${{ matrix.image_name }}-amd64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-amd64
-          build-args: |
-            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
           labels: |
             org.opencontainers.image.title=${{ matrix.image_name }}
             org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (AMD64)
@@ -392,9 +382,9 @@ jobs:
           java-version: 11
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@v1
+        uses: sbt/setup-sbt@3e125ece5c3e5248e18da9ed8d2cce3d335ec8dd # v1.1.14
 
-      - uses: coursier/cache-action@v6
+      - uses: coursier/cache-action@4e2615869d13561d626ed48655e1a39e5b192b3c # v6.4.9
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
@@ -414,21 +404,21 @@ jobs:
 
       # Set up QEMU for ARM64 emulation
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
         with:
           platforms: linux/arm64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push ARM64 image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -437,8 +427,6 @@ jobs:
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
           cache-from: type=gha,scope=${{ matrix.image_name }}-arm64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-arm64
-          build-args: |
-            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
           labels: |
             org.opencontainers.image.title=${{ matrix.image_name }}
             org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (ARM64)
@@ -457,7 +445,7 @@ jobs:
 
     steps:
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
@@ -499,7 +487,6 @@ jobs:
           echo "- **Tag:** \`${{ needs.set-parameters.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Services:** ${{ needs.set-parameters.outputs.services }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms:** ${{ needs.set-parameters.outputs.platforms }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **R Support:** ${{ needs.set-parameters.outputs.with_r_support }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Build Method" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel platform builds** (faster)" >> $GITHUB_STEP_SUMMARY

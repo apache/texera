@@ -16,18 +16,16 @@
 # under the License.
 
 wheel==0.41.2
-numpy==1.26.4
-pandas==2.2.2
-flake8==7.1.1
-Flake8-pyproject==1.2.3
-black==24.3.0
+numpy==2.1.0
+pandas==2.2.3
+ruff==0.14.7
 iniconfig==1.1.1
 loguru==0.7.0
 pyarrow==21.0.0
 pytest==7.4.0
 python-dateutil==2.8.2
 pytest-timeout==2.2.0
-protobuf==3.20.3
+protobuf==4.25.8
 betterproto==2.0.0b7
 typing==3.7.4.3
 pampy==0.3.0
@@ -43,11 +41,10 @@ python-lsp-server[websockets]==1.12.0
 bidict==0.22.0
 cached_property==1.5.2
 psutil==5.9.0
-transformers==4.53.0
 tzlocal==2.1
 pyiceberg==0.8.1
 readerwriterlock==1.0.9
 tenacity==8.5.0
 SQLAlchemy==2.0.37
-pg8000==1.31.2
+pg8000==1.31.5
 pympler==1.1

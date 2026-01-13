@@ -1,0 +1,424 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- Agent Chat Container (used within tabs) -->
+<div class="agent-chat-container">
+  <!-- Toolbar -->
+  <div class="chat-toolbar">
+    <div class="chat-toolbar-controls">
+      <!-- Agent model info with state icon -->
+      <div class="toolbar-item">
+        <i
+          nz-icon
+          [nzType]="getStateIcon()"
+          [nzSpin]="isGenerating()"
+          nz-tooltip
+          [nzTooltipTitle]="getStateTooltip()"
+          [style.color]="getStateIconColor()"
+          style="font-size: 16px; margin-right: 6px; vertical-align: middle"></i>
+        <small style="color: #888"> Model: <strong>{{ agentInfo.modelType }}</strong> </small>
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="showSystemInfo()"
+          nz-tooltip
+          nzTooltipTitle="View system prompt"
+          style="margin-left: 8px; padding: 0 4px">
+          <i
+            nz-icon
+            nzType="info-circle"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+
+      <!-- Token counts -->
+      <div class="toolbar-item">
+        <small style="color: #888">
+          Tokens: <strong>{{ getTotalInputTokens() }}</strong> in / <strong>{{ getTotalOutputTokens() }}</strong> out
+        </small>
+      </div>
+
+      <!-- Clear button (when available) -->
+      <div class="toolbar-item">
+        <button
+          *ngIf="isAvailable()"
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="clearMessages()"
+          nz-tooltip
+          nzTooltipTitle="Clear chat history">
+          <i
+            nz-icon
+            nzType="delete"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Chat Interface -->
+  <div class="chat-content-wrapper">
+    <!-- Messages List -->
+    <div
+      #messageContainer
+      class="messages-container">
+      <div
+        *ngFor="let response of responses; let i = index"
+        class="message"
+        [class.user-message]="response.role === 'user'"
+        [class.ai-message]="response.role === 'agent'">
+        <!-- Show header for user messages or when isBegin is true for agent messages -->
+        <div
+          class="message-header"
+          *ngIf="response.role === 'user' || response.isBegin">
+          <i
+            nz-icon
+            [nzType]="response.role === 'user' ? 'user' : 'robot'"
+            nzTheme="outline"></i>
+          <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
+        </div>
+
+        <!-- Message content with hover button -->
+        <div
+          class="message-content"
+          (mouseenter)="setHoveredMessage(i)"
+          (mouseleave)="setHoveredMessage(null)"
+          style="position: relative">
+          <div
+            *ngIf="response.content"
+            class="message-content">
+            <markdown [data]="response.content"></markdown>
+          </div>
+          <div
+            *ngIf="response.toolCalls && response.toolCalls.length > 0"
+            style="color: #8c8c8c; font-style: italic">
+            Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
+          </div>
+
+          <!-- Details button (shown on hover) - only for agent messages with details -->
+          <button
+            *ngIf="response.role === 'agent' && hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
+            nz-button
+            nzType="text"
+            nzSize="small"
+            (click)="showResponseDetails(response)"
+            style="position: absolute; top: 0; right: 0; opacity: 0.7"
+            nz-tooltip
+            nzTooltipTitle="View details">
+            <i
+              nz-icon
+              nzType="info-circle"
+              nzTheme="outline"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading indicator -->
+      <div
+        *ngIf="isGenerating()"
+        class="message ai-message loading-message">
+        <div class="message-header">
+          <i
+            nz-icon
+            nzType="robot"
+            nzTheme="outline"></i>
+          <span class="message-role">{{ agentInfo.name }}</span>
+        </div>
+        <div class="message-content">
+          <nz-spin
+            nzSimple
+            nzSize="small"></nz-spin>
+          <span style="margin-left: 8px">Thinking...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <textarea
+        #messageInput
+        nz-input
+        [(ngModel)]="currentMessage"
+        placeholder="Ask me anything about workflows..."
+        [nzAutosize]="{ minRows: 1, maxRows: 4 }"
+        (keydown.enter)="onEnterPress($any($event))"
+        [disabled]="!canSendMessage()"></textarea>
+      <button
+        nz-button
+        nzType="primary"
+        [disabled]="!currentMessage.trim() || !canSendMessage()"
+        (click)="sendMessage()">
+        <i
+          nz-icon
+          nzType="send"
+          nzTheme="outline"></i>
+      </button>
+      <button
+        *ngIf="isGenerating()"
+        nz-button
+        nzType="default"
+        nzDanger
+        (click)="stopGeneration()">
+        <i
+          nz-icon
+          nzType="stop"
+          nzTheme="outline"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Connection Status -->
+  <div
+    *ngIf="!isConnected()"
+    class="connection-warning">
+    <i
+      nz-icon
+      nzType="warning"
+      nzTheme="fill"></i>
+    <span>Agent is disconnected. Please check your connection.</span>
+  </div>
+</div>
+
+<!-- Response Details Modal -->
+<nz-modal
+  [(nzVisible)]="isDetailsModalVisible"
+  nzTitle="Response Details"
+  nzWidth="800px"
+  (nzOnCancel)="closeDetailsModal()"
+  [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <div
+      *ngIf="selectedResponse"
+      style="max-height: 600px; overflow-y: auto">
+      <!-- Token Usage Section -->
+      <div
+        *ngIf="selectedResponse.usage"
+        style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="bar-chart"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Token Usage
+        </h4>
+        <nz-descriptions
+          nzBordered
+          nzSize="small"
+          [nzColumn]="2">
+          <nz-descriptions-item nzTitle="Input Tokens">
+            {{ selectedResponse.usage.inputTokens || 0 }}
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Output Tokens">
+            {{ selectedResponse.usage.outputTokens || 0 }}
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Total Tokens">
+            {{ selectedResponse.usage.totalTokens || 0 }}
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Cached Tokens">
+            {{ selectedResponse.usage.cachedInputTokens || 0 }}
+          </nz-descriptions-item>
+        </nz-descriptions>
+      </div>
+
+      <!-- Tool Calls Section -->
+      <div *ngIf="selectedResponse.toolCalls && selectedResponse.toolCalls.length > 0">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="tool"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Tool Calls ({{ selectedResponse.toolCalls.length }})
+        </h4>
+        <nz-collapse style="margin-bottom: 16px">
+          <nz-collapse-panel
+            *ngFor="let call of selectedResponse.toolCalls; let idx = index"
+            [nzHeader]="call.toolName"
+            [nzActive]="false">
+            <div style="background: #fafafa; padding: 12px; border-radius: 4px; margin-bottom: 12px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Arguments:</strong>
+              </div>
+              <pre
+                style="
+                  background: #fff;
+                  padding: 12px;
+                  border: 1px solid #d9d9d9;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin: 0;
+                "><code class="language-json">{{ formatJson(call.input || call.args) }}</code></pre>
+            </div>
+            <div
+              *ngIf="getToolResult(selectedResponse, idx)"
+              style="background: #fafafa; padding: 12px; border-radius: 4px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Result:</strong>
+              </div>
+              <pre
+                style="
+                  background: #fff;
+                  padding: 12px;
+                  border: 1px solid #d9d9d9;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin: 0;
+                "><code class="language-json">{{ formatJson(getToolResult(selectedResponse, idx)) }}</code></pre>
+            </div>
+            <div
+              *ngIf="getReActStepOperatorAccess(selectedResponse, idx)"
+              style="background: #fafafa; padding: 12px; border-radius: 4px; margin-top: 12px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Operator Access:</strong>
+              </div>
+              <div style="background: #fff; padding: 12px; border: 1px solid #d9d9d9; border-radius: 4px">
+                <div
+                  *ngIf="getReActStepOperatorAccess(selectedResponse, idx)!.viewedOperatorIds.length > 0"
+                  style="margin-bottom: 8px">
+                  <span style="color: #1890ff; font-weight: 500; margin-right: 8px">
+                    <i
+                      nz-icon
+                      nzType="eye"
+                      nzTheme="outline"
+                      style="margin-right: 4px"></i>
+                    VIEWED:
+                  </span>
+                  <nz-tag
+                    *ngFor="let opId of getReActStepOperatorAccess(selectedResponse, idx)!.viewedOperatorIds"
+                    [nzColor]="'blue'"
+                    style="margin: 2px; font-family: monospace; font-size: 12px">
+                    {{ opId }}
+                  </nz-tag>
+                </div>
+                <div *ngIf="getReActStepOperatorAccess(selectedResponse, idx)!.modifiedOperatorIds.length > 0">
+                  <span style="color: #52c41a; font-weight: 500; margin-right: 8px">
+                    <i
+                      nz-icon
+                      nzType="edit"
+                      nzTheme="outline"
+                      style="margin-right: 4px"></i>
+                    MODIFIED:
+                  </span>
+                  <nz-tag
+                    *ngFor="let opId of getReActStepOperatorAccess(selectedResponse, idx)!.modifiedOperatorIds"
+                    [nzColor]="'green'"
+                    style="margin: 2px; font-family: monospace; font-size: 12px">
+                    {{ opId }}
+                  </nz-tag>
+                </div>
+              </div>
+            </div>
+          </nz-collapse-panel>
+        </nz-collapse>
+      </div>
+
+      <!-- No Data Message -->
+      <div
+        *ngIf="!selectedResponse.usage && (!selectedResponse.toolCalls || selectedResponse.toolCalls.length === 0)"
+        style="text-align: center; padding: 40px; color: #8c8c8c">
+        <i
+          nz-icon
+          nzType="info-circle"
+          nzTheme="outline"
+          style="font-size: 32px; margin-bottom: 8px"></i>
+        <div>No additional details available for this response.</div>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- System Info Modal -->
+<nz-modal
+  [(nzVisible)]="isSystemInfoModalVisible"
+  nzTitle="Agent System Information"
+  nzWidth="900px"
+  (nzOnCancel)="closeSystemInfoModal()"
+  [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <div style="max-height: 600px; overflow-y: auto">
+      <!-- System Prompt Section -->
+      <div style="margin-bottom: 24px">
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="file-text"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          System Prompt
+        </h4>
+        <div
+          style="
+            background: #fafafa;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+            max-height: 300px;
+            overflow-y: auto;
+          ">
+          <markdown [data]="systemPrompt"></markdown>
+        </div>
+      </div>
+
+      <!-- Available Tools Section -->
+      <div>
+        <h4 style="margin-bottom: 12px; color: #595959">
+          <i
+            nz-icon
+            nzType="tool"
+            nzTheme="outline"
+            style="margin-right: 8px"></i>
+          Available Tools ({{ availableTools.length }})
+        </h4>
+        <nz-collapse>
+          <nz-collapse-panel
+            *ngFor="let tool of availableTools"
+            [nzHeader]="tool.name"
+            [nzActive]="false">
+            <!-- Tool Description -->
+            <div style="background: #fafafa; padding: 12px; border-radius: 4px; margin-bottom: 12px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Description:</strong>
+              </div>
+              <div style="color: #262626">{{ tool.description }}</div>
+            </div>
+
+            <!-- Tool Input Schema -->
+            <div style="background: #fafafa; padding: 12px; border-radius: 4px">
+              <div style="margin-bottom: 8px">
+                <strong style="color: #595959">Input Schema:</strong>
+              </div>
+              <pre
+                style="
+                  background: #fff;
+                  padding: 12px;
+                  border: 1px solid #d9d9d9;
+                  border-radius: 4px;
+                  overflow-x: auto;
+                  margin: 0;
+                "><code class="language-json">{{ formatJson(tool.inputSchema) }}</code></pre>
+            </div>
+          </nz-collapse-panel>
+        </nz-collapse>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>

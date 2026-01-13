@@ -1,0 +1,147 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.agent-registration-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.registration-header {
+  text-align: center;
+
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #262626;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: #8c8c8c;
+  }
+}
+
+.model-type-selection {
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #262626;
+  }
+}
+
+.model-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid #d9d9d9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+
+  &:hover {
+    border-color: #1890ff;
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+  }
+
+  &.selected {
+    border-color: #1890ff;
+    background: #e6f7ff;
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+  }
+}
+
+.model-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #f0f0f0;
+  border-radius: 8px;
+  flex-shrink: 0;
+
+  i {
+    font-size: 28px;
+    color: #1890ff;
+  }
+}
+
+.model-info {
+  flex: 1;
+
+  h5 {
+    margin: 0 0 4px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #262626;
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    color: #8c8c8c;
+    line-height: 1.4;
+  }
+}
+
+.selected-indicator {
+  flex-shrink: 0;
+
+  i {
+    font-size: 24px;
+    color: #1890ff;
+  }
+}
+
+.agent-name-input {
+  h4 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #262626;
+  }
+
+  input {
+    width: 100%;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+
+  button {
+    min-width: 200px;
+  }
+}

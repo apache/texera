@@ -19,14 +19,16 @@ import itertools
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.pause_manager import PauseType
-from proto.org.apache.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
-from proto.org.apache.amber.engine.architecture.worker import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    EmptyRequest,
+)
+from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
 )
 
 
 class RetryCurrentTupleHandler(ControlHandler):
-
     async def retry_current_tuple(self, req: EmptyRequest) -> EmptyReturn:
         if not self.context.state_manager.confirm_state(WorkerState.COMPLETED):
             # chain the current input tuple back on top of the current iterator to
