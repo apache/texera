@@ -252,6 +252,7 @@ CREATE TABLE IF NOT EXISTS dataset
     is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
     description    VARCHAR(512) NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    cover_image    varchar(255),
     FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 

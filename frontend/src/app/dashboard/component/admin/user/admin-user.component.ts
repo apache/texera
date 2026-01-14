@@ -187,6 +187,11 @@ export class AdminUserComponent implements OnInit {
     return compare === 0 ? a.uid - b.uid : compare;
   };
 
+  public sortByAffiliation: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.affiliation || "").localeCompare(a.affiliation || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
   reset(): void {
     this.nameSearchValue = "";
     this.emailSearchValue = "";

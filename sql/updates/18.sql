@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,31 +17,14 @@
  * under the License.
  */
 
-.file-display-padding {
-  width: 20px;
-}
+\c texera_db
 
-/* Styles for the delete button */
-.icon-button {
-  width: 15px;
-  margin-left: 5px;
-}
+SET search_path TO texera_db;
 
-/* Styles for the file tree container */
-.file-tree-container {
-  max-height: 200px; /* Adjust the max-height as needed */
-  overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
-  overflow-x: auto; /* Prevents horizontal scrolling */
-}
+BEGIN;
 
-//tree-root .fa-file {
-//  //padding-left: 4%; /* Adjust the value as needed */
-//}
-//
-//tree-root span {
-//  display: inline-block;
-//  max-width: 100%; /* Adjust the width as needed */
-//  text-overflow: ellipsis;
-//  white-space: nowrap;
-//  overflow: hidden;
-//}
+-- 1. Add new column cover_image to dataset table.
+ALTER TABLE dataset
+    ADD COLUMN cover_image varchar(246);
+
+COMMIT;
