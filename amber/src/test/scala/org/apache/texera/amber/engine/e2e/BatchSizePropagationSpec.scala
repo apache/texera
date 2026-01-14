@@ -119,7 +119,10 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for headerlessCsv workflow" in {
     val expectedBatchSize = 1
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
+    val customWorkflowSettings = WorkflowSettings(
+      dataTransferBatchSize = expectedBatchSize,
+      executionMode = ExecutionMode.STREAMING
+    )
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -141,7 +144,10 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for headerlessCsv->keyword workflow" in {
     val expectedBatchSize = 500
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
+    val customWorkflowSettings = WorkflowSettings(
+      dataTransferBatchSize = expectedBatchSize,
+      executionMode = ExecutionMode.STREAMING
+    )
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -171,7 +177,10 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for csv->keyword->count workflow" in {
     val expectedBatchSize = 100
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
+    val customWorkflowSettings = WorkflowSettings(
+      dataTransferBatchSize = expectedBatchSize,
+      executionMode = ExecutionMode.STREAMING
+    )
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -209,7 +218,10 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for csv->keyword->averageAndGroupBy workflow" in {
     val expectedBatchSize = 300
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
+    val customWorkflowSettings = WorkflowSettings(
+      dataTransferBatchSize = expectedBatchSize,
+      executionMode = ExecutionMode.STREAMING
+    )
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)
@@ -250,7 +262,10 @@ class BatchSizePropagationSpec
   "Engine" should "propagate the correct batch size for csv->(csv->)->join workflow" in {
     val expectedBatchSize = 1
 
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize, executionMode = ExecutionMode.STREAMING)
+    val customWorkflowSettings = WorkflowSettings(
+      dataTransferBatchSize = expectedBatchSize,
+      executionMode = ExecutionMode.STREAMING
+    )
 
     val context =
       new WorkflowContext(workflowSettings = customWorkflowSettings)

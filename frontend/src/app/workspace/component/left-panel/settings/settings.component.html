@@ -21,12 +21,20 @@
     [formGroup]="settingsForm"
     class="form-inline">
     <b>Execution Mode:</b>
-    <nz-radio-group formControlName="executionMode" >
-      <label nz-radio [nzValue]="ExecutionMode.BATCH">Batch</label>
-      <br>
-      <label nz-radio [nzValue]="ExecutionMode.STREAMING">Streaming</label>
+    <nz-radio-group formControlName="executionMode">
+      <label
+        nz-radio
+        [nzValue]="ExecutionMode.BATCH"
+        >Batch</label
+      >
+      <br />
+      <label
+        nz-radio
+        [nzValue]="ExecutionMode.STREAMING"
+        >Streaming</label
+      >
     </nz-radio-group>
-    <br>
+    <br />
     <div class="form-group">
       <label for="dataTransferBatchSize">Data Transfer Batch Size:</label>
       <input

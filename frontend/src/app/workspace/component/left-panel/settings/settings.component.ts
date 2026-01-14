@@ -24,7 +24,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import {ExecutionMode} from "../../../../common/type/workflow";
+import { ExecutionMode } from "../../../../common/type/workflow";
 
 @UntilDestroy()
 @Component({
@@ -40,10 +40,13 @@ export class SettingsComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private userService: UserService,
-    private notificationService: NotificationService,
+    private notificationService: NotificationService
   ) {
     this.settingsForm = this.fb.group({
-      dataTransferBatchSize: [this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize, [Validators.required, Validators.min(1)],],
+      dataTransferBatchSize: [
+        this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
+        [Validators.required, Validators.min(1)],
+      ],
       executionMode: [this.workflowActionService.getWorkflowContent().settings.executionMode],
     });
   }
