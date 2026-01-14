@@ -86,5 +86,5 @@ notifications:
   commits:              commits@texera.apache.org
   issues:               notifications@texera.apache.org
   pullrequests:         notifications@texera.apache.org
-  discussions:          notifications@texera.apache.org
+  discussions:          dev@texera.apache.org
   jobs:                 commits@texera.apache.org
