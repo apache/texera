@@ -19,6 +19,7 @@
 
 import { DatePipe, Location } from "@angular/common";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Router } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
@@ -141,7 +142,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    protected config: GuiConfigService
+    protected config: GuiConfigService,
+    private router: Router
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -262,7 +264,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
-    this.modalService.create({
+    const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
       nzData: {
         writeAccess: this.writeAccess,
@@ -275,6 +277,12 @@ export class MenuComponent implements OnInit, OnDestroy {
       nzTitle: "Share this workflow with others",
       nzCentered: true,
       nzWidth: "800px",
+    });
+
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result?.userRevokedOwnAccess) {
+        this.router.navigate([DASHBOARD_USER_WORKFLOW]);
+      }
     });
   }
 
