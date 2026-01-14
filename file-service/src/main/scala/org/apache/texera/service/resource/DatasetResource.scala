@@ -57,7 +57,7 @@ import org.jooq.{DSLContext, EnumType}
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{inline => inl}
 import java.io.{InputStream, OutputStream}
-import java.net.{HttpURLConnection, URL, URLDecoder}
+import java.net.{HttpURLConnection, URI, URL, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
@@ -70,6 +70,7 @@ import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
 import org.jooq.exception.DataAccessException
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
+import org.apache.commons.io.FilenameUtils
 
 import java.sql.SQLException
 import scala.util.Try
@@ -144,6 +145,25 @@ object DatasetResource {
       .toScala
   }
 
+  /**
+    * Validates a file path using Apache Commons IO.
+    */
+  def validateAndNormalizeFilePathOrThrow(path: String): String = {
+    if (path == null || path.trim.isEmpty) {
+      throw new BadRequestException("Path cannot be empty")
+    }
+
+    val normalized = FilenameUtils.normalize(path, true)
+    if (normalized == null) {
+      throw new BadRequestException("Invalid path")
+    }
+
+    if (FilenameUtils.getPrefixLength(normalized) > 0) {
+      throw new BadRequestException("Absolute paths not allowed")
+    }
+    normalized
+  }
+
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
@@ -177,6 +197,8 @@ object DatasetResource {
       fileNodes: List[DatasetFileNode],
       size: Long
   )
+
+  case class CoverImageRequest(coverImage: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -185,6 +207,9 @@ class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
+
+  private val COVER_IMAGE_SIZE_LIMIT_BYTES: Long = 10 * 1024 * 1024 // 10 MB
+  private val ALLOWED_IMAGE_EXTENSIONS: Set[String] = Set(".jpg", ".jpeg", ".png", ".gif", ".webp")
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -1740,6 +1765,113 @@ class DatasetResource {
         .execute()
 
       Response.ok(Map("message" -> "Multipart upload aborted successfully")).build()
+    }
+  }
+
+  /**
+    * Updates the cover image for a dataset.
+    *
+    * @param did Dataset ID
+    * @param request Cover image request containing the relative file path
+    * @param sessionUser Authenticated user session
+    * @return Response with updated cover image path
+    *
+    * Expected coverImage format: "version/folder/image.jpg" (relative to dataset root)
+    */
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/update/cover")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def updateDatasetCoverImage(
+      @PathParam("did") did: Integer,
+      request: CoverImageRequest,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val uid = sessionUser.getUid
+      val dataset = getDatasetByID(ctx, did)
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      if (request.coverImage == null || request.coverImage.trim.isEmpty) {
+        throw new BadRequestException("Cover image path is required")
+      }
+
+      val normalized = DatasetResource.validateAndNormalizeFilePathOrThrow(request.coverImage)
+
+      val extension = FilenameUtils.getExtension(normalized)
+      if (extension == null || !ALLOWED_IMAGE_EXTENSIONS.contains(s".$extension".toLowerCase)) {
+        throw new BadRequestException("Invalid file type")
+      }
+
+      val owner = getOwner(ctx, did)
+      val document = DocumentFactory
+        .openReadonlyDocument(
+          FileResolver.resolve(s"${owner.getEmail}/${dataset.getName}/$normalized")
+        )
+        .asInstanceOf[OnDataset]
+
+      val fileSize = LakeFSStorageClient.getFileSize(
+        document.getRepositoryName(),
+        document.getVersionHash(),
+        document.getFileRelativePath()
+      )
+
+      if (fileSize > COVER_IMAGE_SIZE_LIMIT_BYTES) {
+        throw new BadRequestException(
+          s"Cover image must be less than ${COVER_IMAGE_SIZE_LIMIT_BYTES / (1024 * 1024)} MB"
+        )
+      }
+
+      dataset.setCoverImage(normalized)
+      new DatasetDao(ctx.configuration()).update(dataset)
+      Response.ok(Map("coverImage" -> normalized)).build()
+    }
+  }
+
+  /**
+    * Get the cover image for a dataset.
+    * Returns a 307 redirect to the presigned S3 URL.
+    *
+    * @param did Dataset ID
+    * @return 307 Temporary Redirect to cover image
+    */
+  @GET
+  @Path("/{did}/cover")
+  def getDatasetCover(
+      @PathParam("did") did: Integer,
+      @Auth sessionUser: Optional[SessionUser]
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val dataset = getDatasetByID(ctx, did)
+
+      val requesterUid = if (sessionUser.isPresent) Some(sessionUser.get().getUid) else None
+
+      if (requesterUid.isEmpty && !dataset.getIsPublic) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val coverImage = Option(dataset.getCoverImage).getOrElse(
+        throw new NotFoundException("No cover image")
+      )
+
+      val owner = getOwner(ctx, did)
+      val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
+
+      val document = DocumentFactory
+        .openReadonlyDocument(FileResolver.resolve(fullPath))
+        .asInstanceOf[OnDataset]
+
+      val presignedUrl = LakeFSStorageClient.getFilePresignedUrl(
+        document.getRepositoryName(),
+        document.getVersionHash(),
+        document.getFileRelativePath()
+      )
+
+      Response.temporaryRedirect(new URI(presignedUrl)).build()
     }
   }
 }

@@ -44,7 +44,8 @@
           <img
             alt="example"
             class="card-cover-image"
-            [src]="defaultBackground" />
+            [src]="getCoverImage(entity)"
+            (error)="$any($event.target).src = defaultBackground" />
           <nz-avatar
             class="entity-avatar"
             [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
