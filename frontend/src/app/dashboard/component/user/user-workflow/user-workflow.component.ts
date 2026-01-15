@@ -232,7 +232,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       operatorPositions: {},
       settings: {
         dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
-        executionMode: ExecutionMode.STREAMING,
+        executionMode: this.config.env.defaultExecutionMode,
       },
     };
     let localPid = this.pid;
