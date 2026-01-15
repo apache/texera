@@ -190,7 +190,35 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     }
   }
 
-  public revokeAccess(userToRemove: string): void {
+  public verifyRevokeAccess(userToRemove: string): void {
+    const isRevokingOwnAccess = userToRemove === this.userService.getCurrentUser()?.email;
+    const modalTitle = isRevokingOwnAccess ? "Revoke Your Access" : "Revoke Access";
+    const modalContent = isRevokingOwnAccess
+      ? `Are you sure you want to revoke your own access to this ${this.type}? You will no longer be able to view or edit it.`
+      : `Are you sure you want to revoke ${userToRemove}'s access to this ${this.type}?`;
+
+    const modal: NzModalRef = this.modalService.create({
+      nzTitle: modalTitle,
+      nzContent: modalContent,
+      nzFooter: [
+        {
+          label: "Cancel",
+          onClick: () => modal.close(),
+        },
+        {
+          label: "Revoke",
+          type: "primary",
+          danger: true,
+          onClick: () => {
+            this.revokeAccess(userToRemove);
+            modal.close();
+          },
+        },
+      ],
+    });
+  }
+
+  private revokeAccess(userToRemove: string): void {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
@@ -198,7 +226,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
         next: () => {
           if (userToRemove == this.userService.getCurrentUser()?.email) {
             this.shouldRefresh = true;
-            this.modalRef.close();
+            this.modalRef.close({ userRevokedOwnAccess: true });
           }
           this.ngOnInit();
         },

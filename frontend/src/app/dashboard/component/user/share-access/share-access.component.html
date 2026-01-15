@@ -154,7 +154,7 @@
     <nz-tag nzColor="blue">{{ entry.privilege }}</nz-tag> {{ entry.email }} ({{ entry.name }})
     <button
       [disabled]="!writeAccess && entry.email !== currentEmail"
-      (click)="revokeAccess(entry.email)"
+      (click)="verifyRevokeAccess(entry.email)"
       nz-button
       nz-tooltip="revoke access"
       nzSize="small"
