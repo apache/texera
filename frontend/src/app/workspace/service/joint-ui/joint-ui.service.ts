@@ -339,7 +339,7 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${count}`;
+        const labelText = count.toLocaleString();
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
     });
@@ -359,7 +359,7 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${count}`;
+        const labelText = count.toLocaleString();
 
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
