@@ -39,7 +39,7 @@ class TestSourceOperator(UDFSourceOperator):
 
 
 class TestExecutorManager:
-    """Test suite for ExecutorManager, focusing on R UDF support removal."""
+    """Test suite for ExecutorManager, focusing on R UDF plugin support."""
 
     @pytest.fixture
     def executor_manager(self):
@@ -57,26 +57,26 @@ class TestExecutorManager:
         assert executor_manager.executor_version == 0
 
     def test_reject_r_tuple_language(self, executor_manager):
-        """Test that 'r-tuple' language is rejected with AssertionError."""
-        with pytest.raises(AssertionError) as exc_info:
+        """Test that 'r-tuple' language is rejected with RuntimeError when plugin is not available."""
+        with pytest.raises(RuntimeError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-tuple"
             )
 
-        # Verify the error message mentions R UDF support has been dropped
-        assert "not supported" in str(exc_info.value) or "dropped" in str(
+        # Verify the error message mentions R operators require the texera-rudf package
+        assert "texera-rudf" in str(exc_info.value) or "R operators require" in str(
             exc_info.value
         )
 
     def test_reject_r_table_language(self, executor_manager):
-        """Test that 'r-table' language is rejected with AssertionError."""
-        with pytest.raises(AssertionError) as exc_info:
+        """Test that 'r-table' language is rejected with RuntimeError when plugin is not available."""
+        with pytest.raises(RuntimeError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-table"
             )
 
-        # Verify the error message mentions R UDF support has been dropped
-        assert "not supported" in str(exc_info.value) or "dropped" in str(
+        # Verify the error message mentions R operators require the texera-rudf package
+        assert "texera-rudf" in str(exc_info.value) or "R operators require" in str(
             exc_info.value
         )
 
