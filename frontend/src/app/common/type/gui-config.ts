@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {ExecutionMode} from "./workflow";
+import { ExecutionMode } from "./workflow";
 
 // Please refer to core/config/src/main/resources/gui.conf for the definition of each config item
 export interface GuiConfig {
