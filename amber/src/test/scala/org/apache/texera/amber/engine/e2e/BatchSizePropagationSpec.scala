@@ -126,7 +126,7 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(
       dataTransferBatchSize = expectedBatchSize,
-      executionMode = ExecutionMode.STREAMING
+      executionMode = ExecutionMode.PIPELINED
     )
 
     val context =
@@ -151,7 +151,7 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(
       dataTransferBatchSize = expectedBatchSize,
-      executionMode = ExecutionMode.STREAMING
+      executionMode = ExecutionMode.PIPELINED
     )
 
     val context =
@@ -184,7 +184,7 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(
       dataTransferBatchSize = expectedBatchSize,
-      executionMode = ExecutionMode.STREAMING
+      executionMode = ExecutionMode.PIPELINED
     )
 
     val context =
@@ -225,7 +225,7 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(
       dataTransferBatchSize = expectedBatchSize,
-      executionMode = ExecutionMode.STREAMING
+      executionMode = ExecutionMode.PIPELINED
     )
 
     val context =
@@ -269,7 +269,7 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(
       dataTransferBatchSize = expectedBatchSize,
-      executionMode = ExecutionMode.STREAMING
+      executionMode = ExecutionMode.PIPELINED
     )
 
     val context =
