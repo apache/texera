@@ -39,7 +39,7 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
   commentBoxes: [],
   links: [],
   operatorPositions: {},
-  settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.STREAMING },
+  settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
 });
 
 export const testWorkflow1: Workflow = {

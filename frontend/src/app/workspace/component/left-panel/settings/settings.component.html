@@ -24,13 +24,13 @@
     <nz-radio-group formControlName="executionMode">
       <label
         nz-radio
-        [nzValue]="ExecutionMode.STREAMING"
+        [nzValue]="ExecutionMode.PIPELINED"
         >Streaming</label
       >
       <br />
       <label
         nz-radio
-        [nzValue]="ExecutionMode.BATCH"
+        [nzValue]="ExecutionMode.MATERIALIZED"
         >Batch</label
       >
     </nz-radio-group>

@@ -21,8 +21,8 @@ import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interfa
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../workspace/types/workflow-common.interface";
 
 export enum ExecutionMode {
-  STREAMING = "STREAMING",
-  BATCH = "BATCH",
+  PIPELINED = "PIPELINED",
+  MATERIALIZED = "MATERIALIZED",
 }
 
 export interface WorkflowSettings {

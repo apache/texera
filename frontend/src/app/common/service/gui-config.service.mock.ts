@@ -43,7 +43,7 @@ export class MockGuiConfigService {
     productionSharedEditingServer: false,
     pythonLanguageServerPort: "3000",
     defaultDataTransferBatchSize: 100,
-    defaultExecutionMode: ExecutionMode.STREAMING,
+    defaultExecutionMode: ExecutionMode.PIPELINED,
     workflowEmailNotificationEnabled: false,
     sharingComputingUnitEnabled: false,
     operatorConsoleMessageBufferSize: 1000,
