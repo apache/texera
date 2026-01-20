@@ -231,7 +231,8 @@ export class DatasetService {
         .set("ownerEmail", ownerEmail)
         .set("datasetName", datasetName)
         .set("filePath", encodeURIComponent(filePath))
-        .set("numParts", partCount.toString());
+        .set("fileSizeBytes", file.size.toString())
+        .set("partSizeBytes", partSize.toString());
 
       const init$ = this.http.post<{}>(
         `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
