@@ -38,7 +38,8 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 case class PhysicalPlan(
     operators: Set[PhysicalOp],
-    links: Set[PhysicalLink]) extends LazyLogging {
+    links: Set[PhysicalLink])
+  extends LazyLogging {
 
   @transient private lazy val operatorMap: Map[PhysicalOpIdentity, PhysicalOp] =
     operators.map(o => (o.id, o)).toMap
@@ -243,7 +244,8 @@ case class PhysicalPlan(
                 .filter(link =>
                   getOperator(physicalOp.id).isInputLinkDependee(
                     link
-                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link))
+                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
+                )
             }
         }
       }
