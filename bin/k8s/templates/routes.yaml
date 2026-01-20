@@ -6,6 +6,10 @@ metadata:
 spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
+  {{- if .Values.ingressPaths.hostname }}
+  hostnames:
+    - {{ .Values.ingressPaths.hostname }}
+  {{- end }}
   rules:
     - matches:
         - path:
@@ -78,6 +82,10 @@ metadata:
 spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
+  {{- if .Values.ingressPaths.hostname }}
+  hostnames:
+    - {{ .Values.ingressPaths.hostname }}
+  {{- end }}
   rules:
     - matches:
         - path:
@@ -101,6 +109,10 @@ metadata:
 spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
+  {{- if .Values.ingressPaths.hostname }}
+  hostnames:
+    - {{ .Values.ingressPaths.hostname }}
+  {{- end }}
   rules:
     - matches:
         - path:

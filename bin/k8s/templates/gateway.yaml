@@ -8,14 +8,32 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: {{ .Release.Name }}-gateway
-  namespace: {{ .Release.Namespace }}
+  annotations:
+    {{- if .Values.ingressPaths.issuer }}
+    cert-manager.io/issuer: {{ .Values.ingressPaths.issuer }}
+    {{- end }}
 spec:
   gatewayClassName: eg
   listeners:
     - name: http
       protocol: HTTP
       port: 80
+      {{- if .Values.ingressPaths.hostname }}
+      hostname: {{ .Values.ingressPaths.hostname }}
+      {{- end }}
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      {{- if .Values.ingressPaths.hostname }}
+      hostname: {{ .Values.ingressPaths.hostname }}
+      {{- end }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-cert" .Release.Name) }}
