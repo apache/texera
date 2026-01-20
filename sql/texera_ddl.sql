@@ -281,17 +281,31 @@ CREATE TABLE IF NOT EXISTS dataset_version
 
 CREATE TABLE IF NOT EXISTS dataset_upload_session
 (
-    did              INT NOT NULL,
-    uid              INT NOT NULL,
-    file_path        TEXT NOT NULL,
-    upload_id        VARCHAR(256) NOT NULL UNIQUE,
-    physical_address TEXT,
-    num_parts_requested INT NOT NULL,
+    did                 INT          NOT NULL,
+    uid                 INT          NOT NULL,
+    file_path           TEXT         NOT NULL,
+    upload_id           VARCHAR(256) NOT NULL UNIQUE,
+    physical_address    TEXT,
+    num_parts_requested INT          NOT NULL,
+    file_size_bytes     BIGINT       NOT NULL,
+    part_size_bytes     BIGINT       NOT NULL,
 
     PRIMARY KEY (uid, did, file_path),
 
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+
+    CONSTRAINT chk_dataset_upload_session_num_parts_requested_positive
+        CHECK (num_parts_requested >= 1),
+
+    CONSTRAINT chk_dataset_upload_session_file_size_bytes_positive
+        CHECK (file_size_bytes > 0),
+
+    CONSTRAINT chk_dataset_upload_session_part_size_bytes_positive
+        CHECK (part_size_bytes > 0),
+
+    CONSTRAINT chk_dataset_upload_session_part_size_bytes_s3_upper_bound
+        CHECK (part_size_bytes <= 5368709120)
 );
 
 CREATE TABLE IF NOT EXISTS dataset_upload_session_part
