@@ -488,8 +488,8 @@ class CostBasedScheduleGenerator(
 
     val (regionDAG, cost) =
       tryConnectRegionDAG(physicalPlan.links) match {
-        case Left(dag)  => (dag, allocateResourcesAndEvaluateCost(dag))
-        case Right(_)   =>
+        case Left(dag) => (dag, allocateResourcesAndEvaluateCost(dag))
+        case Right(_) =>
           (
             new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink]),
             Double.PositiveInfinity
