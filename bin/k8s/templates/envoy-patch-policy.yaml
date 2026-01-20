@@ -8,7 +8,7 @@ spec:
   targetRef:
     group: gateway.networking.k8s.io
     kind: Gateway
-    name: texera-gateway
+    name: {{ .Release.Name }}-gateway
   jsonPatches:
     # ------------------------------------------------------------------
     # 1. Patch Auth Cluster to use STATIC DNS (Bypassing EDS issues)
@@ -86,7 +86,7 @@ spec:
     # 3. Patch Listener: WebSocket Upgrades
     # ------------------------------------------------------------------
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/upgrade_configs"
@@ -97,7 +97,7 @@ spec:
     # 4. Patch Listener: Add HTTP Filters
     # ------------------------------------------------------------------
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
@@ -112,7 +112,7 @@ spec:
               name: dynamic_dns_cache
 
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
@@ -131,7 +131,7 @@ spec:
                 end
 
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
@@ -167,7 +167,7 @@ spec:
     # 5. Patch Virtual Host: Disable AuthZ Globally
     # ------------------------------------------------------------------
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/virtual_hosts/0/typed_per_filter_config"
@@ -180,7 +180,7 @@ spec:
     # 6. Patch Routes: Enable AuthZ for Dynamic Routes
     # ------------------------------------------------------------------
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/virtual_hosts/0/routes/0"
@@ -198,7 +198,7 @@ spec:
                 context_extensions: {}
 
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/virtual_hosts/0/routes/0"
@@ -217,7 +217,7 @@ spec:
                 context_extensions: {}
 
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/http"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
       operation:
         op: "add"
         path: "/virtual_hosts/0/routes/0"
@@ -240,7 +240,7 @@ spec:
 
     # WebSocket Upgrades for HTTPS
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/upgrade_configs"
@@ -249,7 +249,7 @@ spec:
 
     # Dynamic Forward Proxy for HTTPS
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
@@ -265,7 +265,7 @@ spec:
 
     # Lua Filter for HTTPS
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
@@ -285,7 +285,7 @@ spec:
 
     # Ext_authz Filter for HTTPS
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
@@ -318,7 +318,7 @@ spec:
 
     # Disable AuthZ Globally for HTTPS VirtualHost
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/virtual_hosts/0/typed_per_filter_config"
@@ -329,7 +329,7 @@ spec:
 
     # Enable AuthZ for Dynamic Routes on HTTPS
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/virtual_hosts/0/routes/0"
@@ -347,7 +347,7 @@ spec:
                 context_extensions: {}
 
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/virtual_hosts/0/routes/0"
@@ -366,7 +366,7 @@ spec:
                 context_extensions: {}
 
     - type: "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
-      name: "{{ .Release.Namespace }}/texera-gateway/https"
+      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
         op: "add"
         path: "/virtual_hosts/0/routes/0"
