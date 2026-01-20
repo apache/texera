@@ -17,11 +17,14 @@
  * under the License.
  */
 
-declare module 'hocon-parser' {
-  /**
-   * The module itself is callable, accepting a string (HOCON config) and returning a parsed object.
-   */
-  function hoconParser(input: string): any;
+\c texera_db
 
-  export = hoconParser;
-}
+SET search_path TO texera_db;
+
+BEGIN;
+
+-- 1. Add new column cover_image to dataset table.
+ALTER TABLE dataset
+    ADD COLUMN cover_image varchar(246);
+
+COMMIT;

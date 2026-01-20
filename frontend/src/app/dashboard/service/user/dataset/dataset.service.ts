@@ -231,7 +231,8 @@ export class DatasetService {
         .set("ownerEmail", ownerEmail)
         .set("datasetName", datasetName)
         .set("filePath", encodeURIComponent(filePath))
-        .set("numParts", partCount.toString());
+        .set("fileSizeBytes", file.size.toString())
+        .set("partSizeBytes", partSize.toString());
 
       const init$ = this.http.post<{}>(
         `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
@@ -558,5 +559,11 @@ export class DatasetService {
 
   public retrieveOwners(): Observable<string[]> {
     return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}`);
+  }
+
+  public updateDatasetCoverImage(did: number, coverImage: string): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/dataset/${did}/update/cover`, {
+      coverImage: coverImage,
+    });
   }
 }
