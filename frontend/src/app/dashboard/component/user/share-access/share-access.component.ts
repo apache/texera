@@ -40,7 +40,6 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 })
 export class ShareAccessComponent implements OnInit, OnDestroy {
   readonly nzModalData = inject(NZ_MODAL_DATA);
-  readonly writeAccess: boolean = this.nzModalData.writeAccess;
   readonly type: string = this.nzModalData.type;
   readonly id: number = this.nzModalData.id;
   readonly allOwners: string[] = this.nzModalData.allOwners;
@@ -271,18 +270,18 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
             type: "primary",
             danger: true,
             onClick: () => {
-              this.doChangeAccessLevel(email, newPrivilege);
+              this.applyAccessLevelChange(email, newPrivilege);
               modal.close();
             },
           },
         ],
       });
     } else {
-      this.doChangeAccessLevel(email, newPrivilege);
+      this.applyAccessLevelChange(email, newPrivilege);
     }
   }
 
-  private doChangeAccessLevel(email: string, newPrivilege: string): void {
+  private applyAccessLevelChange(email: string, newPrivilege: string): void {
     this.accessService
       .grantAccess(this.type, this.id, email, newPrivilege)
       .pipe(untilDestroyed(this))

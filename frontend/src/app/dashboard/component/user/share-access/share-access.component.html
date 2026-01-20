@@ -25,7 +25,7 @@
     class="access-button"
     [nzType]="isPublic ? 'default' : 'primary'"
     (click)="verifyUnpublish()"
-    [disabled]="!writeAccess">
+    [disabled]="!hasWriteAccess">
     <div
       nz-icon
       nzType="lock"
@@ -42,7 +42,7 @@
     class="access-button"
     [nzType]="isPublic ? 'primary' : 'default'"
     (click)="verifyPublish()"
-    [disabled]="!writeAccess">
+    [disabled]="!hasWriteAccess">
     <div
       nz-icon
       nzType="user"
@@ -123,7 +123,7 @@
         </select>
       </div>
       <button
-        [disabled]="!writeAccess"
+        [disabled]="!hasWriteAccess"
         style="width: 100%"
         nz-button
         nzType="primary"
