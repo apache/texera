@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Tuple}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{ExecutionMode, PortIdentity, WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.controller._
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
@@ -68,6 +68,13 @@ class DataProcessingSpec
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   val workflowContext: WorkflowContext = new WorkflowContext()
+
+  val materializedWorkflowContext: WorkflowContext = new WorkflowContext(
+    workflowSettings = WorkflowSettings(
+      dataTransferBatchSize = 400,
+      executionMode = ExecutionMode.MATERIALIZED
+    )
+  )
 
   override protected def beforeEach(): Unit = {
     setUpWorkflowExecutionData()
@@ -337,6 +344,207 @@ class DataProcessingSpec
         )
       ),
       workflowContext
+    )
+    executeWorkflow(workflow)
+  }
+
+  // MATERIALIZED ExecutionMode tests - each operator should be a region
+  "Engine" should "execute headerlessCsv workflow with MATERIALIZED mode" in {
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
+    val workflow = buildWorkflow(
+      List(headerlessCsvOpDesc),
+      List(),
+      materializedWorkflowContext
+    )
+    val results = executeWorkflow(workflow)(headerlessCsvOpDesc.operatorIdentifier)
+
+    assert(results.size == 100)
+  }
+
+  "Engine" should "execute headerlessMultiLineDataCsv workflow with MATERIALIZED mode" in {
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallMultiLineDataCsvScanOpDesc()
+    val workflow = buildWorkflow(
+      List(headerlessCsvOpDesc),
+      List(),
+      materializedWorkflowContext
+    )
+    val results = executeWorkflow(workflow)(headerlessCsvOpDesc.operatorIdentifier)
+
+    assert(results.size == 100)
+  }
+
+  "Engine" should "execute jsonl workflow with MATERIALIZED mode" in {
+    val jsonlOp = TestOperators.smallJSONLScanOpDesc()
+    val workflow = buildWorkflow(
+      List(jsonlOp),
+      List(),
+      materializedWorkflowContext
+    )
+    val results = executeWorkflow(workflow)(jsonlOp.operatorIdentifier)
+
+    assert(results.size == 100)
+
+    for (result <- results) {
+      val schema = result.getSchema
+      assert(schema.getAttribute("id").getType == AttributeType.LONG)
+      assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
+      assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
+      assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
+      assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
+      assert(schema.getAttributes.length == 9)
+    }
+  }
+
+  "Engine" should "execute mediumFlattenJsonl workflow with MATERIALIZED mode" in {
+    val jsonlOp = TestOperators.mediumFlattenJSONLScanOpDesc()
+    val workflow = buildWorkflow(
+      List(jsonlOp),
+      List(),
+      materializedWorkflowContext
+    )
+    val results = executeWorkflow(workflow)(jsonlOp.operatorIdentifier)
+
+    assert(results.size == 1000)
+
+    for (result <- results) {
+      val schema = result.getSchema
+      assert(schema.getAttribute("id").getType == AttributeType.LONG)
+      assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
+      assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
+      assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
+      assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
+      assert(schema.getAttribute("test_object.array2.another").getType == AttributeType.INTEGER)
+      assert(schema.getAttributes.length == 13)
+    }
+  }
+
+  "Engine" should "execute headerlessCsv->keyword workflow with MATERIALIZED mode" in {
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(headerlessCsvOpDesc, keywordOpDesc),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      materializedWorkflowContext
+    )
+    executeWorkflow(workflow)
+  }
+
+  "Engine" should "execute csv workflow with MATERIALIZED mode" in {
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+    val workflow = buildWorkflow(
+      List(csvOpDesc),
+      List(),
+      materializedWorkflowContext
+    )
+    executeWorkflow(workflow)
+  }
+
+  "Engine" should "execute csv->keyword workflow with MATERIALIZED mode" in {
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val workflow = buildWorkflow(
+      List(csvOpDesc, keywordOpDesc),
+      List(
+        LogicalLink(
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      materializedWorkflowContext
+    )
+    executeWorkflow(workflow)
+  }
+
+  "Engine" should "execute csv->keyword->count workflow with MATERIALIZED mode" in {
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val countOpDesc =
+      TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
+    val workflow = buildWorkflow(
+      List(csvOpDesc, keywordOpDesc, countOpDesc),
+      List(
+        LogicalLink(
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          countOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      materializedWorkflowContext
+    )
+    executeWorkflow(workflow)
+  }
+
+  "Engine" should "execute csv->keyword->averageAndGroupBy workflow with MATERIALIZED mode" in {
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val averageAndGroupByOpDesc =
+      TestOperators.aggregateAndGroupByDesc(
+        "Units Sold",
+        AggregationFunction.AVERAGE,
+        List[String]("Country")
+      )
+    val workflow = buildWorkflow(
+      List(csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc),
+      List(
+        LogicalLink(
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          averageAndGroupByOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      materializedWorkflowContext
+    )
+    executeWorkflow(workflow)
+  }
+
+  "Engine" should "execute csv->(csv->)->join workflow with MATERIALIZED mode" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        headerlessCsvOpDesc2,
+        joinOpDesc
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc2.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        )
+      ),
+      materializedWorkflowContext
     )
     executeWorkflow(workflow)
   }
