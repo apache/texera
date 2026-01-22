@@ -161,7 +161,9 @@ class RUDFOpDesc extends LogicalOp {
       "User-defined function operator in R script",
       OperatorGroupConstants.R_GROUP,
       inputPortInfo,
-      outputPortInfo
+      outputPortInfo,
+      dynamicInputPorts = true,
+      allowPortCustomization = true
     )
   }
 
