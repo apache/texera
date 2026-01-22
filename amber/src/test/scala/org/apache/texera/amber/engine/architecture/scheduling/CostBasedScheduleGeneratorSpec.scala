@@ -19,7 +19,12 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.core.workflow.{ExecutionMode, PortIdentity, WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.workflow.{
+  ExecutionMode,
+  PortIdentity,
+  WorkflowContext,
+  WorkflowSettings
+}
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
@@ -240,7 +245,10 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
     // Each region should contain exactly 1 operator
     regions.foreach { region =>
-      assert(region.getOperators.size == 1, s"Expected region to have 1 operator, got ${region.getOperators.size}")
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
     }
   }
 
@@ -283,19 +291,29 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
     // Each region should contain exactly 1 operator
     regions.foreach { region =>
-      assert(region.getOperators.size == 1, s"Expected region to have 1 operator, got ${region.getOperators.size}")
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
     }
 
     // All links should be materialized (represented as region links)
     val numRegionLinks = result.regionDAG.edgeSet().asScala.size
     val numPhysicalLinks = workflow.physicalPlan.links.size
-    assert(numRegionLinks == numPhysicalLinks, s"Expected $numPhysicalLinks region links, got $numRegionLinks")
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
   }
 
   "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for csv->keyword->count workflow" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val countOpDesc = TestOperators.aggregateAndGroupByDesc("Region", org.apache.texera.amber.operator.aggregate.AggregationFunction.COUNT, List[String]())
+    val countOpDesc = TestOperators.aggregateAndGroupByDesc(
+      "Region",
+      org.apache.texera.amber.operator.aggregate.AggregationFunction.COUNT,
+      List[String]()
+    )
     val materializedContext = new WorkflowContext(
       workflowSettings = WorkflowSettings(
         dataTransferBatchSize = 400,
@@ -338,13 +356,19 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
     // Each region should contain exactly 1 operator
     regions.foreach { region =>
-      assert(region.getOperators.size == 1, s"Expected region to have 1 operator, got ${region.getOperators.size}")
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
     }
 
     // All links should be materialized (represented as region links)
     val numRegionLinks = result.regionDAG.edgeSet().asScala.size
     val numPhysicalLinks = workflow.physicalPlan.links.size
-    assert(numRegionLinks == numPhysicalLinks, s"Expected $numPhysicalLinks region links, got $numRegionLinks")
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
   }
 
   "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for join workflow" in {
@@ -397,13 +421,19 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
     // Each region should contain exactly 1 operator
     regions.foreach { region =>
-      assert(region.getOperators.size == 1, s"Expected region to have 1 operator, got ${region.getOperators.size}")
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
     }
 
     // All links should be materialized (represented as region links)
     val numRegionLinks = result.regionDAG.edgeSet().asScala.size
     val numPhysicalLinks = workflow.physicalPlan.links.size
-    assert(numRegionLinks == numPhysicalLinks, s"Expected $numPhysicalLinks region links, got $numRegionLinks")
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
   }
 
   "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for complex csv->->filter->join->filter2 workflow" in {
@@ -470,13 +500,19 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
     // Each region should contain exactly 1 operator
     regions.foreach { region =>
-      assert(region.getOperators.size == 1, s"Expected region to have 1 operator, got ${region.getOperators.size}")
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
     }
 
     // All links should be materialized (represented as region links)
     val numRegionLinks = result.regionDAG.edgeSet().asScala.size
     val numPhysicalLinks = workflow.physicalPlan.links.size
-    assert(numRegionLinks == numPhysicalLinks, s"Expected $numPhysicalLinks region links, got $numRegionLinks")
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
   }
 
 }
