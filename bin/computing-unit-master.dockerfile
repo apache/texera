@@ -96,7 +96,7 @@ RUN if [ "$WITH_R_SUPPORT" = "true" ]; then \
         Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
                     if (!requireNamespace('remotes', quietly=TRUE)) \
                       install.packages('remotes', Ncpus = parallel::detectCores()); \
-                    remotes::install_version('arrow', version='22.0.0.1', \
+                    remotes::install_version('arrow', version='14.0.2.1', \
                       repos='https://cran.r-project.org', upgrade='never', \
                       Ncpus = parallel::detectCores()); \
                     remotes::install_version('coro', version='1.1.0', \
