@@ -25,7 +25,7 @@
     class="access-button"
     [nzType]="isPublic ? 'default' : 'primary'"
     (click)="verifyUnpublish()"
-    [disabled]="!writeAccess">
+    [disabled]="!hasWriteAccess">
     <div
       nz-icon
       nzType="lock"
@@ -42,7 +42,7 @@
     class="access-button"
     [nzType]="isPublic ? 'primary' : 'default'"
     (click)="verifyPublish()"
-    [disabled]="!writeAccess">
+    [disabled]="!hasWriteAccess">
     <div
       nz-icon
       nzType="user"
@@ -123,7 +123,7 @@
         </select>
       </div>
       <button
-        [disabled]="!writeAccess"
+        [disabled]="!hasWriteAccess"
         style="width: 100%"
         nz-button
         nzType="primary"
@@ -151,9 +151,16 @@
   id="current-share">
   <li><nz-tag nzColor="green">OWNER</nz-tag> {{ owner }}</li>
   <li *ngFor="let entry of accessList">
-    <nz-tag nzColor="blue">{{ entry.privilege }}</nz-tag> {{ entry.email }} ({{ entry.name }})
+    <select
+      [value]="entry.privilege"
+      [disabled]="!hasWriteAccess"
+      (change)="changeAccessLevel(entry.email, $any($event.target).value)">
+      <option value="READ">READ</option>
+      <option value="WRITE">WRITE</option>
+    </select>
+    {{ entry.email }} ({{ entry.name }})
     <button
-      [disabled]="!writeAccess && entry.email !== currentEmail"
+      [disabled]="!hasWriteAccess && entry.email !== currentEmail"
       (click)="verifyRevokeAccess(entry.email)"
       nz-button
       nz-tooltip="revoke access"
