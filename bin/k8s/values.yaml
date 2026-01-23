@@ -287,7 +287,8 @@ metrics-server:
     create: true
   serviceAccount:
     create: true
-  priorityClassName: system-cluster-critical
 
-# Custom Ingress resource configs
-
+gatewayConfig:
+  hostname: ""
+  issuer: ""
+  tlsSecretName: ""

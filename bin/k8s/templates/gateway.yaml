@@ -10,8 +10,8 @@ kind: Gateway
 metadata:
   name: {{ .Release.Name }}-gateway
   annotations:
-    {{- if .Values.ingressPaths.issuer }}
-    cert-manager.io/issuer: {{ .Values.ingressPaths.issuer }}
+    {{- if and .Values.gatewayConfig .Values.gatewayConfig.issuer }}
+    cert-manager.io/issuer: {{ .Values.gatewayConfig.issuer }}
     {{- end }}
 spec:
   gatewayClassName: eg
@@ -19,8 +19,8 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      {{- if .Values.ingressPaths.hostname }}
-      hostname: {{ .Values.ingressPaths.hostname }}
+      {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
+      hostname: {{ .Values.gatewayConfig.hostname }}
       {{- end }}
       allowedRoutes:
         namespaces:
@@ -28,8 +28,8 @@ spec:
     - name: https
       protocol: HTTPS
       port: 443
-      {{- if .Values.ingressPaths.hostname }}
-      hostname: {{ .Values.ingressPaths.hostname }}
+      {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
+      hostname: {{ .Values.gatewayConfig.hostname }}
       {{- end }}
       allowedRoutes:
         namespaces:
@@ -37,4 +37,4 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-cert" .Release.Name) }}
+          - name: {{ (index .Values "gatewayConfig" "tlsSecretName") | default (printf "%s-cert" .Release.Name) }}

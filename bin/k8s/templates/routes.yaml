@@ -6,9 +6,9 @@ metadata:
 spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
-  {{- if .Values.ingressPaths.hostname }}
+  {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
   hostnames:
-    - {{ .Values.ingressPaths.hostname }}
+    - {{ .Values.gatewayConfig.hostname }}
   {{- end }}
   rules:
     - matches:
@@ -82,9 +82,9 @@ metadata:
 spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
-  {{- if .Values.ingressPaths.hostname }}
+  {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
   hostnames:
-    - {{ .Values.ingressPaths.hostname }}
+    - {{ .Values.gatewayConfig.hostname }}
   {{- end }}
   rules:
     - matches:
@@ -109,9 +109,9 @@ metadata:
 spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
-  {{- if .Values.ingressPaths.hostname }}
+  {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
   hostnames:
-    - {{ .Values.ingressPaths.hostname }}
+    - {{ .Values.gatewayConfig.hostname }}
   {{- end }}
   rules:
     - matches:
