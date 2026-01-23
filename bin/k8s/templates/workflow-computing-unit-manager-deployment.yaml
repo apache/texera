@@ -60,6 +60,19 @@ spec:
               value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
             - name: FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT
               value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/did/upload
+            # S3 Access (for R UDF large binary support)
+            - name: STORAGE_S3_ENDPOINT
+              value: http://{{ .Release.Name }}-minio:9000
+            - name: STORAGE_S3_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-minio
+                  key: root-user
+            - name: STORAGE_S3_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-minio
+                  key: root-password
             # LakeFS Access (should be removed in production environment)
             - name: STORAGE_LAKEFS_ENDPOINT
               value: http://{{ .Release.Name }}-lakefs.{{ .Release.Namespace }}:8000/api/v1
