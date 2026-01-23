@@ -23,11 +23,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
-import org.apache.texera.amber.core.workflow.{
-  PortIdentity,
-  WorkflowContext,
-  WorkflowSettings
-}
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.controller._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
