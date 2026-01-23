@@ -233,7 +233,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       CONTROLLER
     )
-    val result = scheduleGenerator.materializedSearch()
+    val result = scheduleGenerator.getFullyMaterializedSearchState
 
     // Should only explore 1 state (fully materialized)
     assert(result.numStatesExplored == 1)
@@ -279,7 +279,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       CONTROLLER
     )
-    val result = scheduleGenerator.materializedSearch()
+    val result = scheduleGenerator.getFullyMaterializedSearchState
 
     // Should only explore 1 state (fully materialized)
     assert(result.numStatesExplored == 1)
@@ -344,7 +344,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       CONTROLLER
     )
-    val result = scheduleGenerator.materializedSearch()
+    val result = scheduleGenerator.getFullyMaterializedSearchState
 
     // Should only explore 1 state (fully materialized)
     assert(result.numStatesExplored == 1)
@@ -409,7 +409,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       CONTROLLER
     )
-    val result = scheduleGenerator.materializedSearch()
+    val result = scheduleGenerator.getFullyMaterializedSearchState
 
     // Should only explore 1 state (fully materialized)
     assert(result.numStatesExplored == 1)
@@ -488,7 +488,7 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       CONTROLLER
     )
-    val result = scheduleGenerator.materializedSearch()
+    val result = scheduleGenerator.getFullyMaterializedSearchState
 
     // Should only explore 1 state (fully materialized)
     assert(result.numStatesExplored == 1)

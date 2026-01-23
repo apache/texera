@@ -306,7 +306,7 @@ class CostBasedScheduleGenerator(
     val searchResultFuture: Future[SearchResult] = Future {
       workflowContext.workflowSettings.executionMode match {
         case ExecutionMode.MATERIALIZED =>
-          materializedSearch()
+          getFullyMaterializedSearchState
         case ExecutionMode.PIPELINED =>
           if (ApplicationConfig.useTopDownSearch)
             topDownSearch(globalSearch = ApplicationConfig.useGlobalSearch)
@@ -483,7 +483,7 @@ class CostBasedScheduleGenerator(
   }
 
   /** Constructs a baseline fully materialized region plan (one operator per region) and evaluates its cost. */
-  def materializedSearch(): SearchResult = {
+  def getFullyMaterializedSearchState: SearchResult = {
     val startTime = System.nanoTime()
 
     val (regionDAG, cost) =
