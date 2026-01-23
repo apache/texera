@@ -72,7 +72,6 @@ export class SettingsComponent implements OnInit {
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        console.log("workflow changed", this.workflowActionService.getWorkflowContent().settings.executionMode);
         this.settingsForm.patchValue(
           {
             dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
