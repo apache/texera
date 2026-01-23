@@ -23,7 +23,7 @@ import org.apache.texera.config.GuiConfig
 
 case class WorkflowSettings(
     dataTransferBatchSize: Int = 400,
-    outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty,
     executionMode: ExecutionMode =
-      ExecutionMode.valueOf(GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode)
+      ExecutionMode.valueOf(GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode),
+    outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty
 )
