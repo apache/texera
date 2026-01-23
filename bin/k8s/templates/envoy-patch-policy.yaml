@@ -80,7 +80,6 @@ spec:
               name: dynamic_dns_cache
               dns_lookup_family: V4_ONLY
               dns_refresh_rate: 1s
-              name: dynamic_dns_cache
 
     # ------------------------------------------------------------------
     # 3. Patch Listener: WebSocket Upgrades
@@ -109,7 +108,6 @@ spec:
               name: dynamic_dns_cache
               dns_lookup_family: V4_ONLY
               dns_refresh_rate: 1s
-              name: dynamic_dns_cache
 
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
       name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
@@ -261,7 +259,6 @@ spec:
               name: dynamic_dns_cache
               dns_lookup_family: V4_ONLY
               dns_refresh_rate: 1s
-              name: dynamic_dns_cache
 
     # Lua Filter for HTTPS
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
