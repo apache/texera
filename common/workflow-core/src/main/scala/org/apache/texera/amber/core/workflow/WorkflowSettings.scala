@@ -19,7 +19,11 @@
 
 package org.apache.texera.amber.core.workflow
 
+import org.apache.texera.config.GuiConfig
+
 case class WorkflowSettings(
-    dataTransferBatchSize: Int,
+    dataTransferBatchSize: Int = 400,
+    executionMode: ExecutionMode =
+      ExecutionMode.valueOf(GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode),
     outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty
 )
