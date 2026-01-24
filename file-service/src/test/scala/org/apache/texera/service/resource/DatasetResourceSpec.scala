@@ -1847,4 +1847,28 @@ class DatasetResourceSpec
     response.getStatus shouldEqual 307
     response.getHeaderString("Location") should not be null
   }
+
+  "LakeFS error handling" should "return 500 when ETag is invalid, with the message included in the error response body" in {
+    val filePath = uniqueFilePath("error-body")
+
+    initUpload(filePath, 2).getStatus shouldEqual 200
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+    uploadPart(filePath, 2, tinyBytes(2.toByte)).getStatus shouldEqual 200
+
+    val uploadId = fetchUploadIdOrFail(filePath)
+    getDSLContext
+      .update(DATASET_UPLOAD_SESSION_PART)
+      .set(DATASET_UPLOAD_SESSION_PART.ETAG, "BAD")
+      .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(uploadId))
+      .execute()
+
+    val ex = intercept[WebApplicationException] {
+      finishUpload(filePath)
+    }
+
+    ex.getResponse.getStatus shouldEqual 500
+    ex.getResponse.getEntity should not be null
+
+    abortUpload(filePath)
+  }
 }

@@ -19,6 +19,7 @@
 
 package org.apache.texera.service.resource
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -173,6 +174,47 @@ object DatasetResource {
       throw new BadRequestException("Absolute paths not allowed")
     }
     normalized
+  }
+
+  /**
+    * Converts LakeFS ApiException to appropriate HTTP exception
+    */
+  private def handleLakeFSException(e: io.lakefs.clients.sdk.ApiException): Nothing = {
+    val rawBody = Option(e.getResponseBody).filter(_.nonEmpty).getOrElse(e.getMessage)
+
+    val message =
+      Try(new ObjectMapper().readTree(rawBody).get("message").asText()).getOrElse(rawBody)
+
+    def errorResponse(status: Int): Response =
+      Response
+        .status(status)
+        .entity(Map("message" -> message).asJava)
+        .`type`(MediaType.APPLICATION_JSON)
+        .build()
+
+    throw (e.getCode match {
+      case 400 => new BadRequestException(errorResponse(400))
+      case 401 => new NotAuthorizedException(errorResponse(401))
+      case 403 => new ForbiddenException(errorResponse(403))
+      case 404 => new NotFoundException(errorResponse(404))
+      case 409 => new WebApplicationException(errorResponse(409))
+      case 410 => new WebApplicationException(errorResponse(410))
+      case 412 => new WebApplicationException(errorResponse(412))
+      case 416 => new WebApplicationException(errorResponse(416))
+      case 420 => new WebApplicationException(errorResponse(420))
+      case _   => new InternalServerErrorException(errorResponse(500))
+    })
+  }
+
+  /**
+    * Wraps a LakeFS call with centralized error handling.
+    */
+  private def withLakeFSErrorHandling[T](lakeFsCall: => T): T = {
+    try {
+      lakeFsCall
+    } catch {
+      case e: io.lakefs.clients.sdk.ApiException => handleLakeFSException(e)
+    }
   }
 
   case class DashboardDataset(
@@ -360,7 +402,9 @@ class DatasetResource {
       val repositoryName = dataset.getRepositoryName
 
       // Check if there are any changes in LakeFS before creating a new version
-      val diffs = LakeFSStorageClient.retrieveUncommittedObjects(repoName = repositoryName)
+      val diffs = withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveUncommittedObjects(repoName = repositoryName)
+      }
 
       if (diffs.isEmpty) {
         throw new WebApplicationException(
@@ -384,11 +428,13 @@ class DatasetResource {
       }
 
       // Create a commit in LakeFS
-      val commit = LakeFSStorageClient.createCommit(
-        repoName = repositoryName,
-        branch = "main",
-        commitMessage = s"Created dataset version: $newVersionName"
-      )
+      val commit = withLakeFSErrorHandling {
+        LakeFSStorageClient.createCommit(
+          repoName = repositoryName,
+          branch = "main",
+          commitMessage = s"Created dataset version: $newVersionName"
+        )
+      }
 
       if (commit == null || commit.getId == null) {
         throw new WebApplicationException(
@@ -412,7 +458,9 @@ class DatasetResource {
         .into(classOf[DatasetVersion])
 
       // Retrieve committed file structure
-      val fileNodes = LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, commit.getId)
+      val fileNodes = withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, commit.getId)
+      }
 
       DashboardDatasetVersion(
         insertedVersion,
@@ -973,7 +1021,9 @@ class DatasetResource {
 
       // Retrieve staged (uncommitted) changes from LakeFS
       val dataset = getDatasetByID(ctx, did)
-      val lakefsDiffs = LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
+      val lakefsDiffs = withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
+      }
 
       // Convert LakeFS Diff objects to our custom Diff case class
       lakefsDiffs.map(d =>
@@ -1578,11 +1628,13 @@ class DatasetResource {
         )
       }
 
-      val presign = LakeFSStorageClient.initiatePresignedMultipartUploads(
-        repositoryName,
-        filePath,
-        numPartsValue
-      )
+      val presign = withLakeFSErrorHandling {
+        LakeFSStorageClient.initiatePresignedMultipartUploads(
+          repositoryName,
+          filePath,
+          numPartsValue
+        )
+      }
 
       val uploadIdStr = presign.getUploadId
       val physicalAddr = presign.getPhysicalAddress
@@ -1772,13 +1824,15 @@ class DatasetResource {
           )
           .toList
 
-      val objectStats = LakeFSStorageClient.completePresignedMultipartUploads(
-        dataset.getRepositoryName,
-        filePath,
-        uploadId,
-        partsList,
-        physicalAddr
-      )
+      val objectStats = withLakeFSErrorHandling {
+        LakeFSStorageClient.completePresignedMultipartUploads(
+          dataset.getRepositoryName,
+          filePath,
+          uploadId,
+          partsList,
+          physicalAddr
+        )
+      }
 
       // FINAL SERVER-SIDE SIZE CHECK (do not rely on init)
       val actualSizeBytes =
@@ -1884,12 +1938,14 @@ class DatasetResource {
         )
       }
 
-      LakeFSStorageClient.abortPresignedMultipartUploads(
-        dataset.getRepositoryName,
-        filePath,
-        session.getUploadId,
-        physicalAddr
-      )
+      withLakeFSErrorHandling {
+        LakeFSStorageClient.abortPresignedMultipartUploads(
+          dataset.getRepositoryName,
+          filePath,
+          session.getUploadId,
+          physicalAddr
+        )
+      }
 
       // Delete session; parts removed via ON DELETE CASCADE
       ctx
