@@ -181,6 +181,7 @@ import { AdminSettingsComponent } from "./dashboard/component/admin/settings/adm
 import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
+import { NzRadioModule } from "ng-zorro-antd/radio";
 
 registerLocaleData(en);
 
@@ -344,6 +345,7 @@ registerLocaleData(en);
     NzProgressModule,
     NzInputNumberModule,
     NzCheckboxModule,
+    NzRadioModule,
   ],
   providers: [
     provideNzI18n(en_US),

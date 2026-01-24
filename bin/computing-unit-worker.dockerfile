@@ -43,24 +43,76 @@ RUN unzip amber/target/universal/amber-*.zip -d amber/target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
+# Build argument to enable/disable R support (default: false)
+ARG WITH_R_SUPPORT=false
+
 WORKDIR /texera/amber
 
 COPY --from=build /texera/amber/requirements.txt /tmp/requirements.txt
 COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirements.txt
 
-# Install Python runtime dependencies
+# Install Python runtime dependencies (always) and R runtime dependencies (conditional)
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     libpq-dev \
+    curl \
+    gnupg \
+    software-properties-common \
+    dirmngr \
+    git \
+    $(if [ "$WITH_R_SUPPORT" = "true" ]; then echo "\
+    gfortran \
+    libxml2-dev \
+    libssl-dev \
+    libcurl4-openssl-dev"; fi) \
     && apt-get clean
+
+# Install R from CRAN repository (pre-built, much faster than source compilation)
+RUN if [ "$WITH_R_SUPPORT" = "true" ]; then \
+        # Add CRAN GPG key and repository
+        curl -fsSL https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | \
+            gpg --dearmor -o /usr/share/keyrings/cran-ubuntu-keyring.gpg && \
+        echo "deb [signed-by=/usr/share/keyrings/cran-ubuntu-keyring.gpg] https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/" | \
+            tee /etc/apt/sources.list.d/cran.list && \
+        apt-get update && \
+        apt-get install -y r-base r-base-dev && \
+        R --version; \
+    fi
 
 # Install Python packages
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install python-lsp-server python-lsp-server[websockets] && \
     pip3 install -r /tmp/requirements.txt && \
-    pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
-    pip3 install --no-cache-dir wordcloud==1.9.2
+    (pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
+     pip3 install --no-cache-dir wordcloud==1.9.2)
+
+# Install texera-rudf and its dependencies (conditional)
+RUN if [ "$WITH_R_SUPPORT" = "true" ]; then \
+        pip3 install git+https://github.com/Texera/texera-rudf.git; \
+    fi
+
+# Install R packages with pinned versions for texera-rudf (conditional)
+RUN if [ "$WITH_R_SUPPORT" = "true" ]; then \
+        Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
+                    if (!requireNamespace('remotes', quietly=TRUE)) \
+                      install.packages('remotes', Ncpus = parallel::detectCores()); \
+                    remotes::install_version('arrow', version='22.0.0.1', \
+                      repos='https://cran.r-project.org', upgrade='never', \
+                      Ncpus = parallel::detectCores()); \
+                    remotes::install_version('coro', version='1.1.0', \
+                      repos='https://cran.r-project.org', upgrade='never', \
+                      Ncpus = parallel::detectCores()); \
+                    remotes::install_version('aws.s3', version='0.3.22', \
+                      repos='https://cran.r-project.org', upgrade='never', \
+                      Ncpus = parallel::detectCores()); \
+                    cat('R package versions:\n'); \
+                    cat('  arrow: ', as.character(packageVersion('arrow')), '\n'); \
+                    cat('  coro: ', as.character(packageVersion('coro')), '\n'); \
+                    cat('  aws.s3: ', as.character(packageVersion('aws.s3')), '\n')"; \
+    fi
+
+ENV LD_LIBRARY_PATH=/usr/lib/R/lib:$LD_LIBRARY_PATH
 
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/amber/target/amber-* /texera/amber/

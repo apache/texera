@@ -16,12 +16,25 @@
  specific language governing permissions and limitations
  under the License.
 -->
-
 <div class="settings-container">
-  <h4>Workflow Settings</h4>
   <form
     [formGroup]="settingsForm"
     class="form-inline">
+    <b>Execution Mode:</b>
+    <nz-radio-group formControlName="executionMode">
+      <label
+        nz-radio
+        [nzValue]="ExecutionMode.PIPELINED"
+        >Pipelined</label
+      >
+      <br />
+      <label
+        nz-radio
+        [nzValue]="ExecutionMode.MATERIALIZED"
+        >Materialized</label
+      >
+    </nz-radio-group>
+    <br />
     <div class="form-group">
       <label for="dataTransferBatchSize">Data Transfer Batch Size:</label>
       <input
