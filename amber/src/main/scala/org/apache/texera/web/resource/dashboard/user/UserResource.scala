@@ -22,11 +22,13 @@ package org.apache.texera.web.resource.dashboard.user
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.User.USER
+import org.apache.texera.web.resource.dashboard.user.UserResource.userDao
+
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
 case class AffiliationUpdateRequest(uid: Int, affiliation: String)
-case class JoiningReasonUpdateRequest(uid: Int, joiningReason: String)
+case class RegistrationUpdateRequest(uid: Int, affiliation: String, joiningReason: String)
 
 object UserResource {
   private lazy val context = SqlServer.getInstance().createDSLContext()
@@ -93,31 +95,27 @@ class UserResource {
 
 
   /**
-   * Submits the user's joining reason.
+   * Updates the user's affiliation and joining reason.
    * This is required and cannot be blank.
-   * @param request: provides uid and joining reason
+   * @param request: provides uid, affiliation and joining reason
    */
   @PUT
   @Path("/joining-reason")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def updateJoiningReason(request: JoiningReasonUpdateRequest): Unit = {
-    val trimmed = Option(request.joiningReason).getOrElse("").trim
-    if (trimmed.isEmpty) {
+  def updateJoiningReason(request: RegistrationUpdateRequest): Unit = {
+    val affiliation = Option(request.affiliation).getOrElse("").trim
+    val reason = Option(request.joiningReason).getOrElse("").trim
+
+    if (reason.isEmpty) {
       throw new WebApplicationException(
         "Field 'Reason of joining Texera' cannot be empty",
         Response.Status.BAD_REQUEST
       )
     }
 
-    val rowsUpdated = UserResource.context
-      .update(USER)
-      .set(USER.JOINING_REASON, trimmed)
-      .where(USER.UID.eq(request.uid))
-      .execute()
-
-    if (rowsUpdated == 0) {
-      throw new WebApplicationException("User not found", Response.Status.NOT_FOUND)
-    }
+    val user = UserResource.userDao.fetchOneByUid(request.uid)
+    user.setAffiliation(affiliation)
+    user.setJoiningReason(reason)
+    UserResource.userDao.update(user)
   }
-
 }
