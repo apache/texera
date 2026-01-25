@@ -26,6 +26,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
 case class AffiliationUpdateRequest(uid: Int, affiliation: String)
+case class JoiningReasonUpdateRequest(uid: Int, joiningReason: String)
 
 object UserResource {
   private lazy val context = SqlServer.getInstance().createDSLContext()
@@ -71,4 +72,52 @@ class UserResource {
     }
     java.lang.Boolean.valueOf(user.getAffiliation == null)
   }
+
+  /**
+   * Checks whether the user needs to submit joining reason.
+   * null: never prompted, need to prompt -> return true
+   * not null: already prompted, no need to prompt -> return false
+   * @param uid: user id
+   * @return boolean value to whether prompt user to enter joining reason or not
+   */
+  @GET
+  @Path("/joining-reason/required")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def isJoiningReasonRequired(@QueryParam("uid") uid: Int): java.lang.Boolean = {
+    val user = UserResource.userDao.fetchOneByUid(uid)
+    if (user == null) {
+      throw new WebApplicationException("User not found", Response.Status.NOT_FOUND)
+    }
+    java.lang.Boolean.valueOf(user.getJoiningReason == null)
+  }
+
+
+  /**
+   * Submits the user's joining reason.
+   * This is required and cannot be blank.
+   * @param request: provides uid and joining reason
+   */
+  @PUT
+  @Path("/joining-reason")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def updateJoiningReason(request: JoiningReasonUpdateRequest): Unit = {
+    val trimmed = Option(request.joiningReason).getOrElse("").trim
+    if (trimmed.isEmpty) {
+      throw new WebApplicationException(
+        "Field 'Reason of joining Texera' cannot be empty",
+        Response.Status.BAD_REQUEST
+      )
+    }
+
+    val rowsUpdated = UserResource.context
+      .update(USER)
+      .set(USER.JOINING_REASON, trimmed)
+      .where(USER.UID.eq(request.uid))
+      .execute()
+
+    if (rowsUpdated == 0) {
+      throw new WebApplicationException("User not found", Response.Status.NOT_FOUND)
+    }
+  }
+
 }
