@@ -18,6 +18,7 @@
 import pyarrow as pa
 import pyiceberg.table
 from pyiceberg.catalog import Catalog
+from pyiceberg.catalog.rest import RESTCatalog
 from pyiceberg.catalog.sql import SqlCatalog
 from pyiceberg.expressions import AlwaysTrue
 from pyiceberg.io.pyarrow import ArrowScan
@@ -149,6 +150,43 @@ def create_postgres_catalog(
         **{
             "uri": f"postgresql+pg8000://{username}:{password}@{uri_without_scheme}",
             "warehouse": f"file://{warehouse_path}",
+        },
+    )
+
+
+def create_rest_catalog(
+    catalog_name: str,
+    warehouse_name: str,
+    rest_uri: str,
+    s3_endpoint: str,
+    s3_region: str,
+    s3_username: str,
+    s3_password: str,
+) -> RESTCatalog:
+    """
+    Creates a REST catalog instance by connecting to a REST endpoint.
+    - Configures the catalog to interact with a REST endpoint.
+    - The warehouse_name parameter specifies the warehouse identifier (name for Lakekeeper).
+    - Configures S3FileIO for MinIO/S3 storage backend.
+    :param catalog_name: the name of the catalog.
+    :param warehouse_name: the warehouse identifier (name for Lakekeeper).
+    :param rest_uri: the URI of the REST catalog endpoint.
+    :param s3_endpoint: the S3 endpoint URL.
+    :param s3_region: the S3 region.
+    :param s3_username: the S3 access key ID.
+    :param s3_password: the S3 secret access key.
+    :return: a RESTCatalog instance.
+    """
+    return RESTCatalog(
+        name=catalog_name,
+        properties={
+            "uri": rest_uri,
+            "warehouse": warehouse_name,
+            "s3.endpoint": s3_endpoint,
+            "s3.access-key-id": s3_username,
+            "s3.secret-access-key": s3_password,
+            "s3.region": s3_region,
+            "s3.path-style-access": "true",
         },
     )
 
