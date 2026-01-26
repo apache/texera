@@ -19,7 +19,6 @@
 
 package org.apache.texera.service.resource
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -73,6 +72,7 @@ import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATA
 import org.jooq.exception.DataAccessException
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
 import org.apache.commons.io.FilenameUtils
+import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 
 import java.sql.SQLException
 import scala.util.Try
@@ -174,47 +174,6 @@ object DatasetResource {
       throw new BadRequestException("Absolute paths not allowed")
     }
     normalized
-  }
-
-  /**
-    * Converts LakeFS ApiException to appropriate HTTP exception
-    */
-  private def handleLakeFSException(e: io.lakefs.clients.sdk.ApiException): Nothing = {
-    val rawBody = Option(e.getResponseBody).filter(_.nonEmpty).getOrElse(e.getMessage)
-
-    val message =
-      Try(new ObjectMapper().readTree(rawBody).get("message").asText()).getOrElse(rawBody)
-
-    def errorResponse(status: Int): Response =
-      Response
-        .status(status)
-        .entity(Map("message" -> message).asJava)
-        .`type`(MediaType.APPLICATION_JSON)
-        .build()
-
-    throw (e.getCode match {
-      case 400 => new BadRequestException(errorResponse(400))
-      case 401 => new NotAuthorizedException(errorResponse(401))
-      case 403 => new ForbiddenException(errorResponse(403))
-      case 404 => new NotFoundException(errorResponse(404))
-      case 409 => new WebApplicationException(errorResponse(409))
-      case 410 => new WebApplicationException(errorResponse(410))
-      case 412 => new WebApplicationException(errorResponse(412))
-      case 416 => new WebApplicationException(errorResponse(416))
-      case 420 => new WebApplicationException(errorResponse(420))
-      case _   => new InternalServerErrorException(errorResponse(500))
-    })
-  }
-
-  /**
-    * Wraps a LakeFS call with centralized error handling.
-    */
-  private def withLakeFSErrorHandling[T](lakeFsCall: => T): T = {
-    try {
-      lakeFsCall
-    } catch {
-      case e: io.lakefs.clients.sdk.ApiException => handleLakeFSException(e)
-    }
   }
 
   case class DashboardDataset(
