@@ -19,13 +19,20 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{
+  ExecutionMode,
+  PortIdentity,
+  WorkflowContext,
+  WorkflowSettings
+}
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
+
+import scala.jdk.CollectionConverters._
 
 class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
@@ -204,6 +211,308 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     // Probe->Keyword2 are pipelined, reducing the search space to 4 states.
     assert(globalSearchAllPruningEnabledResult.numStatesExplored == 4)
 
+  }
+
+  // MATERIALIZED ExecutionMode tests - each operator should be a separate region
+  "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for simple csv workflow" in {
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+    val materializedContext = new WorkflowContext(
+      workflowSettings = WorkflowSettings(
+        dataTransferBatchSize = 400,
+        executionMode = ExecutionMode.MATERIALIZED
+      )
+    )
+    val workflow = buildWorkflow(
+      List(csvOpDesc),
+      List(),
+      materializedContext
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    )
+    val result = scheduleGenerator.getFullyMaterializedSearchState
+
+    // Should only explore 1 state (fully materialized)
+    assert(result.numStatesExplored == 1)
+
+    // Each physical operator should be in its own region
+    val regions = result.regionDAG.vertexSet().asScala
+    val numPhysicalOps = workflow.physicalPlan.operators.size
+    assert(regions.size == numPhysicalOps, s"Expected $numPhysicalOps regions, got ${regions.size}")
+
+    // Each region should contain exactly 1 operator
+    regions.foreach { region =>
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
+    }
+  }
+
+  "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for csv->keyword workflow" in {
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val materializedContext = new WorkflowContext(
+      workflowSettings = WorkflowSettings(
+        dataTransferBatchSize = 400,
+        executionMode = ExecutionMode.MATERIALIZED
+      )
+    )
+    val workflow = buildWorkflow(
+      List(csvOpDesc, keywordOpDesc),
+      List(
+        LogicalLink(
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      materializedContext
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    )
+    val result = scheduleGenerator.getFullyMaterializedSearchState
+
+    // Should only explore 1 state (fully materialized)
+    assert(result.numStatesExplored == 1)
+
+    // Each physical operator should be in its own region
+    val regions = result.regionDAG.vertexSet().asScala
+    val numPhysicalOps = workflow.physicalPlan.operators.size
+    assert(regions.size == numPhysicalOps, s"Expected $numPhysicalOps regions, got ${regions.size}")
+
+    // Each region should contain exactly 1 operator
+    regions.foreach { region =>
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
+    }
+
+    // All links should be materialized (represented as region links)
+    val numRegionLinks = result.regionDAG.edgeSet().asScala.size
+    val numPhysicalLinks = workflow.physicalPlan.links.size
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
+  }
+
+  "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for csv->keyword->count workflow" in {
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val countOpDesc = TestOperators.aggregateAndGroupByDesc(
+      "Region",
+      org.apache.texera.amber.operator.aggregate.AggregationFunction.COUNT,
+      List[String]()
+    )
+    val materializedContext = new WorkflowContext(
+      workflowSettings = WorkflowSettings(
+        dataTransferBatchSize = 400,
+        executionMode = ExecutionMode.MATERIALIZED
+      )
+    )
+    val workflow = buildWorkflow(
+      List(csvOpDesc, keywordOpDesc, countOpDesc),
+      List(
+        LogicalLink(
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          countOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      materializedContext
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    )
+    val result = scheduleGenerator.getFullyMaterializedSearchState
+
+    // Should only explore 1 state (fully materialized)
+    assert(result.numStatesExplored == 1)
+
+    // Each physical operator should be in its own region
+    val regions = result.regionDAG.vertexSet().asScala
+    val numPhysicalOps = workflow.physicalPlan.operators.size
+    assert(regions.size == numPhysicalOps, s"Expected $numPhysicalOps regions, got ${regions.size}")
+
+    // Each region should contain exactly 1 operator
+    regions.foreach { region =>
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
+    }
+
+    // All links should be materialized (represented as region links)
+    val numRegionLinks = result.regionDAG.edgeSet().asScala.size
+    val numPhysicalLinks = workflow.physicalPlan.links.size
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
+  }
+
+  "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for join workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val materializedContext = new WorkflowContext(
+      workflowSettings = WorkflowSettings(
+        dataTransferBatchSize = 400,
+        executionMode = ExecutionMode.MATERIALIZED
+      )
+    )
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        headerlessCsvOpDesc2,
+        joinOpDesc
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc2.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        )
+      ),
+      materializedContext
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    )
+    val result = scheduleGenerator.getFullyMaterializedSearchState
+
+    // Should only explore 1 state (fully materialized)
+    assert(result.numStatesExplored == 1)
+
+    // Each physical operator should be in its own region
+    val regions = result.regionDAG.vertexSet().asScala
+    val numPhysicalOps = workflow.physicalPlan.operators.size
+    assert(regions.size == numPhysicalOps, s"Expected $numPhysicalOps regions, got ${regions.size}")
+
+    // Each region should contain exactly 1 operator
+    regions.foreach { region =>
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
+    }
+
+    // All links should be materialized (represented as region links)
+    val numRegionLinks = result.regionDAG.edgeSet().asScala.size
+    val numPhysicalLinks = workflow.physicalPlan.links.size
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
+  }
+
+  "CostBasedRegionPlanGenerator" should "create separate region for each operator in MATERIALIZED mode for complex csv->->filter->join->filter2 workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val keywordOpDesc2 = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val materializedContext = new WorkflowContext(
+      workflowSettings = WorkflowSettings(
+        dataTransferBatchSize = 400,
+        executionMode = ExecutionMode.MATERIALIZED
+      )
+    )
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        keywordOpDesc2
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      materializedContext
+    )
+
+    val scheduleGenerator = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    )
+    val result = scheduleGenerator.getFullyMaterializedSearchState
+
+    // Should only explore 1 state (fully materialized)
+    assert(result.numStatesExplored == 1)
+
+    // Each physical operator should be in its own region
+    val regions = result.regionDAG.vertexSet().asScala
+    val numPhysicalOps = workflow.physicalPlan.operators.size
+    assert(regions.size == numPhysicalOps, s"Expected $numPhysicalOps regions, got ${regions.size}")
+
+    // Each region should contain exactly 1 operator
+    regions.foreach { region =>
+      assert(
+        region.getOperators.size == 1,
+        s"Expected region to have 1 operator, got ${region.getOperators.size}"
+      )
+    }
+
+    // All links should be materialized (represented as region links)
+    val numRegionLinks = result.regionDAG.edgeSet().asScala.size
+    val numPhysicalLinks = workflow.physicalPlan.links.size
+    assert(
+      numRegionLinks == numPhysicalLinks,
+      s"Expected $numPhysicalLinks region links, got $numRegionLinks"
+    )
   }
 
 }

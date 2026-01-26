@@ -151,8 +151,9 @@ class WorkflowCompiler(
     val (physicalPlan, outputPortsNeedingStorage) =
       expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 
-    context.workflowSettings =
-      WorkflowSettings(context.workflowSettings.dataTransferBatchSize, outputPortsNeedingStorage)
+    context.workflowSettings = context.workflowSettings.copy(
+      outputPortsNeedingStorage = outputPortsNeedingStorage
+    )
 
     Workflow(context, logicalPlan, physicalPlan)
   }

@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
+import { ExecutionMode, Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
@@ -127,6 +127,7 @@ export class WorkflowActionService {
   private getDefaultSettings(): WorkflowSettings {
     return {
       dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+      executionMode: this.config.env.defaultExecutionMode,
     };
   }
 
@@ -805,6 +806,10 @@ export class WorkflowActionService {
     if (size > 0 && size != null) {
       this.setWorkflowSettings({ ...this.workflowSettings, dataTransferBatchSize: size });
     }
+  }
+
+  public updateExecutionMode(mode: ExecutionMode): void {
+    this.setWorkflowSettings({ ...this.workflowSettings, executionMode: mode });
   }
 
   public clearWorkflow(): void {

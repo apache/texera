@@ -47,6 +47,8 @@ object GuiConfig {
     conf.getBoolean("gui.workflow-workspace.auto-attribute-correction-enabled")
   val guiWorkflowWorkspaceDefaultDataTransferBatchSize: Int =
     conf.getInt("gui.workflow-workspace.default-data-transfer-batch-size")
+  val guiWorkflowWorkspaceDefaultExecutionMode: String =
+    conf.getString("gui.workflow-workspace.default-execution-mode")
   val guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.selecting-files-from-datasets-enabled")
   val guiWorkflowWorkspaceWorkflowExecutionsTrackingEnabled: Boolean =

@@ -20,7 +20,7 @@
 import { Component, EventEmitter, inject, OnDestroy, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
-import { ShareAccess } from "../../../type/share-access.interface";
+import { Privilege, ShareAccess } from "../../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
 import { GmailService } from "../../../../common/service/gmail/gmail.service";
@@ -40,7 +40,6 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 })
 export class ShareAccessComponent implements OnInit, OnDestroy {
   readonly nzModalData = inject(NZ_MODAL_DATA);
-  readonly writeAccess: boolean = this.nzModalData.writeAccess;
   readonly type: string = this.nzModalData.type;
   readonly id: number = this.nzModalData.id;
   readonly allOwners: string[] = this.nzModalData.allOwners;
@@ -74,6 +73,17 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
       accessLevel: ["WRITE"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
+  }
+
+  get hasWriteAccess(): boolean {
+    if (!this.currentEmail) {
+      return false;
+    }
+    if (this.currentEmail === this.owner) {
+      return true;
+    }
+    const currentUserAccess = this.accessList.find(entry => entry.email === this.currentEmail);
+    return currentUserAccess?.privilege === Privilege.WRITE;
   }
 
   ngOnInit(): void {
@@ -234,6 +244,57 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
           if (error instanceof HttpErrorResponse) {
             this.notificationService.error(error.error.message);
           }
+        },
+      });
+  }
+
+  public changeAccessLevel(email: string, newPrivilege: string): void {
+    const isOwnAccess = email === this.currentEmail;
+    const currentUserAccess = this.accessList.find(entry => entry.email === email);
+    const isDowngrade = currentUserAccess?.privilege === Privilege.WRITE && newPrivilege === "READ";
+
+    if (isOwnAccess && isDowngrade) {
+      const modal: NzModalRef = this.modalService.create({
+        nzTitle: "Downgrade Your Access",
+        nzContent: `Are you sure you want to change your own access to READ? You will no longer be able to edit this ${this.type} or manage access.`,
+        nzFooter: [
+          {
+            label: "Cancel",
+            onClick: () => {
+              modal.close();
+              this.ngOnInit();
+            },
+          },
+          {
+            label: "Confirm",
+            type: "primary",
+            danger: true,
+            onClick: () => {
+              this.applyAccessLevelChange(email, newPrivilege);
+              modal.close();
+            },
+          },
+        ],
+      });
+    } else {
+      this.applyAccessLevelChange(email, newPrivilege);
+    }
+  }
+
+  private applyAccessLevelChange(email: string, newPrivilege: string): void {
+    this.accessService
+      .grantAccess(this.type, this.id, email, newPrivilege)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(`Access level for ${email} changed to ${newPrivilege}.`);
+          this.ngOnInit();
+        },
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            this.notificationService.error(error.error.message);
+          }
+          this.ngOnInit();
         },
       });
   }
