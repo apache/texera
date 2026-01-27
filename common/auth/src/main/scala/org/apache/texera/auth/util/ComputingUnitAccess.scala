@@ -28,9 +28,10 @@ import org.jooq.DSLContext
 import scala.jdk.CollectionConverters._
 
 object ComputingUnitAccess {
-  private lazy val context: DSLContext = SqlServer
-    .getInstance()
-    .createDSLContext()
+  private def context: DSLContext =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
 
   def getComputingUnitAccess(cuid: Integer, uid: Integer): PrivilegeEnum = {
     val workflowComputingUnitDao = new WorkflowComputingUnitDao(context.configuration())
