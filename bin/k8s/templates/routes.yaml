@@ -119,5 +119,5 @@ spec:
             type: PathPrefix
             value: /internal/auth-placeholder
       backendRefs:
-        - name: {{ .Values.accessControlService.name }}-svc
+        - name: {{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc
           port: {{ .Values.accessControlService.service.port }}
