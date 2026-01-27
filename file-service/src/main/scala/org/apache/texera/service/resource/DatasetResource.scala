@@ -72,6 +72,7 @@ import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATA
 import org.jooq.exception.DataAccessException
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
 import org.apache.commons.io.FilenameUtils
+import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
 
 import java.sql.SQLException
 import scala.util.Try
@@ -360,7 +361,9 @@ class DatasetResource {
       val repositoryName = dataset.getRepositoryName
 
       // Check if there are any changes in LakeFS before creating a new version
-      val diffs = LakeFSStorageClient.retrieveUncommittedObjects(repoName = repositoryName)
+      val diffs = withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveUncommittedObjects(repoName = repositoryName)
+      }
 
       if (diffs.isEmpty) {
         throw new WebApplicationException(
@@ -384,11 +387,13 @@ class DatasetResource {
       }
 
       // Create a commit in LakeFS
-      val commit = LakeFSStorageClient.createCommit(
-        repoName = repositoryName,
-        branch = "main",
-        commitMessage = s"Created dataset version: $newVersionName"
-      )
+      val commit = withLakeFSErrorHandling {
+        LakeFSStorageClient.createCommit(
+          repoName = repositoryName,
+          branch = "main",
+          commitMessage = s"Created dataset version: $newVersionName"
+        )
+      }
 
       if (commit == null || commit.getId == null) {
         throw new WebApplicationException(
@@ -412,7 +417,9 @@ class DatasetResource {
         .into(classOf[DatasetVersion])
 
       // Retrieve committed file structure
-      val fileNodes = LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, commit.getId)
+      val fileNodes = withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveObjectsOfVersion(repositoryName, commit.getId)
+      }
 
       DashboardDatasetVersion(
         insertedVersion,
@@ -973,7 +980,9 @@ class DatasetResource {
 
       // Retrieve staged (uncommitted) changes from LakeFS
       val dataset = getDatasetByID(ctx, did)
-      val lakefsDiffs = LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
+      val lakefsDiffs = withLakeFSErrorHandling {
+        LakeFSStorageClient.retrieveUncommittedObjects(dataset.getRepositoryName)
+      }
 
       // Convert LakeFS Diff objects to our custom Diff case class
       lakefsDiffs.map(d =>
@@ -1578,11 +1587,13 @@ class DatasetResource {
         )
       }
 
-      val presign = LakeFSStorageClient.initiatePresignedMultipartUploads(
-        repositoryName,
-        filePath,
-        numPartsValue
-      )
+      val presign = withLakeFSErrorHandling {
+        LakeFSStorageClient.initiatePresignedMultipartUploads(
+          repositoryName,
+          filePath,
+          numPartsValue
+        )
+      }
 
       val uploadIdStr = presign.getUploadId
       val physicalAddr = presign.getPhysicalAddress
@@ -1772,13 +1783,15 @@ class DatasetResource {
           )
           .toList
 
-      val objectStats = LakeFSStorageClient.completePresignedMultipartUploads(
-        dataset.getRepositoryName,
-        filePath,
-        uploadId,
-        partsList,
-        physicalAddr
-      )
+      val objectStats = withLakeFSErrorHandling {
+        LakeFSStorageClient.completePresignedMultipartUploads(
+          dataset.getRepositoryName,
+          filePath,
+          uploadId,
+          partsList,
+          physicalAddr
+        )
+      }
 
       // FINAL SERVER-SIDE SIZE CHECK (do not rely on init)
       val actualSizeBytes =
@@ -1884,12 +1897,14 @@ class DatasetResource {
         )
       }
 
-      LakeFSStorageClient.abortPresignedMultipartUploads(
-        dataset.getRepositoryName,
-        filePath,
-        session.getUploadId,
-        physicalAddr
-      )
+      withLakeFSErrorHandling {
+        LakeFSStorageClient.abortPresignedMultipartUploads(
+          dataset.getRepositoryName,
+          filePath,
+          session.getUploadId,
+          physicalAddr
+        )
+      }
 
       // Delete session; parts removed via ON DELETE CASCADE
       ctx
