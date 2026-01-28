@@ -1,0 +1,21 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: texera-ext-auth
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: texera-dynamic-routes
+  extAuth:
+    http:
+      backendRefs:
+        - name: {{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc
+          port: {{ .Values.accessControlService.service.port }}
+      path: /api/auth
+      headersToBackend:
+        - x-user-cu-access
+        - x-user-id
+        - x-user-name
+        - x-user-email
