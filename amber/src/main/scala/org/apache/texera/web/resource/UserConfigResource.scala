@@ -41,7 +41,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Consumes(Array(MediaType.TEXT_PLAIN))
 class UserConfigResource {
-  final private lazy val userDictionaryDao = new UserConfigDao(
+  private def userDictionaryDao = new UserConfigDao(
     SqlServer
       .getInstance()
       .createDSLContext()

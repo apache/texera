@@ -36,7 +36,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object GoogleAuthResource {
-  final private lazy val userDao = new UserDao(
+  private def userDao = new UserDao(
     SqlServer
       .getInstance()
       .createDSLContext()
