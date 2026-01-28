@@ -17,8 +17,7 @@
 
 import pyarrow as pa
 import pyiceberg.table
-from pyiceberg.catalog import Catalog
-from pyiceberg.catalog.rest import RESTCatalog
+from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.catalog.sql import SqlCatalog
 from pyiceberg.expressions import AlwaysTrue
 from pyiceberg.io.pyarrow import ArrowScan
@@ -162,7 +161,7 @@ def create_rest_catalog(
     s3_region: str,
     s3_username: str,
     s3_password: str,
-) -> RESTCatalog:
+) -> Catalog:
     """
     Creates a REST catalog instance by connecting to a REST endpoint.
     - Configures the catalog to interact with a REST endpoint.
@@ -175,11 +174,12 @@ def create_rest_catalog(
     :param s3_region: the S3 region.
     :param s3_username: the S3 access key ID.
     :param s3_password: the S3 secret access key.
-    :return: a RESTCatalog instance.
+    :return: a Catalog instance (REST catalog).
     """
-    return RESTCatalog(
-        name=catalog_name,
-        properties={
+    return load_catalog(
+        catalog_name,
+        **{
+            "type": "rest",
             "uri": rest_uri,
             "warehouse": warehouse_name,
             "s3.endpoint": s3_endpoint,

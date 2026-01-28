@@ -184,8 +184,6 @@ class PythonWorkflowWorker(
         StorageConfig.icebergPostgresCatalogPassword,
         StorageConfig.icebergRESTCatalogUri,
         StorageConfig.icebergRESTCatalogWarehouseName,
-        StorageConfig.s3Endpoint,
-        StorageConfig.s3Region,
         StorageConfig.s3Username,
         StorageConfig.s3Password,
         StorageConfig.icebergTableResultNamespace,

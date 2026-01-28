@@ -43,8 +43,6 @@ StorageConfig.initialize(
     postgres_password="password",
     rest_catalog_uri="",
     rest_catalog_warehouse_name="",
-    s3_endpoint="",
-    s3_region="",
     s3_username="",
     s3_password="",
     table_result_namespace="operator-port-result",

@@ -31,8 +31,6 @@ class StorageConfig:
     ICEBERG_POSTGRES_CATALOG_PASSWORD = None
     ICEBERG_REST_CATALOG_URI = None
     ICEBERG_REST_CATALOG_WAREHOUSE_NAME = None
-    S3_ENDPOINT = None
-    S3_REGION = None
     S3_USERNAME = None
     S3_PASSWORD = None
     ICEBERG_TABLE_RESULT_NAMESPACE = None
@@ -54,8 +52,6 @@ class StorageConfig:
         postgres_password,
         rest_catalog_uri,
         rest_catalog_warehouse_name,
-        s3_endpoint,
-        s3_region,
         s3_username,
         s3_password,
         table_result_namespace,
@@ -77,8 +73,7 @@ class StorageConfig:
         cls.ICEBERG_POSTGRES_CATALOG_PASSWORD = postgres_password
         cls.ICEBERG_REST_CATALOG_URI = rest_catalog_uri
         cls.ICEBERG_REST_CATALOG_WAREHOUSE_NAME = rest_catalog_warehouse_name
-        cls.S3_ENDPOINT = s3_endpoint
-        cls.S3_REGION = s3_region
+
         cls.S3_USERNAME = s3_username
         cls.S3_PASSWORD = s3_password
         cls.ICEBERG_TABLE_RESULT_NAMESPACE = table_result_namespace
