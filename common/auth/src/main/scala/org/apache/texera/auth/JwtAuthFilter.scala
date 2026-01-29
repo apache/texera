@@ -35,7 +35,7 @@ class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
 
   @Context
   private var resourceInfo: ResourceInfo = _
-  private val ctx = SqlServer.getInstance().createDSLContext()
+  private def ctx = SqlServer.getInstance().createDSLContext()
 
   override def filter(requestContext: ContainerRequestContext): Unit = {
     val authHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION)
