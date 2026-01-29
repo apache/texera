@@ -19,3 +19,4 @@ spec:
         - x-user-id
         - x-user-name
         - x-user-email
+        - Host

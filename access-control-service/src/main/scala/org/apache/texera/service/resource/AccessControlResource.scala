@@ -121,12 +121,20 @@ object AccessControlResource extends LazyLogging {
         return Response.status(Response.Status.FORBIDDEN).build()
     }
 
+    // Dynamic Routing Logic
+    val workflowComputingUnitPoolName = sys.env.getOrElse("WORKFLOW_COMPUTING_UNIT_POOL_NAME", "texera-workflow-computing-unit-pool")
+    val workflowComputingUnitPoolNamespace = sys.env.getOrElse("WORKFLOW_COMPUTING_UNIT_POOL_NAMESPACE", "texera-workflow-computing-units")
+    val workflowComputingUnitPoolPort = sys.env.getOrElse("WORKFLOW_COMPUTING_UNIT_POOL_PORT", "8888")
+    
+    val targetHost = s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
+
     Response
       .ok()
       .header(HeaderField.UserComputingUnitAccess, cuAccess.toString)
       .header(HeaderField.UserId, userSession.get().getUid.toString)
       .header(HeaderField.UserName, userSession.get().getName)
       .header(HeaderField.UserEmail, userSession.get().getEmail)
+      .header("Host", targetHost) // Envoy ExtAuth: Rewrite Host
       .build()
   }
 

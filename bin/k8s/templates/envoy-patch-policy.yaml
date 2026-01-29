@@ -11,49 +11,7 @@ spec:
     name: {{ .Release.Name }}-gateway
   jsonPatches:
     # ------------------------------------------------------------------
-    # 1. Convert Dynamic Route Cluster to DFP
-    # ------------------------------------------------------------------
-    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
-      operation:
-        op: "remove"
-        path: "/type"
-
-    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
-      operation:
-        op: "remove"
-        path: "/eds_cluster_config"
-
-    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
-      operation:
-        op: "remove"
-        path: "/load_assignment"
-
-    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
-      operation:
-        op: "add"
-        path: "/lb_policy"
-        value: "CLUSTER_PROVIDED"
-
-    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-      name: "httproute/{{ .Release.Namespace }}/texera-dynamic-routes/rule/0"
-      operation:
-        op: "add"
-        path: "/cluster_type"
-        value:
-          name: envoy.clusters.dynamic_forward_proxy
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
-            dns_cache_config:
-              name: dynamic_dns_cache
-              dns_lookup_family: V4_ONLY
-              dns_refresh_rate: 1s
-
-    # ------------------------------------------------------------------
-    # 2. Patch Listener: WebSocket Upgrades
+    # Patch Listener: WebSocket Upgrades (HTTP)
     # ------------------------------------------------------------------
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
       name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
@@ -64,28 +22,8 @@ spec:
           - upgrade_type: "websocket"
 
     # ------------------------------------------------------------------
-    # 3. Patch Listener: Add HTTP Filters
+    # Patch Listener: WebSocket Upgrades (HTTPS)
     # ------------------------------------------------------------------
-    # Dynamic Forward Proxy Filter for HTTP
-    - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/http"
-      operation:
-        op: "add"
-        path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
-        value:
-          name: envoy.filters.http.dynamic_forward_proxy
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.dynamic_forward_proxy.v3.FilterConfig
-            dns_cache_config:
-              name: dynamic_dns_cache
-              dns_lookup_family: V4_ONLY
-              dns_refresh_rate: 1s
-
-    # ------------------------------------------------------------------
-    # HTTPS LISTENER PATCHES
-    # ------------------------------------------------------------------
-
-    # WebSocket Upgrades for HTTPS
     - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
       name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
       operation:
@@ -93,18 +31,3 @@ spec:
         path: "/default_filter_chain/filters/0/typed_config/upgrade_configs"
         value:
           - upgrade_type: "websocket"
-
-    # Dynamic Forward Proxy Filter for HTTPS
-    - type: "type.googleapis.com/envoy.config.listener.v3.Listener"
-      name: "{{ .Release.Namespace }}/{{ .Release.Name }}-gateway/https"
-      operation:
-        op: "add"
-        path: "/default_filter_chain/filters/0/typed_config/http_filters/0"
-        value:
-          name: envoy.filters.http.dynamic_forward_proxy
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.http.dynamic_forward_proxy.v3.FilterConfig
-            dns_cache_config:
-              name: dynamic_dns_cache
-              dns_lookup_family: V4_ONLY
-              dns_refresh_rate: 1s

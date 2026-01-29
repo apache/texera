@@ -46,6 +46,12 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
+            - name: WORKFLOW_COMPUTING_UNIT_POOL_NAME
+              value: {{ .Values.workflowComputingUnitPool.name }}
+            - name: WORKFLOW_COMPUTING_UNIT_POOL_NAMESPACE
+              value: {{ .Values.workflowComputingUnitPool.namespace }}
+            - name: WORKFLOW_COMPUTING_UNIT_POOL_PORT
+              value: "{{ .Values.workflowComputingUnitPool.service.port }}"
           livenessProbe:
             httpGet:
               path: /api/healthcheck

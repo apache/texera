@@ -98,5 +98,6 @@ spec:
             type: PathPrefix
             value: /api/executions/result/export
       backendRefs:
-        - name: webserver-svc # Placeholder, overridden by EnvoyPatchPolicy
-          port: 8080
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: texera-dynamic-backend

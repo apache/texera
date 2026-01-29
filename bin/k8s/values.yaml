@@ -163,7 +163,7 @@ configService:
 accessControlService:
   name: access-control-service
   numOfPods: 1
-  imageName: texera/access-control-service:hub-deployment-amd64
+  imageName: alirisheh876/texera-access-control-service:gateway
   service:
     type: ClusterIP
     port: 9096
