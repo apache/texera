@@ -22,7 +22,7 @@ postgresql:
       max_connections = 300
     persistence:
       size: 10Gi
-      storageClass: nfs-client
+      storageClass: local-path
 
 minio:
   customIngress:
@@ -34,7 +34,7 @@ minio:
     type: ClusterIP
   persistence:
     size: 20Gi
-    storageClass: nfs-client
+    storageClass: local-path
   resources:
     requests:
       cpu: "50m"
