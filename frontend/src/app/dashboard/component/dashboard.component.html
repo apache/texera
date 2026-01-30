@@ -213,40 +213,4 @@
       </nz-content>
     </nz-layout>
   </div>
-  <nz-modal
-    [(nzVisible)]="registrationModalVisible"
-    [nzMaskClosable]="false"
-    [nzClosable]="false"
-    nzTitle="Request access">
-    <ng-container *nzModalContent>
-      <p>Please fill out this form to request access.</p>
-
-      <label>Name</label>
-      <input nz-input [(ngModel)]="registrationNameInput" placeholder="Your name" />
-
-      <label style="display:block; margin-top: 12px;">Affiliation (optional)</label>
-      <input nz-input [(ngModel)]="registrationAffiliationInput" placeholder="e.g. UC Irvine" />
-
-      <label style="display:block; margin-top: 12px;">Reason (required)</label>
-      <textarea
-        nz-input
-        [(ngModel)]="registrationReasonInput"
-        rows="4"
-        placeholder="Briefly explain why you want access"></textarea>
-    </ng-container>
-
-    <ng-container *nzModalFooter>
-      <button nz-button (click)="cancelRegistration()" [disabled]="registrationSaving">
-        Cancel
-      </button>
-      <button
-        nz-button
-        nzType="primary"
-        [nzLoading]="registrationSaving"
-        (click)="sendRegistrationRequest()">
-        Send request to Admin
-      </button>
-    </ng-container>
-  </nz-modal>
-
 </nz-layout>

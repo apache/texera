@@ -27,7 +27,6 @@ import { HubComponent } from "../../hub/component/hub.component";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
-import { GmailService } from "../../common/service/gmail/gmail.service";
 
 
 import {
@@ -45,6 +44,8 @@ import {
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { User } from "../../common/type/user";
+import { Role } from "../../common/type/user";
+
 
 @Component({
   selector: "texera-dashboard",
@@ -77,16 +78,6 @@ export class DashboardComponent implements OnInit {
     forum_enabled: false,
     about_enabled: false,
   };
-  // Variables related to updating user's affiliation
-  affiliationModalVisible = false;
-  affiliationInput: string = "";
-  affiliationSaving = false;
-
-  registrationModalVisible = false;
-  registrationNameInput = "";
-  registrationAffiliationInput = "";
-  registrationReasonInput = "";
-  registrationSaving = false;
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -108,8 +99,7 @@ export class DashboardComponent implements OnInit {
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
     protected config: GuiConfigService,
-    private gmailService: GmailService
-  ) {}
+) {}
 
   ngOnInit(): void {
     this.isCollapsed = false;
@@ -133,7 +123,6 @@ export class DashboardComponent implements OnInit {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
           this.forumLogin();
-          this.checkRegistrationPrompt(user);
           this.cdr.detectChanges();
         });
       });
@@ -207,110 +196,6 @@ export class DashboardComponent implements OnInit {
           },
         });
     }
-  }
-
-
-  /**
-   * Checks and prompts user to enter their registration & request form
-   * @param user
-   */
-  checkRegistrationPrompt(user: User | undefined): void {
-    if (!user || !this.config.env.googleLogin) return;
-
-    // check if the system is in invite-only mode, and only for INACTIVE users
-    if (!this.config.env.inviteOnly || user.role !== "INACTIVE") return;
-
-    this.userService
-      .checkRegistration()
-      .pipe(untilDestroyed(this))
-      .subscribe(required => {
-        if (!required) {
-          // already prompted but still inactive, logout
-          this.userService.logout();
-          return;
-        }
-
-        this.registrationNameInput = user.name ?? "";
-        this.registrationAffiliationInput = user.affiliation ?? "";
-        this.registrationReasonInput = "";
-        this.registrationModalVisible = true;
-      });
-  }
-
-  sendRegistrationRequest(): void {
-    const name = (this.registrationNameInput ?? "").trim();
-    const affiliation = (this.registrationAffiliationInput ?? "").trim(); // optional field
-    const reason = (this.registrationReasonInput ?? "").trim(); // required field
-
-    if (!reason) {
-      // optionally show an nz-message here
-      return;
-    }
-
-    const email = this.userService.getCurrentUser()?.email ?? "";
-
-    this.registrationSaving = true;
-    // 1) persist required joining reason in DB (enforced by backend)
-    // 2) persist affiliation (optional)
-    // 3) email admin (existing mechanism)
-    // 4) logout user
-    this.userService
-      .submitRegistration(affiliation, reason)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.registrationSaving = false;
-          this.registrationModalVisible = false;
-          this.gmailService.notifyUnauthorizedLogin(email);
-
-          this.registrationSaving = false;
-          this.registrationModalVisible = false;
-          this.userService.logout();
-        },
-      });
-  }
-
-  cancelRegistration(): void {
-    this.registrationModalVisible = false;
-    this.userService.logout();
-  }
-
-  /**
-   * Saves the affiliation
-   */
-  saveAffiliation(): void {
-    const value = this.affiliationInput?.trim() ?? "";
-    this.affiliationSaving = true;
-
-    this.userService
-      .updateAffiliation(value)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.affiliationSaving = false;
-          this.affiliationModalVisible = false;
-        },
-        error: () => {
-          this.affiliationSaving = false;
-          this.affiliationModalVisible = false;
-        },
-      });
-  }
-
-  /**
-   * Skips the affiliation input and update the database to store an empty string, which means the user has
-   * already been prompted.
-   */
-  skipAffiliation(): void {
-    this.affiliationInput = "";
-    this.saveAffiliation();
-  }
-
-  /**
-   * Skips the affiliation input when user closed the prompt window via outside click, ESC
-   */
-  onAffiliationCancel(): void {
-    this.skipAffiliation();
   }
 
   checkRoute() {

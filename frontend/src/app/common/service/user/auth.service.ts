@@ -131,13 +131,8 @@ export class AuthService {
     const uid = this.jwtHelperService.decodeToken(token).userId;
     const email = this.jwtHelperService.decodeToken(token).email;
     const name = this.jwtHelperService.decodeToken(token).sub;
-    console.log("decoded role:", role, "Role.INACTIVE:", Role.INACTIVE);
-    console.log(role === Role.INACTIVE);
-    console.log(this.config.env.inviteOnly)
-
 
     if (this.config.env.inviteOnly && role === Role.INACTIVE) {
-      console.log(123);
       setTimeout(() => {
         this.checkRegistrationRequired(uid).subscribe(required => {
           if (required) {
