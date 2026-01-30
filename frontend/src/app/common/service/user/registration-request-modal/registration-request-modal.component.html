@@ -1,0 +1,28 @@
+<ng-template #modalTitle>
+  <div class="registration-modal-title">
+    <span>Request access</span>
+    <img
+      src="assets/logos/full_logo_small.png"
+      alt="Texera logo"
+      class="registration-modal-logo"
+    />
+  </div>
+</ng-template>
+
+<p>Please fill out this form to request access.</p>
+
+<label style="display:block;">Name</label>
+<input nz-input [ngModel]="name" disabled />
+
+<label style="display:block; margin-top:12px;">Email</label>
+<input nz-input [ngModel]="email" disabled />
+
+<label style="display:block; margin-top:12px;">Affiliation (optional)</label>
+<input nz-input [(ngModel)]="affiliation" placeholder="e.g. UC Irvine" />
+
+<label style="display:block; margin-top:12px;">Reason (required)</label>
+<textarea
+  nz-input
+  [(ngModel)]="reason"
+  rows="4"
+  placeholder="Briefly explain why you want access"></textarea>

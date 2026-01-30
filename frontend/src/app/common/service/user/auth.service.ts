@@ -19,7 +19,7 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, Subscription, timer } from "rxjs";
+import { firstValueFrom, Observable, Subscription, timer } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { Role, User } from "../../type/user";
 import { ignoreElements } from "rxjs/operators";
@@ -28,6 +28,7 @@ import { NotificationService } from "../notification/notification.service";
 import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { RegistrationRequestModalComponent } from "./registration-request-modal/registration-request-modal.component";
 
 export const TOKEN_KEY = "access_token";
 
@@ -127,19 +128,41 @@ export class AuthService {
     }
 
     const role = this.jwtHelperService.decodeToken(token).role;
+    const uid = this.jwtHelperService.decodeToken(token).userId;
     const email = this.jwtHelperService.decodeToken(token).email;
-    // if (this.config.env.inviteOnly && role == Role.INACTIVE) {
-    //   this.modal.confirm({
-    //     nzTitle: "You Need Access",
-    //     nzContent:
-    //       "Currently the platform is invitation-only. Please request access from the platform admin or switch to an account that already has access.",
-    //     nzOkText: "Send request to Admin",
-    //     nzCancelText: "Cancel",
-    //     nzOnOk: () => this.gmailService.notifyUnauthorizedLogin(email),
-    //   });
-    //
-    //   return this.logout();
-    // }
+    const name = this.jwtHelperService.decodeToken(token).sub;
+    console.log("decoded role:", role, "Role.INACTIVE:", Role.INACTIVE);
+    console.log(role === Role.INACTIVE);
+    console.log(this.config.env.inviteOnly)
+
+
+    if (this.config.env.inviteOnly && role === Role.INACTIVE) {
+      console.log(123);
+      setTimeout(() => {
+        this.checkRegistrationRequired(uid).subscribe(required => {
+          if (required) {
+            this.openRegistrationModal(uid, email, name);
+          } else {
+            this.modal.info({
+              nzTitle: "Access Pending",
+              nzContent: `
+            Your account is still inactive, and we already received your request.
+            Please wait for an admin to approve your access.
+          `,
+              nzOkText: "OK",
+              nzMaskClosable: false,
+              nzClosable: false,
+              nzOnOk: () => {
+                this.logout();
+                return true;
+              },
+            });
+          }
+        });
+      }, 0);
+
+      return this.logout();
+    }
 
     this.registerAutoLogout();
     return {
@@ -177,5 +200,55 @@ export class AuthService {
 
   static removeAccessToken(): void {
     localStorage.removeItem(TOKEN_KEY);
+  }
+
+  private checkRegistrationRequired(uid: number): Observable<boolean> {
+    return this.http.get<boolean>(`${AppSettings.getApiEndpoint()}/user/joining-reason/required`, {
+      params: { uid: uid.toString() },
+    });
+  }
+
+  private submitRegistration(uid: number, affiliation: string, reason: string): Observable<void> {
+    return this.http.put<void>(`${AppSettings.getApiEndpoint()}/user/joining-reason`, {
+      uid,
+      affiliation,
+      joiningReason: reason,
+    });
+  }
+
+  private openRegistrationModal(uid: number, email: string, defaultName: string): void {
+    const modalRef = this.modal.create<RegistrationRequestModalComponent>({
+      nzContent: RegistrationRequestModalComponent,
+      nzData: { uid, email, name: defaultName },
+      nzOkText: "Send request to Admin",
+      nzCancelText: "Cancel",
+      nzMaskClosable: false,
+      nzClosable: false,
+
+      nzOnOk: async () => {
+        const comp = modalRef.getContentComponent();
+        const { affiliation, reason } = comp.getValues();
+
+        if (!reason) {
+          this.notificationService.error("Reason is required");
+          return false;
+        }
+
+        try {
+          await firstValueFrom(this.submitRegistration(uid, affiliation, reason));
+          this.gmailService.notifyUnauthorizedLogin(email);
+        } finally {
+          this.logout();
+        }
+        return true;
+      },
+
+      nzOnCancel: () => this.logout(),
+    });
+
+    const comp = modalRef.getContentComponent();
+    modalRef.updateConfig({
+      nzTitle: comp.modalTitle,
+    });
   }
 }

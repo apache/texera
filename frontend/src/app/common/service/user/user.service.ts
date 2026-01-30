@@ -142,8 +142,8 @@ export class UserService {
 
     return this.http.put<void>(`${AppSettings.getApiEndpoint()}/user/joining-reason`, {
       uid: user.uid,
-      affiliation: user.affiliation,
-      reason: user.joiningReason,
+      affiliation,
+      reason,
     });
   }
 

@@ -1,0 +1,12 @@
+.registration-modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 12px; // 👈 moves logo inward from modal edge
+}
+
+.registration-modal-logo {
+  height: 28px;
+  margin-left: 12px;   // spacing from title text
+  opacity: 0.9;
+}
