@@ -36,12 +36,13 @@ import javax.ws.rs.core.MediaType
 
 object AuthResource {
 
-  final private lazy val userDao = new UserDao(
-    SqlServer
-      .getInstance()
-      .createDSLContext()
-      .configuration
-  )
+  private def userDao =
+    new UserDao(
+      SqlServer
+        .getInstance()
+        .createDSLContext()
+        .configuration
+    )
 
   /**
     * Retrieve exactly one User from databases with the given username and password.

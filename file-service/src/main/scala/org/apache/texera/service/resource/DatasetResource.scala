@@ -79,9 +79,10 @@ import scala.util.Try
 
 object DatasetResource {
 
-  private val context = SqlServer
-    .getInstance()
-    .createDSLContext()
+  private def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
 
   private def singleFileUploadMaxBytes(ctx: DSLContext, defaultMiB: Long = 20L): Long = {
     val limit = ctx

@@ -28,8 +28,8 @@ import javax.ws.rs.core.{MediaType, Response}
 case class AffiliationUpdateRequest(uid: Int, affiliation: String)
 
 object UserResource {
-  private lazy val context = SqlServer.getInstance().createDSLContext()
-  private lazy val userDao = new UserDao(context.configuration)
+  private def context = SqlServer.getInstance().createDSLContext()
+  private def userDao = new UserDao(context.configuration)
 }
 
 @Path("/user")
