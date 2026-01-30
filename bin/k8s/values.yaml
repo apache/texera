@@ -291,4 +291,5 @@ metrics-server:
 gatewayConfig:
   hostname: ""
   issuer: ""
+  issuerKind: "Issuer"
   tlsSecretName: ""

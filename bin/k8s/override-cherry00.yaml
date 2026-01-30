@@ -222,6 +222,7 @@ ingress-nginx:
 gatewayConfig:
   hostname: "cherry00.ics.uci.edu"
   issuer: "letsencrypt-prod"
+  issuerKind: "ClusterIssuer"
 
 metrics-server:
   enabled: false

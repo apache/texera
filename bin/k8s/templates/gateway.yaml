@@ -11,7 +11,11 @@ metadata:
   name: {{ .Release.Name }}-gateway
   annotations:
     {{- if and .Values.gatewayConfig .Values.gatewayConfig.issuer }}
+    {{- if eq (default "Issuer" .Values.gatewayConfig.issuerKind) "ClusterIssuer" }}
+    cert-manager.io/cluster-issuer: {{ .Values.gatewayConfig.issuer }}
+    {{- else }}
     cert-manager.io/issuer: {{ .Values.gatewayConfig.issuer }}
+    {{- end }}
     {{- end }}
 spec:
   gatewayClassName: eg
