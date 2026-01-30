@@ -22,7 +22,6 @@ package org.apache.texera.web.resource.dashboard.user
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.web.resource.dashboard.user.UserResource.userDao
 
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
