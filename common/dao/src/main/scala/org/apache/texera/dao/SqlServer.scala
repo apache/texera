@@ -24,11 +24,17 @@ import org.jooq.{DSLContext, SQLDialect}
 import org.postgresql.ds.PGSimpleDataSource
 
 /**
-  * SqlServer class that manages a connection to a MySQL database using jOOQ.
+  * SqlServer class that manages a connection to a PostgreSQL database using jOOQ.
   *
-  * @param url The database connection URL, specifying the MySQL server and database name.
-  * @param user The username for authenticating with the MySQL database.
-  * @param password The password for authenticating with the MySQL database.
+  * WARNING: Do not cache the DSLContext returned by `createDSLContext()` in a val or lazy val.
+  * During testing, `MockTexeraDB` replaces the SqlServer instance between test classes.
+  * A cached DSLContext will hold a stale reference to a dead database connection from a previous test class,
+  * causing "Connection refused" errors when tests run together.
+  * Use `def` to ensure the connection is looked up each time.
+  *
+  * @param url The database connection URL.
+  * @param user The username for authenticating with the database.
+  * @param password The password for authenticating with the database.
   */
 class SqlServer private (url: String, user: String, password: String) {
   val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES

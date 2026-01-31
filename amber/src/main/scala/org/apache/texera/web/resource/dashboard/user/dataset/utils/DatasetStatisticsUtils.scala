@@ -26,10 +26,10 @@ import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource.Dat
 import scala.jdk.CollectionConverters._
 
 object DatasetStatisticsUtils {
-  final private lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
-
+  private def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
   // this function retrieves the total counts of dataset that belongs to the user
   def getUserCreatedDatasetCount(uid: Integer): Int = {
     val count = context

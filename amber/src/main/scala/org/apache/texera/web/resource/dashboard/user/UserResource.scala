@@ -30,8 +30,8 @@ case class AffiliationUpdateRequest(uid: Int, affiliation: String)
 case class RegistrationUpdateRequest(uid: Int, affiliation: String, joiningReason: String)
 
 object UserResource {
-  private lazy val context = SqlServer.getInstance().createDSLContext()
-  private lazy val userDao = new UserDao(context.configuration)
+  private def context = SqlServer.getInstance().createDSLContext()
+  private def userDao = new UserDao(context.configuration)
 }
 
 @Path("/user")

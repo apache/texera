@@ -1847,4 +1847,56 @@ class DatasetResourceSpec
     response.getStatus shouldEqual 307
     response.getHeaderString("Location") should not be null
   }
+
+  "LakeFS error handling" should "return 500 when ETag is invalid, with the message included in the error response body" in {
+    val filePath = uniqueFilePath("error-body")
+
+    initUpload(filePath, 2).getStatus shouldEqual 200
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+    uploadPart(filePath, 2, tinyBytes(2.toByte)).getStatus shouldEqual 200
+
+    val uploadId = fetchUploadIdOrFail(filePath)
+    getDSLContext
+      .update(DATASET_UPLOAD_SESSION_PART)
+      .set(DATASET_UPLOAD_SESSION_PART.ETAG, "BAD")
+      .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(uploadId))
+      .execute()
+
+    val ex = intercept[WebApplicationException] {
+      finishUpload(filePath)
+    }
+
+    ex.getResponse.getStatus shouldEqual 500
+    Option(ex.getResponse.getEntity).map(_.toString).getOrElse("") should include(
+      "LakeFS request failed due to an unexpected server error."
+    )
+
+    abortUpload(filePath)
+  }
+
+  it should "return 400 when physicalAddress is invalid" in {
+    val filePath = uniqueFilePath("missing-physical-address")
+
+    initUpload(filePath, 2).getStatus shouldEqual 200
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+    uploadPart(filePath, 2, tinyBytes(2.toByte)).getStatus shouldEqual 200
+
+    val uploadId = fetchUploadIdOrFail(filePath)
+
+    getDSLContext
+      .update(DATASET_UPLOAD_SESSION)
+      .set(DATASET_UPLOAD_SESSION.PHYSICAL_ADDRESS, "BAD")
+      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(uploadId))
+      .execute()
+
+    val ex = intercept[WebApplicationException] { finishUpload(filePath) }
+    ex.getResponse.getStatus shouldEqual 400
+    Option(ex.getResponse.getEntity).map(_.toString).getOrElse("") should include(
+      "LakeFS rejected the request"
+    )
+
+    intercept[WebApplicationException] {
+      abortUpload(filePath)
+    }.getResponse.getStatus shouldEqual 400
+  }
 }
