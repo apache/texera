@@ -17,20 +17,19 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.sort;
+package org.apache.texera.amber.operator.sort
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName;
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 
-public class SortCriteriaUnit {
+class SortCriteriaUnit {
 
-    @JsonProperty(value = "attribute", required = true)
-    @JsonPropertyDescription("Attribute name to sort by")
-    @AutofillAttributeName
-    public String attributeName;
+  @JsonProperty(value = "attribute", required = true)
+  @JsonPropertyDescription("Attribute name to sort by")
+  @AutofillAttributeName
+  var attributeName: String = _
 
-    @JsonProperty(value = "sortPreference", required = true)
-    @JsonPropertyDescription("Sort preference (ASC or DESC)")
-    public org.apache.texera.amber.operator.sort.SortPreference sortPreference;
+  @JsonProperty(value = "sortPreference", required = true)
+  @JsonPropertyDescription("Sort preference (ASC or DESC)")
+  var sortPreference: SortPreference = _
 }
