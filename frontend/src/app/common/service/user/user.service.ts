@@ -86,68 +86,6 @@ export class UserService {
   }
 
   /**
-   * Retrieves affiliation from backend and return if affiliation has been prompted
-   * true: already prompted
-   * false: never prompted
-   */
-  public checkAffiliation(): Observable<Boolean> {
-    const user = this.currentUser;
-    if (!user) {
-      return of(false);
-    }
-    return this.http.get<Boolean>(`${AppSettings.getApiEndpoint()}/user/affiliation`, {
-      params: { uid: user.uid.toString() },
-    });
-  }
-
-  /**
-   * updates a new registered user's affiliation
-   * @param affiliation
-   */
-  public updateAffiliation(affiliation: string): Observable<void> {
-    const user = this.currentUser;
-
-    if (!user) {
-      return of(void 0);
-    }
-
-    return this.http.put<void>(`${AppSettings.getApiEndpoint()}/user/affiliation`, {
-      uid: user.uid,
-      affiliation: affiliation,
-    });
-  }
-
-  /**
-   * Calls API to check if the system needs to prompt user to enter joining reason and affiliation
-   * @return boolean: true if required, false if not required (already prompted)
-   */
-  public checkRegistration(): Observable<boolean> {
-    const user = this.currentUser;
-    if (!user) return of(false);
-
-    return this.http.get<boolean>(
-      `${AppSettings.getApiEndpoint()}/user/joining-reason/required`,
-      { params: { uid: user.uid.toString() } }
-    );
-  }
-
-  /**
-   * Submits update of affiliation and joining reason to backend
-   * @param affiliation
-   * @param reason
-   */
-  public submitRegistration(affiliation: string, reason: string): Observable<void> {
-    const user = this.currentUser;
-    if (!user) return of(void 0);
-
-    return this.http.put<void>(`${AppSettings.getApiEndpoint()}/user/joining-reason`, {
-      uid: user.uid,
-      affiliation,
-      reason,
-    });
-  }
-
-  /**
    * changes the current user and triggers currentUserSubject
    * @param user
    */

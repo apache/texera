@@ -98,7 +98,7 @@ export class DashboardComponent implements OnInit {
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
-    protected config: GuiConfigService,
+    protected config: GuiConfigService
 ) {}
 
   ngOnInit(): void {

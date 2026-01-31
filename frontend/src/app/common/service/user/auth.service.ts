@@ -197,12 +197,24 @@ export class AuthService {
     localStorage.removeItem(TOKEN_KEY);
   }
 
+  /**
+   * Returns true if the system needs to prompt the user with the registration form
+   * @param uid
+   * @private
+   */
   private checkRegistrationRequired(uid: number): Observable<boolean> {
     return this.http.get<boolean>(`${AppSettings.getApiEndpoint()}/user/joining-reason/required`, {
       params: { uid: uid.toString() },
     });
   }
 
+  /**
+   * Submits changes to the backend with affiliation and joining reason
+   * @param uid
+   * @param affiliation
+   * @param reason
+   * @private
+   */
   private submitRegistration(uid: number, affiliation: string, reason: string): Observable<void> {
     return this.http.put<void>(`${AppSettings.getApiEndpoint()}/user/joining-reason`, {
       uid,
@@ -211,6 +223,13 @@ export class AuthService {
     });
   }
 
+  /**
+   * Opens the registration modal (registration request modal)
+   * @param uid
+   * @param email
+   * @param defaultName
+   * @private
+   */
   private openRegistrationModal(uid: number, email: string, defaultName: string): void {
     const modalRef = this.modal.create<RegistrationRequestModalComponent>({
       nzContent: RegistrationRequestModalComponent,
