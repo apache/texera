@@ -30,7 +30,7 @@ persistence:
   minioHostLocalPath: ""
   postgresqlHostLocalPath: ""
 
-# Part 1: the configuration of Postgres, Minio and LakeFS
+# configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
     repository: texera/postgres17-pgroonga
@@ -52,7 +52,6 @@ postgresql:
       size: 10Gi
       storageClass: local-path
       existingClaim: "postgresql-data-pvc"
-
     initdb:
       scriptsConfigMap: "postgresql-init-script"
 
@@ -106,14 +105,13 @@ lakefs:
           access_key_id: texera_minio
           secret_access_key: password
 
-# Part2: configurations of Texera-related micro services
+# configurations of Texera-related micro services
 texeraImages:
   pullPolicy: Always
 
-# Example data loader configuration
 exampleDataLoader:
   enabled: true
-  image: texera/texera-example-data-loader:hub-deployment-amd64
+  image: apache/texera-example-data-loader:1.1.0-incubating
   username: texera
   password: texera
   datasetDir: datasets
@@ -121,8 +119,8 @@ exampleDataLoader:
 
 webserver:
   name: webserver
-  numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:hub-deployment-amd64 # image name of the texera
+  numOfPods: 1
+  imageName: apache/texera-dashboard-service:1.1.0-incubating
   service:
     type: ClusterIP
     port: 8080
@@ -131,7 +129,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: texera/workflow-computing-unit-managing-service:hub-deployment-amd64
+  imageName: apache/texera-workflow-computing-unit-managing-service:1.1.0-incubating
   service:
     type: ClusterIP
     port: 8888
@@ -139,7 +137,7 @@ workflowComputingUnitManager:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: texera/workflow-compiling-service:hub-deployment-amd64
+  imageName: apache/texera-workflow-compiling-service:1.1.0-incubating
   service:
     type: ClusterIP
     port: 9090
@@ -147,7 +145,7 @@ workflowCompilingService:
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: texera/file-service:hub-deployment-amd64
+  imageName: apache/texera-file-service:1.1.0-incubating
   service:
     type: ClusterIP
     port: 9092
@@ -155,7 +153,7 @@ fileService:
 configService:
   name: config-service
   numOfPods: 1
-  imageName: texera/config-service:hub-deployment-amd64
+  imageName: apache/texera-config-service:1.1.0-incubating
   service:
     type: ClusterIP
     port: 9094
@@ -163,13 +161,10 @@ configService:
 accessControlService:
   name: access-control-service
   numOfPods: 1
-  imageName: alirisheh876/texera-access-control-service:gateway
+  imageName: apache/texera-access-control-service:1.1.0-incubating
   service:
     type: ClusterIP
     port: 9096
-
-# Configs of the envoy proxy, used to routerequests to the computing units
-
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
@@ -183,7 +178,7 @@ workflowComputingUnitPool:
     cpu: 100
     memory: 100Gi
     nvidiaGpu: 5
-  imageName: texera/computing-unit-master:hub-deployment-amd64
+  imageName: apache/texera-workflow-execution-coordinator:1.1.0-incubating
   service:
     port: 8085
     targetPort: 8085
@@ -194,7 +189,7 @@ texeraEnvVars:
   - name: USER_SYS_ADMIN_PASSWORD
     value: "texera"
   - name: STORAGE_JDBC_USERNAME
-    value: "postgres"
+    value: postgres
   - name: USER_SYS_ENABLED
     value: "true"
   - name: SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR
@@ -250,11 +245,7 @@ texeraEnvVars:
   - name: GUI_WORKFLOW_WORKSPACE_USER_PRESET_ENABLED
     value: "true"
   - name: DATASET_SINGLE_FILE_UPLOAD_MAX_SIZE_MIB
-    value: "10000000"
-
-# Ingress dependency configs
-
-
+    value: "20"
 
 yWebsocketServer:
   name: y-websocket-server
