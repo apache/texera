@@ -55,6 +55,8 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with UpdateExecutorHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
 
+  var cachedTotalWorkerCount = 0
+
   override def debugCommand(
       request: DebugCommandRequest,
       ctx: AsyncRPCContext
@@ -70,7 +72,7 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
 
   override def noOperation(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = ???
 
-  def initializeExecutor(execInitInfo: OpExecInitInfo): Unit = {
+  def initializeExecutor(execInitInfo: OpExecInitInfo, workerIdx: Int, workerCount: Int): Unit = {
     dp.executor = execInitInfo match {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)

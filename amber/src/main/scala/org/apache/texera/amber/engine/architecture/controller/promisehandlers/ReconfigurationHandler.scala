@@ -24,15 +24,19 @@ import org.apache.texera.amber.core.virtualidentity.{ChannelIdentity, EmbeddedCo
 import org.apache.texera.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStatsUpdate}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.ALL_ALIGNMENT
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, WorkflowReconfigureRequest}
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, PropagateEmbeddedControlMessageResponse}
 import org.apache.texera.amber.engine.common.FriesReconfigurationAlgorithm
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_UPDATE_EXECUTOR
+
+import scala.collection.mutable
 
 trait ReconfigurationHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def reconfigureWorkflow(msg: WorkflowReconfigureRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    val futures = mutable.ArrayBuffer[Future[_]]()
     FriesReconfigurationAlgorithm.getReconfigurations(cp.workflowExecutionCoordinator, msg).foreach{
       friesComponent =>
         if(friesComponent.scope.size == 1){
@@ -40,7 +44,7 @@ trait ReconfigurationHandler {
           val workerIds = cp.workflowExecution.getLatestOperatorExecution(updateExecutorRequest.targetOpId).getWorkerIds
           workerIds.foreach{
             worker =>
-              workerInterface.updateExecutor(updateExecutorRequest, mkContext(worker))
+              futures.append(workerInterface.updateExecutor(updateExecutorRequest, mkContext(worker)))
           }
         }else{
           val channelScope = cp.workflowExecution.getRunningRegionExecutions
@@ -64,42 +68,26 @@ trait ReconfigurationHandler {
           }
           val finalScope = channelScope ++ controlChannels
           val cmdMapping =
-            friesComponent.reconfigurations
-              .flatMap { updateReq =>
-                val workers =
-                  cp.workflowExecution
-                    .getLatestOperatorExecution(updateReq.targetOpId)
-                    .getWorkerIds
-
-                workers.map { worker =>
-                  worker.name ->
-                    createInvocation(
-                      METHOD_UPDATE_EXECUTOR.getBareMethodName,
-                      updateReq.newExecInitInfo,
-                      worker
-                    )
-                }
-              }
-              .groupBy(_._1)
-              .map {
-                case (worker, entries) =>
-                  worker -> entries.head._2
-              }
+            friesComponent.reconfigurations .flatMap { updateReq =>
+              val workers = cp.workflowExecution .getLatestOperatorExecution(updateReq.targetOpId) .getWorkerIds
+              workers.map(worker => worker.name -> createInvocation(METHOD_UPDATE_EXECUTOR.getBareMethodName, updateReq, worker)) } .toMap
+          futures += cmdMapping.map(_._2._2)
           friesComponent.sources.foreach { source =>
             cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.foreach { worker =>
               sendECM(
                 EmbeddedControlMessageIdentity(msg.reconfigurationId),
                 ALL_ALIGNMENT,
                 finalScope.toSet,
-                cmdMapping,
+                cmdMapping.map(x => (x._1, x._2._1)),
                 ChannelIdentity(actorId, worker, isControl = true)
               )
             }
           }
         }
-
     }
-    EmptyReturn()
+    Future.collect(futures.toList).map { _ =>
+      EmptyReturn()
+    }
   }
 
 }

@@ -23,6 +23,8 @@ import com.twitter.util.Future
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, UpdateExecutorRequest}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import org.apache.texera.amber.util.VirtualIdentityUtils
+
 import scala.reflect.runtime.universe._
 
 trait UpdateExecutorHandler {
@@ -32,32 +34,10 @@ trait UpdateExecutorHandler {
                                request: UpdateExecutorRequest,
                                ctx: AsyncRPCContext
                            ): Future[EmptyReturn] = {
-    val oldOpExecState = dp.executor
-    initializeExecutor(request.newExecInitInfo)
+    val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
+    initializeExecutor(request.newExecInitInfo, workerIdx, cachedTotalWorkerCount)
     dp.executor.open()
-    copyMatchingFields(oldOpExecState, dp.executor) //TBD if we really need this
     EmptyReturn()
   }
 
-  private[this] def copyMatchingFields[A: TypeTag, B: TypeTag](from: A, to: B): Unit = {
-    val mirror = runtimeMirror(from.getClass.getClassLoader)
-
-    val fromFields = typeOf[A].members.collect {
-      case m: MethodSymbol if m.isGetter => m
-    }
-
-    val toFields = typeOf[B].members.collect {
-      case m: MethodSymbol if m.isVar => m
-    }.map(m => m.name.toString -> m).toMap
-
-    fromFields.foreach { f =>
-      val name = f.name.toString
-      toFields.get(name).foreach { setter =>
-        if (f.returnType =:= setter.returnType) {
-          val value = mirror.reflect(from).reflectMethod(f).apply()
-          mirror.reflect(to).reflectField(setter).set(value)
-        }
-      }
-    }
-  }
 }

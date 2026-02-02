@@ -41,17 +41,8 @@ trait InitializeExecutorHandler {
   ): Future[EmptyReturn] = {
     dp.serializationManager.setOpInitialization(req)
     val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
-    val workerCount = req.totalWorkerCount
-    dp.executor = req.opExecInitInfo match {
-      case OpExecWithClassName(className, descString) =>
-        ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
-      case OpExecWithCode(code, _) =>
-        ExecFactory.newExecFromJavaCode(code)
-      case OpExecSource(storageUri, _) =>
-        new CacheSourceOpExec(URI.create(storageUri))
-      case OpExecInitInfo.Empty =>
-        throw new IllegalArgumentException("Empty executor initialization info")
-    }
+    cachedTotalWorkerCount = req.totalWorkerCount
+    initializeExecutor(req.opExecInitInfo, workerIdx, cachedTotalWorkerCount)
     EmptyReturn()
   }
 }
