@@ -20,6 +20,7 @@
 import { Injectable } from "@angular/core";
 import { Observable, of } from "rxjs";
 import { GuiConfig } from "../type/gui-config";
+import { ExecutionMode } from "../type/workflow";
 
 /**
  * Mock GuiConfigService for testing purposes.
@@ -42,6 +43,7 @@ export class MockGuiConfigService {
     productionSharedEditingServer: false,
     pythonLanguageServerPort: "3000",
     defaultDataTransferBatchSize: 100,
+    defaultExecutionMode: ExecutionMode.PIPELINED,
     workflowEmailNotificationEnabled: false,
     sharingComputingUnitEnabled: false,
     operatorConsoleMessageBufferSize: 1000,
@@ -49,6 +51,7 @@ export class MockGuiConfigService {
     expirationTimeInMinutes: 2880,
     activeTimeInMinutes: 15,
     copilotEnabled: false,
+    limitColumns: 15,
   };
 
   get env(): GuiConfig {

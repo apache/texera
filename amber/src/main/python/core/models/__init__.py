@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import builtins
 from inspect import Traceback
 from typing import NamedTuple
 
@@ -36,7 +37,7 @@ from .payload import DataFrame, DataPayload, StateFrame
 
 
 class ExceptionInfo(NamedTuple):
-    exc: type
+    exc: builtins.type
     value: Exception
     tb: Traceback
 

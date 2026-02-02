@@ -132,13 +132,25 @@ class ExecutorManager:
         :param language: The language of the operator code.
         :return:
         """
-        assert language not in [
-            "r-tuple",
-            "r-table",
-        ], "R language is not supported by default. Please consult third party plugin."
-        executor: type(Operator) = self.load_executor_definition(code)
-        self.executor = executor()
-        self.executor.is_source = is_source
+        if language in ("r-tuple", "r-table"):
+            # R support is provided by an optional plugin (texera-rudf)
+            executor_type = "Tuple" if language == "r-tuple" else "Table"
+            try:
+                import texera_r
+
+                class_suffix = "SourceExecutor" if is_source else "Executor"
+                executor_class = getattr(texera_r, f"R{executor_type}{class_suffix}")
+            except ImportError as e:
+                raise ImportError(
+                    "R operators require the texera-rudf package.\n"
+                    "Install with: pip install git+https://github.com/Texera/texera-rudf.git\n"
+                    f"Import error: {e}"
+                )
+            self.executor = executor_class(code)
+        else:
+            executor: type(Operator) = self.load_executor_definition(code)
+            self.executor = executor()
+            self.executor.is_source = is_source
         assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
             "Please use SourceOperator API for source operators."
         )

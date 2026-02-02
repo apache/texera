@@ -17,20 +17,14 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.sort;
+\c texera_db
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName;
+SET search_path TO texera_db;
 
-public class SortCriteriaUnit {
+BEGIN;
 
-    @JsonProperty(value = "attribute", required = true)
-    @JsonPropertyDescription("Attribute name to sort by")
-    @AutofillAttributeName
-    public String attributeName;
+-- 1. Add new column cover_image to dataset table.
+ALTER TABLE dataset
+    ADD COLUMN cover_image varchar(246);
 
-    @JsonProperty(value = "sortPreference", required = true)
-    @JsonPropertyDescription("Sort preference (ASC or DESC)")
-    public org.apache.texera.amber.operator.sort.SortPreference sortPreference;
-}
+COMMIT;

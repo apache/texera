@@ -26,3 +26,17 @@ header:
     - '.licenserc.yaml'
     - 'frontend/.yarn/**'
     - 'amber/src/main/python/proto/**'
+    # Third-party code with MIT license - see LICENSE file for attribution
+    - 'common/workflow-operator/src/main/scala/com/kjetland/**'
+    # TypeFox monaco-languageclient derived files (MIT License)
+    - 'pyright-language-service/src/main.ts'
+    - 'pyright-language-service/src/language-server-runner.ts'
+    - 'pyright-language-service/src/server-commons.ts'
+    - 'frontend/src/app/common/formly/array.type.ts'
+    - 'frontend/src/app/common/formly/object.type.ts'
+    - 'frontend/src/app/common/formly/multischema.type.ts'
+    - 'frontend/src/app/common/formly/null.type.ts'
+    # Third-party SVG assets - see LICENSE file for attribution
+    - 'frontend/src/assets/svg/operator-view-result.svg'
+    - 'frontend/src/assets/svg/operator-reuse-cache-invalid.svg'
+    - 'frontend/src/assets/svg/operator-reuse-cache-valid.svg'

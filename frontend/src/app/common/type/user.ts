@@ -46,6 +46,7 @@ export interface User
     comment: string;
     lastLogin?: number;
     accountCreation?: Second;
+    affiliation?: string;
   }> {}
 
 export interface File
