@@ -443,3 +443,4 @@ if create_warehouse "$WAREHOUSE_NAME" "$LAKEKEEPER_BASE_URI" "$STORAGE_PATH" "$T
 else
     exit 1
 fi
+
