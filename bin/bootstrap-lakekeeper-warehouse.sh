@@ -58,14 +58,17 @@ if [ -f "$STORAGE_CONF_PATH" ]; then
     # Use pyhocon for proper HOCON parsing (handles environment variable substitution)
     REST_URI_FROM_CONF=$(python3 "$SCRIPT_DIR/parse-storage-config.py" "storage.iceberg.catalog.rest.uri" 2>/dev/null | sed 's|/catalog/*$||' || echo "")
     WAREHOUSE_NAME_FROM_CONF=$(python3 "$SCRIPT_DIR/parse-storage-config.py" "storage.iceberg.catalog.rest.warehouse-name" 2>/dev/null || echo "")
+    REST_REGION_FROM_CONF=$(python3 "$SCRIPT_DIR/parse-storage-config.py" "storage.iceberg.catalog.rest.region" 2>/dev/null || echo "")
     S3_BUCKET_FROM_CONF=$(python3 "$SCRIPT_DIR/parse-storage-config.py" "storage.iceberg.catalog.rest.s3-bucket" 2>/dev/null || echo "")
     S3_ENDPOINT_FROM_CONF=$(python3 "$SCRIPT_DIR/parse-storage-config.py" "storage.s3.endpoint" 2>/dev/null || echo "")
     S3_USERNAME_FROM_CONF=$(python3 "$SCRIPT_DIR/parse-storage-config.py" "storage.s3.auth.username" 2>/dev/null || echo "")
     S3_PASSWORD_FROM_CONF=$(python3 "$SCRIPT_DIR/parse-storage-config.py" "storage.s3.auth.password" 2>/dev/null || echo "")
-    
+
+
     echo "Configuration read from storage.conf:"
     echo "  REST_URI_FROM_CONF=$REST_URI_FROM_CONF"
     echo "  WAREHOUSE_NAME_FROM_CONF=$WAREHOUSE_NAME_FROM_CONF"
+    echo "  REST_REGION_FROM_CONF=$REST_REGION_FROM_CONF"
     echo "  S3_BUCKET_FROM_CONF=$S3_BUCKET_FROM_CONF"
     echo "  S3_ENDPOINT_FROM_CONF=$S3_ENDPOINT_FROM_CONF"
     echo "  S3_USERNAME_FROM_CONF=$S3_USERNAME_FROM_CONF"
@@ -74,6 +77,7 @@ if [ -f "$STORAGE_CONF_PATH" ]; then
 else
     REST_URI_FROM_CONF=""
     WAREHOUSE_NAME_FROM_CONF=""
+    REST_REGION_FROM_CONF=""
     S3_BUCKET_FROM_CONF=""
     S3_ENDPOINT_FROM_CONF=""
     S3_USERNAME_FROM_CONF=""
@@ -85,6 +89,7 @@ fi
 # Use values from storage.conf with defaults
 LAKEKEEPER_BASE_URI="${REST_URI_FROM_CONF:-http://localhost:8181}"
 WAREHOUSE_NAME="${WAREHOUSE_NAME_FROM_CONF:-texera-executions}"
+S3_REGION="${REST_REGION_FROM_CONF:-us-west-2}"
 S3_BUCKET="${S3_BUCKET_FROM_CONF:-texera-iceberg}"
 S3_ENDPOINT="${S3_ENDPOINT_FROM_CONF:-http://localhost:9000}"
 S3_USERNAME="${S3_USERNAME_FROM_CONF:-texera_minio}"
@@ -261,48 +266,68 @@ check_warehouse_exists() {
     echo "  URL: $list_url"
     
     # Get warehouse list
-    local temp_response=$(mktemp)
-    local http_code=$(curl -s -o "$temp_response" -w "%{http_code}" "$list_url" 2>/dev/null || echo "000")
+    local temp_response
+    temp_response=$(mktemp) || {
+        echo "✗ Failed to create temporary file"
+        return 2
+    }
+    
+    local http_code
+    http_code=$(curl -s -o "$temp_response" -w "%{http_code}" "$list_url" 2>/dev/null || echo "000")
+    echo "  HTTP status: $http_code"
     
     if [ "$http_code" = "000" ]; then
-        rm -f "$temp_response"
+        rm -f "$temp_response" || true
         echo "✗ Failed to connect to Lakekeeper at $list_url"
         echo "  Please ensure Lakekeeper is running and accessible."
         return 2  # Connection error
     fi
     
     if [ "$http_code" != "200" ]; then
-        rm -f "$temp_response"
         echo "⚠ Warning: Unexpected HTTP status $http_code when listing warehouses"
+        echo "  Response body:"
+        cat "$temp_response" 2>/dev/null | sed 's/^/    /' || true
+        rm -f "$temp_response" || true
         return 1  # Treat as not found, will attempt to create
     fi
     
+    echo "  Checking response for warehouse name..."
     # Check if warehouse name exists in the list using jq or grep
     # The response format: {"warehouses":[{"name":"...",...},...]}
     if command -v jq >/dev/null 2>&1; then
+        echo "  Using jq to parse response..."
         # Use jq if available (more reliable)
         if jq -e ".warehouses[] | select(.name == \"$warehouse_name\")" "$temp_response" >/dev/null 2>&1; then
-            rm -f "$temp_response"
+            echo "  Warehouse found in list"
+            rm -f "$temp_response" 2>/dev/null || true
             return 0  # Exists
         else
-            rm -f "$temp_response"
+            echo "  Warehouse not found in list"
+            rm -f "$temp_response" 2>/dev/null || true
+            echo "  About to return 1 from check_warehouse_exists (jq path)"
             return 1  # Not found
         fi
     else
+        echo "  Using grep to parse response (jq not available)..."
         # Fallback: use grep to check if name exists in JSON
         if grep -q "\"name\"[[:space:]]*:[[:space:]]*\"$warehouse_name\"" "$temp_response" 2>/dev/null; then
-            rm -f "$temp_response"
+            echo "  Warehouse found in list"
+            rm -f "$temp_response" || true
             return 0  # Exists
         else
-            rm -f "$temp_response"
+            echo "  Warehouse not found in list"
+            rm -f "$temp_response" 2>/dev/null || true
+            echo "  About to return 1 from check_warehouse_exists (grep path)"
             return 1  # Not found
         fi
     fi
+    echo "  Function check_warehouse_exists completed"
 }
 
 # Function to create warehouse
 # Returns: 0=success, 1=failure
 create_warehouse() {
+    echo "1123"
     local warehouse_name="$1"
     local base_uri="$2"
     local storage_path="$3"
@@ -319,7 +344,8 @@ create_warehouse() {
     #   -> bucket: texera-iceberg
     #   -> key-prefix: iceberg/texera-executions
     local bucket="${S3_BUCKET}"
-    local region=""
+    local region="${S3_REGION}"
+    local endpoint="${S3_ENDPOINT}"
     
     # Request body format according to Lakekeeper API
     local create_payload=$(cat <<EOF
@@ -329,24 +355,33 @@ create_warehouse() {
     "type": "s3",
     "bucket": "$bucket",
     "region": "$region",
-    "endpoint": "",
-    "flavor": "s3-compat"
+    "endpoint": "$endpoint",
+    "flavor": "s3-compat",
+    "path-style-access": true,
+    "sts-enabled": false
   },
   "storage-credential": {
       "type": "s3",
       "credential-type": "access-key",
       "aws-access-key-id": "${S3_USERNAME}",
       "aws-secret-access-key": "${S3_PASSWORD}"
-    },
+    }
 }
 EOF
 )
+    
+    echo "Creating warehouse '$warehouse_name'..."
+    echo "  URL: $create_url"
+    echo "  Request payload:"
+    echo "$create_payload" | sed 's/^/    /'
     
     local http_code=$(curl -s -o "$temp_response" -w "%{http_code}" \
         -X POST \
         -H "Content-Type: application/json" \
         -d "$create_payload" \
         "$create_url" || echo "000")
+    
+    echo "  HTTP status: $http_code"
     
     case "$http_code" in
         000)
@@ -413,11 +448,17 @@ TEMP_RESPONSE=$(mktemp)
 trap "rm -f $TEMP_RESPONSE" EXIT
 
 # Check if warehouse exists
+echo "Calling check_warehouse_exists..."
+set +e  # Temporarily disable exit on error to capture function return value
 check_warehouse_exists "$WAREHOUSE_NAME" "$LAKEKEEPER_BASE_URI"
 check_result=$?
+set -e  # Re-enable exit on error
+echo "check_warehouse_exists returned: $check_result"
+echo "Entering case statement with check_result=$check_result"
 
 case $check_result in
     0)
+        echo "Case 0: Warehouse exists"
         echo "✓ Warehouse '$WAREHOUSE_NAME' already exists, skipping creation."
         echo ""
         echo "=========================================="
@@ -426,12 +467,20 @@ case $check_result in
         exit 0
         ;;
     1)
+        echo "Case 1: Warehouse not found, will create"
         echo "Warehouse '$WAREHOUSE_NAME' does not exist, will create..."
         ;;
     2)
+        echo "Case 2: Connection error"
+        exit 1
+        ;;
+    *)
+        echo "Case *: Unexpected return value: $check_result"
         exit 1
         ;;
 esac
+
+echo "After case statement, about to call create_warehouse..."
 
 # Create warehouse
 if create_warehouse "$WAREHOUSE_NAME" "$LAKEKEEPER_BASE_URI" "$STORAGE_PATH" "$TEMP_RESPONSE"; then
@@ -441,6 +490,10 @@ if create_warehouse "$WAREHOUSE_NAME" "$LAKEKEEPER_BASE_URI" "$STORAGE_PATH" "$T
     echo "=========================================="
     exit 0
 else
+    echo ""
+    echo "=========================================="
+    echo "✗ Bootstrap failed!"
+    echo "=========================================="
     exit 1
 fi
 
