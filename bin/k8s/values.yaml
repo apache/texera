@@ -60,12 +60,10 @@ minio:
   image:
     repository: bitnamilegacy/minio
     tag: 2025.3.12-debian-12-r0
-  customIngress:
+  gateway:
     enabled: false
-    ingressClassName: "" # e.g., "nginx"
-    texeraHostname: "" # the url for the texera WITH http or https, e.g., "https://texera.example.com"
-    minioHostname: "" # the url for the minio
-    issuer: "" # e.g., "letsencrypt-prod"
+    hostname: "" # the url for the minio, e.g. "minio.example.com"
+    tlsSecretName: "" # e.g. "minio-tls-secret"
   auth:
     rootUser: texera_minio
     rootPassword: password
@@ -161,7 +159,7 @@ configService:
 accessControlService:
   name: access-control-service
   numOfPods: 1
-  imageName: apache/texera-access-control-service:1.1.0-incubating
+  imageName: alirisheh876/texera-access-control-service:gateway
   service:
     type: ClusterIP
     port: 9096

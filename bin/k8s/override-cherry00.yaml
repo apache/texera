@@ -25,8 +25,9 @@ postgresql:
       storageClass: local-path
 
 minio:
-  customIngress:
-    enabled: false
+  gateway:
+    enabled: true
+    hostname: "minio-cherry00.ics.uci.edu"
   auth:
     rootUser: texera_minio
     rootPassword: texera_hub_dep_461252891023
@@ -216,8 +217,7 @@ texeraEnvVars:
   - name: COMPUTING_UNIT_SHARING_ENABLED
     value: "true"
 
-ingress-nginx:
-  enabled: false
+
 
 gatewayConfig:
   hostname: "cherry00.ics.uci.edu"
