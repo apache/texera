@@ -45,8 +45,11 @@ postgresql:
       initialDelaySeconds: 30 # increase this if the launching of postgresql is slow on the cluster
     resources:
       requests:
+        cpu: "0.25"
+        memory: "256Mi"
+      limits:
         cpu: "1"
-        memory: "1Gi"
+        memory: "256Mi"
     persistence:
       enabled: true
       size: 10Gi
@@ -61,6 +64,11 @@ minio:
   image:
     repository: bitnamilegacy/minio
     tag: 2025.3.12-debian-12-r0
+  resources:
+    requests:
+      memory: "256Mi"
+    limits:
+      memory: "256Mi"
   customIngress:
     enabled: false
     ingressClassName: "" # e.g., "nginx"
@@ -126,6 +134,13 @@ webserver:
   service:
     type: ClusterIP
     port: 8080
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
 
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
@@ -135,6 +150,13 @@ workflowComputingUnitManager:
   service:
     type: ClusterIP
     port: 8888
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
 
 workflowCompilingService:
   name: workflow-compiling-service
@@ -143,6 +165,13 @@ workflowCompilingService:
   service:
     type: ClusterIP
     port: 9090
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
 
 fileService:
   name: file-service
@@ -151,6 +180,13 @@ fileService:
   service:
     type: ClusterIP
     port: 9092
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory:  512Mi
 
 configService:
   name: config-service
@@ -159,6 +195,13 @@ configService:
   service:
     type: ClusterIP
     port: 9094
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
 
 accessControlService:
   name: access-control-service
@@ -167,6 +210,13 @@ accessControlService:
   service:
     type: ClusterIP
     port: 9096
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
 
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
