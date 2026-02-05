@@ -289,6 +289,7 @@ CREATE TABLE IF NOT EXISTS dataset_upload_session
     num_parts_requested INT          NOT NULL,
     file_size_bytes     BIGINT       NOT NULL,
     part_size_bytes     BIGINT       NOT NULL,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
     PRIMARY KEY (uid, did, file_path),
 

@@ -51,11 +51,12 @@ import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
 import org.apache.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
-  MINIMUM_NUM_OF_MULTIPART_S3_PART
+  MINIMUM_NUM_OF_MULTIPART_S3_PART,
+  PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS
 }
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{inline => inl}
-import org.jooq.{DSLContext, EnumType}
+import org.jooq.{DSLContext, EnumType, Record2, Result}
 
 import java.io.{InputStream, OutputStream}
 import java.net.{HttpURLConnection, URI, URL, URLDecoder}
@@ -73,8 +74,10 @@ import org.jooq.exception.DataAccessException
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
 import org.apache.commons.io.FilenameUtils
 import org.apache.texera.service.util.LakeFSExceptionHandler.withLakeFSErrorHandling
+import org.apache.texera.dao.jooq.generated.tables.records.DatasetUploadSessionRecord
 
 import java.sql.SQLException
+import java.time.OffsetDateTime
 import scala.util.Try
 
 object DatasetResource {
@@ -693,14 +696,16 @@ class DatasetResource {
       @QueryParam("filePath") filePath: String,
       @QueryParam("fileSizeBytes") fileSizeBytes: Optional[java.lang.Long],
       @QueryParam("partSizeBytes") partSizeBytes: Optional[java.lang.Long],
+      @QueryParam("restart") restart: Optional[java.lang.Boolean],
       @Auth user: SessionUser
   ): Response = {
     val uid = user.getUid
     val dataset: Dataset = getDatasetBy(ownerEmail, datasetName)
 
     operationType.toLowerCase match {
+      case "list" => listMultipartUploads(dataset.getDid, uid)
       case "init" =>
-        initMultipartUpload(dataset.getDid, filePath, fileSizeBytes, partSizeBytes, uid)
+        initMultipartUpload(dataset.getDid, filePath, fileSizeBytes, partSizeBytes, restart, uid)
       case "finish" => finishMultipartUpload(dataset.getDid, filePath, uid)
       case "abort"  => abortMultipartUpload(dataset.getDid, filePath, uid)
       case _ =>
@@ -1488,11 +1493,38 @@ class DatasetResource {
     dataset
   }
 
+  private def listMultipartUploads(did: Integer, requesterUid: Int): Response = {
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, requesterUid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val filePaths =
+        ctx
+          .selectDistinct(DATASET_UPLOAD_SESSION.FILE_PATH)
+          .from(DATASET_UPLOAD_SESSION)
+          .where(DATASET_UPLOAD_SESSION.DID.eq(did))
+          .and(
+            DSL.condition(
+              "created_at > current_timestamp - (? * interval '1 hour')",
+              PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS
+            )
+          )
+          .orderBy(DATASET_UPLOAD_SESSION.FILE_PATH.asc())
+          .fetch(DATASET_UPLOAD_SESSION.FILE_PATH)
+          .asScala
+          .toList
+
+      Response.ok(Map("filePaths" -> filePaths.asJava)).build()
+    }
+  }
+
   private def initMultipartUpload(
       did: Integer,
       encodedFilePath: String,
       fileSizeBytes: Optional[java.lang.Long],
       partSizeBytes: Optional[java.lang.Long],
+      restart: Optional[java.lang.Boolean],
       uid: Integer
   ): Response = {
 
@@ -1509,27 +1541,17 @@ class DatasetResource {
           URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
         )
 
-      val fileSizeBytesValue: Long =
-        fileSizeBytes
-          .orElseThrow(() =>
-            new BadRequestException("fileSizeBytes is required for initialization")
-          )
+      if (fileSizeBytes == null || !fileSizeBytes.isPresent)
+        throw new BadRequestException("fileSizeBytes is required for initialization")
+      if (partSizeBytes == null || !partSizeBytes.isPresent)
+        throw new BadRequestException("partSizeBytes is required for initialization")
 
-      if (fileSizeBytesValue <= 0L) {
-        throw new BadRequestException("fileSizeBytes must be > 0")
-      }
+      val fileSizeBytesValue: Long = fileSizeBytes.get.longValue()
+      val partSizeBytesValue: Long = partSizeBytes.get.longValue()
 
-      val partSizeBytesValue: Long =
-        partSizeBytes
-          .orElseThrow(() =>
-            new BadRequestException("partSizeBytes is required for initialization")
-          )
+      if (fileSizeBytesValue <= 0L) throw new BadRequestException("fileSizeBytes must be > 0")
+      if (partSizeBytesValue <= 0L) throw new BadRequestException("partSizeBytes must be > 0")
 
-      if (partSizeBytesValue <= 0L) {
-        throw new BadRequestException("partSizeBytes must be > 0")
-      }
-
-      // singleFileUploadMaxBytes applies to TOTAL bytes (sum of all parts == file size)
       val totalMaxBytes: Long = singleFileUploadMaxBytes(ctx)
       if (totalMaxBytes <= 0L) {
         throw new WebApplicationException(
@@ -1543,7 +1565,6 @@ class DatasetResource {
         )
       }
 
-      // Compute numParts = ceil(fileSize / partSize) = (fileSize + partSize - 1) / partSize
       val addend: Long = partSizeBytesValue - 1L
       if (addend < 0L || fileSizeBytesValue > Long.MaxValue - addend) {
         throw new WebApplicationException(
@@ -1558,111 +1579,229 @@ class DatasetResource {
           s"Computed numParts=$numPartsLong is out of range 1..$MAXIMUM_NUM_OF_MULTIPART_S3_PARTS"
         )
       }
-      val numPartsValue: Int = numPartsLong.toInt
+      val computedNumParts: Int = numPartsLong.toInt
 
-      // S3 multipart constraint: all non-final parts must be >= 5MiB.
-      // If we have >1 parts, then partSizeBytesValue is the non-final part size.
-      if (numPartsValue > 1 && partSizeBytesValue < MINIMUM_NUM_OF_MULTIPART_S3_PART) {
+      if (computedNumParts > 1 && partSizeBytesValue < MINIMUM_NUM_OF_MULTIPART_S3_PART) {
         throw new BadRequestException(
           s"partSizeBytes=$partSizeBytesValue is too small. " +
             s"All non-final parts must be >= $MINIMUM_NUM_OF_MULTIPART_S3_PART bytes."
         )
       }
-
-      // Reject if a session already exists
-      val exists = ctx.fetchExists(
-        ctx
-          .selectOne()
-          .from(DATASET_UPLOAD_SESSION)
+      var session: DatasetUploadSessionRecord = null
+      var rows: Result[Record2[Integer, String]] = null
+      try {
+        session = ctx
+          .selectFrom(DATASET_UPLOAD_SESSION)
           .where(
             DATASET_UPLOAD_SESSION.UID
               .eq(uid)
               .and(DATASET_UPLOAD_SESSION.DID.eq(did))
               .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
           )
-      )
-      if (exists) {
-        throw new WebApplicationException(
-          "Upload already in progress for this filePath",
-          Response.Status.CONFLICT
-        )
+          .forUpdate()
+          .noWait()
+          .fetchOne()
+        if (session != null) {
+          //Gain parts lock
+          rows = ctx
+            .select(DATASET_UPLOAD_SESSION_PART.PART_NUMBER, DATASET_UPLOAD_SESSION_PART.ETAG)
+            .from(DATASET_UPLOAD_SESSION_PART)
+            .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(session.getUploadId))
+            .forUpdate()
+            .noWait()
+            .fetch()
+          val dbFileSize = session.getFileSizeBytes
+          val dbPartSize = session.getPartSizeBytes
+          val dbNumParts = session.getNumPartsRequested
+          val createdAt: OffsetDateTime = session.getCreatedAt
+
+          val isExpired =
+            createdAt
+              .plusHours(PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS.toLong)
+              .isBefore(OffsetDateTime.now(createdAt.getOffset)) // or OffsetDateTime.now()
+
+          val conflictConfig =
+            dbFileSize != fileSizeBytesValue ||
+              dbPartSize != partSizeBytesValue ||
+              dbNumParts != computedNumParts ||
+              isExpired ||
+              Option(restart).exists(_.orElse(false))
+
+          if (conflictConfig) {
+            // Parts will be deleted automatically (ON DELETE CASCADE)
+            ctx
+              .deleteFrom(DATASET_UPLOAD_SESSION)
+              .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(session.getUploadId))
+              .execute()
+
+            try {
+              LakeFSStorageClient.abortPresignedMultipartUploads(
+                repositoryName,
+                filePath,
+                session.getUploadId,
+                session.getPhysicalAddress
+              )
+            } catch { case _: Throwable => () }
+            session = null
+            rows = null
+          }
+        }
+      } catch {
+        case e: DataAccessException
+            if Option(e.getCause)
+              .collect { case s: SQLException => s.getSQLState }
+              .contains("55P03") =>
+          throw new WebApplicationException(
+            "Another client is uploading this file",
+            Response.Status.CONFLICT
+          )
       }
 
-      val presign = withLakeFSErrorHandling {
-        LakeFSStorageClient.initiatePresignedMultipartUploads(
-          repositoryName,
-          filePath,
-          numPartsValue
-        )
-      }
-
-      val uploadIdStr = presign.getUploadId
-      val physicalAddr = presign.getPhysicalAddress
-
-      try {
-        val rowsInserted = ctx
-          .insertInto(DATASET_UPLOAD_SESSION)
-          .set(DATASET_UPLOAD_SESSION.FILE_PATH, filePath)
-          .set(DATASET_UPLOAD_SESSION.DID, did)
-          .set(DATASET_UPLOAD_SESSION.UID, uid)
-          .set(DATASET_UPLOAD_SESSION.UPLOAD_ID, uploadIdStr)
-          .set(DATASET_UPLOAD_SESSION.PHYSICAL_ADDRESS, physicalAddr)
-          .set(DATASET_UPLOAD_SESSION.NUM_PARTS_REQUESTED, Integer.valueOf(numPartsValue))
-          .set(DATASET_UPLOAD_SESSION.FILE_SIZE_BYTES, java.lang.Long.valueOf(fileSizeBytesValue))
-          .set(DATASET_UPLOAD_SESSION.PART_SIZE_BYTES, java.lang.Long.valueOf(partSizeBytesValue))
-          .onDuplicateKeyIgnore()
-          .execute()
-
-        if (rowsInserted != 1) {
-          LakeFSStorageClient.abortPresignedMultipartUploads(
+      if (session == null) {
+        val presign = withLakeFSErrorHandling {
+          LakeFSStorageClient.initiatePresignedMultipartUploads(
             repositoryName,
             filePath,
-            uploadIdStr,
-            physicalAddr
-          )
-          throw new WebApplicationException(
-            "Upload already in progress for this filePath",
-            Response.Status.CONFLICT
+            computedNumParts
           )
         }
 
-        // Pre-create part rows 1..numPartsValue with empty ETag.
-        // This makes per-part locking cheap and deterministic.
+        val uploadIdStr = presign.getUploadId
+        val physicalAddr = presign.getPhysicalAddress
 
-        val partNumberSeries = DSL.generateSeries(1, numPartsValue).asTable("gs", "pn")
-        val partNumberField = partNumberSeries.field("pn", classOf[Integer])
+        try {
+          val rowsInserted = ctx
+            .insertInto(DATASET_UPLOAD_SESSION)
+            .set(DATASET_UPLOAD_SESSION.FILE_PATH, filePath)
+            .set(DATASET_UPLOAD_SESSION.DID, did)
+            .set(DATASET_UPLOAD_SESSION.UID, uid)
+            .set(DATASET_UPLOAD_SESSION.UPLOAD_ID, uploadIdStr)
+            .set(DATASET_UPLOAD_SESSION.PHYSICAL_ADDRESS, physicalAddr)
+            .set(DATASET_UPLOAD_SESSION.NUM_PARTS_REQUESTED, Integer.valueOf(computedNumParts))
+            .set(DATASET_UPLOAD_SESSION.FILE_SIZE_BYTES, java.lang.Long.valueOf(fileSizeBytesValue))
+            .set(DATASET_UPLOAD_SESSION.PART_SIZE_BYTES, java.lang.Long.valueOf(partSizeBytesValue))
+            .onDuplicateKeyIgnore()
+            .execute()
 
-        ctx
-          .insertInto(
-            DATASET_UPLOAD_SESSION_PART,
-            DATASET_UPLOAD_SESSION_PART.UPLOAD_ID,
-            DATASET_UPLOAD_SESSION_PART.PART_NUMBER,
-            DATASET_UPLOAD_SESSION_PART.ETAG
-          )
-          .select(
+          if (rowsInserted == 1) {
+            val partNumberSeries =
+              DSL.generateSeries(1, computedNumParts).asTable("gs", "partNumberField")
+            val partNumberField = partNumberSeries.field("partNumberField", classOf[Integer])
+
             ctx
-              .select(
-                inl(uploadIdStr),
-                partNumberField,
-                inl("") // placeholder empty etag
+              .insertInto(
+                DATASET_UPLOAD_SESSION_PART,
+                DATASET_UPLOAD_SESSION_PART.UPLOAD_ID,
+                DATASET_UPLOAD_SESSION_PART.PART_NUMBER,
+                DATASET_UPLOAD_SESSION_PART.ETAG
               )
-              .from(partNumberSeries)
-          )
-          .execute()
+              .select(
+                ctx
+                  .select(
+                    inl(uploadIdStr),
+                    partNumberField,
+                    inl("")
+                  )
+                  .from(partNumberSeries)
+              )
+              .execute()
 
-        Response.ok().build()
-      } catch {
-        case e: Exception =>
-          try {
-            LakeFSStorageClient.abortPresignedMultipartUploads(
-              repositoryName,
-              filePath,
-              uploadIdStr,
-              physicalAddr
-            )
-          } catch { case _: Throwable => () }
-          throw e
+            session = ctx
+              .selectFrom(DATASET_UPLOAD_SESSION)
+              .where(
+                DATASET_UPLOAD_SESSION.UID
+                  .eq(uid)
+                  .and(DATASET_UPLOAD_SESSION.DID.eq(did))
+                  .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
+              )
+              .fetchOne()
+          } else {
+            try {
+              LakeFSStorageClient.abortPresignedMultipartUploads(
+                repositoryName,
+                filePath,
+                uploadIdStr,
+                physicalAddr
+              )
+            } catch { case _: Throwable => () }
+
+            session = ctx
+              .selectFrom(DATASET_UPLOAD_SESSION)
+              .where(
+                DATASET_UPLOAD_SESSION.UID
+                  .eq(uid)
+                  .and(DATASET_UPLOAD_SESSION.DID.eq(did))
+                  .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
+              )
+              .fetchOne()
+          }
+        } catch {
+          case e: Exception =>
+            try {
+              LakeFSStorageClient.abortPresignedMultipartUploads(
+                repositoryName,
+                filePath,
+                uploadIdStr,
+                physicalAddr
+              )
+            } catch { case _: Throwable => () }
+            throw e
+        }
       }
+
+      if (session == null) {
+        throw new WebApplicationException(
+          "Failed to create or locate upload session",
+          Response.Status.INTERNAL_SERVER_ERROR
+        )
+      }
+
+      val dbNumParts = session.getNumPartsRequested
+
+      val uploadId = session.getUploadId
+      val nParts = dbNumParts
+
+      // CHANGED: lock rows with NOWAIT; if any row is locked by another uploader -> 409
+      if (rows == null) {
+        rows =
+          try {
+            ctx
+              .select(DATASET_UPLOAD_SESSION_PART.PART_NUMBER, DATASET_UPLOAD_SESSION_PART.ETAG)
+              .from(DATASET_UPLOAD_SESSION_PART)
+              .where(DATASET_UPLOAD_SESSION_PART.UPLOAD_ID.eq(uploadId))
+              .forUpdate()
+              .noWait()
+              .fetch()
+          } catch {
+            case e: DataAccessException
+                if Option(e.getCause)
+                  .collect { case s: SQLException => s.getSQLState }
+                  .contains("55P03") =>
+              throw new WebApplicationException(
+                "Another client is uploading parts for this file",
+                Response.Status.CONFLICT
+              )
+          }
+      }
+
+      // CHANGED: compute missingParts + completedPartsCount from the SAME query result
+      val missingParts = rows.asScala
+        .filter(r =>
+          Option(r.get(DATASET_UPLOAD_SESSION_PART.ETAG)).map(_.trim).getOrElse("").isEmpty
+        )
+        .map(r => r.get(DATASET_UPLOAD_SESSION_PART.PART_NUMBER).intValue())
+        .toList
+
+      val completedPartsCount = nParts - missingParts.size
+
+      Response
+        .ok(
+          Map(
+            "missingParts" -> missingParts.asJava,
+            "completedPartsCount" -> Integer.valueOf(completedPartsCount)
+          )
+        )
+        .build()
     }
   }
 
