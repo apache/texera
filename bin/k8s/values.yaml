@@ -30,7 +30,7 @@ persistence:
   minioHostLocalPath: ""
   postgresqlHostLocalPath: ""
 
-# configuration of Postgres, Minio and LakeFS
+# Part 1: configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
     repository: texera/postgres17-pgroonga
@@ -103,7 +103,7 @@ lakefs:
           access_key_id: texera_minio
           secret_access_key: password
 
-# configurations of Texera-related micro services
+# Part 2: configurations of Texera-related micro services
 texeraImages:
   pullPolicy: Always
 
@@ -117,8 +117,8 @@ exampleDataLoader:
 
 webserver:
   name: webserver
-  numOfPods: 1
-  imageName: apache/texera-dashboard-service:1.1.0-incubating
+  numOfPods: 1  # Number of pods for the Texera deployment
+  imageName: apache/texera-dashboard-service:1.1.0-incubating # image name of the texera
   service:
     type: ClusterIP
     port: 8080
@@ -278,7 +278,32 @@ metrics-server:
     create: true
 
 gatewayConfig:
+  # The hostname for the Gateway listener (HTTP/HTTPS).
+  # e.g., "texera.example.com"
   hostname: ""
+
+  # The name of the cert-manager Issuer or ClusterIssuer to use for obtaining certificates.
+  # This requires cert-manager to be installed in the cluster.
+  # You can find available ClusterIssuers with: `kubectl get clusterissuers`
+  # You can find available Issuers with: `kubectl get issuers -A`
+  # e.g., "letsencrypt-prod"
   issuer: ""
+
+  # The Kind of the issuer specified above. Can be "Issuer" or "ClusterIssuer".
+  # If you found it via `kubectl get clusterissuers`, use "ClusterIssuer".
+  # If you found it via `kubectl get issuers`, use "Issuer".
+  # defaults to "Issuer" if not specified.
   issuerKind: "Issuer"
+
+  # The name of the Secret where the signed certificate should be stored.
+  # If empty, it defaults to "{{ .Release.Name }}-cert".
+  # e.g., "texera-tls"
   tlsSecretName: ""
+
+# Envoy Gateway Configuration
+envoy-gateway:
+  config:
+    envoyGateway:
+      extensionApis:
+        enableBackend: true
+        enableEnvoyPatchPolicy: true
