@@ -129,6 +129,7 @@ import org.apache.texera.amber.operator.visualization.sankeyDiagram.SankeyDiagra
 import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDesc
 import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ternaryContour.TernaryContourOpDesc
 import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
@@ -242,6 +243,7 @@ trait StateTransferFunc
     new Type(value = classOf[TablesPlotOpDesc], name = "TablesPlot"),
     new Type(value = classOf[ContinuousErrorBandsOpDesc], name = "ContinuousErrorBands"),
     new Type(value = classOf[FigureFactoryTableOpDesc], name = "FigureFactoryTable"),
+    new Type(value = classOf[TernaryContourOpDesc], name = "TernaryContour"),
     new Type(value = classOf[TernaryPlotOpDesc], name = "TernaryPlot"),
     new Type(value = classOf[DendrogramOpDesc], name = "Dendrogram"),
     new Type(value = classOf[NestedTableOpDesc], name = "NestedTable"),
