@@ -29,9 +29,10 @@ import org.jooq._
 
 object SearchQueryBuilder {
 
-  final lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
+  def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
   val FILE_RESOURCE_TYPE = "file"
   val WORKFLOW_RESOURCE_TYPE = "workflow"
   val PROJECT_RESOURCE_TYPE = "project"

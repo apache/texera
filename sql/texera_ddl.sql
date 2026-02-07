@@ -58,6 +58,9 @@ DROP TABLE IF EXISTS workflow_version CASCADE;
 DROP TABLE IF EXISTS project CASCADE;
 DROP TABLE IF EXISTS workflow_of_project CASCADE;
 DROP TABLE IF EXISTS workflow_executions CASCADE;
+DROP TABLE IF EXISTS dataset_upload_session CASCADE;
+DROP TABLE IF EXISTS dataset_upload_session_part CASCADE;
+
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
@@ -101,6 +104,7 @@ CREATE TABLE IF NOT EXISTS "user"
     role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    affiliation             VARCHAR(128),
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );
@@ -248,6 +252,7 @@ CREATE TABLE IF NOT EXISTS dataset
     is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
     description    VARCHAR(512) NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    cover_image    varchar(255),
     FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
@@ -273,6 +278,51 @@ CREATE TABLE IF NOT EXISTS dataset_version
     creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
+
+CREATE TABLE IF NOT EXISTS dataset_upload_session
+(
+    did                 INT          NOT NULL,
+    uid                 INT          NOT NULL,
+    file_path           TEXT         NOT NULL,
+    upload_id           VARCHAR(256) NOT NULL UNIQUE,
+    physical_address    TEXT,
+    num_parts_requested INT          NOT NULL,
+    file_size_bytes     BIGINT       NOT NULL,
+    part_size_bytes     BIGINT       NOT NULL,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (uid, did, file_path),
+
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+
+    CONSTRAINT chk_dataset_upload_session_num_parts_requested_positive
+        CHECK (num_parts_requested >= 1),
+
+    CONSTRAINT chk_dataset_upload_session_file_size_bytes_positive
+        CHECK (file_size_bytes > 0),
+
+    CONSTRAINT chk_dataset_upload_session_part_size_bytes_positive
+        CHECK (part_size_bytes > 0),
+
+    CONSTRAINT chk_dataset_upload_session_part_size_bytes_s3_upper_bound
+        CHECK (part_size_bytes <= 5368709120)
+);
+
+CREATE TABLE IF NOT EXISTS dataset_upload_session_part
+(
+    upload_id   VARCHAR(256) NOT NULL,
+    part_number INT          NOT NULL,
+    etag        TEXT         NOT NULL DEFAULT '',
+
+    PRIMARY KEY (upload_id, part_number),
+
+    CONSTRAINT chk_part_number_positive CHECK (part_number > 0),
+
+    FOREIGN KEY (upload_id)
+        REFERENCES dataset_upload_session(upload_id)
+        ON DELETE CASCADE
+);
 
 -- operator_executions (modified to match MySQL: no separate primary key; added console_messages_uri)
 CREATE TABLE IF NOT EXISTS operator_executions

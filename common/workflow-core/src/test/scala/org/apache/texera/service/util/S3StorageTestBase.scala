@@ -20,7 +20,7 @@
 package org.apache.texera.service.util
 
 import com.dimafeng.testcontainers.MinIOContainer
-import org.apache.amber.config.StorageConfig
+import org.apache.texera.amber.config.StorageConfig
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import org.testcontainers.utility.DockerImageName
 

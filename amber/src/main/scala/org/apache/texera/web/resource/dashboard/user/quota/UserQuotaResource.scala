@@ -33,9 +33,10 @@ import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
-  final private lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
+  private def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
 
   case class Workflow(
       userId: Integer,

@@ -46,9 +46,10 @@ object UnifiedResourceSchema {
   val resourceOwnerIdField: Field[_] = DSL.field(DSL.name(resourceOwnerIdAlias))
   val resourceLastModifiedTimeField: Field[_] = DSL.field(DSL.name(resourceLastModifiedTimeAlias))
 
-  final lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
+  def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
 
   def apply(
       resourceType: Field[String] = DSL.inline(""),

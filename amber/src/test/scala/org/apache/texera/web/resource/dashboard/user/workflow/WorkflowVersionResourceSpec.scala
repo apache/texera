@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
-import org.apache.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables
 import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}

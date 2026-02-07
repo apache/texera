@@ -51,14 +51,14 @@ from core.storage.runnables.port_storage_writer import (
 )
 from core.util import get_one_of
 from core.util.virtual_identity import get_worker_index
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PhysicalLink,
     PortIdentity,
     ChannelIdentity,
 )
-from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.org.apache.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
     Partitioning,
@@ -262,7 +262,7 @@ class OutputManager:
         return DataFrame(
             frame=Table.from_pydict(
                 {
-                    name: [t[name] for t in tuples]
+                    name: [t.get_serialized_field(name) for t in tuples]
                     for name in self.get_port().get_schema().get_attr_names()
                 },
                 schema=self.get_port().get_schema().as_arrow_schema(),

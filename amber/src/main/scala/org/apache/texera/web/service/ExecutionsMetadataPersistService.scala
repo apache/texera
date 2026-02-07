@@ -20,7 +20,7 @@
 package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
@@ -33,12 +33,14 @@ import java.sql.Timestamp
   * It also updates the entry if an execution status is updated
   */
 object ExecutionsMetadataPersistService extends LazyLogging {
-  final private lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
-  private lazy val workflowExecutionsDao = new WorkflowExecutionsDao(
-    context.configuration
-  )
+  private def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+  private def workflowExecutionsDao =
+    new WorkflowExecutionsDao(
+      context.configuration
+    )
 
   /**
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId

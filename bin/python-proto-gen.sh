@@ -23,7 +23,7 @@ AMBER_DIR="$TEXERA_HOME/amber"
 PYAMBER_DIR="$AMBER_DIR/src/main/python"
 PROTOBUF_AMBER_DIR="$AMBER_DIR/src/main/protobuf"
 
-CORE_DIR="$TEXERA_HOME/core/workflow-core"
+CORE_DIR="$TEXERA_HOME/common/workflow-core"
 PROTOBUF_CORE_DIR="$CORE_DIR/src/main/protobuf"
 
 # proto-gen

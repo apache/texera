@@ -359,7 +359,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image_name }}-amd64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-amd64
           build-args: |
-            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
+            ${{ (matrix.service == 'computing-unit-master' || matrix.service == 'computing-unit-worker') && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
           labels: |
             org.opencontainers.image.title=${{ matrix.image_name }}
             org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (AMD64)
@@ -438,7 +438,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image_name }}-arm64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-arm64
           build-args: |
-            ${{ matrix.service == 'computing-unit-master' && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
+            ${{ (matrix.service == 'computing-unit-master' || matrix.service == 'computing-unit-worker') && needs.set-parameters.outputs.with_r_support == 'true' && 'WITH_R_SUPPORT=true' || '' }}
           labels: |
             org.opencontainers.image.title=${{ matrix.image_name }}
             org.opencontainers.image.description=Apache Texera ${{ matrix.image_name }} (ARM64)

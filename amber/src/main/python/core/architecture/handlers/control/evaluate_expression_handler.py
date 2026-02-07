@@ -17,14 +17,13 @@
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.util.expression_evaluator import ExpressionEvaluator
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EvaluatedValue,
     EvaluatePythonExpressionRequest,
 )
 
 
 class EvaluateExpressionHandler(ControlHandler):
-
     async def evaluate_python_expression(
         self, req: EvaluatePythonExpressionRequest
     ) -> EvaluatedValue:

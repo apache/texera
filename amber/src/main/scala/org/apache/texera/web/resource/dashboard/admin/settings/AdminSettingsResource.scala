@@ -39,7 +39,7 @@ case class AdminSettingsPojo(
 @Produces(Array(MediaType.APPLICATION_JSON))
 class AdminSettingsResource {
 
-  private val ctx = SqlServer.getInstance().createDSLContext()
+  private def ctx = SqlServer.getInstance().createDSLContext()
   private val siteSettings = DSL.table("site_settings")
   private val key = DSL.field("key", classOf[String])
   private val value = DSL.field("value", classOf[String])
