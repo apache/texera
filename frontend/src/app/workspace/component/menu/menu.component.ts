@@ -91,6 +91,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showRegion: boolean = false;
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
+  public showStatus: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -259,6 +260,16 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService
       .getJointGraphWrapper()
       .mainPaper.el.classList.toggle("hide-worker-count", !this.showNumWorkers);
+    const refY = this.showNumWorkers ? -50 : -35;
+    (this.workflowActionService.getJointGraphWrapper().mainPaper.model as any)
+      .getElements()
+      .forEach((el: any) => el.attr(".operator-status/ref-y", refY));
+  }
+
+  toggleStatus() {
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .mainPaper.el.classList.toggle("hide-operator-status", !this.showStatus);
   }
 
   public async onClickOpenShareAccess(): Promise<void> {

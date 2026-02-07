@@ -180,6 +180,14 @@
                   >Workers</label
                 >
               </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showStatus"
+                  (ngModelChange)="toggleStatus()"
+                  >Status</label
+                >
+              </li>
             </ul>
           </nz-dropdown-menu>
           <button
