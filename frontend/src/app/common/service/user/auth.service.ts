@@ -133,7 +133,6 @@ export class AuthService {
     const name = this.jwtHelperService.decodeToken(token).sub;
 
     if (this.config.env.inviteOnly && role === Role.INACTIVE) {
-      setTimeout(() => {
         this.checkRegistrationRequired(uid).subscribe(required => {
           if (required) {
             this.openRegistrationModal(uid, email, name);
@@ -154,7 +153,6 @@ export class AuthService {
             });
           }
         });
-      }, 0);
 
       return this.logout();
     }
