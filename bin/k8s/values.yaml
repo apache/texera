@@ -30,7 +30,7 @@ persistence:
   minioHostLocalPath: ""
   postgresqlHostLocalPath: ""
 
-# Part 1: configuration of Postgres, Minio and LakeFS
+# Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
     repository: texera/postgres17-pgroonga
@@ -103,10 +103,11 @@ lakefs:
           access_key_id: texera_minio
           secret_access_key: password
 
-# Part 2: configurations of Texera-related micro services
+# Part2: configurations of Texera-related micro services
 texeraImages:
   pullPolicy: Always
 
+# Example data loader configuration
 exampleDataLoader:
   enabled: true
   image: apache/texera-example-data-loader:1.1.0-incubating
@@ -236,14 +237,6 @@ texeraEnvVars:
     value: ""
   - name: USER_SYS_DOMAIN
     value: ""
-  - name: GUI_LOGIN_DEFAULT_LOCAL_USER_USERNAME
-    value: "texera"
-  - name: GUI_LOGIN_DEFAULT_LOCAL_USER_PASSWORD
-    value: "texera"
-  - name: GUI_WORKFLOW_WORKSPACE_USER_PRESET_ENABLED
-    value: "true"
-  - name: DATASET_SINGLE_FILE_UPLOAD_MAX_SIZE_MIB
-    value: "20"
 
 yWebsocketServer:
   name: y-websocket-server
@@ -276,8 +269,11 @@ metrics-server:
     create: true
   serviceAccount:
     create: true
+  priorityClassName: system-cluster-critical
 
 gatewayConfig:
+  # Routes are available at bin/k8s/templates/gateway-routes.yaml
+
   # The hostname for the Gateway listener (HTTP/HTTPS).
   # e.g., "texera.example.com"
   hostname: ""

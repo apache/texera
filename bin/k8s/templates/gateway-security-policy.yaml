@@ -24,7 +24,7 @@ spec:
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      name: texera-dynamic-routes
+      name: {{ .Release.Name }}-dynamic-routes
   extAuth:
     http:
       backendRefs:

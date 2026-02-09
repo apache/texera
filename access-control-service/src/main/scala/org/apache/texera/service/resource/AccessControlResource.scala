@@ -26,7 +26,7 @@ import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.{GuiConfig, LLMConfig}
+import org.apache.texera.config.{GuiConfig, KubernetesConfig, LLMConfig}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 
 import java.net.URLDecoder
@@ -122,9 +122,9 @@ object AccessControlResource extends LazyLogging {
     }
 
     // Dynamic Routing Logic
-    val workflowComputingUnitPoolName = sys.env.getOrElse("WORKFLOW_COMPUTING_UNIT_POOL_NAME", "texera-workflow-computing-unit-pool")
-    val workflowComputingUnitPoolNamespace = sys.env.getOrElse("WORKFLOW_COMPUTING_UNIT_POOL_NAMESPACE", "texera-workflow-computing-units")
-    val workflowComputingUnitPoolPort = sys.env.getOrElse("WORKFLOW_COMPUTING_UNIT_POOL_PORT", "8888")
+    val workflowComputingUnitPoolName = KubernetesConfig.computeUnitPoolName
+    val workflowComputingUnitPoolNamespace = KubernetesConfig.computeUnitPoolNamespace
+    val workflowComputingUnitPoolPort = KubernetesConfig.computeUnitPortNumber
     
     val targetHost = s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
 
