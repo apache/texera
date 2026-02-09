@@ -23,67 +23,70 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Size")
   @JsonPropertyDescription("Font size of the Figure Factory Table")
-  var fontSize: String = "12"
+  var fontSize: Double = 12
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Color (Hex Code)")
   @JsonPropertyDescription("Font color of the Figure Factory Table")
-  var fontColor: String = "#000000"
+  var fontColor: EncodableString = "#000000"
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Row Height")
   @JsonPropertyDescription("Row height of the Figure Factory Table")
-  var rowHeight: String = "30"
+  var rowHeight: Double = 30
 
   @JsonPropertyDescription("List of columns to include in the figure factory table")
   @JsonProperty(value = "add attribute", required = true)
   var columns: List[FigureFactoryTableConfig] = List()
 
   private def getAttributes: String =
-    columns.map(_.attributeName).mkString("'", "','", "'")
+    columns.map(c => pyb"""${c.attributeName}""").mkString(",")
 
-  def manipulateTable(): String = {
+  def manipulateTable(): PythonTemplateBuilder = {
     assert(columns.nonEmpty)
 
     val attributes = getAttributes
-    s"""
-       |        # drops rows with missing values pertaining to relevant columns
-       |        table = table.dropna(subset=[$attributes])
-       |
-       |""".stripMargin
+    pyb"""
+         |        # drops rows with missing values pertaining to relevant columns
+         |        table = table.dropna(subset=[$attributes])
+         |
+         |"""
   }
 
-  def createFigureFactoryTablePlotlyFigure(): String = {
+  def createFigureFactoryTablePlotlyFigure(): PythonTemplateBuilder = {
     assert(columns.nonEmpty)
 
-    val intFontSize: Option[Double] = fontSize.toDoubleOption
-    val intRowHeight: Option[Double] = rowHeight.toDoubleOption
+    val intFontSize: Option[Double] = Option(fontSize)
+    val intRowHeight: Option[Double] = Option(rowHeight)
 
     assert(intFontSize.isDefined && intFontSize.get >= 0)
     assert(intRowHeight.isDefined && intRowHeight.get >= 30)
 
     val attributes = getAttributes
-    s"""
-       |        filtered_table = table[[$attributes]]
-       |        headers = filtered_table.columns.tolist()
-       |        cell_values = [filtered_table[col].tolist() for col in headers]
-       |
-       |        data = [headers] + list(map(list, zip(*cell_values)))
-       |        fig = ff.create_table(data, height_constant = ${intRowHeight.get}, font_colors=['$fontColor'])
-       |
-       |        # Make text size larger
-       |        for i in range(len(fig.layout.annotations)):
-       |          fig.layout.annotations[i].font.size = ${intFontSize.get}
-       |
-       |""".stripMargin
+    pyb"""
+         |        filtered_table = table[[$attributes]]
+         |        headers = filtered_table.columns.tolist()
+         |        cell_values = [filtered_table[col].tolist() for col in headers]
+         |
+         |        data = [headers] + list(map(list, zip(*cell_values)))
+         |        fig = ff.create_table(data, height_constant = ${intRowHeight.get}, font_colors=[$fontColor])
+         |
+         |        # Make text size larger
+         |        for i in range(len(fig.layout.annotations)):
+         |          fig.layout.annotations[i].font.size = ${intFontSize.get}
+         |
+         |"""
   }
 
   override def generatePythonCode(): String = {
