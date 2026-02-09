@@ -32,6 +32,7 @@ import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATA
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
 import org.apache.texera.service.MockLakeFS
+import org.apache.texera.service.util.S3StorageClient
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
 import org.scalatest.flatspec.AnyFlatSpec
@@ -61,6 +62,51 @@ class DatasetResourceSpec
     with MockLakeFS
     with BeforeAndAfterAll
     with BeforeAndAfterEach {
+
+  // ---------- Response entity helpers ----------
+  private def entityAsScalaMap(resp: Response): Map[String, Any] = {
+    resp.getEntity match {
+      case m: scala.collection.Map[_, _] =>
+        m.asInstanceOf[scala.collection.Map[String, Any]].toMap
+      case m: java.util.Map[_, _] =>
+        m.asScala.toMap.asInstanceOf[Map[String, Any]]
+      case null => Map.empty
+      case other =>
+        fail(s"Unexpected response entity type: ${other.getClass}")
+    }
+  }
+
+  private def mapListOfInts(x: Any): List[Int] =
+    x match {
+      case l: java.util.List[_]       => l.asScala.map(_.toString.toInt).toList
+      case l: scala.collection.Seq[_] => l.map(_.toString.toInt).toList
+      case other                      => fail(s"Expected list, got: ${other.getClass}")
+    }
+
+  private def mapListOfStrings(x: Any): List[String] =
+    x match {
+      case l: java.util.List[_]       => l.asScala.map(_.toString).toList
+      case l: scala.collection.Seq[_] => l.map(_.toString).toList
+      case other                      => fail(s"Expected list, got: ${other.getClass}")
+    }
+
+  private def listUploads(
+      user: SessionUser = multipartOwnerSessionUser
+  ): List[String] = {
+    val resp = datasetResource.multipartUpload(
+      "list",
+      ownerUser.getEmail,
+      multipartDataset.getName,
+      urlEnc("ignored"),
+      Optional.empty(),
+      Optional.empty(),
+      Optional.empty(),
+      user
+    )
+    resp.getStatus shouldEqual 200
+    val m = entityAsScalaMap(resp)
+    mapListOfStrings(m("filePaths"))
+  }
 
   // ---------- logging (multipart tests can be noisy) ----------
   private var savedLevels: Map[String, Level] = Map.empty
@@ -473,7 +519,8 @@ class DatasetResourceSpec
       numParts: Int,
       lastPartBytes: Int = 1,
       partSizeBytes: Int = MinNonFinalPartBytes,
-      user: SessionUser = multipartOwnerSessionUser
+      user: SessionUser = multipartOwnerSessionUser,
+      restart: Optional[java.lang.Boolean] = Optional.empty()
   ): Response = {
     require(numParts >= 1, "numParts must be >= 1")
     require(lastPartBytes > 0, "lastPartBytes must be > 0")
@@ -499,6 +546,24 @@ class DatasetResourceSpec
       urlEnc(filePath),
       Optional.of(java.lang.Long.valueOf(fileSizeBytes)),
       Optional.of(java.lang.Long.valueOf(maxPartSizeBytes)),
+      restart,
+      user
+    )
+  }
+  private def initRaw(
+      filePath: String,
+      fileSizeBytes: Long,
+      partSizeBytes: Long,
+      user: SessionUser = multipartOwnerSessionUser
+  ): Response = {
+    datasetResource.multipartUpload(
+      "init",
+      ownerUser.getEmail,
+      multipartDataset.getName,
+      urlEnc(filePath),
+      Optional.of(java.lang.Long.valueOf(fileSizeBytes)),
+      Optional.of(java.lang.Long.valueOf(partSizeBytes)),
+      Optional.empty(),
       user
     )
   }
@@ -514,6 +579,7 @@ class DatasetResourceSpec
       urlEnc(filePath),
       Optional.empty(),
       Optional.empty(),
+      Optional.empty(),
       user
     )
 
@@ -526,6 +592,7 @@ class DatasetResourceSpec
       ownerUser.getEmail,
       multipartDataset.getName,
       urlEnc(filePath),
+      Optional.empty(),
       Optional.empty(),
       Optional.empty(),
       user
@@ -618,6 +685,74 @@ class DatasetResourceSpec
     ex.getResponse.getStatus shouldEqual status
 
   // ---------------------------------------------------------------------------
+  // LIST TESTS (type=list)
+  // ---------------------------------------------------------------------------
+  "multipart-upload?type=list" should "return empty when no active sessions exist for the dataset" in {
+    // Make deterministic: remove any leftover sessions from other tests.
+    getDSLContext
+      .deleteFrom(DATASET_UPLOAD_SESSION)
+      .where(DATASET_UPLOAD_SESSION.DID.eq(multipartDataset.getDid))
+      .execute()
+
+    listUploads() shouldBe empty
+  }
+
+  it should "reject list when caller lacks WRITE access" in {
+    val ex = intercept[ForbiddenException] {
+      listUploads(user = multipartNoWriteSessionUser)
+    }
+    ex.getResponse.getStatus shouldEqual 403
+  }
+
+  it should "return only non-expired sessions, sorted by filePath (and exclude expired ones)" in {
+    // Clean slate
+    getDSLContext
+      .deleteFrom(DATASET_UPLOAD_SESSION)
+      .where(DATASET_UPLOAD_SESSION.DID.eq(multipartDataset.getDid))
+      .execute()
+
+    val fpA = uniqueFilePath("list-a")
+    val fpB = uniqueFilePath("list-b")
+
+    initUpload(fpB, numParts = 2).getStatus shouldEqual 200
+    initUpload(fpA, numParts = 2).getStatus shouldEqual 200
+
+    // Expire fpB by pushing created_at back > 6 hours.
+    val uploadIdB = fetchUploadIdOrFail(fpB)
+    val tableName = DATASET_UPLOAD_SESSION.getName // typically "dataset_upload_session"
+    getDSLContext
+      .update(DATASET_UPLOAD_SESSION)
+      .set(
+        DATASET_UPLOAD_SESSION.CREATED_AT,
+        DSL.field("current_timestamp - interval '7 hours'").cast(classOf[java.time.OffsetDateTime])
+      )
+      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(uploadIdB))
+      .execute()
+
+    val listed = listUploads()
+    listed shouldEqual listed.sorted
+    listed should contain(fpA)
+    listed should not contain fpB
+  }
+
+  it should "not list sessions after abort (cleanup works end-to-end)" in {
+    // Clean slate
+    getDSLContext
+      .deleteFrom(DATASET_UPLOAD_SESSION)
+      .where(DATASET_UPLOAD_SESSION.DID.eq(multipartDataset.getDid))
+      .execute()
+
+    val fp = uniqueFilePath("list-after-abort")
+    initUpload(fp, numParts = 2).getStatus shouldEqual 200
+
+    listUploads() should contain(fp)
+
+    abortUpload(fp).getStatus shouldEqual 200
+
+    listUploads() should not contain fp
+  }
+
+  // ---------------------------------------------------------------------------
   // INIT TESTS
   // ---------------------------------------------------------------------------
   "multipart-upload?type=init" should "create an upload session row + precreate part placeholders (happy path)" in {
@@ -634,6 +769,345 @@ class DatasetResourceSpec
 
     assertPlaceholdersCreated(sessionRecord.getUploadId, expectedParts = 3)
   }
+  it should "restart session when restart=true is explicitly requested (even if config is unchanged) and reset progress" in {
+    val filePath = uniqueFilePath("init-restart-true")
+
+    // Initial init
+    initUpload(filePath, numParts = 2, lastPartBytes = 123).getStatus shouldEqual 200
+    val oldUploadId = fetchUploadIdOrFail(filePath)
+
+    // Make progress in old session
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+    fetchPartRows(oldUploadId).find(_.getPartNumber == 1).get.getEtag.trim should not be ""
+
+    // Re-init with same config but restart=true => must restart
+    val r2 = initUpload(
+      filePath,
+      numParts = 2,
+      lastPartBytes = 123,
+      restart = Optional.of(java.lang.Boolean.TRUE)
+    )
+    r2.getStatus shouldEqual 200
+
+    val newUploadId = fetchUploadIdOrFail(filePath)
+    newUploadId should not equal oldUploadId
+
+    // Old part rows gone, new placeholders empty
+    fetchPartRows(oldUploadId) shouldBe empty
+    assertPlaceholdersCreated(newUploadId, expectedParts = 2)
+
+    // Response should look like a fresh session
+    val m = entityAsScalaMap(r2)
+    mapListOfInts(m("missingParts")) shouldEqual List(1, 2)
+    m("completedPartsCount").toString.toInt shouldEqual 0
+  }
+
+  it should "not restart session when restart=false (same config) and preserve uploadId + progress" in {
+    val filePath = uniqueFilePath("init-restart-false")
+
+    initUpload(filePath, numParts = 3, lastPartBytes = 123).getStatus shouldEqual 200
+    val uploadId1 = fetchUploadIdOrFail(filePath)
+
+    uploadPart(filePath, 1, minPartBytes(7.toByte)).getStatus shouldEqual 200
+
+    val r2 = initUpload(
+      filePath,
+      numParts = 3,
+      lastPartBytes = 123,
+      restart = Optional.of(java.lang.Boolean.FALSE)
+    )
+    r2.getStatus shouldEqual 200
+
+    val uploadId2 = fetchUploadIdOrFail(filePath)
+    uploadId2 shouldEqual uploadId1
+
+    val m = entityAsScalaMap(r2)
+    mapListOfInts(m("missingParts")) shouldEqual List(2, 3)
+    m("completedPartsCount").toString.toInt shouldEqual 1
+  }
+
+  it should "restart even when all parts were already uploaded (restart=true makes missingParts full again)" in {
+    val filePath = uniqueFilePath("init-restart-after-all-parts")
+
+    initUpload(filePath, numParts = 2, lastPartBytes = 123).getStatus shouldEqual 200
+    val oldUploadId = fetchUploadIdOrFail(filePath)
+
+    // Upload everything (but don't finish)
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+    uploadPart(filePath, 2, tinyBytes(2.toByte, n = 123)).getStatus shouldEqual 200
+
+    // Confirm "all done" without restart
+    val rNoRestart = initUpload(filePath, numParts = 2, lastPartBytes = 123)
+    rNoRestart.getStatus shouldEqual 200
+    val mNoRestart = entityAsScalaMap(rNoRestart)
+    mapListOfInts(mNoRestart("missingParts")) shouldEqual Nil
+    mNoRestart("completedPartsCount").toString.toInt shouldEqual 2
+
+    // Now force restart => must reset
+    val rRestart = initUpload(
+      filePath,
+      numParts = 2,
+      lastPartBytes = 123,
+      restart = Optional.of(java.lang.Boolean.TRUE)
+    )
+    rRestart.getStatus shouldEqual 200
+
+    val newUploadId = fetchUploadIdOrFail(filePath)
+    newUploadId should not equal oldUploadId
+    fetchPartRows(oldUploadId) shouldBe empty
+    assertPlaceholdersCreated(newUploadId, expectedParts = 2)
+
+    val m = entityAsScalaMap(rRestart)
+    mapListOfInts(m("missingParts")) shouldEqual List(1, 2)
+    m("completedPartsCount").toString.toInt shouldEqual 0
+  }
+
+  "multipart-upload?type=init" should "restart session when init config changes (fileSize/partSize/numParts) and recreate placeholders" in {
+    val filePath = uniqueFilePath("init-conflict-restart")
+
+    // First init => 2 parts
+    initUpload(filePath, numParts = 2, lastPartBytes = 123).getStatus shouldEqual 200
+    val oldUploadId = fetchUploadIdOrFail(filePath)
+
+    // Upload part 1 so old session isn't empty
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+    fetchPartRows(oldUploadId).find(_.getPartNumber == 1).get.getEtag.trim should not be ""
+
+    // Second init with DIFFERENT config => 3 parts now
+    val resp2 = initUpload(filePath, numParts = 3, lastPartBytes = 50)
+    resp2.getStatus shouldEqual 200
+
+    val newUploadId = fetchUploadIdOrFail(filePath)
+    newUploadId should not equal oldUploadId
+
+    // Old part rows should have been deleted via ON DELETE CASCADE
+    fetchPartRows(oldUploadId) shouldBe empty
+
+    // New placeholders should exist and be empty
+    assertPlaceholdersCreated(newUploadId, expectedParts = 3)
+
+    val m2 = entityAsScalaMap(resp2)
+    mapListOfInts(m2("missingParts")) shouldEqual List(1, 2, 3)
+    m2("completedPartsCount").toString.toInt shouldEqual 0
+  }
+
+  it should "restart session when physicalAddress has expired (created_at too old), even if config is unchanged" in {
+    val filePath = uniqueFilePath("init-expired-restart")
+
+    // First init (2 parts)
+    val r1 = initUpload(filePath, numParts = 2, lastPartBytes = 123)
+    r1.getStatus shouldEqual 200
+
+    val oldUploadId = fetchUploadIdOrFail(filePath)
+    oldUploadId should not be null
+
+    // Optional: create some progress so we know it truly resets
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+    fetchPartRows(oldUploadId).find(_.getPartNumber == 1).get.getEtag.trim should not be ""
+
+    // Age the session so it is definitely expired (> PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 6)
+    val expireHrs = S3StorageClient.PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS
+
+    getDSLContext
+      .update(DATASET_UPLOAD_SESSION)
+      .set(
+        DATASET_UPLOAD_SESSION.CREATED_AT,
+        DSL
+          .field(s"current_timestamp - interval '${expireHrs + 1} hours'")
+          .cast(classOf[java.time.OffsetDateTime])
+      )
+      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(oldUploadId))
+      .execute()
+
+    // Same init config again -> should restart because it's expired
+    val r2 = initUpload(filePath, numParts = 2, lastPartBytes = 123)
+    r2.getStatus shouldEqual 200
+
+    val newUploadId = fetchUploadIdOrFail(filePath)
+    newUploadId should not equal oldUploadId
+
+    // Old part rows should have been deleted (ON DELETE CASCADE)
+    fetchPartRows(oldUploadId) shouldBe empty
+
+    // New placeholders should exist, empty
+    assertPlaceholdersCreated(newUploadId, expectedParts = 2)
+
+    // Response should reflect a fresh session
+    val m2 = entityAsScalaMap(r2)
+    mapListOfInts(m2("missingParts")) shouldEqual List(1, 2)
+    m2("completedPartsCount").toString.toInt shouldEqual 0
+  }
+
+  it should "be resumable: repeated init with same config keeps uploadId and returns missingParts + completedPartsCount" in {
+    val filePath = uniqueFilePath("init-resume-same-config")
+
+    val resp1 = initUpload(filePath, numParts = 3, lastPartBytes = 123)
+    resp1.getStatus shouldEqual 200
+    val uploadId1 = fetchUploadIdOrFail(filePath)
+
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+
+    val resp2 = initUpload(filePath, numParts = 3, lastPartBytes = 123)
+    resp2.getStatus shouldEqual 200
+    val uploadId2 = fetchUploadIdOrFail(filePath)
+
+    uploadId2 shouldEqual uploadId1
+
+    val m2 = entityAsScalaMap(resp2)
+    val missing = mapListOfInts(m2("missingParts"))
+    missing shouldEqual List(2, 3)
+    m2("completedPartsCount").toString.toInt shouldEqual 1
+  }
+  it should "return missingParts=[] when all parts are already uploaded (completedPartsCount == numParts)" in {
+    val filePath = uniqueFilePath("init-all-done")
+    initUpload(filePath, numParts = 2, lastPartBytes = 123).getStatus shouldEqual 200
+
+    uploadPart(filePath, 1, minPartBytes(7.toByte)).getStatus shouldEqual 200
+    uploadPart(filePath, 2, tinyBytes(8.toByte, n = 123)).getStatus shouldEqual 200
+
+    val resp2 = initUpload(filePath, numParts = 2, lastPartBytes = 123)
+    resp2.getStatus shouldEqual 200
+
+    val m2 = entityAsScalaMap(resp2)
+    mapListOfInts(m2("missingParts")) shouldEqual Nil
+    m2("completedPartsCount").toString.toInt shouldEqual 2
+  }
+  it should "return 409 CONFLICT if the upload session row is locked by another transaction" in {
+    val filePath = uniqueFilePath("init-session-row-locked")
+    initUpload(filePath, numParts = 2).getStatus shouldEqual 200
+
+    val connectionProvider = getDSLContext.configuration().connectionProvider()
+    val connection = connectionProvider.acquire()
+    connection.setAutoCommit(false)
+
+    try {
+      val locking = DSL.using(connection, SQLDialect.POSTGRES)
+      locking
+        .selectFrom(DATASET_UPLOAD_SESSION)
+        .where(
+          DATASET_UPLOAD_SESSION.UID
+            .eq(ownerUser.getUid)
+            .and(DATASET_UPLOAD_SESSION.DID.eq(multipartDataset.getDid))
+            .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
+        )
+        .forUpdate()
+        .fetchOne()
+
+      val ex = intercept[WebApplicationException] {
+        initUpload(filePath, numParts = 2)
+      }
+      ex.getResponse.getStatus shouldEqual 409
+    } finally {
+      connection.rollback()
+      connectionProvider.release(connection)
+    }
+
+    // lock released => init works again
+    initUpload(filePath, numParts = 2).getStatus shouldEqual 200
+  }
+  it should "treat normalized-equivalent paths as the same session (no duplicate sessions)" in {
+    val base = s"norm-${System.nanoTime()}.bin"
+    val raw = s"a/../$base" // normalizes to base
+
+    // init using traversal-ish but normalizable path
+    initUpload(raw, numParts = 1, lastPartBytes = 16, partSizeBytes = 16).getStatus shouldEqual 200
+    val uploadId1 = fetchUploadIdOrFail(base) // stored path should be normalized
+
+    // init using normalized path should hit the same session (resume)
+    val resp2 = initUpload(base, numParts = 1, lastPartBytes = 16, partSizeBytes = 16)
+    resp2.getStatus shouldEqual 200
+    val uploadId2 = fetchUploadIdOrFail(base)
+
+    uploadId2 shouldEqual uploadId1
+
+    val m2 = entityAsScalaMap(resp2)
+    mapListOfInts(m2("missingParts")) shouldEqual List(1)
+    m2("completedPartsCount").toString.toInt shouldEqual 0
+  }
+  it should "restart session when fileSizeBytes differs (single-part; computedNumParts unchanged)" in {
+    val filePath = uniqueFilePath("init-conflict-filesize")
+
+    val declared = 16
+    val r1 = initRaw(filePath, fileSizeBytes = declared, partSizeBytes = 32L) // numParts=1
+    r1.getStatus shouldEqual 200
+    val oldUploadId = fetchUploadIdOrFail(filePath)
+
+    // Add progress in old session
+    uploadPart(filePath, 1, Array.fill[Byte](declared)(1.toByte)).getStatus shouldEqual 200
+
+    fetchPartRows(oldUploadId).find(_.getPartNumber == 1).get.getEtag.trim should not be ""
+
+    val r2 = initRaw(filePath, fileSizeBytes = 17L, partSizeBytes = 32L) // numParts=1 still
+    r2.getStatus shouldEqual 200
+    val newUploadId = fetchUploadIdOrFail(filePath)
+
+    newUploadId should not equal oldUploadId
+    fetchPartRows(oldUploadId) shouldBe empty // old placeholders removed
+
+    val session = fetchSession(filePath)
+    session.getFileSizeBytes shouldEqual 17L
+    session.getPartSizeBytes shouldEqual 32L
+    session.getNumPartsRequested shouldEqual 1
+
+    val m = entityAsScalaMap(r2)
+    mapListOfInts(m("missingParts")) shouldEqual List(1)
+    m("completedPartsCount").toString.toInt shouldEqual 0 // progress reset
+  }
+
+  it should "restart session when partSizeBytes differs (single-part; computedNumParts unchanged)" in {
+    val filePath = uniqueFilePath("init-conflict-partsize")
+
+    initRaw(filePath, fileSizeBytes = 16L, partSizeBytes = 32L).getStatus shouldEqual 200
+    val oldUploadId = fetchUploadIdOrFail(filePath)
+
+    // Second init, same fileSize, different partSize, still 1 part
+    val r2 = initRaw(filePath, fileSizeBytes = 16L, partSizeBytes = 64L)
+    r2.getStatus shouldEqual 200
+    val newUploadId = fetchUploadIdOrFail(filePath)
+
+    newUploadId should not equal oldUploadId
+    fetchPartRows(oldUploadId) shouldBe empty
+
+    val session = fetchSession(filePath)
+    session.getFileSizeBytes shouldEqual 16L
+    session.getPartSizeBytes shouldEqual 64L
+    session.getNumPartsRequested shouldEqual 1
+
+    val m = entityAsScalaMap(r2)
+    mapListOfInts(m("missingParts")) shouldEqual List(1)
+    m("completedPartsCount").toString.toInt shouldEqual 0
+  }
+  it should "restart session when computed numParts differs (multipart -> single-part)" in {
+    val filePath = uniqueFilePath("init-conflict-numparts")
+
+    val partSize = MinNonFinalPartBytes.toLong // 5 MiB
+    val fileSize = partSize * 2L + 123L // => computedNumParts = 3
+
+    val r1 = initRaw(filePath, fileSizeBytes = fileSize, partSizeBytes = partSize)
+    r1.getStatus shouldEqual 200
+    val oldUploadId = fetchUploadIdOrFail(filePath)
+    fetchSession(filePath).getNumPartsRequested shouldEqual 3
+
+    // Create progress
+    uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
+
+    // Re-init with a partSize >= fileSize => computedNumParts becomes 1
+    val r2 = initRaw(filePath, fileSizeBytes = fileSize, partSizeBytes = fileSize)
+    r2.getStatus shouldEqual 200
+    val newUploadId = fetchUploadIdOrFail(filePath)
+
+    newUploadId should not equal oldUploadId
+    fetchPartRows(oldUploadId) shouldBe empty
+
+    val session = fetchSession(filePath)
+    session.getNumPartsRequested shouldEqual 1
+    session.getFileSizeBytes shouldEqual fileSize
+    session.getPartSizeBytes shouldEqual fileSize
+
+    val m = entityAsScalaMap(r2)
+    mapListOfInts(m("missingParts")) shouldEqual List(1)
+    m("completedPartsCount").toString.toInt shouldEqual 0
+  }
 
   it should "reject missing fileSizeBytes / partSizeBytes" in {
     val filePath1 = uniqueFilePath("init-missing-filesize")
@@ -645,6 +1119,7 @@ class DatasetResourceSpec
         urlEnc(filePath1),
         Optional.empty(),
         Optional.of(java.lang.Long.valueOf(MinNonFinalPartBytes.toLong)),
+        Optional.empty(),
         multipartOwnerSessionUser
       )
     }
@@ -658,6 +1133,7 @@ class DatasetResourceSpec
         multipartDataset.getName,
         urlEnc(filePath2),
         Optional.of(java.lang.Long.valueOf(1L)),
+        Optional.empty(),
         Optional.empty(),
         multipartOwnerSessionUser
       )
@@ -677,6 +1153,7 @@ class DatasetResourceSpec
           urlEnc(filePath),
           Optional.of(java.lang.Long.valueOf(0L)),
           Optional.of(java.lang.Long.valueOf(1L)),
+          Optional.empty(),
           multipartOwnerSessionUser
         )
       },
@@ -692,6 +1169,7 @@ class DatasetResourceSpec
           urlEnc(filePath),
           Optional.of(java.lang.Long.valueOf(1L)),
           Optional.of(java.lang.Long.valueOf(0L)),
+          Optional.empty(),
           multipartOwnerSessionUser
         )
       },
@@ -715,6 +1193,7 @@ class DatasetResourceSpec
           urlEnc(filePathOver),
           Optional.of(java.lang.Long.valueOf(oneMiB + 1L)),
           Optional.of(java.lang.Long.valueOf(oneMiB + 1L)), // single-part
+          Optional.empty(),
           multipartOwnerSessionUser
         )
       },
@@ -730,6 +1209,7 @@ class DatasetResourceSpec
         urlEnc(filePathEq),
         Optional.of(java.lang.Long.valueOf(oneMiB)),
         Optional.of(java.lang.Long.valueOf(oneMiB)), // single-part
+        Optional.empty(),
         multipartOwnerSessionUser
       )
 
@@ -752,6 +1232,7 @@ class DatasetResourceSpec
         urlEnc(filePathEq),
         Optional.of(java.lang.Long.valueOf(max6MiB)),
         Optional.of(java.lang.Long.valueOf(partSize)),
+        Optional.empty(),
         multipartOwnerSessionUser
       )
 
@@ -768,6 +1249,7 @@ class DatasetResourceSpec
           urlEnc(filePathOver),
           Optional.of(java.lang.Long.valueOf(max6MiB + 1L)),
           Optional.of(java.lang.Long.valueOf(partSize)),
+          Optional.empty(),
           multipartOwnerSessionUser
         )
       },
@@ -790,6 +1272,7 @@ class DatasetResourceSpec
         urlEnc(filePath),
         Optional.of(java.lang.Long.valueOf(totalMaxBytes)),
         Optional.of(java.lang.Long.valueOf(MinNonFinalPartBytes.toLong)),
+        Optional.empty(),
         multipartOwnerSessionUser
       )
     }
@@ -821,6 +1304,7 @@ class DatasetResourceSpec
         urlEnc(filePath),
         Optional.empty(),
         Optional.empty(),
+        Optional.empty(),
         multipartOwnerSessionUser
       )
     }
@@ -835,7 +1319,7 @@ class DatasetResourceSpec
     assertStatus(ex, 403)
   }
 
-  it should "handle init race: exactly one succeeds, one gets 409 CONFLICT" in {
+  it should "handle init race: concurrent init calls converge to a single session (both return 200)" in {
     val filePath = uniqueFilePath("init-race")
     val barrier = new CyclicBarrier(2)
 
@@ -851,31 +1335,61 @@ class DatasetResourceSpec
     val future2 = Future(callInit())
     val results = Await.result(Future.sequence(Seq(future1, future2)), 30.seconds)
 
-    val oks = results.collect { case Right(r) if r.getStatus == 200 => r }
+    // No unexpected failures
     val fails = results.collect { case Left(t) => t }
-
-    oks.size shouldEqual 1
-    fails.size shouldEqual 1
-
-    fails.head match {
-      case e: WebApplicationException => assertStatus(e, 409)
-      case other =>
-        fail(
-          s"Expected WebApplicationException(CONFLICT), got: ${other.getClass} / ${other.getMessage}"
-        )
+    withClue(s"init race failures: ${fails.map(_.getMessage).mkString(", ")}") {
+      fails shouldBe empty
     }
 
+    // Both should be OK
+    val oks = results.collect { case Right(r) => r }
+    oks.size shouldEqual 2
+    oks.foreach(_.getStatus shouldEqual 200)
+
+    // Exactly one session row exists for this file path
     val sessionRecord = fetchSession(filePath)
     sessionRecord should not be null
+
+    // Placeholders created for expected parts
     assertPlaceholdersCreated(sessionRecord.getUploadId, expectedParts = 2)
+
+    //Both responses should report missingParts [1,2] and completedPartsCount 0
+    oks.foreach { r =>
+      val m = entityAsScalaMap(r)
+      mapListOfInts(m("missingParts")) shouldEqual List(1, 2)
+      m("completedPartsCount").toString.toInt shouldEqual 0
+    }
   }
 
-  it should "reject sequential double init with 409 CONFLICT" in {
-    val filePath = uniqueFilePath("init-double")
+  it should "return 409 if init cannot acquire the session row lock (NOWAIT)" in {
+    val filePath = uniqueFilePath("init-lock-409")
     initUpload(filePath, numParts = 2).getStatus shouldEqual 200
 
-    val ex = intercept[WebApplicationException] { initUpload(filePath, numParts = 2) }
-    assertStatus(ex, 409)
+    val connectionProvider = getDSLContext.configuration().connectionProvider()
+    val connection = connectionProvider.acquire()
+    connection.setAutoCommit(false)
+
+    try {
+      val locking = DSL.using(connection, SQLDialect.POSTGRES)
+      locking
+        .selectFrom(DATASET_UPLOAD_SESSION)
+        .where(
+          DATASET_UPLOAD_SESSION.UID
+            .eq(ownerUser.getUid)
+            .and(DATASET_UPLOAD_SESSION.DID.eq(multipartDataset.getDid))
+            .and(DATASET_UPLOAD_SESSION.FILE_PATH.eq(filePath))
+        )
+        .forUpdate()
+        .fetchOne()
+
+      val ex = intercept[WebApplicationException] {
+        initUpload(filePath, numParts = 2)
+      }
+      ex.getResponse.getStatus shouldEqual 409
+    } finally {
+      connection.rollback()
+      connectionProvider.release(connection)
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1160,6 +1674,38 @@ class DatasetResourceSpec
     assertStatus(ex, 403)
   }
 
+  "multipart-upload/part" should "treat retries as idempotent once ETag is set (no overwrite on second call)" in {
+    val filePath = uniqueFilePath("part-idempotent")
+    initUpload(
+      filePath,
+      numParts = 1,
+      lastPartBytes = 16,
+      partSizeBytes = 16
+    ).getStatus shouldEqual 200
+
+    val uploadId = fetchUploadIdOrFail(filePath)
+
+    val n = 16
+    val bytes1: Array[Byte] = Array.tabulate[Byte](n)(i => (i + 1).toByte)
+    val bytes2: Array[Byte] = Array.tabulate[Byte](n)(i => (i + 1).toByte)
+
+    uploadPart(filePath, 1, bytes1).getStatus shouldEqual 200
+    val etag1 = fetchPartRows(uploadId).find(_.getPartNumber == 1).get.getEtag
+
+    uploadPart(filePath, 1, bytes2).getStatus shouldEqual 200
+    val etag2 = fetchPartRows(uploadId).find(_.getPartNumber == 1).get.getEtag
+
+    etag2 shouldEqual etag1
+
+    finishUpload(filePath).getStatus shouldEqual 200
+
+    val repoName = multipartDataset.getRepositoryName
+    val downloaded = LakeFSStorageClient.getFileFromRepo(repoName, "main", filePath)
+    val gotBytes = Files.readAllBytes(Paths.get(downloaded.toURI))
+
+    gotBytes.toSeq shouldEqual bytes1.toSeq
+  }
+
   // ---------------------------------------------------------------------------
   // FINISH TESTS
   // ---------------------------------------------------------------------------
@@ -1183,6 +1729,7 @@ class DatasetResourceSpec
         urlEnc(filePath),
         Optional.of(java.lang.Long.valueOf(twoMiB)),
         Optional.of(java.lang.Long.valueOf(twoMiB)),
+        Optional.empty(),
         multipartOwnerSessionUser
       )
       .getStatus shouldEqual 200
