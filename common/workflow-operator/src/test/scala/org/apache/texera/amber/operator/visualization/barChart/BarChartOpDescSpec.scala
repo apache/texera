@@ -39,7 +39,7 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "list titles of axes in the python code" in {
     opDesc.fields = "geo.state_name"
     opDesc.value = "person.count"
-    val temp = opDesc.manipulateTable()
+    val temp = opDesc.manipulateTable().plain
     assert(temp.contains("geo.state_name"))
     assert(temp.contains("person.count"))
   }

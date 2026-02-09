@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
@@ -50,14 +53,14 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("X Column")
   @AutofillAttributeName
   @NotNull(message = "X-Column cannot be null")
-  private val xColumn: String = ""
+  private val xColumn: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Y Column")
   @AutofillAttributeName
   @NotNull(message = "Y-Column cannot be null")
-  private val yColumn: String = ""
+  private val yColumn: EncodableString = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Alpha Value")
@@ -71,7 +74,7 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
     "Dots will be assigned different colors based on their values of this column"
   )
   @AutofillAttributeName
-  private val colorColumn: String = ""
+  private val colorColumn: EncodableString = ""
 
   @JsonProperty(required = false, defaultValue = "false")
   @JsonSchemaTitle("log scale X")
@@ -87,7 +90,7 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Hover column")
   @JsonPropertyDescription("Column value to display when a dot is hovered over")
   @AutofillAttributeName
-  var hoverName: String = ""
+  var hoverName: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -107,43 +110,43 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  def manipulateTable(): String = {
+  def manipulateTable(): PythonTemplateBuilder = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
     val colorColExpr = if (colorColumn.nonEmpty) {
-      s"'$colorColumn'"
+      pyb"$colorColumn"
     } else {
-      ""
+      pyb""
     }
-    s"""
+    pyb"""
        |        # drops rows with missing values pertaining to relevant columns
-       |        table.dropna(subset=['$xColumn', '$yColumn', $colorColExpr], inplace = True)
+       |        table.dropna(subset=[$xColumn, $yColumn, $colorColExpr], inplace = True)
        |
-       |""".stripMargin
+       |"""
   }
 
-  def createPlotlyFigure(): String = {
+  def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
 
-    val args = scala.collection.mutable.ArrayBuffer[String](
-      s"x='$xColumn'",
-      s"y='$yColumn'",
-      s"opacity=$alpha"
+    val args = scala.collection.mutable.ArrayBuffer(
+      pyb"x=$xColumn",
+      pyb"y=$yColumn",
+      pyb"opacity=$alpha"
     )
-    if (colorColumn.nonEmpty) args += s"color='$colorColumn'"
-    if (xLogScale) args += "log_x=True"
-    if (yLogScale) args += "log_y=True"
-    if (hoverName.nonEmpty) args += s"hover_name='$hoverName'"
+    if (colorColumn.nonEmpty) args += pyb"color=$colorColumn"
+    if (xLogScale) args += pyb"log_x=True"
+    if (yLogScale) args += pyb"log_y=True"
+    if (hoverName.nonEmpty) args += pyb"hover_name=$hoverName"
 
     val joined = args.mkString(", ")
-    s"""
+    pyb"""
        |        fig = go.Figure(px.scatter(table, $joined))
        |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-       |""".stripMargin
+       |"""
   }
 
   override def generatePythonCode(): String = {
     val finalCode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import plotly.express as px
@@ -171,7 +174,7 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
          |            return
          |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
          |        yield {'html-content':html}
-         |""".stripMargin
-    finalCode
+         |"""
+    finalCode.encode
   }
 }

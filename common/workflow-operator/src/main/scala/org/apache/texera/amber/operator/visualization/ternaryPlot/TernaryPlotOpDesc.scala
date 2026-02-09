@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 /**
   * Visualization Operator for Ternary Plots.
@@ -41,19 +44,19 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
-  @AutofillAttributeName var firstVariable: String = ""
+  @AutofillAttributeName var firstVariable: EncodableString = ""
 
   // Add annotations for the second variable
   @JsonProperty(value = "secondVariable", required = true)
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
-  @AutofillAttributeName var secondVariable: String = ""
+  @AutofillAttributeName var secondVariable: EncodableString = ""
 
   // Add annotations for the third variable
   @JsonProperty(value = "thirdVariable", required = true)
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
-  @AutofillAttributeName var thirdVariable: String = ""
+  @AutofillAttributeName var thirdVariable: EncodableString = ""
 
   // Add annotations for enabling color and selecting its associated data field
   @JsonProperty(value = "colorEnabled", defaultValue = "false")
@@ -64,7 +67,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "colorDataField", required = false)
   @JsonSchemaTitle("Color Data Field")
   @JsonPropertyDescription("Specify the data field to color")
-  @AutofillAttributeName var colorDataField: String = ""
+  @AutofillAttributeName var colorDataField: EncodableString = ""
 
   // OperatorInfo instance describing ternary plot
   override def operatorInfo: OperatorInfo =
@@ -86,29 +89,29 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   /** Returns a Python string that drops any tuples with missing values */
-  def manipulateTable(): String = {
+  def manipulateTable(): PythonTemplateBuilder = {
     // Check for any empty data field names
     assert(firstVariable.nonEmpty && secondVariable.nonEmpty && thirdVariable.nonEmpty)
-    s"""
-       |        # Remove any tuples that contain missing values
-       |        table.dropna(subset=['$firstVariable', '$secondVariable', '$thirdVariable'], inplace = True)
-       |""".stripMargin
+    pyb"""
+         |        # Remove any tuples that contain missing values
+         |        table.dropna(subset=[$firstVariable, $secondVariable, $thirdVariable], inplace = True)
+         |"""
   }
 
   /** Returns a Python string that creates the ternary plot figure */
-  def createPlotlyFigure(): String = {
-    s"""
-       |        if '$colorEnabled' == 'true' and '$colorDataField' != "":
-       |            fig = px.scatter_ternary(table, a='$firstVariable', b='$secondVariable', c='$thirdVariable', color='$colorDataField')
+  def createPlotlyFigure(): PythonTemplateBuilder = {
+    pyb"""
+       |        if $colorEnabled == 'true' and $colorDataField != "":
+       |            fig = px.scatter_ternary(table, a=$firstVariable, b=$secondVariable, c=$thirdVariable, color=$colorDataField)
        |        else:
-       |            fig = px.scatter_ternary(table, a='$firstVariable', b='$secondVariable', c='$thirdVariable')
-       |""".stripMargin
+       |            fig = px.scatter_ternary(table, a=$firstVariable, b=$secondVariable, c=$thirdVariable)
+       |"""
   }
 
   /** Returns a Python string that yields the html content of the ternary plot */
   override def generatePythonCode(): String = {
     val finalCode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import plotly.express as px
@@ -135,8 +138,8 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
          |        # Convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
          |        yield {'html-content':html}
-         |""".stripMargin
-    finalCode
+         |"""
+    finalCode.encode
   }
 
 }
