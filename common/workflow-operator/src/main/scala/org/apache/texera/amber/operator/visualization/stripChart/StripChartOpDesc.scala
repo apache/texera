@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -34,25 +36,25 @@ class StripChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X-Axis Column")
   @JsonPropertyDescription("Column containing numeric values for the x-axis")
   @AutofillAttributeName
-  var x: String = ""
+  var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("Y-Axis Column")
   @JsonPropertyDescription("Column containing categorical values for the y-axis")
   @AutofillAttributeName
-  var y: String = ""
+  var y: EncodableString = ""
 
   @JsonProperty(value = "colorBy", required = false)
   @JsonSchemaTitle("Color By")
   @JsonPropertyDescription("Optional - Color points by category")
   @AutofillAttributeName
-  var colorBy: String = ""
+  var colorBy: EncodableString = ""
 
   @JsonProperty(value = "facetColumn", required = false)
   @JsonSchemaTitle("Facet Column")
   @JsonPropertyDescription("Optional - Create separate subplots for each category")
   @AutofillAttributeName
-  var facetColumn: String = ""
+  var facetColumn: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -72,11 +74,11 @@ class StripChartOpDesc extends PythonOperatorDescriptor {
     )
 
   override def generatePythonCode(): String = {
-    val colorByParam = if (colorBy != null && colorBy.nonEmpty) s", color='$colorBy'" else ""
+    val colorByParam = if (colorBy != null && colorBy.nonEmpty) pyb", color=$colorBy" else ""
     val facetColParam =
-      if (facetColumn != null && facetColumn.nonEmpty) s", facet_col='$facetColumn'" else ""
+      if (facetColumn != null && facetColumn.nonEmpty) pyb", facet_col=$facetColumn" else ""
 
-    s"""from pytexera import *
+    pyb"""from pytexera import *
        |import plotly.express as px
        |import plotly.io as pio
        |
@@ -84,38 +86,38 @@ class StripChartOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        x_values = table['$x']
-       |        y_values = table['$y']
+       |        x_values = table[$x]
+       |        y_values = table[$y]
        |
        |        # Create data dictionary
-       |        data = {'$x': x_values, '$y': y_values}
+       |        data = {$x: x_values, $y: y_values}
        |
        |        # Add optional color column if specified
-       |        if '$colorBy':
-       |            data['$colorBy'] = table['$colorBy']
+       |        if $colorBy:
+       |            data[$colorBy] = table[$colorBy]
        |
        |        # Add optional facet column if specified
-       |        if '$facetColumn':
-       |            data['$facetColumn'] = table['$facetColumn']
+       |        if $facetColumn:
+       |            data[$facetColumn] = table[$facetColumn]
        |
        |        # Create strip chart
        |        fig = px.strip(
        |            data,
-       |            x='$x',
-       |            y='$y'$colorByParam$facetColParam
+       |            x=$x,
+       |            y=$y$colorByParam$facetColParam
        |        )
        |
        |        # Update layout for better visualization
        |        fig.update_traces(marker=dict(size=8, line=dict(width=0.5, color='DarkSlateGrey')))
        |        fig.update_layout(
-       |            xaxis_title='$x',
-       |            yaxis_title='$y',
+       |            xaxis_title=$x,
+       |            yaxis_title=$y,
        |            hovermode='closest'
        |        )
        |
        |        # Convert to HTML
        |        html = pio.to_html(fig, include_plotlyjs='cdn', full_html=False)
        |        yield {'html-content': html}
-       |""".stripMargin
+       |""".encode
   }
 }
