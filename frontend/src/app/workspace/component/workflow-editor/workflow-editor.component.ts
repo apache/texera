@@ -341,7 +341,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           body: {
             fill: "rgba(158,158,158,0.2)",
             pointerEvents: "none",
-            visibility: "hidden",
           },
         },
       },

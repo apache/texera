@@ -52,6 +52,9 @@ class WorkflowScheduler(
     this.physicalPlan = updatedPhysicalPlan
   }
 
-  def getNextRegions: Set[Region] = if (!schedule.hasNext) Set() else schedule.next()
-
+  def getNextRegions: Set[Region] = {
+    val region : Set[Region] = if (!schedule.hasNext) Set() else schedule.loopNext()
+    println("current Region: " + region)
+    region
+  }
 }
