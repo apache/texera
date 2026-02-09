@@ -22,9 +22,11 @@ package org.apache.texera.amber.operator.visualization.tablesChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotEmpty
 class TablesPlotOpDesc extends PythonOperatorDescriptor {
@@ -35,38 +37,38 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
   var includedColumns: List[TablesConfig] = List()
 
   private def getAttributes: String =
-    includedColumns.map(_.attributeName).mkString("'", "','", "'")
+    includedColumns.map(c => pyb"""${c.attributeName}""").mkString("','")
 
-  def manipulateTable(): String = {
+  def manipulateTable(): PythonTemplateBuilder = {
     assert(includedColumns.nonEmpty)
     val attributes = getAttributes
-    s"""
+    pyb"""
        |        # drops rows with missing values pertaining to relevant columns
        |        table = table.dropna(subset=[$attributes])
        |
-       |""".stripMargin
+       |"""
   }
 
-  def createPlotlyFigure(): String = {
+  def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(includedColumns.nonEmpty)
     val attributes = getAttributes
-    s"""
-       |
-       |        filtered_table = table[[$attributes]]
-       |        headers = filtered_table.columns.tolist()
-       |        cell_values = [filtered_table[col].tolist() for col in headers]
-       |
-       |        fig = go.Figure(data=[go.Table(
-       |            header=dict(values=headers),
-       |            cells=dict(values=cell_values)
-       |        )])
-       |
-       |
-       |""".stripMargin
+    pyb"""
+         |
+         |        filtered_table = table[[$attributes]]
+         |        headers = filtered_table.columns.tolist()
+         |        cell_values = [filtered_table[col].tolist() for col in headers]
+         |
+         |        fig = go.Figure(data=[go.Table(
+         |            header=dict(values=headers),
+         |            cells=dict(values=cell_values)
+         |        )])
+         |
+         |
+         |"""
   }
 
   override def generatePythonCode(): String = {
-    s"""
+    pyb"""
        |from pytexera import *
        |import plotly.graph_objects as go
        |import plotly.io
@@ -89,7 +91,7 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
        |        html_content = plotly.io.to_html(fig, include_plotlyjs='cdn')
        |        yield {'html-content': html_content}
-    """.stripMargin
+    """.encode
   }
 
   override def operatorInfo: OperatorInfo = {

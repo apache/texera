@@ -22,6 +22,8 @@ package org.apache.texera.amber.operator.source.apis.reddit
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.PythonSourceOperatorDescriptor
@@ -30,17 +32,17 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Client Id")
   @JsonPropertyDescription("Client id that uses to access Reddit API")
-  var clientId: String = _
+  var clientId: EncodableString = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Client Secret")
   @JsonPropertyDescription("Client secret that uses to access Reddit API")
-  var clientSecret: String = _
+  var clientSecret: EncodableString = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Query")
   @JsonPropertyDescription("Search query")
-  var query: String = _
+  var query: EncodableString = _
 
   @JsonProperty(required = true, defaultValue = "100")
   @JsonSchemaTitle("Limit")
@@ -53,20 +55,20 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   var sorting: RedditSourceOperatorFunction = _
 
   override def generatePythonCode(): String = {
-    val clientIdReal = this.clientId.replace("\n", "").trim
-    val clientSecretReal = this.clientSecret.replace("\n", "").trim
-    val queryReal = this.query.replace("\n", "").trim
+    val clientIdReal: EncodableString = this.clientId.replace("\n", "").trim
+    val clientSecretReal: EncodableString = this.clientSecret.replace("\n", "").trim
+    val queryReal: EncodableString = this.query.replace("\n", "").trim
 
-    s"""from pytexera import *
+    pyb"""from pytexera import *
        |import praw
        |from datetime import datetime
        |
        |class ProcessTupleOperator(UDFSourceOperator):
-       |    client_id = '$clientIdReal'
-       |    client_secret = '$clientSecretReal'
+       |    client_id = $clientIdReal
+       |    client_secret = $clientSecretReal
        |    limit = $limit
-       |    query = '$queryReal'
-       |    sorting = '${sorting.getName}'
+       |    query = $queryReal
+       |    sorting = ${sorting.getName}
        |
        |    @overrides
        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
@@ -116,7 +118,7 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
        |                'author_name': author.name,
        |                'subreddit': subreddit
        |            })
-       |            yield tuple_submission""".stripMargin
+       |            yield tuple_submission""".encode
   }
 
   override def operatorInfo: OperatorInfo =

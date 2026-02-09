@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -37,7 +39,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
       "of change between two experimental groups. This value is typically a log2 fold change " +
       "and is used for the x-axis of the volcano plot."
   )
-  @AutofillAttributeName var effectColumn: String = ""
+  @AutofillAttributeName var effectColumn: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("P-Value Column")
@@ -46,7 +48,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
       "statistical test for each feature. This value is transformed using -log10(p-value) and " +
       "plotted on the y-axis to indicate statistical significance."
   )
-  @AutofillAttributeName var pvalueColumn: String = ""
+  @AutofillAttributeName var pvalueColumn: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -67,7 +69,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def generatePythonCode(): String = {
-    s"""
+    pyb"""
        |from pytexera import *
        |import plotly.express as px
        |import plotly.io
@@ -84,31 +86,31 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
        |            yield {"html-content": self.render_error("Input table is empty.")}
        |            return
        |
-       |        if "$pvalueColumn" not in table.columns or "$effectColumn" not in table.columns:
+       |        if $pvalueColumn not in table.columns or $effectColumn not in table.columns:
        |            yield {"html-content": self.render_error("Missing required columns in table.")}
        |            return
        |
        |        # Filter out non-positive p-values to avoid math errors
-       |        table = table[table["$pvalueColumn"] > 0]
+       |        table = table[table[$pvalueColumn] > 0]
        |        if table.empty:
        |            yield {"html-content": self.render_error("No rows with valid p-values.")}
        |            return
        |
-       |        table["-log10(pvalue)"] = -np.log10(table["$pvalueColumn"])
+       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueColumn])
        |
        |        fig = px.scatter(
        |            table,
-       |            x="$effectColumn",
+       |            x=$effectColumn,
        |            y="-log10(pvalue)",
        |            hover_name=table.columns[0],
-       |            color="$effectColumn",
+       |            color=$effectColumn,
        |            color_continuous_scale="RdBu",
        |            title="Volcano Plot"
        |        )
        |
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
        |        yield {"html-content": html}
-       |""".stripMargin
+       |""".encode
   }
 
 }

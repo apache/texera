@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.visualization.continuousErrorBands
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.visualization.lineChart.LineConfig
 
@@ -30,16 +31,16 @@ class BandConfig extends LineConfig {
   @JsonSchemaTitle("Y-Axis Upper Bound")
   @JsonPropertyDescription("Represents upper bound error of y-values")
   @AutofillAttributeName
-  var yUpper: String = ""
+  var yUpper: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Axis Lower Bound")
   @JsonPropertyDescription("Represents lower bound error of y-values")
   @AutofillAttributeName
-  var yLower: String = ""
+  var yLower: EncodableString = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Fill Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")
-  var fillColor: String = ""
+  var fillColor: EncodableString = ""
 }
