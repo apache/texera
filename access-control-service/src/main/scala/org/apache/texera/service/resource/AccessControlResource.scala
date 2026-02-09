@@ -125,8 +125,9 @@ object AccessControlResource extends LazyLogging {
     val workflowComputingUnitPoolName = KubernetesConfig.computeUnitPoolName
     val workflowComputingUnitPoolNamespace = KubernetesConfig.computeUnitPoolNamespace
     val workflowComputingUnitPoolPort = KubernetesConfig.computeUnitPortNumber
-    
-    val targetHost = s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
+
+    val targetHost =
+      s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
 
     Response
       .ok()
