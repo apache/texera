@@ -19,7 +19,6 @@
 
 package org.apache.texera.service.resource
 
-import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -220,7 +219,7 @@ object DatasetResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
 @Path("/dataset")
-class DatasetResource extends LazyLogging {
+class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
@@ -1995,7 +1994,7 @@ class DatasetResource extends LazyLogging {
       URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
     )
 
-    withTransaction(context) { ctx =>
+    val (repoName, uploadId, physicalAddr) = withTransaction(context) { ctx =>
       if (!userHasWriteAccess(ctx, did, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
@@ -2043,26 +2042,14 @@ class DatasetResource extends LazyLogging {
         )
         .execute()
 
-      try {
-        withLakeFSErrorHandling {
-          LakeFSStorageClient.abortPresignedMultipartUploads(
-            dataset.getRepositoryName,
-            filePath,
-            session.getUploadId,
-            physicalAddr
-          )
-        }
-      } catch {
-        case _: WebApplicationException => () // logged by withLakeFSErrorHandling
-        case e: Throwable =>
-          logger.warn(
-            s"LakeFS abort failed for uploadId=${session.getUploadId}: ${e.getMessage}",
-            e
-          )
-      }
-
-      Response.ok(Map("message" -> "Multipart upload aborted successfully")).build()
+      (dataset.getRepositoryName, session.getUploadId, physicalAddr)
     }
+
+    withLakeFSErrorHandling {
+      LakeFSStorageClient.abortPresignedMultipartUploads(repoName, filePath, uploadId, physicalAddr)
+    }
+
+    Response.ok(Map("message" -> "Multipart upload aborted successfully")).build()
   }
 
   /**
