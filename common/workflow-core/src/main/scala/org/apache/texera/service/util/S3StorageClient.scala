@@ -38,6 +38,7 @@ import scala.jdk.CollectionConverters._
 object S3StorageClient {
   val MINIMUM_NUM_OF_MULTIPART_S3_PART: Long = 5L * 1024 * 1024 // 5 MiB
   val MAXIMUM_NUM_OF_MULTIPART_S3_PARTS = 10_000
+  val PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 6
 
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
