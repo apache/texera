@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.visualization.hierarchychart
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 
 import javax.validation.constraints.NotNull
@@ -32,5 +33,5 @@ class HierarchySection {
   @JsonSchemaTitle("Attribute Name")
   @AutofillAttributeName
   @NotNull(message = "Attribute Name cannot be empty")
-  var attributeName: String = ""
+  var attributeName: EncodableString = ""
 }
