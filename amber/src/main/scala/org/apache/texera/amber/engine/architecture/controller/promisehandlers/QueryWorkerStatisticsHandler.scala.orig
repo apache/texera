@@ -23,15 +23,13 @@ import com.twitter.util.Future
 import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
-  ExecutionStatsUpdate,
-  RuntimeStatisticsPersist
+  ExecutionStatsUpdate
 }
 import org.apache.texera.amber.engine.architecture.deploysemantics.layer.WorkerExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest,
-  QueryStatisticsRequest,
-  StatisticsUpdateTarget
+  QueryStatisticsRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
@@ -135,21 +133,9 @@ trait QueryWorkerStatisticsHandler {
         case (wExec, resp, timestamp) =>
           wExec.update(timestamp, resp.metrics.workerState, resp.metrics.workerStatistics)
       }
-      // Send appropriate event(s) based on updateTarget
-      val stats = cp.workflowExecution.getAllRegionExecutionsStats
-      msg.updateTarget match {
-        case StatisticsUpdateTarget.UI_ONLY =>
-          // Timer-triggered: update UI only
-          sendToClient(ExecutionStatsUpdate(stats))
-        case StatisticsUpdateTarget.PERSISTENCE_ONLY =>
-          // Timer-triggered: persist statistics only
-          sendToClient(RuntimeStatisticsPersist(stats))
-        case StatisticsUpdateTarget.BOTH_UI_AND_PERSISTENCE |
-            StatisticsUpdateTarget.Unrecognized(_) =>
-          // Event-triggered or default: update UI and persist statistics (original behavior)
-          sendToClient(ExecutionStatsUpdate(stats))
-          sendToClient(RuntimeStatisticsPersist(stats))
-      }
+      sendToClient(
+        ExecutionStatsUpdate(cp.workflowExecution.getAllRegionExecutionsStats)
+      )
       // Release the global query lock if it was set
       if (globalQueryStatsOngoing) {
         globalQueryStatsOngoing = false

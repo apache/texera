@@ -22,7 +22,8 @@ package org.apache.texera.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
-  ExecutionStatsUpdate
+  ExecutionStatsUpdate,
+  RuntimeStatisticsPersist
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
@@ -50,11 +51,9 @@ trait WorkerStateUpdatedHandler {
       .foreach(operatorExecution =>
         operatorExecution.getWorkerExecution(ctx.sender).update(System.nanoTime(), msg.state)
       )
-    sendToClient(
-      ExecutionStatsUpdate(
-        cp.workflowExecution.getAllRegionExecutionsStats
-      )
-    )
+    val stats = cp.workflowExecution.getAllRegionExecutionsStats
+    sendToClient(ExecutionStatsUpdate(stats))
+    sendToClient(RuntimeStatisticsPersist(stats))
     EmptyReturn()
   }
 }
