@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
@@ -46,14 +49,14 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("The name of the column to represent y-axis")
   @AutofillAttributeName
   @NotNull(message = "Y-axis cannot be empty")
-  var yAxis: String = ""
+  var yAxis: EncodableString = ""
 
   @JsonProperty(value = "X-axis", required = true)
   @JsonSchemaTitle("X-axis")
   @JsonPropertyDescription("The name of the column to represent the x-axis")
   @AutofillAttributeName
   @NotNull(message = "X-axis cannot be empty")
-  var xAxis: String = ""
+  var xAxis: EncodableString = ""
 
   @JsonProperty(value = "Duplicates", required = false)
   @JsonSchemaTitle("Handle Duplicates")
@@ -77,40 +80,40 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  def manipulateTable(): String = {
-    s"""
-       |        table = table.dropna(subset=['$xAxis', '$yAxis'])
+  def manipulateTable(): PythonTemplateBuilder = {
+    pyb"""
+       |        table = table.dropna(subset=[$xAxis, $yAxis])
        |        functionType = '${duplicateType.getFunctionType}'
        |        if functionType.lower() == "mean":
-       |          table = table.groupby('$xAxis')['$yAxis'].mean().reset_index() #get mean of values
+       |          table = table.groupby($xAxis)[$yAxis].mean().reset_index() #get mean of values
        |        elif functionType.lower() == "sum":
-       |          table = table.groupby('$xAxis')['$yAxis'].sum().reset_index() #get sum of values
-       |""".stripMargin
+       |          table = table.groupby($xAxis)[$yAxis].sum().reset_index() #get sum of values
+       |"""
   }
 
-  def createPlotlyFigure(): String = {
-    s"""
+  def createPlotlyFigure(): PythonTemplateBuilder = {
+    pyb"""
        |        # Create figure
        |        fig = go.Figure()
        |
-       |        fig.add_trace(go.Scatter(x=table['$xAxis'], y=table['$yAxis'], mode = "markers+lines"))
+       |        fig.add_trace(go.Scatter(x=table[$xAxis], y=table[$yAxis], mode = "markers+lines"))
        |
        |        # Add range slider
        |        fig.update_layout(
-       |            xaxis_title='$xAxis',
-       |            yaxis_title='$yAxis',
+       |            xaxis_title=$xAxis,
+       |            yaxis_title=$yAxis,
        |            xaxis=dict(
        |                rangeslider=dict(
        |                    visible=True
        |                )
        |            )
        |        )
-       |""".stripMargin
+       |"""
   }
 
   override def generatePythonCode(): String = {
     val finalcode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import plotly.express as px
@@ -130,7 +133,7 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
-         |        if '$yAxis'.strip() == "" or '$xAxis'.strip() == "":
+         |        if $yAxis.strip() == "" or $xAxis.strip() == "":
          |           yield {'html-content': self.render_error("Y-axis or X-axis is empty")}
          |           return
          |        ${manipulateTable()}
@@ -138,8 +141,8 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
          |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
-         |""".stripMargin
-    finalcode
+         |"""
+    finalcode.encode
   }
 
 }

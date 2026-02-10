@@ -47,11 +47,12 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
   */
 
 object WorkflowVersionResource {
-  final private lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
-  final private lazy val workflowVersionDao = new WorkflowVersionDao(context.configuration)
-  final private lazy val workflowDao = new WorkflowDao(context.configuration)
+  private def context: DSLContext =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+  private def workflowVersionDao = new WorkflowVersionDao(context.configuration)
+  private def workflowDao = new WorkflowDao(context.configuration)
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
     UserSystemConfig.workflowVersionCollapseIntervalInMinutes * 60000

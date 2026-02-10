@@ -304,10 +304,15 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      if (ApplicationConfig.useTopDownSearch)
-        topDownSearch(globalSearch = ApplicationConfig.useGlobalSearch)
-      else
-        bottomUpSearch(globalSearch = ApplicationConfig.useGlobalSearch)
+      workflowContext.workflowSettings.executionMode match {
+        case ExecutionMode.MATERIALIZED =>
+          getFullyMaterializedSearchState
+        case ExecutionMode.PIPELINED =>
+          if (ApplicationConfig.useTopDownSearch)
+            topDownSearch(globalSearch = ApplicationConfig.useGlobalSearch)
+          else
+            bottomUpSearch(globalSearch = ApplicationConfig.useGlobalSearch)
+      }
     }
     val searchResult = Try(
       Await.result(searchResultFuture, ApplicationConfig.searchTimeoutMilliseconds.milliseconds)
@@ -474,6 +479,29 @@ class CostBasedScheduleGenerator(
     bestResult.copy(
       searchTimeNanoSeconds = searchTime,
       numStatesExplored = visited.size
+    )
+  }
+
+  /** Constructs a baseline fully materialized region plan (one operator per region) and evaluates its cost. */
+  def getFullyMaterializedSearchState: SearchResult = {
+    val startTime = System.nanoTime()
+
+    val (regionDAG, cost) =
+      tryConnectRegionDAG(physicalPlan.links) match {
+        case Left(dag) => (dag, allocateResourcesAndEvaluateCost(dag))
+        case Right(_) =>
+          (
+            new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink]),
+            Double.PositiveInfinity
+          )
+      }
+
+    SearchResult(
+      state = Set.empty,
+      regionDAG = regionDAG,
+      cost = cost,
+      searchTimeNanoSeconds = System.nanoTime() - startTime,
+      numStatesExplored = 1
     )
   }
 

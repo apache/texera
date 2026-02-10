@@ -21,12 +21,15 @@ from typing import Iterator, Optional, Union
 
 from pyamber import *
 from .storage.dataset_file_document import DatasetFileDocument
+from .storage.large_binary_input_stream import LargeBinaryInputStream
+from .storage.large_binary_output_stream import LargeBinaryOutputStream
 from .udf.udf_operator import (
     UDFOperatorV2,
     UDFTableOperator,
     UDFBatchOperator,
     UDFSourceOperator,
 )
+from core.models.type.large_binary import largebinary
 
 __all__ = [
     "State",
@@ -41,6 +44,9 @@ __all__ = [
     "UDFBatchOperator",
     "UDFSourceOperator",
     "DatasetFileDocument",
+    "largebinary",
+    "LargeBinaryInputStream",
+    "LargeBinaryOutputStream",
     # export external tools to be used
     "overrides",
     "logger",

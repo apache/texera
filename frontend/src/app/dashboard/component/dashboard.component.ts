@@ -42,6 +42,7 @@ import {
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
+import { User } from "../../common/type/user";
 
 @Component({
   selector: "texera-dashboard",
@@ -74,6 +75,10 @@ export class DashboardComponent implements OnInit {
     forum_enabled: false,
     about_enabled: false,
   };
+  // Variables related to updating user's affiliation
+  affiliationModalVisible = false;
+  affiliationInput: string = "";
+  affiliationSaving = false;
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -114,11 +119,12 @@ export class DashboardComponent implements OnInit {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
+      .subscribe(user => {
         this.ngZone.run(() => {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
           this.forumLogin();
+          this.checkAffiliationPrompt(user);
           this.cdr.detectChanges();
         });
       });
@@ -192,6 +198,67 @@ export class DashboardComponent implements OnInit {
           },
         });
     }
+  }
+
+  /**
+   * Prompts user to enter affiliation if they have not been prompted before
+   * @param user
+   */
+  checkAffiliationPrompt(user: User | undefined): void {
+    // Null affiliation = never prompted before
+    if (!user || !this.config.env.googleLogin) {
+      return;
+    }
+
+    this.userService
+      .checkAffiliation()
+      .pipe(untilDestroyed(this))
+      .subscribe(response => {
+        if (response) {
+          this.affiliationInput = "";
+          this.affiliationModalVisible = true;
+        } else {
+          this.affiliationModalVisible = false;
+        }
+      });
+  }
+
+  /**
+   * Saves the affiliation
+   */
+  saveAffiliation(): void {
+    const value = this.affiliationInput?.trim() ?? "";
+    this.affiliationSaving = true;
+
+    this.userService
+      .updateAffiliation(value)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.affiliationSaving = false;
+          this.affiliationModalVisible = false;
+        },
+        error: () => {
+          this.affiliationSaving = false;
+          this.affiliationModalVisible = false;
+        },
+      });
+  }
+
+  /**
+   * Skips the affiliation input and update the database to store an empty string, which means the user has
+   * already been prompted.
+   */
+  skipAffiliation(): void {
+    this.affiliationInput = "";
+    this.saveAffiliation();
+  }
+
+  /**
+   * Skips the affiliation input when user closed the prompt window via outside click, ESC
+   */
+  onAffiliationCancel(): void {
+    this.skipAffiliation();
   }
 
   checkRoute() {
