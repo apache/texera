@@ -25,11 +25,13 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("attribute to perform text summarization on")
   @AutofillAttributeName
-  var attribute: String = _
+  var attribute: EncodableString = _
 
   @JsonProperty(
     value = "Result attribute name",
@@ -37,10 +39,10 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
     defaultValue = "summary"
   )
   @JsonPropertyDescription("attribute name of the text summary result")
-  var resultAttribute: String = _
+  var resultAttribute: EncodableString = _
 
   override def generatePythonCode(): String = {
-    s"""
+    pyb"""
        |from transformers import BertTokenizerFast, EncoderDecoderModel
        |import torch
        |from pytexera import *
@@ -55,7 +57,7 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        text = tuple_["$attribute"]
+       |        text = tuple_[$attribute]
        |
        |        inputs = self.tokenizer([text], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
        |        input_ids = inputs.input_ids.to(self.device)
@@ -63,8 +65,8 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
        |
        |        output = self.model.generate(input_ids, attention_mask=attention_mask)
        |        summary = self.tokenizer.decode(output[0], skip_special_tokens=True)
-       |        tuple_["$resultAttribute"] = summary
-       |        yield tuple_""".stripMargin
+       |        tuple_[$resultAttribute] = summary
+       |        yield tuple_""".encode
   }
 
   override def operatorInfo: OperatorInfo =

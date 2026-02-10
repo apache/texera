@@ -16,6 +16,7 @@
 # under the License.
 
 wheel==0.41.2
+setuptools==80.10.2
 numpy==2.1.0
 pandas==2.2.3
 ruff==0.14.7

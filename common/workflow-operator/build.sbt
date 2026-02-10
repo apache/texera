@@ -116,3 +116,5 @@ libraryDependencies ++= Seq(
   "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4",
   "io.github.redouane59.twitter" % "twittered" % "2.21"
 )
+
+libraryDependencies += "io.github.classgraph" % "classgraph" % "4.8.184" % Test
