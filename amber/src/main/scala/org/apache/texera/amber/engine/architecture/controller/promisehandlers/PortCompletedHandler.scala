@@ -50,7 +50,6 @@ trait PortCompletedHandler {
       msg: PortCompletedRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    // Query statistics from the worker - will send BOTH UI update and persistence
     controllerInterface
       .controllerInitiateQueryStatistics(
         QueryStatisticsRequest(

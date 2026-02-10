@@ -50,7 +50,7 @@ trait WorkerExecutionCompletedHandler {
 
     // after worker execution is completed, query statistics immediately one last time
     // because the worker might be killed before the next query statistics interval
-    // This will send BOTH UI update and persistence (critical event)
+    // and the user sees the last update before completion
     val statsRequest =
       controllerInterface.controllerInitiateQueryStatistics(
         QueryStatisticsRequest(Seq(ctx.sender), StatisticsUpdateTarget.BOTH_UI_AND_PERSISTENCE),
