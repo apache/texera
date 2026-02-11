@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -34,24 +36,24 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("x")
   @JsonPropertyDescription("The column name of X-axis")
   @AutofillAttributeName
-  var x: String = ""
+  var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("y")
   @JsonPropertyDescription("The column name of Y-axis")
   @AutofillAttributeName
-  var y: String = ""
+  var y: EncodableString = ""
 
   @JsonProperty(value = "z", required = true)
   @JsonSchemaTitle("z")
   @JsonPropertyDescription("The column name of color bar")
   @AutofillAttributeName
-  var z: String = ""
+  var z: EncodableString = ""
 
   @JsonProperty(required = false, defaultValue = "10")
   @JsonSchemaTitle("Grid Size")
   @JsonPropertyDescription("Grid resolution of the final image")
-  var gridSize: String = ""
+  var gridSize: EncodableString = ""
 
   @JsonProperty(required = false, defaultValue = "true")
   @JsonSchemaTitle("Connect Gaps")
@@ -84,7 +86,7 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
     )
 
   override def generatePythonCode(): String = {
-    s"""from pytexera import *
+    pyb"""from pytexera import *
        |import numpy as np
        |import plotly.graph_objects as go
        |from scipy.interpolate import griddata
@@ -94,11 +96,11 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        x = table['$x'].values
-       |        y = table['$y'].values
-       |        z = table['$z'].values
-       |        grid_size = int('$gridSize')
-       |        connGaps = True if '$connectGaps' == 'true' else False
+       |        x = table[$x].values
+       |        y = table[$y].values
+       |        z = table[$z].values
+       |        grid_size = int($gridSize)
+       |        connGaps = True if $connectGaps == 'true' else False
        |
        |        grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
        |        grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
@@ -108,12 +110,12 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
        |            y=np.linspace(min(y), max(y), grid_size),
        |            z=grid_z,
        |            connectgaps=connGaps,
-       |            contours_coloring ='${coloringMethod.getColoringMethod}',
-       |            colorbar_title='$z'
+       |            contours_coloring =${coloringMethod.getColoringMethod},
+       |            colorbar_title=$z
        |        ))
        |        fig.update_layout(title='Contour Plot')
        |        html = pio.to_html(fig, include_plotlyjs='cdn', full_html=False)
        |        yield {'html-content': html}
-       |""".stripMargin
+       |""".encode
   }
 }

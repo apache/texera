@@ -26,7 +26,7 @@ import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.config.{GuiConfig, LLMConfig}
+import org.apache.texera.config.{GuiConfig, KubernetesConfig, LLMConfig}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 
 import java.net.URLDecoder
@@ -121,12 +121,21 @@ object AccessControlResource extends LazyLogging {
         return Response.status(Response.Status.FORBIDDEN).build()
     }
 
+    // Dynamic Routing Logic
+    val workflowComputingUnitPoolName = KubernetesConfig.computeUnitPoolName
+    val workflowComputingUnitPoolNamespace = KubernetesConfig.computeUnitPoolNamespace
+    val workflowComputingUnitPoolPort = KubernetesConfig.computeUnitPortNumber
+
+    val targetHost =
+      s"computing-unit-$cuidInt.$workflowComputingUnitPoolName-svc.$workflowComputingUnitPoolNamespace.svc.cluster.local:$workflowComputingUnitPoolPort"
+
     Response
       .ok()
       .header(HeaderField.UserComputingUnitAccess, cuAccess.toString)
       .header(HeaderField.UserId, userSession.get().getUid.toString)
       .header(HeaderField.UserName, userSession.get().getName)
       .header(HeaderField.UserEmail, userSession.get().getEmail)
+      .header("Host", targetHost) // Envoy ExtAuth: Rewrite Host
       .build()
   }
 

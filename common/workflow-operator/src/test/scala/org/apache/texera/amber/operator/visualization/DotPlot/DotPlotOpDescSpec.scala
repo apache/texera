@@ -35,8 +35,9 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       opDesc
         .createPlotlyFigure()
+        .plain
         .contains(
-          "table = table.groupby(['column1'])['column1'].count().reset_index(name='counts')"
+          "table = table.groupby([column1])[column1].count().reset_index(name='counts')"
         )
     )
   }
