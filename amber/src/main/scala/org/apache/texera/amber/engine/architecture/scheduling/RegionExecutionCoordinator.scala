@@ -166,6 +166,8 @@ class RegionExecutionCoordinator(
                 val actorRef = actorRefService.getActorRef(workerId)
                 // Remove the actorRef so that no other actors can find the worker and send messages.
                 actorRefService.removeActorRef(workerId)
+                asyncRPCClient.outputGateway.removeControlChannel(workerId)
+                asyncRPCClient.inputGateway.removeControlChannel(workerId)
                 gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS)).asTwitter()
               }
           }.toSeq
