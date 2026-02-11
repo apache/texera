@@ -41,7 +41,6 @@ trait AssignPortHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def assignPort(msg: AssignPortRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
-    println("ergergerge")
     val schema = Schema.fromRawSchema(msg.schema)
     if (msg.input) {
       val inputPortURIStrs = msg.storageUris.toList
