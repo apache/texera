@@ -18,27 +18,11 @@
  */
 
 package org.apache.texera.amber.operator.loop
-
 import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
-import org.apache.texera.amber.util.JSONUtils.objectMapper
-
-import scala.collection.mutable
 
 class LoopStartOpExec(descString: String) extends OperatorExecutor {
-  private val data = new mutable.ArrayBuffer[Tuple]
-  private var currentIteration = 0
-
-  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    data.append(tuple)
-    Iterator.empty
-  }
-
-  override def onFinish(port: Int): Iterator[TupleLike] = {
-    currentIteration += 1
-    data.iterator
-  }
-
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator(tuple)
 }
 
 
