@@ -19,20 +19,20 @@
 
 package org.apache.texera.amber.operator.loop
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class LoopEndOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Iteration Number")
   var iteration: Int = _
-
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -43,10 +43,11 @@ class LoopEndOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithClassName("org.apache.texera.amber.operator.loop.LoopEndOpExec")
+        OpExecWithClassName("org.apache.texera.amber.operator.loop.LoopEndOpExec",objectMapper.writeValueAsString(this))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .withParallelizable(false)
       .withSuggestedWorkerNum(1)
   }
 
