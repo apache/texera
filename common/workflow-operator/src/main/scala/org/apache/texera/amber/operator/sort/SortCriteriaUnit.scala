@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 
 class SortCriteriaUnit {
@@ -27,7 +28,7 @@ class SortCriteriaUnit {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("Attribute name to sort by")
   @AutofillAttributeName
-  var attributeName: String = _
+  var attributeName: EncodableString = _
 
   @JsonProperty(value = "sortPreference", required = true)
   @JsonPropertyDescription("Sort preference (ASC or DESC)")

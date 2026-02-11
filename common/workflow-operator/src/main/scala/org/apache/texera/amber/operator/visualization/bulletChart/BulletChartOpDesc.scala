@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -40,17 +42,17 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value")
   @JsonPropertyDescription("The actual value to display on the bullet chart")
-  @AutofillAttributeName var value: String = ""
+  @AutofillAttributeName var value: EncodableString = ""
 
   @JsonProperty(value = "deltaReference", required = true)
   @JsonSchemaTitle("Delta Reference")
   @JsonPropertyDescription("The reference value for the delta indicator. e.g., 100")
-  var deltaReference: String = ""
+  var deltaReference: EncodableString = ""
 
   @JsonProperty(value = "thresholdValue", required = false)
   @JsonSchemaTitle("Threshold Value")
   @JsonPropertyDescription("The performance threshold value. e.g., 100")
-  var thresholdValue: String = ""
+  var thresholdValue: EncodableString = ""
 
   @JsonProperty(value = "steps", required = false)
   @JsonSchemaTitle("Steps")
@@ -78,14 +80,14 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
     // Convert the Scala list of steps into a list of dictionaries
     val stepsStr = if (steps != null && !steps.isEmpty) {
       val stepsSeq =
-        steps.asScala.map(step => s"""{"start": "${step.start}", "end": "${step.end}"}""")
+        steps.asScala.map(step => pyb"""{"start": ${step.start}, "end": ${step.end}}""")
       "[" + stepsSeq.mkString(", ") + "]"
     } else {
       "[]"
     }
 
     val finalCode =
-      s"""
+      pyb"""
          |from pytexera import *
          |import plotly.graph_objects as go
          |import plotly.io as pio
@@ -133,8 +135,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            return
          |
          |        try:
-         |            value_col = "$value"
-         |            delta_ref = float("$deltaReference") if "$deltaReference".strip() else 0
+         |            value_col = $value
+         |            delta_ref = float($deltaReference) if $deltaReference.strip() else 0
          |
          |            if value_col not in table.columns:
          |                yield {'html-content': self.render_error(f"Column '{value_col}' not found in input table.")}
@@ -146,7 +148,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                return
          |
          |            try:
-         |                threshold_val = float("$thresholdValue") if "$thresholdValue".strip() else None
+         |                threshold_val = float($thresholdValue) if $thresholdValue.strip() else None
          |            except ValueError:
          |                threshold_val = None
          |
@@ -225,7 +227,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            yield {"html-content": final_html}
          |        except Exception as e:
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
-         |""".stripMargin
-    finalCode
+         |"""
+    finalCode.encode
   }
 }

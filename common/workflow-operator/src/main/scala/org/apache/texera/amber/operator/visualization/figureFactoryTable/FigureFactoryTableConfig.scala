@@ -21,11 +21,12 @@ package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 
 class FigureFactoryTableConfig {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute Name")
   @AutofillAttributeName
-  var attributeName: String = ""
+  var attributeName: EncodableString = ""
 }

@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations._
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.{
   CommonOpDescAnnotation,
   HideAnnotation
@@ -48,7 +49,7 @@ class HyperParameters[T] {
     )
   )
   @JsonProperty(value = "attribute")
-  var attribute: String = _
+  var attribute: EncodableString = _
 
   @JsonSchemaInject(
     strings = Array(
@@ -59,7 +60,7 @@ class HyperParameters[T] {
     bools = Array(new JsonSchemaBool(path = HideAnnotation.hideOnNull, value = true))
   )
   @JsonProperty(value = "value")
-  var value: String = _
+  var value: EncodableString = _
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Workflow")
