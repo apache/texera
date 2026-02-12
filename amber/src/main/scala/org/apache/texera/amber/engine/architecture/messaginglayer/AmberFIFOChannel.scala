@@ -41,18 +41,18 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   private var portId: Option[PortIdentity] = None
 
   def acceptMessage(msg: WorkflowFIFOMessage): Unit = {
-    val seq = msg.sequenceNumber
-    val payload = msg.payload
-    if (isDuplicated(seq)) {
-      logger.debug(
-        s"received duplicated message $payload with seq = $seq while current seq = $current"
-      )
-    } else if (isAhead(seq)) {
-      logger.debug(s"received ahead message $payload with seq = $seq while current seq = $current")
-      stash(seq, msg)
-    } else {
+    //val seq = msg.sequenceNumber
+    //val payload = msg.payload
+    //if (isDuplicated(seq)) {
+    //  logger.debug(
+    //    s"received duplicated message $payload with seq = $seq while current seq = $current"
+    //  )
+    //} else if (isAhead(seq)) {
+    //  logger.debug(s"received ahead message $payload with seq = $seq while current seq = $current")
+    //  stash(seq, msg)
+    //} else {
       enforceFIFO(msg)
-    }
+    //}
   }
 
   def getCurrentSeq: Long = current
