@@ -83,7 +83,7 @@ Test / PB.protoSources += PB.externalSourcePath.value
 // Test-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val testcontainersVersion = "0.43.0"
+val testcontainersVersion = "0.44.1"
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
