@@ -262,16 +262,26 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService
       .getJointGraphWrapper()
       .mainPaper.el.classList.toggle("hide-worker-count", !this.showNumWorkers);
-    const refY = this.showNumWorkers ? -50 : -35;
-    (this.workflowActionService.getJointGraphWrapper().mainPaper.model as any)
-      .getElements()
-      .forEach((el: any) => el.attr(".operator-status/ref-y", refY));
+    this.applyOperatorStatusPosition();
   }
 
   toggleStatus() {
     this.workflowActionService
       .getJointGraphWrapper()
       .mainPaper.el.classList.toggle("hide-operator-status", !this.showStatus);
+    this.applyOperatorStatusPosition();
+  }
+
+  private applyOperatorStatusPosition(): void {
+    const refY = this.showNumWorkers ? -50 : -35;
+    const paperModel = this.workflowActionService.getJointGraphWrapper().mainPaper.model as any;
+    paperModel.getElements().forEach((el: any) => {
+      el.attr(".operator-status/ref", "rect.body");
+      el.attr(".operator-status/ref-x", 0.5);
+      el.attr(".operator-status/ref-y", refY);
+      el.attr(".operator-status/x-alignment", "middle");
+      el.attr(".operator-status/y-alignment", "middle");
+    });
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
