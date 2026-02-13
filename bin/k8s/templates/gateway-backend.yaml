@@ -15,20 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-apiVersion: v1
-kind: Service
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
 metadata:
-  name: envoy-svc
+  name: {{ .Release.Name }}-dynamic-backend
   namespace: {{ .Release.Namespace }}
 spec:
-  type: {{ .Values.envoy.service.type }}
-  selector:
-    app: envoy
-  ports:
-    - protocol: TCP
-      port: {{ .Values.envoy.service.port }}
-      targetPort: {{ .Values.envoy.service.port }}
-      # if service type is set to NodePort, include nodePort attribute
-      {{- if eq .Values.envoy.service.type "NodePort" }}
-      nodePort: {{ .Values.envoy.service.nodePort }}
-      {{- end }}
+  type: DynamicResolver

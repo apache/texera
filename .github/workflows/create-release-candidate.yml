@@ -76,7 +76,7 @@ jobs:
           fi
 
           RC_DIR="${VERSION}-RC${RC_NUM}"
-          TARBALL_NAME="apache-texera-${VERSION}-rc${RC_NUM}-src.tar.gz"
+          TARBALL_NAME="apache-texera-${VERSION}-src.tar.gz"
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "rc_num=$RC_NUM" >> $GITHUB_OUTPUT
@@ -95,20 +95,19 @@ jobs:
           TAG_NAME="${{ steps.vars.outputs.tag_name }}"
           TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
           VERSION="${{ steps.vars.outputs.version }}"
-          RC_NUM="${{ steps.vars.outputs.rc_num }}"
 
           # Create a temporary directory for the archive
           TEMP_DIR=$(mktemp -d)
-          ARCHIVE_DIR="$TEMP_DIR/apache-texera-${VERSION}-rc${RC_NUM}-src"
+          ARCHIVE_DIR="$TEMP_DIR/apache-texera-${VERSION}-src"
 
           echo "Creating source archive in $ARCHIVE_DIR"
 
           # Export the git repository at the tag
-          git archive --format=tar --prefix="apache-texera-${VERSION}-rc${RC_NUM}-src/" "$TAG_NAME" | tar -x -C "$TEMP_DIR"
+          git archive --format=tar --prefix="apache-texera-${VERSION}-src/" "$TAG_NAME" | tar -x -C "$TEMP_DIR"
 
           # Create tarball
           cd "$TEMP_DIR"
-          tar -czf "$GITHUB_WORKSPACE/$TARBALL_NAME" "apache-texera-${VERSION}-rc${RC_NUM}-src"
+          tar -czf "$GITHUB_WORKSPACE/$TARBALL_NAME" "apache-texera-${VERSION}-src"
 
           cd "$GITHUB_WORKSPACE"
 
@@ -313,19 +312,19 @@ jobs:
           echo "   - Tag: https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME}" >> $GITHUB_STEP_SUMMARY
           echo "   - Artifacts: https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Verification Commands" >> $GITHUB_STEP_SUMMARY
+          echo "### Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download artifacts from the staging directory and verify:" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "# Download and verify signature" >> $GITHUB_STEP_SUMMARY
-          echo "wget https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/${TARBALL_NAME}" >> $GITHUB_STEP_SUMMARY
-          echo "wget https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/${TARBALL_NAME}.asc" >> $GITHUB_STEP_SUMMARY
-          echo "wget https://dist.apache.org/repos/dist/release/incubator/texera/KEYS" >> $GITHUB_STEP_SUMMARY
+          echo "# Import KEYS and verify signature" >> $GITHUB_STEP_SUMMARY
           echo "gpg --import KEYS" >> $GITHUB_STEP_SUMMARY
           echo "gpg --verify ${TARBALL_NAME}.asc ${TARBALL_NAME}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Verify SHA512" >> $GITHUB_STEP_SUMMARY
-          echo "wget https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/${TARBALL_NAME}.sha512" >> $GITHUB_STEP_SUMMARY
+          echo "# Verify SHA512 checksum" >> $GITHUB_STEP_SUMMARY
           echo "sha512sum -c ${TARBALL_NAME}.sha512" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**KEYS file:** https://downloads.apache.org/incubator/texera/KEYS" >> $GITHUB_STEP_SUMMARY
 
           echo "✓ Release candidate workflow completed successfully!"
 

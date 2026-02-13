@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -36,7 +38,7 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("The column containing time/date values (e.g., Date, Timestamp).")
   @AutofillAttributeName
   @NotNull(message = "Time Column cannot be empty")
-  var timeColumn: String = ""
+  var timeColumn: EncodableString = ""
 
   @JsonProperty(value = "valueColumn", required = true)
   @JsonSchemaTitle("Value Column")
@@ -44,19 +46,19 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaInject(json = """{"enum": "autofill"}""")
   @AutofillAttributeName
   @NotNull(message = "Value Column cannot be empty")
-  var valueColumn: String = ""
+  var valueColumn: EncodableString = ""
 
   @JsonProperty(value = "categoryColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - A categorical column to create separate lines.")
   @AutofillAttributeName
-  var CategoryColumn: String = "No Selection"
+  var CategoryColumn: EncodableString = "No Selection"
 
   @JsonProperty(value = "facetColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Facet Column")
   @JsonPropertyDescription("Optional - A column to create separate subplots.")
   @AutofillAttributeName
-  var facetColumn: String = "No Selection"
+  var facetColumn: EncodableString = "No Selection"
 
   @JsonProperty(value = "line", defaultValue = "line", required = true)
   @JsonSchemaTitle("Plot Type")
@@ -89,14 +91,14 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
     val dropnaCols = List(timeColumn, valueColumn) ++
       (if (CategoryColumn != "No Selection") Some(CategoryColumn) else None) ++
       (if (facetColumn != "No Selection") Some(facetColumn) else None)
-    val dropnaStr = dropnaCols.map(c => s"'$c'").mkString("[", ", ", "]")
+    val dropnaStr = dropnaCols.map(c => pyb"$c").mkString("[", ", ", "]")
 
-    val colorArg = if (CategoryColumn != "No Selection") s", color='$CategoryColumn'" else ""
-    val facetArg = if (facetColumn != "No Selection") s", facet_col='$facetColumn'" else ""
+    val colorArg = if (CategoryColumn != "No Selection") pyb", color=$CategoryColumn" else ""
+    val facetArg = if (facetColumn != "No Selection") pyb", facet_col=$facetColumn" else ""
     val plotFunc = if (plotType == "area") "px.area" else "px.line"
     val showSlider = if (showRangeSlider) "True" else "False"
 
-    s"""
+    pyb"""
        |from pytexera import *
        |import plotly.express as px
        |import plotly.io
@@ -114,14 +116,14 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
        |            return
        |
        |        try:
-       |            table['$timeColumn'] = pd.to_datetime(table['$timeColumn'], errors='coerce')
-       |            table = table.dropna(subset=$dropnaStr).sort_values(by='$timeColumn')
+       |            table[$timeColumn] = pd.to_datetime(table[$timeColumn], errors='coerce')
+       |            table = table.dropna(subset=$dropnaStr).sort_values(by=$timeColumn)
        |
        |            if table.empty:
        |                yield {'html-content': self.render_error("Table became empty after filtering.")}
        |                return
        |
-       |            fig = $plotFunc(table, x='$timeColumn', y='$valueColumn'$colorArg$facetArg)
+       |            fig = $plotFunc(table, x=$timeColumn, y=$valueColumn$colorArg$facetArg)
        |
        |            if $showSlider:
        |                fig.update_xaxes(rangeslider_visible=True)
@@ -129,8 +131,8 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
        |            fig.update_layout(
        |                margin=dict(l=0, r=0, t=30, b=0),
        |                title=dict(text="Time Series Plot", x=0.5),
-       |                xaxis_title="$timeColumn",
-       |                yaxis_title="$valueColumn",
+       |                xaxis_title=$timeColumn,
+       |                yaxis_title=$valueColumn,
        |                template="plotly_white"
        |            )
        |
@@ -139,6 +141,6 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
        |
        |        except Exception as e:
        |            yield {'html-content': self.render_error(str(e))}
-       |""".stripMargin
+       |""".encode
   }
 }

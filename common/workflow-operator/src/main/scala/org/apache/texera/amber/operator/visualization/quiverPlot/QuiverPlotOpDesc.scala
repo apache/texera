@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 @JsonSchemaInject(json = """
 {
@@ -44,22 +47,22 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
   @JsonPropertyDescription("Column for the x-coordinate of the starting point")
-  @AutofillAttributeName var x: String = ""
+  @AutofillAttributeName var x: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("y")
   @JsonPropertyDescription("Column for the y-coordinate of the starting point")
-  @AutofillAttributeName var y: String = ""
+  @AutofillAttributeName var y: EncodableString = ""
 
   @JsonProperty(value = "u", required = true)
   @JsonSchemaTitle("u")
   @JsonPropertyDescription("Column for the vector component in the x-direction")
-  @AutofillAttributeName var u: String = ""
+  @AutofillAttributeName var u: EncodableString = ""
 
   @JsonProperty(value = "v", required = true)
   @JsonSchemaTitle("v")
   @JsonPropertyDescription("Column for the vector component in the y-direction")
-  @AutofillAttributeName var v: String = ""
+  @AutofillAttributeName var v: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -80,15 +83,15 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
     )
 
   //data cleaning for missing value
-  def manipulateTable(): String = {
-    s"""
+  def manipulateTable(): PythonTemplateBuilder = {
+    pyb"""
        |        table = table.dropna() #remove missing values
-       |""".stripMargin
+       |"""
   }
 
   override def generatePythonCode(): String = {
     val finalCode =
-      s"""
+      pyb"""
          |from pytexera import *
          |import pandas as pd
          |import plotly.figure_factory as ff
@@ -109,7 +112,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
          |            yield {'html-content': self.render_error("Input table is empty.")}
          |            return
          |
-         |        required_columns = {'${x}', '${y}', '${u}', '${v}'}
+         |        required_columns = {$x, $y, $u, $v}
          |        if not required_columns.issubset(table.columns):
          |            yield {'html-content': self.render_error(f"Input table must contain columns: {', '.join(required_columns)}")}
          |            return
@@ -126,8 +129,8 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
          |        try:
          |            #graph the quiver plot
          |            fig = ff.create_quiver(
-         |                table['${x}'], table['${y}'],
-         |                table['${u}'], table['${v}'],
+         |                table[$x], table[$y],
+         |                table[$u], table[$v],
          |                scale=0.1
          |            )
          |            html = fig.to_html(include_plotlyjs='cdn', full_html=False)
@@ -137,8 +140,8 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
          |
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
-         |""".stripMargin
-    finalCode
+         |"""
+    finalCode.encode
   }
 
 }

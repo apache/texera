@@ -17,19 +17,62 @@
 
 import overrides
 import pandas
+from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
+from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .state import State
 from .table import all_output_to_tuple
+
+import base64
 
 
 class Operator(ABC):
     """
     Abstract base class for all operators.
     """
+
+    class PythonTemplateDecoder:
+        class Decoder(Protocol):
+            """Pluggable base64 decoder interface."""
+
+            def to_str(self, data: Union[str, bytes]) -> str: ...
+
+        class StdlibBase64Decoder:
+            """Default decoder using Python's stdlib base64."""
+
+            def to_str(self, data: Union[str, bytes]) -> str:
+                b64_bytes = data.encode("ascii") if isinstance(data, str) else data
+                raw = base64.b64decode(b64_bytes, validate=False)
+                return raw.decode("utf-8", errors="strict")
+
+        def __init__(
+            self,
+            decoder: Optional["Operator.PythonTemplateDecoder.Decoder"] = None,
+            cache_size: int = 256,
+        ) -> None:
+            self._decoder = decoder or self.StdlibBase64Decoder()
+            self._decode_cached = self._build_cached_decoder(cache_size)
+
+        def _build_cached_decoder(self, cache_size: int):
+            @lru_cache(maxsize=cache_size)
+            def _cached(data: Union[str, bytes]) -> str:
+                return self._decoder.to_str(data)
+
+            return _cached
+
+        def decode(self, data: Union[str, bytes]) -> str:
+            return self._decode_cached(data)
+
+    def _get_template_decoder(self) -> "Operator.PythonTemplateDecoder":
+        if not hasattr(self, "_python_template_decoder"):
+            self._python_template_decoder = self.PythonTemplateDecoder(cache_size=256)
+        return self._python_template_decoder
+
+    def decode_python_template(self, data: Union[str, bytes]) -> str:
+        return self._get_template_decoder().decode(data)
 
     __internal_is_source: bool = False
 

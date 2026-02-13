@@ -25,11 +25,13 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform spam detection on")
   @AutofillAttributeName
-  var attribute: String = _
+  var attribute: EncodableString = _
 
   @JsonProperty(
     value = "Spam result attribute",
@@ -37,7 +39,7 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
     defaultValue = "is_spam"
   )
   @JsonPropertyDescription("column name of whether spam or not")
-  var resultAttributeSpam: String = _
+  var resultAttributeSpam: EncodableString = _
 
   @JsonProperty(
     value = "Score result attribute",
@@ -45,10 +47,10 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
     defaultValue = "score"
   )
   @JsonPropertyDescription("column name of Probability for classification")
-  var resultAttributeProbability: String = _
+  var resultAttributeProbability: EncodableString = _
 
   override def generatePythonCode(): String = {
-    s"""from transformers import pipeline
+    pyb"""from transformers import pipeline
        |from pytexera import *
        |
        |class ProcessTupleOperator(UDFOperatorV2):
@@ -58,10 +60,10 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        result = self.pipeline(tuple_["$attribute"])[0]
-       |        tuple_["$resultAttributeSpam"] = (result["label"] == "LABEL_1")
-       |        tuple_["$resultAttributeProbability"] = result["score"]
-       |        yield tuple_""".stripMargin
+       |        result = self.pipeline(tuple_[$attribute])[0]
+       |        tuple_[$resultAttributeSpam] = (result["label"] == "LABEL_1")
+       |        tuple_[$resultAttributeProbability] = result["score"]
+       |        yield tuple_""".encode
   }
 
   override def operatorInfo: OperatorInfo =

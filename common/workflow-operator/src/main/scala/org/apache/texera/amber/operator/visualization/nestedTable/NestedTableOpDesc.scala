@@ -21,9 +21,11 @@ package org.apache.texera.amber.operator.visualization.nestedTable
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -53,17 +55,17 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  private def createNestedTable(): String = {
+  private def createNestedTable(): PythonTemplateBuilder = {
     val sortedColumns = includedColumns.asScala.sortBy(_.attributeGroup)
 
-    s"""
+    pyb"""
        |        columns = pd.MultiIndex.from_tuples([
        |            ${sortedColumns
       .map { config =>
         val name =
           if (config.newName != null && config.newName.nonEmpty) config.newName
           else config.originalName
-        s"('${config.attributeGroup}', '${name}')"
+        pyb"(${config.attributeGroup}, $name)"
       }
       .mkString(",\n             ")}
        |        ])
@@ -72,7 +74,7 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
        |        for _, row in table.iterrows():
        |            data.append([
        |                ${sortedColumns
-      .map(config => s"row['${config.originalName}']")
+      .map(config => pyb"row[${config.originalName}]")
       .mkString(", ")}
        |            ])
        |
@@ -105,12 +107,12 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
        |            .set_table_attributes('class="dataframe"')
        |            .hide(axis="index")
        |        )
-       |""".stripMargin
+       |"""
   }
 
   override def generatePythonCode(): String = {
     val finalcode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import pandas as pd
@@ -132,7 +134,7 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
          |        html = styled_table.to_html()
          |        yield {'html-content': html}
          |
-         |""".stripMargin
-    finalcode
+         |"""
+    finalcode.encode
   }
 }

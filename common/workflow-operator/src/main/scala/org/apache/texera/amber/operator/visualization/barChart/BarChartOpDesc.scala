@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
@@ -47,20 +50,20 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("The value associated with each category")
   @AutofillAttributeName
   @NotNull(message = "Value column cannot be empty")
-  var value: String = ""
+  var value: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Fields")
   @JsonPropertyDescription("Visualize categorical data in a Bar Chart")
   @AutofillAttributeName
   @NotNull(message = "Fields cannot be empty")
-  var fields: String = ""
+  var fields: EncodableString = ""
 
   @JsonProperty(defaultValue = "No Selection", required = false)
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - Select a column to Color Code the Categories")
   @AutofillAttributeName
-  var categoryColumn: String = ""
+  var categoryColumn: EncodableString = ""
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
@@ -71,7 +74,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Pattern")
   @JsonPropertyDescription("Add texture to the chart based on an attribute")
   @AutofillAttributeName
-  var pattern: String = ""
+  var pattern: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -91,12 +94,12 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  def manipulateTable(): String = {
+  def manipulateTable(): PythonTemplateBuilder = {
     assert(value.nonEmpty, "Value column cannot be empty")
     assert(fields.nonEmpty, "Fields cannot be empty")
-    s"""
-       |        table = table.dropna(subset = ['$value', '$fields']) #remove missing values
-       |""".stripMargin
+    pyb"""
+         |        table = table.dropna(subset = [$value, $fields]) #remove missing values
+         |"""
   }
 
   override def generatePythonCode(): String = {
@@ -114,7 +117,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
       isCategoryColumn = "True"
 
     val finalCode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import plotly.express as px
@@ -136,22 +139,22 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        ${manipulateTable()}
-         |        if not table.empty and '$fields' != '$value':
+         |        if not table.empty and $fields != $value:
          |           if $isHorizontalOrientation:
-         |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None, orientation = 'h'))
+         |               fig = go.Figure(px.bar(table, y=$fields, x=$value, color=$categoryColumn if $isCategoryColumn else None, pattern_shape=$pattern if $isPatternSelected else None, orientation = 'h'))
          |           else:
-         |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None))
+         |               fig = go.Figure(px.bar(table, y=$value, x=$fields, color=$categoryColumn if $isCategoryColumn else None, pattern_shape=$pattern if $isPatternSelected else None))
          |           fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
          |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
          |           # use latest plotly lib in html
          |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
-         |        elif '$fields' == '$value':
+         |        elif $fields == $value:
          |           html = self.render_error('Fields should not have the same value.')
          |        elif table.empty:
          |           html = self.render_error('Table should not have any empty/null values or fields.')
          |        yield {'html-content':html}
-         |        """.stripMargin
-    finalCode
+         |        """
+    finalCode.encode
   }
 
 }

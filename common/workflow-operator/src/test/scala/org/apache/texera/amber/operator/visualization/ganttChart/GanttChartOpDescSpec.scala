@@ -36,8 +36,9 @@ class GanttChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       opDesc
         .createPlotlyFigure()
+        .plain
         .contains(
-          "fig = px.timeline(table, x_start='start', x_end='finish', y='task'  )"
+          "fig = px.timeline(table, x_start=start, x_end=finish, y=task  )"
         )
     )
   }
@@ -47,11 +48,14 @@ class GanttChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.task = "task"
     opDesc.color = "color"
 
+    val plain = opDesc
+      .createPlotlyFigure()
+      .plain
+
     assert(
-      opDesc
-        .createPlotlyFigure()
+      plain
         .contains(
-          "fig = px.timeline(table, x_start='start', x_end='finish', y='task' , color='color' )"
+          "fig = px.timeline(table, x_start=start, x_end=finish, y=task , color=color )"
         )
     )
   }
@@ -65,8 +69,9 @@ class GanttChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       opDesc
         .createPlotlyFigure()
+        .plain
         .contains(
-          "fig = px.timeline(table, x_start='start', x_end='finish', y='task' , color='color' , pattern_shape='task')"
+          "fig = px.timeline(table, x_start=start, x_end=finish, y=task , color=color , pattern_shape=task)"
         )
     )
   }

@@ -25,11 +25,13 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform sentiment analysis on")
   @AutofillAttributeName
-  var attribute: String = _
+  var attribute: EncodableString = _
 
   @JsonProperty(
     value = "Positive result attribute",
@@ -37,7 +39,7 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     defaultValue = "huggingface_sentiment_positive"
   )
   @JsonPropertyDescription("column name of the sentiment analysis result (positive)")
-  var resultAttributePositive: String = _
+  var resultAttributePositive: EncodableString = _
 
   @JsonProperty(
     value = "Neutral result attribute",
@@ -45,7 +47,7 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     defaultValue = "huggingface_sentiment_neutral"
   )
   @JsonPropertyDescription("column name of the sentiment analysis result (neutral)")
-  var resultAttributeNeutral: String = _
+  var resultAttributeNeutral: EncodableString = _
 
   @JsonProperty(
     value = "Negative result attribute",
@@ -53,10 +55,10 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     defaultValue = "huggingface_sentiment_negative"
   )
   @JsonPropertyDescription("column name of the sentiment analysis result (negative)")
-  var resultAttributeNegative: String = _
+  var resultAttributeNegative: EncodableString = _
 
   override def generatePythonCode(): String = {
-    s"""from pytexera import *
+    pyb"""from pytexera import *
        |from transformers import pipeline
        |from transformers import AutoModelForSequenceClassification
        |from transformers import TFAutoModelForSequenceClassification
@@ -74,16 +76,16 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        encoded_input = self.tokenizer(tuple_["$attribute"], return_tensors='pt')
+       |        encoded_input = self.tokenizer(tuple_[$attribute], return_tensors='pt')
        |        output = self.model(**encoded_input)
        |        scores = softmax(output[0][0].detach().numpy())
        |        ranking = np.argsort(scores)[::-1]
-       |        labels = {"positive": "$resultAttributePositive", "neutral": "$resultAttributeNeutral", "negative": "$resultAttributeNegative"}
+       |        labels = {"positive": $resultAttributePositive, "neutral": $resultAttributeNeutral, "negative": $resultAttributeNegative}
        |        for i in range(scores.shape[0]):
        |            label = labels[self.config.id2label[ranking[i]]]
        |            score = scores[ranking[i]]
        |            tuple_[label] = np.round(float(score), 4)
-       |        yield tuple_""".stripMargin
+       |        yield tuple_""".encode
   }
 
   override def operatorInfo: OperatorInfo =

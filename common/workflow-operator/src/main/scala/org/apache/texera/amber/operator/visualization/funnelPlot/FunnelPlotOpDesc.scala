@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -40,19 +43,19 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
   @AutofillAttributeName
-  var x: String = ""
+  var x: EncodableString = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y Column")
   @JsonPropertyDescription("Data column for the y-axis")
   @AutofillAttributeName
-  var y: String = ""
+  var y: EncodableString = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("Column to categorically colorize funnel sections")
   @AutofillAttributeName
-  var color: String = ""
+  var color: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -72,25 +75,25 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  private def createPlotlyFigure(): String = {
+  private def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(x.nonEmpty)
     assert(y.nonEmpty)
-    val colorArg = if (color.nonEmpty) s""", color="$color"""" else ""
-    s"""
-       |        fig = go.Figure(px.funnel(table, x ="$x", y = "$y"$colorArg))
-       |        fig.update_layout(
-       |            scene=dict(
-       |                xaxis_title='X: $x',
-       |                yaxis_title='Y: $y',
-       |            ),
-       |            margin=dict(t=0, b=0, l=0, r=0)
-       |        )
-       |""".stripMargin
+    val colorArg = if (color.nonEmpty) pyb""", color=$color""" else ""
+    pyb"""
+         |        fig = go.Figure(px.funnel(table, x =$x, y = $y$colorArg))
+         |        fig.update_layout(
+         |            scene=dict(
+         |                xaxis_title='X: ' + $x,
+         |                yaxis_title='Y: ' + $y,
+         |            ),
+         |            margin=dict(t=0, b=0, l=0, r=0)
+         |        )
+         |"""
   }
 
   override def generatePythonCode(): String = {
     val finalcode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import plotly.express as px
@@ -115,8 +118,7 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
          |
-         |""".stripMargin
-
-    finalcode
+         |"""
+    finalcode.encode
   }
 }
