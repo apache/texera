@@ -94,6 +94,8 @@ libraryDependencies ++= Seq(
   "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test        // MinIO Testcontainer Scala integration
 )
 
+Test / envVars += "DOCKER_API_VERSION" -> "1.44"
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Jackson-related Dependencies
