@@ -15,6 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
+ThisBuild / dependencyOverrides ++= Seq(
+  "org.testcontainers" % "testcontainers" % "1.20.4",
+  "org.testcontainers" % "minio" % "1.20.4",
+  "org.testcontainers" % "postgresql" % "1.20.4"
+)
+
 lazy val DAO = project in file("common/dao")
 lazy val Config = project in file("common/config")
 lazy val Auth = (project in file("common/auth"))

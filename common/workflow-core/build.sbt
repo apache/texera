@@ -138,8 +138,7 @@ dependencyOverrides ++= Seq(
   "io.netty" % "netty-handler" % nettyVersion,
   "io.netty" % "netty-resolver" % nettyVersion,
   "io.netty" % "netty-transport" % nettyVersion,
-  "io.netty" % "netty-transport-native-unix-common" % nettyVersion,
-  "org.testcontainers" % "testcontainers" % "1.20.4"
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
 )
 
 /////////////////////////////////////////////////////////////////////////////

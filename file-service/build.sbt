@@ -86,6 +86,4 @@ libraryDependencies ++= Seq(
   "org.playframework" %% "play-json" % "3.1.0-M1",
 )
 
-dependencyOverrides ++= Seq(
-  "org.testcontainers" % "testcontainers" % "1.20.4"
-)
+
