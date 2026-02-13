@@ -19,6 +19,7 @@ name: Build
 
 env:
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+  DOCKER_API_VERSION: "1.44"
   
 on:
   push:
@@ -130,8 +131,20 @@ jobs:
           PGPASSWORD: postgres
       - name: Compile with sbt
         run: sbt clean package
+      - name: Debug Docker Environment
+        run: |
+          echo "Debug: Checking Docker environment variables"
+          env | grep -E "DOCKER|TESTCONTAINERS" || echo "No DOCKER/TESTCONTAINERS env vars found"
+          echo "Debug: Checking .testcontainers.properties"
+          if [ -f ~/.testcontainers.properties ]; then
+            cat ~/.testcontainers.properties
+          else
+            echo "No ~/.testcontainers.properties found"
+          fi
       - name: Run backend tests
         run: sbt test
+        env:
+          DOCKER_API_VERSION: "1.44"
 
   python:
     strategy:
