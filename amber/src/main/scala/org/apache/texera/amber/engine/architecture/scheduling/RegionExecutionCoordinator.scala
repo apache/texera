@@ -536,7 +536,20 @@ class RegionExecutionCoordinator(
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-        DocumentFactory.createDocument(storageUriToAdd, schema)
+
+
+        if (region.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-"))) {
+          try {
+            DocumentFactory.openDocument(storageUriToAdd)
+          } catch {
+            case _: Exception =>
+              DocumentFactory.createDocument(storageUriToAdd, schema)
+          }
+        }
+        else {
+          DocumentFactory.createDocument(storageUriToAdd, schema)
+        }
+
         WorkflowExecutionsResource.insertOperatorPortResultUri(
           eid = eid,
           globalPortId = outputPortId,
