@@ -32,9 +32,7 @@
         </span>
       </ng-template>
     </nz-card-meta>
-    <nz-card-meta
-      style="padding-top: 20px"
-      nzDescription="{{datasetDescription}}"></nz-card-meta>
+    <texera-markdown-description [description]="datasetDescription"> </texera-markdown-description>
     <div
       class="workflow-panel"
       style="padding-top: 30px">
