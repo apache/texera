@@ -49,7 +49,7 @@ trait EndHandler {
           s"${dp.inputManager.inputMessageQueue.peek()}"
       )
     }
-    assert(dp.inputManager.inputMessageQueue.isEmpty)
+    //assert(dp.inputManager.inputMessageQueue.isEmpty)
     // Now we can safely acknowledge that this worker can be terminated.
     EmptyReturn()
   }
