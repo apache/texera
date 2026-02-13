@@ -83,7 +83,7 @@ Test / PB.protoSources += PB.externalSourcePath.value
 // Test-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val testcontainersVersion = "0.43.0"
+val testcontainersVersion = "0.44.1"
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
@@ -93,8 +93,6 @@ libraryDependencies ++= Seq(
   "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
   "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test        // MinIO Testcontainer Scala integration
 )
-
-Test / envVars += "DOCKER_API_VERSION" -> "1.44"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -140,7 +138,8 @@ dependencyOverrides ++= Seq(
   "io.netty" % "netty-handler" % nettyVersion,
   "io.netty" % "netty-resolver" % nettyVersion,
   "io.netty" % "netty-transport" % nettyVersion,
-  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion,
+  "org.testcontainers" % "testcontainers" % "1.20.4"
 )
 
 /////////////////////////////////////////////////////////////////////////////

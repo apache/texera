@@ -54,7 +54,7 @@ Compile / scalacOptions ++= Seq(
 val dropwizardVersion = "4.0.7"
 val mockitoVersion = "5.4.0"
 val assertjVersion = "3.24.2"
-val testcontainersVersion = "0.43.0"
+val testcontainersVersion = "0.44.1"
 
 /////////////////////////////////////////////////////////////////////////////
 // Test-related Dependencies
@@ -72,8 +72,6 @@ libraryDependencies ++= Seq(
   "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test,       // MinIO Testcontainer Scala integration
 )
 
-Test / envVars += "DOCKER_API_VERSION" -> "1.44"
-
 /////////////////////////////////////////////////////////////////////////////
 // Dependencies
 /////////////////////////////////////////////////////////////////////////////
@@ -86,4 +84,8 @@ libraryDependencies ++= Seq(
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",
+)
+
+dependencyOverrides ++= Seq(
+  "org.testcontainers" % "testcontainers" % "1.20.4"
 )
