@@ -123,6 +123,7 @@ export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
 const operatorWorkerCountClass = "operator-worker-count";
+const operatorStatusTextClass = "operator-status";
 
 export const linkPathStrokeColor = "#919191";
 
