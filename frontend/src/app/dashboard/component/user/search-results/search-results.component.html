@@ -27,7 +27,7 @@
   <cdk-virtual-scroll-viewport
     itemSize="70"
     class="virtual-scroll-container">
-    <nz-list>
+    <nz-list *ngIf="viewType === 'list'">
       <ng-container *ngFor="let entry of entries">
         <texera-list-item
           (deleted)="deleted.emit(entry)"
@@ -41,6 +41,24 @@
         </texera-list-item>
       </ng-container>
     </nz-list>
+
+    <div
+      class="card-grid-container"
+      *ngIf="viewType === 'card'">
+      <ng-container *ngFor="let entry of entries">
+        <texera-card-item
+          class="workflow-card-item"
+          (deleted)="deleted.emit(entry)"
+          (duplicated)="duplicated.emit(entry)"
+          (refresh)="refresh.emit()"
+          [isPrivateSearch]="isPrivateSearch"
+          [editable]="editable"
+          [entry]="entry"
+          [currentUid]="this.currentUid"
+          (checkboxChanged)="onEntryCheckboxChange()">
+        </texera-card-item>
+      </ng-container>
+    </div>
     <div
       nz-list-load-more
       class="load-more">
