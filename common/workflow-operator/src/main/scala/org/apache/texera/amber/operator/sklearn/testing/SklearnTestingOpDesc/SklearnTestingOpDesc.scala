@@ -69,7 +69,7 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Sklearn Testing",
-      "Sklearn Testing Operator",
+      "It will generate F1, precision, accuracy and recall for a trained Sklearn model",
       OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "data"),
