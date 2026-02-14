@@ -68,7 +68,9 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "fillOpacity", required = true)
   @JsonSchemaTitle("Fill Opacity")
-  @JsonPropertyDescription("Opacity value for radar chart fill from 0.0 (transparent) to 1.0 (opaque)")
+  @JsonPropertyDescription(
+    "Opacity value for radar chart fill from 0.0 (transparent) to 1.0 (opaque)"
+  )
   @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 1.0 }""")
   var fillOpacity: Double = 0.5
 
