@@ -33,68 +33,83 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class SklearnTestingOpDesc extends PythonOperatorDescriptor {
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Regression")
+  @JsonPropertyDescription(
+    "Choose to solve a regression task"
+  )
+  var isRegression: Boolean = false
+
   @JsonSchemaTitle("Model Attribute")
   @JsonProperty(required = true, defaultValue = "model")
   @JsonPropertyDescription("Attribute corresponding to ML model")
-  @AutofillAttributeNameOnPort1
+  @AutofillAttributeName
   var model: EncodableString = _
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
   @JsonProperty(required = true)
-  @AutofillAttributeName
+  @AutofillAttributeNameOnPort1
   var target: EncodableString = _
 
-  override def generatePythonCode(): String =
+  override def generatePythonCode(): String = {
+    val isRegressionStr = if (isRegression) "True" else "False"
     pyb"""from pytexera import *
-       |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-       |class ProcessTupleOperator(UDFOperatorV2):
-       |    @overrides
-       |    def open(self) -> None:
-       |        self.data = []
-       |    @overrides
-       |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        if port == 0:
-       |            self.data.append(tuple_)
-       |        else:
-       |            model = tuple_[$model]
-       |            table = Table(self.data)
-       |            Y = table[$target]
-       |            X = table.drop($target, axis=1)
-       |            predictions = model.predict(X)
-       |            tuple_["accuracy"] = round(accuracy_score(Y, predictions), 4)
-       |            tuple_["f1"] = f1_score(Y, predictions, average="weighted")
-       |            tuple_["precision"] = precision_score(Y, predictions)
-       |            tuple_["recall"] = recall_score(Y, predictions)
-       |            yield tuple_""".encode
+         |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, root_mean_squared_error, mean_absolute_error, r2_score
+         |class ProcessTupleOperator(UDFOperatorV2):
+         |    @overrides
+         |    def open(self) -> None:
+         |        self.data = []
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        if port == 1:
+         |            self.data.append(tuple_)
+         |        else:
+         |            model = tuple_[$model]
+         |            table = Table(self.data)
+         |            Y = table[$target]
+         |            X = table.drop($target, axis=1)
+         |            predictions = model.predict(X)
+         |            if $isRegressionStr:
+         |                tuple_["R2"] = r2_score(Y, predictions)
+         |                tuple_["RMSE"] = root_mean_squared_error(Y, predictions)
+         |                tuple_["MAE"] = mean_absolute_error(Y, predictions)
+         |            else:
+         |                tuple_["accuracy"] = round(accuracy_score(Y, predictions), 4)
+         |                tuple_["f1"] = f1_score(Y, predictions, average="weighted")
+         |                tuple_["precision"] = precision_score(Y, predictions, average="weighted")
+         |                tuple_["recall"] = recall_score(Y, predictions, average="weighted")
+         |            yield tuple_""".encode
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Sklearn Testing1",
+      "Sklearn Testing",
       "It will generate scorers for Sklearn model",
       OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
-        InputPort(PortIdentity(), "data"),
         InputPort(
-          PortIdentity(1),
+          PortIdentity(),
           "model",
-          dependencies = List(PortIdentity()),
+          dependencies = List(PortIdentity(1)),
           allowMultiLinks = true
-        )
+        ),
+        InputPort(PortIdentity(1), "data")
       ),
       outputPorts = List(OutputPort())
     )
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val inputSchema = inputSchemas(operatorInfo.inputPorts(1).id)
+  ): Map[PortIdentity, Schema] =
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchema
-        .add("accuracy", AttributeType.DOUBLE)
-        .add("f1", AttributeType.DOUBLE)
-        .add("precision", AttributeType.DOUBLE)
-        .add("recall", AttributeType.DOUBLE)
+      operatorInfo.outputPorts.head.id ->
+        (if (!isRegression)
+           Seq("accuracy", "f1", "precision", "recall")
+         else
+           Seq("R2", "RMSE", "MAE"))
+          .foldLeft(inputSchemas(operatorInfo.inputPorts.head.id))(
+            _.add(_, AttributeType.DOUBLE)
+          )
     )
-  }
 }
