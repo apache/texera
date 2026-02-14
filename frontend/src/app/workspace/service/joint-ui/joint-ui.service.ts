@@ -423,10 +423,8 @@ export class JointUIService {
         break;
     }
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorStateClass}`]: {
-        text: String(operatorState),
-        fill: fillColor,
-      },
+      [`.${operatorStateClass}`]: { text: operatorState.toString() },
+      [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
       [`.${operatorWorkerCountClass}`]: { fill: fillColor },
