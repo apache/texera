@@ -53,4 +53,7 @@ class WorkflowScheduler(
   }
 
   def getNextRegions: Set[Region] = if (!schedule.hasNext) Set() else schedule.loopNext()
+
+  def hasPendingRegions: Boolean = schedule != null && schedule.hasNext
+
 }
