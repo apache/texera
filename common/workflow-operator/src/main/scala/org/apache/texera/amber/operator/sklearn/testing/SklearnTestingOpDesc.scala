@@ -63,14 +63,14 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
        |            X = table.drop($target, axis=1)
        |            predictions = model.predict(X)
        |            tuple_["accuracy"] = round(accuracy_score(Y, predictions), 4)
-       |
+       |            tuple_["f1"] = f1_score(Y, predictions, average="weighted")
        |            tuple_["precision"] = precision_score(Y, predictions)
        |            tuple_["recall"] = recall_score(Y, predictions)
        |            yield tuple_""".encode
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Sklearn Testing",
+      "Sklearn Testing1",
       "It will generate scorers for Sklearn model",
       OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
