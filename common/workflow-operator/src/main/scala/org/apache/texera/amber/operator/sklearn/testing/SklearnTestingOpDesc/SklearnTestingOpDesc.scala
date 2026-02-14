@@ -24,7 +24,10 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import org.apache.texera.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -60,7 +63,7 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
        |            X = table.drop($target, axis=1)
        |            predictions = model.predict(X)
        |            tuple_["accuracy"] = round(accuracy_score(Y, predictions), 4)
-       |            tuple_["f1"] = f1_score(Y, predictions)
+       |            tuple_["f1"] = f1_score(Y, predictions, average = "weighted")
        |            tuple_["precision"] = precision_score(Y, predictions)
        |            tuple_["recall"] = recall_score(Y, predictions)
        |            yield tuple_""".encode
