@@ -130,6 +130,10 @@ jobs:
           PGPASSWORD: postgres
       - name: Compile with sbt
         run: sbt clean package
+      - name: Set docker-java API version
+        run: |
+          echo "api.version=1.52" >> ~/.docker-java.properties
+          cat ~/.docker-java.properties
       - name: Run backend tests
         run: sbt test
 
