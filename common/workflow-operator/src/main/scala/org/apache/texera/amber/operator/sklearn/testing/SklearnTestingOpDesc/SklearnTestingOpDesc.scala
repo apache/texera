@@ -24,27 +24,26 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class SklearnTestingOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Model Attribute")
   @JsonProperty(required = true, defaultValue = "model")
   @JsonPropertyDescription("Attribute corresponding to ML model")
   @AutofillAttributeNameOnPort1
-  var model: String = _
+  var model: EncodableString = _
 
   @JsonSchemaTitle("Target Attribute")
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
   @JsonProperty(required = true)
   @AutofillAttributeName
-  var target: String = _
+  var target: EncodableString = _
 
   override def generatePythonCode(): String =
-    s"""from pytexera import *
+    pyb"""from pytexera import *
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
        |class ProcessTupleOperator(UDFOperatorV2):
        |    @overrides
@@ -55,16 +54,16 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
        |        if port == 0:
        |            self.data.append(tuple_)
        |        else:
-       |            model = tuple_["$model"]
+       |            model = tuple_[$model]
        |            table = Table(self.data)
-       |            Y = table["$target"]
-       |            X = table.drop("$target", axis=1)
+       |            Y = table[$target]
+       |            X = table.drop($target, axis=1)
        |            predictions = model.predict(X)
        |            tuple_["accuracy"] = round(accuracy_score(Y, predictions), 4)
        |            tuple_["f1"] = f1_score(Y, predictions)
        |            tuple_["precision"] = precision_score(Y, predictions)
        |            tuple_["recall"] = recall_score(Y, predictions)
-       |            yield tuple_""".stripMargin
+       |            yield tuple_""".encode
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
