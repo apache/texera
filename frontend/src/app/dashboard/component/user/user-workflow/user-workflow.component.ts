@@ -109,6 +109,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   @Input() public pid?: number = undefined;
   @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
+  public viewType: "list" | "card" = "list";
   lastSortMethod: SortMethod | null = null;
 
   constructor(

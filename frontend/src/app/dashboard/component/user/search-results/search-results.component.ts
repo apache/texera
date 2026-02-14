@@ -40,6 +40,7 @@ export class SearchResultsComponent {
   @Input() editable = false;
   @Input() searchKeywords: string[] = [];
   @Input() currentUid: number | undefined;
+  @Input() viewType: "list" | "card" = "list";
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
   @Output() modified = new EventEmitter<DashboardEntry>();
