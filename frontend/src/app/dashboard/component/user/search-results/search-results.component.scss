@@ -130,3 +130,17 @@ nz-content {
     margin: 0 1rem 0 0; // add space to the right
   }
 }
+
+.card-grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+  padding: 8px;
+}
+
+.workflow-card-item {
+  ::ng-deep .card-item {
+    aspect-ratio: 10/12;
+    margin-bottom: 0;
+  }
+}

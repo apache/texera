@@ -5,6 +5,7 @@
   flex-direction: column;
   transition: box-shadow 0.2s;
   overflow: hidden;
+  border-radius: 8px;
 
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -14,10 +15,16 @@
     border-color: #1e90ff;
     background-color: #e6f7ff;
   }
+
+  ::ng-deep .ant-card-body {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .card-preview {
-  height: 150px;
+  height: 130px;
   background-color: #f5f5f5;
   position: relative;
   cursor: pointer;
@@ -32,6 +39,13 @@
   position: absolute;
   top: 8px;
   left: 8px;
+  z-index: 10;
+}
+
+.card-user-avatar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   z-index: 10;
 }
 
@@ -90,46 +104,60 @@
 }
 
 .card-description {
-  flex: 1;
-  min-height: 40px; /* Ensure 2 lines roughly */
+  flex: 0 0 auto;
+  /* Do not grow */
+  height: 60px;
+  /* Fixed height */
   cursor: pointer;
+  overflow: hidden;
+  margin-bottom: 8px;
 }
 
 .resource-description {
   font-size: 13px;
   color: rgba(0, 0, 0, 0.45);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  height: 100%;
 }
 
 .resource-description-edit-textarea {
   width: 100%;
+  height: 100%;
   resize: none;
   font-size: 13px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
 }
 
 .card-meta {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
   margin-top: auto;
 }
 
-.owner-info {
+.meta-details {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 60%;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.owner-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
 }
 
 .card-actions {

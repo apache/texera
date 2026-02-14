@@ -256,6 +256,10 @@ export class CardItemComponent implements OnChanges {
   }
 
   public confirmUpdateCustomName(name: string): void {
+    if (this.entry.name === this.originalName) {
+      this.editingName = false;
+      return;
+    }
     const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
 
     if (this.entry.type === "workflow") {
@@ -276,6 +280,10 @@ export class CardItemComponent implements OnChanges {
   }
 
   public confirmUpdateCustomDescription(description: string | undefined): void {
+    if (this.entry.description === this.originalDescription) {
+      this.editingDescription = false;
+      return;
+    }
     const updatedDescription = description ?? "";
 
     if (this.entry.type === "workflow") {
