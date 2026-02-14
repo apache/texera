@@ -823,11 +823,8 @@ export class JointUIService {
         "ref-y": -35,
       },
       [`.${operatorStatusTextClass}`]: {
-        "ref-x": 0.5,
-        "ref-y": -50,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
+        "ref-x": -10,
+        "ref-y": -35,
       },
       ".delete-button": {
         x: 60,

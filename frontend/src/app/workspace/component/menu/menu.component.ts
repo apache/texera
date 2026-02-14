@@ -273,14 +273,11 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   private applyOperatorStatusPosition(): void {
-    const refY = this.showNumWorkers ? -50 : -35;
+    const refY = this.showNumWorkers ? -55 : -35;
     const paperModel = this.workflowActionService.getJointGraphWrapper().mainPaper.model as any;
     paperModel.getElements().forEach((el: any) => {
-      el.attr(".operator-status/ref", "rect.body");
-      el.attr(".operator-status/ref-x", 0.5);
+      el.attr(".operator-status/ref-x", -10);
       el.attr(".operator-status/ref-y", refY);
-      el.attr(".operator-status/x-alignment", "middle");
-      el.attr(".operator-status/y-alignment", "middle");
     });
   }
 
