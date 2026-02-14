@@ -242,6 +242,8 @@ export class ListItemComponent implements OnChanges {
   }
 
   onEditDescription(): void {
+    if (!this.editable) return;
+
     this.originalDescription = this.entry.description;
 
     const modalRef = this.modalService.create<MarkdownDescriptionComponent>({
