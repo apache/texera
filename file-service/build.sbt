@@ -54,7 +54,7 @@ Compile / scalacOptions ++= Seq(
 val dropwizardVersion = "4.0.7"
 val mockitoVersion = "5.4.0"
 val assertjVersion = "3.24.2"
-val testcontainersVersion = "0.43.0"
+val testcontainersVersion = "0.44.1"
 
 /////////////////////////////////////////////////////////////////////////////
 // Test-related Dependencies
