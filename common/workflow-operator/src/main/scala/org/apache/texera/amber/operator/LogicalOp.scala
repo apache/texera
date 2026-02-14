@@ -137,7 +137,7 @@ import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpD
 import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc.SklearnTestingOpDesc
+import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
 
 import java.util.UUID
