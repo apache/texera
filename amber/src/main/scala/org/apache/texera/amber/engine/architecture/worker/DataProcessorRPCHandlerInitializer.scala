@@ -72,7 +72,7 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
 
   override def noOperation(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = ???
 
-  def initializeExecutor(execInitInfo: OpExecInitInfo, workerIdx: Int, workerCount: Int): Unit = {
+  def setupExecutor(execInitInfo: OpExecInitInfo, workerIdx: Int, workerCount: Int): Unit = {
     dp.executor = execInitInfo match {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)

@@ -42,7 +42,7 @@ trait InitializeExecutorHandler {
     dp.serializationManager.setOpInitialization(req)
     val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
     cachedTotalWorkerCount = req.totalWorkerCount
-    initializeExecutor(req.opExecInitInfo, workerIdx, cachedTotalWorkerCount)
+    setupExecutor(req.opExecInitInfo, workerIdx, cachedTotalWorkerCount)
     EmptyReturn()
   }
 }

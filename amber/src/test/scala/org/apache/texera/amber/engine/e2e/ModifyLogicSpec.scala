@@ -25,7 +25,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
-import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithClassName, OpExecWithCode}
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
@@ -38,7 +38,7 @@ import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.e2e.TestUtils.{cleanupWorkflowExecutionData, initiateTexeraDBForTestCases, setUpWorkflowExecutionData}
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
-import org.apache.texera.amber.operator.TestOperators.{pythonOpDesc, pythonSourceOpDesc}
+import org.apache.texera.amber.operator.TestOperators.{mediumCsvScanOpDesc, pythonOpDesc, pythonSourceOpDesc}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
@@ -64,6 +64,7 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   val logger = Logger("ModifyLogicSpecLogger")
+  val ctx = new WorkflowContext()
 
   override protected def beforeEach(): Unit = {
     setUpWorkflowExecutionData()
@@ -94,7 +95,7 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
                          checkResultLambda: (Map[OperatorIdentity, List[Tuple]]) => Boolean
                  ): Unit = {
     val workflow =
-      TestUtils.buildWorkflow(operators, links, new WorkflowContext())
+      TestUtils.buildWorkflow(operators, links, ctx)
     val client =
       new AmberClient(
         system,
@@ -174,6 +175,21 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
       results => results(udfOpDesc.operatorIdentifier).exists {
         t => t.getField("field_2").asInstanceOf[String].contains("_reconfigured")
       }
+    )
+  }
+
+  "Engine" should "be able to modify a java operator in workflow" in {
+    val sourceOpDesc = mediumCsvScanOpDesc()
+    val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
+    val keywordMatchManyOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    shouldReconfigure(List(sourceOpDesc, keywordMatchNoneOpDesc), List(LogicalLink(
+      sourceOpDesc.operatorIdentifier,
+      PortIdentity(),
+      keywordMatchNoneOpDesc.operatorIdentifier,
+      PortIdentity()
+    )),
+      keywordMatchNoneOpDesc, keywordMatchManyOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo,
+      results => results(keywordMatchNoneOpDesc.operatorIdentifier).nonEmpty
     )
   }
 

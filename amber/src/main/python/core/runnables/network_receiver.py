@@ -126,6 +126,7 @@ class NetworkReceiver(Runnable, Stoppable):
                     payload=python_control_message.payload,
                 )
             )
+            logger.info(python_control_message.payload)
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_control_handler(control_handler)
