@@ -154,16 +154,16 @@ services:
           fi
         }
         
-        echo "Step 1: Initializing MinIO bucket '$$S3_BUCKET'..."
-        mc alias set minio "$$STORAGE_S3_ENDPOINT" "$$S3_USERNAME" "$$S3_PASSWORD" || true
-        if mc ls minio/$$S3_BUCKET > /dev/null 2>&1; then
-          echo "MinIO bucket '$$S3_BUCKET' already exists."
+        echo "Step 1: Initializing MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET'..."
+        mc alias set minio "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD" || true
+        if mc ls minio/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET > /dev/null 2>&1; then
+          echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' already exists."
         else
-          mc mb minio/$$S3_BUCKET || {
-            echo "Failed to create MinIO bucket '$$S3_BUCKET'"
+          mc mb minio/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET || {
+            echo "Failed to create MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET'"
             exit 1
           }
-          echo "MinIO bucket '$$S3_BUCKET' created successfully."
+          echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' created successfully."
         fi
         
         
@@ -179,15 +179,15 @@ services:
         check_status "$$PROJECT_CODE" "Default Project"
         
         
-        echo "Step 3: Initializing Warehouse '$$WAREHOUSE_NAME'..."
+        echo "Step 3: Initializing Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
         CREATE_PAYLOAD=$$(cat <<EOF
         {
-          "warehouse-name": "$$WAREHOUSE_NAME",
+          "warehouse-name": "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME",
           "project-id": "00000000-0000-0000-0000-000000000000", 
           "storage-profile": {
             "type": "s3",
-            "bucket": "$$S3_BUCKET",
-            "region": "$$S3_REGION",
+            "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "region": "$$STORAGE_ICEBERG_CATALOG_REST_REGION",
             "endpoint": "$$STORAGE_S3_ENDPOINT",
             "flavor": "s3-compat",
             "path-style-access": true,
@@ -196,8 +196,8 @@ services:
           "storage-credential": {
             "type": "s3",
             "credential-type": "access-key",
-            "aws-access-key-id": "$$S3_USERNAME",
-            "aws-secret-access-key": "$$S3_PASSWORD"
+            "aws-access-key-id": "$$STORAGE_S3_AUTH_USERNAME",
+            "aws-secret-access-key": "$$STORAGE_S3_AUTH_PASSWORD"
           }
         }
         EOF
