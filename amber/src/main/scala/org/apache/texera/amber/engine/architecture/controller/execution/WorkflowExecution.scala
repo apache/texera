@@ -45,6 +45,11 @@ case class WorkflowExecution() {
     */
   def initRegionExecution(region: Region): RegionExecution = {
     regionExecutions.remove(region.id)
+    // ensure the region execution hasn't been initialized already.
+    assert(
+      !regionExecutions.contains(region.id),
+      s"RegionExecution of ${region.id} already initialized."
+    )
     regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
   }
 
