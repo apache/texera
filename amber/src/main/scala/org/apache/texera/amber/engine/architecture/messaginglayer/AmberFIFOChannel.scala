@@ -45,7 +45,9 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
     val seq = msg.sequenceNumber
     val payload = msg.payload
     if (isDuplicated(seq)) {
-      logger.debug(s"received duplicated message $payload with seq = $seq while current seq = $current")
+      logger.debug(
+        s"received duplicated message $payload with seq = $seq while current seq = $current"
+      )
     } else if (isAhead(seq)) {
       logger.debug(s"received ahead message $payload with seq = $seq while current seq = $current")
       stash(seq, msg)

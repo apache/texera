@@ -34,7 +34,9 @@ case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterat
 
   override def next(): Set[Region] = {
     val regions = levelSets(currentLevel)
-    if(regions.exists(_.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopStart-operator-")))) loopStartLevel = currentLevel
+    if (
+      regions.exists(_.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopStart-operator-")))
+    ) loopStartLevel = currentLevel
     currentLevel += 1
     regions
   }
@@ -42,10 +44,21 @@ case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterat
   def loopNext(): Set[Region] = {
     val regions = levelSets(currentLevel)
 
-    if(regions.exists(_.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-")))) {
-      if (i < objectMapper.readValue(regions.head.getOperators.head.opExecInitInfo.asInstanceOf[OpExecWithClassName].descString, classOf[LoopEndOpDesc]).iteration) {
+    if (
+      regions.exists(_.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-")))
+    ) {
+      if (
+        i < objectMapper
+          .readValue(
+            regions.head.getOperators.head.opExecInitInfo
+              .asInstanceOf[OpExecWithClassName]
+              .descString,
+            classOf[LoopEndOpDesc]
+          )
+          .iteration
+      ) {
         currentLevel = loopStartLevel
-        i+=1
+        i += 1
       }
     }
 

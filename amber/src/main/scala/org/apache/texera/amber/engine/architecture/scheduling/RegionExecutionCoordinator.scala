@@ -210,14 +210,15 @@ class RegionExecutionCoordinator(
       regionExecution: RegionExecution,
       attempt: Int = 1
   ): Future[Unit] = {
-    terminateWorkers(regionExecution).rescue { case err =>
-      logger.warn(
-        s"Failed to terminate region ${region.id.id} on attempt $attempt. Retrying in ${killRetryDelay.inMilliseconds} ms.",
-        err
-      )
-      Future
-        .sleep(killRetryDelay)(killRetryTimer)
-        .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
+    terminateWorkers(regionExecution).rescue {
+      case err =>
+        logger.warn(
+          s"Failed to terminate region ${region.id.id} on attempt $attempt. Retrying in ${killRetryDelay.inMilliseconds} ms.",
+          err
+        )
+        Future
+          .sleep(killRetryDelay)(killRetryTimer)
+          .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
     }
   }
 
@@ -572,7 +573,6 @@ class RegionExecutionCoordinator(
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
 
-
         if (region.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-"))) {
           try {
             DocumentFactory.openDocument(storageUriToAdd)
@@ -580,8 +580,7 @@ class RegionExecutionCoordinator(
             case _: Exception =>
               DocumentFactory.createDocument(storageUriToAdd, schema)
           }
-        }
-        else {
+        } else {
           DocumentFactory.createDocument(storageUriToAdd, schema)
         }
 
