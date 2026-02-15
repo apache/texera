@@ -211,13 +211,13 @@ class RegionExecutionCoordinator(
       attempt: Int = 1
   ): Future[Unit] = {
     terminateWorkers(regionExecution).rescue { case err =>
-        logger.warn(
-          s"Failed to terminate region ${region.id.id} on attempt $attempt. Retrying in ${killRetryDelay.inMilliseconds} ms.",
-          err
-        )
-        Future
-          .sleep(killRetryDelay)(killRetryTimer)
-          .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
+      logger.warn(
+        s"Failed to terminate region ${region.id.id} on attempt $attempt. Retrying in ${killRetryDelay.inMilliseconds} ms.",
+        err
+      )
+      Future
+        .sleep(killRetryDelay)(killRetryTimer)
+        .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
     }
   }
 
