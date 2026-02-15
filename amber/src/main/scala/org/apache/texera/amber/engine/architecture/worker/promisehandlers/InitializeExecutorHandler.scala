@@ -20,17 +20,14 @@
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.executor._
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   InitializeExecutorRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import org.apache.texera.amber.operator.source.cache.CacheSourceOpExec
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
-import java.net.URI
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>

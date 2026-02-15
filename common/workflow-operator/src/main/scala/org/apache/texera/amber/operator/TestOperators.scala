@@ -20,7 +20,6 @@
 package org.apache.texera.amber.operator
 
 import org.apache.texera.amber.core.storage.FileResolver
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
@@ -29,7 +28,6 @@ import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
-import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 
 import java.nio.file.Path
 

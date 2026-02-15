@@ -45,7 +45,9 @@ from core.architecture.handlers.control.replay_current_tuple_handler import (
 from core.architecture.handlers.control.resume_worker_handler import ResumeWorkerHandler
 from core.architecture.handlers.control.start_channel_handler import StartChannelHandler
 from core.architecture.handlers.control.start_worker_handler import StartWorkerHandler
-from core.architecture.handlers.control.update_executor_handler import UpdateExecutorHandler
+from core.architecture.handlers.control.update_executor_handler import (
+    UpdateExecutorHandler,
+)
 
 
 class AsyncRPCHandlerInitializer(
