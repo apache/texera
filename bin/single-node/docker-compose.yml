@@ -75,6 +75,145 @@ services:
       timeout: 5s
       retries: 10
 
+  # Lakekeeper migration init container
+  # This runs once to migrate the database before the lakekeeper server starts
+  lakekeeper-migrate:
+    image: vakamo/lakekeeper:v0.11.0
+    container_name: texera-lakekeeper-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: "no"
+    entrypoint: ["/home/nonroot/lakekeeper"]
+    command: ["migrate"]
+
+  # Lakekeeper is the Iceberg REST catalog service for workflow result storage
+  # NOTE: You need to provide a Lakekeeper docker image or build one from source.
+  # The image should contain the Lakekeeper binary and run it with 'serve' command.
+  # Example: If using a custom image, set LAKEKEEPER_IMAGE environment variable in .env
+  lakekeeper:
+    image: vakamo/lakekeeper:v0.11.0
+    container_name: texera-lakekeeper
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      lakekeeper-migrate:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    entrypoint: ["/home/nonroot/lakekeeper"]
+    command: ["serve"]
+    ports:
+      - "8181:8181"
+    healthcheck:
+      test: ["CMD", "/home/nonroot/lakekeeper", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  lakekeeper-init:
+    image: alpine:3.19
+    container_name: texera-lakekeeper-init
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    env_file:
+      - .env
+    restart: "no"
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        set -e
+        
+        echo "Installing dependencies..."
+        apk add --no-cache curl ca-certificates
+        
+        echo "Installing MinIO Client..."
+        wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
+        chmod +x /usr/local/bin/mc
+        
+        check_status() {
+          if [ "$$1" -ge 200 ] && [ "$$1" -lt 300 ]; then
+            echo "Created $$2 successfully (HTTP $$1)."
+          elif [ "$$1" -eq 409 ]; then
+            echo "$$2 already exists (HTTP 409). Treating as success."
+          else
+            echo "Failed to create $$2. HTTP Code: $$1"
+            echo "ERROR RESPONSE:"
+            if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
+            echo ""
+            exit 1
+          fi
+        }
+        
+        echo "Step 1: Initializing MinIO bucket '$$S3_BUCKET'..."
+        mc alias set minio "$$STORAGE_S3_ENDPOINT" "$$S3_USERNAME" "$$S3_PASSWORD" || true
+        if mc ls minio/$$S3_BUCKET > /dev/null 2>&1; then
+          echo "MinIO bucket '$$S3_BUCKET' already exists."
+        else
+          mc mb minio/$$S3_BUCKET || {
+            echo "Failed to create MinIO bucket '$$S3_BUCKET'"
+            exit 1
+          }
+          echo "MinIO bucket '$$S3_BUCKET' created successfully."
+        fi
+        
+        
+        echo "Step 2: Initializing Default Project..."
+        PROJECT_PAYLOAD='{"project-id": "00000000-0000-0000-0000-000000000000", "project-name": "default"}'
+        
+        PROJECT_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$$PROJECT_PAYLOAD" \
+            "$$LAKEKEEPER_BASE_URI/management/v1/project" || echo "000")
+        
+        check_status "$$PROJECT_CODE" "Default Project"
+        
+        
+        echo "Step 3: Initializing Warehouse '$$WAREHOUSE_NAME'..."
+        CREATE_PAYLOAD=$$(cat <<EOF
+        {
+          "warehouse-name": "$$WAREHOUSE_NAME",
+          "project-id": "00000000-0000-0000-0000-000000000000", 
+          "storage-profile": {
+            "type": "s3",
+            "bucket": "$$S3_BUCKET",
+            "region": "$$S3_REGION",
+            "endpoint": "$$STORAGE_S3_ENDPOINT",
+            "flavor": "s3-compat",
+            "path-style-access": true,
+            "sts-enabled": false
+          },
+          "storage-credential": {
+            "type": "s3",
+            "credential-type": "access-key",
+            "aws-access-key-id": "$$S3_USERNAME",
+            "aws-secret-access-key": "$$S3_PASSWORD"
+          }
+        }
+        EOF
+        )
+        
+        WAREHOUSE_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$$CREATE_PAYLOAD" \
+            "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
+        
+        check_status "$$WAREHOUSE_CODE" "Lakekeeper Warehouse"
+        
+        echo "Initialization sequence completed successfully!"
+
+
   # Part2: Specification of Texera's micro-services
   # FileService provides endpoints for Texera's dataset management
   file-service:
@@ -167,6 +306,10 @@ services:
     depends_on:
       workflow-compiling-service:
         condition: service_started
+      lakekeeper:
+        condition: service_healthy
+      lakekeeper-init:
+        condition: service_completed_successfully
     env_file:
       - .env
     volumes:
