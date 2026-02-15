@@ -138,6 +138,7 @@ import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallCh
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
+import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
 
 import java.util.UUID
@@ -410,7 +411,8 @@ trait StateTransferFunc
     new Type(
       value = classOf[SklearnAdvancedSVRTrainerOpDesc],
       name = "SVRTrainer"
-    )
+    ),
+    new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting")
   )
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {

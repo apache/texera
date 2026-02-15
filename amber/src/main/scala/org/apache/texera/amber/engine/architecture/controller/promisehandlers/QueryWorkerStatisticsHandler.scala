@@ -105,20 +105,26 @@ trait QueryWorkerStatisticsHandler {
             if (opFilter.nonEmpty && !opFilter.contains(opId)) {
               Seq.empty
             } else {
-              val exec = cp.workflowExecution.getLatestOperatorExecution(opId)
-              // Skip completed operators
-              if (exec.getState == COMPLETED) {
-                Seq.empty
-              } else {
-                // Select all workers for this operator
-                val workerIds = exec.getWorkerIds
+              cp.workflowExecution.getLatestOperatorExecutionOption(opId) match {
+                // Operator region has not been initialized yet; skip in this polling round.
+                case None       => Seq.empty
+                case Some(exec) =>
+                  // Skip completed operators
+                  if (exec.getState == COMPLETED) {
+                    Seq.empty
+                  } else {
+                    // Select all workers for this operator
+                    val workerIds = exec.getWorkerIds
 
-                // Send queryStatistics to each worker and update internal state on reply
-                workerIds.map { wid =>
-                  workerInterface.queryStatistics(EmptyRequest(), wid).map { resp =>
-                    collectedResults.addOne((exec.getWorkerExecution(wid), resp, System.nanoTime()))
+                    // Send queryStatistics to each worker and update internal state on reply
+                    workerIds.map { wid =>
+                      workerInterface.queryStatistics(EmptyRequest(), wid).map { resp =>
+                        collectedResults.addOne(
+                          (exec.getWorkerExecution(wid), resp, System.nanoTime())
+                        )
+                      }
+                    }
                   }
-                }
               }
             }
           }
