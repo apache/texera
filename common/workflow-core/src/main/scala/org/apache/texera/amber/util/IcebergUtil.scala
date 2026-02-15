@@ -174,19 +174,19 @@ object IcebergUtil {
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
 
-//    val namespace = Namespace.of(tableNamespace)
-//
-//    catalog match {
-//      case nsCatalog: SupportsNamespaces =>
-//        try nsCatalog.createNamespace(namespace, Map.empty[String, String].asJava)
-//        catch {
-//          case _: AlreadyExistsException => ()
-//        }
-//      case _ =>
-//        throw new IllegalArgumentException(
-//          s"Catalog ${catalog.getClass.getName} does not support namespaces"
-//        )
-//    }
+    val namespace = Namespace.of(tableNamespace)
+
+    catalog match {
+      case nsCatalog: SupportsNamespaces =>
+        try nsCatalog.createNamespace(namespace, Map.empty[String, String].asJava)
+        catch {
+          case _: AlreadyExistsException => ()
+        }
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Catalog ${catalog.getClass.getName} does not support namespaces"
+        )
+    }
 
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
