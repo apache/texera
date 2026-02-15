@@ -44,6 +44,7 @@ message ControlRequest {
     PortCompletedRequest portCompletedRequest = 7;
     WorkerStateUpdatedRequest workerStateUpdatedRequest = 8;
     LinkWorkersRequest linkWorkersRequest = 9;
+    WorkflowReconfigureRequest workflowReconfigureRequest = 10;
 
     // request for worker
     AddInputChannelRequest addInputChannelRequest = 50;

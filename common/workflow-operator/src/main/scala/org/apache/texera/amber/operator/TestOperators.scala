@@ -20,11 +20,8 @@
 package org.apache.texera.amber.operator
 
 import org.apache.texera.amber.core.storage.FileResolver
-import org.apache.texera.amber.operator.aggregate.{
-  AggregateOpDesc,
-  AggregationFunction,
-  AggregationOperation
-}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
@@ -32,6 +29,7 @@ import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
+import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 
 import java.nio.file.Path
 
@@ -171,14 +169,33 @@ object TestOperators {
   def pythonOpDesc(): PythonUDFOpDescV2 = {
     val udf = new PythonUDFOpDescV2()
     udf.workers = 1
+    udf.retainInputColumns = true
     udf.code = """
         |from pytexera import *
         |
         |class ProcessTupleOperator(UDFOperatorV2):
         |    @overrides
         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        print(tuple_)
         |        yield tuple_
         |""".stripMargin
+    udf
+  }
+
+  def pythonSourceOpDesc(num_tuple: Int): PythonUDFSourceOpDescV2 = {
+    val udf = new PythonUDFSourceOpDescV2()
+    udf.workers = 1
+    udf.columns = List(new Attribute("field_1", AttributeType.INTEGER), new Attribute("field_2", AttributeType.STRING))
+    udf.code =
+      s"""
+         |from pytexera import *
+         |
+         |class ProcessTupleOperator(UDFSourceOperator):
+         |    @overrides
+         |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
+         |        for i in range($num_tuple):
+         |          yield {'field_1': i, 'field_2': str(i)}
+         |""".stripMargin
     udf
   }
 }
