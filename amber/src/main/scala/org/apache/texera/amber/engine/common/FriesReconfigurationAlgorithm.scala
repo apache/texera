@@ -37,15 +37,16 @@ object FriesReconfigurationAlgorithm {
   case class FriesComponent(
       sources: Set[PhysicalOpIdentity],
       scope: Set[PhysicalOpIdentity],
-      reconfigurations: Set[UpdateExecutorRequest])
+      reconfigurations: Set[UpdateExecutorRequest]
+  )
 
   private def getOneToManyOperators(region: Region): Set[PhysicalOpIdentity] = {
     region.getOperators.filter(op => op.isOneToManyOp).map(op => op.id)
   }
 
   def getReconfigurations(
-                                workflowExecutionCoordinator: WorkflowExecutionCoordinator,
-                                reconfiguration: WorkflowReconfigureRequest
+      workflowExecutionCoordinator: WorkflowExecutionCoordinator,
+      reconfiguration: WorkflowReconfigureRequest
   ): Set[FriesComponent] = {
     // independently schedule reconfigurations for each region:
     workflowExecutionCoordinator.getExecutingRegions
@@ -112,13 +113,13 @@ object FriesReconfigurationAlgorithm {
       val componentSet = component.asScala.toSet
       val componentPlan = mcsPlan.getSubPlan(componentSet)
       val reconfigCommands =
-              reconfiguration.reconfiguration
-                .filter(req => component.contains(req.targetOpId))
-                .toSet
+        reconfiguration.reconfiguration
+          .filter(req => component.contains(req.targetOpId))
+          .toSet
 
-            // find the source operators of the component
-            val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-            epochMarkers += FriesComponent(sources, componentPlan.operators.map(_.id), reconfigCommands)
+      // find the source operators of the component
+      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
+      epochMarkers += FriesComponent(sources, componentPlan.operators.map(_.id), reconfigCommands)
     })
     epochMarkers.toList
   }

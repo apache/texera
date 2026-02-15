@@ -28,7 +28,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyRetur
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
-
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

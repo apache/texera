@@ -20,19 +20,21 @@
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, UpdateExecutorRequest}
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  UpdateExecutorRequest
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import org.apache.texera.amber.util.VirtualIdentityUtils
-
 
 trait UpdateExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def updateExecutor(
-                               request: UpdateExecutorRequest,
-                               ctx: AsyncRPCContext
-                           ): Future[EmptyReturn] = {
+      request: UpdateExecutorRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
     val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
     setupExecutor(request.newExecInitInfo, workerIdx, cachedTotalWorkerCount)
     dp.executor.open()

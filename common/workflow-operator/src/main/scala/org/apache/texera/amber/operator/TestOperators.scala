@@ -20,7 +20,11 @@
 package org.apache.texera.amber.operator
 
 import org.apache.texera.amber.core.storage.FileResolver
-import org.apache.texera.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
+import org.apache.texera.amber.operator.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc

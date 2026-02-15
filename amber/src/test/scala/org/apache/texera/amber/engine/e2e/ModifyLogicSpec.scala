@@ -31,12 +31,23 @@ import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate}
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, UpdateExecutorRequest, WorkflowReconfigureRequest}
+import org.apache.texera.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStateUpdate
+}
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  EmptyRequest,
+  UpdateExecutorRequest,
+  WorkflowReconfigureRequest
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
-import org.apache.texera.amber.engine.e2e.TestUtils.{cleanupWorkflowExecutionData, initiateTexeraDBForTestCases, setUpWorkflowExecutionData}
+import org.apache.texera.amber.engine.e2e.TestUtils.{
+  cleanupWorkflowExecutionData,
+  initiateTexeraDBForTestCases,
+  setUpWorkflowExecutionData
+}
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.TestOperators.{mediumCsvScanOpDesc, pythonOpDesc}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
@@ -46,18 +57,19 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 
-class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntime.akkaConfig))
-  with ImplicitSender
-  with AnyFlatSpecLike
-  with BeforeAndAfterAll
-  with BeforeAndAfterEach
-  with Retries  {
+class ModifyLogicSpec
+    extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntime.akkaConfig))
+    with ImplicitSender
+    with AnyFlatSpecLike
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with Retries {
 
   /**
-   * This block retries each test once if it fails.
-   * In the CI environment, there is a chance that executeWorkflow does not receive "COMPLETED" status.
-   * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
-   */
+    * This block retries each test once if it fails.
+    * In the CI environment, there is a chance that executeWorkflow does not receive "COMPLETED" status.
+    * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
+    */
   override def withFixture(test: NoArgTest): Outcome =
     withRetry { super.withFixture(test) }
 
@@ -86,13 +98,12 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
     TestKit.shutdownActorSystem(system)
   }
 
-
   def shouldReconfigure(
-                         operators: List[LogicalOp],
-                         links: List[LogicalLink],
-                         targetOps: Seq[LogicalOp],
-                         newOpExecInitInfo: OpExecInitInfo
-                 ): Map[OperatorIdentity, List[Tuple]] = {
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      targetOps: Seq[LogicalOp],
+      newOpExecInitInfo: OpExecInitInfo
+  ): Map[OperatorIdentity, List[Tuple]] = {
     val workflow =
       TestUtils.buildWorkflow(operators, links, ctx)
     val client =
@@ -139,17 +150,23 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Thread.sleep(4000)
-    val physicalOps = targetOps.flatMap(op => workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier))
-    Await.result(client.controllerInterface.reconfigureWorkflow(WorkflowReconfigureRequest(
-      reconfiguration =
-        physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)
-      ), reconfigurationId = "test-reconfigure-1"), ()))
+    val physicalOps = targetOps.flatMap(op =>
+      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
+    )
+    Await.result(
+      client.controllerInterface.reconfigureWorkflow(
+        WorkflowReconfigureRequest(
+          reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
+          reconfigurationId = "test-reconfigure-1"
+        ),
+        ()
+      )
+    )
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
     Thread.sleep(400)
     Await.result(completion, Duration.fromMinutes(1))
     result
   }
-
 
   "Engine" should "be able to modify a python UDF worker in workflow" in {
     val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
@@ -164,29 +181,40 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
                  |        yield tuple_
                  |""".stripMargin
 
-    val result = shouldReconfigure(List(sourceOpDesc, udfOpDesc), List(LogicalLink(
-      sourceOpDesc.operatorIdentifier,
-      PortIdentity(),
-      udfOpDesc.operatorIdentifier,
-      PortIdentity()
-    )),
-      Seq(udfOpDesc), OpExecWithCode(code, "python"))
-  assert(result(udfOpDesc.operatorIdentifier).exists {
-    t => t.getField("Region").asInstanceOf[String].contains("_reconfigured")
-  })
+    val result = shouldReconfigure(
+      List(sourceOpDesc, udfOpDesc),
+      List(
+        LogicalLink(
+          sourceOpDesc.operatorIdentifier,
+          PortIdentity(),
+          udfOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      Seq(udfOpDesc),
+      OpExecWithCode(code, "python")
+    )
+    assert(result(udfOpDesc.operatorIdentifier).exists { t =>
+      t.getField("Region").asInstanceOf[String].contains("_reconfigured")
+    })
   }
 
   "Engine" should "be able to modify a java operator in workflow" in {
     val sourceOpDesc = mediumCsvScanOpDesc()
     val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
     val keywordMatchManyOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val result = shouldReconfigure(List(sourceOpDesc, keywordMatchNoneOpDesc), List(LogicalLink(
-      sourceOpDesc.operatorIdentifier,
-      PortIdentity(),
-      keywordMatchNoneOpDesc.operatorIdentifier,
-      PortIdentity()
-    )),
-      Seq(keywordMatchNoneOpDesc), keywordMatchManyOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
+    val result = shouldReconfigure(
+      List(sourceOpDesc, keywordMatchNoneOpDesc),
+      List(
+        LogicalLink(
+          sourceOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordMatchNoneOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      Seq(keywordMatchNoneOpDesc),
+      keywordMatchManyOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
     )
     assert(result(keywordMatchNoneOpDesc.operatorIdentifier).nonEmpty)
   }
@@ -195,15 +223,23 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
     val sourceOpDesc = mediumCsvScanOpDesc()
     val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
     val ex = intercept[Throwable] {
-      shouldReconfigure(List(sourceOpDesc, keywordMatchNoneOpDesc), List(LogicalLink(
-      sourceOpDesc.operatorIdentifier,
-      PortIdentity(),
-      keywordMatchNoneOpDesc.operatorIdentifier,
-      PortIdentity()
-    )),
-      Seq(sourceOpDesc), sourceOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
-    )}
-    assert(ex.getMessage == "java.lang.IllegalStateException: Reconfiguration cannot be propagated through source operators")
+      shouldReconfigure(
+        List(sourceOpDesc, keywordMatchNoneOpDesc),
+        List(
+          LogicalLink(
+            sourceOpDesc.operatorIdentifier,
+            PortIdentity(),
+            keywordMatchNoneOpDesc.operatorIdentifier,
+            PortIdentity()
+          )
+        ),
+        Seq(sourceOpDesc),
+        sourceOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
+      )
+    }
+    assert(
+      ex.getMessage == "java.lang.IllegalStateException: Reconfiguration cannot be propagated through source operators"
+    )
   }
 
   "Engine" should "be able to modify two python UDFs in workflow" in {
@@ -220,20 +256,27 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
                  |        yield tuple_
                  |""".stripMargin
 
-    val result = shouldReconfigure(List(sourceOpDesc, udfOpDesc1, udfOpDesc2), List(LogicalLink(
-      sourceOpDesc.operatorIdentifier,
-      PortIdentity(),
-      udfOpDesc1.operatorIdentifier,
-      PortIdentity()
-    ), LogicalLink(
-      udfOpDesc1.operatorIdentifier,
-      PortIdentity(),
-      udfOpDesc2.operatorIdentifier,
-      PortIdentity()
-    )),
-      Seq(udfOpDesc1, udfOpDesc2), OpExecWithCode(code, "python"))
-    assert(result(udfOpDesc2.operatorIdentifier).exists {
-      t => t.getField("Region").asInstanceOf[String].contains("_reconfigured_reconfigured")
+    val result = shouldReconfigure(
+      List(sourceOpDesc, udfOpDesc1, udfOpDesc2),
+      List(
+        LogicalLink(
+          sourceOpDesc.operatorIdentifier,
+          PortIdentity(),
+          udfOpDesc1.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          udfOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          udfOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      Seq(udfOpDesc1, udfOpDesc2),
+      OpExecWithCode(code, "python")
+    )
+    assert(result(udfOpDesc2.operatorIdentifier).exists { t =>
+      t.getField("Region").asInstanceOf[String].contains("_reconfigured_reconfigured")
     })
   }
 

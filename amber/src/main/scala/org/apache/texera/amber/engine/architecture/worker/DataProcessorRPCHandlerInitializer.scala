@@ -20,9 +20,20 @@
 package org.apache.texera.amber.engine.architecture.worker
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.executor.{ExecFactory, OpExecInitInfo, OpExecSource, OpExecWithClassName, OpExecWithCode}
+import org.apache.texera.amber.core.executor.{
+  ExecFactory,
+  OpExecInitInfo,
+  OpExecSource,
+  OpExecWithClassName,
+  OpExecWithCode
+}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, DebugCommandRequest, EmptyRequest, EvaluatePythonExpressionRequest}
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  DebugCommandRequest,
+  EmptyRequest,
+  EvaluatePythonExpressionRequest
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EvaluatedValue}
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import org.apache.texera.amber.engine.architecture.worker.promisehandlers._
