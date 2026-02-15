@@ -23,9 +23,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -35,12 +38,12 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
   @JsonPropertyDescription("the label for y axis")
-  var yLabel: String = ""
+  var yLabel: EncodableString = ""
 
   @JsonProperty(value = "xLabel", required = false, defaultValue = "X Axis")
   @JsonSchemaTitle("X Label")
   @JsonPropertyDescription("the label for x axis")
-  var xLabel: String = ""
+  var xLabel: EncodableString = ""
 
   @JsonProperty(value = "lines", required = true)
   var lines: util.List[LineConfig] = _
@@ -63,42 +66,42 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  def createPlotlyFigure(): String = {
+  def createPlotlyFigure(): PythonTemplateBuilder = {
     val linesPart = lines.asScala
       .map { lineConf =>
         val colorPart = if (lineConf.color != "") {
-          s"line={'color':'${lineConf.color}'}, marker={'color':'${lineConf.color}'}, "
+          pyb"line={'color':${lineConf.color}}, marker={'color':${lineConf.color}}, "
         } else {
-          ""
+          pyb""
         }
 
         val namePart = if (lineConf.name != "") {
-          s"name='${lineConf.name}'"
+          pyb"name=${lineConf.name}"
         } else {
-          s"name='${lineConf.yValue}'"
+          pyb"name=${lineConf.yValue}"
         }
 
-        s"""fig.add_trace(go.Scatter(
-            x=table['${lineConf.xValue}'],
-            y=table['${lineConf.yValue}'],
+        pyb"""fig.add_trace(go.Scatter(
+            x=table[${lineConf.xValue}],
+            y=table[${lineConf.yValue}],
             mode='${lineConf.mode.getModeInPlotly}',
             $colorPart
             $namePart
           ))"""
       }
 
-    s"""
+    pyb"""
        |        fig = go.Figure()
        |        ${linesPart.mkString("\n        ")}
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-       |                          xaxis_title='$xLabel',
-       |                          yaxis_title='$yLabel')
-       |""".stripMargin
+       |                          xaxis_title=$xLabel,
+       |                          yaxis_title=$yLabel)
+       |"""
   }
 
   override def generatePythonCode(): String = {
     val finalCode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import plotly.express as px
@@ -123,8 +126,8 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
          |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
-         |""".stripMargin
-    finalCode
+         |"""
+    finalCode.encode
   }
 
 }

@@ -52,7 +52,6 @@ postgresql:
       size: 10Gi
       storageClass: local-path
       existingClaim: "postgresql-data-pvc"
-
     initdb:
       scriptsConfigMap: "postgresql-init-script"
 
@@ -61,12 +60,10 @@ minio:
   image:
     repository: bitnamilegacy/minio
     tag: 2025.3.12-debian-12-r0
-  customIngress:
+  gateway:
     enabled: false
-    ingressClassName: "" # e.g., "nginx"
-    texeraHostname: "" # the url for the texera WITH http or https, e.g., "https://texera.example.com"
-    minioHostname: "" # the url for the minio
-    issuer: "" # e.g., "letsencrypt-prod"
+    hostname: "" # the url for the minio, e.g. "minio.example.com"
+    tlsSecretName: "" # e.g. "minio-tls-secret"
   auth:
     rootUser: texera_minio
     rootPassword: password
@@ -168,19 +165,6 @@ accessControlService:
     type: ClusterIP
     port: 9096
 
-# Configs of the envoy proxy, used to routerequests to the computing units
-envoy:
-  replicas: 1
-  image:
-    repository: envoyproxy/envoy
-    tag: v1.31-latest
-  port:
-    10000
-  debug: false
-  service:
-    type: ClusterIP
-    port: 10000
-
 # headless service for the access of computing units
 workflowComputingUnitPool:
   createNamespaces: true
@@ -254,29 +238,6 @@ texeraEnvVars:
   - name: USER_SYS_DOMAIN
     value: ""
 
-# Ingress dependency configs
-ingress-nginx:
-  enabled: true # set to true if nginx is not installed, should be false in production
-  controller:
-    replicaCount: 1
-    service:
-      type: NodePort
-      nodePorts:
-        http: 30080
-    ingressClassResource:
-      name: nginx
-      enabled: true
-    resources:
-      limits:
-        cpu: 100m
-        memory: 128Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  rbac:
-    create: true
-
-
 yWebsocketServer:
   name: y-websocket-server
   replicaCount: 1
@@ -310,54 +271,35 @@ metrics-server:
     create: true
   priorityClassName: system-cluster-critical
 
-# Custom Ingress resource configs
-ingressPaths:
-  enabled: true
-  ingressClassName: nginx  # Set to "alb" when deploying on AWS
+gatewayConfig:
+  # Routes are available at bin/k8s/templates/gateway-routes.yaml
+
+  # The hostname for the Gateway listener (HTTP/HTTPS).
+  # e.g., "texera.example.com"
   hostname: ""
-  # Optional TLS secret (manually created)
-  tlsSecretName: ""  # e.g., "texera-tls"
-  # Optional Issuer name for cert-manager
-  issuer: ""  # e.g., "letsencrypt-prod"
-  paths:
-    - path: /api/computing-unit
-      serviceName: workflow-computing-unit-manager-svc
-      servicePort: 8888
-    - path: /api/compile
-      serviceName: workflow-compiling-service-svc
-      servicePort: 9090
-    - path: /api/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
-    - path: /api/access/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
-    - path: /api/access/computing-unit
-      serviceName: workflow-computing-unit-manager-svc
-      servicePort: 8888
-    - path: /api/config
-      serviceName: config-service-svc
-      servicePort: 9094
-    - path: /wsapi/workflow-websocket
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api/executions/*/stats/*
-      pathType: ImplementationSpecific
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api/executions/result/export/*
-      pathType: ImplementationSpecific
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api
-      serviceName: webserver-svc
-      servicePort: 8080
-    - path: /rtc
-      serviceName: y-websocket-server-svc
-      servicePort: 1234
-    - path: /python-language-server
-      serviceName: python-language-server-svc
-      servicePort: 3000
-    - path: /
-      serviceName: webserver-svc
-      servicePort: 8080
+
+  # The name of the cert-manager Issuer or ClusterIssuer to use for obtaining certificates.
+  # This requires cert-manager to be installed in the cluster.
+  # You can find available ClusterIssuers with: `kubectl get clusterissuers`
+  # You can find available Issuers with: `kubectl get issuers -A`
+  # e.g., "letsencrypt-prod"
+  issuer: ""
+
+  # The Kind of the issuer specified above. Can be "Issuer" or "ClusterIssuer".
+  # If you found it via `kubectl get clusterissuers`, use "ClusterIssuer".
+  # If you found it via `kubectl get issuers`, use "Issuer".
+  # defaults to "Issuer" if not specified.
+  issuerKind: "Issuer"
+
+  # The name of the Secret where the signed certificate should be stored.
+  # If empty, it defaults to "{{ .Release.Name }}-cert".
+  # e.g., "texera-tls"
+  tlsSecretName: ""
+
+# Envoy Gateway Configuration
+envoy-gateway:
+  config:
+    envoyGateway:
+      extensionApis:
+        enableBackend: true
+        enableEnvoyPatchPolicy: true

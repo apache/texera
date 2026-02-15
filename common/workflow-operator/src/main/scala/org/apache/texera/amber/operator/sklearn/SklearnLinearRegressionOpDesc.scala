@@ -22,6 +22,8 @@ package org.apache.texera.amber.operator.sklearn
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -33,7 +35,7 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
   @JsonProperty(required = true)
   @AutofillAttributeName
-  var target: String = _
+  var target: EncodableString = _
 
   @JsonSchemaTitle("Degree")
   @JsonPropertyDescription("Degree of polynomial function")
@@ -41,7 +43,7 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
   val degree: Int = 1
 
   override def generatePythonCode(): String =
-    s"""
+    pyb"""
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, mean_absolute_error, r2_score
        |from sklearn.pipeline import make_pipeline
        |from sklearn.linear_model import LinearRegression
@@ -51,8 +53,8 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        Y = table["$target"]
-       |        X = table.drop("$target", axis=1)
+       |        Y = table[$target]
+       |        X = table.drop($target, axis=1)
        |        if port == 0:
        |            pipeline = make_pipeline(
        |                PolynomialFeatures(degree=$degree),
@@ -64,7 +66,7 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
        |            mae = round(mean_absolute_error(Y, predictions), 4)
        |            r2 = round(r2_score(Y, predictions), 4)
        |            print("MAE:", mae, ", R2:", r2)
-       |            yield {"model_name" : "LinearRegression", "model" : self.model}""".stripMargin
+       |            yield {"model_name" : "LinearRegression", "model" : self.model}""".encode
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

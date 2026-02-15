@@ -53,6 +53,8 @@ object AuthResource {
     * @return
     */
   def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
+    if (password == null) return None
+    if (name == null) return None
     Option(
       SqlServer
         .getInstance()
