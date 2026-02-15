@@ -64,7 +64,12 @@ jobs:
             ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-
       - name: Prepare Yarn 4.5.1
         run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd frontend set version 4.5.1
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
       - name: Install dependency
+        timeout-minutes: 20
         run: yarn --cwd frontend install --immutable --network-timeout=100000
       - name: Lint with Prettier & ESLint
         run: yarn --cwd frontend format:ci
