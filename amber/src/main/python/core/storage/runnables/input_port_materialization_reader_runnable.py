@@ -17,7 +17,7 @@
 
 import typing
 from loguru import logger
-from pyarrow.lib import Table
+from pyarrow import Table
 from typing import Union
 
 from core.architecture.sendsemantics.broad_cast_partitioner import (
@@ -146,6 +146,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                     break
                 # Each tuple is sent to the partitioner and converted to
                 # a batch-based iterator.
+                tup.cast_to_schema(self.tuple_schema)
                 for data_frame in self.tuple_to_batch_with_filter(tup):
                     self.emit_payload(data_frame)
             self.emit_ecm("EndChannel", EmbeddedControlMessageType.PORT_ALIGNMENT)
