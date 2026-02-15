@@ -38,8 +38,9 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       opDesc
         .createPlotlyFigure()
+        .plain
         .contains(
-          "fig = go.Figure(px.scatter(table, x='column1', y='column2', size='column3', size_max=100))"
+          "fig = go.Figure(px.scatter(table, x=column1, y=column2, size=column3, size_max=100))"
         )
     )
   }

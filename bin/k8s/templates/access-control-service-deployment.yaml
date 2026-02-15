@@ -46,6 +46,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
+            - name: KUBERNETES_COMPUTE_UNIT_POOL_NAME
+              value: {{ .Values.workflowComputingUnitPool.name }}
+            - name: KUBERNETES_COMPUTE_UNIT_POOL_NAMESPACE
+              value: {{ .Values.workflowComputingUnitPool.namespace }}
           livenessProbe:
             httpGet:
               path: /api/healthcheck

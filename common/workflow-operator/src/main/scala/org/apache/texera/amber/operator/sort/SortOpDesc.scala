@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -32,7 +33,7 @@ class SortOpDesc extends PythonOperatorDescriptor {
   override def generatePythonCode(): String = {
     val attributeName = "[" + attributes
       .map { criteria =>
-        s""""${criteria.attributeName}""""
+        pyb"""${criteria.attributeName}"""
       }
       .mkString(", ") + "]"
     val sortOrders: String = "[" + attributes
@@ -44,7 +45,7 @@ class SortOpDesc extends PythonOperatorDescriptor {
       }
       .mkString(", ") + "]"
 
-    s"""from pytexera import *
+    pyb"""from pytexera import *
        |import pandas as pd
        |from datetime import datetime
        |
@@ -56,7 +57,7 @@ class SortOpDesc extends PythonOperatorDescriptor {
        |        ascending_orders = $sortOrders
        |
        |        sorted_df = table.sort_values(by=sort_columns, ascending=ascending_orders)
-       |        yield sorted_df""".stripMargin
+       |        yield sorted_df""".encode
   }
 
   def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
