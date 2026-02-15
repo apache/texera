@@ -182,18 +182,19 @@ object TestOperators {
     udf
   }
 
-  def pythonSourceOpDesc(num_tuple: Int): PythonUDFSourceOpDescV2 = {
+  def pythonSourceOpDesc(num_tuple: Int, delay_in_sec: Double): PythonUDFSourceOpDescV2 = {
     val udf = new PythonUDFSourceOpDescV2()
     udf.workers = 1
     udf.columns = List(new Attribute("field_1", AttributeType.INTEGER), new Attribute("field_2", AttributeType.STRING))
     udf.code =
       s"""
          |from pytexera import *
-         |
+         |from time import sleep
          |class ProcessTupleOperator(UDFSourceOperator):
          |    @overrides
          |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
          |        for i in range($num_tuple):
+         |          sleep($delay_in_sec)
          |          yield {'field_1': i, 'field_2': str(i)}
          |""".stripMargin
     udf

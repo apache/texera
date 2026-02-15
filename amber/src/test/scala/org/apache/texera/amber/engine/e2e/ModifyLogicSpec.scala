@@ -90,10 +90,9 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
   def shouldReconfigure(
                          operators: List[LogicalOp],
                          links: List[LogicalLink],
-                         targetOp: LogicalOp,
-                         newOpExecInitInfo: OpExecInitInfo,
-                         checkResultLambda: (Map[OperatorIdentity, List[Tuple]]) => Boolean
-                 ): Unit = {
+                         targetOps: Seq[LogicalOp],
+                         newOpExecInitInfo: OpExecInitInfo
+                 ): Map[OperatorIdentity, List[Tuple]] = {
     val workflow =
       TestUtils.buildWorkflow(operators, links, ctx)
     val client =
@@ -105,43 +104,42 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
         error => {}
       )
     val completion = Promise[Unit]()
+    var result: Map[OperatorIdentity, List[Tuple]] = null
     client
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
-//          checkResultLambda(workflow.logicalPlan.getTerminalOperatorIds
-//            .filter(terminalOpId => {
-//              val uri = getResultUriByLogicalPortId(
-//                workflow.context.executionId,
-//                terminalOpId,
-//                PortIdentity()
-//              )
-//              uri.nonEmpty
-//            })
-//            .map(terminalOpId => {
-//              //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
-//              Thread.sleep(1000)
-//              val uri = getResultUriByLogicalPortId(
-//                workflow.context.executionId,
-//                terminalOpId,
-//                PortIdentity()
-//              ).get
-//              terminalOpId -> DocumentFactory
-//                .openDocument(uri)
-//                ._1
-//                .asInstanceOf[VirtualDocument[Tuple]]
-//                .get()
-//                .toList
-//            })
-//            .toMap)
+          result = workflow.logicalPlan.getTerminalOperatorIds
+            .filter(terminalOpId => {
+              val uri = getResultUriByLogicalPortId(
+                workflow.context.executionId,
+                terminalOpId,
+                PortIdentity()
+              )
+              uri.nonEmpty
+            })
+            .map(terminalOpId => {
+              //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
+              Thread.sleep(1000)
+              val uri = getResultUriByLogicalPortId(
+                workflow.context.executionId,
+                terminalOpId,
+                PortIdentity()
+              ).get
+              terminalOpId -> DocumentFactory
+                .openDocument(uri)
+                ._1
+                .asInstanceOf[VirtualDocument[Tuple]]
+                .get()
+                .toList
+            })
+            .toMap
           completion.setDone()
         }
       })
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Thread.sleep(4000)
-    val physicalOps = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(targetOp.operatorIdentifier)
-    assert(physicalOps.nonEmpty && physicalOps.length == 1,
-      "cannot reconfigure more than one physical operator in this test")
+    val physicalOps = targetOps.flatMap(op => workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier))
     Await.result(client.controllerInterface.reconfigureWorkflow(WorkflowReconfigureRequest(
       reconfiguration =
         physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)
@@ -149,48 +147,94 @@ class ModifyLogicSpec extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntim
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
     Thread.sleep(400)
     Await.result(completion, Duration.fromMinutes(1))
+    result
   }
 
 
   "Engine" should "be able to modify a python UDF worker in workflow" in {
+    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
     val udfOpDesc = pythonOpDesc()
-    val sourceOpDesc = pythonSourceOpDesc(5000)
     val code = """
                  |from pytexera import *
                  |
                  |class ProcessTupleOperator(UDFOperatorV2):
                  |    @overrides
                  |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                 |        tuple_['field_2'] = tuple_['field_2'] + '_reconfigured'
+                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
                  |        yield tuple_
                  |""".stripMargin
 
-    shouldReconfigure(List(sourceOpDesc, udfOpDesc), List(LogicalLink(
+    val result = shouldReconfigure(List(sourceOpDesc, udfOpDesc), List(LogicalLink(
       sourceOpDesc.operatorIdentifier,
       PortIdentity(),
       udfOpDesc.operatorIdentifier,
       PortIdentity()
     )),
-      udfOpDesc, OpExecWithCode(code, "python"),
-      results => results(udfOpDesc.operatorIdentifier).exists {
-        t => t.getField("field_2").asInstanceOf[String].contains("_reconfigured")
-      }
-    )
+      Seq(udfOpDesc), OpExecWithCode(code, "python"))
+  assert(result(udfOpDesc.operatorIdentifier).exists {
+    t => t.getField("Region").asInstanceOf[String].contains("_reconfigured")
+  })
   }
 
   "Engine" should "be able to modify a java operator in workflow" in {
     val sourceOpDesc = mediumCsvScanOpDesc()
     val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
     val keywordMatchManyOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    shouldReconfigure(List(sourceOpDesc, keywordMatchNoneOpDesc), List(LogicalLink(
+    val result = shouldReconfigure(List(sourceOpDesc, keywordMatchNoneOpDesc), List(LogicalLink(
       sourceOpDesc.operatorIdentifier,
       PortIdentity(),
       keywordMatchNoneOpDesc.operatorIdentifier,
       PortIdentity()
     )),
-      keywordMatchNoneOpDesc, keywordMatchManyOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo,
-      results => results(keywordMatchNoneOpDesc.operatorIdentifier).nonEmpty
+      Seq(keywordMatchNoneOpDesc), keywordMatchManyOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
     )
+    assert(result(keywordMatchNoneOpDesc.operatorIdentifier).nonEmpty)
+  }
+
+  "Engine" should "not be able to modify a source operator in workflow" in {
+    val sourceOpDesc = mediumCsvScanOpDesc()
+    val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
+    val ex = intercept[Throwable] {
+      shouldReconfigure(List(sourceOpDesc, keywordMatchNoneOpDesc), List(LogicalLink(
+      sourceOpDesc.operatorIdentifier,
+      PortIdentity(),
+      keywordMatchNoneOpDesc.operatorIdentifier,
+      PortIdentity()
+    )),
+      Seq(sourceOpDesc), sourceOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
+    )}
+    assert(ex.getMessage == "java.lang.IllegalStateException: Reconfiguration cannot be propagated through source operators")
+  }
+
+  "Engine" should "be able to modify two python UDFs in workflow" in {
+    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
+    val udfOpDesc1 = pythonOpDesc()
+    val udfOpDesc2 = pythonOpDesc()
+    val code = """
+                 |from pytexera import *
+                 |
+                 |class ProcessTupleOperator(UDFOperatorV2):
+                 |    @overrides
+                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
+                 |        yield tuple_
+                 |""".stripMargin
+
+    val result = shouldReconfigure(List(sourceOpDesc, udfOpDesc1, udfOpDesc2), List(LogicalLink(
+      sourceOpDesc.operatorIdentifier,
+      PortIdentity(),
+      udfOpDesc1.operatorIdentifier,
+      PortIdentity()
+    ), LogicalLink(
+      udfOpDesc1.operatorIdentifier,
+      PortIdentity(),
+      udfOpDesc2.operatorIdentifier,
+      PortIdentity()
+    )),
+      Seq(udfOpDesc1, udfOpDesc2), OpExecWithCode(code, "python"))
+    assert(result(udfOpDesc2.operatorIdentifier).exists {
+      t => t.getField("Region").asInstanceOf[String].contains("_reconfigured_reconfigured")
+    })
   }
 
 }
