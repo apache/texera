@@ -49,7 +49,6 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
-import org.apache.texera.amber.operator.TestOperators.{mediumCsvScanOpDesc, pythonOpDesc}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
@@ -170,7 +169,7 @@ class ModifyLogicSpec
 
   "Engine" should "be able to modify a python UDF worker in workflow" in {
     val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
-    val udfOpDesc = pythonOpDesc()
+    val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
                  |
@@ -200,7 +199,7 @@ class ModifyLogicSpec
   }
 
   "Engine" should "be able to modify a java operator in workflow" in {
-    val sourceOpDesc = mediumCsvScanOpDesc()
+    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
     val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
     val keywordMatchManyOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val result = shouldReconfigure(
@@ -220,7 +219,8 @@ class ModifyLogicSpec
   }
 
   "Engine" should "not be able to modify a source operator in workflow" in {
-    val sourceOpDesc = mediumCsvScanOpDesc()
+    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
+    val sourceOpDesc2 = TestOperators.mediumCsvScanOpDesc()
     val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
     val ex = intercept[Throwable] {
       shouldReconfigure(
@@ -234,18 +234,48 @@ class ModifyLogicSpec
           )
         ),
         Seq(sourceOpDesc),
-        sourceOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
+        sourceOpDesc2.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
       )
     }
     assert(
-      ex.getMessage == "java.lang.IllegalStateException: Reconfiguration cannot be propagated through source operators"
+      ex.getMessage == "java.lang.IllegalStateException: Reconfiguration cannot be applied to source operators"
     )
+  }
+
+  "Engine" should "propagate reconfiguration through a source operator in workflow" in {
+    val sourceOpDesc = TestOperators.pythonSourceOpDesc(10000)
+    val udfOpDesc = TestOperators.pythonOpDesc()
+    val code = """
+                 |from pytexera import *
+                 |
+                 |class ProcessTupleOperator(UDFOperatorV2):
+                 |    @overrides
+                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                 |        tuple_['field_1'] = tuple_['field_1'] + '_reconfigured'
+                 |        yield tuple_
+                 |""".stripMargin
+    val result = shouldReconfigure(
+      List(sourceOpDesc, udfOpDesc),
+      List(
+        LogicalLink(
+          sourceOpDesc.operatorIdentifier,
+          PortIdentity(),
+          udfOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      Seq(udfOpDesc),
+      OpExecWithCode(code, "python")
+    )
+    assert(result(udfOpDesc.operatorIdentifier).exists { t =>
+      t.getField("field_1").asInstanceOf[String].contains("_reconfigured")
+    })
   }
 
   "Engine" should "be able to modify two python UDFs in workflow" in {
     val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
-    val udfOpDesc1 = pythonOpDesc()
-    val udfOpDesc2 = pythonOpDesc()
+    val udfOpDesc1 = TestOperators.pythonOpDesc()
+    val udfOpDesc2 = TestOperators.pythonOpDesc()
     val code = """
                  |from pytexera import *
                  |

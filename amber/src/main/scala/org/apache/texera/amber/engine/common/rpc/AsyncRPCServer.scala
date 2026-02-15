@@ -86,9 +86,7 @@ class AsyncRPCServer(
         } catch {
           case e: java.lang.reflect.InvocationTargetException =>
             throw Option(e.getCause).getOrElse(e)
-          case e: Throwable =>
-            logger.info(s"error when invoking ${method.getName} + ${requestArg} with ${contextArg}")
-            throw e
+          case e: Throwable => throw e
         }
       result
         .asInstanceOf[Future[ControlReturn]]

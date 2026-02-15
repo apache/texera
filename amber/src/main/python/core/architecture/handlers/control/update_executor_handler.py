@@ -27,5 +27,7 @@ from proto.org.apache.texera.amber.core import OpExecWithCode
 class UpdateExecutorHandler(ControlHandler):
     async def update_executor(self, req: UpdateExecutorRequest) -> EmptyReturn:
         op_exec_with_code: OpExecWithCode = get_one_of(req.new_exec_init_info)
-        self.context.executor_manager.update_executor(op_exec_with_code.code, False)
+        self.context.executor_manager.update_executor(
+            op_exec_with_code.code, self.context.executor_manager.executor.is_source
+        )
         return EmptyReturn()

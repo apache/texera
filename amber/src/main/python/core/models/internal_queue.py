@@ -79,9 +79,6 @@ class InternalQueue(IQueue):
             if item.tag not in self._queue_ids:
                 self._queue.add_sub_queue(item.tag, 1 if item.tag.is_control else 2)
                 self._queue_ids.add(item.tag)
-                if len(self._queue_state) > 0 and not item.tag.is_control:
-                    # if paused, then the newly added queue will also be paused.
-                    self._queue.disable(item.tag)
             if isinstance(item, (DataElement, InternalMarker, ECMElement)):
                 self._queue.put(item.tag, item)
             elif isinstance(item, DCMElement):

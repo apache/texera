@@ -45,19 +45,18 @@ trait ReconfigurationHandler {
       msg: WorkflowReconfigureRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
+    if (
+      msg.reconfiguration.exists(req =>
+        cp.workflowScheduler.physicalPlan.getOperator(req.targetOpId).isSourceOperator
+      )
+    ) {
+      throw new IllegalStateException(
+        "Reconfiguration cannot be applied to source operators"
+      )
+    }
     val futures = mutable.ArrayBuffer[Future[_]]()
     val friesComponents =
       FriesReconfigurationAlgorithm.getReconfigurations(cp.workflowExecutionCoordinator, msg)
-    val needToSendECMToSources = friesComponents.exists(comp =>
-      comp.sources.exists(sourceOp =>
-        cp.workflowScheduler.physicalPlan.getOperator(sourceOp).isSourceOperator
-      )
-    )
-    if (needToSendECMToSources) {
-      throw new IllegalStateException(
-        "Reconfiguration cannot be propagated through source operators"
-      )
-    }
     friesComponents.foreach { friesComponent =>
       if (friesComponent.scope.size == 1) {
         val updateExecutorRequest = friesComponent.reconfigurations.head
