@@ -180,8 +180,8 @@ class RegionExecutionCoordinator(
                 val actorRef = actorRefService.getActorRef(workerId)
                 // Remove the actorRef so that no other actors can find the worker and send messages.
                 actorRefService.removeActorRef(workerId)
-                asyncRPCClient.outputGateway.removeControlChannel(workerId)
                 asyncRPCClient.inputGateway.removeControlChannel(workerId)
+                asyncRPCClient.outputGateway.removeControlChannel(workerId)
                 gracefulStop(actorRef, ScalaDuration(5, TimeUnit.SECONDS)).asTwitter()
               }
           }.toSeq
@@ -210,8 +210,7 @@ class RegionExecutionCoordinator(
       regionExecution: RegionExecution,
       attempt: Int = 1
   ): Future[Unit] = {
-    terminateWorkers(regionExecution).rescue {
-      case err =>
+    terminateWorkers(regionExecution).rescue { case err =>
         logger.warn(
           s"Failed to terminate region ${region.id.id} on attempt $attempt. Retrying in ${killRetryDelay.inMilliseconds} ms.",
           err
