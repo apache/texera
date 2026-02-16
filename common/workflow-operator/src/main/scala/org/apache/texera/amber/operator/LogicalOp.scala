@@ -130,6 +130,7 @@ import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dCh
 import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.webglPolarChart.WebglPolarChartOpDesc
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
@@ -143,7 +144,7 @@ import java.util.UUID
 import scala.util.Try
 
 trait StateTransferFunc
-    extends ((OperatorExecutor, OperatorExecutor) => Unit)
+  extends ((OperatorExecutor, OperatorExecutor) => Unit)
     with java.io.Serializable
 
 @JsonTypeInfo(
@@ -186,6 +187,7 @@ trait StateTransferFunc
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
+    new Type(value = classOf[WebglPolarChartOpDesc], name = "WebGLPolarChart"),
     new Type(value = classOf[RangeSliderOpDesc], name = "RangeSlider"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
@@ -421,15 +423,15 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = ???
+                     workflowId: WorkflowIdentity,
+                     executionId: ExecutionIdentity
+                   ): PhysicalOp = ???
 
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalPlan = {
+                       workflowId: WorkflowIdentity,
+                       executionId: ExecutionIdentity
+                     ): PhysicalPlan = {
     PhysicalPlan(
       operators = Set(getPhysicalOp(workflowId, executionId)),
       links = Set.empty
@@ -455,11 +457,11 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   }
 
   def runtimeReconfiguration(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      oldOpDesc: LogicalOp,
-      newOpDesc: LogicalOp
-  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity,
+                              oldOpDesc: LogicalOp,
+                              newOpDesc: LogicalOp
+                            ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     throw new UnsupportedOperationException(
       "operator " + getClass.getSimpleName + " does not support reconfiguration"
     )
@@ -471,15 +473,15 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   var dummyPropertyList: List[DummyProperties] = List()
 
   /**
-    * Propagates the schema from external input ports to external output ports.
-    * This method is primarily used to derive the output schemas for logical operators.
-    *
-    * @param inputSchemas A map containing the schemas of the external input ports.
-    * @return A map of external output port identities to their corresponding schemas.
-    */
+   * Propagates the schema from external input ports to external output ports.
+   * This method is primarily used to derive the output schemas for logical operators.
+   *
+   * @param inputSchemas A map containing the schemas of the external input ports.
+   * @return A map of external output port identities to their corresponding schemas.
+   */
   def getExternalOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
+                                inputSchemas: Map[PortIdentity, Schema]
+                              ): Map[PortIdentity, Schema] = {
     this
       .getPhysicalPlan(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
       .propagateSchema(inputSchemas)
