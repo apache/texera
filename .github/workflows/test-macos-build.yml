@@ -1,0 +1,62 @@
+name: Test macOS Build Optimization
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'ci-enable/**'
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/test-macos-build.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-macos:
+    runs-on: macos-latest
+    env:
+      NODE_ARCH: arm64
+      NODE_VERSION: 18
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+
+      - name: Setup node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          architecture: ${{ env.NODE_ARCH }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            frontend/.yarn/cache
+            frontend/.yarn/unplugged
+            frontend/.yarn/install-state.gz
+          # Matching the exact key format from the main workflow: runner.os-arch-nodeVersion-yarn-cache-v2-hash
+          key: ${{ runner.os }}-${{ env.NODE_ARCH }}-${{ env.NODE_VERSION }}-yarn-cache-v2-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.NODE_ARCH }}-${{ env.NODE_VERSION }}-yarn-cache-v2-
+
+      - name: Prepare Yarn 4.5.1
+        run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd frontend set version 4.5.1
+      
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependency (Optimized)
+        timeout-minutes: 20
+        run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
+
+      - name: Lint with Prettier & ESLint
+        run: yarn --cwd frontend format:ci
+
+      - name: Run frontend unit tests
+        run: yarn --cwd frontend run test:ci
+
+      - name: Prod build
+        run: yarn --cwd frontend run build:ci
