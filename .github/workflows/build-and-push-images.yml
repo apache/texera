@@ -26,9 +26,9 @@ on:
         default: 'main'
         type: string
       image_tag:
-        description: 'Docker image tag to use (e.g., latest, v1.0.0)'
-        required: true
-        default: 'latest'
+        description: 'Docker image tag (e.g., latest, v1.0.0). Leave empty to use the short commit hash of the branch.'
+        required: false
+        default: ''
         type: string
       docker_registry:
         description: 'Full image registry prefix (e.g., ghcr.io/apache, docker.io/apache)'
@@ -95,8 +95,18 @@ jobs:
             echo "with_r_support=false" >> $GITHUB_OUTPUT
           else
             echo "Manual workflow_dispatch - using user inputs"
-            echo "branch=${{ github.event.inputs.branch || 'main' }}" >> $GITHUB_OUTPUT
-            echo "image_tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+            BRANCH="${{ github.event.inputs.branch || 'main' }}"
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+
+            # If image_tag is empty, resolve to the short commit hash of the branch
+            if [[ -z "$IMAGE_TAG" ]]; then
+              COMMIT_SHORT=$(gh api "repos/${{ github.repository }}/commits/${BRANCH}" --jq '.sha[:7]')
+              IMAGE_TAG="$COMMIT_SHORT"
+              echo "No image tag specified - using short commit hash: $IMAGE_TAG"
+            fi
+
+            echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+            echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
             echo "docker_registry=${{ github.event.inputs.docker_registry || 'ghcr.io/apache' }}" >> $GITHUB_OUTPUT
             echo "services=${{ github.event.inputs.services || '*' }}" >> $GITHUB_OUTPUT
             echo "platforms=${{ github.event.inputs.platforms || 'both' }}" >> $GITHUB_OUTPUT
