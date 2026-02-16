@@ -20,12 +20,13 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.operator.loop.LoopEndOpDesc
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterator[Set[Region]] {
   private var currentLevel = levelSets.keys.minOption.getOrElse(0)
   private var loopStartLevel = currentLevel
+  private var iteration = 1
   private var i = 1
 
   def getRegions: List[Region] = levelSets.values.flatten.toList
@@ -42,25 +43,25 @@ case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterat
     val regions = levelSets(currentLevel)
     if (
       regions.exists(_.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopStart-operator-")))
-    ) loopStartLevel = currentLevel - 1
+    ) {
+      iteration = objectMapper
+        .readValue(
+          regions.head.getOperators.head.opExecInitInfo
+            .asInstanceOf[OpExecWithClassName]
+            .descString,
+          classOf[LoopStartOpDesc]
+        )
+        .iteration
+      loopStartLevel = currentLevel - 1
+    }
     if (
       regions.exists(_.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-")))
     ) {
-      if (
-        i < objectMapper
-          .readValue(
-            regions.head.getOperators.head.opExecInitInfo
-              .asInstanceOf[OpExecWithClassName]
-              .descString,
-            classOf[LoopEndOpDesc]
-          )
-          .iteration
-      ) {
+      if (i < iteration) {
         currentLevel = loopStartLevel
         i += 1
       }
     }
-
     currentLevel += 1
     regions
   }

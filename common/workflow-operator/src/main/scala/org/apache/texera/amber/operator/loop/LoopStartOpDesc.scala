@@ -29,6 +29,9 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class LoopStartOpDesc extends LogicalOp {
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Iteration Number")
+  var iteration: Int = _
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
