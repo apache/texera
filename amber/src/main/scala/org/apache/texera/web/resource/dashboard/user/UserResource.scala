@@ -33,13 +33,14 @@ object UserResource {
 
 @Path("/user")
 class UserResource {
+
   /**
-   * Checks whether the user needs to submit joining reason.
-   * null: never prompted, need to prompt -> return true
-   * not null: already prompted, no need to prompt -> return false
-   * @param uid: user id
-   * @return boolean value to whether prompt user to enter joining reason or not
-   */
+    * Checks whether the user needs to submit joining reason.
+    * null: never prompted, need to prompt -> return true
+    * not null: already prompted, no need to prompt -> return false
+    * @param uid: user id
+    * @return boolean value to whether prompt user to enter joining reason or not
+    */
   @GET
   @Path("/joining-reason/required")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -51,12 +52,11 @@ class UserResource {
     java.lang.Boolean.valueOf(user.getJoiningReason == null)
   }
 
-
   /**
-   * Updates the user's affiliation and joining reason.
-   * This is required and cannot be blank.
-   * @param request: provides uid, affiliation and joining reason
-   */
+    * Updates the user's affiliation and joining reason.
+    * This is required and cannot be blank.
+    * @param request: provides uid, affiliation and joining reason
+    */
   @PUT
   @Path("/joining-reason")
   @Consumes(Array(MediaType.APPLICATION_JSON))
