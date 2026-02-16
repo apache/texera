@@ -28,8 +28,6 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 
 class WebglPolarChartOpDesc extends PythonOperatorDescriptor {
 
-
-
   @JsonProperty(value = "r", required = true)
   @JsonSchemaTitle("r")
   @JsonPropertyDescription("The column name for radial values")
@@ -42,17 +40,14 @@ class WebglPolarChartOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var theta: String = ""
 
-
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
 
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
-
-
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -62,8 +57,6 @@ class WebglPolarChartOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
-
-
 
   override def generatePythonCode(): String = {
     s"""from pytexera import *
