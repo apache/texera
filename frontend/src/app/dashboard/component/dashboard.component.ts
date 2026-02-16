@@ -28,7 +28,6 @@ import { SocialAuthService } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
-
 import {
   DASHBOARD_ABOUT,
   DASHBOARD_ADMIN_EXECUTION,
@@ -45,7 +44,6 @@ import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { User } from "../../common/type/user";
 import { Role } from "../../common/type/user";
-
 
 @Component({
   selector: "texera-dashboard",
@@ -99,7 +97,7 @@ export class DashboardComponent implements OnInit {
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
     protected config: GuiConfigService
-) {}
+  ) {}
 
   ngOnInit(): void {
     this.isCollapsed = false;

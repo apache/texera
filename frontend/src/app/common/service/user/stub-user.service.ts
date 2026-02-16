@@ -28,6 +28,7 @@ export const MOCK_USER_ID = 1;
 export const MOCK_USER_NAME = "testUser";
 export const MOCK_USER_EMAIL = "testUser@testemail.com";
 export const MOCK_USER_COMMENT = "testComent";
+export const MOCK_USER_JOININGREASON = "testJoiningReason";
 export const MOCK_USER = {
   uid: MOCK_USER_ID,
   name: MOCK_USER_NAME,
@@ -35,6 +36,7 @@ export const MOCK_USER = {
   googleId: undefined,
   role: Role.REGULAR,
   comment: MOCK_USER_COMMENT,
+  joiningReason: MOCK_USER_JOININGREASON,
 };
 
 /**

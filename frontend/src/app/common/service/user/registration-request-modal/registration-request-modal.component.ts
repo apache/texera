@@ -37,9 +37,7 @@ export class RegistrationRequestModalComponent {
   @ViewChild("modalTitle", { static: true })
   modalTitle!: TemplateRef<any>;
 
-  constructor(
-    @Inject(NZ_MODAL_DATA) public data: { uid: number; email: string; name: string }
-  ) {
+  constructor(@Inject(NZ_MODAL_DATA) public data: { uid: number; email: string; name: string }) {
     this.name = data?.name ?? "";
     this.email = data?.email ?? "";
   }

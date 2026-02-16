@@ -133,26 +133,26 @@ export class AuthService {
     const name = this.jwtHelperService.decodeToken(token).sub;
 
     if (this.config.env.inviteOnly && role === Role.INACTIVE) {
-        this.checkRegistrationRequired(uid).subscribe(required => {
-          if (required) {
-            this.openRegistrationModal(uid, email, name);
-          } else {
-            this.modal.info({
-              nzTitle: "Access Pending",
-              nzContent: `
+      this.checkRegistrationRequired(uid).subscribe(required => {
+        if (required) {
+          this.openRegistrationModal(uid, email, name);
+        } else {
+          this.modal.info({
+            nzTitle: "Access Pending",
+            nzContent: `
             Your account is still inactive, and we already received your request.
             Please wait for an admin to approve your access.
           `,
-              nzOkText: "OK",
-              nzMaskClosable: false,
-              nzClosable: false,
-              nzOnOk: () => {
-                this.logout();
-                return true;
-              },
-            });
-          }
-        });
+            nzOkText: "OK",
+            nzMaskClosable: false,
+            nzClosable: false,
+            nzOnOk: () => {
+              this.logout();
+              return true;
+            },
+          });
+        }
+      });
 
       return this.logout();
     }
