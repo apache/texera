@@ -83,6 +83,8 @@ jobs:
     steps:
       - name: Set build parameters
         id: set-params
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Detect if this is a scheduled run
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
