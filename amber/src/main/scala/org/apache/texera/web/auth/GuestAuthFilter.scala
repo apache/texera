@@ -39,7 +39,7 @@ import javax.ws.rs.core.SecurityContext
   }
 
   val GUEST: User =
-    new User(null, "guest", null, null, null, null, UserRoleEnum.REGULAR, null, null, null)
+    new User(null, "guest", null, null, null, null, UserRoleEnum.REGULAR, null, null, null, null)
 }
 
 @PreMatching

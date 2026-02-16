@@ -213,36 +213,4 @@
       </nz-content>
     </nz-layout>
   </div>
-  <nz-modal
-    [(nzVisible)]="affiliationModalVisible"
-    [nzMaskClosable]="true"
-    [nzClosable]="true"
-    (nzOnCancel)="onAffiliationCancel()"
-    nzTitle="Tell us your affiliation">
-    <ng-container *nzModalContent>
-      <p>
-        To help us understand our users better, please tell us your affiliation (for example, your university, company,
-        or organization).
-      </p>
-      <input
-        nz-input
-        [(ngModel)]="affiliationInput"
-        placeholder="e.g. UC Irvine" />
-    </ng-container>
-
-    <ng-container *nzModalFooter>
-      <button
-        nz-button
-        (click)="skipAffiliation()">
-        Skip
-      </button>
-      <button
-        nz-button
-        nzType="primary"
-        [nzLoading]="affiliationSaving"
-        (click)="saveAffiliation()">
-        Save
-      </button>
-    </ng-container>
-  </nz-modal>
 </nz-layout>
