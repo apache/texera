@@ -2445,5 +2445,9 @@ class DatasetResourceSpec
     intercept[WebApplicationException] {
       abortUpload(filePath)
     }.getResponse.getStatus shouldEqual 400
+
+    // DB session is cleaned up
+    fetchSession(filePath) shouldBe null
+    fetchPartRows(uploadId) shouldBe empty
   }
 }
