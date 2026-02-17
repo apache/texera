@@ -83,8 +83,7 @@ to access services in the main namespace using the same service names.
 
 {{/* Lakekeeper ExternalName - Add this block */}}
 {{- include "external-name-service" (dict
-      "name" (printf "%s-lakekeeper" .Release.Name)
-      "namespace" $workflowComputingUnitPoolNamespace
-      "externalName" (printf "%s-lakekeeper.%s.svc.cluster.local" .Release.Name $namespace)
-  ) | nindent 0 }}
-
+    "name" (printf "%s-lakekeeper" .Release.Name)
+    "namespace" $workflowComputingUnitPoolNamespace
+    "externalName" (printf "%s-lakekeeper.%s.svc.cluster.local" .Release.Name $namespace)
+) | nindent 0 }}
