@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,14 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+.registration-modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 12px;
+}
 
-\c texera_db
-
-SET search_path TO texera_db;
-
-BEGIN;
-
-ALTER TABLE "user"
-    ADD COLUMN IF NOT EXISTS joining_reason VARCHAR(500);
-
-COMMIT;
+.registration-modal-logo {
+  height: 28px;
+  margin-left: 12px;
+  opacity: 0.9;
+}
