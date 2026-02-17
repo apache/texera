@@ -60,6 +60,17 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-lakefs-secret
                   key: secret_key
+            # Workflow Result (Lakekeeper REST catalog)
+            - name: STORAGE_ICEBERG_CATALOG_TYPE
+              value: rest
+            - name: STORAGE_ICEBERG_CATALOG_REST_URI
+              value: http://{{ .Release.Name }}-lakekeeper:{{ .Values.lakekeeper.catalog.service.externalPort }}/catalog
+            - name: STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME
+              value: {{ .Values.lakekeeperInit.warehouse.name | quote }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_REGION
+              value: {{ .Values.lakekeeperInit.warehouse.region | quote }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET
+              value: {{ .Values.lakekeeperInit.warehouse.s3Bucket | quote }}
           {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}
               value: "{{ .value }}"

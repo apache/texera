@@ -41,6 +41,12 @@ data:
     EOF
     psql -U postgres -f /tmp/iceberg_postgres_catalog.sql
 
+    echo "Initializing Lakekeeper database..."
+    cat <<'EOF' > /tmp/texera_lakekeeper.sql
+{{ .Files.Get "files/texera_lakekeeper.sql" | indent 6 }}
+    EOF
+    psql -U postgres -f /tmp/texera_lakekeeper.sql
+
     echo "Initializing Texera database..."
     cat <<'EOF' > /tmp/texera_ddl.sql
 {{ .Files.Get "files/texera_ddl.sql" | indent 6 }}
