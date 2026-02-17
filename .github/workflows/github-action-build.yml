@@ -112,7 +112,7 @@ jobs:
       - name: Setup Python for Scala tests
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Show Python
         run: python --version || python3 --version
       - name: Setup sbt launcher
@@ -146,7 +146,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        python-version: [ '3.10', '3.11', '3.12' ]
+        python-version: ['3.12']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Texera
