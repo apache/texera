@@ -71,7 +71,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "Opacity value for radar chart fill from 0.0 (transparent) to 1.0 (opaque)"
   )
-  @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 1.0 }""")
+  @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 1.0, "default": 0.5 }""")
   var fillOpacity: Double = 0.5
 
   override def operatorInfo: OperatorInfo =
@@ -92,21 +92,26 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def manipulateTable(): String = {
-    assert(nameColumn.nonEmpty && valueColumns != null && !valueColumns.isEmpty)
-    val valueColsList = valueColumns.mkString("', '")
-    s"""
-       |        required_cols = ['$nameColumn', '$valueColsList']
-       |        table.dropna(subset=required_cols, inplace=True)
-       |        # Ensure all value columns are numeric
-       |        value_cols = ['$valueColsList']
-       |        for col in value_cols:
-       |            table[col] = pd.to_numeric(table[col], errors='coerce')
-       |        table.dropna(subset=value_cols, inplace=True)
-       |""".stripMargin
+   assert(nameColumn.nonEmpty && valueColumns != null && !valueColumns.isEmpty)
+   // Escape apostrophes in column names
+   val safeNameColumn = nameColumn.replace("'", "\\'")
+   val safeValueColumns = valueColumns.map(_.replace("'", "\\'"))
+   val valueColsList = safeValueColumns.mkString("', '")
+   s"""
+     |        required_cols = ['$safeNameColumn', '$valueColsList']
+     |        table.dropna(subset=required_cols, inplace=True)
+     |        # Ensure all value columns are numeric
+     |        value_cols = ['$valueColsList']
+     |        for col in value_cols:
+     |            table[col] = pd.to_numeric(table[col], errors='coerce')
+     |        table.dropna(subset=value_cols, inplace=True)
+     |""".stripMargin
   }
 
   def createPlotlyFigure(): String = {
-    val valueColsList = valueColumns.mkString("', '")
+    // Escape apostrophes in value columns for plotly figure as well (consistently)
+    val safeValueColumns = valueColumns.map(_.replace("'", "\\'"))
+    val valueColsList = safeValueColumns.mkString("', '")
     s"""
        |        # Create radar chart
        |        fig = go.Figure()
