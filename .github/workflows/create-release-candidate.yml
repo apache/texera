@@ -152,6 +152,7 @@ jobs:
           mkdir -p "$BUNDLE_DIR"
 
           # Export the single-node directory from the tagged source
+          mkdir -p "$TEMP_DIR/_raw"
           git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ | tar -x -C "$TEMP_DIR/_raw"
 
           # Copy deployment files
