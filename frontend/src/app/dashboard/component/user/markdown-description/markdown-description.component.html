@@ -1,0 +1,77 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- Preview mode -->
+<ng-container *ngIf="!isEditing">
+  <div class="preview-box">
+    <div
+      *ngIf="renderedDescription; else noDescription"
+      class="md-rendered"
+      [innerHTML]="renderedDescription"></div>
+    <ng-template #noDescription>
+      <p>No description provided.</p>
+    </ng-template>
+  </div>
+</ng-container>
+
+<!-- Edit mode -->
+<ng-container *ngIf="isEditing">
+  <div class="md-split">
+    <div class="md-left">
+      <div class="md-toolbar">
+        <button
+          *ngFor="let btn of toolbar"
+          nz-button
+          nzType="text"
+          nzSize="small"
+          [nz-tooltip]="btn.tip"
+          (click)="insert(btn)">
+          <i
+            nz-icon
+            [nzType]="btn.icon"></i>
+        </button>
+      </div>
+
+      <textarea
+        #textarea
+        nz-input
+        [(ngModel)]="editingContent"
+        (input)="renderMarkdown(editingContent)"
+        placeholder="Write Markdown here..."
+        class="md-textarea"></textarea>
+    </div>
+
+    <div class="md-right">
+      <div
+        *ngIf="renderedDescription"
+        class="md-rendered"
+        [innerHTML]="renderedDescription"></div>
+    </div>
+  </div>
+
+  <div class="md-actions">
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="small"
+      (click)="save()">
+      Save
+    </button>
+  </div>
+</ng-container>
