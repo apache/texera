@@ -386,14 +386,27 @@ jobs:
 
           cd svn-texera
 
-          # Create RC directory if it doesn't exist
-          if ! svn info "$RC_DIR" >/dev/null 2>&1; then
+          # Check if RC directory already exists on the remote
+          SVN_BASE="https://dist.apache.org/repos/dist/dev/incubator/texera"
+          if svn info "$SVN_BASE/$RC_DIR" >/dev/null 2>&1; then
+            # Directory exists remotely — update (checkout) it into the working copy
+            svn update --depth=infinity "$RC_DIR" \
+              --username "${{ secrets.SVN_USERNAME }}" \
+              --password "${{ secrets.SVN_PASSWORD }}" \
+              --no-auth-cache || true
+            # If update didn't bring it down (empty parent checkout), do a sparse checkout
+            if [[ ! -d "$RC_DIR" ]]; then
+              svn update --set-depth=infinity "$RC_DIR" \
+                --username "${{ secrets.SVN_USERNAME }}" \
+                --password "${{ secrets.SVN_PASSWORD }}" \
+                --no-auth-cache
+            fi
+            echo "✓ RC directory already exists remotely, checked out: $RC_DIR"
+          else
+            # Directory doesn't exist remotely — create and add it
             mkdir -p "$RC_DIR"
             svn add "$RC_DIR"
             echo "✓ Created new RC directory: $RC_DIR"
-          else
-            svn update "$RC_DIR"
-            echo "✓ RC directory already exists: $RC_DIR"
           fi
 
       - name: Stage artifacts to SVN
