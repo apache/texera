@@ -91,13 +91,13 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
-  def manipulateTable(): String = {
-   assert(nameColumn.nonEmpty && valueColumns != null && !valueColumns.isEmpty)
-   // Escape apostrophes in column names
-   val safeNameColumn = nameColumn.replace("'", "\\'")
-   val safeValueColumns = valueColumns.map(_.replace("'", "\\'"))
-   val valueColsList = safeValueColumns.mkString("', '")
-   s"""
+    def manipulateTable(): String = {
+    assert(nameColumn.nonEmpty && valueColumns != null && !valueColumns.isEmpty)
+    // Escape apostrophes in column names
+    val safeNameColumn = nameColumn.replace("'", "\\'")
+    val safeValueColumns = valueColumns.map(_.replace("'", "\\'"))
+    val valueColsList = safeValueColumns.mkString("', '")
+    s"""
      |        required_cols = ['$safeNameColumn', '$valueColsList']
      |        table.dropna(subset=required_cols, inplace=True)
      |        # Ensure all value columns are numeric
