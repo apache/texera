@@ -219,10 +219,18 @@ jobs:
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
           # Export the Helm chart from the tagged source
+          # Include sql/ because bin/k8s/files/ has symlinks to ../../../sql/
           TEMP_DIR=$(mktemp -d)
-          git archive --format=tar "$TAG_NAME" -- bin/k8s/ | tar -x -C "$TEMP_DIR"
+          git archive --format=tar "$TAG_NAME" -- bin/k8s/ sql/ | tar -x -C "$TEMP_DIR"
 
           CHART_DIR="$TEMP_DIR/bin/k8s"
+
+          # Resolve symlinks in the chart so it packages as a self-contained artifact
+          find "$CHART_DIR" -type l | while read -r link; do
+            target=$(readlink -f "$link")
+            rm "$link"
+            cp "$target" "$link"
+          done
 
           # Update Chart.yaml with release version
           sed -i "s/^version:.*/version: ${VERSION}/" "$CHART_DIR/Chart.yaml"
