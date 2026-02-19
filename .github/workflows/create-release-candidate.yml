@@ -240,6 +240,10 @@ jobs:
           sed -i "s|imageRegistry:.*|imageRegistry: ${IMAGE_REGISTRY}|" "$CHART_DIR/values.yaml"
           sed -i "s|imageTag:.*|imageTag: ${VERSION}|" "$CHART_DIR/values.yaml"
 
+          # Download chart dependencies declared in Chart.yaml
+          # These tarballs are .gitignored so they're not in git archive
+          helm dependency build "$CHART_DIR"
+
           # Package the Helm chart
           helm package "$CHART_DIR" \
             --version "$VERSION" \
