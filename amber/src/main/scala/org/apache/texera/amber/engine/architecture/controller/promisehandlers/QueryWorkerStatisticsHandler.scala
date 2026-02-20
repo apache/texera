@@ -102,55 +102,80 @@ trait QueryWorkerStatisticsHandler {
     val opFilter: Set[PhysicalOpIdentity] =
       if (msg.filterByWorkers.isEmpty) Set.empty
       else {
-        val initialOps = msg.filterByWorkers.map(VirtualIdentityUtils.getPhysicalOpId).toSet
-        // Expand to include all transitive upstream operators.
+        // Map the filtered worker IDs (if any) to their corresponding physical operator IDs
+        val initialOps: Set[PhysicalOpIdentity] =
+          msg.filterByWorkers.map(VirtualIdentityUtils.getPhysicalOpId).toSet
         val visited = scala.collection.mutable.Set.empty[PhysicalOpIdentity]
         val toVisit = scala.collection.mutable.Queue.from(initialOps)
+
         while (toVisit.nonEmpty) {
-          val op = toVisit.dequeue()
-          if (visited.add(op))
-            toVisit.enqueueAll(cp.workflowScheduler.physicalPlan.getUpstreamPhysicalOpIds(op))
+          val current = toVisit.dequeue()
+          if (visited.add(current)) {
+            val upstreamOps = cp.workflowScheduler.physicalPlan.getUpstreamPhysicalOpIds(current)
+            toVisit.enqueueAll(upstreamOps)
+          }
         }
+
         visited.toSet
       }
 
+    // Traverse the physical plan in reverse topological order (sink to source),
+    // grouped by layers of parallel operators.
     val layers = cp.workflowScheduler.physicalPlan.layeredReversedTopologicalOrder
+
+    // Accumulator to collect all (exec, wid, state, stats) results
     val collectedResults =
       scala.collection.mutable.ArrayBuffer.empty[(WorkerExecution, WorkerMetricsResponse, Long)]
 
-    def processLayers(remaining: Seq[Set[PhysicalOpIdentity]]): Future[Unit] =
-      remaining match {
-        case Nil => Future.Done
+    // Recursively process each operator layer sequentially (top-down in reverse topo order)
+    def processLayers(layers: Seq[Set[PhysicalOpIdentity]]): Future[Unit] =
+      layers match {
+        case Nil =>
+          // All layers have been processed
+          Future.Done
+
         case layer +: rest =>
           val futures = layer.toSeq.flatMap { opId =>
-            if (opFilter.nonEmpty && !opFilter.contains(opId)) Seq.empty
-            else
+            if (opFilter.nonEmpty && !opFilter.contains(opId)) {
+              Seq.empty
+            } else
               cp.workflowExecution.getLatestOperatorExecutionOption(opId) match {
-                case None                                     => Seq.empty
-                case Some(exec) if exec.getState == COMPLETED => Seq.empty
+                // Operator region has not been initialized yet; skip in this polling round.
+                case None       => Seq.empty
                 case Some(exec) =>
-                  exec.getWorkerIds.map { wid =>
-                    workerInterface.queryStatistics(EmptyRequest(), wid).map { resp =>
-                      collectedResults.addOne(
-                        (exec.getWorkerExecution(wid), resp, System.nanoTime())
-                      )
+                  // Skip completed operators
+                  if (exec.getState == COMPLETED) {
+                    Seq.empty
+                  } else {
+                    // Select all workers for this operator
+                    val workerIds = exec.getWorkerIds
+
+                    // Send queryStatistics to each worker and update internal state on reply
+                    workerIds.map { wid =>
+                      workerInterface.queryStatistics(EmptyRequest(), wid).map { resp =>
+                        collectedResults.addOne(
+                          (exec.getWorkerExecution(wid), resp, System.nanoTime())
+                        )
+                      }
                     }
                   }
               }
           }
+
+          // After all worker queries in this layer complete, process the next layer
           Future.collect(futures).flatMap(_ => processLayers(rest))
       }
 
     // Query all layers and forward stats to the appropriate sink(s) on completion.
     processLayers(layers).map { _ =>
       collectedResults.foreach {
-        case (wExec, resp, ts) =>
-          wExec.update(ts, resp.metrics.workerState, resp.metrics.workerStatistics)
+        case (wExec, resp, timestamp) =>
+          wExec.update(timestamp, resp.metrics.workerState, resp.metrics.workerStatistics)
       }
       forwardStats(msg.updateTarget)
       // Record the completion timestamp before releasing the lock so that any timer
       // firing in between sees a valid cache entry rather than triggering a redundant query.
-      if (msg.filterByWorkers.isEmpty) {
+      if (globalQueryStatsOngoing) {
         lastWorkerQueryTimestampNs = System.nanoTime()
         globalQueryStatsOngoing = false
       }
