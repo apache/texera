@@ -81,7 +81,7 @@ class ControllerTimerService(
 
   def enableRuntimeStatisticsCollection(): Unit = {
     runtimeStatisticsAskHandle = enableTimer(
-      controllerConfig.runtimeStatisticsIntervalMs,
+      controllerConfig.runtimeStatisticsPersistenceIntervalMs,
       StatisticsUpdateTarget.PERSISTENCE_ONLY,
       runtimeStatisticsAskHandle
     )
