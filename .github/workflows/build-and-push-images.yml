@@ -66,9 +66,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.image_tag || 'nightly' }}
   cancel-in-progress: false
 
-env:
-  DOCKER_REGISTRY: ghcr.io/apache  # Will be overridden by job-level env if needed
-
 jobs:
   # Step 0: Set runtime parameters (handles both manual and scheduled runs)
   set-parameters:
@@ -512,14 +509,6 @@ jobs:
             ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }} \
             ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64 \
             ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
-
-          # Also tag as 'latest' if requested
-          if [[ "${{ needs.set-parameters.outputs.image_tag }}" == "latest" ]]; then
-            docker buildx imagetools create -t \
-              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest \
-              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest-amd64 \
-              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest-arm64
-          fi
 
       - name: Inspect multi-arch manifest
         run: |
