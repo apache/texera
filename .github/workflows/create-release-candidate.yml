@@ -178,30 +178,31 @@ jobs:
 
           # Create a README for the bundle
           cat > "$BUNDLE_DIR/README.md" <<'READMEEOF'
-# Apache Texera (incubating) - Docker Compose Deployment
+          # Apache Texera (incubating) - Docker Compose Deployment
 
-This bundle provides a single-node Docker Compose deployment for Apache Texera.
+          This bundle provides a single-node Docker Compose deployment for Apache Texera.
 
-## Quick Start
+          ## Quick Start
 
-```bash
-docker compose up -d
-```
+          ```bash
+          docker compose up -d
+          ```
 
-Texera will be available at http://localhost:8080.
+          Texera will be available at http://localhost:8080.
 
-## Configuration
+          ## Configuration
 
-Edit `.env` to customize:
-- `IMAGE_REGISTRY` - Container image registry (default: ghcr.io/apache)
-- `IMAGE_TAG` - Image version tag
-- Database credentials, storage endpoints, etc.
+          Edit `.env` to customize:
+          - `IMAGE_REGISTRY` - Container image registry (default: ghcr.io/apache)
+          - `IMAGE_TAG` - Image version tag
+          - Database credentials, storage endpoints, etc.
 
-## More Information
+          ## More Information
 
-- Documentation: https://github.com/apache/texera/wiki
-- Getting Started: https://github.com/apache/texera/wiki/Install-Texera
-READMEEOF
+          - Documentation: https://github.com/apache/texera/wiki
+          - Getting Started: https://github.com/apache/texera/wiki/Install-Texera
+          READMEEOF
+          sed -i 's/^          //' "$BUNDLE_DIR/README.md"
 
           # Create tarball
           cd "$TEMP_DIR"
