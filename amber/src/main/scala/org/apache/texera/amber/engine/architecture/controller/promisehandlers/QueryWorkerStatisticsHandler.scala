@@ -81,30 +81,31 @@ trait QueryWorkerStatisticsHandler {
       msg: QueryStatisticsRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    // Optimizations for full-graph queries only. Filtered queries (e.g. from
-    // WorkerExecutionCompletedHandler) always proceed to real worker RPCs to
-    // capture the just-completed worker's final stats accurately.
+    // Avoid issuing concurrent full-graph statistics queries.
+    // If a global query is already in progress, skip this request.
+    if (globalQueryStatsOngoing && msg.filterByWorkers.isEmpty) {
+      // A query is already in-flight: serve the last completed query's cached data,
+      // or drop silently if no prior query has finished yet.
+      if (lastWorkerQueryTimestampNs > 0) forwardStats(msg.updateTarget)
+      return EmptyReturn()
+    }
+
+    var opFilter: Set[PhysicalOpIdentity] = Set.empty
+    // Only enforce the single-query restriction for full-graph queries.
     if (msg.filterByWorkers.isEmpty) {
-      if (globalQueryStatsOngoing) {
-        // A query is already in-flight: serve the last completed query's cached data,
-        // or drop silently if no prior query has finished yet.
-        if (lastWorkerQueryTimestampNs > 0) forwardStats(msg.updateTarget)
-        return EmptyReturn()
-      }
       if (System.nanoTime() - lastWorkerQueryTimestampNs < minQueryIntervalNs) {
         // Cache is still fresh: the faster timer already queried workers recently.
         forwardStats(msg.updateTarget)
         return EmptyReturn()
       }
       globalQueryStatsOngoing = true
-    }
+    } else {
+      // Map the filtered worker IDs (if any) to their corresponding physical operator IDs
+      val initialOps: Set[PhysicalOpIdentity] =
+        msg.filterByWorkers.map(VirtualIdentityUtils.getPhysicalOpId).toSet
 
-    val opFilter: Set[PhysicalOpIdentity] =
-      if (msg.filterByWorkers.isEmpty) Set.empty
-      else {
-        // Map the filtered worker IDs (if any) to their corresponding physical operator IDs
-        val initialOps: Set[PhysicalOpIdentity] =
-          msg.filterByWorkers.map(VirtualIdentityUtils.getPhysicalOpId).toSet
+      // Include all transitive upstream operators in the filter set
+      opFilter = {
         val visited = scala.collection.mutable.Set.empty[PhysicalOpIdentity]
         val toVisit = scala.collection.mutable.Queue.from(initialOps)
 
@@ -118,6 +119,7 @@ trait QueryWorkerStatisticsHandler {
 
         visited.toSet
       }
+    }
 
     // Traverse the physical plan in reverse topological order (sink to source),
     // grouped by layers of parallel operators.
@@ -135,10 +137,12 @@ trait QueryWorkerStatisticsHandler {
           Future.Done
 
         case layer +: rest =>
+          // Issue statistics queries to all eligible workers in the current layer
           val futures = layer.toSeq.flatMap { opId =>
+            // Skip operators not included in the filtered subset (if any)
             if (opFilter.nonEmpty && !opFilter.contains(opId)) {
               Seq.empty
-            } else
+            } else {
               cp.workflowExecution.getLatestOperatorExecutionOption(opId) match {
                 // Operator region has not been initialized yet; skip in this polling round.
                 case None       => Seq.empty
@@ -160,13 +164,14 @@ trait QueryWorkerStatisticsHandler {
                     }
                   }
               }
+            }
           }
 
           // After all worker queries in this layer complete, process the next layer
           Future.collect(futures).flatMap(_ => processLayers(rest))
       }
 
-    // Query all layers and forward stats to the appropriate sink(s) on completion.
+    // Start processing all layers and forward stats to the appropriate sink(s) on completion.
     processLayers(layers).map { _ =>
       collectedResults.foreach {
         case (wExec, resp, timestamp) =>
