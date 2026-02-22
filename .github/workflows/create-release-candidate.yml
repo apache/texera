@@ -176,33 +176,8 @@ jobs:
             echo "IMAGE_TAG=${COMMIT_SHORT}" >> "$BUNDLE_DIR/.env"
           fi
 
-          # Create a README for the bundle
-          cat > "$BUNDLE_DIR/README.md" <<'READMEEOF'
-          # Apache Texera (incubating) - Docker Compose Deployment
-
-          This bundle provides a single-node Docker Compose deployment for Apache Texera.
-
-          ## Quick Start
-
-          ```bash
-          docker compose up -d
-          ```
-
-          Texera will be available at http://localhost:8080.
-
-          ## Configuration
-
-          Edit `.env` to customize:
-          - `IMAGE_REGISTRY` - Container image registry (default: ghcr.io/apache)
-          - `IMAGE_TAG` - Image version tag
-          - Database credentials, storage endpoints, etc.
-
-          ## More Information
-
-          - Documentation: https://github.com/apache/texera/wiki
-          - Getting Started: https://github.com/apache/texera/wiki/Install-Texera
-          READMEEOF
-          sed -i 's/^          //' "$BUNDLE_DIR/README.md"
+          # Include the README from the repo
+          cp "$TEMP_DIR/_raw/bin/single-node/README.md" "$BUNDLE_DIR/"
 
           # Create tarball
           cd "$TEMP_DIR"
