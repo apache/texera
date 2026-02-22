@@ -91,7 +91,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
-    def manipulateTable(): String = {
+  def manipulateTable(): String = {
     assert(nameColumn.nonEmpty && valueColumns != null && !valueColumns.isEmpty)
     // Escape apostrophes in column names
     val safeNameColumn = nameColumn.replace("'", "\\'")
