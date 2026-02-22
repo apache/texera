@@ -52,21 +52,12 @@ import javax.validation.constraints.NotNull
 }
 """)
 class RadarChartOpDesc extends PythonOperatorDescriptor {
-  // Validation for edge cases: duplicate columns and overlap
-  require(nameColumn != null && nameColumn.nonEmpty, "nameColumn must be specified and non-empty")
-  require(
-    valueColumns != null && valueColumns.nonEmpty,
-    "valueColumns must be specified and non-empty"
-  )
-  require(!valueColumns.contains(nameColumn), "nameColumn must not be included in valueColumns")
-  require(
-    valueColumns.distinct.size == valueColumns.size,
-    "valueColumns must not contain duplicates"
-  )
-  require(
-    Set(nameColumn).intersect(valueColumns.toSet).isEmpty,
-    "nameColumn and valueColumns must not overlap"
-  )
+  private def validateConfig(): Unit = {
+    require(nameColumn != null && nameColumn.nonEmpty, "nameColumn must be specified and non-empty")
+    require(valueColumns != null && valueColumns.nonEmpty, "valueColumns must be specified and non-empty")
+    require(!valueColumns.contains(nameColumn), "nameColumn must not be included in valueColumns")
+    require(valueColumns.distinct.size == valueColumns.size, "valueColumns must not contain duplicates")
+  }
 
   @JsonProperty(value = "nameColumn", required = true)
   @JsonSchemaTitle("Name Column")
@@ -107,6 +98,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def manipulateTable(): String = {
+    validateConfig()
     require(
       nameColumn.nonEmpty && valueColumns != null && valueColumns.forall(_.nonEmpty),
       "RadarChartOpDesc: nameColumn and valueColumns must be set and non-empty."
@@ -163,6 +155,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   }
 
   override def generatePythonCode(): String = {
+    validateConfig()
     val finalcode =
       s"""
          |from pytexera import *
