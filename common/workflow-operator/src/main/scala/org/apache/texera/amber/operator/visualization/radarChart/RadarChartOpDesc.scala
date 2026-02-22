@@ -54,9 +54,15 @@ import javax.validation.constraints.NotNull
 class RadarChartOpDesc extends PythonOperatorDescriptor {
   private def validateConfig(): Unit = {
     require(nameColumn != null && nameColumn.nonEmpty, "nameColumn must be specified and non-empty")
-    require(valueColumns != null && valueColumns.nonEmpty, "valueColumns must be specified and non-empty")
+    require(
+      valueColumns != null && valueColumns.nonEmpty,
+      "valueColumns must be specified and non-empty"
+    )
     require(!valueColumns.contains(nameColumn), "nameColumn must not be included in valueColumns")
-    require(valueColumns.distinct.size == valueColumns.size, "valueColumns must not contain duplicates")
+    require(
+      valueColumns.distinct.size == valueColumns.size,
+      "valueColumns must not contain duplicates"
+    )
   }
 
   @JsonProperty(value = "nameColumn", required = true)
