@@ -36,7 +36,7 @@ spec:
         - operator: "Exists"
       initContainers:
         - name: prepuller
-          image: {{ .Values.workflowComputingUnitPool.imageName }}
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.global.imageTag }}
           imagePullPolicy: Always
           command: ["sh", "-c", "true"]
       containers:
