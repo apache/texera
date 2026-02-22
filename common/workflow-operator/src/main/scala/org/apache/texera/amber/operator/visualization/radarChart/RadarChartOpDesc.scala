@@ -52,19 +52,25 @@ import javax.validation.constraints.NotNull
 }
 """)
 class RadarChartOpDesc extends PythonOperatorDescriptor {
+  // Validation for edge cases: duplicate columns and overlap
+  require(nameColumn != null && nameColumn.nonEmpty, "nameColumn must be specified and non-empty")
+  require(valueColumns != null && valueColumns.nonEmpty, "valueColumns must be specified and non-empty")
+  require(!valueColumns.contains(nameColumn), "nameColumn must not be included in valueColumns")
+  require(valueColumns.distinct.size == valueColumns.size, "valueColumns must not contain duplicates")
+  require(Set(nameColumn).intersect(valueColumns.toSet).isEmpty, "nameColumn and valueColumns must not overlap")
 
   @JsonProperty(value = "nameColumn", required = true)
   @JsonSchemaTitle("Name Column")
   @JsonPropertyDescription("Column containing entity names for each radar")
   @AutofillAttributeName
   @NotNull(message = "Name column cannot be empty")
-  var nameColumn: String = ""
+  var nameColumn: String = "entity_name"
 
   @JsonProperty(value = "valueColumns", required = true)
   @JsonSchemaTitle("Value Columns")
   @JsonPropertyDescription("Columns containing numeric values for radar chart axes")
   @AutofillAttributeNameList
-  var valueColumns: List[String] = List()
+  var valueColumns: List[String] = List("axis1", "axis2")
 
   @JsonProperty(value = "fillOpacity", required = true)
   @JsonSchemaTitle("Fill Opacity")
@@ -92,55 +98,59 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   }
 
   def manipulateTable(): String = {
-    assert(nameColumn.nonEmpty && valueColumns != null && !valueColumns.isEmpty)
+    require(
+      nameColumn.nonEmpty && valueColumns != null && valueColumns.forall(_.nonEmpty),
+      "RadarChartOpDesc: nameColumn and valueColumns must be set and non-empty."
+    )
     // Escape apostrophes in column names
     val safeNameColumn = nameColumn.replace("'", "\\'")
     val safeValueColumns = valueColumns.map(_.replace("'", "\\'"))
-    val valueColsList = safeValueColumns.mkString("', '")
+    val valueColsList = safeValueColumns.map(col => s"'$col'").mkString(", ")
     s"""
-     |        required_cols = ['$safeNameColumn', '$valueColsList']
-     |        table.dropna(subset=required_cols, inplace=True)
-     |        # Ensure all value columns are numeric
-     |        value_cols = ['$valueColsList']
-     |        for col in value_cols:
-     |            table[col] = pd.to_numeric(table[col], errors='coerce')
-     |        table.dropna(subset=value_cols, inplace=True)
-     |""".stripMargin
+   |        required_cols = ['$safeNameColumn', $valueColsList]
+   |        table.dropna(subset=required_cols, inplace=True)
+   |        # Ensure all value columns are numeric
+   |        value_cols = [$valueColsList]
+   |        for col in value_cols:
+   |            table[col] = pd.to_numeric(table[col], errors='coerce')
+   |        table.dropna(subset=value_cols, inplace=True)
+   |""".stripMargin
   }
 
   def createPlotlyFigure(): String = {
     // Escape apostrophes in value columns for plotly figure as well (consistently)
     val safeValueColumns = valueColumns.map(_.replace("'", "\\'"))
-    val valueColsList = safeValueColumns.mkString("', '")
+    val valueColsList = safeValueColumns.map(col => s"'$col'").mkString(", ")
+    val safeNameColumn = nameColumn.replace("'", "\\'")
     s"""
-       |        # Create radar chart
-       |        fig = go.Figure()
-       |        categories = ['$valueColsList']
-       |        
-       |        for idx, row in table.iterrows():
-       |            values = [row[col] for col in categories]
-       |            values.append(values[0])  # Close the radar chart
-       |            categories_closed = categories + [categories[0]]
-       |            
-       |            fig.add_trace(go.Scatterpolar(
-       |                r=values,
-       |                theta=categories_closed,
-       |                fill='toself',
-       |                name=str(row['$nameColumn']),
-       |                opacity=$fillOpacity
-       |            ))
-       |        
-       |        fig.update_layout(
-       |            polar=dict(
-       |                radialaxis=dict(
-       |                    visible=True,
-       |                    range=[0, None]
-       |                )
-       |            ),
-       |            showlegend=True,
-       |            margin=dict(t=40, b=40, l=40, r=40)
-       |        )
-       |""".stripMargin
+     |        # Create radar chart
+     |        fig = go.Figure()
+     |        categories = [$valueColsList]
+     |        
+     |        for idx, row in table.iterrows():
+     |            values = [row[col] for col in categories]
+     |            values.append(values[0])  # Close the radar chart
+     |            categories_closed = categories + [categories[0]]
+     |            
+     |            fig.add_trace(go.Scatterpolar(
+     |                r=values,
+     |                theta=categories_closed,
+     |                fill='toself',
+     |                name=str(row['$safeNameColumn']),
+     |                opacity=$fillOpacity
+     |            ))
+     |        
+     |        fig.update_layout(
+     |            polar=dict(
+     |                radialaxis=dict(
+     |                    visible=True,
+     |                    range=[0, None]
+     |                )
+     |            ),
+     |            showlegend=True,
+     |            margin=dict(t=40, b=40, l=40, r=40)
+     |        )
+     |""".stripMargin
   }
 
   override def generatePythonCode(): String = {
