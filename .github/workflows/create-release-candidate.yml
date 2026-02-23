@@ -85,7 +85,7 @@ jobs:
           fi
 
           COMMIT_HASH=$(git rev-parse "$TAG_NAME")
-          COMMIT_SHORT=$(git rev-parse --short "$TAG_NAME")
+          COMMIT_SHORT=$(git rev-parse "$TAG_NAME" | cut -c1-9)
           RC_DIR="${VERSION}-RC${RC_NUM}"
           SRC_TARBALL="apache-texera-${VERSION}-src.tar.gz"
           COMPOSE_TARBALL="apache-texera-${VERSION}-docker-compose.tar.gz"
