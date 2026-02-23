@@ -41,10 +41,12 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges {
   private modalData = inject(NZ_MODAL_DATA, { optional: true });
 
   @Input() description = "";
+  @Input() mode: "preview" | "edit" = "preview";
+  @Input() editable = false;
   @Output() descriptionChange = new EventEmitter<string>();
   @ViewChild("textarea") textareaRef!: ElementRef<HTMLTextAreaElement>;
 
-  isEditing = false;
+  currentMode: "preview" | "edit" = "preview";
   editingContent = "";
   renderedDescription = "";
 
@@ -74,15 +76,24 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     if (this.modalData) {
       this.description = this.modalData.description ?? "";
-      this.isEditing = true;
+      this.editable = true;
     }
+    this.currentMode = this.modalData ? "edit" : this.mode;
     this.editingContent = this.description;
     this.renderMarkdown(this.description);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes["mode"] && !changes["mode"].firstChange && !this.modalData) {
+      this.currentMode = this.mode;
+      if (this.currentMode === "edit") {
+        this.editingContent = this.description;
+        this.renderMarkdown(this.description);
+      }
+    }
+
     if (changes["description"] && !changes["description"].firstChange) {
-      if (this.isEditing) {
+      if (this.currentMode === "edit") {
         return;
       }
       this.editingContent = this.description;
@@ -90,11 +101,26 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges {
     }
   }
 
+  enterEditMode(): void {
+    if (!this.editable) {
+      return;
+    }
+    this.editingContent = this.description;
+    this.renderMarkdown(this.description);
+    this.currentMode = "edit";
+  }
+
   save(): void {
     this.description = this.editingContent;
     this.descriptionChange.emit(this.description);
     this.renderMarkdown(this.description);
-    this.isEditing = false;
+    this.currentMode = this.modalData ? "edit" : this.mode;
+  }
+
+  cancel(): void {
+    this.editingContent = this.description;
+    this.renderMarkdown(this.description);
+    this.currentMode = "preview";
   }
 
   insert(action: { prefix: string; suffix: string; default: string }): void {
