@@ -32,7 +32,11 @@
         </span>
       </ng-template>
     </nz-card-meta>
-    <texera-markdown-description [description]="datasetDescription"> </texera-markdown-description>
+    <texera-markdown-description
+      [description]="datasetDescription"
+      [editable]="userDatasetAccessLevel === 'WRITE'"
+      (descriptionChange)="onDatasetDescriptionChange($event)">
+    </texera-markdown-description>
     <div
       class="workflow-panel"
       style="padding-top: 30px">
