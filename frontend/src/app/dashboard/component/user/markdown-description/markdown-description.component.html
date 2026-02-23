@@ -18,7 +18,21 @@
 -->
 
 <!-- Preview mode -->
-<ng-container *ngIf="!isEditing">
+<ng-container *ngIf="currentMode === 'preview'">
+  <div
+    *ngIf="editable"
+    class="md-actions">
+    <button
+      nz-button
+      nzType="text"
+      nzSize="small"
+      (click)="enterEditMode()">
+      <i
+        nz-icon
+        nzType="edit"></i>
+      Edit
+    </button>
+  </div>
   <div class="preview-box">
     <div
       *ngIf="renderedDescription; else noDescription"
@@ -31,7 +45,7 @@
 </ng-container>
 
 <!-- Edit mode -->
-<ng-container *ngIf="isEditing">
+<ng-container *ngIf="currentMode === 'edit'">
   <div class="md-split">
     <div class="md-left">
       <div class="md-toolbar">
@@ -66,6 +80,12 @@
   </div>
 
   <div class="md-actions">
+    <button
+      nz-button
+      nzSize="small"
+      (click)="cancel()">
+      Cancel
+    </button>
     <button
       nz-button
       nzType="primary"
