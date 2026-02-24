@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: {{ .Values.fileService.name }}
-          image: {{ .Values.fileService.imageName }}
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.fileService.imageName }}:{{ .Values.global.imageTag }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           ports:
             - containerPort: {{ .Values.fileService.service.port }}

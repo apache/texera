@@ -19,7 +19,7 @@
 
 .preview-box {
   position: relative;
-  margin-top: 10px;
+  margin-top: 8px;
   max-height: 50vh;
   overflow-y: auto;
 }
@@ -27,6 +27,7 @@
 .md-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .md-split {
