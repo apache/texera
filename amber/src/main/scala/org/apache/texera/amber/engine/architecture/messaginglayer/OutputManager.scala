@@ -22,20 +22,14 @@ package org.apache.texera.amber.engine.architecture.messaginglayer
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
+import org.apache.texera.amber.core.storage.result.ResultSchema
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
-import org.apache.texera.amber.engine.architecture.messaginglayer.OutputManager.{
-  DPOutputIterator,
-  getBatchSize,
-  toPartitioner
-}
+import org.apache.texera.amber.engine.architecture.messaginglayer.OutputManager.{DPOutputIterator, getBatchSize, toPartitioner}
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
-import org.apache.texera.amber.engine.architecture.worker.managers.{
-  OutputPortResultWriterThread,
-  PortStorageWriterTerminateSignal
-}
+import org.apache.texera.amber.engine.architecture.worker.managers.{OutputPortResultWriterThread, PortStorageWriterTerminateSignal}
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
@@ -122,6 +116,10 @@ class OutputManager(
 
   private val outputPortResultWriterThreads
       : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
+    mutable.HashMap()
+
+  private val ECMWriters
+  : mutable.HashMap[PortIdentity, BufferedItemWriter[Tuple]] =
     mutable.HashMap()
 
   /**
@@ -232,6 +230,23 @@ class OutputManager(
     })
   }
 
+  def saveECMToStorageIfNeeded(
+                                  tuple: Tuple,
+                                  outputPortId: Option[PortIdentity] = None
+                                ): Unit = {
+    (outputPortId match {
+      case Some(portId) =>
+        this.ECMWriters.get(portId) match {
+          case Some(_) => this.ECMWriters.filter(_._1 == portId)
+          case None    => Map.empty
+        }
+      case None => this.ECMWriters
+    }).foreach({
+      case (portId, writer) =>
+        writer.putOne(new Tuple(ResultSchema.ecmSchema, Array(worker.name)))
+    })
+  }
+
   /**
     * Singal the port storage writer to flush the remaining buffer and wait for commits to finish so that
     * the output port is properly completed. If the output port does not need storage, no action will be done.
@@ -280,6 +295,10 @@ class OutputManager(
   }
 
   private def setupOutputStorageWriterThread(portId: PortIdentity, storageUri: URI): Unit = {
+    this.ECMWriters(portId) = DocumentFactory
+      .createDocument(storageUri.resolve("ecm"), ResultSchema.ecmSchema)
+      .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
+      .asInstanceOf[BufferedItemWriter[Tuple]]
     val bufferedItemWriter = DocumentFactory
       .openDocument(storageUri)
       ._1

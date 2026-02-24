@@ -39,4 +39,9 @@ object ResultSchema {
   val consoleMessagesSchema: Schema = new Schema(
     new Attribute("message", AttributeType.STRING)
   )
+
+  val ecmSchema: Schema = new Schema(
+    new Attribute("LoopStartId", AttributeType.STRING),
+    new Attribute("iteration", AttributeType.INTEGER)
+  )
 }
