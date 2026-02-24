@@ -269,6 +269,13 @@ message PrepareCheckpointRequest{
   bool estimationOnly = 2;
 }
 
+enum StatisticsUpdateTarget {
+  BOTH_UI_AND_PERSISTENCE = 0;
+  UI_ONLY = 1;
+  PERSISTENCE_ONLY = 2;
+}
+
 message QueryStatisticsRequest{
   repeated core.ActorVirtualIdentity filterByWorkers = 1;
+  StatisticsUpdateTarget updateTarget = 2;
 }
