@@ -25,10 +25,10 @@
   height: 100%;
 }
 
-::ng-deep .hide-region .region {
+::ng-deep .hide-worker-count .operator-worker-count {
   display: none;
 }
 
-::ng-deep .hide-worker-count .operator-worker-count {
+::ng-deep .hide-operator-status .operator-status {
   display: none;
 }

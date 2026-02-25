@@ -20,8 +20,8 @@
 package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.{EmailMessage, GmailResource}
 import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator

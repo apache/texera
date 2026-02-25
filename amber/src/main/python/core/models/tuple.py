@@ -29,6 +29,7 @@ from pympler import asizeof
 from typing import Any, List, Iterator, Callable
 from typing_extensions import Protocol, runtime_checkable
 
+from core.models.type.large_binary import largebinary
 from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
 from .schema.field import Field
 from .schema.schema import Schema
@@ -86,6 +87,7 @@ class ArrowTableTupleProvider:
             """
             value = self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
             field_type = self._table.schema.field(field_name).type
+            field_metadata = self._table.schema.field(field_name).metadata
 
             # for binary types, convert pickled objects back.
             if (
@@ -94,6 +96,16 @@ class ArrowTableTupleProvider:
                 and value[:6] == b"pickle"
             ):
                 value = pickle.loads(value[10:])
+
+            # Convert URI string to largebinary for LARGE_BINARY types
+            # Metadata is set by Scala ArrowUtils or Python iceberg_utils
+            elif (
+                value is not None
+                and field_metadata
+                and field_metadata.get(b"texera_type") == b"LARGE_BINARY"
+            ):
+                value = largebinary(value)
+
             return value
 
         self._current_idx += 1
@@ -189,9 +201,9 @@ class Tuple:
         :param item: field name or field index
         :return: field value
         """
-        assert isinstance(
-            item, (int, str)
-        ), "field can only be retrieved by index or name"
+        assert isinstance(item, (int, str)), (
+            "field can only be retrieved by index or name"
+        )
 
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
@@ -233,6 +245,27 @@ class Tuple:
 
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Field]]:
         return [(k, v) for k, v in self.as_dict().items()]
+
+    def get_serialized_field(self, field_name: str) -> Field:
+        """
+        Get a field value serialized for Arrow table conversion.
+        For LARGE_BINARY fields, converts largebinary instances to URI strings.
+        For other fields, returns the value as-is.
+
+        :param field_name: field name
+        :return: field value (URI string for LARGE_BINARY fields with largebinary values)
+        """
+        value = self[field_name]
+
+        # Convert largebinary to URI string for LARGE_BINARY fields when schema available
+        if (
+            self._schema is not None
+            and self._schema.get_attr_type(field_name) == AttributeType.LARGE_BINARY
+            and isinstance(value, largebinary)
+        ):
+            return value.uri
+
+        return value
 
     def get_field_names(self) -> typing.Tuple[str]:
         return tuple(map(str, self._field_data.keys()))

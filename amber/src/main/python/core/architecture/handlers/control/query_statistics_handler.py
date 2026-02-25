@@ -16,17 +16,16 @@
 # under the License.
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     WorkerMetricsResponse,
     EmptyRequest,
 )
-from proto.org.apache.amber.engine.architecture.worker import (
+from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerMetrics,
 )
 
 
 class QueryStatisticsHandler(ControlHandler):
-
     async def query_statistics(self, req: EmptyRequest) -> WorkerMetricsResponse:
         metrics = WorkerMetrics(
             worker_state=self.context.state_manager.get_current_state(),

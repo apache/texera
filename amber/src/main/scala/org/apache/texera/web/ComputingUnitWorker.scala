@@ -19,7 +19,7 @@
 
 package org.apache.texera.web
 
-import org.apache.amber.engine.common.AmberRuntime
+import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import scala.annotation.tailrec

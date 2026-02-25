@@ -50,6 +50,7 @@ export interface FileUploadItem {
   description: string;
   uploadProgress: number;
   isUploadingFlag: boolean;
+  restart: boolean;
 }
 
 /**

@@ -16,12 +16,14 @@
 # under the License.
 
 from .attribute_type import AttributeType
+from core.models.type.large_binary import largebinary
 from .field import Field
 from .schema import Schema
 
 
 __all__ = [
     "AttributeType",
+    "largebinary",
     "Field",
     "Schema",
 ]

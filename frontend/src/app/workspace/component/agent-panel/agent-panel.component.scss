@@ -1,0 +1,164 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  z-index: 3;
+}
+
+#agent-container {
+  position: absolute;
+  top: calc(-100% + 80px);
+  right: 0;
+  z-index: 3;
+  background: white;
+}
+
+#title {
+  padding: 5px 9px;
+  border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  background: white;
+  width: 100%;
+  z-index: 2;
+}
+
+#agent-docked-button {
+  position: fixed;
+  bottom: 40px; // Position above the mini-map button
+  right: 10px;
+  z-index: 4;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+#return-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+}
+
+#content {
+  width: 100%;
+  height: 100%;
+  padding-top: 32px;
+  display: inline-block;
+  overflow-y: auto;
+}
+
+.shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
+}
+
+.agent-tabs {
+  height: calc(100% - 32px); // Account for the title bar
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  ::ng-deep {
+    .ant-tabs {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ant-tabs-nav {
+      margin-bottom: 0;
+    }
+
+    .ant-tabs-content-holder {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .ant-tabs-content {
+      height: 100%;
+    }
+
+    .ant-tabs-tabpane {
+      height: 100%;
+      overflow: hidden;
+      padding: 0;
+    }
+  }
+}
+
+.agent-tab-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .agent-tab-name {
+    flex: 1;
+  }
+}
+
+.agent-tab-close {
+  padding: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  margin-left: 4px;
+
+  &:hover {
+    opacity: 1;
+    color: #ff4d4f !important;
+    background: rgba(255, 77, 79, 0.1) !important;
+  }
+
+  i {
+    font-size: 12px;
+  }
+}
+
+.tab-bar-extra {
+  padding-right: 8px;
+}
+
+.agent-count {
+  font-size: 12px;
+  color: #8c8c8c;
+  padding: 4px 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+}

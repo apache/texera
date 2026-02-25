@@ -19,6 +19,7 @@
 
 import { DatePipe, Location } from "@angular/common";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Router } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
@@ -91,6 +92,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showRegion: boolean = false;
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
+  public showStatus: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -141,7 +143,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    protected config: GuiConfigService
+    protected config: GuiConfigService,
+    private router: Router
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -259,10 +262,27 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService
       .getJointGraphWrapper()
       .mainPaper.el.classList.toggle("hide-worker-count", !this.showNumWorkers);
+    this.applyOperatorStatusPosition();
+  }
+
+  toggleStatus() {
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .mainPaper.el.classList.toggle("hide-operator-status", !this.showStatus);
+    this.applyOperatorStatusPosition();
+  }
+
+  private applyOperatorStatusPosition(): void {
+    const refY = this.showNumWorkers ? -55 : -35;
+    const paperModel = this.workflowActionService.getJointGraphWrapper().mainPaper.model as any;
+    paperModel.getElements().forEach((el: any) => {
+      el.attr(".operator-status/ref-x", -10);
+      el.attr(".operator-status/ref-y", refY);
+    });
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
-    this.modalService.create({
+    const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
       nzData: {
         writeAccess: this.writeAccess,
@@ -275,6 +295,12 @@ export class MenuComponent implements OnInit, OnDestroy {
       nzTitle: "Share this workflow with others",
       nzCentered: true,
       nzWidth: "800px",
+    });
+
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result?.userRevokedOwnAccess) {
+        this.router.navigate([DASHBOARD_USER_WORKFLOW]);
+      }
     });
   }
 
@@ -471,7 +497,11 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public toggleRegion(): void {
-    this.workflowActionService.getJointGraphWrapper().mainPaper.el.classList.toggle("hide-region", !this.showRegion);
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .jointGraph.getElements()
+      .filter(el => el.get("type") === "region") // small improvement here too
+      .forEach(el => el.attr("body/visibility", this.showRegion ? "visible" : "hidden"));
   }
 
   /**

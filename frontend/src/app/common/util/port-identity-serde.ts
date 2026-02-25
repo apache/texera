@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { PortIdentity } from "../type/proto/org/apache/amber/engine/common/workflow";
+import { PortIdentity } from "../type/proto/org/apache/texera/amber/engine/common/workflow";
 
 /**
  * Serializes a PortIdentity object to a string in the format "{isInput}-{id}-{internal}"
