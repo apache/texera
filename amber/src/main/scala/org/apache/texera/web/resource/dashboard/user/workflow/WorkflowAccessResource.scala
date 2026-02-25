@@ -44,9 +44,10 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object WorkflowAccessResource {
-  final private val context: DSLContext = SqlServer
-    .getInstance()
-    .createDSLContext()
+  private def context: DSLContext =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
 
   /**
     * Identifies whether the given user has read-only access over the given workflow

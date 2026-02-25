@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,20 +17,6 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.sort;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName;
-
-public class SortCriteriaUnit {
-
-    @JsonProperty(value = "attribute", required = true)
-    @JsonPropertyDescription("Attribute name to sort by")
-    @AutofillAttributeName
-    public String attributeName;
-
-    @JsonProperty(value = "sortPreference", required = true)
-    @JsonPropertyDescription("Sort preference (ASC or DESC)")
-    public org.apache.texera.amber.operator.sort.SortPreference sortPreference;
+.hint {
+  margin-top: 8px;
 }

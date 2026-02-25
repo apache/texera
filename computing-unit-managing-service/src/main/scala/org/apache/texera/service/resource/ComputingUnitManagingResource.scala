@@ -60,9 +60,10 @@ import scala.annotation.unused
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object ComputingUnitManagingResource {
-  private lazy val context: DSLContext = SqlServer
-    .getInstance()
-    .createDSLContext()
+  private def context: DSLContext =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
 
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] = Map(

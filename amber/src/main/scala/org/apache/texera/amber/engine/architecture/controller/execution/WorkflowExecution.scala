@@ -119,10 +119,22 @@ case class WorkflowExecution() {
     * @throws NoSuchElementException if no `OperatorExecution` is found for the specified operatorId.
     */
   def getLatestOperatorExecution(physicalOpId: PhysicalOpIdentity): OperatorExecution = {
-    regionExecutions.values.toList
+    getLatestOperatorExecutionOption(physicalOpId).get
+  }
+
+  /**
+    * Returns the latest `OperatorExecution` for a physical operator if it has been initialized.
+    *
+    * This is the safe counterpart of `getLatestOperatorExecution` for callers that may traverse
+    * operators before their region is launched (e.g., full-graph stats queries while execution is still
+    * progressing through schedule levels).
+    */
+  def getLatestOperatorExecutionOption(
+      physicalOpId: PhysicalOpIdentity
+  ): Option[OperatorExecution] = {
+    regionExecutions.values.toSeq
       .findLast(regionExecution => regionExecution.hasOperatorExecution(physicalOpId))
-      .get
-      .getOperatorExecution(physicalOpId)
+      .map(_.getOperatorExecution(physicalOpId))
   }
 
   def isCompleted: Boolean = getState == WorkflowAggregatedState.COMPLETED

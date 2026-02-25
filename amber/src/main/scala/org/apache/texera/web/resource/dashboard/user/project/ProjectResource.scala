@@ -52,12 +52,13 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
   */
 
 object ProjectResource {
-  final private lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
-  final private lazy val userProjectDao = new ProjectDao(context.configuration)
-  final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
-  final private lazy val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
+  private def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+  private def userProjectDao = new ProjectDao(context.configuration)
+  private def workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
+  private def projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
 
   /**
     * This method is used to insert any CSV files created from ResultExportService
