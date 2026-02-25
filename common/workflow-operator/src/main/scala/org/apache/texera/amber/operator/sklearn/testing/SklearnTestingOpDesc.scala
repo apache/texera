@@ -69,7 +69,7 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
          |            table = Table(self.data)
          |            Y = table[$target]
          |            X = table.drop($target, axis=1)
-         |            predictions = model.predict(X)
+         |            predictions = model.predict(X.squeeze())
          |            if $isRegressionStr:
          |                tuple_["R2"] = r2_score(Y, predictions)
          |                tuple_["RMSE"] = root_mean_squared_error(Y, predictions)
