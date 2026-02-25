@@ -46,6 +46,8 @@ object ApplicationConfig {
   val MAX_RESOLUTION_COLUMNS: Int = getConfSource.getInt("constants.max-resolution-columns")
   val numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
   val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
+  val getRuntimeStatisticsPersistenceIntervalInMs: Long =
+    getConfSource.getLong("constants.runtime-statistics-persistence-interval")
 
   // Flow control
   val maxCreditAllowedInBytesPerChannel: Long =

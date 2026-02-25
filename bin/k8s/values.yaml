@@ -16,6 +16,10 @@
 # under the License.
 
 global:
+  # Container image registry and tag for all Texera services
+  # Override these to use a different registry or version
+  imageRegistry: ghcr.io/apache
+  imageTag: latest
   security:
     allowInsecureImages: true # for custom postgres image
 
@@ -110,7 +114,7 @@ texeraImages:
 # Example data loader configuration
 exampleDataLoader:
   enabled: true
-  image: apache/texera-example-data-loader:1.1.0-incubating
+  imageName: texera-example-data-loader
   username: texera
   password: texera
   datasetDir: datasets
@@ -119,7 +123,7 @@ exampleDataLoader:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: apache/texera-dashboard-service:1.1.0-incubating # image name of the texera
+  imageName: texera-dashboard-service
   service:
     type: ClusterIP
     port: 8080
@@ -128,7 +132,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: apache/texera-workflow-computing-unit-managing-service:1.1.0-incubating
+  imageName: texera-workflow-computing-unit-managing-service
   service:
     type: ClusterIP
     port: 8888
@@ -136,7 +140,7 @@ workflowComputingUnitManager:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: apache/texera-workflow-compiling-service:1.1.0-incubating
+  imageName: texera-workflow-compiling-service
   service:
     type: ClusterIP
     port: 9090
@@ -144,7 +148,7 @@ workflowCompilingService:
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: apache/texera-file-service:1.1.0-incubating
+  imageName: texera-file-service
   service:
     type: ClusterIP
     port: 9092
@@ -152,7 +156,7 @@ fileService:
 configService:
   name: config-service
   numOfPods: 1
-  imageName: apache/texera-config-service:1.1.0-incubating
+  imageName: texera-config-service
   service:
     type: ClusterIP
     port: 9094
@@ -160,7 +164,7 @@ configService:
 accessControlService:
   name: access-control-service
   numOfPods: 1
-  imageName: apache/texera-access-control-service:1.1.0-incubating
+  imageName: texera-access-control-service
   service:
     type: ClusterIP
     port: 9096
@@ -177,7 +181,7 @@ workflowComputingUnitPool:
     cpu: 100
     memory: 100Gi
     nvidiaGpu: 5
-  imageName: apache/texera-workflow-execution-coordinator:1.1.0-incubating
+  imageName: texera-workflow-execution-coordinator
   service:
     port: 8085
     targetPort: 8085
