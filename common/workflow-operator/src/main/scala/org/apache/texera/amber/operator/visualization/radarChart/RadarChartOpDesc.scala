@@ -70,7 +70,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Column containing entity names for each radar")
   @AutofillAttributeName
   @NotNull(message = "Name column cannot be empty")
-  var nameColumn: String = "entity_name"
+  var nameColumn: EncodableString = EncodableString("entity_name")
 
   @JsonProperty(value = "valueColumns", required = true)
   @JsonSchemaTitle("Value Columns")
