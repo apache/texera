@@ -183,6 +183,8 @@ import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzRadioModule } from "ng-zorro-antd/radio";
+import { RegistrationRequestModalComponent } from "./common/service/user/registration-request-modal/registration-request-modal.component";
+import { MarkdownDescriptionComponent } from "./dashboard/component/user/markdown-description/markdown-description.component";
 
 registerLocaleData(en);
 
@@ -279,6 +281,8 @@ registerLocaleData(en);
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
     AdminSettingsComponent,
+    RegistrationRequestModalComponent,
+    MarkdownDescriptionComponent,
   ],
   imports: [
     BrowserModule,

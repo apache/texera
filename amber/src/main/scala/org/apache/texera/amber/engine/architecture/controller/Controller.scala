@@ -51,6 +51,8 @@ object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
       statusUpdateIntervalMs = Option(ApplicationConfig.getStatusUpdateIntervalInMs),
+      runtimeStatisticsPersistenceIntervalMs =
+        Option(ApplicationConfig.getRuntimeStatisticsPersistenceIntervalInMs),
       stateRestoreConfOpt = None,
       faultToleranceConfOpt = None
     )
@@ -58,6 +60,7 @@ object ControllerConfig {
 
 final case class ControllerConfig(
     statusUpdateIntervalMs: Option[Long],
+    runtimeStatisticsPersistenceIntervalMs: Option[Long],
     stateRestoreConfOpt: Option[StateRestoreConfig],
     faultToleranceConfOpt: Option[FaultToleranceConfig]
 )
