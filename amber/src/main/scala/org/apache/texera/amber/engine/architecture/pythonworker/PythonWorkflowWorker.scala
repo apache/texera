@@ -184,8 +184,6 @@ class PythonWorkflowWorker(
         StorageConfig.icebergPostgresCatalogPassword,
         StorageConfig.icebergRESTCatalogUri,
         StorageConfig.icebergRESTCatalogWarehouseName,
-        StorageConfig.s3Username,
-        StorageConfig.s3Password,
         StorageConfig.icebergTableResultNamespace,
         StorageConfig.fileStorageDirectoryPath.toString,
         StorageConfig.icebergTableCommitBatchSize.toString,

@@ -59,8 +59,8 @@ class IcebergCatalogInstance:
                     StorageConfig.ICEBERG_REST_CATALOG_URI,
                     StorageConfig.S3_ENDPOINT,
                     StorageConfig.S3_REGION,
-                    StorageConfig.S3_USERNAME,
-                    StorageConfig.S3_PASSWORD,
+                    StorageConfig.S3_AUTH_USERNAME,
+                    StorageConfig.S3_AUTH_PASSWORD,
                 )
             else:
                 raise ValueError(f"Unsupported catalog type: {catalog_type}")
