@@ -111,7 +111,7 @@ lakekeeper:
   enabled: true
   postgresql:
     enabled: false
-  internalOpenFGA: false # may need to update
+  internalOpenFGA: false
   catalog:
     replicas: 1
     image:
