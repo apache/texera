@@ -89,10 +89,7 @@ services:
     entrypoint: ["/home/nonroot/lakekeeper"]
     command: ["migrate"]
 
-  # Lakekeeper is the Iceberg REST catalog service for workflow result storage
-  # NOTE: You need to provide a Lakekeeper docker image or build one from source.
-  # The image should contain the Lakekeeper binary and run it with 'serve' command.
-  # Example: If using a custom image, set LAKEKEEPER_IMAGE environment variable in .env
+  # Lakekeeper is the Iceberg REST catalog service
   lakekeeper:
     image: vakamo/lakekeeper:v0.11.0
     container_name: texera-lakekeeper
