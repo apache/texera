@@ -135,7 +135,7 @@ lakekeeperInit:
     id: "00000000-0000-0000-0000-000000000000"
     name: default
   warehouse:
-    name: texera-executions
+    name: texera
     region: us-west-2
     s3Bucket: texera-iceberg
 
