@@ -43,8 +43,6 @@ StorageConfig.initialize(
     postgres_password="password",
     rest_catalog_uri="",
     rest_catalog_warehouse_name="",
-    s3_username="",
-    s3_password="",
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../amber/user-resources/workflow-results",
     commit_batch_size=4096,
