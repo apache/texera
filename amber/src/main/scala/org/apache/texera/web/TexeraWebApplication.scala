@@ -27,6 +27,7 @@ import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.engine.common.Utils
+import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
@@ -103,6 +104,9 @@ class TexeraWebApplication
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )
+
+    // ensure the large-binary S3 bucket exists before any workflow execution attempts to use it
+    LargeBinaryManager.initialize()
 
     // redirect all 404 to index page, according to Angular routing requirements
     val eph = new ErrorPageErrorHandler
