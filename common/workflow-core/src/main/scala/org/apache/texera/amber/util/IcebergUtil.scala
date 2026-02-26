@@ -92,7 +92,7 @@ object IcebergUtil {
     * TODO: Add authentication support, such as OAuth2, using `OAuth2Properties`.
     *
     * @param catalogName the name of the catalog.
-    * @param warehouse   the warehouse identifier (path for standard REST catalog, name for Lakekeeper).
+    * @param warehouse   the warehouse identifier (for Lakekeeper).
     * @return the initialized RESTCatalog instance.
     */
   def createRestCatalog(
@@ -116,9 +116,6 @@ object IcebergUtil {
       "s3.region" -> StorageConfig.s3Region,
       "s3.path-style-access" -> "true",
     )
-
-    println(s"[IcebergUtil] effective s3.endpoint = ${properties.get("s3.endpoint")}, io.s3.endpoint = ${properties.get("io.s3.endpoint")}")
-    println(s"[IcebergUtil] StorageConfig.s3Endpoint = ${StorageConfig.s3Endpoint}")
     
     catalog.initialize(catalogName, properties.asJava)
     catalog
