@@ -28,9 +28,6 @@ object StorageConfig {
   // Load configuration
   private val conf: Config = ConfigFactory.parseResources("storage.conf").resolve()
 
-  // General storage settings
-  val resultStorageMode: String = conf.getString("storage.result-storage-mode")
-
   // JDBC specifics
   val jdbcUrl: String = conf.getString("storage.jdbc.url")
   val jdbcUrlForTestCases: String = conf.getString("storage.jdbc.url-for-test-cases")
