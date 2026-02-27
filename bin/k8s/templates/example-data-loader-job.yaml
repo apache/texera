@@ -30,7 +30,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: example-data-loader
-          image: {{ .Values.global.imageRegistry }}/{{ .Values.exampleDataLoader.imageName }}:{{ .Values.global.imageTag }}
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.exampleDataLoader.imageName }}:{{ .Values.texera.imageTag }}
           env:
             - name: TEXERA_EXAMPLE_USERNAME
               value: {{ .Values.exampleDataLoader.username }}
