@@ -134,10 +134,14 @@ dependencyOverrides ++= Seq(
   "io.netty" % "netty-codec" % nettyVersion,
   "io.netty" % "netty-codec-http" % nettyVersion,
   "io.netty" % "netty-codec-http2" % nettyVersion,
+  "io.netty" % "netty-codec-socks" % nettyVersion,
   "io.netty" % "netty-common" % nettyVersion,
   "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-handler-proxy" % nettyVersion,
   "io.netty" % "netty-resolver" % nettyVersion,
   "io.netty" % "netty-transport" % nettyVersion,
+  "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-epoll" % nettyVersion,
   "io.netty" % "netty-transport-native-unix-common" % nettyVersion
 )
 
@@ -212,7 +216,13 @@ libraryDependencies ++= Seq(
   "software.amazon.awssdk" % "s3" % "2.29.51" excludeAll(
     ExclusionRule(organization = "io.netty")
   ),
-  "software.amazon.awssdk" % "auth" % "2.29.51",
-  "software.amazon.awssdk" % "regions" % "2.29.51",
-  "software.amazon.awssdk" % "sts" % "2.29.51",
+  "software.amazon.awssdk" % "auth" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "regions" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "sts" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
 )
