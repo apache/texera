@@ -211,6 +211,22 @@ services:
     ports:
       - "8080:8080"
 
+  startup-message:
+    image: alpine:latest
+    depends_on:
+      nginx:
+        condition: service_started
+    restart: "no"
+    command: >
+      sh -c '
+      echo "";
+      echo "=========================================";
+      echo "  Texera is starting up!";
+      echo "  Access at: http://localhost:8080";
+      echo "=========================================";
+      echo "";
+      '
+
 networks:
   default:
     name: texera-single-node
