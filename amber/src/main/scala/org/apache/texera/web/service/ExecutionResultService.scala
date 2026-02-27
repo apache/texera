@@ -382,7 +382,7 @@ class ExecutionResultService(
                   outputPort.mode == OutputMode.SINGLE_SNAPSHOT
               }
 
-              if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
+              if (!hasSingleSnapshot) {
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByLogicalPortId(
                     executionId,
@@ -408,8 +408,7 @@ class ExecutionResultService(
         Iterable(
           WebResultUpdateEvent(
             buf.toMap,
-            allTableStats.toMap,
-            StorageConfig.resultStorageMode.toLowerCase
+            allTableStats.toMap
           )
         )
       })
