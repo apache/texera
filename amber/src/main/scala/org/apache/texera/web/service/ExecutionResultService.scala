@@ -23,8 +23,7 @@ import org.apache.pekko.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.config.{ApplicationConfig, StorageConfig}
-import org.apache.texera.amber.core.storage.DocumentFactory.ICEBERG
+import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.result._
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
