@@ -23,6 +23,5 @@ import org.apache.texera.web.service.ExecutionResultService.WebResultUpdate
 
 case class WebResultUpdateEvent(
     updates: Map[String, WebResultUpdate],
-    tableStats: Map[String, Map[String, Map[String, Any]]],
-    resultStorageMode: String
+    tableStats: Map[String, Map[String, Map[String, Any]]]
 ) extends TexeraWebSocketEvent
