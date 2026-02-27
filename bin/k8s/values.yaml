@@ -15,13 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-global:
+texera:
   # Container image registry and tag for all Texera services
   # Override these to use a different registry or version
   imageRegistry: ghcr.io/apache
   imageTag: latest
+
+global:
+  # Required by Bitnami sub-charts (postgresql, minio) to allow custom images
   security:
-    allowInsecureImages: true # for custom postgres image
+    allowInsecureImages: true
 
 # Persistence Configuration
 # This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
@@ -37,12 +40,15 @@ persistence:
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
-    repository: texera/postgres17-pgroonga
+    repository: groonga/pgroonga
     tag: latest
     debug: true
   auth:
     postgresPassword: root_password  # for executing init script with superuser
   primary:
+    containerSecurityContext:
+      # Disabled because groonga/pgroonga needs to write a lock/socket file to /var/run/postgresql
+      readOnlyRootFilesystem: false
     livenessProbe:
       initialDelaySeconds: 30 # increase this if the launching of postgresql is slow on the cluster
     readinessProbe:

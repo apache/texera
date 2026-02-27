@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: {{ .Values.workflowCompilingService.name }}
-          image: {{ .Values.global.imageRegistry }}/{{ .Values.workflowCompilingService.imageName }}:{{ .Values.global.imageTag }}
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowCompilingService.imageName }}:{{ .Values.texera.imageTag }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           ports:
             - containerPort: {{ .Values.workflowCompilingService.service.port }}
