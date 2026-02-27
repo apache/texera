@@ -33,7 +33,14 @@ import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.types.Types
-import org.apache.iceberg.{CatalogProperties, DataFile, PartitionSpec, Table, TableProperties, Schema => IcebergSchema}
+import org.apache.iceberg.{
+  CatalogProperties,
+  DataFile,
+  PartitionSpec,
+  Table,
+  TableProperties,
+  Schema => IcebergSchema
+}
 import org.apache.iceberg.catalog.Namespace
 import org.apache.iceberg.exceptions.AlreadyExistsException
 
@@ -114,9 +121,9 @@ object IcebergUtil {
       "s3.access-key-id" -> StorageConfig.s3Username,
       "s3.secret-access-key" -> StorageConfig.s3Password,
       "s3.region" -> StorageConfig.s3Region,
-      "s3.path-style-access" -> "true",
+      "s3.path-style-access" -> "true"
     )
-    
+
     catalog.initialize(catalogName, properties.asJava)
     catalog
   }
