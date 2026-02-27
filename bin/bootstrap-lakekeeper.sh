@@ -34,11 +34,13 @@ set -e
 # ==============================================================================
 
 # Lakekeeper binary path
-LAKEKEEPER_BINARY_PATH="/Users/wangmeng/Desktop/lakekeeper-binary/lakekeeper"
+LAKEKEEPER_BINARY_PATH=""
 
 # Lakekeeper PostgreSQL connection URLs
-LAKEKEEPER__PG_DATABASE_URL_READ="postgres://wangmeng:@localhost:5432/texera_lakekeeper"
-LAKEKEEPER__PG_DATABASE_URL_WRITE="postgres://wangmeng:@localhost:5432/texera_lakekeeper"
+#(LAKEKEEPER__PG_DATABASE_URL_READ="postgres://postgres_user:postgres_urlencoded_password@hostname:5432/texera_lakekeeper"
+# LAKEKEEPER__PG_DATABASE_URL_WRITE="postgres://postgres_user:postgres_urlencoded_password@hostname:5432/texera_lakekeeper")
+LAKEKEEPER__PG_DATABASE_URL_READ=""
+LAKEKEEPER__PG_DATABASE_URL_WRITE=""
 
 # Lakekeeper encryption key
 LAKEKEEPER__PG_ENCRYPTION_KEY="texera_key"
