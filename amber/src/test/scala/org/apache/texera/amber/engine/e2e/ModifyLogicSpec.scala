@@ -67,7 +67,7 @@ class ModifyLogicSpec
   /**
     * This block retries each test once if it fails.
     * In the CI environment, there is a chance that executeWorkflow does not receive "COMPLETED" status.
-    * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
+    * Until we find the root cause of this issue, we use a retry mechanism here to stabilize CI runs.
     */
   override def withFixture(test: NoArgTest): Outcome =
     withRetry { super.withFixture(test) }
