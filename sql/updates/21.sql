@@ -17,11 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.event
+\c texera_db
 
-import org.apache.texera.web.service.ExecutionResultService.WebResultUpdate
+SET search_path TO texera_db;
 
-case class WebResultUpdateEvent(
-    updates: Map[String, WebResultUpdate],
-    tableStats: Map[String, Map[String, Map[String, Any]]]
-) extends TexeraWebSocketEvent
+BEGIN;
+
+ALTER TABLE "user"
+    ADD COLUMN IF NOT EXISTS joining_reason VARCHAR(500);
+
+COMMIT;

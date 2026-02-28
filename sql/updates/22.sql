@@ -17,11 +17,17 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.event
+\c texera_db
 
-import org.apache.texera.web.service.ExecutionResultService.WebResultUpdate
+SET search_path TO texera_db;
 
-case class WebResultUpdateEvent(
-    updates: Map[String, WebResultUpdate],
-    tableStats: Map[String, Map[String, Map[String, Any]]]
-) extends TexeraWebSocketEvent
+BEGIN;
+
+-- Change description column from VARCHAR to TEXT to support Markdown content.
+ALTER TABLE dataset
+ALTER COLUMN description TYPE TEXT;
+
+ALTER TABLE workflow
+ALTER COLUMN description TYPE TEXT;
+
+COMMIT;

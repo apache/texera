@@ -9,9 +9,23 @@ This is a call for vote to release Apache Texera (incubating) ${VERSION}.
 https://dist.apache.org/repos/dist/dev/incubator/texera/${VERSION}-RC${RC_NUM}/
 
 The directory contains:
-- Source tarball (.tar.gz)
-- GPG signature (.asc)
-- SHA512 checksum (.sha512)
+- Source tarball (.tar.gz) with GPG signature (.asc) and SHA512 checksum (.sha512)
+- Docker Compose deployment bundle with GPG signature and SHA512 checksum
+- Helm chart package with GPG signature and SHA512 checksum
+
+== Container Images ==
+
+Container images are available at:
+  ${IMAGE_REGISTRY}/texera-dashboard-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-workflow-execution-coordinator:${VERSION}
+  ${IMAGE_REGISTRY}/texera-workflow-compiling-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-file-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-config-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-access-control-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-workflow-computing-unit-managing-service:${VERSION}
+
+These images are built from the source tarball included in this release.
+The Dockerfiles are included in the source for audit and verification.
 
 == Git Tag ==
 
@@ -39,6 +53,8 @@ The vote will be open for at least 72 hours.
 [ ] No unexpected binary files
 [ ] Source tarball matches the Git tag
 [ ] Can compile from source successfully
+[ ] Docker Compose bundle deploys successfully with the published images
+[ ] Helm chart deploys successfully (if applicable)
 
 Thanks,
 [Your Name]

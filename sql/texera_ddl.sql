@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS "user"
     comment                 TEXT,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     affiliation             VARCHAR(128),
+    joining_reason          VARCHAR(500),
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );
@@ -124,7 +125,7 @@ CREATE TABLE IF NOT EXISTS workflow
 (
     wid                SERIAL PRIMARY KEY,
     name               VARCHAR(128) NOT NULL,
-    description        VARCHAR(500),
+    description        TEXT,
     content            TEXT NOT NULL,
     creation_time      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -250,7 +251,7 @@ CREATE TABLE IF NOT EXISTS dataset
     repository_name VARCHAR(128),
     is_public      BOOLEAN NOT NULL DEFAULT TRUE,
     is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
-    description    VARCHAR(512) NOT NULL,
+    description    TEXT NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     cover_image    varchar(255),
     FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE

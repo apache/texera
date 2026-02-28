@@ -76,32 +76,25 @@ object DocumentFactory {
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }
 
-        StorageConfig.resultStorageMode.toLowerCase match {
-          case ICEBERG =>
-            val icebergSchema = IcebergUtil.toIcebergSchema(schema)
-            IcebergUtil.createTable(
-              IcebergCatalogInstance.getInstance(),
-              namespace,
-              storageKey,
-              icebergSchema,
-              overrideIfExists = true
-            )
-            val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
-            val deserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
-              IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema))
+        val icebergSchema = IcebergUtil.toIcebergSchema(schema)
+        IcebergUtil.createTable(
+          IcebergCatalogInstance.getInstance(),
+          namespace,
+          storageKey,
+          icebergSchema,
+          overrideIfExists = true
+        )
+        val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
+        val deserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
+          IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema))
 
-            new IcebergDocument[Tuple](
-              namespace,
-              storageKey,
-              icebergSchema,
-              serde,
-              deserde
-            )
-          case unsupportedMode =>
-            throw new IllegalArgumentException(
-              s"Storage mode '$unsupportedMode' is not supported"
-            )
-        }
+        new IcebergDocument[Tuple](
+          namespace,
+          storageKey,
+          icebergSchema,
+          serde,
+          deserde
+        )
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
           s"Unsupported URI scheme: $unsupportedScheme for creating the document"
@@ -130,38 +123,31 @@ object DocumentFactory {
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }
 
-        StorageConfig.resultStorageMode.toLowerCase match {
-          case ICEBERG =>
-            val table = IcebergUtil
-              .loadTableMetadata(
-                IcebergCatalogInstance.getInstance(),
-                namespace,
-                storageKey
-              )
-              .getOrElse(
-                throw new IllegalArgumentException("No storage is found for the given URI")
-              )
+        val table = IcebergUtil
+          .loadTableMetadata(
+            IcebergCatalogInstance.getInstance(),
+            namespace,
+            storageKey
+          )
+          .getOrElse(
+            throw new IllegalArgumentException("No storage is found for the given URI")
+          )
 
-            val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())
-            val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
-            val deserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
-              IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema))
+        val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())
+        val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
+        val deserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
+          IcebergUtil.fromRecord(record, IcebergUtil.fromIcebergSchema(schema))
 
-            (
-              new IcebergDocument[Tuple](
-                namespace,
-                storageKey,
-                table.schema(),
-                serde,
-                deserde
-              ),
-              Some(amberSchema)
-            )
-          case mode =>
-            throw new IllegalArgumentException(
-              s"Storage mode '$mode' is not supported"
-            )
-        }
+        (
+          new IcebergDocument[Tuple](
+            namespace,
+            storageKey,
+            table.schema(),
+            serde,
+            deserde
+          ),
+          Some(amberSchema)
+        )
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
           s"Unsupported URI scheme: $unsupportedScheme for opening the document"

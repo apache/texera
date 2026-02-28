@@ -29,6 +29,11 @@ on:
         required: true
         type: string
         default: '1'
+      image_registry:
+        description: 'Container image registry prefix (e.g., ghcr.io/apache, docker.io/apache)'
+        required: false
+        type: string
+        default: 'ghcr.io/apache'
 
 jobs:
   create-rc:
@@ -38,7 +43,10 @@ jobs:
       rc_num: ${{ steps.vars.outputs.rc_num }}
       tag_name: ${{ steps.vars.outputs.tag_name }}
       rc_dir: ${{ steps.vars.outputs.rc_dir }}
-      tarball_name: ${{ steps.vars.outputs.tarball_name }}
+      commit_hash: ${{ steps.vars.outputs.commit_hash }}
+      src_tarball: ${{ steps.vars.outputs.src_tarball }}
+      compose_tarball: ${{ steps.vars.outputs.compose_tarball }}
+      helm_tarball: ${{ steps.vars.outputs.helm_tarball }}
 
     steps:
       - name: Checkout code
@@ -65,6 +73,7 @@ jobs:
         run: |
           TAG_NAME="${{ github.event.inputs.tag }}"
           RC_NUM="${{ github.event.inputs.rc_number }}"
+          IMAGE_REGISTRY="${{ github.event.inputs.image_registry }}"
 
           # Parse version from tag (format: v1.1.0-incubating or v1.1.0-incubating-rcN)
           # Both formats are accepted, but we use the input rc_number for artifacts
@@ -75,51 +84,160 @@ jobs:
             exit 1
           fi
 
+          COMMIT_HASH=$(git rev-parse "$TAG_NAME")
+          COMMIT_SHORT=$(git rev-parse "$TAG_NAME" | cut -c1-9)
           RC_DIR="${VERSION}-RC${RC_NUM}"
-          TARBALL_NAME="apache-texera-${VERSION}-src.tar.gz"
+          SRC_TARBALL="apache-texera-${VERSION}-src.tar.gz"
+          COMPOSE_TARBALL="apache-texera-${VERSION}-docker-compose.tar.gz"
+          HELM_TARBALL="apache-texera-${VERSION}-helm.tgz"
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "rc_num=$RC_NUM" >> $GITHUB_OUTPUT
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "rc_dir=$RC_DIR" >> $GITHUB_OUTPUT
-          echo "tarball_name=$TARBALL_NAME" >> $GITHUB_OUTPUT
+          echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
+          echo "commit_short=$COMMIT_SHORT" >> $GITHUB_OUTPUT
+          echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
+          echo "src_tarball=$SRC_TARBALL" >> $GITHUB_OUTPUT
+          echo "compose_tarball=$COMPOSE_TARBALL" >> $GITHUB_OUTPUT
+          echo "helm_tarball=$HELM_TARBALL" >> $GITHUB_OUTPUT
 
           echo "Release Candidate: $TAG_NAME"
           echo "Version: $VERSION"
           echo "RC Number: $RC_NUM"
-          echo "Tarball: $TARBALL_NAME"
+          echo "Commit: $COMMIT_HASH ($COMMIT_SHORT)"
+          echo "Image Registry: $IMAGE_REGISTRY"
           echo "Staging directory: dist/dev/incubator/texera/$RC_DIR"
 
       - name: Create source tarball
         run: |
           TAG_NAME="${{ steps.vars.outputs.tag_name }}"
-          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
+          SRC_TARBALL="${{ steps.vars.outputs.src_tarball }}"
           VERSION="${{ steps.vars.outputs.version }}"
 
-          # Create a temporary directory for the archive
           TEMP_DIR=$(mktemp -d)
-          ARCHIVE_DIR="$TEMP_DIR/apache-texera-${VERSION}-src"
-
-          echo "Creating source archive in $ARCHIVE_DIR"
 
           # Export the git repository at the tag
           git archive --format=tar --prefix="apache-texera-${VERSION}-src/" "$TAG_NAME" | tar -x -C "$TEMP_DIR"
 
           # Create tarball
           cd "$TEMP_DIR"
-          tar -czf "$GITHUB_WORKSPACE/$TARBALL_NAME" "apache-texera-${VERSION}-src"
+          tar -czf "$GITHUB_WORKSPACE/$SRC_TARBALL" "apache-texera-${VERSION}-src"
 
           cd "$GITHUB_WORKSPACE"
 
           # Verify tarball was created
-          if [[ ! -f "$TARBALL_NAME" ]]; then
-            echo "Error: Tarball was not created"
+          if [[ ! -f "$SRC_TARBALL" ]]; then
+            echo "Error: Source tarball was not created"
             exit 1
           fi
 
           # Show tarball info
-          ls -lh "$TARBALL_NAME"
-          echo "✓ Created tarball: $TARBALL_NAME"
+          ls -lh "$SRC_TARBALL"
+          echo "✓ Created source tarball: $SRC_TARBALL"
+
+      - name: Create Docker Compose deployment bundle
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
+          IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
+          COMMIT_SHORT="${{ steps.vars.outputs.commit_short }}"
+          COMPOSE_TARBALL="${{ steps.vars.outputs.compose_tarball }}"
+
+          TEMP_DIR=$(mktemp -d)
+          BUNDLE_DIR="$TEMP_DIR/apache-texera-${VERSION}-docker-compose"
+          mkdir -p "$BUNDLE_DIR"
+
+          # Export the single-node directory from the tagged source
+          mkdir -p "$TEMP_DIR/_raw"
+          git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ | tar -x -C "$TEMP_DIR/_raw"
+
+          # Copy deployment files
+          cp "$TEMP_DIR/_raw/bin/single-node/docker-compose.yml" "$BUNDLE_DIR/"
+          cp "$TEMP_DIR/_raw/bin/single-node/nginx.conf" "$BUNDLE_DIR/"
+          cp -r "$TEMP_DIR/_raw/sql" "$BUNDLE_DIR/"
+
+          # Patch the SQL mount path for the self-contained bundle layout
+          # In the repo it's ../../sql (relative to bin/single-node/), in the bundle it's ./sql
+          sed -i 's|../../sql|./sql|g' "$BUNDLE_DIR/docker-compose.yml"
+
+          # Generate a release-pinned .env file with the version tag
+          # Start from the source .env and ensure IMAGE_REGISTRY and IMAGE_TAG are set
+          cp "$TEMP_DIR/_raw/bin/single-node/.env" "$BUNDLE_DIR/.env"
+          # Replace if line exists, otherwise append
+          if grep -q '^IMAGE_REGISTRY=' "$BUNDLE_DIR/.env"; then
+            sed -i "s|^IMAGE_REGISTRY=.*|IMAGE_REGISTRY=${IMAGE_REGISTRY}|" "$BUNDLE_DIR/.env"
+          else
+            echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}" >> "$BUNDLE_DIR/.env"
+          fi
+          if grep -q '^IMAGE_TAG=' "$BUNDLE_DIR/.env"; then
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${COMMIT_SHORT}|" "$BUNDLE_DIR/.env"
+          else
+            echo "IMAGE_TAG=${COMMIT_SHORT}" >> "$BUNDLE_DIR/.env"
+          fi
+
+          # Include the README from the repo
+          cp "$TEMP_DIR/_raw/bin/single-node/README.md" "$BUNDLE_DIR/"
+
+          # Create tarball
+          cd "$TEMP_DIR"
+          tar -czf "$GITHUB_WORKSPACE/$COMPOSE_TARBALL" "apache-texera-${VERSION}-docker-compose"
+
+          cd "$GITHUB_WORKSPACE"
+          ls -lh "$COMPOSE_TARBALL"
+          echo "✓ Created Docker Compose bundle: $COMPOSE_TARBALL"
+
+      - name: Create Helm chart package
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
+          COMMIT_SHORT="${{ steps.vars.outputs.commit_short }}"
+          IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
+          HELM_TARBALL="${{ steps.vars.outputs.helm_tarball }}"
+
+          # Install Helm
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          # Export the Helm chart from the tagged source
+          # Include sql/ because bin/k8s/files/ has symlinks to ../../../sql/
+          TEMP_DIR=$(mktemp -d)
+          git archive --format=tar "$TAG_NAME" -- bin/k8s/ sql/ | tar -x -C "$TEMP_DIR"
+
+          CHART_DIR="$TEMP_DIR/bin/k8s"
+
+          # Resolve symlinks in the chart so it packages as a self-contained artifact
+          find "$CHART_DIR" -type l | while read -r link; do
+            target=$(readlink -f "$link")
+            rm "$link"
+            cp "$target" "$link"
+          done
+
+          # Update Chart.yaml with release version
+          sed -i "s/^version:.*/version: ${VERSION}/" "$CHART_DIR/Chart.yaml"
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" "$CHART_DIR/Chart.yaml"
+
+          # Update values.yaml with release image registry and tag
+          sed -i "s|imageRegistry:.*|imageRegistry: ${IMAGE_REGISTRY}|" "$CHART_DIR/values.yaml"
+          sed -i "s|imageTag:.*|imageTag: ${COMMIT_SHORT}|" "$CHART_DIR/values.yaml"
+
+          # Download chart dependencies declared in Chart.yaml
+          # These tarballs are .gitignored so they're not in git archive
+          helm dependency build "$CHART_DIR"
+
+          # Package the Helm chart
+          helm package "$CHART_DIR" \
+            --version "$VERSION" \
+            --app-version "$VERSION" \
+            --destination "$GITHUB_WORKSPACE"
+
+          # Rename to our expected artifact name
+          HELM_PKG=$(ls "$GITHUB_WORKSPACE"/texera-helm-*.tgz 2>/dev/null | head -1)
+          if [[ -n "$HELM_PKG" && "$HELM_PKG" != "$GITHUB_WORKSPACE/$HELM_TARBALL" ]]; then
+            mv "$HELM_PKG" "$GITHUB_WORKSPACE/$HELM_TARBALL"
+          fi
+
+          ls -lh "$GITHUB_WORKSPACE/$HELM_TARBALL"
+          echo "✓ Created Helm chart package: $HELM_TARBALL"
 
       - name: Import GPG key
         run: |
@@ -130,30 +248,23 @@ jobs:
 
           echo "✓ GPG key imported successfully"
 
-      - name: Create GPG signature (.asc)
+      - name: Sign and checksum all artifacts
         run: |
-          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
+          for artifact in \
+            "${{ steps.vars.outputs.src_tarball }}" \
+            "${{ steps.vars.outputs.compose_tarball }}" \
+            "${{ steps.vars.outputs.helm_tarball }}"; do
 
-          # Sign the tarball
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
-            --armor --detach-sign --output "${TARBALL_NAME}.asc" "$TARBALL_NAME"
+            # GPG signature
+            echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+              --armor --detach-sign --output "${artifact}.asc" "$artifact"
+            gpg --verify "${artifact}.asc" "$artifact"
+            echo "✓ Signed: ${artifact}"
 
-          # Verify signature
-          gpg --verify "${TARBALL_NAME}.asc" "$TARBALL_NAME"
-
-          echo "✓ Created GPG signature: ${TARBALL_NAME}.asc"
-
-      - name: Create SHA512 checksum
-        run: |
-          TARBALL_NAME="${{ steps.vars.outputs.tarball_name }}"
-
-          # Create SHA512 checksum
-          sha512sum "$TARBALL_NAME" > "${TARBALL_NAME}.sha512"
-
-          # Display checksum
-          cat "${TARBALL_NAME}.sha512"
-
-          echo "✓ Created SHA512 checksum: ${TARBALL_NAME}.sha512"
+            # SHA512 checksum
+            sha512sum "$artifact" > "${artifact}.sha512"
+            echo "✓ Checksum: ${artifact}.sha512"
+          done
 
       - name: Generate vote email template
         id: vote_email
@@ -162,9 +273,8 @@ jobs:
           RC_NUM="${{ steps.vars.outputs.rc_num }}"
           TAG_NAME="${{ steps.vars.outputs.tag_name }}"
           RC_DIR="${{ steps.vars.outputs.rc_dir }}"
-
-          # Get commit hash for the tag
-          COMMIT_HASH=$(git rev-parse "$TAG_NAME")
+          COMMIT_HASH="${{ steps.vars.outputs.commit_hash }}"
+          IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
 
           # Get GPG key ID from the imported key
           GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | awk '{print $2}' | cut -d'/' -f2)
@@ -174,13 +284,14 @@ jobs:
           cp .github/release/vote-email-template.md vote-email.txt
 
           # Substitute variables in the template
-          sed -i "s/\${VERSION}/${VERSION}/g" vote-email.txt
-          sed -i "s/\${RC_NUM}/${RC_NUM}/g" vote-email.txt
-          sed -i "s/\${RC_DIR}/${RC_DIR}/g" vote-email.txt
-          sed -i "s/\${TAG_NAME}/${TAG_NAME}/g" vote-email.txt
-          sed -i "s/\${COMMIT_HASH}/${COMMIT_HASH}/g" vote-email.txt
-          sed -i "s/\${GPG_KEY_ID}/${GPG_KEY_ID}/g" vote-email.txt
-          sed -i "s/\${GPG_EMAIL}/${GPG_EMAIL}/g" vote-email.txt
+          sed -i "s|\${VERSION}|${VERSION}|g" vote-email.txt
+          sed -i "s|\${RC_NUM}|${RC_NUM}|g" vote-email.txt
+          sed -i "s|\${RC_DIR}|${RC_DIR}|g" vote-email.txt
+          sed -i "s|\${TAG_NAME}|${TAG_NAME}|g" vote-email.txt
+          sed -i "s|\${COMMIT_HASH}|${COMMIT_HASH}|g" vote-email.txt
+          sed -i "s|\${GPG_KEY_ID}|${GPG_KEY_ID}|g" vote-email.txt
+          sed -i "s|\${GPG_EMAIL}|${GPG_EMAIL}|g" vote-email.txt
+          sed -i "s|\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" vote-email.txt
 
           echo "✓ Vote email template generated!"
 
@@ -189,9 +300,15 @@ jobs:
         with:
           name: rc-artifacts
           path: |
-            ${{ steps.vars.outputs.tarball_name }}
-            ${{ steps.vars.outputs.tarball_name }}.asc
-            ${{ steps.vars.outputs.tarball_name }}.sha512
+            ${{ steps.vars.outputs.src_tarball }}
+            ${{ steps.vars.outputs.src_tarball }}.asc
+            ${{ steps.vars.outputs.src_tarball }}.sha512
+            ${{ steps.vars.outputs.compose_tarball }}
+            ${{ steps.vars.outputs.compose_tarball }}.asc
+            ${{ steps.vars.outputs.compose_tarball }}.sha512
+            ${{ steps.vars.outputs.helm_tarball }}
+            ${{ steps.vars.outputs.helm_tarball }}.asc
+            ${{ steps.vars.outputs.helm_tarball }}.sha512
             vote-email.txt
           retention-days: 7
 
@@ -207,14 +324,19 @@ jobs:
 
       - name: Verify downloaded artifacts
         run: |
-          TARBALL_NAME="${{ needs.create-rc.outputs.tarball_name }}"
+          SRC_TARBALL="${{ needs.create-rc.outputs.src_tarball }}"
+          COMPOSE_TARBALL="${{ needs.create-rc.outputs.compose_tarball }}"
+          HELM_TARBALL="${{ needs.create-rc.outputs.helm_tarball }}"
+
           echo "Verifying downloaded artifacts..."
           ls -lh
 
-          if [[ ! -f "$TARBALL_NAME" ]] || [[ ! -f "${TARBALL_NAME}.asc" ]] || [[ ! -f "${TARBALL_NAME}.sha512" ]]; then
-            echo "Error: Missing required artifacts"
-            exit 1
-          fi
+          for artifact in "$SRC_TARBALL" "$COMPOSE_TARBALL" "$HELM_TARBALL"; do
+            if [[ ! -f "$artifact" ]] || [[ ! -f "${artifact}.asc" ]] || [[ ! -f "${artifact}.sha512" ]]; then
+              echo "Error: Missing artifact or signature/checksum for: $artifact"
+              exit 1
+            fi
+          done
 
           echo "✓ All artifacts downloaded successfully"
 
@@ -236,35 +358,52 @@ jobs:
 
           cd svn-texera
 
-          # Create RC directory if it doesn't exist
-          if ! svn info "$RC_DIR" >/dev/null 2>&1; then
+          # Check if RC directory already exists on the remote
+          SVN_BASE="https://dist.apache.org/repos/dist/dev/incubator/texera"
+          if svn info "$SVN_BASE/$RC_DIR" >/dev/null 2>&1; then
+            # Directory exists remotely — update (checkout) it into the working copy
+            svn update --depth=infinity "$RC_DIR" \
+              --username "${{ secrets.SVN_USERNAME }}" \
+              --password "${{ secrets.SVN_PASSWORD }}" \
+              --no-auth-cache || true
+            # If update didn't bring it down (empty parent checkout), do a sparse checkout
+            if [[ ! -d "$RC_DIR" ]]; then
+              svn update --set-depth=infinity "$RC_DIR" \
+                --username "${{ secrets.SVN_USERNAME }}" \
+                --password "${{ secrets.SVN_PASSWORD }}" \
+                --no-auth-cache
+            fi
+            echo "✓ RC directory already exists remotely, checked out: $RC_DIR"
+          else
+            # Directory doesn't exist remotely — create and add it
             mkdir -p "$RC_DIR"
             svn add "$RC_DIR"
             echo "✓ Created new RC directory: $RC_DIR"
-          else
-            svn update "$RC_DIR"
-            echo "✓ RC directory already exists: $RC_DIR"
           fi
 
       - name: Stage artifacts to SVN
         run: |
-          TARBALL_NAME="${{ needs.create-rc.outputs.tarball_name }}"
+          SRC_TARBALL="${{ needs.create-rc.outputs.src_tarball }}"
+          COMPOSE_TARBALL="${{ needs.create-rc.outputs.compose_tarball }}"
+          HELM_TARBALL="${{ needs.create-rc.outputs.helm_tarball }}"
           RC_DIR="${{ needs.create-rc.outputs.rc_dir }}"
 
           cd svn-texera/"$RC_DIR"
 
-          # Copy artifacts
-          cp "$GITHUB_WORKSPACE/$TARBALL_NAME" .
-          cp "$GITHUB_WORKSPACE/${TARBALL_NAME}.asc" .
-          cp "$GITHUB_WORKSPACE/${TARBALL_NAME}.sha512" .
+          # Copy all artifacts
+          for artifact in "$SRC_TARBALL" "$COMPOSE_TARBALL" "$HELM_TARBALL"; do
+            cp "$GITHUB_WORKSPACE/$artifact" .
+            cp "$GITHUB_WORKSPACE/${artifact}.asc" .
+            cp "$GITHUB_WORKSPACE/${artifact}.sha512" .
+          done
 
           # Add files to SVN
-          svn add "$TARBALL_NAME" "${TARBALL_NAME}.asc" "${TARBALL_NAME}.sha512" --force
+          svn add * --force
 
           # Check status
           svn status
 
-          echo "✓ Staged artifacts to SVN"
+          echo "✓ Staged all artifacts to SVN"
 
       - name: Commit artifacts to dist/dev
         run: |
@@ -275,7 +414,7 @@ jobs:
           cd svn-texera
 
           # Commit with descriptive message
-          svn commit -m "Add Apache Texera ${VERSION} RC${RC_NUM} artifacts" \
+          svn commit -m "Add Apache Texera ${VERSION} RC${RC_NUM} artifacts (source + docker-compose + helm)" \
             --username "${{ secrets.SVN_USERNAME }}" \
             --password "${{ secrets.SVN_PASSWORD }}" \
             --no-auth-cache
@@ -288,40 +427,48 @@ jobs:
           RC_NUM="${{ needs.create-rc.outputs.rc_num }}"
           TAG_NAME="${{ needs.create-rc.outputs.tag_name }}"
           RC_DIR="${{ needs.create-rc.outputs.rc_dir }}"
-          TARBALL_NAME="${{ needs.create-rc.outputs.tarball_name }}"
+          COMMIT_HASH="${{ needs.create-rc.outputs.commit_hash }}"
+          SRC_TARBALL="${{ needs.create-rc.outputs.src_tarball }}"
+          COMPOSE_TARBALL="${{ needs.create-rc.outputs.compose_tarball }}"
+          HELM_TARBALL="${{ needs.create-rc.outputs.helm_tarball }}"
 
-          echo "## Release Candidate Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Candidate Created Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Release Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "- **RC Number:** RC${RC_NUM}" >> $GITHUB_STEP_SUMMARY
           echo "- **Git Tag:** \`${TAG_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${COMMIT_HASH}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts Location" >> $GITHUB_STEP_SUMMARY
-          echo "📦 **Staging Directory:** https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/" >> $GITHUB_STEP_SUMMARY
+          echo "**Staging Directory:** https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts Created" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${TARBALL_NAME}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${TARBALL_NAME}.asc\` (GPG signature)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${TARBALL_NAME}.sha512\` (SHA512 checksum)" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact | Description |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`${SRC_TARBALL}\` | Source code |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`${COMPOSE_TARBALL}\` | Docker Compose deployment bundle |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`${HELM_TARBALL}\` | Helm chart for Kubernetes deployment |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Each artifact has a corresponding \`.asc\` (GPG signature) and \`.sha512\` (checksum) file." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Verify the artifacts at the staging directory" >> $GITHUB_STEP_SUMMARY
-          echo "2. Send [VOTE] email to dev@texera.apache.org" >> $GITHUB_STEP_SUMMARY
-          echo "3. Include links to:" >> $GITHUB_STEP_SUMMARY
-          echo "   - Tag: https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME}" >> $GITHUB_STEP_SUMMARY
-          echo "   - Artifacts: https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/" >> $GITHUB_STEP_SUMMARY
+          echo "1. Build and push container images using the \`Build and push images\` workflow with tag \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify the artifacts at the staging directory" >> $GITHUB_STEP_SUMMARY
+          echo "3. Send [VOTE] email to dev@texera.apache.org" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download artifacts from the staging directory and verify:" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "# Import KEYS and verify signature" >> $GITHUB_STEP_SUMMARY
+          echo "# Import KEYS and verify signatures" >> $GITHUB_STEP_SUMMARY
           echo "gpg --import KEYS" >> $GITHUB_STEP_SUMMARY
-          echo "gpg --verify ${TARBALL_NAME}.asc ${TARBALL_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "gpg --verify ${SRC_TARBALL}.asc ${SRC_TARBALL}" >> $GITHUB_STEP_SUMMARY
+          echo "gpg --verify ${COMPOSE_TARBALL}.asc ${COMPOSE_TARBALL}" >> $GITHUB_STEP_SUMMARY
+          echo "gpg --verify ${HELM_TARBALL}.asc ${HELM_TARBALL}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Verify SHA512 checksum" >> $GITHUB_STEP_SUMMARY
-          echo "sha512sum -c ${TARBALL_NAME}.sha512" >> $GITHUB_STEP_SUMMARY
+          echo "# Verify SHA512 checksums" >> $GITHUB_STEP_SUMMARY
+          echo "sha512sum -c ${SRC_TARBALL}.sha512" >> $GITHUB_STEP_SUMMARY
+          echo "sha512sum -c ${COMPOSE_TARBALL}.sha512" >> $GITHUB_STEP_SUMMARY
+          echo "sha512sum -c ${HELM_TARBALL}.sha512" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**KEYS file:** https://downloads.apache.org/incubator/texera/KEYS" >> $GITHUB_STEP_SUMMARY
@@ -330,7 +477,7 @@ jobs:
 
       - name: Display vote email template
         run: |
-          echo "## 📧 Vote Email Template" >> $GITHUB_STEP_SUMMARY
+          echo "## Vote Email Template" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Copy the content below to send to dev@texera.apache.org:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

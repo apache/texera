@@ -98,7 +98,7 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) "X[" + text + "]" else "X"}
+       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
        |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"
