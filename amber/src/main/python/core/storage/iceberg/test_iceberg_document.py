@@ -37,19 +37,19 @@ from proto.org.apache.texera.amber.core import (
 
 # Hardcoded storage config only for test purposes.
 StorageConfig.initialize(
-    catalog_type="postgres",
+    catalog_type="rest",
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
     postgres_username="texera",
     postgres_password="password",
-    rest_catalog_uri="",
-    rest_catalog_warehouse_name="",
+    rest_catalog_uri="http://localhost:8181/catalog/",
+    rest_catalog_warehouse_name="texera",
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../amber/user-resources/workflow-results",
     commit_batch_size=4096,
     s3_endpoint="http://localhost:9000",
-    s3_region="us-east-1",
-    s3_auth_username="minioadmin",
-    s3_auth_password="minioadmin",
+    s3_region="us-west-2",
+    s3_auth_username="texera_minio",
+    s3_auth_password="password",
 )
 
 
