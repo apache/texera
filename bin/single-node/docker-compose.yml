@@ -160,7 +160,6 @@ services:
 
   # WorkflowExecutionCoordinator provides endpoints for executing workflows and interactions during executions.
   texera-workflow-execution-coordinator:
-    # to enable R operators, change the image tag to single-node-release-1-1-0-incubating-R
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-execution-coordinator:${IMAGE_TAG:-latest}
     container_name: texera-workflow-execution-coordinator
     restart: always
