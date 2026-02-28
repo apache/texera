@@ -18,7 +18,10 @@
 from pyiceberg.catalog import Catalog
 from typing import Optional
 
-from core.storage.iceberg.iceberg_utils import create_postgres_catalog, create_rest_catalog
+from core.storage.iceberg.iceberg_utils import (
+    create_postgres_catalog,
+    create_rest_catalog,
+)
 from core.storage.storage_config import StorageConfig
 
 
