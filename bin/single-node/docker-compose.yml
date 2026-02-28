@@ -77,7 +77,7 @@ services:
 
   # Part2: Specification of Texera's micro-services
   # FileService provides endpoints for Texera's dataset management
-  file-service:
+  texera-file-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-file-service:${IMAGE_TAG:-latest}
     container_name: texera-file-service
     restart: always
@@ -95,7 +95,7 @@ services:
       retries: 10
 
   # ConfigService provides endpoints for configuration management
-  config-service:
+  texera-config-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-config-service:${IMAGE_TAG:-latest}
     container_name: texera-config-service
     restart: always
@@ -111,7 +111,7 @@ services:
       retries: 10
 
   # AccessControlService handles user permissions and access control
-  access-control-service:
+  texera-access-control-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-access-control-service:${IMAGE_TAG:-latest}
     container_name: texera-access-control-service
     restart: always
@@ -127,7 +127,7 @@ services:
       retries: 10
 
   # WorkflowComputingUnitManagingService provides endpoints for managing computing units
-  workflow-computing-unit-managing-service:
+  texera-workflow-computing-unit-managing-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-computing-unit-managing-service:${IMAGE_TAG:-latest}
     container_name: texera-workflow-computing-unit-managing-service
     restart: always
@@ -143,12 +143,12 @@ services:
       retries: 10
 
   # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
-  workflow-compiling-service:
+  texera-workflow-compiling-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-compiling-service:${IMAGE_TAG:-latest}
     container_name: texera-workflow-compiling-service
     restart: always
     depends_on:
-      file-service:
+      texera-file-service:
         condition: service_started
     env_file:
       - .env
@@ -158,31 +158,31 @@ services:
       timeout: 3s
       retries: 10
 
-  # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
-  computing-unit-master:
+  # WorkflowExecutionCoordinator provides endpoints for executing workflows and interactions during executions.
+  texera-workflow-execution-coordinator:
     # to enable R operators, change the image tag to single-node-release-1-1-0-incubating-R
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-execution-coordinator:${IMAGE_TAG:-latest}
-    container_name: texera-computing-unit-master
+    container_name: texera-workflow-execution-coordinator
     restart: always
     depends_on:
-      workflow-compiling-service:
+      texera-workflow-compiling-service:
         condition: service_started
     env_file:
       - .env
     volumes:
       - workflow_result_data:/amber/user-resources
 
-  # TexeraWebApplication provides endpoints for hub resource management.
-  texera-web-application:
+  # DashboardService provides endpoints for hub resource management.
+  texera-dashboard-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-dashboard-service:${IMAGE_TAG:-latest}
-    container_name: texera-web-application
+    container_name: texera-dashboard-service
     restart: always
     depends_on:
-      computing-unit-master:
+      texera-workflow-execution-coordinator:
         condition: service_started
-      workflow-compiling-service:
+      texera-workflow-compiling-service:
         condition: service_healthy
-      file-service:
+      texera-file-service:
         condition: service_healthy
     env_file:
       - .env
@@ -199,13 +199,13 @@ services:
     image: nginx:alpine
     container_name: texera-nginx
     depends_on:
-      - workflow-compiling-service
-      - file-service
-      - texera-web-application
-      - computing-unit-master
-      - config-service
-      - access-control-service
-      - workflow-computing-unit-managing-service
+      - texera-workflow-compiling-service
+      - texera-file-service
+      - texera-dashboard-service
+      - texera-workflow-execution-coordinator
+      - texera-config-service
+      - texera-access-control-service
+      - texera-workflow-computing-unit-managing-service
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
