@@ -100,7 +100,7 @@ trait ReconfigurationHandler {
               )
             )
           }.toMap
-        futures += cmdMapping.map{
+        futures += cmdMapping.map {
           case (_, (_, singleWorkerUpdateFuture)) => singleWorkerUpdateFuture
         }
         friesComponent.sources.foreach { source =>
