@@ -100,7 +100,9 @@ trait ReconfigurationHandler {
               )
             )
           }.toMap
-        futures += cmdMapping.map(_._2._2)
+        futures += cmdMapping.map{
+          case (_, (_, singleWorkerUpdateFuture)) => singleWorkerUpdateFuture
+        }
         friesComponent.sources.foreach { source =>
           cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.foreach { worker =>
             sendECM(
