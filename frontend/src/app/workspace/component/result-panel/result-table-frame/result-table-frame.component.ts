@@ -29,7 +29,6 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
@@ -74,8 +73,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
-  sinkStorageMode: string = "";
-  private schema: ReadonlyArray<SchemaAttribute> = [];
   isOperatorFinished: boolean = false;
 
   constructor(
@@ -101,7 +98,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
-        this.schema = paginatedResultService.getSchema();
       }
     }
   }
@@ -160,13 +156,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         }
       });
 
-    this.workflowResultService
-      .getSinkStorageMode()
-      .pipe(untilDestroyed(this))
-      .subscribe(sinkStorageMode => {
-        this.sinkStorageMode = sinkStorageMode;
-      });
-
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
       this.panelHeight = size.height;
       this.adjustPageSizeBasedOnPanelSize(size.height);
@@ -179,7 +168,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (this.operatorId) {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
-        this.schema = paginatedResultService.getSchema();
       }
     }
   }
@@ -207,8 +195,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   compare(field: string, stats: string): SafeHtml {
     let current = this.tableStats[field][stats];
     let previous = this.prevTableStats[field][stats];
-    let currentStr = "";
-    let previousStr = "";
+    let currentStr: string;
+    let previousStr: string;
 
     if (typeof current === "number" && typeof previous === "number") {
       currentStr = current.toFixed(2);
@@ -370,7 +358,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
-          this.schema = pageData.schema;
           this.changeDetectorRef.detectChanges();
         }
       });

@@ -36,6 +36,11 @@ trait UpdateExecutorHandler {
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
     val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
+    // Close the existing executor (if any) before replacing it to avoid resource leaks.
+    val oldExecutor = dp.executor
+    if (oldExecutor != null) {
+      oldExecutor.close()
+    }
     setupExecutor(request.newExecInitInfo, workerIdx, cachedTotalWorkerCount)
     dp.executor.open()
     EmptyReturn()

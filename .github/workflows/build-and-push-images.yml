@@ -26,14 +26,14 @@ on:
         default: 'main'
         type: string
       image_tag:
-        description: 'Docker image tag to use (e.g., latest, v1.0.0)'
-        required: true
-        default: 'latest'
+        description: 'Docker image tag (e.g., latest, v1.0.0). Leave empty to use the short commit hash of the branch.'
+        required: false
+        default: ''
         type: string
       docker_registry:
-        description: 'Docker registry namespace (e.g., apache, myorg)'
+        description: 'Full image registry prefix (e.g., ghcr.io/apache, docker.io/apache)'
         required: false
-        default: 'apache'
+        default: 'ghcr.io/apache'
         type: string
       services:
         description: 'Services to build (comma-separated, "*" for all)'
@@ -58,12 +58,13 @@ on:
     # Run nightly at 2:00 AM UTC
     - cron: '0 2 * * *'
 
+permissions:
+  contents: read
+  packages: write  # Required for pushing to ghcr.io
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.image_tag || 'nightly' }}
   cancel-in-progress: false
-
-env:
-  DOCKER_REGISTRY: apache  # Will be overridden by job-level env if needed
 
 jobs:
   # Step 0: Set runtime parameters (handles both manual and scheduled runs)
@@ -79,21 +80,33 @@ jobs:
     steps:
       - name: Set build parameters
         id: set-params
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Detect if this is a scheduled run
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "Nightly build detected - using nightly defaults"
             echo "branch=main" >> $GITHUB_OUTPUT
             echo "image_tag=nightly" >> $GITHUB_OUTPUT
-            echo "docker_registry=apache" >> $GITHUB_OUTPUT
+            echo "docker_registry=ghcr.io/apache" >> $GITHUB_OUTPUT
             echo "services=*" >> $GITHUB_OUTPUT
             echo "platforms=both" >> $GITHUB_OUTPUT
             echo "with_r_support=false" >> $GITHUB_OUTPUT
           else
             echo "Manual workflow_dispatch - using user inputs"
-            echo "branch=${{ github.event.inputs.branch || 'main' }}" >> $GITHUB_OUTPUT
-            echo "image_tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-            echo "docker_registry=${{ github.event.inputs.docker_registry || 'apache' }}" >> $GITHUB_OUTPUT
+            BRANCH="${{ github.event.inputs.branch || 'main' }}"
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+
+            # If image_tag is empty, resolve to the short commit hash of the branch
+            if [[ -z "$IMAGE_TAG" ]]; then
+              COMMIT_SHORT=$(gh api "repos/${{ github.repository }}/commits/${BRANCH}" --jq '.sha[:9]')
+              IMAGE_TAG="$COMMIT_SHORT"
+              echo "No image tag specified - using short commit hash: $IMAGE_TAG"
+            fi
+
+            echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+            echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+            echo "docker_registry=${{ github.event.inputs.docker_registry || 'ghcr.io/apache' }}" >> $GITHUB_OUTPUT
             echo "services=${{ github.event.inputs.services || '*' }}" >> $GITHUB_OUTPUT
             echo "platforms=${{ github.event.inputs.platforms || 'both' }}" >> $GITHUB_OUTPUT
             echo "with_r_support=${{ github.event.inputs.with_r_support || 'false' }}" >> $GITHUB_OUTPUT
@@ -342,7 +355,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
+      - name: Log in to GitHub Container Registry
+        if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Log in to Docker Hub
+        if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -421,7 +443,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
+      - name: Log in to GitHub Container Registry
+        if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Log in to Docker Hub
+        if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -456,7 +487,16 @@ jobs:
       DOCKER_REGISTRY: ${{ needs.set-parameters.outputs.docker_registry }}
 
     steps:
+      - name: Log in to GitHub Container Registry
+        if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Log in to Docker Hub
+        if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -469,14 +509,6 @@ jobs:
             ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }} \
             ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64 \
             ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
-
-          # Also tag as 'latest' if requested
-          if [[ "${{ needs.set-parameters.outputs.image_tag }}" == "latest" ]]; then
-            docker buildx imagetools create -t \
-              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest \
-              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest-amd64 \
-              ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:latest-arm64
-          fi
 
       - name: Inspect multi-arch manifest
         run: |

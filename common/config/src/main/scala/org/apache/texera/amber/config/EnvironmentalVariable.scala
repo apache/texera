@@ -44,11 +44,6 @@ object EnvironmentalVariable {
     */
   val ENV_USER_JWT_TOKEN = "USER_JWT_TOKEN"
 
-  /**
-    * Variables in storage.conf
-    */
-  val ENV_RESULT_STORAGE_MODE = "STORAGE_RESULT_MODE"
-
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"
   val ENV_JDBC_USERNAME = "STORAGE_JDBC_USERNAME"

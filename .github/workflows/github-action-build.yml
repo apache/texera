@@ -58,10 +58,12 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            frontend/node_modules
-          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-${{ hashFiles('**/yarn.lock') }}
+            frontend/.yarn/cache
+            frontend/.yarn/unplugged
+            frontend/.yarn/install-state.gz
+          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-
+            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-
       - name: Prepare Yarn 4.5.1
         run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd frontend set version 4.5.1
       - name: Setup Python
@@ -70,7 +72,7 @@ jobs:
           python-version: '3.12'
       - name: Install dependency
         timeout-minutes: 20
-        run: yarn --cwd frontend install --immutable --network-timeout=100000
+        run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
       - name: Lint with Prettier & ESLint
         run: yarn --cwd frontend format:ci
       - name: Run frontend unit tests
