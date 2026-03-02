@@ -159,6 +159,7 @@ jobs:
             -e LAKEKEEPER__PG_DATABASE_URL_READ=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
             -e LAKEKEEPER__PG_DATABASE_URL_WRITE=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
             -e LAKEKEEPER__PG_ENCRYPTION_KEY=texera_key \
+            -e LAKEKEEPER__METRICS_PORT=9091 \
             vakamo/lakekeeper:v0.11.0 serve
 
           for i in $(seq 1 30); do
@@ -285,6 +286,7 @@ jobs:
             -e LAKEKEEPER__PG_DATABASE_URL_READ=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
             -e LAKEKEEPER__PG_DATABASE_URL_WRITE=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
             -e LAKEKEEPER__PG_ENCRYPTION_KEY=texera_key \
+            -e LAKEKEEPER__METRICS_PORT=9091 \
             vakamo/lakekeeper:v0.11.0 serve
 
           for i in $(seq 1 30); do
