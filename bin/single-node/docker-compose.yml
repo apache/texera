@@ -23,7 +23,7 @@ services:
     image: minio/minio:RELEASE.2025-02-28T09-55-16Z
     container_name: texera-minio
     ports:
-      - "9000:9000"
+      - "${MINIO_PORT:-9000}:9000"
     env_file:
       - .env
     volumes:
@@ -62,7 +62,7 @@ services:
       - .env
     environment:
       # This port also need to be changed if the port of MinIO service is changed
-      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:9000
+      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:${MINIO_PORT:-9000}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -209,7 +209,25 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "8080:8080"
+      - "${TEXERA_PORT:-8080}:8080"
+
+  startup-message:
+    image: alpine:latest
+    depends_on:
+      nginx:
+        condition: service_started
+    environment:
+      - TEXERA_PORT=${TEXERA_PORT:-8080}
+    restart: "no"
+    command: >
+      sh -c '
+      echo "";
+      echo "=========================================";
+      echo "  Texera is starting up!";
+      echo "  Access at: http://localhost:$$TEXERA_PORT";
+      echo "=========================================";
+      echo "";
+      '
 
 networks:
   default:
