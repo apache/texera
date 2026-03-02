@@ -97,7 +97,6 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-        # Add a health check so steps wait until Postgres is ready
         options: >-
           --health-cmd="pg_isready -U postgres"
           --health-interval=10s
@@ -129,20 +128,97 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_ddl.sql
           psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
+          psql -h localhost -U postgres -f sql/texera_lakekeeper.sql
         env:
           PGPASSWORD: postgres
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio --network host \
+            -e MINIO_ROOT_USER=texera_minio \
+            -e MINIO_ROOT_PASSWORD=password \
+            minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            echo "Waiting for MinIO... (attempt $i)"
+            sleep 2
+          done
+      - name: Start Lakekeeper
+        run: |
+          docker run --rm --network host \
+            -e LAKEKEEPER__PG_DATABASE_URL_READ=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_DATABASE_URL_WRITE=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_ENCRYPTION_KEY=texera_key \
+            vakamo/lakekeeper:v0.11.0 migrate
+
+          docker run -d --name lakekeeper --network host \
+            -e LAKEKEEPER__PG_DATABASE_URL_READ=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_DATABASE_URL_WRITE=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_ENCRYPTION_KEY=texera_key \
+            vakamo/lakekeeper:v0.11.0 serve
+
+          for i in $(seq 1 30); do
+            docker exec lakekeeper /home/nonroot/lakekeeper healthcheck && break
+            echo "Waiting for Lakekeeper to be ready... (attempt $i)"
+            sleep 2
+          done
+      - name: Initialize Lakekeeper Warehouse
+        run: |
+          docker run --rm --network host --entrypoint sh minio/mc -c \
+            "mc alias set minio http://localhost:9000 texera_minio password && \
+             mc mb --ignore-existing minio/texera-iceberg"
+
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d '{"project-id":"00000000-0000-0000-0000-000000000000","project-name":"default"}' \
+            http://localhost:8181/management/v1/project || true
+
+          curl -sf -X POST -H 'Content-Type: application/json' -d '{
+            "warehouse-name": "texera",
+            "project-id": "00000000-0000-0000-0000-000000000000",
+            "storage-profile": {
+              "type": "s3",
+              "bucket": "texera-iceberg",
+              "region": "us-west-2",
+              "endpoint": "http://localhost:9000",
+              "flavor": "s3-compat",
+              "path-style-access": true,
+              "sts-enabled": false
+            },
+            "storage-credential": {
+              "type": "s3",
+              "credential-type": "access-key",
+              "aws-access-key-id": "texera_minio",
+              "aws-secret-access-key": "password"
+            }
+          }' http://localhost:8181/management/v1/warehouse
       - name: Compile with sbt
         run: sbt clean package
+        env:
+          STORAGE_ICEBERG_CATALOG_TYPE: rest
+          STORAGE_ICEBERG_CATALOG_REST_URI: http://localhost:8181/catalog/
+          STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME: texera
+          STORAGE_S3_ENDPOINT: http://localhost:9000
+          STORAGE_S3_REGION: us-west-2
+          STORAGE_S3_AUTH_USERNAME: texera_minio
+          STORAGE_S3_AUTH_PASSWORD: password
       - name: Set docker-java API version
         run: |
           echo "api.version=1.52" >> ~/.docker-java.properties
           cat ~/.docker-java.properties
       - name: Run backend tests
         run: sbt test
+        env:
+          STORAGE_ICEBERG_CATALOG_TYPE: rest
+          STORAGE_ICEBERG_CATALOG_REST_URI: http://localhost:8181/catalog/
+          STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME: texera
+          STORAGE_S3_ENDPOINT: http://localhost:9000
+          STORAGE_S3_REGION: us-west-2
+          STORAGE_S3_AUTH_USERNAME: texera_minio
+          STORAGE_S3_AUTH_PASSWORD: password
 
   python:
     strategy:
@@ -166,9 +242,78 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Start PostgreSQL Service
         run: sudo systemctl start postgresql
+      - name: Configure PostgreSQL for TCP password auth
+        run: |
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+          PG_HBA=$(sudo -u postgres psql -t -c "SHOW hba_file;" | xargs)
+          sudo sed -i 's/local\s\+all\s\+all\s\+peer/local all all md5/' "$PG_HBA"
+          echo "host all all 127.0.0.1/32 md5" | sudo tee -a "$PG_HBA"
+          echo "host all all ::1/128 md5" | sudo tee -a "$PG_HBA"
+          sudo systemctl restart postgresql
       - name: Create Database and User
         run: |
           cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+          cd sql && sudo -u postgres psql -f texera_lakekeeper.sql
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio --network host \
+            -e MINIO_ROOT_USER=texera_minio \
+            -e MINIO_ROOT_PASSWORD=password \
+            minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            echo "Waiting for MinIO... (attempt $i)"
+            sleep 2
+          done
+      - name: Start Lakekeeper
+        run: |
+          docker run --rm --network host \
+            -e LAKEKEEPER__PG_DATABASE_URL_READ=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_DATABASE_URL_WRITE=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_ENCRYPTION_KEY=texera_key \
+            vakamo/lakekeeper:v0.11.0 migrate
+
+          docker run -d --name lakekeeper --network host \
+            -e LAKEKEEPER__PG_DATABASE_URL_READ=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_DATABASE_URL_WRITE=postgres://postgres:postgres@localhost:5432/texera_lakekeeper \
+            -e LAKEKEEPER__PG_ENCRYPTION_KEY=texera_key \
+            vakamo/lakekeeper:v0.11.0 serve
+
+          for i in $(seq 1 30); do
+            docker exec lakekeeper /home/nonroot/lakekeeper healthcheck && break
+            echo "Waiting for Lakekeeper to be ready... (attempt $i)"
+            sleep 2
+          done
+      - name: Initialize Lakekeeper Warehouse
+        run: |
+          docker run --rm --network host --entrypoint sh minio/mc -c \
+            "mc alias set minio http://localhost:9000 texera_minio password && \
+             mc mb --ignore-existing minio/texera-iceberg"
+
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d '{"project-id":"00000000-0000-0000-0000-000000000000","project-name":"default"}' \
+            http://localhost:8181/management/v1/project || true
+
+          curl -sf -X POST -H 'Content-Type: application/json' -d '{
+            "warehouse-name": "texera",
+            "project-id": "00000000-0000-0000-0000-000000000000",
+            "storage-profile": {
+              "type": "s3",
+              "bucket": "texera-iceberg",
+              "region": "us-west-2",
+              "endpoint": "http://localhost:9000",
+              "flavor": "s3-compat",
+              "path-style-access": true,
+              "sts-enabled": false
+            },
+            "storage-credential": {
+              "type": "s3",
+              "credential-type": "access-key",
+              "aws-access-key-id": "texera_minio",
+              "aws-secret-access-key": "password"
+            }
+          }' http://localhost:8181/management/v1/warehouse
       - name: Lint with Ruff
         run: |
           cd amber/src/main/python && ruff check . && ruff format --check .
