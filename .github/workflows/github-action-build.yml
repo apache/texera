@@ -166,6 +166,13 @@ jobs:
             echo "Waiting for Lakekeeper to be ready... (attempt $i)"
             sleep 2
           done
+
+          # Final check - fail with logs if Lakekeeper didn't start
+          docker exec lakekeeper /home/nonroot/lakekeeper healthcheck || {
+            echo "Lakekeeper failed to start. Container logs:"
+            docker logs lakekeeper
+            exit 1
+          }
       - name: Initialize Lakekeeper Warehouse
         run: |
           docker run --rm --network host --entrypoint sh minio/mc -c \
@@ -285,6 +292,13 @@ jobs:
             echo "Waiting for Lakekeeper to be ready... (attempt $i)"
             sleep 2
           done
+
+          # Final check - fail with logs if Lakekeeper didn't start
+          docker exec lakekeeper /home/nonroot/lakekeeper healthcheck || {
+            echo "Lakekeeper failed to start. Container logs:"
+            docker logs lakekeeper
+            exit 1
+          }
       - name: Initialize Lakekeeper Warehouse
         run: |
           docker run --rm --network host --entrypoint sh minio/mc -c \
