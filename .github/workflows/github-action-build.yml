@@ -260,8 +260,9 @@ jobs:
           sudo systemctl restart postgresql
       - name: Create Database and User
         run: |
-          cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
-          cd sql && sudo -u postgres psql -f texera_lakekeeper.sql
+          cd sql
+          sudo -u postgres psql -f iceberg_postgres_catalog.sql
+          sudo -u postgres psql -f texera_lakekeeper.sql
       - name: Start MinIO
         run: |
           docker run -d --name minio --network host \
