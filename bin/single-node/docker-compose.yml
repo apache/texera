@@ -229,6 +229,30 @@ services:
       echo "";
       '
 
+  # Part 4: Optional one-shot jobs
+  # Loads example datasets and workflows into Texera on first startup.
+  # Only runs when the "examples" profile is activated:
+  #   docker compose --profile examples up
+  example-data-loader:
+    image: alpine:latest
+    depends_on:
+      texera-web-application:
+        condition: service_healthy
+      file-service:
+        condition: service_healthy
+    volumes:
+      - ./examples:/examples:ro
+    environment:
+      - TEXERA_WEB_APPLICATION_URL=http://texera-web-application:8080/api
+      - TEXERA_FILE_SERVICE_URL=http://texera-file-service:9092/api
+      - TEXERA_EXAMPLE_USERNAME=${USER_SYS_ADMIN_USERNAME}
+      - TEXERA_EXAMPLE_PASSWORD=${USER_SYS_ADMIN_PASSWORD}
+    restart: "no"
+    profiles:
+      - examples
+    command: >
+      sh -c 'apk add --no-cache curl jq bash > /dev/null 2>&1 && bash /examples/load-examples.sh'
+
 networks:
   default:
     name: texera-single-node
