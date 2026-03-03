@@ -160,7 +160,7 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -f sql/texera_lakefs.sql
 
       - name: Generate JOOQ code
-        run: sbt "DAO/runMain org.apache.texera.dao.JooqCodeGenerator"
+        run: sbt DAO/jooqGenerate
 
       - name: Upload JOOQ generated code
         uses: actions/upload-artifact@v4
