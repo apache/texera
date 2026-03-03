@@ -158,10 +158,10 @@ services:
       timeout: 3s
       retries: 10
 
-  # WorkflowExecutionCoordinator provides endpoints for executing workflows and interactions during executions.
-  workflow-execution-coordinator:
+  # WorkflowRuntimeCoordinatorService provides endpoints for executing workflows and interactions during executions.
+  workflow-runtime-coordinator-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-execution-coordinator:${IMAGE_TAG:-latest}
-    container_name: workflow-execution-coordinator
+    container_name: workflow-runtime-coordinator-service
     restart: always
     depends_on:
       workflow-compiling-service:
@@ -177,7 +177,7 @@ services:
     container_name: dashboard-service
     restart: always
     depends_on:
-      workflow-execution-coordinator:
+      workflow-runtime-coordinator-service:
         condition: service_started
       workflow-compiling-service:
         condition: service_healthy
@@ -201,7 +201,7 @@ services:
       - workflow-compiling-service
       - file-service
       - dashboard-service
-      - workflow-execution-coordinator
+      - workflow-runtime-coordinator-service
       - config-service
       - access-control-service
       - workflow-computing-unit-managing-service
