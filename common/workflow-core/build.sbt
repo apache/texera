@@ -37,6 +37,10 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// Fork a separate JVM for tests to avoid sbt classloader conflicts
+// (iceberg-aws S3FileIO hits ClassCastException with layered classloaders)
+Test / fork := true
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
