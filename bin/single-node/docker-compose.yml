@@ -79,7 +79,7 @@ services:
   # FileService provides endpoints for Texera's dataset management
   file-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-file-service:${IMAGE_TAG:-latest}
-    container_name: texera-file-service
+    container_name: file-service
     restart: always
     depends_on:
       minio:
@@ -97,7 +97,7 @@ services:
   # ConfigService provides endpoints for configuration management
   config-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-config-service:${IMAGE_TAG:-latest}
-    container_name: texera-config-service
+    container_name: config-service
     restart: always
     depends_on:
       postgres:
@@ -113,7 +113,7 @@ services:
   # AccessControlService handles user permissions and access control
   access-control-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-access-control-service:${IMAGE_TAG:-latest}
-    container_name: texera-access-control-service
+    container_name: access-control-service
     restart: always
     depends_on:
       postgres:
@@ -129,7 +129,7 @@ services:
   # WorkflowComputingUnitManagingService provides endpoints for managing computing units
   workflow-computing-unit-managing-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-computing-unit-managing-service:${IMAGE_TAG:-latest}
-    container_name: texera-workflow-computing-unit-managing-service
+    container_name: workflow-computing-unit-managing-service
     restart: always
     depends_on:
       postgres:
@@ -145,7 +145,7 @@ services:
   # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
   workflow-compiling-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-compiling-service:${IMAGE_TAG:-latest}
-    container_name: texera-workflow-compiling-service
+    container_name: workflow-compiling-service
     restart: always
     depends_on:
       file-service:
@@ -158,11 +158,10 @@ services:
       timeout: 3s
       retries: 10
 
-  # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
-  computing-unit-master:
-    # to enable R operators, change the image tag to single-node-release-1-1-0-incubating-R
+  # WorkflowRuntimeCoordinatorService provides endpoints for executing workflows and interactions during executions.
+  workflow-runtime-coordinator-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-workflow-execution-coordinator:${IMAGE_TAG:-latest}
-    container_name: texera-computing-unit-master
+    container_name: workflow-runtime-coordinator-service
     restart: always
     depends_on:
       workflow-compiling-service:
@@ -172,13 +171,13 @@ services:
     volumes:
       - workflow_result_data:/amber/user-resources
 
-  # TexeraWebApplication provides endpoints for hub resource management.
-  texera-web-application:
+  # DashboardService provides endpoints for hub resource management.
+  dashboard-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-dashboard-service:${IMAGE_TAG:-latest}
-    container_name: texera-web-application
+    container_name: dashboard-service
     restart: always
     depends_on:
-      computing-unit-master:
+      workflow-runtime-coordinator-service:
         condition: service_started
       workflow-compiling-service:
         condition: service_healthy
@@ -201,8 +200,8 @@ services:
     depends_on:
       - workflow-compiling-service
       - file-service
-      - texera-web-application
-      - computing-unit-master
+      - dashboard-service
+      - workflow-runtime-coordinator-service
       - config-service
       - access-control-service
       - workflow-computing-unit-managing-service
