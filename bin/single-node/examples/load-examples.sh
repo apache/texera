@@ -23,8 +23,8 @@
 set -euo pipefail
 
 # Configuration from environment variables with defaults
-TEXERA_WEB_APPLICATION_URL=${TEXERA_WEB_APPLICATION_URL:-"http://texera-web-application:8080/api"}
-TEXERA_FILE_SERVICE_URL=${TEXERA_FILE_SERVICE_URL:-"http://texera-file-service:9092/api"}
+TEXERA_DASHBOARD_SERVICE_URL=${TEXERA_DASHBOARD_SERVICE_URL:-"http://dashboard-service:8080/api"}
+TEXERA_FILE_SERVICE_URL=${TEXERA_FILE_SERVICE_URL:-"http://file-service:9092/api"}
 USERNAME=${TEXERA_EXAMPLE_USERNAME:-"texera"}
 PASSWORD=${TEXERA_EXAMPLE_PASSWORD:-"texera"}
 # In Texera, registration sets email = username
@@ -80,7 +80,7 @@ wait_for_service() {
 # Authenticate and obtain JWT token
 authenticate() {
     print_status "Logging in as $USERNAME..."
-    LOGIN_RESPONSE=$(curl -s -X POST "$TEXERA_WEB_APPLICATION_URL/auth/login" \
+    LOGIN_RESPONSE=$(curl -s -X POST "$TEXERA_DASHBOARD_SERVICE_URL/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\"}")
 
@@ -91,7 +91,7 @@ authenticate() {
     fi
 
     print_status "User doesn't exist, attempting to register..."
-    REGISTER_RESPONSE=$(curl -s -X POST "$TEXERA_WEB_APPLICATION_URL/auth/register" \
+    REGISTER_RESPONSE=$(curl -s -X POST "$TEXERA_DASHBOARD_SERVICE_URL/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\"}")
 
@@ -230,7 +230,7 @@ load_workflows() {
     fi
 
     # Get list of existing workflows
-    WORKFLOW_LIST_RESPONSE=$(curl -s -X GET "$TEXERA_WEB_APPLICATION_URL/workflow/list" \
+    WORKFLOW_LIST_RESPONSE=$(curl -s -X GET "$TEXERA_DASHBOARD_SERVICE_URL/workflow/list" \
         -H "Authorization: Bearer $TOKEN")
 
     for workflow_file in "$WORKFLOW_DIR"/*.json; do
@@ -253,7 +253,7 @@ load_workflows() {
         fi
 
         print_status "Creating workflow: $workflow_name"
-        response=$(curl -s -X POST "$TEXERA_WEB_APPLICATION_URL/workflow/create" \
+        response=$(curl -s -X POST "$TEXERA_DASHBOARD_SERVICE_URL/workflow/create" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"name\":\"$workflow_name\", \"content\": $(jq -Rs <<< "$content")}")
@@ -274,7 +274,7 @@ load_workflows() {
 main() {
     print_status "=== Texera Example Data Loader ==="
 
-    wait_for_service "Web Application" "$TEXERA_WEB_APPLICATION_URL/healthcheck"
+    wait_for_service "Dashboard Service" "$TEXERA_DASHBOARD_SERVICE_URL/healthcheck"
     wait_for_service "File Service" "$TEXERA_FILE_SERVICE_URL/healthcheck"
 
     authenticate
