@@ -242,7 +242,7 @@ services:
     volumes:
       - ./examples:/examples:ro
     environment:
-      - TEXERA_WEB_APPLICATION_URL=http://dashboard-service:8080/api
+      - TEXERA_DASHBOARD_SERVICE_URL=http://dashboard-service:8080/api
       - TEXERA_FILE_SERVICE_URL=http://file-service:9092/api
       - TEXERA_EXAMPLE_USERNAME=${USER_SYS_ADMIN_USERNAME}
       - TEXERA_EXAMPLE_PASSWORD=${USER_SYS_ADMIN_PASSWORD}
