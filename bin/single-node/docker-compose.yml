@@ -46,7 +46,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # mount the sql files for initializing the postgres
-      - ../../sql:/docker-entrypoint-initdb.d
+      - ./sql:/docker-entrypoint-initdb.d
 
   # lakeFS is the underlying storage of Texera's dataset service
   lakefs:
@@ -235,15 +235,15 @@ services:
   example-data-loader:
     image: alpine:latest
     depends_on:
-      texera-web-application:
+      dashboard-service:
         condition: service_healthy
       file-service:
         condition: service_healthy
     volumes:
       - ./examples:/examples:ro
     environment:
-      - TEXERA_WEB_APPLICATION_URL=http://texera-web-application:8080/api
-      - TEXERA_FILE_SERVICE_URL=http://texera-file-service:9092/api
+      - TEXERA_DASHBOARD_SERVICE_URL=http://dashboard-service:8080/api
+      - TEXERA_FILE_SERVICE_URL=http://file-service:9092/api
       - TEXERA_EXAMPLE_USERNAME=${USER_SYS_ADMIN_USERNAME}
       - TEXERA_EXAMPLE_PASSWORD=${USER_SYS_ADMIN_PASSWORD}
     restart: "no"
