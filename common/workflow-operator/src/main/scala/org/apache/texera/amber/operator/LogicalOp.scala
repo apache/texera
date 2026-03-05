@@ -124,6 +124,7 @@ import org.apache.texera.amber.operator.visualization.nestedTable.NestedTableOpD
 import org.apache.texera.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import org.apache.texera.amber.operator.visualization.pieChart.PieChartOpDesc
 import org.apache.texera.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
+import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
 import org.apache.texera.amber.operator.visualization.rangeSlider.RangeSliderOpDesc
 import org.apache.texera.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
 import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDesc
@@ -190,6 +191,7 @@ trait StateTransferFunc
     new Type(value = classOf[RangeSliderOpDesc], name = "RangeSlider"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
+    new Type(value = classOf[RadarChartOpDesc], name = "RadarChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[UrlVizOpDesc], name = "URLVisualizer"),
