@@ -222,7 +222,7 @@ services:
       sh -c '
       echo "";
       echo "=========================================";
-      echo "  Texera is starting up!";
+      echo "  Texera has started successfully!";
       echo "  Access at: http://localhost:$$TEXERA_PORT";
       echo "=========================================";
       echo "";
