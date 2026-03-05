@@ -33,8 +33,14 @@ class WordCloudOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "use correct regex pattern to match word characters" in {
     opDesc.textColumn = "text_col"
     val code = opDesc.manipulateTable().plain
-    assert(code.contains("""r'\w'"""), "regex should use single backslash \\w to match word characters")
-    assert(!code.contains("""r'\\w'"""), "regex should not use double backslash \\\\w which matches literal backslash+w")
+    assert(
+      code.contains("""r'\w'"""),
+      "regex should use single backslash \\w to match word characters"
+    )
+    assert(
+      !code.contains("""r'\\w'"""),
+      "regex should not use double backslash \\\\w which matches literal backslash+w"
+    )
   }
 
   it should "include the text column in manipulateTable" in {
