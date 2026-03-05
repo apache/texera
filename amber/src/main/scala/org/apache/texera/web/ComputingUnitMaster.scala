@@ -22,6 +22,7 @@ package org.apache.texera.web
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.Configuration
+import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.apache.texera.amber.config.{ApplicationConfig, StorageConfig}
@@ -49,6 +50,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutions
 import org.apache.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
 import org.apache.texera.web.service.ExecutionsMetadataPersistService
 import org.eclipse.jetty.server.session.SessionHandler
+import org.eclipse.jetty.servlet.FilterHolder
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 
 import java.net.URI
@@ -112,6 +114,13 @@ object ComputingUnitMaster {
 class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with LazyLogging {
 
   override def initialize(bootstrap: Bootstrap[Configuration]): Unit = {
+    // enable environment variable substitution in YAML config
+    bootstrap.setConfigurationSourceProvider(
+      new SubstitutingSourceProvider(
+        bootstrap.getConfigurationSourceProvider,
+        new EnvironmentVariableSubstitutor(false)
+      )
+    )
     // add websocket bundle
     bootstrap.addBundle(new WebsocketBundle(classOf[WorkflowWebsocketResource]))
     // register scala module to dropwizard default object mapper
@@ -180,6 +189,32 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     }
 
     environment.jersey.register(classOf[WorkflowExecutionsResource])
+
+    // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.
+    // TODO: replace with RequestLoggingFilter.register() from common/auth once Dropwizard is upgraded to 4.x
+    val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
+    environment.getApplicationContext.addFilter(
+      new FilterHolder(new javax.servlet.Filter {
+        override def init(filterConfig: javax.servlet.FilterConfig): Unit = {}
+        override def doFilter(
+            request: javax.servlet.ServletRequest,
+            response: javax.servlet.ServletResponse,
+            chain: javax.servlet.FilterChain
+        ): Unit = {
+          chain.doFilter(request, response)
+          if (requestLogger.isInfoEnabled) {
+            val req = request.asInstanceOf[javax.servlet.http.HttpServletRequest]
+            val resp = response.asInstanceOf[javax.servlet.http.HttpServletResponse]
+            requestLogger.info(
+              s"""${req.getRemoteAddr} - "${req.getMethod} ${req.getRequestURI} ${req.getProtocol}" ${resp.getStatus}"""
+            )
+          }
+        }
+        override def destroy(): Unit = {}
+      }),
+      "/*",
+      java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
+    )
   }
 
   /**

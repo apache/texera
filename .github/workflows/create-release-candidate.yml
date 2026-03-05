@@ -175,9 +175,20 @@ jobs:
           else
             echo "IMAGE_TAG=${COMMIT_SHORT}" >> "$BUNDLE_DIR/.env"
           fi
+          if grep -q '^TEXERA_SERVICE_LOG_LEVEL=' "$BUNDLE_DIR/.env"; then
+            sed -i "s|^TEXERA_SERVICE_LOG_LEVEL=.*|TEXERA_SERVICE_LOG_LEVEL=ERROR|" "$BUNDLE_DIR/.env"
+          else
+            echo "TEXERA_SERVICE_LOG_LEVEL=ERROR" >> "$BUNDLE_DIR/.env"
+          fi
 
           # Include the README from the repo
           cp "$TEMP_DIR/_raw/bin/single-node/README.md" "$BUNDLE_DIR/"
+
+          # Include example datasets, workflows, and the loader script
+          if [ -d "$TEMP_DIR/_raw/bin/single-node/examples" ]; then
+            cp -r "$TEMP_DIR/_raw/bin/single-node/examples" "$BUNDLE_DIR/"
+            echo "✓ Included examples directory (datasets, workflows, load-examples.sh)"
+          fi
 
           # Create tarball
           cd "$TEMP_DIR"
