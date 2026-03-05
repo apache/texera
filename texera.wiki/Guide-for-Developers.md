@@ -13,9 +13,9 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 11)
 ```
 On Windows, add a system environment variable called `JAVA_HOME` that points to the JDK directory.
 
-#### Python@3.12
+#### Python@3.12/3.11/3.10
 
-Install Python 3.12 from the official site or your preferred package manager.
+Install Python 3.12 (or 3.11/3.10) from the official site or your preferred package manager.
 
 #### **Git**
 

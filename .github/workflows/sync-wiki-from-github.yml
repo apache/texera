@@ -14,18 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Sync Wiki
+name: Sync Wiki from GitHub
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'texera.wiki/**'
+  gollum:
   workflow_dispatch:
 
 jobs:
-  sync-wiki:
+  sync-from-wiki:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -41,23 +37,23 @@ jobs:
           repository: ${{ github.repository }}.wiki
           path: wiki-repo
 
-      - name: Sync texera.wiki to Wiki
+      - name: Sync Wiki to texera.wiki
         run: |
-          # Clear existing wiki content (excluding .git)
-          find wiki-repo -mindepth 1 -maxdepth 1 ! -name ".git" -exec rm -rf {} +
+          # Clear existing texera.wiki content in main repo (excluding .git or other ignored files if any)
+          rm -rf main-repo/texera.wiki/*
           
           # Copy new wiki content
-          cp -rT main-repo/texera.wiki wiki-repo
+          cp -rT wiki-repo main-repo/texera.wiki/
           
-          # Commit and push
-          cd wiki-repo
+          # Commit and push to main repo
+          cd main-repo
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add .
+          git add texera.wiki/
           
           if git diff-index --quiet HEAD; then
             echo "No changes to sync."
           else
-            git commit -m "docs: sync wiki from main repo [skip ci]"
+            git commit -m "docs: sync wiki from GitHub [skip ci]"
             git push
           fi
