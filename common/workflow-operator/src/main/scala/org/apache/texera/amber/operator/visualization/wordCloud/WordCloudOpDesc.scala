@@ -52,7 +52,6 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -67,7 +66,7 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
   def manipulateTable(): PythonTemplateBuilder = {
     pyb"""
        |        table.dropna(subset = [$textColumn], inplace = True) #remove missing values
-       |        table = table[table[$textColumn].str.contains(r'\\w', regex=True)]
+       |        table = table[table[$textColumn].str.contains(r'\w', regex=True)]
        |"""
   }
 
