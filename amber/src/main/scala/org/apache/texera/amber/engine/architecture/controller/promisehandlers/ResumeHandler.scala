@@ -63,8 +63,10 @@ trait ResumeHandler {
         val edgeStats = cp.workflowExecution.getAllRegionEdgeStatistics
         sendToClient(ExecutionStatsUpdate(stats, edgeStats))
         sendToClient(RuntimeStatisticsPersist(stats))
-        cp.controllerTimerService.enableStatusUpdate()
-        cp.controllerTimerService.enableRuntimeStatisticsCollection()
+        cp.controllerTimerService
+          .enableStatusUpdate() //re-enabled it since it is disabled in pause
+        cp.controllerTimerService
+          .enableRuntimeStatisticsCollection() //re-enabled it since it is disabled in pause
         EmptyReturn()
       }
   }
