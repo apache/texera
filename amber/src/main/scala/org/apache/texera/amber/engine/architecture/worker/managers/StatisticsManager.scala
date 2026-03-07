@@ -47,7 +47,10 @@ class StatisticsManager {
     * @param operator the operator executor
     * @return a WorkerStatistics object containing the statistics
     */
-  def getStatistics(operator: OperatorExecutor): WorkerStatistics = {
+  def getStatistics(
+      operator: OperatorExecutor,
+      channelUsageBytes: Map[String, Long]
+  ): WorkerStatistics = {
     WorkerStatistics(
       inputStatistics.map {
         case (portId, (tupleCount, tupleSize)) =>
@@ -59,7 +62,8 @@ class StatisticsManager {
       }.toSeq,
       dataProcessingTime,
       controlProcessingTime,
-      totalExecutionTime - dataProcessingTime - controlProcessingTime
+      totalExecutionTime - dataProcessingTime - controlProcessingTime,
+      channelUsageBytes
     )
   }
 
