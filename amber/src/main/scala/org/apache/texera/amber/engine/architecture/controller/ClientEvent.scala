@@ -23,13 +23,16 @@ import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
-import org.apache.texera.amber.engine.common.executionruntimestate.OperatorMetrics
+import org.apache.texera.amber.engine.common.executionruntimestate.{EdgeStatistics, OperatorMetrics}
 
 trait ClientEvent extends WorkflowFIFOMessagePayload
 
 case class ExecutionStateUpdate(state: WorkflowAggregatedState) extends ClientEvent
 
-case class ExecutionStatsUpdate(operatorMetrics: Map[String, OperatorMetrics]) extends ClientEvent
+case class ExecutionStatsUpdate(
+    operatorMetrics: Map[String, OperatorMetrics],
+    edgeStatistics: Seq[EdgeStatistics] = Seq.empty
+) extends ClientEvent
 
 case class RuntimeStatisticsPersist(operatorMetrics: Map[String, OperatorMetrics])
     extends ClientEvent

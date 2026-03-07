@@ -85,10 +85,11 @@ trait PauseHandler {
       .map { _ =>
         // update frontend workflow status and persist statistics
         val stats = cp.workflowExecution.getAllRegionExecutionsStats
-        sendToClient(ExecutionStatsUpdate(stats))
+        val edgeStats = cp.workflowExecution.getAllRegionEdgeStatistics
+        sendToClient(ExecutionStatsUpdate(stats, edgeStats))
         sendToClient(RuntimeStatisticsPersist(stats))
         sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
-        logger.info(s"workflow paused")
+        logger.info("workflow paused")
       }
     EmptyReturn()
   }

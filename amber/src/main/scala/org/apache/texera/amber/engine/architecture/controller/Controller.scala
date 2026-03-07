@@ -244,7 +244,8 @@ class Controller(
     outputMessages.foreach(transferService.send)
     cp.asyncRPCClient.sendToClient(
       ExecutionStatsUpdate(
-        cp.workflowExecution.getAllRegionExecutionsStats
+        cp.workflowExecution.getAllRegionExecutionsStats,
+        cp.workflowExecution.getAllRegionEdgeStatistics
       )
     )
     globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)

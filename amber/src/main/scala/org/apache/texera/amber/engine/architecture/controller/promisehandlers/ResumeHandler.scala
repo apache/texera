@@ -60,12 +60,11 @@ trait ResumeHandler {
       .map { _ =>
         // update frontend status and persist statistics
         val stats = cp.workflowExecution.getAllRegionExecutionsStats
-        sendToClient(ExecutionStatsUpdate(stats))
+        val edgeStats = cp.workflowExecution.getAllRegionEdgeStatistics
+        sendToClient(ExecutionStatsUpdate(stats, edgeStats))
         sendToClient(RuntimeStatisticsPersist(stats))
-        cp.controllerTimerService
-          .enableStatusUpdate() //re-enabled it since it is disabled in pause
-        cp.controllerTimerService
-          .enableRuntimeStatisticsCollection() //re-enabled it since it is disabled in pause
+        cp.controllerTimerService.enableStatusUpdate()
+        cp.controllerTimerService.enableRuntimeStatisticsCollection()
         EmptyReturn()
       }
   }

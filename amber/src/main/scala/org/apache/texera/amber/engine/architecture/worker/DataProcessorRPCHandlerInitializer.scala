@@ -41,6 +41,7 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with OpenExecutorHandler
     with PauseHandler
     with AddPartitioningHandler
+    with QueryFlowControlUsageHandler
     with QueryStatisticsHandler
     with ResumeHandler
     with StartHandler
