@@ -172,6 +172,7 @@ class WorkflowWorker(
     logger.info("output messages restored.")
     dp = dpState // overwrite dp state
     dp.outputHandler = logManager.sendCommitted
+    dp.setChannelUsageBytesProvider(() => transferService.getChannelUsageBytes)
     dp.initTimerService(timerService)
     logger.info("start re-initialize executor from checkpoint.")
     val (executor, iter) = dp.serializationManager.restoreExecutorState(chkpt)
