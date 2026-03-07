@@ -55,6 +55,7 @@ message WorkerStatistics {
   int64 data_processing_time = 3;
   int64 control_processing_time = 4;
   int64 idle_time = 5;
+  map<string, int64> channel_usage_bytes = 6;
 }
 
 message WorkerMetrics {
