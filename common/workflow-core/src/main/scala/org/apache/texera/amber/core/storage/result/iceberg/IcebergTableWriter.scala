@@ -107,10 +107,19 @@ private[storage] class IcebergTableWriter[T](
   private def flushBuffer(): Unit = {
     if (buffer.nonEmpty) {
       // Create a unique file path using the writer's identifier and the filename index
-      val filepath = Paths.get(table.location()).resolve(s"${writerIdentifier}_${filenameIdx}")
+      // Handle S3 URIs (s3://) differently from local file paths to preserve URI format
+      val location = table.location()
+      val filepathString = if (location.startsWith("s3://")) {
+        // For S3 URIs, append path component directly as string to preserve s3:// format
+        val basePath = if (location.endsWith("/")) location else s"$location/"
+        s"$basePath${writerIdentifier}_${filenameIdx}"
+      } else {
+        // For local file paths, use Paths.get() for proper path resolution
+        Paths.get(location).resolve(s"${writerIdentifier}_${filenameIdx}").toString
+      }
       // Increment the filename index by 1
       filenameIdx += 1
-      val outputFile: OutputFile = table.io().newOutputFile(filepath.toString)
+      val outputFile: OutputFile = table.io().newOutputFile(filepathString)
       // Create a Parquet data writer to write a new file
       val dataWriter: DataWriter[Record] = Parquet
         .writeData(outputFile)

@@ -22,9 +22,10 @@ package org.apache.texera.amber.util
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
-import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
+import org.apache.iceberg.catalog.{Catalog, SupportsNamespaces, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.data.{GenericRecord, Record}
+import org.apache.iceberg.aws.s3.S3FileIO
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
@@ -40,6 +41,8 @@ import org.apache.iceberg.{
   TableProperties,
   Schema => IcebergSchema
 }
+import org.apache.iceberg.catalog.Namespace
+import org.apache.iceberg.exceptions.AlreadyExistsException
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
@@ -96,22 +99,32 @@ object IcebergUtil {
     * TODO: Add authentication support, such as OAuth2, using `OAuth2Properties`.
     *
     * @param catalogName the name of the catalog.
-    * @param warehouse   the root path for the warehouse where the tables are stored.
+    * @param warehouse   the warehouse identifier (for Lakekeeper).
     * @return the initialized RESTCatalog instance.
     */
   def createRestCatalog(
       catalogName: String,
-      warehouse: Path
+      warehouse: String
   ): RESTCatalog = {
     val catalog = new RESTCatalog()
-    catalog.initialize(
-      catalogName,
-      Map(
-        "warehouse" -> warehouse.toString,
-        CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri,
-        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
-      ).asJava
+
+    // Build base properties map
+    var properties = Map(
+      "warehouse" -> warehouse,
+      CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri
     )
+
+    properties = properties ++ Map(
+      CatalogProperties.FILE_IO_IMPL -> classOf[S3FileIO].getName,
+      // S3FileIO configuration for MinIO
+      "s3.endpoint" -> StorageConfig.s3Endpoint,
+      "s3.access-key-id" -> StorageConfig.s3Username,
+      "s3.secret-access-key" -> StorageConfig.s3Password,
+      "s3.region" -> StorageConfig.s3Region,
+      "s3.path-style-access" -> "true"
+    )
+
+    catalog.initialize(catalogName, properties.asJava)
     catalog
   }
 
@@ -164,6 +177,20 @@ object IcebergUtil {
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
+
+    val namespace = Namespace.of(tableNamespace)
+
+    catalog match {
+      case nsCatalog: SupportsNamespaces =>
+        try nsCatalog.createNamespace(namespace, Map.empty[String, String].asJava)
+        catch {
+          case _: AlreadyExistsException => ()
+        }
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Catalog ${catalog.getClass.getName} does not support namespaces"
+        )
+    }
 
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {

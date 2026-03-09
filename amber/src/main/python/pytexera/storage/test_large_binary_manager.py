@@ -27,16 +27,19 @@ class TestLargeBinaryManager:
         """Initialize StorageConfig for tests."""
         if not StorageConfig._initialized:
             StorageConfig.initialize(
+                catalog_type="postgres",
                 postgres_uri_without_scheme="localhost:5432/test",
                 postgres_username="test",
                 postgres_password="test",
+                rest_catalog_uri="http://localhost:8181/catalog/",
+                rest_catalog_warehouse_name="texera",
                 table_result_namespace="test",
                 directory_path="/tmp/test",
                 commit_batch_size=1000,
                 s3_endpoint="http://localhost:9000",
-                s3_region="us-east-1",
-                s3_auth_username="minioadmin",
-                s3_auth_password="minioadmin",
+                s3_region="us-west-2",
+                s3_auth_username="texera_minio",
+                s3_auth_password="password",
             )
 
     def test_get_s3_client_initializes_once(self):
