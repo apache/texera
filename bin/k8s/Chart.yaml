@@ -59,6 +59,11 @@ dependencies:
     repository: oci://docker.io/envoyproxy
     alias: envoy-gateway
 
+  - name: lakekeeper
+    version: 0.9.0
+    repository: https://lakekeeper.github.io/lakekeeper-charts/
+    condition: lakekeeper.enabled
+
   - name: metrics-server
     version: 3.12.2
     repository: https://kubernetes-sigs.github.io/metrics-server/
