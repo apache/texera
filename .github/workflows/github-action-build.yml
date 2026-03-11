@@ -140,6 +140,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
+        # Add a health check so steps wait until Postgres is ready
         options: >-
           --health-cmd="pg_isready -U postgres"
           --health-interval=10s
