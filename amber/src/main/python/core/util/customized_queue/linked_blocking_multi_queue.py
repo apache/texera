@@ -186,9 +186,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                 self.fully_unlock()
 
         def unlink(
-                self,
-                trail: LinkedBlockingMultiQueue.Node,
-                next_: LinkedBlockingMultiQueue.Node,
+            self,
+            trail: LinkedBlockingMultiQueue.Node,
+            next_: LinkedBlockingMultiQueue.Node,
         ) -> None:
             trail.item = None
             trail.next = next_.next
@@ -261,7 +261,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
     @inner
     class DefaultSubQueueSelection(Generic[T]):
         def __init__(
-                self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]
+            self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]
         ):
             self.priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]] = (
                 priority_groups
@@ -282,7 +282,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             return None
 
         def set_priority_groups(
-                self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]
+            self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]
         ) -> None:
             self.priority_groups = priority_groups
 
