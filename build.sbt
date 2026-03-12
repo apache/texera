@@ -18,7 +18,7 @@
 // Copy LICENSE, NOTICE, and DISCLAIMER-WIP from the repo root into META-INF of every JAR.
 // This ensures ASF licensing files are present in all binary artifacts.
 lazy val asfLicensingSettings = Seq(
-  Compile / resourceGenerators += Task {
+  Compile / resourceGenerators += Def.task {
     val rootDir = (ThisBuild / baseDirectory).value
     val metaInfDir = (Compile / resourceManaged).value / "META-INF"
     val filesToCopy = Seq("LICENSE", "NOTICE", "DISCLAIMER-WIP")
@@ -30,7 +30,7 @@ lazy val asfLicensingSettings = Seq(
         Seq(dest)
       } else Seq.empty
     }
-  }
+  }.taskValue
 )
 
 lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
