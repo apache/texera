@@ -21,17 +21,17 @@ package org.apache.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.auth.AuthDynamicFeature
+import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
+import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
   ComputingUnitAccessResource,
   ComputingUnitManagingResource,
   HealthCheckResource
 }
-
 import java.nio.file.Path
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
@@ -39,6 +39,13 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
   override def initialize(
       bootstrap: Bootstrap[ComputingUnitManagingServiceConfiguration]
   ): Unit = {
+    // enable environment variable substitution in YAML config
+    bootstrap.setConfigurationSourceProvider(
+      new SubstitutingSourceProvider(
+        bootstrap.getConfigurationSourceProvider,
+        new EnvironmentVariableSubstitutor(false)
+      )
+    )
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
@@ -65,6 +72,9 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 
     environment.jersey().register(new ComputingUnitManagingResource)
     environment.jersey().register(new ComputingUnitAccessResource)
+
+    // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
+    RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 

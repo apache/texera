@@ -120,7 +120,6 @@ export interface WorkflowResultUpdateEvent
   extends Readonly<{
     updates: WorkflowResultUpdate;
     tableStats: WorkflowResultTableStats;
-    sinkStorageMode: string;
   }> {}
 
 // user-defined type guards to check the type of the result update
