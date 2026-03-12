@@ -26,6 +26,9 @@ on:
       - 'ci-enable/**'
       - 'main'
   pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
   workflow_dispatch:
 
 concurrency:
@@ -33,7 +36,66 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  check-permissions:
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '/safe-to-test')
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve SHA
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" == "issue_comment" ]; then
+            SHA=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.head.sha')
+            echo "sha=$SHA" >> $GITHUB_OUTPUT
+          else
+            echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Check committer permission for /safe-to-test
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission' 2>/dev/null || echo "none")
+          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
+            echo "::error::Only committers can approve /safe-to-test."
+            exit 1
+          fi
+
+      - name: Check if build workflow was modified by non-committer
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -c "^\.github/workflows/github-action-build\.yml$" || true)
+          if [ "$CHANGED" -gt "0" ]; then
+            PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission' 2>/dev/null || echo "none")
+            if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
+              echo "::error::This PR modifies the build workflow. A committer must comment '/safe-to-test' on this PR to approve it."
+              exit 1
+            fi
+          fi
+
   frontend:
+    needs: check-permissions
+    if: always() && needs.check-permissions.result == 'success'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -50,6 +112,8 @@ jobs:
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.check-permissions.outputs.sha }}
       - name: Setup node
         uses: actions/setup-node@v5
         with:
@@ -81,6 +145,8 @@ jobs:
         run: yarn --cwd frontend run build:ci
 
   scala:
+    needs: check-permissions
+    if: always() && needs.check-permissions.result == 'success'
     strategy:
       matrix:
         os: [ ubuntu-22.04 ]
@@ -106,6 +172,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.check-permissions.outputs.sha }}
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
@@ -145,6 +213,8 @@ jobs:
         run: sbt test
 
   python:
+    needs: check-permissions
+    if: always() && needs.check-permissions.result == 'success'
     strategy:
       matrix:
         os: [ ubuntu-latest ]
@@ -153,6 +223,8 @@ jobs:
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.check-permissions.outputs.sha }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
