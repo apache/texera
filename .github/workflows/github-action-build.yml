@@ -25,8 +25,9 @@ on:
     branches:
       - 'ci-enable/**'
       - 'main'
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["Check Permissions"]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -34,48 +35,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  check-permissions:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Get changed files
-        id: changed-files
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -c "^\.github/workflows/github-action-build\.yml$" || true)
-            if [ "$CHANGED" -gt "0" ]; then
-              echo "any_changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "any_changed=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "any_changed=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Check if actor is a committer
-        id: check-committer
-        if: steps.changed-files.outputs.any_changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission' 2>/dev/null || echo "none")
-          if [[ "$PERMISSION" == "admin" || "$PERMISSION" == "maintain" || "$PERMISSION" == "write" ]]; then
-            echo "is_committer=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_committer=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Require approval if workflow changed
-        if: |
-          steps.changed-files.outputs.any_changed == 'true' &&
-          steps.check-committer.outputs.is_committer == 'false'
-        run: |
-          echo "::error::This PR modifies the build workflow. A committer must review and re-run this workflow manually."
-          exit 1
-
   frontend:
-    needs: check-permissions
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -123,7 +84,7 @@ jobs:
         run: yarn --cwd frontend run build:ci
 
   scala:
-    needs: check-permissions
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       matrix:
         os: [ ubuntu-22.04 ]
@@ -188,7 +149,7 @@ jobs:
         run: sbt test
 
   python:
-    needs: check-permissions
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       matrix:
         os: [ ubuntu-latest ]
