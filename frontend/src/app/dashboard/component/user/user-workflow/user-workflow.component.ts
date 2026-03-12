@@ -27,7 +27,7 @@ import {
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardEntry } from "../../../type/dashboard-entry";
+import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -45,7 +45,6 @@ import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { SearchResultItem } from "../../../type/search-result";
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -290,13 +289,30 @@ export class UserWorkflowComponent implements AfterViewInit {
           );
         }
 
-        const searchResultItems: SearchResultItem[] = duplicatedWorkflowsInfo.map(w => ({
-          resourceType: "workflow",
-          workflow: w,
-        }));
-        const newEntries = await firstValueFrom(
-          this.searchService.extendSearchResultsWithHubActivityInfo(searchResultItems, this.isLogin, ["access"])
-        );
+        const userIds = new Set<number>();
+        duplicatedWorkflowsInfo.forEach(workflow => {
+          if (workflow.ownerId) {
+            userIds.add(workflow.ownerId);
+          }
+        });
+
+        let userIdToInfoMap: { [key: number]: UserInfo } = {};
+        if (userIds.size > 0) {
+          userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
+        }
+
+        const newEntries = duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => {
+          const entry = new DashboardEntry(duplicatedWorkflowInfo);
+          const userInfo = userIdToInfoMap[duplicatedWorkflowInfo.ownerId];
+          if (userInfo) {
+            entry.setOwnerName(userInfo.userName);
+            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+          }
+          if (this.currentUid !== undefined) {
+            entry.setAccessUsers([this.currentUid]);
+          }
+          return entry;
+        });
 
         this.searchResultsComponent.entries = [...newEntries, ...this.searchResultsComponent.entries];
       } catch (err: unknown) {
