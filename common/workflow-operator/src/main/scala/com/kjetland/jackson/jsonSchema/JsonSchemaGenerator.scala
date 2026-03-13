@@ -1483,6 +1483,7 @@ class JsonSchemaGenerator(
   }
 
   def generateTitleFromPropertyName(propertyName: String): String = {
+    if (propertyName.isEmpty) return propertyName
     // Insert spaces at camelCase/PascalCase boundaries and letter-to-non-letter transitions.
     val builder = new StringBuilder
     for (i <- propertyName.indices) {
