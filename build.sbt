@@ -15,12 +15,32 @@
 // specific language governing permissions and limitations
 // under the License.
 
-lazy val DAO = project in file("common/dao")
-lazy val Config = project in file("common/config")
+// Copy LICENSE, NOTICE, and DISCLAIMER-WIP from the repo root into META-INF of every JAR.
+// This ensures ASF licensing files are present in all binary artifacts.
+lazy val asfLicensingSettings = Seq(
+  Compile / resourceGenerators += Def.task {
+    val rootDir = (ThisBuild / baseDirectory).value
+    val metaInfDir = (Compile / resourceManaged).value / "META-INF"
+    val filesToCopy = Seq("LICENSE", "NOTICE", "DISCLAIMER-WIP")
+    filesToCopy.flatMap { fileName =>
+      val src = rootDir / fileName
+      if (src.exists()) {
+        val dest = metaInfDir / fileName
+        IO.copyFile(src, dest)
+        Seq(dest)
+      } else Seq.empty
+    }
+  }.taskValue
+)
+
+lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
+lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
 lazy val Auth = (project in file("common/auth"))
+  .settings(asfLicensingSettings)
   .dependsOn(DAO, Config)
 lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -29,6 +49,7 @@ lazy val ConfigService = (project in file("config-service"))
   )
 lazy val AccessControlService = (project in file("access-control-service"))
   .dependsOn(Auth, Config, DAO)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -41,15 +62,18 @@ lazy val AccessControlService = (project in file("access-control-service"))
 //This Scala module defines a pyb"..." macro-based DSL for composing Python code templates as an immutable PythonTemplateBuilder.
 //Used mainly for Python Native Operators
 lazy val PyBuilder = (project in file("common/pybuilder"))
+  .settings(asfLicensingSettings)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
+  .settings(asfLicensingSettings)
   .dependsOn(DAO, Config, PyBuilder)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -57,6 +81,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
     )
   )
 lazy val FileService = (project in file("file-service"))
+  .settings(asfLicensingSettings)
   .dependsOn(WorkflowCore, Auth, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
@@ -69,9 +94,10 @@ lazy val FileService = (project in file("file-service"))
     )
   )
 
-lazy val WorkflowOperator = (project in file("common/workflow-operator")).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettings).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -83,6 +109,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
 
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
+  .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % "2.15.1",
