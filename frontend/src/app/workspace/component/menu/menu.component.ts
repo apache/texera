@@ -630,22 +630,20 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     const comp: MarkdownDescriptionComponent = modalRef.getContentComponent();
 
-    comp.descriptionChange
-      .pipe(untilDestroyed(this))
-      .subscribe((updatedDescription: string) => {
-        const updatedWorkflow: Workflow = {
-          ...currentWorkflow,
-          description: updatedDescription,
-        };
+    comp.descriptionChange.pipe(untilDestroyed(this)).subscribe((updatedDescription: string) => {
+      const updatedWorkflow: Workflow = {
+        ...currentWorkflow,
+        description: updatedDescription,
+      };
 
-        this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+      this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
 
-        if (this.userService.isLogin()) {
-          this.persistWorkflow();
-        }
+      if (this.userService.isLogin()) {
+        this.persistWorkflow();
+      }
 
-        modalRef.close();
-      });
+      modalRef.close();
+    });
   }
 
   /**
