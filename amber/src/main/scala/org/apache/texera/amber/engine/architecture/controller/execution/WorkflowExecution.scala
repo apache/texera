@@ -19,12 +19,13 @@
 
 package org.apache.texera.amber.engine.architecture.controller.execution
 
-import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
+import org.apache.texera.amber.core.virtualidentity.{ChannelIdentity, PhysicalOpIdentity}
 import org.apache.texera.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateMetrics
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
-import org.apache.texera.amber.engine.common.executionruntimestate.OperatorMetrics
+import org.apache.texera.amber.engine.common.executionruntimestate.{EdgeStatistics, OperatorMetrics}
+import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import scala.collection.mutable
 
@@ -104,6 +105,68 @@ case class WorkflowExecution() {
     * @return An `Iterable` of all `RegionExecution` objects in the order they were added.
     */
   def getAllRegionExecutions: Iterable[RegionExecution] = regionExecutions.values
+
+  def getAllRegionEdgeStatistics: Seq[EdgeStatistics] = {
+    val channelUsage: mutable.HashMap[ChannelIdentity, Long] = mutable.HashMap()
+
+    getAllRegionExecutions.foreach { regionExecution =>
+      regionExecution.getAllOperatorExecutions.foreach {
+        case (_, operatorExecution) =>
+          operatorExecution.getWorkerIds.foreach { workerId =>
+            val stats = operatorExecution.getWorkerExecution(workerId).getStats
+            stats.channelUsageBytes.foreach {
+              case (encodedChannelId, usageBytes) =>
+                val bytes =
+                  java.util.Base64.getDecoder.decode(encodedChannelId)
+                val channelId = ChannelIdentity.parseFrom(bytes)
+                val value = Math.max(0L, usageBytes)
+                // Keep latest sampled usage for this channel.
+                channelUsage.update(channelId, value)
+            }
+          }
+      }
+    }
+
+    val logicalEdgeUsage =
+      mutable.HashMap[(String, String), mutable.ArrayBuffer[Long]]()
+
+    channelUsage.foreach {
+      case (channelId, usageBytes) =>
+        val fromLogical = VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId).logicalOpId.id
+        val toLogical = VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId).logicalOpId.id
+        logicalEdgeUsage
+          .getOrElseUpdate((fromLogical, toLogical), mutable.ArrayBuffer())
+          .append(usageBytes)
+    }
+
+    val edgeUsage =
+      mutable.HashMap[(String, Int, String, Int), mutable.ArrayBuffer[Long]]()
+    val edgeChannelCounts = mutable.HashMap[(String, Int, String, Int), Int]()
+
+    getAllRegionExecutions.foreach { regionExecution =>
+      regionExecution.region.resourceConfig.foreach { resourceConfig =>
+        resourceConfig.linkConfigs.foreach {
+          case (link, linkConfig) =>
+            val fromOpId = link.fromOpId.logicalOpId.id
+            val toOpId = link.toOpId.logicalOpId.id
+            val fromPortId = link.fromPortId.id
+            val toPortId = link.toPortId.id
+            val key = (fromOpId, fromPortId, toOpId, toPortId)
+            edgeUsage.getOrElseUpdate(key, mutable.ArrayBuffer())
+            edgeChannelCounts.update(key, linkConfig.channelConfigs.size)
+            logicalEdgeUsage.get((fromOpId, toOpId)).foreach { usages =>
+              edgeUsage.getOrElseUpdate(key, mutable.ArrayBuffer()).appendAll(usages)
+            }
+        }
+      }
+    }
+
+    edgeUsage.map {
+      case ((fromOpId, fromPortId, toOpId, toPortId), usages) =>
+        val avgUsage = if (usages.nonEmpty) usages.sum / usages.size else 0L
+        EdgeStatistics(fromOpId, fromPortId, toOpId, toPortId, avgUsage)
+    }.toSeq
+  }
 
   /**
     * Retrieves the latest `OperatorExecution` associated with the specified physical operatorId.

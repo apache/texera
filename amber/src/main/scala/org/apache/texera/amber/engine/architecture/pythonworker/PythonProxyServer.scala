@@ -50,6 +50,12 @@ private class AmberProducer(
     outputPort: NetworkOutputGateway,
     promise: Promise[Int]
 ) extends NoOpFlightProducer {
+  @volatile private var queuedCreditOf: ChannelIdentity => Long = _ => 0L
+
+  def setQueuedCreditOf(provider: ChannelIdentity => Long): Unit = {
+    queuedCreditOf = provider
+  }
+
   var _portNumber: AtomicInteger = new AtomicInteger(0)
 
   def portNumber: AtomicInteger = _portNumber
@@ -78,8 +84,8 @@ private class AmberProducer(
             throw new RuntimeException(s"not supported payload $payload")
         }
 
-        // get little-endian representation of credits
-        var creditVal: Long = 30L // TODO : replace with actual credit value
+        // Return current queued credit (bytes).
+        val creditVal: Long = queuedCreditOf(pythonControlMessage.tag)
         val creditByteArr: Array[Byte] =
           ByteBuffer.allocate(Longs.BYTES).order(ByteOrder.LITTLE_ENDIAN).putLong(creditVal).array
 
@@ -112,9 +118,7 @@ private class AmberProducer(
     val bufferAllocator = new RootAllocator(8 * 1024)
     try {
       val arrowBuf: ArrowBuf = bufferAllocator.buffer(Longs.BYTES + 4)
-      arrowBuf.writeLong(
-        31L
-      ) // TODO : replace with actual credit value
+      arrowBuf.writeLong(queuedCreditOf(to))
       ackStream.onNext(PutResult.metadata(arrowBuf))
       arrowBuf.close()
     } finally if (bufferAllocator != null) bufferAllocator.close()
@@ -153,6 +157,16 @@ class PythonProxyServer(
 ) extends Runnable
     with AutoCloseable
     with AmberLogging {
+  @volatile private var queuedCreditProvider: ChannelIdentity => Long = _ => 0L
+
+  def setQueuedCreditProvider(provider: ChannelIdentity => Long): Unit = {
+    queuedCreditProvider = provider
+  }
+
+  private def queuedCreditOf(channelId: ChannelIdentity): Long = {
+    queuedCreditProvider(channelId)
+  }
+
   private lazy val portNumber: AtomicInteger = new AtomicInteger(getFreeLocalPort)
 
   def getPortNumber: AtomicInteger = portNumber
@@ -160,7 +174,9 @@ class PythonProxyServer(
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue)
 
-  val producer: FlightProducer = new AmberProducer(actorId, outputPort, promise)
+  private val producerImpl = new AmberProducer(actorId, outputPort, promise)
+  producerImpl.setQueuedCreditOf(queuedCreditOf)
+  val producer: FlightProducer = producerImpl
 
   val location: Location = (() => {
     Location.forGrpcInsecure("localhost", portNumber.intValue())

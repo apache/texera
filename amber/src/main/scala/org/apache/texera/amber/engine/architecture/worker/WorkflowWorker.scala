@@ -95,6 +95,7 @@ class WorkflowWorker(
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)
+    dp.setChannelUsageBytesProvider(() => transferService.getChannelUsageBytes)
     if (replayInitialization.restoreConfOpt.isDefined) {
       context.parent ! ReplayStatusUpdate(actorId, status = true)
       setupReplay(

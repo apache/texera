@@ -419,6 +419,9 @@ class ControlReturn(betterproto.Message):
     finalize_checkpoint_response: "FinalizeCheckpointResponse" = (
         betterproto.message_field(52, group="sealed_value")
     )
+    flow_control_usage_response: "FlowControlUsageResponse" = betterproto.message_field(
+        53, group="sealed_value"
+    )
     control_error: "ControlError" = betterproto.message_field(101, group="sealed_value")
     """common responses"""
 
@@ -515,6 +518,13 @@ class WorkerStateResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class WorkerMetricsResponse(betterproto.Message):
     metrics: "_worker__.WorkerMetrics" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class FlowControlUsageResponse(betterproto.Message):
+    channel_usage_bytes: Dict[str, int] = betterproto.map_field(
+        1, betterproto.TYPE_STRING, betterproto.TYPE_INT64
+    )
 
 
 class RpcTesterStub(betterproto.ServiceStub):
@@ -833,11 +843,28 @@ class WorkerServiceStub(betterproto.ServiceStub):
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
+        ) -> "EmptyReturn":
         return await self._unary_unary(
             "/org.apache.texera.amber.engine.architecture.rpc.WorkerService/PrepareCheckpoint",
             prepare_checkpoint_request,
             EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def query_flow_control_usage(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "FlowControlUsageResponse":
+        return await self._unary_unary(
+            "/org.apache.amber.engine.architecture.rpc.WorkerService/QueryFlowControlUsage",
+            empty_request,
+            FlowControlUsageResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,

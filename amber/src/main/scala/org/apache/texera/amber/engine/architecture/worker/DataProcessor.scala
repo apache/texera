@@ -91,11 +91,19 @@ class DataProcessor(
     inputGateway.getChannel(channelId).getQueuedCredit
   }
 
+  @volatile private var channelUsageBytesProvider: () => Map[String, Long] = () => Map.empty
+
+  def setChannelUsageBytesProvider(provider: () => Map[String, Long]): Unit = {
+    channelUsageBytesProvider = provider
+  }
+
+  def collectFlowControlUsage(): Map[String, Long] = channelUsageBytesProvider()
+
   /**
     * provide API for actor to get stats of this operator
     */
   def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(executor)
+    statisticsManager.getStatistics(executor, Map.empty)
 
   /**
     * process currentInputTuple through executor logic.

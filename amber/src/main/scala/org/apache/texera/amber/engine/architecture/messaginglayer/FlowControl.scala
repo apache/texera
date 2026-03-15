@@ -123,4 +123,8 @@ class FlowControl {
   def getUsedBytes: Long = {
     inflightCredit + queuedCredit
   }
+
+  def getQueuedBytes: Long = {
+    queuedCredit
+  }
 }
