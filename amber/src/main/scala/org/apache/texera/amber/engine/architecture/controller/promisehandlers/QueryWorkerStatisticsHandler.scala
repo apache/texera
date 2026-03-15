@@ -21,6 +21,7 @@ package org.apache.texera.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
@@ -65,16 +66,39 @@ trait QueryWorkerStatisticsHandler {
   // Reads the current cached stats and forwards them to the appropriate client sink(s).
   private def forwardStats(updateTarget: StatisticsUpdateTarget): Unit = {
     val stats = cp.workflowExecution.getAllRegionExecutionsStats
+    val edgeStats = cp.workflowExecution.getAllRegionEdgeStatistics
     updateTarget match {
       case StatisticsUpdateTarget.UI_ONLY =>
-        sendToClient(ExecutionStatsUpdate(stats))
+        sendToClient(ExecutionStatsUpdate(stats, edgeStats))
       case StatisticsUpdateTarget.PERSISTENCE_ONLY =>
         sendToClient(RuntimeStatisticsPersist(stats))
       case StatisticsUpdateTarget.BOTH_UI_AND_PERSISTENCE |
           StatisticsUpdateTarget.Unrecognized(_) =>
-        sendToClient(ExecutionStatsUpdate(stats))
+        sendToClient(ExecutionStatsUpdate(stats, edgeStats))
         sendToClient(RuntimeStatisticsPersist(stats))
     }
+  }
+
+  private def withChannelUsage(
+      statsResp: WorkerMetricsResponse,
+      usage: Map[String, Long]
+  ): WorkerMetricsResponse = {
+    val mergedWorkerStats =
+      statsResp.metrics.workerStatistics.copy(channelUsageBytes = usage)
+    statsResp.copy(metrics = statsResp.metrics.copy(workerStatistics = mergedWorkerStats))
+  }
+
+  private def queryStatisticsWithFlow(
+      wid: ActorVirtualIdentity
+  ): Future[WorkerMetricsResponse] = {
+    Future
+      .join(
+        workerInterface.queryStatistics(EmptyRequest(), wid),
+        workerInterface.queryFlowControlUsage(EmptyRequest(), wid)
+      )
+      .map { case (statsResp, flowResp) =>
+        withChannelUsage(statsResp, flowResp.channelUsageBytes)
+      }
   }
 
   override def controllerInitiateQueryStatistics(
@@ -156,9 +180,13 @@ trait QueryWorkerStatisticsHandler {
 
                     // Send queryStatistics to each worker and update internal state on reply
                     workerIds.map { wid =>
-                      workerInterface.queryStatistics(EmptyRequest(), wid).map { resp =>
+                      queryStatisticsWithFlow(wid).map { mergedResp =>
                         collectedResults.addOne(
-                          (exec.getWorkerExecution(wid), resp, System.nanoTime())
+                          (
+                            exec.getWorkerExecution(wid),
+                            mergedResp,
+                            System.nanoTime()
+                          )
                         )
                       }
                     }

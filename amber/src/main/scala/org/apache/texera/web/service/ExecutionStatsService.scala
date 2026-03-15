@@ -21,6 +21,7 @@ package org.apache.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.core.storage.result.ResultSchema
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
@@ -28,39 +29,16 @@ import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.controller.{
-  ExecutionStateUpdate,
-  ExecutionStatsUpdate,
-  FatalError,
-  RuntimeStatisticsPersist,
-  WorkerAssignmentUpdate,
-  WorkflowRecoveryStatus
-}
+import org.apache.texera.amber.engine.architecture.controller.{ExecutionStateUpdate, ExecutionStatsUpdate, FatalError, RuntimeStatisticsPersist, WorkerAssignmentUpdate, WorkflowRecoveryStatus}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED
-}
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED}
 import org.apache.texera.amber.engine.common.Utils
 import org.apache.texera.amber.engine.common.Utils.maptoStatusCode
 import org.apache.texera.amber.engine.common.client.AmberClient
-import org.apache.texera.amber.engine.common.executionruntimestate.{
-  OperatorMetrics,
-  OperatorStatistics,
-  OperatorWorkerMapping
-}
-import org.apache.texera.amber.error.ErrorUtils.{
-  getOperatorFromActorIdOpt,
-  getStackTraceWithAllCauses
-}
+import org.apache.texera.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics, OperatorWorkerMapping}
+import org.apache.texera.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import org.apache.texera.web.SubscriptionManager
-import org.apache.texera.web.model.websocket.event.{
-  ExecutionDurationUpdateEvent,
-  OperatorAggregatedMetrics,
-  OperatorStatisticsUpdateEvent,
-  WorkerAssignmentUpdateEvent
-}
+import org.apache.texera.web.model.websocket.event.{EdgeStatistics, EdgeStatisticsUpdateEvent, ExecutionDurationUpdateEvent, OperatorAggregatedMetrics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
@@ -137,6 +115,29 @@ class ExecutionStatsService(
 
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
+      if (newState.edgeInfo != oldState.edgeInfo) {
+        Iterable(
+          EdgeStatisticsUpdateEvent(
+            newState.edgeInfo.map { edge =>
+              EdgeStatistics(
+                edge.fromOpId,
+                edge.fromPortId,
+                edge.toOpId,
+                edge.toPortId,
+                edge.usageBytes
+              )
+            },
+            ApplicationConfig.maxCreditAllowedInBytesPerChannel
+          )
+        )
+      } else {
+        Iterable.empty
+      }
+    })
+  )
+
+  addSubscription(
+    stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       // update operators' workers.
       if (newState.operatorWorkerMapping != oldState.operatorWorkerMapping) {
         newState.operatorWorkerMapping
@@ -187,7 +188,7 @@ class ExecutionStatsService(
       client
         .registerCallback[ExecutionStatsUpdate]((evt: ExecutionStatsUpdate) => {
           stateStore.statsStore.updateState { statsStore =>
-            statsStore.withOperatorInfo(evt.operatorMetrics)
+            statsStore.withOperatorInfo(evt.operatorMetrics).withEdgeInfo(evt.edgeStatistics)
           }
         })
     )
@@ -207,7 +208,7 @@ class ExecutionStatsService(
   addSubscription(
     client.registerCallback[ExecutionStateUpdate] {
       case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
-          if Set(COMPLETED, FAILED, KILLED).contains(state) =>
+        if Set(COMPLETED, FAILED, KILLED).contains(state) =>
         logger.info("Workflow execution terminated. Commit runtime statistics.")
         try {
           runtimeStatsWriter.close()
