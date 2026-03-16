@@ -42,7 +42,7 @@ import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneActio
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
-import org.jooq.{Condition, Record9, Result, SelectOnConditionStep}
+import org.jooq.{Condition, DSLContext, Record9, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -62,17 +62,20 @@ import scala.util.control.NonFatal
   */
 
 object WorkflowResource {
-  final private lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
-  final private lazy val workflowDao = new WorkflowDao(context.configuration)
-  final private lazy val workflowOfUserDao = new WorkflowOfUserDao(
-    context.configuration
-  )
-  final private lazy val workflowUserAccessDao = new WorkflowUserAccessDao(
-    context.configuration()
-  )
-  final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
+  private def context: DSLContext =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+  private def workflowDao = new WorkflowDao(context.configuration)
+  private def workflowOfUserDao =
+    new WorkflowOfUserDao(
+      context.configuration
+    )
+  private def workflowUserAccessDao =
+    new WorkflowUserAccessDao(
+      context.configuration()
+    )
+  private def workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
   def getWorkflowName(wid: Integer): String = {
     val workflow = workflowDao.fetchOneByWid(wid)
@@ -431,7 +434,14 @@ class WorkflowResource extends LazyLogging {
       workflowDao.update(workflow)
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
-        // not owner and no access record --> new record
+        // Check if this workflow exists in the database
+        val workflowExistsInDb =
+          workflow.getWid != null && workflowDao.existsById(workflow.getWid)
+        if (workflowExistsInDb) {
+          // User trying to persist an existing workflow without access - reject
+          throw new ForbiddenException("No sufficient access privilege.")
+        }
+        // This is a new workflow being created (wid is null or doesn't exist in DB)
         workflow.setWid(null)
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)

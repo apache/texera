@@ -20,11 +20,14 @@ server:
     - type: http
       port: 9092
   adminConnectors: []
+  requestLog:
+    type: classic
+    appenders: []
 
 logging:
-  level: INFO
+  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
   loggers:
-    "io.dropwizard": INFO
+    "io.dropwizard": ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
   appenders:
     - type: console
     - type: file

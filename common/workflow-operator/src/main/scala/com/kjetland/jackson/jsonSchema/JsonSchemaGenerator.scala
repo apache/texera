@@ -1,20 +1,9 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
+ * Licensed under the MIT License.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * This file is derived from mbknor-jackson-jsonschema.
+ * Source: https://github.com/mbknor/mbknor-jackson-jsonschema
  */
 
 package com.kjetland.jackson.jsonSchema
@@ -1494,17 +1483,34 @@ class JsonSchemaGenerator(
   }
 
   def generateTitleFromPropertyName(propertyName: String): String = {
-    // Code found here: http://stackoverflow.com/questions/2559759/how-do-i-convert-camelcase-into-human-readable-names-in-java
-    val s = propertyName.replaceAll(
-      String.format(
-        "%s|%s|%s",
-        "(?<=[A-Z])(?=[A-Z][a-z])",
-        "(?<=[^A-Z])(?=[A-Z])",
-        "(?<=[A-Za-z])(?=[^A-Za-z])"
-      ),
-      " "
-    )
+    if (propertyName.isEmpty) return propertyName
+    // Insert spaces at camelCase/PascalCase boundaries and letter-to-non-letter transitions.
+    val builder = new StringBuilder
+    for (i <- propertyName.indices) {
+      val c = propertyName(i)
+      if (i > 0) {
+        val prev = propertyName(i - 1)
+        val isCurrentUpper = c.isUpper
+        val isPrevUpper = prev.isUpper
+        val isPrevLetter = prev.isLetter
+        val isCurrentLetter = c.isLetter
+        val nextIsLower = i + 1 < propertyName.length && propertyName(i + 1).isLower
 
+        // Space before uppercase that follows a non-uppercase char (e.g., "camelCase" or "123Value")
+        // Space before uppercase in an acronym run when next char is lowercase (e.g., "XMLParser")
+        // Space before a non-letter that follows a letter (e.g., "test123")
+        if (
+          (isCurrentUpper && !isPrevUpper) ||
+          (isCurrentUpper && isPrevUpper && nextIsLower) ||
+          (!isCurrentLetter && isPrevLetter)
+        ) {
+          builder.append(' ')
+        }
+      }
+      builder.append(c)
+    }
+
+    val s = builder.toString()
     // Make the first letter uppercase
     s.substring(0, 1).toUpperCase() + s.substring(1)
   }

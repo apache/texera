@@ -23,11 +23,12 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.AuthDynamicFeature
+import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
-import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
+import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
@@ -38,11 +39,17 @@ import org.apache.texera.service.resource.{
 }
 import org.apache.texera.service.util.S3StorageClient
 import org.eclipse.jetty.server.session.SessionHandler
-
 import java.nio.file.Path
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
+    // enable environment variable substitution in YAML config
+    bootstrap.setConfigurationSourceProvider(
+      new SubstitutingSourceProvider(
+        bootstrap.getConfigurationSourceProvider,
+        new EnvironmentVariableSubstitutor(false)
+      )
+    )
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
 
@@ -81,6 +88,9 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
+
+    // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
+    RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 

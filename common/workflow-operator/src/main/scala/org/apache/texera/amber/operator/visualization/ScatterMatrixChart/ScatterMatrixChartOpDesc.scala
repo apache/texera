@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.{
@@ -30,6 +32,7 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeNameList
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -45,13 +48,13 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Selected Attributes")
   @JsonPropertyDescription("The axes of each scatter plot in the matrix.")
   @AutofillAttributeNameList
-  var selectedAttributes: List[String] = _
+  var selectedAttributes: List[EncodableString] = _
 
   @JsonProperty(value = "Color", required = true)
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("Column to color points")
   @AutofillAttributeName
-  var color: String = ""
+  var color: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -71,20 +74,20 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  def createPlotlyFigure(): String = {
+  def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(selectedAttributes.nonEmpty)
 
-    val list_Attributes = selectedAttributes.map(attribute => s""""$attribute"""").mkString(",")
-    s"""
-       |        fig = px.scatter_matrix(table, dimensions=[$list_Attributes], color='$color')
+    val list_Attributes = selectedAttributes.map(attribute => pyb"""$attribute""").mkString(",")
+    pyb"""
+       |        fig = px.scatter_matrix(table, dimensions=[$list_Attributes], color=$color)
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |""".stripMargin
+       |"""
   }
 
   override def generatePythonCode(): String = {
 
     val finalcode =
-      s"""
+      pyb"""
          |from pytexera import *
          |
          |import plotly.express as px
@@ -101,8 +104,8 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
          |
-         |""".stripMargin
-    finalcode
+         |"""
+    finalcode.encode
   }
 
 }

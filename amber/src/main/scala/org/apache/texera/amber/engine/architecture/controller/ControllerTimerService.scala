@@ -23,7 +23,8 @@ import org.apache.pekko.actor.Cancellable
 import org.apache.texera.amber.engine.architecture.common.AkkaActorService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
-  QueryStatisticsRequest
+  QueryStatisticsRequest,
+  StatisticsUpdateTarget
 }
 import org.apache.texera.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -36,28 +37,61 @@ class ControllerTimerService(
     akkaActorService: AkkaActorService
 ) {
   var statusUpdateAskHandle: Option[Cancellable] = None
+  var runtimeStatisticsAskHandle: Option[Cancellable] = None
 
-  def enableStatusUpdate(): Unit = {
-    if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {
-      statusUpdateAskHandle = Option(
+  private def enableTimer(
+      intervalMs: Option[Long],
+      updateTarget: StatisticsUpdateTarget,
+      handleOpt: Option[Cancellable]
+  ): Option[Cancellable] = {
+    if (intervalMs.nonEmpty && handleOpt.isEmpty) {
+      Option(
         akkaActorService.sendToSelfWithFixedDelay(
           0.milliseconds,
-          FiniteDuration.apply(controllerConfig.statusUpdateIntervalMs.get, MILLISECONDS),
+          FiniteDuration.apply(intervalMs.get, MILLISECONDS),
           ControlInvocation(
             METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS,
-            QueryStatisticsRequest(Seq.empty),
+            QueryStatisticsRequest(Seq.empty, updateTarget),
             AsyncRPCContext(SELF, SELF),
             0
           )
         )
       )
+    } else {
+      handleOpt
     }
   }
 
-  def disableStatusUpdate(): Unit = {
-    if (statusUpdateAskHandle.nonEmpty) {
-      statusUpdateAskHandle.get.cancel()
-      statusUpdateAskHandle = Option.empty
+  private def disableTimer(handleOpt: Option[Cancellable]): Option[Cancellable] = {
+    if (handleOpt.nonEmpty) {
+      handleOpt.get.cancel()
+      Option.empty
+    } else {
+      handleOpt
     }
+  }
+
+  def enableStatusUpdate(): Unit = {
+    statusUpdateAskHandle = enableTimer(
+      controllerConfig.statusUpdateIntervalMs,
+      StatisticsUpdateTarget.UI_ONLY,
+      statusUpdateAskHandle
+    )
+  }
+
+  def enableRuntimeStatisticsCollection(): Unit = {
+    runtimeStatisticsAskHandle = enableTimer(
+      controllerConfig.runtimeStatisticsPersistenceIntervalMs,
+      StatisticsUpdateTarget.PERSISTENCE_ONLY,
+      runtimeStatisticsAskHandle
+    )
+  }
+
+  def disableStatusUpdate(): Unit = {
+    statusUpdateAskHandle = disableTimer(statusUpdateAskHandle)
+  }
+
+  def disableRuntimeStatisticsCollection(): Unit = {
+    runtimeStatisticsAskHandle = disableTimer(runtimeStatisticsAskHandle)
   }
 }

@@ -402,4 +402,23 @@ object LakeFSStorageClient {
     (bucket, key)
   }
 
+  /**
+    * Get file size.
+    *
+    * @param repoName     Repository name.
+    * @param commitHash   Commit hash of the version.
+    * @param filePath     Path to the file in the repository.
+    * @return File size in bytes
+    */
+  def getFileSize(
+      repoName: String,
+      commitHash: String,
+      filePath: String
+  ): Long = {
+    objectsApi
+      .statObject(repoName, commitHash, filePath)
+      .execute()
+      .getSizeBytes
+      .longValue()
+  }
 }

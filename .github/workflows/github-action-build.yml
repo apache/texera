@@ -58,14 +58,21 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            frontend/node_modules
-          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-${{ hashFiles('**/yarn.lock') }}
+            frontend/.yarn/cache
+            frontend/.yarn/unplugged
+            frontend/.yarn/install-state.gz
+          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-
+            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-
       - name: Prepare Yarn 4.5.1
         run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd frontend set version 4.5.1
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
       - name: Install dependency
-        run: yarn --cwd frontend install --immutable --network-timeout=100000
+        timeout-minutes: 20
+        run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
       - name: Lint with Prettier & ESLint
         run: yarn --cwd frontend format:ci
       - name: Run frontend unit tests
@@ -104,6 +111,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 11
+      - name: Setup Python for Scala tests
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Show Python
+        run: python --version || python3 --version
       - name: Setup sbt launcher
         uses: sbt/setup-sbt@3e125ece5c3e5248e18da9ed8d2cce3d335ec8dd # v1.1.14
       - uses: coursier/cache-action@4e2615869d13561d626ed48655e1a39e5b192b3c # v6.4.9
@@ -124,6 +137,10 @@ jobs:
           PGPASSWORD: postgres
       - name: Compile with sbt
         run: sbt clean package
+      - name: Set docker-java API version
+        run: |
+          echo "api.version=1.52" >> ~/.docker-java.properties
+          cat ~/.docker-java.properties
       - name: Run backend tests
         run: sbt test
 
