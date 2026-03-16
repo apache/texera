@@ -1483,17 +1483,34 @@ class JsonSchemaGenerator(
   }
 
   def generateTitleFromPropertyName(propertyName: String): String = {
-    // Code found here: http://stackoverflow.com/questions/2559759/how-do-i-convert-camelcase-into-human-readable-names-in-java
-    val s = propertyName.replaceAll(
-      String.format(
-        "%s|%s|%s",
-        "(?<=[A-Z])(?=[A-Z][a-z])",
-        "(?<=[^A-Z])(?=[A-Z])",
-        "(?<=[A-Za-z])(?=[^A-Za-z])"
-      ),
-      " "
-    )
+    if (propertyName.isEmpty) return propertyName
+    // Insert spaces at camelCase/PascalCase boundaries and letter-to-non-letter transitions.
+    val builder = new StringBuilder
+    for (i <- propertyName.indices) {
+      val c = propertyName(i)
+      if (i > 0) {
+        val prev = propertyName(i - 1)
+        val isCurrentUpper = c.isUpper
+        val isPrevUpper = prev.isUpper
+        val isPrevLetter = prev.isLetter
+        val isCurrentLetter = c.isLetter
+        val nextIsLower = i + 1 < propertyName.length && propertyName(i + 1).isLower
 
+        // Space before uppercase that follows a non-uppercase char (e.g., "camelCase" or "123Value")
+        // Space before uppercase in an acronym run when next char is lowercase (e.g., "XMLParser")
+        // Space before a non-letter that follows a letter (e.g., "test123")
+        if (
+          (isCurrentUpper && !isPrevUpper) ||
+          (isCurrentUpper && isPrevUpper && nextIsLower) ||
+          (!isCurrentLetter && isPrevLetter)
+        ) {
+          builder.append(' ')
+        }
+      }
+      builder.append(c)
+    }
+
+    val s = builder.toString()
     // Make the first letter uppercase
     s.substring(0, 1).toUpperCase() + s.substring(1)
   }
