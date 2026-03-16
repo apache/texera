@@ -308,6 +308,9 @@ export class UserWorkflowComponent implements AfterViewInit {
             entry.setOwnerName(userInfo.userName);
             entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
           }
+          if (this.currentUid !== undefined) {
+            entry.setAccessUsers([this.currentUid]);
+          }
           return entry;
         });
 
