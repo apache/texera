@@ -26,7 +26,7 @@ Texera's security architecture is built around:
 
 In Texera, a **resource** is any object within the system that can be created, accessed, modified, or shared by users
 via the web application. Understanding resource types and how access to them is managed is critical to following
-Texera’s security model.
+Texera's security model.
 
 ### Resource Types
 
@@ -78,13 +78,15 @@ account.
 
 **Who They Are**: Individuals who interact with Texera through the web interface.
 
-**Access Level**: Application-level access only. UI users work within the Texera platform but do not have access to:
+**Access Level**: UI users interact with Texera at the application level through the web interface. They do not have direct access to:
 
 - The underlying infrastructure (servers, Kubernetes cluster)
 - Database administration
 - System configuration files
 - Network and firewall settings
 - Container orchestration
+
+**Important**: REGULAR and ADMIN users can execute arbitrary code within computing units through User-Defined Functions (UDFs). This UDF code is currently not sandboxed and runs within the same process or pod as Texera's computing engine. As a result, UDF code may have access to resources available in the execution environment, including environment variables, configuration values, and application state within the same process. Deployment managers should be aware of this and should only grant REGULAR or ADMIN roles to trusted individuals. See [Deployments and Computing Units](#deployments-and-computing-units) and [What is NOT a Security Issue](#what-is-not-a-security-issue) for more details.
 
 **Roles**: UI users are assigned one of four roles (INACTIVE, RESTRICTED, REGULAR, ADMIN) that control their permissions
 within the Texera application.
@@ -150,15 +152,17 @@ They cannot:
 deployment manager access is required.
 
 ## Deployments and Computing Units
-Texera can be deployed in several configurations, such as local development, single-node setups, or distributed Kubernetes 
+Texera can be deployed in several configurations, such as local development, single-node setups, or distributed Kubernetes
 clusters. For details on supported deployment options and their operational differences, see the deployment guides in
 our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kubernetes).
 
 ### Computing Unit Types
 
 Texera executes workflows on **computing units**. UI users (REGULAR and ADMIN) can execute arbitrary code (e.g., through
-UDFs written in Python, R, Scala) within computing units as part of their workflows. This code is currently not
-sandboxed or restricted by Texera. Deployment managers configure which types of computing units are available:
+UDFs written in Python, R, Java, Scala) within computing units as part of their workflows. This code is currently not
+sandboxed or restricted by Texera. As a result, UDF code may be able to access resources available in the execution environment, such as environment variables, JVM classpath entries, configuration values loaded into the process, and other application state. Deployment managers are responsible for configuring the execution environment to limit exposure of sensitive information and for ensuring that only trusted users are granted roles that permit code execution.
+
+Deployment managers configure which types of computing units are available:
 
 #### Local Computing Units
 
@@ -174,6 +178,7 @@ Local computing units run as processes on the same machine as the Texera service
 **Security considerations**:
 
 - Users' workflow code executes on the host machine with limited isolation
+- UDF code running in the same JVM process can potentially access application configuration and state available on the classpath
 - Deployment managers must trust all REGULAR and ADMIN users
 - Resource exhaustion by one user can affect all users
 
@@ -194,6 +199,7 @@ a user needs it.
 - Better isolation between users compared to local computing units
 - Kubernetes provides namespace and pod-level isolation
 - Resource limits prevent individual users from consuming excessive resources
+- UDF code within a pod can still access resources available inside that pod's environment (e.g., environment variables, mounted secrets)
 - Container security and image scanning should be implemented
 - Deployment managers must secure the Kubernetes cluster infrastructure
 
@@ -202,6 +208,7 @@ a user needs it.
 Texera's security model does NOT guarantee:
 
 - Protection against malicious code in user workflows (users can execute arbitrary code)
+- Isolation of application secrets (e.g., JWT keys, database credentials) from UDF code executing within the same process or pod
 - Strong isolation between workflows in local computing units
 - Complete isolation between workflows in Kubernetes computing units within the same namespace
 - Protection against infrastructure-level compromises
@@ -215,10 +222,13 @@ The following are **NOT considered security vulnerabilities** in Texera:
 
 ### User Code Execution
 
-REGULAR and ADMIN users can execute arbitrary code (Python, R, Scala) within computing units. This is by design - Texera
+REGULAR and ADMIN users can execute arbitrary code (Python, R, Java, Scala) within computing units. This is by design - Texera
 is a data analytics platform where custom code execution is a core feature. The system currently does not sandbox user
-code beyond the isolation provided by the deployment environment (local processes or Kubernetes pods). Deployment
-managers should use resource limits, monitor usage, and restrict user roles appropriately.
+code beyond the isolation provided by the deployment environment (local processes or Kubernetes pods).
+
+Because UDF code is not sandboxed, it may be able to access resources available in the execution environment, including but not limited to application configuration, environment variables, and JVM classpath entries. This includes the possibility of reading sensitive values such as JWT secrets or database credentials if they are accessible within the process. This is a known limitation, not a vulnerability, given Texera's security model, which requires deployment managers to grant code-execution roles only to trusted users.
+
+Deployment managers should use resource limits, monitor usage, restrict user roles appropriately, and consider isolating sensitive configuration from the execution environment where possible.
 
 ### Resource Consumption
 
@@ -262,11 +272,10 @@ lists and website.
 
 ---
 
-**Last Updated**: November 2025
+**Last Updated**: March 2026
 
 **Disclaimer**: This project is currently undergoing incubation at The Apache Software Foundation (ASF). Incubation is
 required of all newly accepted projects until a further review indicates that the infrastructure, communications, and
 decision-making process have stabilized in a manner consistent with other successful ASF projects. While incubation
 status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project
 has yet to be fully endorsed by the ASF.
-
