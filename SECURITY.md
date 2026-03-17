@@ -26,7 +26,7 @@ Texera's security architecture is built around:
 
 In Texera, a **resource** is any object within the system that can be created, accessed, modified, or shared by users
 via the web application. Understanding resource types and how access to them is managed is critical to following
-Texera's security model.
+Texera’s security model.
 
 ### Resource Types
 
@@ -78,7 +78,7 @@ account.
 
 **Who They Are**: Individuals who interact with Texera through the web interface.
 
-**Access Level**: UI users interact with Texera at the application level through the web interface. They do not have direct access to:
+**Access Level**: Application-level access only. UI users work within the Texera platform but do not have access to:
 
 - The underlying infrastructure (servers, Kubernetes cluster)
 - Database administration
@@ -152,7 +152,7 @@ They cannot:
 deployment manager access is required.
 
 ## Deployments and Computing Units
-Texera can be deployed in several configurations, such as local development, single-node setups, or distributed Kubernetes
+Texera can be deployed in several configurations, such as local development, single-node setups, or distributed Kubernetes 
 clusters. For details on supported deployment options and their operational differences, see the deployment guides in
 our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kubernetes).
 
@@ -272,7 +272,7 @@ lists and website.
 
 ---
 
-**Last Updated**: March 2026
+**Last Updated**: November 2025
 
 **Disclaimer**: This project is currently undergoing incubation at The Apache Software Foundation (ASF). Incubation is
 required of all newly accepted projects until a further review indicates that the infrastructure, communications, and
