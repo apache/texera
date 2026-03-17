@@ -99,7 +99,7 @@ object IcebergUtil {
     * TODO: Add authentication support, such as OAuth2, using `OAuth2Properties`.
     *
     * @param catalogName the name of the catalog.
-    * @param warehouse   the warehouse identifier (for Lakekeeper).
+    * @param warehouse   the root path for the warehouse where the tables are stored.
     * @return the initialized RESTCatalog instance.
     */
   def createRestCatalog(
