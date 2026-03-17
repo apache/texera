@@ -116,7 +116,6 @@ object IcebergUtil {
 
     properties = properties ++ Map(
       CatalogProperties.FILE_IO_IMPL -> classOf[S3FileIO].getName,
-      // S3FileIO configuration for MinIO
       "s3.endpoint" -> StorageConfig.s3Endpoint,
       "s3.access-key-id" -> StorageConfig.s3Username,
       "s3.secret-access-key" -> StorageConfig.s3Password,
