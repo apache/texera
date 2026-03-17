@@ -160,7 +160,7 @@ our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kube
 
 Texera executes workflows on **computing units**. UI users (REGULAR and ADMIN) can execute arbitrary code (e.g., through
 UDFs written in Python, R, Java, Scala) within computing units as part of their workflows. This code is currently not
-sandboxed or restricted by Texera. As a result, UDF code may be able to access resources available in the execution environment, such as environment variables, JVM classpath entries, configuration values loaded into the process, and other application state. Deployment managers are responsible for configuring the execution environment to limit exposure of sensitive information and for ensuring that only trusted users are granted roles that permit code execution.
+sandboxed or restricted by Texera. As a result, UDF code may be able to access resources available in the execution environment, such as environment variables, runtime classpath entries, configuration values loaded into the process, and other application state. Deployment managers are responsible for configuring the execution environment to limit exposure of sensitive information and for ensuring that only trusted users are granted roles that permit code execution.
 
 Deployment managers configure which types of computing units are available:
 
@@ -178,7 +178,7 @@ Local computing units run as processes on the same machine as the Texera service
 **Security considerations**:
 
 - Users' workflow code executes on the host machine with limited isolation
-- UDF code running in the same JVM process can potentially access application configuration and state available on the classpath
+- UDF code running in the same process can potentially access application configuration and state available in the execution environment
 - Deployment managers must trust all REGULAR and ADMIN users
 - Resource exhaustion by one user can affect all users
 
@@ -208,7 +208,7 @@ a user needs it.
 Texera's security model does NOT guarantee:
 
 - Protection against malicious code in user workflows (users can execute arbitrary code)
-- Isolation of application secrets (e.g., JWT keys, database credentials) from UDF code executing within the same process or pod
+- Isolation of application secrets from UDF code executing within the same process or pod
 - Strong isolation between workflows in local computing units
 - Complete isolation between workflows in Kubernetes computing units within the same namespace
 - Protection against infrastructure-level compromises
@@ -226,7 +226,7 @@ REGULAR and ADMIN users can execute arbitrary code (Python, R, Java, Scala) with
 is a data analytics platform where custom code execution is a core feature. The system currently does not sandbox user
 code beyond the isolation provided by the deployment environment (local processes or Kubernetes pods).
 
-Because UDF code is not sandboxed, it may be able to access resources available in the execution environment, including but not limited to application configuration, environment variables, and JVM classpath entries. This includes the possibility of reading sensitive values such as JWT secrets or database credentials if they are accessible within the process. This is a known limitation, not a vulnerability, given Texera's security model, which requires deployment managers to grant code-execution roles only to trusted users.
+Because UDF code is not sandboxed, it may be able to access resources available in the execution environment, including but not limited to application configuration, environment variables, and runtime classpath entries. This includes the possibility of reading sensitive values if they are accessible within the process. This is a known limitation, not a vulnerability, given Texera's security model, which requires deployment managers to grant code-execution roles only to trusted users.
 
 Deployment managers should use resource limits, monitor usage, restrict user roles appropriately, and consider isolating sensitive configuration from the execution environment where possible.
 
@@ -272,7 +272,7 @@ lists and website.
 
 ---
 
-**Last Updated**: November 2025
+**Last Updated**: March 2026
 
 **Disclaimer**: This project is currently undergoing incubation at The Apache Software Foundation (ASF). Incubation is
 required of all newly accepted projects until a further review indicates that the infrastructure, communications, and
