@@ -29,7 +29,6 @@ import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
 import org.apache.iceberg.{Schema, Table}
 
-import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 
 /**
