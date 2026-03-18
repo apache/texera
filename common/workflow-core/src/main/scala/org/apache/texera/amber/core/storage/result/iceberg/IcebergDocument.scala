@@ -258,6 +258,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
             return false
           }
 
+          // If the current file still has records, return immediately without touching the catalog.
+          // Only when the current file is exhausted do we check for more files and possibly refresh.
+          if (currentRecordIterator.hasNext) {
+            return true
+          }
+
           if (!usableFileIterator.hasNext) {
             usableFileIterator = seekToUsableFile()
           }
