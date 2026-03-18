@@ -74,6 +74,7 @@ github:
           - python (ubuntu-latest, 3.10)
           - python (ubuntu-latest, 3.11)
           - python (ubuntu-latest, 3.12)
+          - python (ubuntu-latest, 3.13)
           - Check License Headers
           - Validate PR title
       required_pull_request_reviews:
