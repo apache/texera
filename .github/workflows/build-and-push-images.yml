@@ -87,7 +87,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "Nightly build detected - using nightly defaults"
             echo "branch=main" >> $GITHUB_OUTPUT
-            echo "image_tag=nightly" >> $GITHUB_OUTPUT
+            echo "image_tag=latest" >> $GITHUB_OUTPUT
             echo "docker_registry=ghcr.io/apache" >> $GITHUB_OUTPUT
             echo "services=*" >> $GITHUB_OUTPUT
             echo "platforms=both" >> $GITHUB_OUTPUT

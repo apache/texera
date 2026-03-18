@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
+COPY LICENSE NOTICE DISCLAIMER-WIP ./
 
 RUN sbt clean ConfigService/dist
 
@@ -51,6 +52,8 @@ COPY --from=build /texera/target/config-service-* /texera/
 # Copy resources directories from build phase
 COPY --from=build /texera/common/config/src/main/resources /texera/common/config/src/main/resources
 COPY --from=build /texera/config-service/src/main/resources /texera/config-service/src/main/resources
+# Copy ASF licensing files
+COPY --from=build /texera/LICENSE /texera/NOTICE /texera/DISCLAIMER-WIP /texera/
 
 CMD ["bin/config-service"]
 

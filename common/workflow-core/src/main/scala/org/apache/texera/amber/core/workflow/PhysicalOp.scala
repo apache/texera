@@ -158,8 +158,8 @@ object PhysicalOp {
   }
 }
 
-// @JsonIgnore is not working when directly annotated to fields of a case class
-// https://stackoverflow.com/questions/40482904/jsonignore-doesnt-work-in-scala-case-class
+// In Scala case classes, @JsonIgnore on constructor parameters is not recognized by Jackson.
+// Use @JsonIgnoreProperties at the class level instead.
 @JsonIgnoreProperties(
   Array(
     "opExecInitInfo", // function type, ignore it
