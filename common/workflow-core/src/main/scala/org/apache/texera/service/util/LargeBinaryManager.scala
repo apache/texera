@@ -30,14 +30,7 @@ import java.util.UUID
   * normal tuple size limits.
   */
 object LargeBinaryManager extends LazyLogging {
-  private val DEFAULT_BUCKET = "texera-large-binaries"
-
-  /**
-    * Ensures the large-binary bucket exists. Should be called once at service startup.
-    */
-  def initialize(): Unit = {
-    S3StorageClient.createBucketIfNotExist(DEFAULT_BUCKET)
-  }
+  val DEFAULT_BUCKET: String = "texera-large-binaries"
 
   /**
     * Creates a new LargeBinary reference.
