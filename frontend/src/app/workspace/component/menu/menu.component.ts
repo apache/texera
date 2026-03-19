@@ -57,6 +57,7 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
+import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/markdown-description/markdown-description.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -605,6 +606,44 @@ export class MenuComponent implements OnInit, OnDestroy {
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+  }
+
+  /**
+   * Calls Markdown Description Component
+   */
+  public onClickEditDescription(): void {
+    const currentWorkflow = this.workflowActionService.getWorkflow();
+    const currentDescription = currentWorkflow.description ?? "";
+
+    const modalRef = this.modalService.create<MarkdownDescriptionComponent>({
+      nzTitle: "Edit Workflow Description",
+      nzContent: MarkdownDescriptionComponent,
+      nzData: {
+        description: currentDescription,
+      },
+      nzWidth: "900px",
+      nzMaskClosable: true,
+      nzKeyboard: true,
+      nzClosable: true,
+      nzFooter: null,
+    });
+
+    const comp: MarkdownDescriptionComponent = modalRef.getContentComponent();
+
+    comp.descriptionChange.pipe(untilDestroyed(this)).subscribe((updatedDescription: string) => {
+      const updatedWorkflow: Workflow = {
+        ...currentWorkflow,
+        description: updatedDescription,
+      };
+
+      this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+
+      if (this.userService.isLogin()) {
+        this.persistWorkflow();
+      }
+
+      modalRef.close();
+    });
   }
 
   /**
