@@ -181,8 +181,14 @@ jobs:
             echo "TEXERA_SERVICE_LOG_LEVEL=ERROR" >> "$BUNDLE_DIR/.env"
           fi
 
-          # Include the README from the repo
-          cp "$TEMP_DIR/_raw/bin/single-node/README.md" "$BUNDLE_DIR/"
+          # Fetch the README from the GitHub wiki and remove the download section
+          # (users of the tarball already have the files, so that section is irrelevant)
+          curl -fsSL "https://raw.githubusercontent.com/wiki/apache/texera/Installing-Apache-Texera-using-Docker.md" \
+            -o "$BUNDLE_DIR/README.md"
+          # Remove the "Download the docker compose tarball from the release" section
+          # (everything from that heading up to the next heading)
+          sed -i '/^## Download the docker compose tarball from the release$/,/^## /{/^## Download the docker compose tarball from the release$/d;/^## /!d;}' "$BUNDLE_DIR/README.md"
+          echo "✓ Included README.md from wiki (with download section removed)"
 
           # Include example datasets, workflows, and the loader script
           if [ -d "$TEMP_DIR/_raw/bin/single-node/examples" ]; then
