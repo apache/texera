@@ -10,7 +10,7 @@ reporting security vulnerabilities.
 - [User Categories and Responsibilities](#user-categories-and-responsibilities)
 - [UI User Roles and Privileges](#ui-user-roles-and-privileges)
 - [Deployments and Computing Units](#deployments-and-computing-units)
-- [What is NOT a Security Issue](#what-is-not-a-security-issue)
+- [What are NOT Security Issues](#what-are-not-security-issues)
 - [Reporting Security Vulnerabilities](#reporting-security-vulnerabilities)
 
 ## Security Model Overview
@@ -78,7 +78,7 @@ account.
 
 **Who They Are**: Individuals who interact with Texera through the web interface.
 
-**Access Level**: Application-level access only. UI users work within the Texera platform but do not have access to:
+**Access Level**: UI users interact with Texera through the web interface and do not have direct access to:
 
 - The underlying infrastructure (servers, Kubernetes cluster)
 - Database administration
@@ -86,7 +86,7 @@ account.
 - Network and firewall settings
 - Container orchestration
 
-**Important**: Texera's security model defines distinct roles with different privilege levels. However, REGULAR and ADMIN users can execute arbitrary code within computing units through User-Defined Functions (UDFs), which is a known limitation that can break the intended role boundaries. UDF code may access resources available in the execution environment, including environment variables, configuration values, and application state. Deployment managers are responsible for mitigating this by applying techniques such as sandboxing UDF execution and disallowing in-process (coordinator JVM) UDFs. See [Deployments and Computing Units](#deployments-and-computing-units) and [What is NOT a Security Issue](#what-is-not-a-security-issue) for more details.
+**Important**: REGULAR and ADMIN users can execute arbitrary code through UDFs, which may access resources in the execution environment. Deployment managers are responsible for mitigating this risk. See [What are NOT Security Issues](#what-are-not-security-issues) for details.
 
 **Roles**: UI users are assigned one of four roles (INACTIVE, RESTRICTED, REGULAR, ADMIN) that control their permissions
 within the Texera application.
@@ -159,7 +159,7 @@ our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kube
 ### Computing Unit Types
 
 Texera executes workflows on **computing units**. UI users (REGULAR and ADMIN) can execute arbitrary code (e.g., through
-UDFs written in Python, R, Java, Scala) within computing units as part of their workflows. UDF execution is a known limitation that can break the intended privilege boundaries between roles — UDF code may access resources available in the execution environment, such as environment variables, configuration values, and other application state. Deployment managers are responsible for mitigating this risk by applying techniques such as sandboxing UDF execution, disallowing in-process (coordinator JVM) UDFs, and ensuring that only trusted users are granted roles that permit code execution.
+UDFs written in Python, R, Java, Scala) within computing units as part of their workflows. See [What are NOT Security Issues](#what-are-not-security-issues) for the security implications of UDF execution.
 
 Deployment managers configure which types of computing units are available:
 
@@ -177,8 +177,7 @@ Local computing units run as processes on the same machine as the Texera service
 **Security considerations**:
 
 - Users' workflow code executes on the host machine with limited isolation
-- UDF code is a known limitation that can break role boundaries — it may access application configuration and state in the execution environment
-- Deployment managers should mitigate this by sandboxing UDF execution or disallowing in-process (coordinator JVM) UDFs
+- UDF code executes with access to resources in the host environment — see [What are NOT Security Issues](#what-are-not-security-issues)
 - Deployment managers must trust all REGULAR and ADMIN users
 - Resource exhaustion by one user can affect all users
 
@@ -222,11 +221,16 @@ The following are **NOT considered security vulnerabilities** in Texera:
 
 ### User Code Execution
 
-Texera's security model defines distinct user roles with different privilege levels. However, REGULAR and ADMIN users can execute arbitrary code (Python, R, Java, Scala) within computing units through UDFs. This is by design — Texera is a data analytics platform where custom code execution is a core feature.
+REGULAR and ADMIN users can execute arbitrary code (Python, R, Java, Scala) within computing units through UDFs. This is by design — custom code execution is a core feature of the platform.
 
-UDF execution is a known limitation that can break the intended privilege boundaries between roles. UDF code may access resources available in the execution environment, including application configuration, environment variables, and other process state. This is not considered a vulnerability, given that Texera's security model expects deployment managers to actively mitigate this risk.
+UDF code may access resources available in the execution environment, including:
 
-Deployment managers are responsible for making UDF execution more secure by applying techniques such as sandboxing UDF execution, disallowing in-process (coordinator JVM) UDFs, restricting user roles appropriately, and monitoring resource usage.
+- Texera's application configurations
+- Environment variables of the host
+
+This is not considered a vulnerability. Deployment managers are expected to mitigate this risk by ensuring only trusted users are granted access to the platform. Users who are no longer trusted should have their roles adjusted to RESTRICTED, which disallows any workflow execution.
+
+In future Texera releases, we plan to introduce features for sandboxing UDF execution, making the UDF environment isolated with no access to system-level secrets.
 
 ### Resource Consumption
 
