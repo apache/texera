@@ -48,8 +48,8 @@ export class GmailService {
       });
   }
 
-  public notifyUnauthorizedLogin(userEmail: string): void {
-    this.http.post(`${AppSettings.getApiEndpoint()}/gmail/notify-unauthorized`, { receiver: userEmail }).subscribe({
+  public notifyUnauthorizedLogin(userEmail: string, affiliation: string, reason: string): void {
+    this.http.post(`${AppSettings.getApiEndpoint()}/gmail/notify-unauthorized`, { receiver: userEmail, affiliation, reason }).subscribe({
       next: () => this.notificationService.success("An admin has been notified about your account request."),
       error: (error: unknown) => {
         if (error instanceof HttpErrorResponse) {

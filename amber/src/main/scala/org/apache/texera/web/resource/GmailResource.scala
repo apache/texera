@@ -35,7 +35,8 @@ import javax.mail.{Message, PasswordAuthentication, Session, Transport}
 import javax.ws.rs._
 import scala.util.{Failure, Success, Try}
 
-case class EmailMessage(receiver: String, subject: String, content: String)
+case class EmailMessage(receiver: String, subject: String, content: String, affiliation: Option[String] = None,
+                        reason: Option[String] = None)
 
 object GmailResource {
   private def context =
@@ -169,6 +170,8 @@ class GmailResource {
           userRegistrationNotification(
             receiverEmail = adminEmail,
             userEmail = Some(emailMessage.receiver),
+            affiliation = emailMessage.affiliation,
+            reason = emailMessage.reason,
             toAdmin = true
           ),
           adminEmail
@@ -184,6 +187,8 @@ class GmailResource {
         userRegistrationNotification(
           receiverEmail = emailMessage.receiver,
           userEmail = None,
+          affiliation = None,
+          reason = None,
           toAdmin = false
         ),
         emailMessage.receiver
