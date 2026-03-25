@@ -670,6 +670,20 @@ class DatasetResourceSpec
     sessionRecord.getUploadId
   }
 
+  private def expireUploadSession(uploadId: String): Unit = {
+    val expiredHoursAgo = S3StorageClient.PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS + 1
+    getDSLContext
+      .update(DATASET_UPLOAD_SESSION)
+      .set(
+        DATASET_UPLOAD_SESSION.CREATED_AT,
+        DSL
+          .field(s"current_timestamp - interval '${expiredHoursAgo} hours'")
+          .cast(classOf[java.time.OffsetDateTime])
+      )
+      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(uploadId))
+      .execute()
+  }
+
   private def assertPlaceholdersCreated(uploadId: String, expectedParts: Int): Unit = {
     val rows = fetchPartRows(uploadId).sortBy(_.getPartNumber)
     rows.size shouldEqual expectedParts
@@ -717,17 +731,9 @@ class DatasetResourceSpec
     initUpload(fpB, numParts = 2).getStatus shouldEqual 200
     initUpload(fpA, numParts = 2).getStatus shouldEqual 200
 
-    // Expire fpB by pushing created_at back > 6 hours.
+    // Expire fpB by pushing created_at back beyond the real session expiration window.
     val uploadIdB = fetchUploadIdOrFail(fpB)
-    val tableName = DATASET_UPLOAD_SESSION.getName // typically "dataset_upload_session"
-    getDSLContext
-      .update(DATASET_UPLOAD_SESSION)
-      .set(
-        DATASET_UPLOAD_SESSION.CREATED_AT,
-        DSL.field("current_timestamp - interval '7 hours'").cast(classOf[java.time.OffsetDateTime])
-      )
-      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(uploadIdB))
-      .execute()
+    expireUploadSession(uploadIdB)
 
     val listed = listUploads()
     listed shouldEqual listed.sorted
@@ -905,19 +911,8 @@ class DatasetResourceSpec
     uploadPart(filePath, 1, minPartBytes(1.toByte)).getStatus shouldEqual 200
     fetchPartRows(oldUploadId).find(_.getPartNumber == 1).get.getEtag.trim should not be ""
 
-    // Age the session so it is definitely expired (> PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS = 6)
-    val expireHrs = S3StorageClient.PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS
-
-    getDSLContext
-      .update(DATASET_UPLOAD_SESSION)
-      .set(
-        DATASET_UPLOAD_SESSION.CREATED_AT,
-        DSL
-          .field(s"current_timestamp - interval '${expireHrs + 1} hours'")
-          .cast(classOf[java.time.OffsetDateTime])
-      )
-      .where(DATASET_UPLOAD_SESSION.UPLOAD_ID.eq(oldUploadId))
-      .execute()
+    // Age the session so it is definitely expired (> PHYSICAL_ADDRESS_EXPIRATION_TIME_HRS)
+    expireUploadSession(oldUploadId)
 
     // Same init config again -> should restart because it's expired
     val r2 = initUpload(filePath, numParts = 2, lastPartBytes = 123)

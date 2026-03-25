@@ -29,8 +29,8 @@ module.exports = {
         ],
       },
     ],
-    // this is required for loading .wasm (and other) files.
-    // For context, see https://stackoverflow.com/a/75252098 and https://github.com/angular/angular-cli/issues/24617
+    // Enable URL handling in webpack's JavaScript parser, required for loading .wasm files.
+    // See https://github.com/angular/angular-cli/issues/24617
     parser: {
       javascript: {
         url: true,

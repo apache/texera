@@ -38,6 +38,7 @@ import org.apache.texera.service.resource.{
   HealthCheckResource
 }
 import org.apache.texera.service.util.S3StorageClient
+import org.apache.texera.service.util.LargeBinaryManager
 import org.eclipse.jetty.server.session.SessionHandler
 import java.nio.file.Path
 
@@ -70,6 +71,8 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     // check if the texera dataset bucket exists, if not create it
     S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
+    // ensure the large-binary S3 bucket exists before any workflow execution attempts to use it
+    S3StorageClient.createBucketIfNotExist(LargeBinaryManager.DEFAULT_BUCKET)
     // check if we can connect to the lakeFS service
     LakeFSStorageClient.healthCheck()
 
