@@ -75,6 +75,11 @@
         Affiliation
       </th>
       <th
+        [nzSortFn]="sortByJoiningReason"
+        [nzSortDirections]="['ascend', 'descend']">
+        Joining Reason
+      </th>
+      <th
         [nzSortFn]="sortByComment"
         [nzSortDirections]="['ascend', 'descend']"
         nzCustomFilter>
@@ -236,6 +241,7 @@
         </div>
       </td>
       <td>{{ user.affiliation }}</td>
+      <td>{{ user.joiningReason }}</td>
       <td>
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">

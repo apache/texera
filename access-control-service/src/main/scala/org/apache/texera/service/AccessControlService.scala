@@ -20,10 +20,11 @@ package org.apache.texera.service
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.AuthDynamicFeature
+import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
+import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
   AccessControlResource,
@@ -32,11 +33,17 @@ import org.apache.texera.service.resource.{
   LiteLLMProxyResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
-
 import java.nio.file.Path
 
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[AccessControlServiceConfiguration]): Unit = {
+    // enable environment variable substitution in YAML config
+    bootstrap.setConfigurationSourceProvider(
+      new SubstitutingSourceProvider(
+        bootstrap.getConfigurationSourceProvider,
+        new EnvironmentVariableSubstitutor(false)
+      )
+    )
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
 
@@ -69,6 +76,9 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
+
+    // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
+    RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 object AccessControlService {

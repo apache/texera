@@ -23,8 +23,7 @@ import org.apache.pekko.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.config.{ApplicationConfig, StorageConfig}
-import org.apache.texera.amber.core.storage.DocumentFactory.ICEBERG
+import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.result._
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
@@ -382,7 +381,7 @@ class ExecutionResultService(
                   outputPort.mode == OutputMode.SINGLE_SNAPSHOT
               }
 
-              if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
+              if (!hasSingleSnapshot) {
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByLogicalPortId(
                     executionId,
@@ -408,8 +407,7 @@ class ExecutionResultService(
         Iterable(
           WebResultUpdateEvent(
             buf.toMap,
-            allTableStats.toMap,
-            StorageConfig.resultStorageMode.toLowerCase
+            allTableStats.toMap
           )
         )
       })
