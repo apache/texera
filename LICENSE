@@ -231,10 +231,6 @@ This product bundles code derived from TypeFox monaco-languageclient:
   Copyright (c) 2024 TypeFox and others.
   Source: https://github.com/TypeFox/monaco-languageclient
 
-This product incorporates dawidd6-action-send-mail as a GitHub Actions workflow dependency:
-  Copyright (c) 2020 Dawid Dziurla
-  Source: https://github.com/dawidd6/action-send-mail
-
 This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-view-result.svg
   - frontend/src/assets/svg/operator-reuse-cache-valid.svg

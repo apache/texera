@@ -43,20 +43,20 @@ jobs:
             -- 'sql/updates/')
           echo "sql_file=$FILE" >> $GITHUB_OUTPUT
       - name: Send email
-        uses: dawidd6/action-send-mail@v7
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{secrets.NOREPLY_EMAIL_USERNAME}}
-          password: ${{secrets.NOREPLY_EMAIL_PASSWORD}}
-          subject: Actions Required After Pulling Latest Update
-          to: dev@texera.apache.org
-          from: ${{ github.event.pull_request.user.login }}
-          body: |
-            Hi all,
-            We have merged PR #${{ github.event.pull_request.number }} (${{ github.event.pull_request.html_url }}): ${{github.event.pull_request.title}}. To incorporate the change, please apply ${{ steps.get_sql_file.outputs.sql_file }} to your local Postgres instance and run sbt jooqGenerate to generate jooq classes. 
+        run: |
+          curl --ssl-reqd \
+            --url "smtps://smtp.gmail.com:465" \
+            --user "${{ secrets.NOREPLY_EMAIL_USERNAME }}:${{ secrets.NOREPLY_EMAIL_PASSWORD }}" \
+            --mail-from "${{ secrets.NOREPLY_EMAIL_USERNAME }}" \
+            --mail-rcpt "dev@texera.apache.org" \
+            --upload-file - <<EOF
+          From: ${{ secrets.NOREPLY_EMAIL_USERNAME }}
+          To: dev@texera.apache.org
+          Reply-To: dev@texera.apache.org
+          Subject: Actions Required After Pulling Latest Update
+          Content-Type: text/html
 
-            Best,
-            ${{ github.event.pull_request.user.login }}
-          reply_to: dev@texera.apache.org
+          <p>Hi all,</p>
+          <p>We have merged PR #${{ github.event.pull_request.number }} (<a href="${{ github.event.pull_request.html_url }}">${{ github.event.pull_request.html_url }}</a>): ${{ github.event.pull_request.title }}. To incorporate the change, please apply ${{ steps.get_sql_file.outputs.sql_file }} to your local Postgres instance and run <code>sbt jooqGenerate</code> to generate jooq classes.</p>
+          <p>Best,<br>${{ github.event.pull_request.user.login }}</p>
+          EOF
