@@ -275,6 +275,22 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
     assert(builder.encode == "param-only")
   }
 
+  test("@StringUI method annotation triggers UI encoding") {
+    object Holder {
+      @EncodableStringAnnotation def uiText: String = "method"
+    }
+    val builder = pyb"${Holder.uiText}"
+    assert(builder.encode == decodeExpr("method"))
+  }
+
+  test("@StringUI method annotation on def with parens triggers UI encoding") {
+    object Holder {
+      @EncodableStringAnnotation def uiText(): String = "method-parens"
+    }
+    val builder = pyb"${Holder.uiText()}"
+    assert(builder.encode == decodeExpr("method-parens"))
+  }
+
   test("unannotated String does not become UI (stays raw python)") {
     val rawText: String = "raw"
     val builder = pyb"$rawText"
