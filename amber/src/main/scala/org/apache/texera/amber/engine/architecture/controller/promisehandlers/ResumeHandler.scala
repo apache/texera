@@ -27,10 +27,13 @@ import org.apache.texera.amber.engine.architecture.controller.{
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
-  EmptyRequest
+  EmptyRequest,
+  QueryStatisticsRequest,
+  StatisticsUpdateTarget
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.engine.common.virtualidentity.util.SELF
 
 /** resume the entire workflow
   *
@@ -40,13 +43,17 @@ trait ResumeHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def resumeWorkflow(msg: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    val resumedWorkerIds =
+      cp.workflowExecution.getRunningRegionExecutions
+        .flatMap(_.getAllOperatorExecutions.map(_._2))
+        .flatMap(_.getWorkerIds)
+        .toSeq
+
     // send all workers resume
     // resume message has no effect on non-paused workers
     Future
       .collect(
-        cp.workflowExecution.getRunningRegionExecutions
-          .flatMap(_.getAllOperatorExecutions.map(_._2))
-          .flatMap(_.getWorkerIds)
+        resumedWorkerIds
           .map { workerId =>
             workerInterface.resumeWorker(EmptyRequest(), mkContext(workerId)).map { resp =>
               cp.workflowExecution
@@ -55,19 +62,33 @@ trait ResumeHandler {
                 .update(System.nanoTime(), resp.state)
             }
           }
-          .toSeq
       )
-      .map { _ =>
-        // update frontend status and persist statistics
-        val stats = cp.workflowExecution.getAllRegionExecutionsStats
-        val edgeStats = cp.workflowExecution.getAllRegionEdgeStatistics
-        sendToClient(ExecutionStatsUpdate(stats, edgeStats))
-        sendToClient(RuntimeStatisticsPersist(stats))
-        cp.controllerTimerService
-          .enableStatusUpdate() //re-enabled it since it is disabled in pause
-        cp.controllerTimerService
-          .enableRuntimeStatisticsCollection() //re-enabled it since it is disabled in pause
-        EmptyReturn()
+      .flatMap { _ =>
+        val statsRefresh =
+          if (resumedWorkerIds.nonEmpty) {
+            controllerInterface.controllerInitiateQueryStatistics(
+              QueryStatisticsRequest(
+                resumedWorkerIds,
+                StatisticsUpdateTarget.BOTH_UI_AND_PERSISTENCE
+              ),
+              mkContext(SELF)
+            )
+          } else {
+            // Keep the old behavior for degenerate cases where no worker needs to be resumed.
+            val stats = cp.workflowExecution.getAllRegionExecutionsStats
+            val edgeStats = cp.workflowExecution.getAllRegionEdgeStatistics
+            sendToClient(ExecutionStatsUpdate(stats, edgeStats))
+            sendToClient(RuntimeStatisticsPersist(stats))
+            Future.value(EmptyReturn())
+          }
+
+        statsRefresh.map { _ =>
+          cp.controllerTimerService
+            .enableStatusUpdate() //re-enabled it since it is disabled in pause
+          cp.controllerTimerService
+            .enableRuntimeStatisticsCollection() //re-enabled it since it is disabled in pause
+          EmptyReturn()
+        }
       }
   }
 
