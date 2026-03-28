@@ -93,6 +93,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
+  public showEdgeStats: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -270,6 +271,12 @@ export class MenuComponent implements OnInit, OnDestroy {
       .getJointGraphWrapper()
       .mainPaper.el.classList.toggle("hide-operator-status", !this.showStatus);
     this.applyOperatorStatusPosition();
+  }
+
+  toggleEdgeStats() {
+    const mainPaper = this.workflowActionService.getJointGraphWrapper().mainPaper;
+    mainPaper.el.classList.toggle("hide-edge-stats", !this.showEdgeStats);
+    mainPaper.trigger("edge-stats-visibility-changed");
   }
 
   private applyOperatorStatusPosition(): void {

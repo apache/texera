@@ -188,6 +188,14 @@
                   >Status</label
                 >
               </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showEdgeStats"
+                  (ngModelChange)="toggleEdgeStats()"
+                  >Edge Stats</label
+                >
+              </li>
             </ul>
           </nz-dropdown-menu>
           <button
