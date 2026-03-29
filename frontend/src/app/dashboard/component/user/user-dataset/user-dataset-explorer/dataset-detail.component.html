@@ -119,6 +119,7 @@
       <texera-markdown-description
         [description]="datasetDescription"
         [editable]="userDatasetAccessLevel === 'WRITE'"
+        [enableViewMore]="true"
         (descriptionChange)="onDatasetDescriptionChange($event)">
       </texera-markdown-description>
     </div>
