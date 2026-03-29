@@ -94,7 +94,7 @@
         <div>
           <div class="tag-settings-title">Quick Settings</div>
           <div class="tag-settings-row">
-            <span>Visibility</span>
+            <span>Visibility:</span>
             <nz-switch
               [ngModel]="datasetIsPublic"
               (ngModelChange)="onPublicStatusChange($event)"
@@ -103,7 +103,7 @@
               nzUnCheckedChildren="private"></nz-switch>
           </div>
           <div class="tag-settings-row">
-            <span>Downloadable</span>
+            <span>Downloadable:</span>
             <nz-switch
               [ngModel]="datasetIsDownloadable"
               (ngModelChange)="onDownloadableStatusChange($event)"

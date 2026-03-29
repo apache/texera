@@ -283,6 +283,10 @@ nz-select {
   min-width: 110px;
 }
 
+.tag-settings-row ::ng-deep .ant-switch {
+  min-width: 80px;
+}
+
 .description-section {
   margin-top: 14px;
   padding-top: 14px;
