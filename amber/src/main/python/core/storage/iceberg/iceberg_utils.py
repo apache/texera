@@ -165,10 +165,10 @@ def create_rest_catalog(
     """
     Creates a REST catalog instance by connecting to a REST endpoint.
     - Configures the catalog to interact with a REST endpoint.
-    - The warehouse_name parameter specifies the warehouse identifier (name for Lakekeeper).
+    - The warehouse_name parameter specifies the warehouse identifier.
     - Configures S3FileIO for MinIO/S3 storage backend.
     :param catalog_name: the name of the catalog.
-    :param warehouse_name: the warehouse identifier (name for Lakekeeper).
+    :param warehouse_name: the warehouse identifier.
     :param rest_uri: the URI of the REST catalog endpoint.
     :param s3_endpoint: the S3 endpoint URL.
     :param s3_region: the S3 region.
