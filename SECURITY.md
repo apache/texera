@@ -230,8 +230,6 @@ UDF code may access resources available in the execution environment, including:
 
 This is not considered a vulnerability. Deployment managers are expected to mitigate this risk by ensuring only trusted users are granted access to the platform. Users who are no longer trusted should have their roles adjusted to RESTRICTED, which disallows any workflow execution.
 
-In future Texera releases, we plan to introduce features for sandboxing UDF execution, making the UDF environment isolated with no access to system-level secrets.
-
 ### Resource Consumption
 
 Users can create workflows that consume significant CPU, memory, or storage. Texera is designed for data-intensive
