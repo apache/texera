@@ -33,7 +33,11 @@
       Edit
     </button>
   </div>
-  <div class="preview-box">
+  <div
+    #previewBox
+    class="preview-box"
+    [class.collapsed]="enableViewMore && !isExpanded"
+    [style.max-height]="enableViewMore && !isExpanded ? COLLAPSED_HEIGHT_PX + 'px' : null">
     <div
       *ngIf="renderedDescription; else noDescription"
       class="md-rendered"
@@ -42,6 +46,17 @@
       <p>No description provided.</p>
     </ng-template>
   </div>
+  <button
+    *ngIf="enableViewMore && hasOverflow"
+    nz-button
+    nzType="text"
+    class="view-more-btn"
+    (click)="toggleViewMore()">
+    <i
+      nz-icon
+      [nzType]="isExpanded ? 'up' : 'down'"></i>
+    {{ isExpanded ? "View less" : "View more" }}
+  </button>
 </ng-container>
 
 <!-- Edit mode -->
@@ -66,7 +81,7 @@
         #textarea
         nz-input
         [(ngModel)]="editingContent"
-        (input)="renderMarkdown(editingContent)"
+        (ngModelChange)="renderMarkdown($event)"
         placeholder="Write Markdown here..."
         class="md-textarea"></textarea>
     </div>
