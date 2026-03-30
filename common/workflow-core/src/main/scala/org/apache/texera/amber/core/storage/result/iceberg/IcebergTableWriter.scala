@@ -106,9 +106,8 @@ private[storage] class IcebergTableWriter[T](
   private def flushBuffer(): Unit = {
     if (buffer.nonEmpty) {
       // Create a unique file path using the writer's identifier and the filename index
-      val location = table.location()
-      val basePath = if (location.endsWith("/")) location else s"$location/"
-      val filepathString = s"$basePath${writerIdentifier}_${filenameIdx}"
+      val location = table.location().stripSuffix("/")
+      val filepathString = s"$location/${writerIdentifier}_$filenameIdx"
       // Increment the filename index by 1
       filenameIdx += 1
       val outputFile: OutputFile = table.io().newOutputFile(filepathString)
