@@ -10,7 +10,7 @@ reporting security vulnerabilities.
 - [User Categories and Responsibilities](#user-categories-and-responsibilities)
 - [UI User Roles and Privileges](#ui-user-roles-and-privileges)
 - [Deployments and Computing Units](#deployments-and-computing-units)
-- [What are NOT Security Issues](#what-are-not-security-issues)
+- [What is NOT a Security Issue](#what-is-not-a-security-issue)
 - [Reporting Security Vulnerabilities](#reporting-security-vulnerabilities)
 
 ## Security Model Overview
@@ -86,7 +86,7 @@ account.
 - Network and firewall settings
 - Container orchestration
 
-**Important**: REGULAR and ADMIN users can execute arbitrary code through UDFs, which may access resources in the execution environment. Deployment managers are responsible for mitigating this risk. See [What are NOT Security Issues](#what-are-not-security-issues) for details.
+**Important**: REGULAR and ADMIN users can execute arbitrary code through UDFs, which may access resources in the execution environment. Deployment managers are responsible for mitigating this risk. See [What is NOT a Security Issue](#what-is-not-a-security-issue) for details.
 
 **Roles**: UI users are assigned one of four roles (INACTIVE, RESTRICTED, REGULAR, ADMIN) that control their permissions
 within the Texera application.
@@ -159,7 +159,7 @@ our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kube
 ### Computing Unit Types
 
 Texera executes workflows on **computing units**. UI users (REGULAR and ADMIN) can execute arbitrary code (e.g., through
-UDFs written in Python, R, Java, Scala) within computing units as part of their workflows. See [What are NOT Security Issues](#what-are-not-security-issues) for the security implications of UDF execution.
+UDFs written in Python, R, Java, Scala) within computing units as part of their workflows. See [What is NOT a Security Issue](#what-is-not-a-security-issue) for the security implications of UDF execution.
 
 Deployment managers configure which types of computing units are available:
 
@@ -177,7 +177,7 @@ Local computing units run as processes on the same machine as the Texera service
 **Security considerations**:
 
 - Users' workflow code executes on the host machine with limited isolation
-- UDF code executes with access to resources in the host environment — see [What are NOT Security Issues](#what-are-not-security-issues)
+- UDF code executes with access to resources in the host environment — see [What is NOT a Security Issue](#what-is-not-a-security-issue)
 - Deployment managers must trust all REGULAR and ADMIN users
 - Resource exhaustion by one user can affect all users
 
@@ -215,7 +215,7 @@ Texera's security model does NOT guarantee:
 - DDoS protection (requires external infrastructure)
 - Compliance with specific regulatory requirements without additional configuration
 
-## What are NOT Security Issues
+## What is NOT a Security Issue
 
 The following are **NOT considered security vulnerabilities** in Texera:
 
