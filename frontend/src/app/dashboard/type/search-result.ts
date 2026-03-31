@@ -24,7 +24,7 @@ import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardEntry } from "./dashboard-entry";
 
 export interface SearchResultItem {
-  resourceType: "workflow" | "project" | "file" | "dataset";
+  resourceType: "workflow" | "project" | "file" | "dataset" | "computing-unit";
   workflow?: DashboardWorkflow;
   project?: DashboardProject;
   file?: DashboardFile;
