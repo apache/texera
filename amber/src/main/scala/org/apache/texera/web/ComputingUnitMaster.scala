@@ -47,7 +47,11 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import org.apache.texera.web.resource.{SyncExecutionResource, WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
+import org.apache.texera.web.resource.{
+  SyncExecutionResource,
+  WebsocketPayloadSizeTuner,
+  WorkflowWebsocketResource
+}
 import org.apache.texera.web.service.ExecutionsMetadataPersistService
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.FilterHolder
