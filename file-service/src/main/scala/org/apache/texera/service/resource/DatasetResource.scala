@@ -1188,7 +1188,7 @@ class DatasetResource extends LazyLogging {
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
 
-      val ownerNode = DatasetFileNode
+      val datasetsNode = DatasetFileNode
         .fromLakeFSRepositoryCommittedObjects(
           Map(
             (user.getEmail, dataset.getName, latestVersion.getName) -> LakeFSStorageClient
@@ -1196,6 +1196,8 @@ class DatasetResource extends LazyLogging {
           )
         )
         .head
+
+      val ownerNode = datasetsNode.children.get.head
 
       DashboardDatasetVersion(
         latestVersion,
@@ -1404,7 +1406,7 @@ class DatasetResource extends LazyLogging {
     val datasetName = dataset.dataset.getName
     val repositoryName = dataset.dataset.getRepositoryName
 
-    val ownerFileNode = DatasetFileNode
+    val datasetsNode = DatasetFileNode
       .fromLakeFSRepositoryCommittedObjects(
         Map(
           (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
@@ -1412,6 +1414,8 @@ class DatasetResource extends LazyLogging {
         )
       )
       .head
+
+    val ownerFileNode = datasetsNode.children.get.head
 
     DatasetVersionRootFileNodesResponse(
       ownerFileNode.children.get
@@ -1423,7 +1427,7 @@ class DatasetResource extends LazyLogging {
         .head
         .children
         .get,
-      DatasetFileNode.calculateTotalSize(List(ownerFileNode))
+      DatasetFileNode.calculateTotalSize(List(datasetsNode))
     )
   }
 
