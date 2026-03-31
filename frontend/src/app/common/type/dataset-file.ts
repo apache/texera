@@ -17,8 +17,8 @@
  * under the License.
  */
 
-// user given filePath is /ownerEmail/datasetName/versionName/fileRelativePath
-// e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+// user given filePath is /datasets/ownerEmail/datasetName/versionName/fileRelativePath
+// e.g. /datasets/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
 export interface DatasetFile {
   ownerEmail: string;
   datasetName: string;
@@ -28,11 +28,17 @@ export interface DatasetFile {
 
 /**
  * Parses a file path string to a DatasetFile interface.
+ * The first segment "datasets" is stripped before parsing.
  * @param filePath - The file path string to parse.
  * @returns The parsed DatasetFile object.
  */
 export function parseFilePathToDatasetFile(filePath: string): DatasetFile {
-  const parts = filePath.split("/").filter(part => part.length > 0);
+  let parts = filePath.split("/").filter(part => part.length > 0);
+
+  // Strip the "datasets" prefix if present
+  if (parts.length > 0 && parts[0] === "datasets") {
+    parts = parts.slice(1);
+  }
 
   if (parts.length < 4) {
     throw new Error("Invalid file path format");
@@ -56,5 +62,5 @@ export function parseFilePathToDatasetFile(filePath: string): DatasetFile {
  */
 export function parseDatasetFileToFilePath(datasetFile: DatasetFile): string {
   const { ownerEmail, datasetName, versionName, fileRelativePath } = datasetFile;
-  return `/${ownerEmail}/${datasetName}/${versionName}/${fileRelativePath}`;
+  return `/datasets/${ownerEmail}/${datasetName}/${versionName}/${fileRelativePath}`;
 }
