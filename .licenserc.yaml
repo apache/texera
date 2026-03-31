@@ -41,3 +41,7 @@ header:
     - 'frontend/src/assets/svg/operator-view-result.svg'
     - 'frontend/src/assets/svg/operator-reuse-cache-invalid.svg'
     - 'frontend/src/assets/svg/operator-reuse-cache-valid.svg'
+    - 'frontend/src/app/common/type/proto/org/apache/texera/amber/core/virtualidentity.ts'
+    - 'frontend/src/app/common/type/proto/org/apache/texera/amber/core/workflow.ts'
+    - 'frontend/src/app/common/type/proto/google/protobuf/descriptor.ts'
+    - 'frontend/src/app/common/type/proto/scalapb/scalapb.ts'
