@@ -326,7 +326,7 @@ export class ValidationWorkflowService {
       const port = operator.inputPorts[i];
       const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
       let allowMultiInput = port.allowMultiInputs;
-      allowMultiInput = true
+      allowMultiInput = true;
       if (allowMultiInput) {
         if (portNumInputs < 1) {
           satisfyInput = false;
