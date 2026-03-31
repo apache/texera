@@ -24,12 +24,85 @@
 # 3. Start litellm by:
 #    litellm --config bin/litellm-config.yaml
 # By default, litellm is running on http://0.0.0.0:4000
+#litellm_settings:
+#  drop_params: true
+
 model_list:
+#  - model_name: qwen3-coder
+#    litellm_params:
+#      model: ollama/qwen3-coder
+#      api_base: "http://localhost:11434"
   - model_name: claude-haiku-4.5
     litellm_params:
-      model: claude-haiku-4-5-20251001
+      model: anthropic/claude-haiku-4-5-20251001
       api_key: "os.environ/ANTHROPIC_API_KEY"
-  - model_name: gpt-5-mini
+  - model_name: claude-sonnet-4
     litellm_params:
-      model: gpt-5-mini-2025-08-07
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+  - model_name: gpt-5.2
+    litellm_params:
+      model: gpt-5.2
       api_key: "os.environ/OPENAI_API_KEY"
+#  - model_name: claude-sonnet-3.7
+#    litellm_params:
+#      model: anthropic/claude-3-7-sonnet-20250219
+#      api_key: "os.environ/ANTHROPIC_API_KEY"
+#  - model_name: claude-sonnet-3.5
+#    litellm_params:
+#      model: anthropic/claude-3-5-sonnet-20240620
+#      api_key: "os.environ/ANTHROPIC_API_KEY"
+#  - model_name: claude-sonnet-4-5
+#    litellm_params:
+#      model: anthropic/claude-sonnet-4-5-20250929
+#      api_key: "os.environ/ANTHROPIC_API_KEY"
+#  - model_name: gpt-5-mini
+#    litellm_params:
+#      model: gpt-5-mini-2025-08-07
+#      api_key: "os.environ/OPENAI_API_KEY"
+#  - model_name: gpt-5-mini-high
+#    litellm_params:
+#      model: gpt-5-mini-2025-08-07
+#      api_key: "os.environ/OPENAI_API_KEY"
+#      extra_body:
+#        reasoning_effort: high
+#  - model_name: gpt-5-mini-medium
+#    litellm_params:
+#      model: gpt-5-mini-2025-08-07
+#      api_key: "os.environ/OPENAI_API_KEY"
+#      extra_body:
+#        reasoning_effort: medium
+#  - model_name: gpt-5-mini-low
+#    litellm_params:
+#      model: gpt-5-mini-2025-08-07
+#      api_key: "os.environ/OPENAI_API_KEY"
+#      extra_body:
+#        reasoning_effort: low
+#  - model_name: gpt-4.1
+#    litellm_params:
+#      model: gpt-4.1
+#      api_key: "os.environ/OPENAI_API_KEY"
+#  - model_name: gpt-5.2
+#    litellm_params:
+#      model: gpt-5.2
+#      api_key: "os.environ/OPENAI_API_KEY"
+#  - model_name: gpt-4.1-mini
+#    litellm_params:
+#      model: gpt-4.1-mini
+#      api_key: "os.environ/OPENAI_API_KEY"
+#  - model_name: o4-mini
+#    litellm_params:
+#      model: o4-mini
+#      api_key: "os.environ/OPENAI_API_KEY"
+#  - model_name: o3
+#    litellm_params:
+#      model: o3
+#      api_key: "os.environ/OPENAI_API_KEY"
+#  - model_name: llama-local
+#    litellm_params:
+#      model: ollama/llama3.1:8b
+#      api_base: "http://localhost:11434"
+#  - model_name: gemini-2.5-pro
+#    litellm_params:
+#      model: gemini/gemini-2.5-pro
+#      api_key: "os.environ/GEMINI_API_KEY"

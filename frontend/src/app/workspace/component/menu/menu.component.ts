@@ -19,7 +19,6 @@
 
 import { DatePipe, Location } from "@angular/common";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
-import { Router } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
@@ -57,7 +56,6 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
-import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/markdown-description/markdown-description.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -93,7 +91,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showRegion: boolean = false;
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
-  public showStatus: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -144,8 +141,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    protected config: GuiConfigService,
-    private router: Router
+    protected config: GuiConfigService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -263,27 +259,11 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService
       .getJointGraphWrapper()
       .mainPaper.el.classList.toggle("hide-worker-count", !this.showNumWorkers);
-    this.applyOperatorStatusPosition();
   }
 
-  toggleStatus() {
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .mainPaper.el.classList.toggle("hide-operator-status", !this.showStatus);
-    this.applyOperatorStatusPosition();
-  }
-
-  private applyOperatorStatusPosition(): void {
-    const refY = this.showNumWorkers ? -55 : -35;
-    const paperModel = this.workflowActionService.getJointGraphWrapper().mainPaper.model as any;
-    paperModel.getElements().forEach((el: any) => {
-      el.attr(".operator-status/ref-x", -10);
-      el.attr(".operator-status/ref-y", refY);
-    });
-  }
 
   public async onClickOpenShareAccess(): Promise<void> {
-    const modalRef = this.modalService.create({
+    this.modalService.create({
       nzContent: ShareAccessComponent,
       nzData: {
         writeAccess: this.writeAccess,
@@ -296,12 +276,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       nzTitle: "Share this workflow with others",
       nzCentered: true,
       nzWidth: "800px",
-    });
-
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
-      if (result?.userRevokedOwnAccess) {
-        this.router.navigate([DASHBOARD_USER_WORKFLOW]);
-      }
     });
   }
 
@@ -498,11 +472,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public toggleRegion(): void {
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .jointGraph.getElements()
-      .filter(el => el.get("type") === "region") // small improvement here too
-      .forEach(el => el.attr("body/visibility", this.showRegion ? "visible" : "hidden"));
+    this.workflowActionService.getJointGraphWrapper().mainPaper.el.classList.toggle("hide-region", !this.showRegion);
   }
 
   /**
@@ -606,44 +576,6 @@ export class MenuComponent implements OnInit, OnDestroy {
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
-  }
-
-  /**
-   * Calls Markdown Description Component
-   */
-  public onClickEditDescription(): void {
-    const currentWorkflow = this.workflowActionService.getWorkflow();
-    const currentDescription = currentWorkflow.description ?? "";
-
-    const modalRef = this.modalService.create<MarkdownDescriptionComponent>({
-      nzTitle: "Edit Workflow Description",
-      nzContent: MarkdownDescriptionComponent,
-      nzData: {
-        description: currentDescription,
-      },
-      nzWidth: "900px",
-      nzMaskClosable: true,
-      nzKeyboard: true,
-      nzClosable: true,
-      nzFooter: null,
-    });
-
-    const comp: MarkdownDescriptionComponent = modalRef.getContentComponent();
-
-    comp.descriptionChange.pipe(untilDestroyed(this)).subscribe((updatedDescription: string) => {
-      const updatedWorkflow: Workflow = {
-        ...currentWorkflow,
-        description: updatedDescription,
-      };
-
-      this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-
-      if (this.userService.isLogin()) {
-        this.persistWorkflow();
-      }
-
-      modalRef.close();
-    });
   }
 
   /**

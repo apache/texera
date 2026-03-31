@@ -25,10 +25,146 @@
   height: 100%;
 }
 
+::ng-deep .hide-region .region {
+  display: none;
+}
+
+// Message region highlighting (for user message operator highlighting)
+// Uses transparent fill with dashed blue border so step badges remain visible
+::ng-deep .message-region {
+  pointer-events: none;
+  fill: transparent;
+  stroke: #1890ff;
+  stroke-width: 2;
+  stroke-dasharray: 8, 4;
+}
+
+::ng-deep .agent-action {
+  // Agent action highlights - temporary 5-second visual indicators
+  // Styles are defined inline in JointJS element, but this provides a hook for customization
+  pointer-events: none;
+}
+
 ::ng-deep .hide-worker-count .operator-worker-count {
   display: none;
 }
 
-::ng-deep .hide-operator-status .operator-status {
-  display: none;
+// Inline panels overlay container
+.panels-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 10;
+}
+
+// Code panel wrapper - larger for code display
+.code-panel-wrapper {
+  position: absolute;
+  width: 400px;
+  height: 220px;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+// Step badges overlay container
+.step-badges-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 15;
+}
+
+// Individual step badge - matches the message step ID badge style
+.step-badge {
+  position: absolute;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: monospace;
+  color: white;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  // Default color - Execute group (Blue #1890ff)
+  background-color: #1890ff;
+
+  // Action-based colors
+  // Create - addOperator, addCodeOperator (Purple #722ed1)
+  &.added {
+    background-color: #722ed1;
+  }
+
+  // Modify - modifyOperator, modifyCodeOperator (Orange #fa8c16)
+  &.modified {
+    background-color: #fa8c16;
+  }
+
+  // Execute - executeWorkflow (Blue #1890ff)
+  &.executed {
+    background-color: #1890ff;
+  }
+
+  // Observe - viewed operators (Green #52c41a)
+  &.viewed {
+    background-color: #52c41a;
+  }
+
+  &:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  &:active {
+    transform: scale(1.05);
+  }
+}
+
+// Chat popover container for operator chat button
+.chat-popover-container {
+  position: absolute;
+  pointer-events: auto;
+  z-index: 20;
+  transform: translateX(-50%);
+}
+
+.chat-popover {
+  width: 400px;
+  max-height: 400px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  &.chat-popover-visualization {
+    width: 620px;
+    max-height: 480px;
+  }
+}
+
+.chat-popover-content {
+  padding: 12px;
+  overflow-y: auto;
+  max-height: 400px;
+
+  .chat-popover-visualization & {
+    max-height: 480px;
+  }
 }

@@ -25,7 +25,11 @@ import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
-import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
+import {
+  operatorCoeditorChangedPropertyClass,
+  operatorCoeditorEditingClass,
+  operatorAgentActionProgressClass,
+} from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
 import * as _ from "lodash";
 import Selectors = dia.Cell.Selectors;
@@ -592,7 +596,7 @@ export class JointGraphWrapper {
         graphlib: graphlib,
         nodeSep: 100,
         edgeSep: 150,
-        rankSep: 80,
+        rankSep: 130, // Increased from 80 to add 50px more horizontal spacing between connected operators
         ranker: "tight-tree",
         rankDir: "LR",
         resizeClusters: true,
@@ -1008,6 +1012,44 @@ export class JointGraphWrapper {
       ?.getModelById(currentChanged)
       .attr({
         [`.${operatorCoeditorChangedPropertyClass}`]: {
+          text: "",
+          visibility: "hidden",
+        },
+      });
+  }
+
+  /**
+   * Set agent action progress indicator on an operator
+   * @param operatorId The operator ID
+   * @param agentName Name of the agent working on this operator
+   * @param isCompleted Whether the action is completed
+   */
+  public setAgentActionProgress(operatorId: string, agentName: string, isCompleted: boolean): void {
+    const textColor = isCompleted ? "green" : "orange";
+    const statusText = isCompleted ? "done" : "working";
+
+    const element = this.getMainJointPaper()?.getModelById(operatorId);
+    if (element) {
+      element.attr({
+        [`.${operatorAgentActionProgressClass}`]: {
+          text: `${agentName}: ${statusText}`,
+          fill: textColor,
+          "font-weight": "bold",
+          visibility: "visible",
+        },
+      });
+    }
+  }
+
+  /**
+   * Clear agent action progress indicator from an operator
+   * @param operatorId The operator ID
+   */
+  public clearAgentActionProgress(operatorId: string): void {
+    this.getMainJointPaper()
+      ?.getModelById(operatorId)
+      .attr({
+        [`.${operatorAgentActionProgressClass}`]: {
           text: "",
           visibility: "hidden",
         },

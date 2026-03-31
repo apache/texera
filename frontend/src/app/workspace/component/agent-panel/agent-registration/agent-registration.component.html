@@ -19,8 +19,8 @@
 
 <div class="agent-registration-container">
   <div class="registration-header">
-    <h3>Create New Agent</h3>
-    <p>Select a model type and create an AI agent to assist with your workflows</p>
+    <h3>Welcome to Bobflow!</h3>
+    <p>Select a model type and create an AI agent to assist with your data science tasks</p>
   </div>
 
   <div class="model-type-selection">
@@ -80,6 +80,40 @@
       [(ngModel)]="customAgentName"
       placeholder="Enter a custom name for your agent"
       [disabled]="!selectedModelType" />
+  </div>
+
+  <div class="trace-import-section">
+    <h4>Import from Trace (Optional)</h4>
+    <nz-upload
+      nzType="drag"
+      [nzAccept]="'.json'"
+      [nzBeforeUpload]="beforeUpload"
+      [nzFileList]="traceFileList"
+      [nzDisabled]="!selectedModelType">
+      <p class="ant-upload-drag-icon">
+        <i
+          nz-icon
+          nzType="inbox"></i>
+      </p>
+      <p class="ant-upload-text">Click or drag trace.json file to this area</p>
+      <p class="ant-upload-hint">Upload a trace file to replay and reconstruct the workflow</p>
+    </nz-upload>
+    <div
+      *ngIf="traceContent"
+      class="trace-loaded-indicator">
+      <i
+        nz-icon
+        nzType="check-circle"
+        nzTheme="fill"></i>
+      <span>Trace loaded: {{ traceContent.messages?.length || 0 }} messages</span>
+      <button
+        nz-button
+        nzType="link"
+        nzSize="small"
+        (click)="clearTrace()">
+        Clear
+      </button>
+    </div>
   </div>
 
   <div class="action-buttons">

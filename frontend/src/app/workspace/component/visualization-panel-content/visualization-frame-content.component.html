@@ -17,6 +17,33 @@
  under the License.
 -->
 
-<iframe
-  [srcdoc]="htmlData"
-  id="html-content"></iframe>
+<div class="visualization-container">
+  <!-- Tab buttons - only show if JSON content is available -->
+  <div
+    class="tab-buttons"
+    *ngIf="hasJsonContent">
+    <button
+      [class.active]="activeTab === 'html'"
+      (click)="switchTab('html')">
+      Chart
+    </button>
+    <button
+      [class.active]="activeTab === 'json'"
+      (click)="switchTab('json')">
+      JSON
+    </button>
+  </div>
+
+  <!-- HTML content (chart) -->
+  <iframe
+    *ngIf="activeTab === 'html'"
+    [srcdoc]="htmlData"
+    id="html-content"></iframe>
+
+  <!-- JSON content -->
+  <div
+    *ngIf="activeTab === 'json' && hasJsonContent"
+    class="json-content">
+    <pre>{{ jsonData }}</pre>
+  </div>
+</div>

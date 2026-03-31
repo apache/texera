@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient, HttpErrorResponse, HttpParams } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
@@ -27,7 +27,6 @@ import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { AuthService } from "src/app/common/service/user/auth.service";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -51,7 +50,9 @@ export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/user-dataset-owners";
 export interface MultipartUploadProgress {
   filePath: string;
   percentage: number;
-  status: "initializing" | "uploading" | "finished" | "aborted" | "failed";
+  status: "initializing" | "uploading" | "finished" | "aborted";
+  uploadId: string;
+  physicalAddress: string;
   uploadSpeed?: number; // bytes per second
   estimatedTimeRemaining?: number; // seconds
   totalTime?: number; // total seconds taken
@@ -121,7 +122,6 @@ export class DatasetService {
   public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
     return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_LIST_URL}`);
   }
-
   public createDatasetVersion(did: number, newVersion: string): Observable<DatasetVersion> {
     return this.http
       .post<{
@@ -141,12 +141,6 @@ export class DatasetService {
   /**
    * Handles multipart upload for large files using RxJS,
    * with a concurrency limit on how many parts we process in parallel.
-   *
-   * Backend flow:
-   *   POST /dataset/multipart-upload?type=init&ownerEmail=...&datasetName=...&filePath=...&numParts=N
-   *   POST /dataset/multipart-upload/part?ownerEmail=...&datasetName=...&filePath=...&partNumber=<n>  (body: raw chunk)
-   *   POST /dataset/multipart-upload?type=finish&ownerEmail=...&datasetName=...&filePath=...
-   *   POST /dataset/multipart-upload?type=abort&ownerEmail=...&datasetName=...&filePath=...
    */
   public multipartUpload(
     ownerEmail: string,
@@ -154,31 +148,22 @@ export class DatasetService {
     filePath: string,
     file: File,
     partSize: number,
-    concurrencyLimit: number,
-    restart: boolean
+    concurrencyLimit: number
   ): Observable<MultipartUploadProgress> {
     const partCount = Math.ceil(file.size / partSize);
 
-    return new Observable<MultipartUploadProgress>(observer => {
-      // Track upload progress (bytes) for each part independently
+    return new Observable(observer => {
+      // Track upload progress for each part independently
       const partProgress = new Map<number, number>();
 
-      let baselineUploaded = 0;
       // Progress tracking state
       let startTime: number | null = null;
       const speedSamples: number[] = [];
       let lastETA = 0;
       let lastUpdateTime = 0;
 
-      const lastStats = {
-        uploadSpeed: 0,
-        estimatedTimeRemaining: 0,
-        totalTime: 0,
-      };
-
+      // Calculate stats with smoothing
       const getTotalTime = () => (startTime ? (Date.now() - startTime) / 1000 : 0);
-
-      // Calculate stats with smoothing and simple throttling (~1s)
       const calculateStats = (totalUploaded: number) => {
         if (startTime === null) {
           startTime = Date.now();
@@ -187,26 +172,25 @@ export class DatasetService {
         const now = Date.now();
         const elapsed = getTotalTime();
 
+        // Throttle updates to every 1s
         const shouldUpdate = now - lastUpdateTime >= 1000;
         if (!shouldUpdate) {
-          // keep totalTime fresh even when throttled
-          lastStats.totalTime = elapsed;
-          return lastStats;
+          return null;
         }
         lastUpdateTime = now;
 
-        const sessionUploaded = Math.max(0, totalUploaded - baselineUploaded);
-        const currentSpeed = elapsed > 0 ? sessionUploaded / elapsed : 0;
+        // Calculate speed with moving average
+        const currentSpeed = elapsed > 0 ? totalUploaded / elapsed : 0;
         speedSamples.push(currentSpeed);
-        if (speedSamples.length > 5) {
-          speedSamples.shift();
-        }
-        const avgSpeed = speedSamples.length > 0 ? speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length : 0;
+        if (speedSamples.length > 5) speedSamples.shift();
+        const avgSpeed = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
 
+        // Calculate smooth ETA
         const remaining = file.size - totalUploaded;
         let eta = avgSpeed > 0 ? remaining / avgSpeed : 0;
-        eta = Math.min(eta, 24 * 60 * 60); // cap ETA at 24h
+        eta = Math.min(eta, 24 * 60 * 60); // cap ETA at 24h, 86400 sec
 
+        // Smooth ETA changes (limit to 30% change)
         if (lastETA > 0 && eta > 0) {
           const maxChange = lastETA * 0.3;
           const diff = Math.abs(eta - lastETA);
@@ -216,113 +200,106 @@ export class DatasetService {
         }
         lastETA = eta;
 
+        // Near completion optimization
         const percentComplete = (totalUploaded / file.size) * 100;
         if (percentComplete > 95) {
           eta = Math.min(eta, 10);
         }
 
-        lastStats.uploadSpeed = avgSpeed;
-        lastStats.estimatedTimeRemaining = Math.max(0, Math.round(eta));
-        lastStats.totalTime = elapsed;
-
-        return lastStats;
+        return {
+          uploadSpeed: avgSpeed,
+          estimatedTimeRemaining: Math.max(0, Math.round(eta)),
+          totalTime: elapsed,
+        };
       };
 
-      // 1. INIT: ask backend to create a LakeFS multipart upload session
-      const initParams = new HttpParams()
-        .set("type", "init")
-        .set("ownerEmail", ownerEmail)
-        .set("datasetName", datasetName)
-        .set("filePath", encodeURIComponent(filePath))
-        .set("fileSizeBytes", file.size.toString())
-        .set("partSizeBytes", partSize.toString())
-        .set("restart", restart);
-
-      const init$ = this.http.post<{ missingParts: number[]; completedPartsCount: number }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
-        {},
-        { params: initParams }
-      );
-
-      const subscription = init$
+      const subscription = this.initiateMultipartUpload(ownerEmail, datasetName, filePath, partCount)
         .pipe(
-          switchMap(initResp => {
-            const missingParts = (initResp?.missingParts ?? []).slice();
-            const completedPartsCount = initResp?.completedPartsCount ?? 0;
-
-            const missingBytes = missingParts.reduce((sum, partNumber) => {
-              const start = (partNumber - 1) * partSize;
-              const end = Math.min(start + partSize, file.size);
-              return sum + (end - start);
-            }, 0);
-
-            baselineUploaded = file.size - missingBytes;
-            const baselinePct = partCount > 0 ? Math.round((completedPartsCount / partCount) * 100) : 0;
-
+          switchMap(initiateResponse => {
+            const { uploadId, presignedUrls, physicalAddress } = initiateResponse;
+            if (!uploadId) {
+              observer.error(new Error("Failed to initiate multipart upload"));
+              return EMPTY;
+            }
             observer.next({
-              filePath,
-              percentage: baselinePct,
+              filePath: filePath,
+              percentage: 0,
               status: "initializing",
+              uploadId: uploadId,
+              physicalAddress: physicalAddress,
               uploadSpeed: 0,
               estimatedTimeRemaining: 0,
               totalTime: 0,
             });
-            // 2. Upload each part to /multipart-upload/part using XMLHttpRequest
-            return from(missingParts).pipe(
-              mergeMap(partNumber => {
-                const start = (partNumber - 1) * partSize;
+
+            // Keep track of all uploaded parts
+            const uploadedParts: { PartNumber: number; ETag: string }[] = [];
+
+            // 1) Convert presignedUrls into a stream of URLs
+            return from(presignedUrls).pipe(
+              // 2) Use mergeMap with concurrency limit to upload chunk by chunk
+              mergeMap((url, index) => {
+                const partNumber = index + 1;
+                const start = index * partSize;
                 const end = Math.min(start + partSize, file.size);
                 const chunk = file.slice(start, end);
 
-                return new Observable<void>(partObserver => {
+                // Upload the chunk
+                return new Observable(partObserver => {
                   const xhr = new XMLHttpRequest();
 
                   xhr.upload.addEventListener("progress", event => {
                     if (event.lengthComputable) {
+                      // Update this specific part's progress
                       partProgress.set(partNumber, event.loaded);
 
-                      let totalUploaded = baselineUploaded; // CHANGED
-                      partProgress.forEach(bytes => {
-                        totalUploaded += bytes;
-                      });
-
+                      // Calculate total progress across all parts
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
                       const percentage = Math.round((totalUploaded / file.size) * 100);
                       const stats = calculateStats(totalUploaded);
 
                       observer.next({
                         filePath,
-                        percentage: Math.min(percentage, 99),
+                        percentage: Math.min(percentage, 99), // Cap at 99% until finalized
                         status: "uploading",
+                        uploadId,
+                        physicalAddress,
                         ...stats,
                       });
                     }
                   });
 
                   xhr.addEventListener("load", () => {
-                    if (xhr.status === 200 || xhr.status === 204) {
-                      // Mark part as fully uploaded
+                    if (xhr.status === 200 || xhr.status === 201) {
+                      const etag = xhr.getResponseHeader("ETag")?.replace(/"/g, "");
+                      if (!etag) {
+                        partObserver.error(new Error(`Missing ETag for part ${partNumber}`));
+                        return;
+                      }
+
+                      // Mark this part as fully uploaded
                       partProgress.set(partNumber, chunk.size);
+                      uploadedParts.push({ PartNumber: partNumber, ETag: etag });
 
-                      let totalUploaded = baselineUploaded;
-                      partProgress.forEach(bytes => {
-                        totalUploaded += bytes;
-                      });
-
-                      // Force stats recompute on completion
-                      lastUpdateTime = 0;
+                      // Recalculate progress
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
                       const percentage = Math.round((totalUploaded / file.size) * 100);
+                      lastUpdateTime = 0;
                       const stats = calculateStats(totalUploaded);
 
                       observer.next({
                         filePath,
                         percentage: Math.min(percentage, 99),
                         status: "uploading",
+                        uploadId,
+                        physicalAddress,
                         ...stats,
                       });
-
                       partObserver.complete();
                     } else {
-                      partObserver.error(new Error(`Failed to upload part ${partNumber} (HTTP ${xhr.status})`));
+                      partObserver.error(new Error(`Failed to upload part ${partNumber}`));
                     }
                   });
 
@@ -332,72 +309,60 @@ export class DatasetService {
                     partObserver.error(new Error(`Failed to upload part ${partNumber}`));
                   });
 
-                  const partUrl =
-                    `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload/part` +
-                    `?ownerEmail=${encodeURIComponent(ownerEmail)}` +
-                    `&datasetName=${encodeURIComponent(datasetName)}` +
-                    `&filePath=${encodeURIComponent(filePath)}` +
-                    `&partNumber=${partNumber}`;
-
-                  xhr.open("POST", partUrl);
-                  xhr.setRequestHeader("Content-Type", "application/octet-stream");
-                  const token = AuthService.getAccessToken();
-                  if (token) {
-                    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-                  }
+                  xhr.open("PUT", url);
                   xhr.send(chunk);
-                  return () => {
-                    try {
-                      xhr.abort();
-                    } catch {}
-                  };
                 });
               }, concurrencyLimit),
-              toArray(), // wait for all parts
-              // 3. FINISH: notify backend that all parts are done
-              switchMap(() => {
-                const finishParams = new HttpParams()
-                  .set("type", "finish")
-                  .set("ownerEmail", ownerEmail)
-                  .set("datasetName", datasetName)
-                  .set("filePath", encodeURIComponent(filePath));
 
-                return this.http.post(
-                  `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
-                  {},
-                  { params: finishParams }
-                );
-              }),
+              // 3) Collect results from all uploads (like forkJoin, but respects concurrency)
+              toArray(),
+              // 4) Finalize if all parts succeeded
+              switchMap(() =>
+                this.finalizeMultipartUpload(
+                  ownerEmail,
+                  datasetName,
+                  filePath,
+                  uploadId,
+                  uploadedParts,
+                  physicalAddress,
+                  false
+                )
+              ),
               tap(() => {
-                const totalTime = getTotalTime();
                 observer.next({
                   filePath,
                   percentage: 100,
                   status: "finished",
+                  uploadId: uploadId,
+                  physicalAddress: physicalAddress,
                   uploadSpeed: 0,
                   estimatedTimeRemaining: 0,
-                  totalTime,
+                  totalTime: getTotalTime(),
                 });
                 observer.complete();
               }),
               catchError((error: unknown) => {
-                // On error, compute best-effort percentage from bytes we've seen
-                let totalUploaded = baselineUploaded;
-                partProgress.forEach(bytes => {
-                  totalUploaded += bytes;
-                });
-                const percentage = file.size > 0 ? Math.round((totalUploaded / file.size) * 100) : 0;
-
+                // If an error occurred, abort the upload
                 observer.next({
                   filePath,
-                  percentage,
-                  status: "failed",
+                  percentage: Math.round((uploadedParts.length / partCount) * 100),
+                  status: "aborted",
+                  uploadId: uploadId,
+                  physicalAddress: physicalAddress,
                   uploadSpeed: 0,
                   estimatedTimeRemaining: 0,
                   totalTime: getTotalTime(),
                 });
 
-                return throwError(() => error);
+                return this.finalizeMultipartUpload(
+                  ownerEmail,
+                  datasetName,
+                  filePath,
+                  uploadId,
+                  uploadedParts,
+                  physicalAddress,
+                  true
+                ).pipe(switchMap(() => throwError(() => error)));
               })
             );
           })
@@ -405,36 +370,59 @@ export class DatasetService {
         .subscribe({
           error: (err: unknown) => observer.error(err),
         });
-
       return () => subscription.unsubscribe();
     });
   }
 
-  public listMultipartUploads(ownerEmail: string, datasetName: string): Observable<string[]> {
-    const params = new HttpParams().set("type", "list").set("ownerEmail", ownerEmail).set("datasetName", datasetName);
+  /**
+   * Initiates a multipart upload and retrieves presigned URLs for each part.
+   * @param ownerEmail Owner's email
+   * @param datasetName Dataset Name
+   * @param filePath File path within the dataset
+   * @param numParts Number of parts for the multipart upload
+   */
+  private initiateMultipartUpload(
+    ownerEmail: string,
+    datasetName: string,
+    filePath: string,
+    numParts: number
+  ): Observable<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }> {
+    const params = new HttpParams()
+      .set("type", "init")
+      .set("ownerEmail", ownerEmail)
+      .set("datasetName", datasetName)
+      .set("filePath", encodeURIComponent(filePath))
+      .set("numParts", numParts.toString());
 
-    return this.http
-      .post<{
-        filePaths: string[];
-      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`, {}, { params })
-      .pipe(map(res => res?.filePaths ?? []));
+    return this.http.post<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
+      {},
+      { params }
+    );
   }
 
+  /**
+   * Completes or aborts a multipart upload, sending part numbers and ETags to the backend.
+   */
   public finalizeMultipartUpload(
     ownerEmail: string,
     datasetName: string,
     filePath: string,
+    uploadId: string,
+    parts: { PartNumber: number; ETag: string }[],
+    physicalAddress: string,
     isAbort: boolean
   ): Observable<Response> {
     const params = new HttpParams()
       .set("type", isAbort ? "abort" : "finish")
       .set("ownerEmail", ownerEmail)
       .set("datasetName", datasetName)
-      .set("filePath", encodeURIComponent(filePath));
+      .set("filePath", encodeURIComponent(filePath))
+      .set("uploadId", uploadId);
 
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
-      {},
+      { parts, physicalAddress },
       { params }
     );
   }
@@ -550,11 +538,5 @@ export class DatasetService {
 
   public retrieveOwners(): Observable<string[]> {
     return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}`);
-  }
-
-  public updateDatasetCoverImage(did: number, coverImage: string): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/dataset/${did}/update/cover`, {
-      coverImage: coverImage,
-    });
   }
 }

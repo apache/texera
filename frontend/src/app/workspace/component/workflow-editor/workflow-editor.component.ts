@@ -18,7 +18,7 @@
  */
 
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit } from "@angular/core";
-import { fromEvent, merge, Subject } from "rxjs";
+import { combineLatest, fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
@@ -29,7 +29,7 @@ import { ValidationWorkflowService } from "../../service/validation/validation-w
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { LogicalPort, OperatorLink } from "../../types/workflow-common.interface";
+import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -43,6 +43,10 @@ import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
+import { AgentActionService } from "../../service/agent-action/agent-action.service";
+import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
+import { OperatorStepRef } from "../../service/copilot/copilot-types";
+import { isPythonUdf } from "../../service/workflow-graph/model/workflow-graph";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -95,6 +99,47 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private removeButton!: new () => joint.linkTools.Button;
   private breakpointButton!: new () => joint.linkTools.Button;
 
+  // Inline panels state - per-operator open panels
+  public openPanelIds: Set<string> = new Set();
+  public pythonUdfOperators: {
+    operatorId: string;
+    displayName: string;
+    position: { x: number; y: number };
+    code: string;
+    isDiffMode: boolean;
+    originalCode?: string;
+  }[] = [];
+  private agentActionPreviewActive: boolean = false;
+  private beforeWorkflowOperatorCodes: Map<string, string> = new Map();
+
+  // Step badge overlay state (for message highlighting)
+  public showStepBadges = false;
+  public stepBadges: Array<{
+    operatorId: string;
+    stepId: number;
+    messageId: string;
+    agentId: string;
+    action: "added" | "modified" | "executed";
+    position: { x: number; y: number };
+  }> = [];
+
+  // Chat popover state (operator chat button)
+  public chatPopoverOperator: {
+    operatorId: string;
+    displayName: string;
+    position: { x: number; y: number };
+  } | null = null;
+
+  // Cached agent result summaries for port label display
+  private currentResultSummaries = new Map<string, any>();
+
+
+  // Message region highlighting state
+  private messageRegionElement: joint.dia.Element | null = null;
+  private highlightedMessageOperators: joint.dia.Cell[] = [];
+  private highlightedMessageId: string | null = null;
+  private currentOperatorStepsMap: Map<string, OperatorStepRef[]> = new Map();
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -112,7 +157,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private router: Router,
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private agentActionService: AgentActionService,
+    private copilotManagerService: TexeraCopilotManagerService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -165,6 +212,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
+    this.handleAgentHoverHighlight();
+    this.handleOperatorResultAnnotations();
+    this.handleCodePanels();
     this.handleElementDelete();
     this.handleElementSelectAll();
     this.handleElementCopy();
@@ -178,6 +228,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleURLFragment();
     this.invokeResize();
     this.handleCenterEvent();
+    this.handleStepBadges();
+    this.handleMessageRegion();
+    this.handleOperatorChatButton();
   }
 
   ngOnDestroy(): void {
@@ -248,7 +301,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       height: this.editor.offsetHeight,
     });
     this.editor.classList.add("hide-worker-count");
-    this.editor.classList.add("hide-operator-status");
   }
 
   private handleDisableJointPaperInteractiveness(): void {
@@ -335,6 +387,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private handleRegionEvents(): void {
+    this.editor.classList.add("hide-region");
     const Region = joint.dia.Element.define(
       "region",
       {
@@ -342,7 +395,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           body: {
             fill: "rgba(158,158,158,0.2)",
             pointerEvents: "none",
-            visibility: "hidden",
+            class: "region",
           },
         },
       },
@@ -392,9 +445,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
-    const padding = 15;
     const points = operators.flatMap(op => {
-      const { x, y, width, height } = op.getBBox();
+      const { x, y, width, height } = op.getBBox(),
+        padding = 15;
       return [
         [x - padding, y - padding],
         [x + width + padding, y - padding],
@@ -402,49 +455,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         [x + width + padding, y + height + padding + 10],
       ];
     });
-
-    const links = [...this.getRegionLinks(operators)];
-    const link_points = links.flatMap(link => {
-      const linkView = this.paper.findViewByModel(link as joint.dia.Link);
-      const bbox = (linkView as joint.dia.LinkView).getConnection().bbox();
-      if (!bbox) {
-        return [];
-      }
-      const { x, y, width, height } = bbox;
-      return [
-        [x - padding, y - padding],
-        [x + width + padding, y - padding],
-        [x - padding, y + height + padding],
-        [x + width + padding, y + height + padding],
-      ];
-    });
-    points.push(...link_points);
-    regionElement.attr(
-      "body/d",
-      line().curve(curveCatmullRomClosed)(concaveman(points, Infinity, 0) as [number, number][])
-    );
-  }
-
-  private getRegionLinks(ops: joint.dia.Cell[]): Set<joint.dia.Link> {
-    const ops_set = new Set(ops);
-    const links_set = new Set<joint.dia.Link>();
-    for (const op of ops) {
-      for (const link of this.paper.model.getConnectedLinks(op)) {
-        if (links_set.has(link)) {
-          continue;
-        }
-        const sourceCell = link.getSourceCell();
-        if (sourceCell && !ops_set.has(sourceCell)) {
-          continue;
-        }
-        const targetCell = link.getTargetCell();
-        if (targetCell && !ops_set.has(targetCell)) {
-          continue;
-        }
-        links_set.add(link);
-      }
-    }
-    return links_set;
+    regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
   }
 
   /**
@@ -1464,6 +1475,670 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
   }
+
+  /**
+   * Handle agent hover highlighting to show "viewed", "added", and "modified" labels on operators
+   */
+  private handleAgentHoverHighlight(): void {
+    const setupAgentHoverSubscription = () => {
+      this.copilotManagerService
+        .getAllAgents()
+        .pipe(untilDestroyed(this))
+        .subscribe(agents => {
+          agents.forEach(agent => {
+            // Subscribe to each agent's hover operators stream
+            this.copilotManagerService
+              .getHoveredMessageOperatorsObservable(agent.id)
+              .pipe(untilDestroyed(this))
+              .subscribe(({ viewedOperatorIds, addedOperatorIds, modifiedOperatorIds }) => {
+                // Clear all previous labels first
+                this.clearAllAgentActionLabels();
+
+                // Show "viewed" labels on viewed operators
+                viewedOperatorIds.forEach(operatorId => {
+                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "viewed", agent.name);
+                  }
+                });
+
+                // Show "added" labels on added operators
+                addedOperatorIds.forEach(operatorId => {
+                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "added", agent.name);
+                  }
+                });
+
+                // Show "modified" labels on modified operators
+                modifiedOperatorIds.forEach(operatorId => {
+                  if (this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+                    this.jointUIService.showAgentActionLabel(this.paper, operatorId, "modified", agent.name);
+                  }
+                });
+              });
+          });
+        });
+    };
+
+    // Subscribe to agent changes to set up hover subscriptions
+    this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
+      setupAgentHoverSubscription();
+    });
+
+    // Initial setup
+    setupAgentHoverSubscription();
+  }
+
+  /**
+   * Clear all agent action labels from all operators
+   */
+  private clearAllAgentActionLabels(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(op => {
+        this.jointUIService.hideAgentActionLabel(this.paper, op.operatorID);
+      });
+  }
+
+  /**
+   * Apply expanded detail layout to all operators.
+   * Every operator is always shown in expanded form (icon + type + properties).
+   * Agent result summaries update port labels when available.
+   */
+  private handleOperatorResultAnnotations(): void {
+    // Apply expanded layout to every new operator added to the graph
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(
+        auditTime(0), // Batch synchronous adds, apply immediately after
+        untilDestroyed(this)
+      )
+      .subscribe(() => {
+        this.applyExpandedLayoutToAll();
+      });
+
+    // Update port labels when agent result summaries change
+    this.copilotManagerService.operatorResultSummaries$
+      .pipe(untilDestroyed(this))
+      .subscribe(summaries => {
+        this.currentResultSummaries = summaries;
+        if (summaries.size > 0) {
+          this.applyExpandedLayoutToAll();
+        }
+      });
+
+    // Re-render when port shapes toggle changes
+    this.copilotManagerService.showPortShapes$
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.applyExpandedLayoutToAll();
+      });
+  }
+
+  /**
+   * Apply expanded layout to all operators on the canvas.
+   */
+  private applyExpandedLayoutToAll(): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    const showPortShapes = this.copilotManagerService.getShowPortShapes();
+    for (const op of graph.getAllOperators()) {
+      const summary = this.currentResultSummaries.get(op.operatorID);
+      const inputLinks = graph.getInputLinksByOperatorId(op.operatorID);
+      const props = JointUIService.extractOperatorProperties(op, inputLinks);
+      this.jointUIService.expandOperatorWithResults(this.paper, op.operatorID, summary, props, showPortShapes, op.operatorType);
+    }
+  }
+
+  /**
+   * Handle code panels visibility and position updates for Python UDF operators.
+   * Panels are now per-operator (click on name to toggle).
+   */
+  private handleCodePanels(): void {
+    // Handle operator name clicks to toggle code panel
+    fromJointPaperEvent(this.paper, "element:name:pointerclick")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        const cellView = event[0] as joint.dia.ElementView;
+        const operatorId = cellView.model.id.toString();
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+
+        if (!operator) return;
+
+        // Highlight the operator first so that code editor dialog works correctly
+        this.workflowActionService.getJointGraphWrapper().highlightOperators(operatorId);
+
+        // Toggle panel for all operators (Python UDF shows code panel, others show property panel)
+        this.togglePanel(operatorId);
+      });
+
+    // Subscribe to diff visibility changes for diff mode in code panels
+    this.agentActionService
+      .getDiffVisibleStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(diffVisible => {
+        const diffAction = this.agentActionService.getCurrentDiffAction();
+        if (diffVisible && diffAction) {
+          // Diff is active - store the original code from beforeWorkflowContent
+          this.agentActionPreviewActive = true;
+          this.beforeWorkflowOperatorCodes.clear();
+
+          const beforeOperators = diffAction.beforeWorkflowContent?.operators || [];
+          beforeOperators.forEach(op => {
+            if (isPythonUdf(op)) {
+              const properties = op.operatorProperties as { code?: string };
+              if (properties.code) {
+                this.beforeWorkflowOperatorCodes.set(op.operatorID, properties.code);
+              }
+            }
+          });
+        } else {
+          // Diff is not active
+          this.agentActionPreviewActive = false;
+          this.beforeWorkflowOperatorCodes.clear();
+        }
+
+        if (this.openPanelIds.size > 0) {
+          this.updatePanelPositions();
+        }
+      });
+
+    // Update positions when operators are deleted (remove closed panels)
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDeleteStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        // Remove deleted operator from open panels
+        this.openPanelIds.delete(event.deletedOperatorID);
+        if (this.openPanelIds.size > 0) {
+          this.updatePanelPositions();
+        } else {
+          this.pythonUdfOperators = [];
+          this.changeDetectorRef.detectChanges();
+        }
+      });
+
+    // Update positions when operators are moved
+    this.paper.model.on("change:position", () => {
+      if (this.openPanelIds.size > 0) {
+        this.updatePanelPositions();
+      }
+    });
+
+    // Update positions on zoom changes
+    this.wrapper
+      .getWorkflowEditorZoomStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.openPanelIds.size > 0) {
+          this.updatePanelPositions();
+        }
+      });
+
+    // Update positions when operator properties change (code or display name might have changed)
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorPropertyChangeStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.openPanelIds.size > 0) {
+          this.updatePanelPositions();
+        }
+      });
+  }
+
+  /**
+   * Toggle inline panel for a specific operator.
+   */
+  togglePanel(operatorId: string): void {
+    if (this.openPanelIds.has(operatorId)) {
+      this.openPanelIds.delete(operatorId);
+    } else {
+      this.openPanelIds.add(operatorId);
+    }
+    this.updatePanelPositions();
+  }
+
+  /**
+   * Close inline panel for a specific operator (called from panel close button).
+   */
+  closePanel(operatorId: string): void {
+    this.openPanelIds.delete(operatorId);
+    this.updatePanelPositions();
+  }
+
+  /**
+   * Update the list of operators with their canvas positions.
+   * Handles both Python UDF operators (code panels) and property operators (property panels).
+   */
+  private updatePanelPositions(): void {
+    const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
+
+    // Helper function to calculate screen position for an operator
+    const getOperatorPanelPosition = (operatorId: string, panelWidth: number): { x: number; y: number } | null => {
+      const jointCell = this.paper.getModelById(operatorId);
+      if (!jointCell) {
+        return null;
+      }
+
+      const bbox = jointCell.getBBox();
+      const scale = this.paper.scale();
+      const translate = this.paper.translate();
+
+      // Position panel centered on the operator name text (ref-y: 80 from operator top)
+      const nameY = bbox.y + 80;
+      const screenX = (bbox.x + bbox.width / 2) * scale.sx + translate.tx - panelWidth / 2;
+      const screenY = nameY * scale.sy + translate.ty - 10;
+
+      return { x: screenX, y: screenY };
+    };
+
+    // Filter to only Python UDFs that have their panel open
+    const openPythonUdfs = operators.filter(op => isPythonUdf(op) && this.openPanelIds.has(op.operatorID));
+
+    // Code panel width: 400px
+    const CODE_PANEL_WIDTH = 400;
+
+    this.pythonUdfOperators = openPythonUdfs
+      .map(op => {
+        const position = getOperatorPanelPosition(op.operatorID, CODE_PANEL_WIDTH);
+        if (!position) {
+          return null;
+        }
+
+        const properties = op.operatorProperties as { code?: string };
+        const code = properties.code || "";
+
+        // Get display name (custom or default)
+        const operatorSchema = this.dynamicSchemaService.getDynamicSchema(op.operatorID);
+        const displayName = op.customDisplayName ?? operatorSchema?.additionalMetadata.userFriendlyName ?? "Code";
+
+        // Check if this operator has code changes in agent action preview
+        const originalCode = this.beforeWorkflowOperatorCodes.get(op.operatorID);
+        const isDiffMode = this.agentActionPreviewActive && originalCode !== undefined && originalCode !== code;
+
+        return {
+          operatorId: op.operatorID,
+          displayName: displayName,
+          position: position,
+          code: code,
+          isDiffMode: isDiffMode,
+          originalCode: isDiffMode ? originalCode : undefined,
+        };
+      })
+      .filter(op => op !== null) as {
+      operatorId: string;
+      displayName: string;
+      position: { x: number; y: number };
+      code: string;
+      isDiffMode: boolean;
+      originalCode?: string;
+    }[];
+
+    this.changeDetectorRef.detectChanges();
+  }
+
+  // ============================================================================
+  // Step Badge Feature
+  // ============================================================================
+
+  /**
+   * Handle step badge overlay feature.
+   * Subscribes to highlightedMessageId$ and operatorStepsMap$ to render badges on operators.
+   * Only shows badges for the currently highlighted message.
+   */
+  private handleStepBadges(): void {
+    // Subscribe to highlightedMessageId$ and operatorStepsMap$
+    // Badges are shown only for the highlighted message
+    combineLatest([
+      this.copilotManagerService.highlightedMessageId$,
+      this.copilotManagerService.operatorStepsMap$,
+    ])
+      .pipe(untilDestroyed(this))
+      .subscribe(([messageId, operatorStepsMap]) => {
+        this.showStepBadges = messageId !== null;
+        this.currentOperatorStepsMap = operatorStepsMap;
+        if (messageId) {
+          this.updateStepBadgePositions(operatorStepsMap, messageId);
+        } else {
+          this.stepBadges = [];
+        }
+        this.changeDetectorRef.detectChanges();
+      });
+
+    // Update badge positions when operators move
+    fromJointPaperEvent(this.paper, "element:pointerup")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.showStepBadges) {
+          this.copilotManagerService.updateOperatorStepsMap();
+        }
+      });
+
+    // Update positions on zoom changes
+    this.wrapper
+      .getWorkflowEditorZoomStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.showStepBadges && this.highlightedMessageId) {
+          this.updateStepBadgePositions(this.currentOperatorStepsMap, this.highlightedMessageId);
+        }
+      });
+
+    // Update positions on pan changes
+    fromJointPaperEvent(this.paper, "translate")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.showStepBadges && this.highlightedMessageId) {
+          this.updateStepBadgePositions(this.currentOperatorStepsMap, this.highlightedMessageId);
+        }
+      });
+  }
+
+  /**
+   * Update step badge positions based on operator positions on the canvas.
+   * Only shows badges for steps that belong to the specified messageId.
+   */
+  private updateStepBadgePositions(
+    operatorStepsMap: Map<string, OperatorStepRef[]>,
+    filterMessageId: string
+  ): void {
+    const badges: typeof this.stepBadges = [];
+
+    for (const [operatorId, stepRefs] of operatorStepsMap) {
+      // Filter to only show badges for the highlighted message
+      const filteredRefs = stepRefs.filter(ref => ref.messageId === filterMessageId);
+      if (filteredRefs.length === 0) {
+        continue;
+      }
+
+      const jointCell = this.paper.getModelById(operatorId);
+      if (!jointCell) {
+        continue;
+      }
+
+      const bbox = jointCell.getBBox();
+      const scale = this.paper.scale();
+      const translate = this.paper.translate();
+
+      // Position badges at top-left corner of operator
+      // Each badge is offset horizontally to stack them
+      const BADGE_SIZE = 22;
+      const BADGE_GAP = 4;
+
+      filteredRefs.forEach((stepRef, index) => {
+        const screenX = bbox.x * scale.sx + translate.tx - 8 + index * (BADGE_SIZE + BADGE_GAP);
+        const screenY = bbox.y * scale.sy + translate.ty - 8;
+
+        badges.push({
+          operatorId,
+          stepId: stepRef.stepId,
+          messageId: stepRef.messageId,
+          agentId: stepRef.agentId,
+          action: stepRef.action,
+          position: { x: screenX, y: screenY },
+        });
+      });
+    }
+
+    this.stepBadges = badges;
+  }
+
+  /**
+   * Handle click on a step badge - scroll to the step in agent chat.
+   */
+  onStepBadgeClick(badge: (typeof this.stepBadges)[0]): void {
+    this.copilotManagerService.requestScrollToStep(badge.agentId, badge.messageId, badge.stepId);
+  }
+
+  /**
+   * Handle message region highlighting.
+   * When a user message is highlighted in the agent chat, this creates a region
+   * around all operators that were affected by that message's ReActSteps.
+   */
+  private handleMessageRegion(): void {
+    // Define the MessageRegion element type (transparent fill with blue stroke border)
+    const MessageRegion = joint.dia.Element.define(
+      "messageRegion",
+      {
+        attrs: {
+          body: {
+            fill: "transparent", // Transparent fill so step badges are visible
+            stroke: "#1890ff", // Blue border matching the message badge color
+            strokeWidth: 2,
+            strokeDasharray: "8,4", // Dashed line for distinction from execution regions
+            pointerEvents: "none",
+            class: "message-region",
+          },
+        },
+      },
+      {
+        markup: [{ tagName: "path", selector: "body" }],
+      }
+    );
+
+    // Subscribe to highlighted message changes
+    this.copilotManagerService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
+      this.highlightedMessageId = messageId;
+      this.updateMessageRegion(MessageRegion, messageId);
+    });
+
+    // Update region when operators move (while message is highlighted)
+    this.paper.model.on("change:position", (cell: joint.dia.Cell) => {
+      if (this.highlightedMessageId && this.highlightedMessageOperators.includes(cell)) {
+        this.updateMessageRegionPath();
+      }
+    });
+
+    // Update region on zoom/pan
+    fromJointPaperEvent(this.paper, "scale")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.highlightedMessageId) {
+          this.updateMessageRegionPath();
+        }
+      });
+  }
+
+  /**
+   * Update the message region for the given message ID.
+   * Creates or removes the region based on whether a message is highlighted.
+   */
+  private updateMessageRegion(
+    MessageRegion: ReturnType<typeof joint.dia.Element.define>,
+    messageId: string | null
+  ): void {
+    // Remove existing region
+    if (this.messageRegionElement) {
+      this.messageRegionElement.remove();
+      this.messageRegionElement = null;
+      this.highlightedMessageOperators = [];
+    }
+
+    if (!messageId) {
+      this.changeDetectorRef.detectChanges();
+      return;
+    }
+
+    // Get operators affected by this message
+    const operatorIds = this.copilotManagerService.getOperatorsForMessage(messageId);
+
+    if (operatorIds.length === 0) {
+      this.changeDetectorRef.detectChanges();
+      return;
+    }
+
+    // Get JointJS cells for these operators
+    const operators = operatorIds.map(id => this.paper.getModelById(id)).filter(cell => cell != null);
+
+    if (operators.length === 0) {
+      this.changeDetectorRef.detectChanges();
+      return;
+    }
+
+    // Store operators for position change tracking
+    this.highlightedMessageOperators = operators;
+
+    // Create region element
+    const element = new MessageRegion({ id: "message-region-highlight" });
+    this.paper.model.addCell(element);
+    this.messageRegionElement = element;
+
+    // Set the path
+    this.updateMessageRegionPath();
+    this.changeDetectorRef.detectChanges();
+  }
+
+  /**
+   * Update the path of the message region based on current operator positions.
+   */
+  private updateMessageRegionPath(): void {
+    if (!this.messageRegionElement || this.highlightedMessageOperators.length === 0) {
+      return;
+    }
+
+    const points = this.highlightedMessageOperators.flatMap(op => {
+      const { x, y, width, height } = op.getBBox();
+      const padding = 15;
+      return [
+        [x - padding, y - padding],
+        [x + width + padding, y - padding],
+        [x - padding, y + height + padding + 10],
+        [x + width + padding, y + height + padding + 10],
+      ];
+    });
+
+    this.messageRegionElement.attr(
+      "body/d",
+      line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][])
+    );
+  }
+
+  /**
+   * Handle the chat button click on operators.
+   * Opens a chat popover for the operator to interact with agents.
+   */
+  private handleOperatorChatButton(): void {
+    fromJointPaperEvent(this.paper, "element:chat")
+      .pipe(
+        map(value => value[0]),
+        untilDestroyed(this)
+      )
+      .subscribe(elementView => {
+        const operatorId = elementView.model.id.toString();
+        if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+          return;
+        }
+
+        // Toggle chat popover for this operator
+        if (this.chatPopoverOperator?.operatorId === operatorId) {
+          // Close if clicking the same operator
+          this.chatPopoverOperator = null;
+        } else {
+          // Open chat popover for this operator
+          const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+          const operatorSchema = this.dynamicSchemaService.getDynamicSchema(operatorId);
+          const displayName =
+            operator.customDisplayName ?? operatorSchema?.additionalMetadata.userFriendlyName ?? operator.operatorType;
+
+          const position = this.getOperatorChatPopoverPosition(operatorId);
+          if (position) {
+            this.chatPopoverOperator = {
+              operatorId,
+              displayName,
+              position,
+            };
+          }
+        }
+        this.changeDetectorRef.detectChanges();
+      });
+
+    // Close chat popover when clicking on blank area
+    fromJointPaperEvent(this.paper, "blank:pointerdown")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.chatPopoverOperator) {
+          this.closeChatPopover();
+        }
+      });
+
+    // Update chat popover and context positions when operator moves
+    this.paper.model.on("change:position", (cell: joint.dia.Cell) => {
+      const cellId = cell.id.toString();
+
+      // Update popover position if the chat operator moves
+      if (this.chatPopoverOperator && cellId === this.chatPopoverOperator.operatorId) {
+        const position = this.getOperatorChatPopoverPosition(this.chatPopoverOperator.operatorId);
+        if (position) {
+          this.chatPopoverOperator = { ...this.chatPopoverOperator, position };
+        }
+      }
+
+      this.changeDetectorRef.detectChanges();
+    });
+
+    // Update position on zoom/pan
+    this.wrapper
+      .getWorkflowEditorZoomStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.chatPopoverOperator) {
+          const position = this.getOperatorChatPopoverPosition(this.chatPopoverOperator.operatorId);
+          if (position) {
+            this.chatPopoverOperator = { ...this.chatPopoverOperator, position };
+          }
+        }
+
+        this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  /**
+   * Get the screen position for the chat popover relative to an operator.
+   */
+  private getOperatorChatPopoverPosition(operatorId: string): { x: number; y: number } | null {
+    const jointCell = this.paper.getModelById(operatorId);
+    if (!jointCell) {
+      return null;
+    }
+
+    const bbox = jointCell.getBBox();
+    const scale = this.paper.scale();
+    const translate = this.paper.translate();
+
+    // Position popover below the operator, centered horizontally
+    // Add extra offset for the display name text below the operator box
+    const screenX = (bbox.x + bbox.width / 2) * scale.sx + translate.tx;
+    const screenY = (bbox.y + bbox.height) * scale.sy + translate.ty + 40;
+
+    return { x: screenX, y: screenY };
+  }
+
+  /**
+   * Close the chat popover.
+   */
+  closeChatPopover(): void {
+    this.chatPopoverOperator = null;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  getOperatorSampleRecords(operatorId: string): Record<string, any>[] | undefined {
+    const summary = this.currentResultSummaries.get(operatorId);
+    return summary?.sampleRecords;
+  }
+
+  getOperatorResultStatistics(operatorId: string): Record<string, string> | undefined {
+    const summary = this.currentResultSummaries.get(operatorId);
+    return summary?.resultStatistics;
+  }
+
+  isOperatorVisualization(operatorId: string): boolean {
+    const records = this.getOperatorSampleRecords(operatorId);
+    return !!records && records.length > 0 && records[0]["__is_visualization__"] === true;
+  }
+
+
   /**
    * Info button on link between operator shown when user hovers over links
    */

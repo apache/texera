@@ -98,10 +98,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         this.viewCount = count;
       });
     this.workflowPersistService
-      .getOwnerName(this.wid)
+      .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
-      .subscribe(ownerName => {
-        this.ownerName = ownerName;
+      .subscribe(owner => {
+        this.ownerName = owner.name;
       });
     this.workflowPersistService
       .getWorkflowName(this.wid)

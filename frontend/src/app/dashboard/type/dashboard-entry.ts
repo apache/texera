@@ -55,7 +55,6 @@ export class DashboardEntry {
   likeCount: number;
   isLiked: boolean;
   accessibleUserIds: number[];
-  coverImageUrl?: string;
 
   constructor(
     public value:

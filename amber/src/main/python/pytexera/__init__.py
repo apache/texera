@@ -29,6 +29,7 @@ from .udf.udf_operator import (
     UDFBatchOperator,
     UDFSourceOperator,
 )
+from .udf.udf_multi_table_operator import UDFMultiTableOperator
 from core.models.type.large_binary import largebinary
 
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     "UDFTableOperator",
     "UDFBatchOperator",
     "UDFSourceOperator",
+    "UDFMultiTableOperator",
     "DatasetFileDocument",
     "largebinary",
     "LargeBinaryInputStream",

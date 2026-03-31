@@ -29,8 +29,8 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 /**
  * The Component will display the result in an excel table format,
@@ -66,13 +66,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = 5;
-  currentColumnOffset = 0;
-  columnLimit = 25;
-  columnSearch = "";
   panelHeight = 0;
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
+  sinkStorageMode: string = "";
+  private schema: ReadonlyArray<SchemaAttribute> = [];
   isOperatorFinished: boolean = false;
 
   constructor(
@@ -82,8 +81,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private workflowStatusService: WorkflowStatusService,
-    private guiConfigService: GuiConfigService
+    private workflowStatusService: WorkflowStatusService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -98,6 +96,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
+        this.schema = paginatedResultService.getSchema();
       }
     }
   }
@@ -114,8 +113,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           this.isOperatorFinished = false;
         }
       });
-
-    this.columnLimit = this.guiConfigService.env.limitColumns;
 
     this.workflowResultService
       .getResultUpdateStream()
@@ -156,6 +153,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         }
       });
 
+    this.workflowResultService
+      .getSinkStorageMode()
+      .pipe(untilDestroyed(this))
+      .subscribe(sinkStorageMode => {
+        this.sinkStorageMode = sinkStorageMode;
+      });
+
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
       this.panelHeight = size.height;
       this.adjustPageSizeBasedOnPanelSize(size.height);
@@ -168,6 +172,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (this.operatorId) {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
+        this.schema = paginatedResultService.getSchema();
       }
     }
   }
@@ -195,8 +200,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   compare(field: string, stats: string): SafeHtml {
     let current = this.tableStats[field][stats];
     let previous = this.prevTableStats[field][stats];
-    let currentStr: string;
-    let previousStr: string;
+    let currentStr = "";
+    let previousStr = "";
 
     if (typeof current === "number" && typeof previous === "number") {
       currentStr = current.toFixed(2);
@@ -228,37 +233,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return this.sanitizer.bypassSecurityTrustHtml(styledValue);
   }
 
-  /**
-   * Adjusts the number of result rows displayed per page based on the
-   * available vertical space of the Texera results panel.
-   *
-   * The method accounts for fixed UI elements within the panel—such as
-   * headers, column navigation controls, pagination, and the search bar—
-   * to determine the remaining space available for rendering result rows.
-   * The page size is then recalculated using the height of a single table row.
-   *
-   * To maintain a stable user experience during panel resizes, the current
-   * page index is recomputed so that the previously visible results remain
-   * in view and the user does not experience an abrupt jump in the dataset.
-   *
-   * @param panelHeight - The total height (in pixels) of the results panel.
-   */
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const TABLE_HEADER_HEIGHT = 38.62;
-    const PANEL_HEADER_HEIGHT = 64.27; // Includes panel title and tab bar
-    const COLUMN_NAVIGATION_HEIGHT = 56.6; // Previous/Next columns controls
-    const PAGINATION_HEIGHT = 32.63;
-    const SEARCH_BAR_HEIGHT_WITH_MARGIN = 77; // Approximate height for search bar and margins
-    const ROW_HEIGHT = 38.62;
-
-    const usedHeight =
-      TABLE_HEADER_HEIGHT +
-      PANEL_HEADER_HEIGHT +
-      COLUMN_NAVIGATION_HEIGHT +
-      PAGINATION_HEIGHT +
-      SEARCH_BAR_HEIGHT_WITH_MARGIN;
-
-    const newPageSize = Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT));
+    const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
 
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
@@ -353,11 +329,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     this.isLoadingResult = true;
     paginatedResultService
-      .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
+      .selectPage(this.currentPageIndex, this.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+          this.schema = pageData.schema;
           this.changeDetectorRef.detectChanges();
         }
       });
@@ -429,24 +406,134 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     });
   }
 
-  onColumnShiftLeft(): void {
-    if (this.currentColumnOffset > 0) {
-      this.currentColumnOffset = Math.max(0, this.currentColumnOffset - this.columnLimit);
-      this.changePaginatedResultData();
+  /**
+   * Opens a modal to display the full content of a cell by fetching complete data from backend
+   */
+  openFullContentModal(indexInPage: number, columnDef: string, columnName: string): void {
+    if (!this.operatorId) {
+      return;
     }
+
+    const currentRowIndex = indexInPage + (this.currentPageIndex - 1) * this.pageSize;
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+
+    if (!paginatedResultService) {
+      return;
+    }
+
+    // Create modal with loading state
+    const modalRef: NzModalRef = this.modalService.create({
+      nzTitle: `Full Content - ${columnName}`,
+      nzContent: "<div style=\"text-align: center; padding: 20px;\">Loading...</div>",
+      nzFooter: [
+        {
+          label: "Close",
+          onClick: () => modalRef.destroy(),
+          type: "primary",
+        },
+      ],
+      nzWidth: "800px",
+    });
+
+    // Fetch the full tuple data from backend with noTruncation flag
+    paginatedResultService
+      .selectTuple(currentRowIndex, this.pageSize, true)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: res => {
+          const cellValue = res.tuple[columnDef];
+          const contentString = typeof cellValue === "string" ? cellValue : JSON.stringify(cellValue, null, 2);
+          const contentSize = new Blob([contentString]).size;
+          const sizeMB = contentSize / (1024 * 1024);
+
+          // For large content (> 1MB), provide download option instead of rendering
+          if (sizeMB > 1) {
+            modalRef.updateConfig({
+              nzContent: `
+                <div style="padding: 20px;">
+                  <p><strong>Content Size:</strong> ${sizeMB.toFixed(2)} MB</p>
+                  <p>This content is too large to display directly (${sizeMB.toFixed(2)} MB).</p>
+                  <p>Preview (first 5000 characters):</p>
+                  <textarea readonly style="width: 100%; height: 300px; font-family: monospace; font-size: 12px; border: 1px solid #d9d9d9; padding: 8px;">${this.escapeHtml(contentString.substring(0, 10000))}</textarea>
+                  ${contentString.length > 5000 ? `<p style="color: #999; margin-top: 8px;">... and ${(contentString.length - 5000).toLocaleString()} more characters</p>` : ""}
+                </div>
+              `,
+              nzFooter: [
+                {
+                  label: "Download",
+                  onClick: () => this.downloadContent(contentString, columnName, currentRowIndex),
+                  type: "default",
+                },
+                {
+                  label: "Close",
+                  onClick: () => modalRef.destroy(),
+                  type: "primary",
+                },
+              ],
+            });
+          } else {
+            // For smaller content, display directly in textarea for better performance
+            modalRef.updateConfig({
+              nzContent: `
+                <div style="padding: 20px;">
+                  <textarea readonly style="width: 100%; height: 500px; font-family: monospace; font-size: 12px; border: 1px solid #d9d9d9; padding: 8px;">${this.escapeHtml(contentString)}</textarea>
+                </div>
+              `,
+              nzFooter: [
+                {
+                  label: "Download",
+                  onClick: () => this.downloadContent(contentString, columnName, currentRowIndex),
+                  type: "default",
+                },
+                {
+                  label: "Close",
+                  onClick: () => modalRef.destroy(),
+                  type: "primary",
+                },
+              ],
+            });
+          }
+        },
+        error: (err: unknown) => {
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          modalRef.updateConfig({
+            nzContent: `<div style="color: red; padding: 20px;">Error loading content: ${errorMessage}</div>`,
+            nzFooter: [
+              {
+                label: "Close",
+                onClick: () => modalRef.destroy(),
+                type: "primary",
+              },
+            ],
+          });
+        },
+      });
   }
 
-  onColumnShiftRight(): void {
-    if (this.currentColumns && this.currentColumns.length === this.columnLimit) {
-      this.currentColumnOffset += this.columnLimit;
-      this.changePaginatedResultData();
-    }
+  /**
+   * Downloads content as a text file
+   */
+  private downloadContent(content: string, columnName: string, rowIndex: number): void {
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${columnName}_row_${rowIndex}.txt`;
+    link.click();
+    window.URL.revokeObjectURL(url);
   }
 
-  onColumnSearch(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.columnSearch = input.value;
-    this.currentColumnOffset = 0;
-    this.changePaginatedResultData();
+  /**
+   * Escapes HTML special characters to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const map: { [key: string]: string } = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#039;",
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
   }
 }

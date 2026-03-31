@@ -35,6 +35,7 @@ import {
   DASHBOARD_ADMIN_SETTINGS,
   DASHBOARD_ADMIN_USER,
   DASHBOARD_USER_COMPUTING_UNIT,
+  DASHBOARD_USER_AGENT,
   DASHBOARD_USER_DATASET,
   DASHBOARD_USER_DISCUSSION,
   DASHBOARD_USER_PROJECT,
@@ -43,8 +44,6 @@ import {
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
-import { User } from "../../common/type/user";
-import { Role } from "../../common/type/user";
 
 @Component({
   selector: "texera-dashboard",
@@ -82,6 +81,7 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
   protected readonly DASHBOARD_USER_COMPUTING_UNIT = DASHBOARD_USER_COMPUTING_UNIT;
+  protected readonly DASHBOARD_USER_AGENT = DASHBOARD_USER_AGENT;
   protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
   protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
@@ -118,7 +118,7 @@ export class DashboardComponent implements OnInit {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
-      .subscribe(user => {
+      .subscribe(() => {
         this.ngZone.run(() => {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
@@ -206,6 +206,10 @@ export class DashboardComponent implements OnInit {
   isNavbarEnabled(currentRoute: string) {
     // Hide navbar for workflow workspace pages (with numeric ID)
     if (currentRoute.match(/\/dashboard\/user\/workflow\/\d+/)) {
+      return false;
+    }
+    // Hide navbar for agent workspace pages
+    if (currentRoute.match(/\/dashboard\/user\/agent\/agent-\d+/)) {
       return false;
     }
     return true;

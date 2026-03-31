@@ -78,6 +78,7 @@ export class WorkflowCompilingService {
     // Subscribe to compilation state changes to apply schema propagation
     this.compilationStateInfoChangedStream.subscribe(() => {
       this.applySchemaPropagationResult();
+      this.autoPopulateAttributeListProperties();
     });
 
     // invoke the compilation service when there are any changes on workflow topology and properties. This includes:
@@ -204,6 +205,94 @@ export class WorkflowCompilingService {
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
     });
+  }
+
+  /**
+   * Auto-populates operator properties that have autofill="attributeList" annotation.
+   * This is used to automatically set output columns for UDF operators based on input schema.
+   *
+   * Only auto-populates when:
+   * 1. The property has autofill="attributeList" in its schema
+   * 2. The current property value is empty (null, undefined, or empty array)
+   * 3. Input schema is available for the specified port
+   */
+  private autoPopulateAttributeListProperties(): void {
+    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+      if (!operator) return;
+
+      const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+      if (!dynamicSchema?.jsonSchema?.properties) return;
+
+      // Get input schema for this operator
+      const inputSchemaMap = this.getOperatorInputSchemaMap(operatorID);
+      if (!inputSchemaMap) return;
+
+      // Find properties with autofill="attributeList"
+      const propertiesToPopulate = this.findAttributeListProperties(dynamicSchema.jsonSchema);
+
+      if (propertiesToPopulate.length === 0) return;
+
+      let needsUpdate = false;
+      const newProperties = { ...operator.operatorProperties };
+
+      for (const { propertyName, portIndex } of propertiesToPopulate) {
+        const currentValue = operator.operatorProperties[propertyName];
+
+        // Only auto-populate if current value is empty
+        if (currentValue && Array.isArray(currentValue) && currentValue.length > 0) {
+          continue;
+        }
+
+        // Get input schema for the specified port
+        const portId = serializePortIdentity({ id: portIndex, internal: false });
+        const inputSchema = inputSchemaMap[portId];
+
+        if (!inputSchema || inputSchema.length === 0) {
+          continue;
+        }
+
+        // Convert PortSchema to Attribute array format
+        // Note: attributeType must be lowercase to match backend AttributeType enum's @JsonValue
+        const attributeList = inputSchema.map(attr => ({
+          attributeName: attr.attributeName,
+          attributeType: attr.attributeType,
+        }));
+
+        newProperties[propertyName] = attributeList;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        this.workflowActionService.setOperatorProperty(operatorID, newProperties);
+      }
+    });
+  }
+
+  /**
+   * Finds all properties in a JSON schema that have autofill="attributeList".
+   *
+   * @param jsonSchema The JSON schema to search
+   * @returns Array of objects containing propertyName and portIndex
+   */
+  private findAttributeListProperties(
+    jsonSchema: CustomJSONSchema7
+  ): Array<{ propertyName: string; portIndex: number }> {
+    const result: Array<{ propertyName: string; portIndex: number }> = [];
+
+    if (!jsonSchema.properties) return result;
+
+    for (const [propertyName, propertyValue] of Object.entries(jsonSchema.properties)) {
+      if (typeof propertyValue === "boolean") continue;
+
+      const customProperty = propertyValue as CustomJSONSchema7;
+      if (customProperty.autofill === "attributeList") {
+        const portIndex = customProperty.autofillAttributeOnPort ?? 0;
+        result.push({ propertyName, portIndex });
+      }
+    }
+
+    return result;
   }
 
   /**

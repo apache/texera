@@ -31,7 +31,7 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
+import { WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
@@ -230,10 +230,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       commentBoxes: [],
       links: [],
       operatorPositions: {},
-      settings: {
-        dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
-        executionMode: this.config.env.defaultExecutionMode,
-      },
+      settings: { dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize },
     };
     let localPid = this.pid;
     this.workflowPersistService
@@ -307,9 +304,6 @@ export class UserWorkflowComponent implements AfterViewInit {
           if (userInfo) {
             entry.setOwnerName(userInfo.userName);
             entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-          }
-          if (this.currentUid !== undefined) {
-            entry.setAccessUsers([this.currentUid]);
           }
           return entry;
         });

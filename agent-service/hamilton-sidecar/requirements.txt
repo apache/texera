@@ -1,0 +1,4 @@
+fastapi>=0.104
+uvicorn>=0.24
+pandas>=2.0
+sf-hamilton>=1.62

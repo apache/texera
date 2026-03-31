@@ -1,0 +1,299 @@
+{
+  "operators": [
+    {
+      "operatorID": "load_ratings",
+      "operatorType": "CSVFileScan",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "fileEncoding": "UTF_8",
+        "customDelimiter": ",",
+        "hasHeader": true,
+        "fileName": "/bob@test.com/movies/v1/ratings.csv"
+      },
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Load ratings data",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "load_movies",
+      "operatorType": "CSVFileScan",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "fileEncoding": "UTF_8",
+        "customDelimiter": ",",
+        "hasHeader": true,
+        "fileName": "/bob@test.com/movies/v1/movies.csv"
+      },
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Load movies data with metadata",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "extract_year",
+      "operatorType": "PythonUDFV2",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "code": "import re\nimport pandas as pd\n\ndef process(movies) -> pd.DataFrame:\n    # Extract year from title (format: \"Title (Year)\")\n    year_extracted = movies['title'].str.extract(r'\\((\\d{4})\\)')[0]\n    # Convert to int, handling NaN values by filling with 0 or filtering\n    movies['release_year'] = pd.to_numeric(year_extracted, errors='coerce').fillna(0).astype(int)\n    return movies[['movieId', 'title', 'release_year']]\n",
+        "outputColumns": [
+          {
+            "attributeName": "movieId",
+            "attributeType": "long"
+          },
+          {
+            "attributeName": "title",
+            "attributeType": "string"
+          },
+          {
+            "attributeName": "release_year",
+            "attributeType": "long"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "input_0",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Extract release year from movie titles",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true
+    },
+    {
+      "operatorID": "filter_after_2000",
+      "operatorType": "PythonUDFV2",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "code": "def process(movies) -> pd.DataFrame:\n    # Filter for movies released after 2000\n    return movies[movies['release_year'] > 2000][['movieId', 'release_year']]",
+        "outputColumns": [
+          {
+            "attributeName": "movieId",
+            "attributeType": "long"
+          },
+          {
+            "attributeName": "release_year",
+            "attributeType": "long"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "input_0",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Filter movies released after 2000",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true
+    },
+    {
+      "operatorID": "join_ratings_movies",
+      "operatorType": "HashJoin",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "joinType": "inner",
+        "buildAttributeName": "movieId",
+        "probeAttributeName": "movieId"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "left",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        },
+        {
+          "portID": "input-1",
+          "displayName": "right",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": [
+            {
+              "id": 0,
+              "internal": false
+            }
+          ]
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Join filtered movies with ratings data",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "ratings_distribution",
+      "operatorType": "Histogram",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "value": "rating"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Visualize the distribution of ratings for movies released after 2000",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    }
+  ],
+  "operatorPositions": {
+    "load_ratings": {
+      "x": 760,
+      "y": 220
+    },
+    "load_movies": {
+      "x": 100,
+      "y": 40
+    },
+    "extract_year": {
+      "x": 430,
+      "y": 40
+    },
+    "filter_after_2000": {
+      "x": 760,
+      "y": 40
+    },
+    "join_ratings_movies": {
+      "x": 1090,
+      "y": 130
+    },
+    "ratings_distribution": {
+      "x": 1420,
+      "y": 130
+    }
+  },
+  "links": [
+    {
+      "linkID": "link-1",
+      "source": {
+        "operatorID": "load_movies",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "extract_year",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-2",
+      "source": {
+        "operatorID": "extract_year",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "filter_after_2000",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-3",
+      "source": {
+        "operatorID": "filter_after_2000",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "join_ratings_movies",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-4",
+      "source": {
+        "operatorID": "load_ratings",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "join_ratings_movies",
+        "portID": "input-1"
+      }
+    },
+    {
+      "linkID": "link-5",
+      "source": {
+        "operatorID": "join_ratings_movies",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "ratings_distribution",
+        "portID": "input-0"
+      }
+    }
+  ],
+  "commentBoxes": [],
+  "settings": {
+    "dataTransferBatchSize": 400
+  }
+}

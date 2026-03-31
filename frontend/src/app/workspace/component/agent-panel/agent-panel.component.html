@@ -85,12 +85,16 @@
 
     <!-- Tabs -->
     <nz-tabset
-      [(nzSelectedIndex)]="selectedTabIndex"
+      [nzSelectedIndex]="selectedTabIndex"
+      (nzSelectedIndexChange)="onTabSelectChange($event)"
       class="agent-tabs"
       nzType="card"
+      [nzAnimated]="false"
       [nzTabBarExtraContent]="tabBarExtra">
       <!-- Registration Tab -->
-      <nz-tab nzTitle="+ Agent">
+      <nz-tab
+        nzTitle="+ Agent"
+        [nzForceRender]="true">
         <ng-template nz-tab>
           <texera-agent-registration (agentCreated)="onAgentCreated($event)"></texera-agent-registration>
         </ng-template>
@@ -98,13 +102,25 @@
 
       <!-- Agent Tabs -->
       <nz-tab
-        *ngFor="let agent of agents"
-        [nzTitle]="agentTabTitle">
+        *ngFor="let agent of agents; let i = index"
+        [nzTitle]="agentTabTitle"
+        [nzForceRender]="true"
+        [nzDisabled]="!canSwitchToAgent(agent)">
         <ng-template
           #agentTabTitle
           let-active="active">
-          <div class="agent-tab-title">
+          <div
+            class="agent-tab-title"
+            [class.workflow-mismatch]="!canSwitchToAgent(agent)">
             <span class="agent-tab-name">{{ agent.name }}</span>
+            <i
+              *ngIf="!canSwitchToAgent(agent)"
+              nz-icon
+              nzType="lock"
+              nzTheme="outline"
+              class="workflow-lock-icon"
+              nz-tooltip
+              nzTooltipTitle="This agent is working on a different workflow"></i>
             <button
               nz-button
               nzType="text"
@@ -121,7 +137,9 @@
           </div>
         </ng-template>
         <ng-template nz-tab>
-          <texera-agent-chat [agentInfo]="agent"></texera-agent-chat>
+          <texera-agent-chat
+            [agentInfo]="agent"
+            [isActive]="activeAgentId === agent.id"></texera-agent-chat>
         </ng-template>
       </nz-tab>
     </nz-tabset>

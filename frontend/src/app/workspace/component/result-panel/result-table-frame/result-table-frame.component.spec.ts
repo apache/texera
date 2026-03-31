@@ -25,7 +25,6 @@ import { StubOperatorMetadataService } from "../../../service/operator-metadata/
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
@@ -39,14 +38,6 @@ describe("ResultTableFrameComponent", () => {
         {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
-        },
-        {
-          provide: GuiConfigService,
-          useValue: {
-            env: {
-              limitColumns: 15,
-            },
-          },
         },
         ...commonTestProviders,
       ],
@@ -68,9 +59,5 @@ describe("ResultTableFrameComponent", () => {
     (component as any).setupResultTable([]);
 
     expect(component.currentResult).toEqual([{ test: "property" }]);
-  });
-
-  it("should set columnLimit from config", () => {
-    expect(component.columnLimit).toEqual(15);
   });
 });

@@ -24,7 +24,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { ExecutionMode } from "../../../../common/type/workflow";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -33,50 +33,43 @@ import { ExecutionMode } from "../../../../common/type/workflow";
   styleUrls: ["./settings.component.scss"],
 })
 export class SettingsComponent implements OnInit {
-  settingsForm: FormGroup;
+  settingsForm!: FormGroup;
+  currentDataTransferBatchSize!: number;
+  isSaving: boolean = false;
 
   constructor(
     private fb: FormBuilder,
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private userService: UserService,
-    private notificationService: NotificationService
-  ) {
-    this.settingsForm = this.fb.group({
-      dataTransferBatchSize: [
-        this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
-        [Validators.required, Validators.min(1)],
-      ],
-      executionMode: [this.workflowActionService.getWorkflowContent().settings.executionMode],
-    });
-  }
+    private notificationService: NotificationService,
+    private config: GuiConfigService
+  ) {}
 
   ngOnInit(): void {
-    this.settingsForm
-      .get("dataTransferBatchSize")!
-      .valueChanges.pipe(untilDestroyed(this))
-      .subscribe((batchSize: number) => {
-        if (this.settingsForm.get("dataTransferBatchSize")!.valid) {
-          this.confirmUpdateDataTransferBatchSize(batchSize);
-        }
-      });
+    this.currentDataTransferBatchSize =
+      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
+      this.config.env.defaultDataTransferBatchSize;
 
-    this.settingsForm
-      .get("executionMode")!
-      .valueChanges.pipe(untilDestroyed(this))
-      .subscribe((mode: ExecutionMode) => {
-        this.updateExecutionMode(mode);
-      });
+    this.settingsForm = this.fb.group({
+      dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
+    });
+
+    this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
+      if (this.settingsForm.valid) {
+        this.confirmUpdateDataTransferBatchSize(value.dataTransferBatchSize);
+      }
+    });
 
     this.workflowActionService
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        this.currentDataTransferBatchSize =
+          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
+          this.config.env.defaultDataTransferBatchSize;
         this.settingsForm.patchValue(
-          {
-            dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
-            executionMode: this.workflowActionService.getWorkflowContent().settings.executionMode,
-          },
+          { dataTransferBatchSize: this.currentDataTransferBatchSize },
           { emitEvent: false }
         );
       });
@@ -92,18 +85,13 @@ export class SettingsComponent implements OnInit {
   }
 
   public persistWorkflow(): void {
+    this.isSaving = true;
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
       .pipe(untilDestroyed(this))
       .subscribe({
         error: (e: unknown) => this.notificationService.error((e as Error).message),
-      });
+      })
+      .add(() => (this.isSaving = false));
   }
-
-  public updateExecutionMode(mode: ExecutionMode) {
-    this.workflowActionService.updateExecutionMode(mode);
-    this.persistWorkflow();
-  }
-
-  protected readonly ExecutionMode = ExecutionMode;
 }

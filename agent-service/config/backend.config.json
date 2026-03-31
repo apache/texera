@@ -1,0 +1,58 @@
+{
+  "services": {
+    "main": {
+      "description": "Main Texera Web Application API",
+      "target": "http://localhost:8080",
+      "endpoints": ["/api"]
+    },
+    "models": {
+      "description": "LiteLLM Models Service (for AI model listing and chat)",
+      "target": "http://localhost:9096",
+      "endpoints": ["/api/models", "/api/chat/completion"]
+    },
+    "compile": {
+      "description": "Workflow Compiling Service",
+      "target": "http://localhost:9090",
+      "endpoints": ["/api/compile"]
+    },
+    "execution": {
+      "description": "Workflow Execution Service (ComputingUnitMaster)",
+      "target": "http://localhost:8085",
+      "endpoints": ["/api/execution"]
+    },
+    "dataset": {
+      "description": "File/Dataset Service",
+      "target": "http://localhost:9092",
+      "endpoints": ["/api/dataset", "/api/access/dataset/**"]
+    },
+    "computing": {
+      "description": "Computing Unit Service",
+      "target": "http://localhost:8888",
+      "endpoints": ["/api/computing-unit", "/api/access/computing-unit/**"]
+    },
+    "config": {
+      "description": "Config Service",
+      "target": "http://localhost:9094",
+      "endpoints": ["/api/config/**"]
+    },
+    "websocket": {
+      "description": "WebSocket API for workflow execution",
+      "target": "ws://localhost:8085",
+      "endpoints": ["/wsapi"]
+    },
+    "hamilton": {
+      "description": "Hamilton execution sidecar",
+      "target": "http://localhost:8111",
+      "endpoints": ["/execute", "/health"]
+    },
+    "dagster": {
+      "description": "Dagster execution sidecar",
+      "target": "http://localhost:8112",
+      "endpoints": ["/execute", "/health"]
+    }
+  },
+  "defaults": {
+    "secure": false,
+    "changeOrigin": true
+  }
+}

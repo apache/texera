@@ -54,7 +54,7 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
   items?: CustomJSONSchema7 | boolean | JSONSchema7Definition[];
 
   // new custom properties:
-  autofill?: "attributeName" | "attributeNameList";
+  autofill?: "attributeName" | "attributeNameList" | "attributeList";
   autofillAttributeOnPort?: number;
   attributeTypeRules?: AttributeTypeRuleSchema;
 

@@ -18,7 +18,16 @@
  */
 
 import { Location } from "@angular/common";
-import { AfterViewInit, Component, HostListener, OnDestroy, OnInit, ViewChild, ViewContainerRef } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  HostListener,
+  Input,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  ViewContainerRef,
+} from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
@@ -42,6 +51,7 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { AgentActionService } from "../service/agent-action/agent-action.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -62,6 +72,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
 
   /**
+   * Optional agent ID to activate when the workspace loads.
+   * When provided (from agent dashboard), the agent panel will open
+   * and connect to this agent automatically.
+   */
+  @Input() agentIdToActivate?: string;
+
+  /**
    * Flag to ensure auto persist is registered only once.  This prevents multiple
    * subscriptions and avoids accidental persistence of an empty workflow
    * before the actual workflow is loaded from backend.
@@ -70,7 +87,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   constructor(
     private userService: UserService,
-    // list additional 3 services in constructor so they are initialized even if no one use them directly
+    // list additional services in constructor so they are initialized even if no one use them directly
     // TODO: make their lifecycle better
     private workflowCompilingService: WorkflowCompilingService,
     private workflowConsoleService: WorkflowConsoleService,
@@ -87,7 +104,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private notificationService: NotificationService,
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private agentActionService: AgentActionService
   ) {}
 
   ngOnInit() {
@@ -170,6 +188,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             });
           // to sync up with the updated information, such as workflow.wid
+        } else {
+          console.log("Workflow not persisted");
         }
       });
   }

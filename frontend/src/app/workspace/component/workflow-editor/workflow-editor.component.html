@@ -26,4 +26,60 @@
     #menu="nzDropdownMenu">
     <texera-context-menu></texera-context-menu>
   </nz-dropdown-menu>
+
+  <!-- Code Panels Container -->
+  <div
+    class="panels-container"
+    *ngIf="pythonUdfOperators.length > 0">
+    <div
+      *ngFor="let op of pythonUdfOperators"
+      class="code-panel-wrapper"
+      [style.left.px]="op.position.x"
+      [style.top.px]="op.position.y">
+      <texera-inline-code-panel
+        [operatorId]="op.operatorId"
+        [displayName]="op.displayName"
+        [isDiffMode]="op.isDiffMode"
+        [originalCode]="op.originalCode"
+        (closePanel)="closePanel($event)"></texera-inline-code-panel>
+    </div>
+  </div>
+
+  <!-- Step Badge Overlay Container (for message highlighting) -->
+  <div
+    class="step-badges-container"
+    *ngIf="showStepBadges && stepBadges.length > 0">
+    <div
+      *ngFor="let badge of stepBadges"
+      class="step-badge"
+      [class.added]="badge.action === 'added'"
+      [class.modified]="badge.action === 'modified'"
+      [class.executed]="badge.action === 'executed'"
+      [style.left.px]="badge.position.x"
+      [style.top.px]="badge.position.y"
+      (click)="onStepBadgeClick(badge)"
+      nz-tooltip
+      [nzTooltipTitle]="'Step ' + badge.stepId + ' (' + badge.action + ')'"
+      nzTooltipPlacement="top">
+      {{ badge.stepId }}
+    </div>
+  </div>
+
+  <!-- Chat Popover for Operator -->
+  <div
+    class="chat-popover-container"
+    *ngIf="chatPopoverOperator"
+    [style.left.px]="chatPopoverOperator.position.x"
+    [style.top.px]="chatPopoverOperator.position.y">
+    <div class="chat-popover" [class.chat-popover-visualization]="isOperatorVisualization(chatPopoverOperator.operatorId)">
+      <div class="chat-popover-content">
+        <texera-agent-interaction
+          [operatorId]="chatPopoverOperator.operatorId"
+          [operatorDisplayName]="chatPopoverOperator.displayName"
+          [sampleRecords]="getOperatorSampleRecords(chatPopoverOperator.operatorId)"
+          [resultStatistics]="getOperatorResultStatistics(chatPopoverOperator.operatorId)">
+        </texera-agent-interaction>
+      </div>
+    </div>
+  </div>
 </div>

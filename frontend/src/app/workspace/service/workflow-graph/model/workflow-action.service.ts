@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { ExecutionMode, Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
+import { Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
@@ -127,7 +127,6 @@ export class WorkflowActionService {
   private getDefaultSettings(): WorkflowSettings {
     return {
       dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
-      executionMode: this.config.env.defaultExecutionMode,
     };
   }
 
@@ -507,6 +506,11 @@ export class WorkflowActionService {
     this.getJointGraphWrapper().unhighlightLinks(...links);
   }
 
+  public unhighlightAllElements(): void {
+    const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
+    this.jointGraphWrapper.unhighlightElements(currentHighlights);
+  }
+
   public highlightCommentBoxes(multiSelect: boolean, ...commentBoxIDs: string[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightCommentBoxes(...commentBoxIDs);
@@ -620,7 +624,8 @@ export class WorkflowActionService {
    */
   public reloadWorkflow(
     workflow: Readonly<Workflow> | undefined,
-    asyncRendering = this.config.env.asyncRenderingEnabled
+    asyncRendering = this.config.env.asyncRenderingEnabled,
+    preserveViewport = false
   ): void {
     this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
@@ -664,8 +669,10 @@ export class WorkflowActionService {
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, commentBoxes);
 
-      // restore the view point
-      this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      // restore the view point (skip if preserveViewport is true)
+      if (!preserveViewport) {
+        this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      }
     });
     this.jointGraphWrapper.setReloadingWorkflow(false);
 
@@ -808,10 +815,6 @@ export class WorkflowActionService {
     }
   }
 
-  public updateExecutionMode(mode: ExecutionMode): void {
-    this.setWorkflowSettings({ ...this.workflowSettings, executionMode: mode });
-  }
-
   public clearWorkflow(): void {
     this.destroySharedModel();
     this.setWorkflowMetadata(undefined);
@@ -923,5 +926,338 @@ export class WorkflowActionService {
 
   public getHighlightingEnabled() {
     return this.highlightingEnabled;
+  }
+
+  /**
+   * Find all operators and links on any upstream path leading to the given destination operator.
+   * Uses BFS to traverse backwards from the destination to find all contributing operators.
+   * @param destinationOperatorId The operator ID to find upstream paths to
+   * @returns Object containing arrays of operator IDs and link IDs on upstream paths
+   */
+  public findUpstreamPath(destinationOperatorId: string): { operators: string[]; links: string[] } {
+    const allLinks = this.getTexeraGraph().getAllLinks();
+
+    // Build reverse adjacency list (from target to source)
+    const reverseAdjacencyMap = new Map<string, Array<{ neighbor: string; linkId: string }>>();
+    allLinks.forEach(link => {
+      const source = link.source.operatorID;
+      const target = link.target.operatorID;
+      if (!reverseAdjacencyMap.has(target)) {
+        reverseAdjacencyMap.set(target, []);
+      }
+      reverseAdjacencyMap.get(target)!.push({ neighbor: source, linkId: link.linkID });
+    });
+
+    // BFS to find all upstream operators and links
+    const queue: string[] = [destinationOperatorId];
+    const visitedOperators = new Set<string>();
+    const allOperatorsOnPaths = new Set<string>();
+    const allLinksOnPaths = new Set<string>();
+
+    allOperatorsOnPaths.add(destinationOperatorId); // Include the destination operator
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+
+      if (visitedOperators.has(current)) {
+        continue;
+      }
+      visitedOperators.add(current);
+
+      const upstreamNeighbors = reverseAdjacencyMap.get(current) || [];
+      for (const { neighbor, linkId } of upstreamNeighbors) {
+        allOperatorsOnPaths.add(neighbor);
+        allLinksOnPaths.add(linkId);
+        if (!visitedOperators.has(neighbor)) {
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    return {
+      operators: Array.from(allOperatorsOnPaths),
+      links: Array.from(allLinksOnPaths),
+    };
+  }
+
+  /**
+   * Find all operators whose output schema on any port contains all attributes from the target schema.
+   * Uses BFS to traverse the workflow (handles multiple DAGs).
+   * @param targetSchema The schema to match against operator output schemas
+   * @param workflowCompilingService Service to access operator output schemas
+   * @returns Array of operator IDs that have matching output schemas
+   */
+  public findOperatorsByOutputSchema(
+    targetSchema: ReadonlyArray<{ attributeName: string; attributeType: string }>,
+    workflowCompilingService: any
+  ): string[] {
+    if (!targetSchema || targetSchema.length === 0) {
+      return [];
+    }
+
+    const allOperators = this.getTexeraGraph().getAllOperators();
+    const matchingOperators: string[] = [];
+
+    // Helper function to check if a schema contains all target attributes
+    const schemaContainsTarget = (
+      portSchema: ReadonlyArray<{ attributeName: string; attributeType: string }>
+    ): boolean => {
+      if (!portSchema || portSchema.length === 0) {
+        return false;
+      }
+
+      // Create a map of the port schema for quick lookup
+      const schemaMap = new Map<string, string>();
+      portSchema.forEach(attr => {
+        schemaMap.set(attr.attributeName, attr.attributeType);
+      });
+
+      // Check if all target attributes exist in the port schema with matching types
+      return targetSchema.every(targetAttr => {
+        const portAttrType = schemaMap.get(targetAttr.attributeName);
+        return portAttrType !== undefined && portAttrType === targetAttr.attributeType;
+      });
+    };
+
+    // BFS traversal across all operators (handles multiple DAGs)
+    const visited = new Set<string>();
+    const queue: string[] = [];
+
+    // Start BFS from all operators (since we might have multiple disconnected DAGs)
+    allOperators.forEach(op => {
+      queue.push(op.operatorID);
+    });
+
+    while (queue.length > 0) {
+      const operatorId = queue.shift()!;
+
+      if (visited.has(operatorId)) {
+        continue;
+      }
+      visited.add(operatorId);
+
+      // Get output schema for this operator
+      const outputSchemaMap = workflowCompilingService.getOperatorOutputSchemaMap(operatorId);
+
+      if (outputSchemaMap) {
+        // Check all output ports
+        const hasMatchingPort = Object.values(outputSchemaMap).some((portSchema: any) => {
+          return schemaContainsTarget(portSchema);
+        });
+
+        if (hasMatchingPort) {
+          matchingOperators.push(operatorId);
+        }
+      }
+    }
+
+    return matchingOperators;
+  }
+
+  /**
+   * Apply agent action operations to the workflow atomically.
+   * This includes adding operators/links, modifying operators, and deleting operators/links.
+   * All operations are bundled together to ensure atomicity.
+   *
+   * @param args Agent action arguments with add, modify, and delete operations
+   * @returns Result object with IDs of added/modified/deleted items or error message
+   */
+  public applyAgentAction(args: {
+    add?: {
+      operators?: Array<{
+        operatorType: string;
+        customDisplayName?: string;
+        operatorProperties?: Record<string, any>;
+      }>;
+      links?: Array<{
+        sourceOperatorId: string;
+        targetOperatorId: string;
+        sourcePortId?: string;
+        targetPortId?: string;
+      }>;
+    };
+    modify?: {
+      operators?: Array<{ operatorId: string; operatorProperties: Record<string, any> }>;
+    };
+    delete?: {
+      operatorIds?: string[];
+      linkIds?: string[];
+    };
+  }): {
+    success: boolean;
+    error?: string;
+    addedOperatorIds: string[];
+    addedLinkIds: string[];
+    modifiedOperatorIds: string[];
+    deletedOperatorIds: string[];
+    deletedLinkIds: string[];
+  } {
+    const results: {
+      success: boolean;
+      error?: string;
+      addedOperatorIds: string[];
+      addedLinkIds: string[];
+      modifiedOperatorIds: string[];
+      deletedOperatorIds: string[];
+      deletedLinkIds: string[];
+    } = {
+      success: true,
+      addedOperatorIds: [],
+      addedLinkIds: [],
+      modifiedOperatorIds: [],
+      deletedOperatorIds: [],
+      deletedLinkIds: [],
+    };
+
+    // Helper function to resolve operator ID (can be existing ID or index string)
+    const resolveOperatorId = (idOrIndex: string, createdIds: string[]): string | null => {
+      // Check if it's a numeric index (referring to operators array)
+      const indexMatch = idOrIndex.match(/^(\d+)$/);
+      if (indexMatch) {
+        const index = parseInt(indexMatch[1], 10);
+        if (index >= 0 && index < createdIds.length) {
+          return createdIds[index];
+        }
+        return null; // Invalid index
+      }
+
+      // Otherwise, treat as existing operator ID
+      const existingOp = this.getTexeraGraph().getOperator(idOrIndex);
+      return existingOp ? idOrIndex : null;
+    };
+
+    // Bundle all operations for atomicity
+    this.texeraGraph.bundleActions(() => {
+      // STEP 1: ADD operations
+      if (args.add?.operators) {
+        // Validate all operator types exist
+        for (let i = 0; i < args.add.operators.length; i++) {
+          const operatorSpec = args.add.operators[i];
+          if (!this.operatorMetadataService.operatorTypeExists(operatorSpec.operatorType)) {
+            results.success = false;
+            results.error = `Unknown operator type at index ${i}: ${operatorSpec.operatorType}. Use listOperatorTypes tool to see available types.`;
+            return;
+          }
+        }
+
+        const existingOperators = this.getTexeraGraph().getAllOperators();
+        const startIndex = existingOperators.length;
+
+        for (let i = 0; i < args.add.operators.length; i++) {
+          const operatorSpec = args.add.operators[i];
+
+          // Get a new operator predicate with default settings and optional custom display name
+          const operator = this.workflowUtilService.getNewOperatorPredicate(
+            operatorSpec.operatorType,
+            operatorSpec.customDisplayName
+          );
+
+          // Calculate a default position with better spacing for batch operations
+          const defaultX = 100 + ((startIndex + i) % 5) * 200;
+          const defaultY = 100 + Math.floor((startIndex + i) / 5) * 150;
+          const position = { x: defaultX, y: defaultY };
+
+          // Add the operator to the workflow using native method (already in bundleActions)
+          this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+          this.texeraGraph.addOperator(operator);
+          this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, position);
+
+          // Apply custom operatorProperties if provided (must be done after operator is added)
+          if (operatorSpec.operatorProperties) {
+            this.texeraGraph.setOperatorProperty(operator.operatorID, operatorSpec.operatorProperties);
+          }
+
+          results.addedOperatorIds.push(operator.operatorID);
+        }
+      }
+
+      // Add links if specified
+      if (args.add?.links) {
+        for (let i = 0; i < args.add.links.length; i++) {
+          const linkSpec = args.add.links[i];
+
+          // Resolve source and target operator IDs
+          const sourceOperatorId = resolveOperatorId(linkSpec.sourceOperatorId, results.addedOperatorIds);
+          const targetOperatorId = resolveOperatorId(linkSpec.targetOperatorId, results.addedOperatorIds);
+
+          if (!sourceOperatorId) {
+            results.success = false;
+            results.error = `Invalid source operator ID at link ${i}: '${linkSpec.sourceOperatorId}'. Must be either an existing operator ID or a valid index (0-${results.addedOperatorIds.length - 1}).`;
+            return;
+          }
+
+          if (!targetOperatorId) {
+            results.success = false;
+            results.error = `Invalid target operator ID at link ${i}: '${linkSpec.targetOperatorId}'. Must be either an existing operator ID or a valid index (0-${results.addedOperatorIds.length - 1}).`;
+            return;
+          }
+
+          const sourcePId = linkSpec.sourcePortId || "output-0";
+          const targetPId = linkSpec.targetPortId || "input-0";
+
+          const link: OperatorLink = {
+            linkID: `link_${Date.now()}_${Math.random()}`,
+            source: {
+              operatorID: sourceOperatorId,
+              portID: sourcePId,
+            },
+            target: {
+              operatorID: targetOperatorId,
+              portID: targetPId,
+            },
+          };
+
+          this.addLink(link);
+          results.addedLinkIds.push(link.linkID);
+        }
+      }
+
+      // STEP 2: MODIFY operations
+      if (args.modify?.operators) {
+        for (const modifySpec of args.modify.operators) {
+          const operator = this.getTexeraGraph().getOperator(modifySpec.operatorId);
+          if (!operator) {
+            results.success = false;
+            results.error = `Operator with ID '${modifySpec.operatorId}' not found for modification.`;
+            return;
+          }
+
+          // Apply operatorProperties updates using native method (already in bundleActions)
+          this.texeraGraph.setOperatorProperty(modifySpec.operatorId, modifySpec.operatorProperties);
+          results.modifiedOperatorIds.push(modifySpec.operatorId);
+        }
+      }
+
+      // STEP 3: DELETE operations
+      if (args.delete?.operatorIds) {
+        for (const operatorId of args.delete.operatorIds) {
+          const operator = this.getTexeraGraph().getOperator(operatorId);
+          if (operator) {
+            // Delete operator using native methods (already in bundleActions)
+            this.unhighlightOperators(operatorId);
+            // Delete associated links first
+            this.getTexeraGraph()
+              .getAllLinks()
+              .filter(link => link.source.operatorID === operatorId || link.target.operatorID === operatorId)
+              .forEach(link => this.deleteLinkWithID(link.linkID));
+            this.texeraGraph.assertOperatorExists(operatorId);
+            this.texeraGraph.deleteOperator(operatorId);
+            results.deletedOperatorIds.push(operatorId);
+          }
+        }
+      }
+
+      if (args.delete?.linkIds) {
+        for (const linkId of args.delete.linkIds) {
+          const link = this.getTexeraGraph().getLinkWithID(linkId);
+          if (link) {
+            this.deleteLinkWithID(linkId);
+            results.deletedLinkIds.push(linkId);
+          }
+        }
+      }
+    });
+
+    return results;
   }
 }

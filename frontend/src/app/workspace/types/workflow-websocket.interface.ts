@@ -94,9 +94,7 @@ export type PaginationRequest = Readonly<{
   operatorID: string;
   pageIndex: number;
   pageSize: number;
-  columnOffset?: number;
-  columnLimit?: number;
-  columnSearch?: string;
+  noTruncation?: boolean;
 }>;
 
 export type PaginatedResultEvent = Readonly<{

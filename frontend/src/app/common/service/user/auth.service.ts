@@ -19,7 +19,7 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { firstValueFrom, Observable, Subscription, timer } from "rxjs";
+import { Observable, Subscription, timer } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { Role, User } from "../../type/user";
 import { ignoreElements } from "rxjs/operators";
@@ -28,7 +28,6 @@ import { NotificationService } from "../notification/notification.service";
 import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { RegistrationRequestModalComponent } from "./registration-request-modal/registration-request-modal.component";
 
 export const TOKEN_KEY = "access_token";
 
@@ -128,30 +127,15 @@ export class AuthService {
     }
 
     const role = this.jwtHelperService.decodeToken(token).role;
-    const uid = this.jwtHelperService.decodeToken(token).userId;
     const email = this.jwtHelperService.decodeToken(token).email;
-    const name = this.jwtHelperService.decodeToken(token).sub;
-
-    if (this.config.env.inviteOnly && role === Role.INACTIVE) {
-      this.checkRegistrationRequired(uid).subscribe(required => {
-        if (required) {
-          this.openRegistrationModal(uid, email, name);
-        } else {
-          this.modal.info({
-            nzTitle: "Access Pending",
-            nzContent: `
-            Your account is still inactive, and we already received your request.
-            Please wait for an admin to approve your access.
-          `,
-            nzOkText: "OK",
-            nzMaskClosable: false,
-            nzClosable: false,
-            nzOnOk: () => {
-              this.logout();
-              return true;
-            },
-          });
-        }
+    if (this.config.env.inviteOnly && role == Role.INACTIVE) {
+      this.modal.confirm({
+        nzTitle: "You Need Access",
+        nzContent:
+          "Currently the platform is invitation-only. Please request access from the platform admin or switch to an account that already has access.",
+        nzOkText: "Send request to Admin",
+        nzCancelText: "Cancel",
+        nzOnOk: () => this.gmailService.notifyUnauthorizedLogin(email),
       });
 
       return this.logout();
@@ -166,7 +150,6 @@ export class AuthService {
       googleAvatar: this.jwtHelperService.decodeToken(token).googleAvatar,
       role: role,
       comment: this.jwtHelperService.decodeToken(token).comment,
-      joiningReason: this.jwtHelperService.decodeToken(token).joiningReason,
     };
   }
 
@@ -175,11 +158,11 @@ export class AuthService {
     const expirationTime = this.jwtHelperService.getTokenExpirationDate()?.getTime();
     const token = AuthService.getAccessToken();
     if (token !== null && !this.jwtHelperService.isTokenExpired(token) && expirationTime !== undefined) {
-      // In RxJS 7, timer emits immediately then completes. Using ignoreElements() suppresses
-      // the emitted value so the complete callback fires only after the specified delay.
+      // use timer with ignoreElements to avoid event being immediately triggered (in RxJS 7)
+      // see https://stackoverflow.com/questions/70013573/how-to-replicate-delay-from-rxjs-6-x
       this.tokenExpirationSubscription = timer(expirationTime - new Date().getTime())
         .pipe(ignoreElements())
-        .subscribe({ complete: () => this.logout() });
+        .subscribe(() => this.logout());
     }
   }
 

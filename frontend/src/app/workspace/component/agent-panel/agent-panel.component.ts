@@ -17,10 +17,12 @@
  * under the License.
  */
 
-import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
+import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { TexeraCopilotManagerService, AgentInfo } from "../../service/copilot/texera-copilot-manager.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 
 @UntilDestroy()
@@ -29,10 +31,17 @@ import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
   templateUrl: "agent-panel.component.html",
   styleUrls: ["agent-panel.component.scss"],
 })
-export class AgentPanelComponent implements OnInit, OnDestroy {
+export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   protected readonly window = window;
   private static readonly MIN_PANEL_WIDTH = 400;
   private static readonly MIN_PANEL_HEIGHT = 450;
+
+  /**
+   * Optional agent ID to activate when the panel loads.
+   * When provided (from agent dashboard), the panel will open
+   * and switch to this agent's tab automatically.
+   */
+  @Input() agentIdToActivate?: string;
 
   // Panel dimensions and position
   width: number = 0; // Start with 0 to show docked button
@@ -43,10 +52,17 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
   isDocked = true;
 
   // Tab management
-  selectedTabIndex: number = 0; // 0 = registration tab, 1 = action plans tab, 2+ = agent tabs
+  selectedTabIndex: number = 0; // 0 = registration tab, 1+ = agent tabs
   agents: AgentInfo[] = [];
 
-  constructor(private copilotManagerService: TexeraCopilotManagerService) {}
+  // Active agent tracking - only one agent can be connected at a time
+  activeAgentId: string | null = null;
+
+  constructor(
+    private copilotManagerService: TexeraCopilotManagerService,
+    private workflowActionService: WorkflowActionService,
+    private notificationService: NotificationService
+  ) {}
 
   ngOnInit(): void {
     this.loadPanelSettings();
@@ -58,6 +74,8 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
         .pipe(untilDestroyed(this))
         .subscribe(agents => {
           this.agents = agents;
+          // Try to activate the agent if agentIdToActivate is set
+          this.tryActivateAgentFromInput();
         });
     });
 
@@ -67,11 +85,57 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(agents => {
         this.agents = agents;
+        // Try to activate the agent if agentIdToActivate is set
+        this.tryActivateAgentFromInput();
       });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes["agentIdToActivate"] && this.agentIdToActivate) {
+      this.tryActivateAgentFromInput();
+    }
+  }
+
+  /**
+   * Try to activate the agent specified by agentIdToActivate input.
+   * Opens the panel and switches to the agent's tab.
+   */
+  private tryActivateAgentFromInput(): void {
+    if (!this.agentIdToActivate || this.agents.length === 0) {
+      return;
+    }
+
+    const agentIndex = this.agents.findIndex(agent => agent.id === this.agentIdToActivate);
+    if (agentIndex === -1) {
+      return;
+    }
+
+    // Open the panel if it's closed
+    if (this.width === 0) {
+      this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
+    }
+
+    // Switch to the agent's tab and activate it
+    const agent = this.agents[agentIndex];
+
+    // Deactivate previous agent if any
+    if (this.activeAgentId) {
+      this.copilotManagerService.deactivateAgent(this.activeAgentId);
+    }
+
+    // Activate the specified agent
+    this.activeAgentId = agent.id;
+    this.copilotManagerService.activateAgent(agent.id);
+    this.selectedTabIndex = agentIndex + 1; // +1 because tab 0 is registration
+
+    // Clear the input so we don't re-activate on every change
+    this.agentIdToActivate = undefined;
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
+    // Deactivate any active agent before destroying
+    this.deactivateCurrentAgent();
     this.savePanelSettings();
   }
 
@@ -90,16 +154,108 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle agent creation
+   * Handle agent creation - activates and switches to the new agent
    */
   public onAgentCreated(agentId: string): void {
-    // The agent is already added to the agents array by the manager service
-    // Find the index of the newly created agent and switch to that tab
-    // Tab index 0 is registration, 1 is action plans, so agent tabs start at index 2
-    const agentIndex = this.agents.findIndex(agent => agent.id === agentId);
-    if (agentIndex !== -1) {
-      this.selectedTabIndex = agentIndex + 2; // +2 because tab 0 is registration, tab 1 is action plans
+    // Deactivate previous agent if any
+    if (this.activeAgentId) {
+      this.copilotManagerService.deactivateAgent(this.activeAgentId);
     }
+
+    // Set the new agent as active immediately
+    this.activeAgentId = agentId;
+    this.copilotManagerService.activateAgent(agentId);
+
+    // Fetch the latest agent list and switch to the new agent's tab
+    this.copilotManagerService
+      .getAllAgents()
+      .pipe(untilDestroyed(this))
+      .subscribe(agents => {
+        this.agents = agents;
+        const agentIndex = agents.findIndex(agent => agent.id === agentId);
+        if (agentIndex !== -1) {
+          this.selectedTabIndex = agentIndex + 1; // +1 because tab 0 is registration
+        }
+      });
+  }
+
+  /**
+   * Handle tab selection change - validates workflow compatibility before switching
+   */
+  public onTabSelectChange(index: number): void {
+    // Tab 0 is registration - always allow
+    if (index === 0) {
+      this.deactivateCurrentAgent();
+      this.selectedTabIndex = 0;
+      return;
+    }
+
+    // Get the agent for this tab (index - 1 because tab 0 is registration)
+    const agentIndex = index - 1;
+    if (agentIndex < 0 || agentIndex >= this.agents.length) {
+      return;
+    }
+
+    const agent = this.agents[agentIndex];
+    const agentWorkflowId = agent.delegate?.workflowId;
+    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
+
+    // If agent has a workflow ID, check if it matches the current workflow
+    if (agentWorkflowId !== undefined && agentWorkflowId !== 0) {
+      if (currentWorkflowId !== agentWorkflowId) {
+        // Block switching - workflow mismatch
+        this.notificationService.warning(
+          `Cannot switch to agent "${agent.name}": It's working on a different workflow. ` +
+            `Open workflow #${agentWorkflowId} to interact with this agent.`
+        );
+        return;
+      }
+    }
+
+    // Workflow matches or agent has no workflow - allow switch
+    this.switchToAgent(agent.id, index);
+  }
+
+  /**
+   * Switch to a specific agent tab
+   */
+  private switchToAgent(agentId: string, tabIndex: number): void {
+    // Skip if already on this agent and tab
+    if (this.activeAgentId === agentId && this.selectedTabIndex === tabIndex) {
+      return;
+    }
+
+    // Deactivate previous agent only if switching to a different agent
+    if (this.activeAgentId !== agentId) {
+      this.deactivateCurrentAgent();
+    }
+
+    // Activate new agent
+    this.activeAgentId = agentId;
+    this.copilotManagerService.activateAgent(agentId);
+    this.selectedTabIndex = tabIndex;
+  }
+
+  /**
+   * Deactivate the currently active agent
+   */
+  private deactivateCurrentAgent(): void {
+    if (this.activeAgentId) {
+      this.copilotManagerService.deactivateAgent(this.activeAgentId);
+      this.activeAgentId = null;
+    }
+  }
+
+  /**
+   * Check if an agent's workflow matches the current workspace workflow
+   */
+  public canSwitchToAgent(agent: AgentInfo): boolean {
+    const agentWorkflowId = agent.delegate?.workflowId;
+    if (agentWorkflowId === undefined || agentWorkflowId === 0) {
+      return true; // Agent has no workflow - always allow
+    }
+    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
+    return currentWorkflowId === agentWorkflowId;
   }
 
   /**
@@ -110,15 +266,30 @@ export class AgentPanelComponent implements OnInit, OnDestroy {
 
     if (confirm("Are you sure you want to delete this agent?")) {
       const agentIndex = this.agents.findIndex(agent => agent.id === agentId);
-      this.copilotManagerService.deleteAgent(agentId);
 
-      // If we're on the deleted agent's tab, switch to registration
-      if (agentIndex !== -1 && this.selectedTabIndex === agentIndex + 2) {
-        this.selectedTabIndex = 0;
-      } else if (this.selectedTabIndex > agentIndex + 2) {
-        // Adjust selected index if we deleted a tab before the current one
-        this.selectedTabIndex--;
+      // Deactivate if this is the active agent
+      if (this.activeAgentId === agentId) {
+        this.deactivateCurrentAgent();
       }
+
+      // Must subscribe to the observable for it to execute
+      this.copilotManagerService
+        .deleteAgent(agentId)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => {
+            // If we're on the deleted agent's tab, switch to registration
+            if (agentIndex !== -1 && this.selectedTabIndex === agentIndex + 1) {
+              this.selectedTabIndex = 0;
+            } else if (this.selectedTabIndex > agentIndex + 1) {
+              // Adjust selected index if we deleted a tab before the current one
+              this.selectedTabIndex--;
+            }
+          },
+          error: (error: unknown) => {
+            console.error("Failed to delete agent:", error);
+          },
+        });
     }
   }
 

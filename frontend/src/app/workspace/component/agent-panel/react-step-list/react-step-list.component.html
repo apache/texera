@@ -1,0 +1,75 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="react-step-list-container">
+  <!-- Title -->
+  <h4 class="list-title">
+    <i
+      nz-icon
+      nzType="ordered-list"
+      nzTheme="outline"
+      style="margin-right: 8px"></i>
+    {{ title }} <span *ngIf="steps.length > 0">({{ steps.length }})</span>
+  </h4>
+
+  <!-- Step List -->
+  <div
+    *ngIf="steps.length > 0"
+    class="steps-list">
+    <div
+      *ngFor="let step of steps"
+      class="step-item"
+      (click)="onStepClick(step)">
+      <div class="step-badge">
+        <nz-tag [nzColor]="'blue'">{{ step.stepId }}</nz-tag>
+      </div>
+      <div class="step-info">
+        <div class="step-message-id">
+          <code>{{ step.messageId }}</code>
+        </div>
+        <div class="step-timestamp">{{ step.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
+      </div>
+      <div class="step-action">
+        <i
+          nz-icon
+          nzType="right"
+          nzTheme="outline"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div
+    *ngIf="steps.length === 0"
+    class="empty-state">
+    <i
+      nz-icon
+      nzType="inbox"
+      nzTheme="outline"
+      style="font-size: 24px; color: #8c8c8c"></i>
+    <div style="margin-top: 8px; color: #8c8c8c">{{ emptyMessage }}</div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<texera-react-step-detail-modal
+  [(visible)]="isModalVisible"
+  [step]="selectedStep"
+  [agentId]="agentId">
+</texera-react-step-detail-modal>

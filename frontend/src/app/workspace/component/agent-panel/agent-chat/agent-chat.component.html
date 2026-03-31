@@ -55,6 +55,54 @@
         </small>
       </div>
 
+      <!-- Stats button -->
+      <div class="toolbar-item">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="showStatsModal()"
+          nz-tooltip
+          nzTooltipTitle="View message statistics">
+          <i
+            nz-icon
+            nzType="bar-chart"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+
+      <!-- Export button -->
+      <div class="toolbar-item">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="exportMessages()"
+          nz-tooltip
+          nzTooltipTitle="Export chat history as JSON">
+          <i
+            nz-icon
+            nzType="export"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+
+      <!-- Export ReAct steps button -->
+      <div class="toolbar-item">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="exportReActSteps()"
+          nz-tooltip
+          nzTooltipTitle="Export ReAct steps as JSON">
+          <i
+            nz-icon
+            nzType="file-done"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+
       <!-- Clear button (when available) -->
       <div class="toolbar-item">
         <button
@@ -76,112 +124,254 @@
 
   <!-- Custom Chat Interface -->
   <div class="chat-content-wrapper">
-    <!-- Messages List -->
+    <!-- Agent Action Tree (Git-style version tree) -->
     <div
-      #messageContainer
-      class="messages-container">
-      <div
-        *ngFor="let response of responses; let i = index"
-        class="message"
-        [class.user-message]="response.role === 'user'"
-        [class.ai-message]="response.role === 'agent'">
-        <!-- Show header for user messages or when isBegin is true for agent messages -->
-        <div
-          class="message-header"
-          *ngIf="response.role === 'user' || response.isBegin">
-          <i
-            nz-icon
-            [nzType]="response.role === 'user' ? 'user' : 'robot'"
-            nzTheme="outline"></i>
-          <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
-        </div>
-
-        <!-- Message content with hover button -->
-        <div
-          class="message-content"
-          (mouseenter)="setHoveredMessage(i)"
-          (mouseleave)="setHoveredMessage(null)"
-          style="position: relative">
-          <div
-            *ngIf="response.content"
-            class="message-content">
-            <markdown [data]="response.content"></markdown>
-          </div>
-          <div
-            *ngIf="response.toolCalls && response.toolCalls.length > 0"
-            style="color: #8c8c8c; font-style: italic">
-            Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
-          </div>
-
-          <!-- Details button (shown on hover) - only for agent messages with details -->
-          <button
-            *ngIf="response.role === 'agent' && hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
-            nz-button
-            nzType="text"
-            nzSize="small"
-            (click)="showResponseDetails(response)"
-            style="position: absolute; top: 0; right: 0; opacity: 0.7"
-            nz-tooltip
-            nzTooltipTitle="View details">
-            <i
-              nz-icon
-              nzType="info-circle"
-              nzTheme="outline"></i>
-          </button>
-        </div>
+      #timelineContainer
+      class="timeline-container"
+      [class.collapsed]="treePanelCollapsed"
+      [style.width.px]="treePanelCollapsed ? 24 : treePanelWidth">
+      <!-- Collapse toggle and controls -->
+      <div class="tree-panel-header">
+        <button class="tree-collapse-btn" (click)="treePanelCollapsed = !treePanelCollapsed"
+          [title]="treePanelCollapsed ? 'Expand action tree' : 'Collapse action tree'">
+          <i nz-icon [nzType]="treePanelCollapsed ? 'right' : 'left'" nzTheme="outline"></i>
+        </button>
+        <button *ngIf="!treePanelCollapsed" class="tree-toggle-btn" (click)="togglePortShapes()"
+          [title]="showPortShapes ? 'Hide output port shapes' : 'Show output port shapes'">
+          <i nz-icon [nzType]="showPortShapes ? 'eye' : 'eye-invisible'" nzTheme="outline"></i>
+        </button>
       </div>
-
-      <!-- Loading indicator -->
-      <div
-        *ngIf="isGenerating()"
-        class="message ai-message loading-message">
-        <div class="message-header">
-          <i
-            nz-icon
-            nzType="robot"
-            nzTheme="outline"></i>
-          <span class="message-role">{{ agentInfo.name }}</span>
-        </div>
-        <div class="message-content">
-          <nz-spin
-            nzSimple
-            nzSize="small"></nz-spin>
-          <span style="margin-left: 8px">Thinking...</span>
+      <!-- Tree content (hidden when collapsed) -->
+      <div class="tree-viewport" *ngIf="!treePanelCollapsed">
+        <div class="tree-canvas" [style.width.px]="treeCanvasWidth" [style.height.px]="treeHeight">
+          <!-- Time axis (vertical line with dots and labels) -->
+          <div class="time-axis">
+            <div class="time-axis-line" [style.height.px]="treeHeight"></div>
+            <div
+              *ngFor="let tn of timeAxisNodes"
+              class="time-axis-node"
+              [style.top.px]="tn.y - 8">
+              <i *ngIf="tn.actionType === 'user_request'; else agentIcon"
+                nz-icon nzType="user" nzTheme="outline"
+                class="time-axis-icon user-icon"
+                nz-tooltip nzTooltipTitle="User"></i>
+              <ng-template #agentIcon>
+                <i nz-icon nzType="robot" nzTheme="outline"
+                  class="time-axis-icon agent-icon"
+                  nz-tooltip [nzTooltipTitle]="tn.agentName || 'Agent'"></i>
+              </ng-template>
+              <span class="time-axis-label">{{ tn.timeLabel }}</span>
+            </div>
+          </div>
+          <!-- SVG layer for edges -->
+          <svg class="tree-edges" [attr.width]="treeCanvasWidth" [attr.height]="treeHeight">
+            <path
+              *ngFor="let edge of treeEdges"
+              [attr.d]="edge.path"
+              [class.on-path]="edge.isOnHeadPath"
+              [class.off-path]="!edge.isOnHeadPath"
+              class="tree-edge" />
+          </svg>
+          <!-- Nodes layer -->
+          <div
+            *ngFor="let node of timelineNodes"
+            class="tree-node"
+            [class.is-head]="node.isHead"
+            [class.on-path]="node.isOnHeadPath"
+            [class.off-path]="!node.isOnHeadPath"
+            [class.user-request]="node.actionType === 'user_request' && node.messageSource !== 'feedback'"
+            [class.user-feedback]="node.actionType === 'user_request' && node.messageSource === 'feedback'"
+            [class.agent-response]="node.actionType === 'agent_response'"
+            [class.initial]="node.actionType === 'initial'"
+            [class.action-delete]="node.actionLabel === 'Delete'"
+            [style.left.px]="node.x - node.width / 2"
+            [style.top.px]="node.y - 12"
+            [style.width.px]="node.width"
+            (click)="onTimelineNodeClick(node)"
+            (mouseenter)="onTimelineNodeMouseEnter(node)"
+            (mouseleave)="onTimelineNodeMouseLeave()">
+            <span class="node-text">
+              <ng-container *ngIf="node.actionType === 'user_request'">{{ node.messageSource === 'feedback' ? 'Feedback' : 'Input Task' }}</ng-container>
+              <ng-container *ngIf="node.actionType === 'agent_response'">Task Done</ng-container>
+              <ng-container *ngIf="node.actionType === 'initial'">Ready</ng-container>
+              <ng-container *ngIf="node.actionType !== 'user_request' && node.actionType !== 'agent_response' && node.actionType !== 'initial'">
+                {{ node.actionLabel }} {{ node.operatorId }}
+              </ng-container>
+            </span>
+          </div>
         </div>
       </div>
     </div>
+    <!-- Resize handle between tree panel and chat -->
+    <div
+      *ngIf="!treePanelCollapsed"
+      class="tree-resize-handle"
+      (mousedown)="onResizeStart($event)"></div>
 
-    <!-- Input Area -->
-    <div class="input-area">
-      <textarea
-        #messageInput
-        nz-input
-        [(ngModel)]="currentMessage"
-        placeholder="Ask me anything about workflows..."
-        [nzAutosize]="{ minRows: 1, maxRows: 4 }"
-        (keydown.enter)="onEnterPress($any($event))"
-        [disabled]="!canSendMessage()"></textarea>
-      <button
-        nz-button
-        nzType="primary"
-        [disabled]="!currentMessage.trim() || !canSendMessage()"
-        (click)="sendMessage()">
-        <i
-          nz-icon
-          nzType="send"
-          nzTheme="outline"></i>
-      </button>
-      <button
-        *ngIf="isGenerating()"
-        nz-button
-        nzType="default"
-        nzDanger
-        (click)="stopGeneration()">
-        <i
-          nz-icon
-          nzType="stop"
-          nzTheme="outline"></i>
-      </button>
+    <!-- Messages and Input Column -->
+    <div class="chat-main-column">
+      <!-- Messages List -->
+      <div
+        #messageContainer
+        class="messages-container">
+        <div
+          *ngFor="let response of agentResponses; let i = index"
+          class="message"
+          [class.user-message]="response.role === 'user'"
+          [class.ai-message]="response.role === 'agent'">
+          <!-- Show header for user messages or when isBegin is true for agent messages -->
+          <div
+            class="message-header"
+            *ngIf="response.role === 'user' || response.isBegin">
+            <i
+              nz-icon
+              [nzType]="response.role === 'user' ? 'user' : 'robot'"
+              nzTheme="outline"></i>
+            <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
+            <!-- Highlight operators toggle button (only for user messages) -->
+            <button
+              *ngIf="response.role === 'user'"
+              nz-button
+              nzType="text"
+              nzSize="small"
+              (click)="toggleMessageHighlight(response.messageId); $event.stopPropagation()"
+              nz-tooltip
+              [nzTooltipTitle]="isMessageHighlighted(response.messageId) ? 'Hide affected operators' : 'Highlight affected operators'"
+              class="message-highlight-btn">
+              <i
+                nz-icon
+                nzType="highlight"
+                nzTheme="outline"
+                [style.color]="isMessageHighlighted(response.messageId) ? '#1890ff' : 'inherit'"></i>
+            </button>
+          </div>
+
+          <!-- Message content with hover button -->
+          <div
+            class="message-content"
+            (mouseenter)="setHoveredMessage(i)"
+            (mouseleave)="setHoveredMessage(null)"
+            style="position: relative">
+            <!-- Step ID badge at top-left corner -->
+            <div
+              style="
+                position: absolute;
+                top: -8px;
+                left: -8px;
+                background: #1890ff;
+                color: white;
+                font-size: 11px;
+                font-weight: 500;
+                padding: 2px 6px;
+                border-radius: 10px;
+                font-family: monospace;
+                z-index: 1;
+              "
+              nz-tooltip
+              [nzTooltipTitle]="'Message ID: ' + response.messageId + ' | Step ID: ' + response.stepId">
+              {{ response.stepId }}
+            </div>
+
+            <div
+              *ngIf="response.content"
+              class="message-content">
+              <markdown [data]="response.content"></markdown>
+            </div>
+            <div
+              *ngIf="response.toolCalls && response.toolCalls.length > 0"
+              style="color: #8c8c8c; font-style: italic">
+              Execute {{ response.toolCalls.length }} tool{{ response.toolCalls.length > 1 ? 's' : '' }}
+            </div>
+
+            <!-- Details button (shown on hover) - for any message with details -->
+            <button
+              *ngIf="hoveredMessageIndex === i && (response.toolCalls?.length || response.usage || response.actualContent)"
+              nz-button
+              nzType="text"
+              nzSize="small"
+              (click)="showResponseDetails(response)"
+              style="position: absolute; top: 0; right: 0; opacity: 0.7"
+              nz-tooltip
+              nzTooltipTitle="View details">
+              <i
+                nz-icon
+                nzType="info-circle"
+                nzTheme="outline"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div
+          *ngIf="isGenerating()"
+          class="message ai-message loading-message">
+          <div class="message-header">
+            <i
+              nz-icon
+              nzType="robot"
+              nzTheme="outline"></i>
+            <span class="message-role">{{ agentInfo.name }}</span>
+          </div>
+          <div class="message-content">
+            <nz-spin
+              nzSimple
+              nzSize="small"></nz-spin>
+            <span style="margin-left: 8px">Thinking...</span>
+          </div>
+        </div>
+
+        <!-- Stopping indicator -->
+        <div
+          *ngIf="isStopping()"
+          class="message ai-message loading-message">
+          <div class="message-header">
+            <i
+              nz-icon
+              nzType="robot"
+              nzTheme="outline"></i>
+            <span class="message-role">{{ agentInfo.name }}</span>
+          </div>
+          <div class="message-content">
+            <nz-spin
+              nzSimple
+              nzSize="small"></nz-spin>
+            <span style="margin-left: 8px">Stopping...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-area">
+          <textarea
+            #messageInput
+            nz-input
+            [(ngModel)]="currentMessage"
+            placeholder="Ask me anything about your data science tasks..."
+            [nzAutosize]="{ minRows: 1, maxRows: 4 }"
+            (keydown.enter)="onEnterPress($any($event))"
+            [disabled]="!canSendMessage()"></textarea>
+          <button
+            nz-button
+            nzType="primary"
+            [disabled]="!currentMessage.trim() || !canSendMessage()"
+            (click)="sendMessage()">
+            <i
+              nz-icon
+              nzType="send"
+              nzTheme="outline"></i>
+          </button>
+          <button
+            *ngIf="isGenerating()"
+            nz-button
+            nzType="default"
+            nzDanger
+            (click)="stopGeneration()">
+            <i
+              nz-icon
+              nzType="stop"
+              nzTheme="outline"></i>
+          </button>
+      </div>
     </div>
   </div>
 
@@ -198,155 +388,14 @@
 </div>
 
 <!-- Response Details Modal -->
-<nz-modal
-  [(nzVisible)]="isDetailsModalVisible"
-  nzTitle="Response Details"
-  nzWidth="800px"
-  (nzOnCancel)="closeDetailsModal()"
-  [nzFooter]="null">
-  <ng-container *nzModalContent>
-    <div
-      *ngIf="selectedResponse"
-      style="max-height: 600px; overflow-y: auto">
-      <!-- Token Usage Section -->
-      <div
-        *ngIf="selectedResponse.usage"
-        style="margin-bottom: 24px">
-        <h4 style="margin-bottom: 12px; color: #595959">
-          <i
-            nz-icon
-            nzType="bar-chart"
-            nzTheme="outline"
-            style="margin-right: 8px"></i>
-          Token Usage
-        </h4>
-        <nz-descriptions
-          nzBordered
-          nzSize="small"
-          [nzColumn]="2">
-          <nz-descriptions-item nzTitle="Input Tokens">
-            {{ selectedResponse.usage.inputTokens || 0 }}
-          </nz-descriptions-item>
-          <nz-descriptions-item nzTitle="Output Tokens">
-            {{ selectedResponse.usage.outputTokens || 0 }}
-          </nz-descriptions-item>
-          <nz-descriptions-item nzTitle="Total Tokens">
-            {{ selectedResponse.usage.totalTokens || 0 }}
-          </nz-descriptions-item>
-          <nz-descriptions-item nzTitle="Cached Tokens">
-            {{ selectedResponse.usage.cachedInputTokens || 0 }}
-          </nz-descriptions-item>
-        </nz-descriptions>
-      </div>
+<!-- ReAct Step Detail Modal -->
+<texera-react-step-detail-modal
+  [(visible)]="isDetailsModalVisible"
+  [step]="selectedResponse"
+  [agentId]="agentInfo.id">
+</texera-react-step-detail-modal>
 
-      <!-- Tool Calls Section -->
-      <div *ngIf="selectedResponse.toolCalls && selectedResponse.toolCalls.length > 0">
-        <h4 style="margin-bottom: 12px; color: #595959">
-          <i
-            nz-icon
-            nzType="tool"
-            nzTheme="outline"
-            style="margin-right: 8px"></i>
-          Tool Calls ({{ selectedResponse.toolCalls.length }})
-        </h4>
-        <nz-collapse style="margin-bottom: 16px">
-          <nz-collapse-panel
-            *ngFor="let call of selectedResponse.toolCalls; let idx = index"
-            [nzHeader]="call.toolName"
-            [nzActive]="false">
-            <div style="background: #fafafa; padding: 12px; border-radius: 4px; margin-bottom: 12px">
-              <div style="margin-bottom: 8px">
-                <strong style="color: #595959">Arguments:</strong>
-              </div>
-              <pre
-                style="
-                  background: #fff;
-                  padding: 12px;
-                  border: 1px solid #d9d9d9;
-                  border-radius: 4px;
-                  overflow-x: auto;
-                  margin: 0;
-                "><code class="language-json">{{ formatJson(call.input || call.args) }}</code></pre>
-            </div>
-            <div
-              *ngIf="getToolResult(selectedResponse, idx)"
-              style="background: #fafafa; padding: 12px; border-radius: 4px">
-              <div style="margin-bottom: 8px">
-                <strong style="color: #595959">Result:</strong>
-              </div>
-              <pre
-                style="
-                  background: #fff;
-                  padding: 12px;
-                  border: 1px solid #d9d9d9;
-                  border-radius: 4px;
-                  overflow-x: auto;
-                  margin: 0;
-                "><code class="language-json">{{ formatJson(getToolResult(selectedResponse, idx)) }}</code></pre>
-            </div>
-            <div
-              *ngIf="getReActStepOperatorAccess(selectedResponse, idx)"
-              style="background: #fafafa; padding: 12px; border-radius: 4px; margin-top: 12px">
-              <div style="margin-bottom: 8px">
-                <strong style="color: #595959">Operator Access:</strong>
-              </div>
-              <div style="background: #fff; padding: 12px; border: 1px solid #d9d9d9; border-radius: 4px">
-                <div
-                  *ngIf="getReActStepOperatorAccess(selectedResponse, idx)!.viewedOperatorIds.length > 0"
-                  style="margin-bottom: 8px">
-                  <span style="color: #1890ff; font-weight: 500; margin-right: 8px">
-                    <i
-                      nz-icon
-                      nzType="eye"
-                      nzTheme="outline"
-                      style="margin-right: 4px"></i>
-                    VIEWED:
-                  </span>
-                  <nz-tag
-                    *ngFor="let opId of getReActStepOperatorAccess(selectedResponse, idx)!.viewedOperatorIds"
-                    [nzColor]="'blue'"
-                    style="margin: 2px; font-family: monospace; font-size: 12px">
-                    {{ opId }}
-                  </nz-tag>
-                </div>
-                <div *ngIf="getReActStepOperatorAccess(selectedResponse, idx)!.modifiedOperatorIds.length > 0">
-                  <span style="color: #52c41a; font-weight: 500; margin-right: 8px">
-                    <i
-                      nz-icon
-                      nzType="edit"
-                      nzTheme="outline"
-                      style="margin-right: 4px"></i>
-                    MODIFIED:
-                  </span>
-                  <nz-tag
-                    *ngFor="let opId of getReActStepOperatorAccess(selectedResponse, idx)!.modifiedOperatorIds"
-                    [nzColor]="'green'"
-                    style="margin: 2px; font-family: monospace; font-size: 12px">
-                    {{ opId }}
-                  </nz-tag>
-                </div>
-              </div>
-            </div>
-          </nz-collapse-panel>
-        </nz-collapse>
-      </div>
-
-      <!-- No Data Message -->
-      <div
-        *ngIf="!selectedResponse.usage && (!selectedResponse.toolCalls || selectedResponse.toolCalls.length === 0)"
-        style="text-align: center; padding: 40px; color: #8c8c8c">
-        <i
-          nz-icon
-          nzType="info-circle"
-          nzTheme="outline"
-          style="font-size: 32px; margin-bottom: 8px"></i>
-        <div>No additional details available for this response.</div>
-      </div>
-    </div>
-  </ng-container>
-</nz-modal>
-
-<!-- System Info Modal -->
+<!-- System Info Modal (with editing capabilities) -->
 <nz-modal
   [(nzVisible)]="isSystemInfoModalVisible"
   nzTitle="Agent System Information"
@@ -354,71 +403,734 @@
   (nzOnCancel)="closeSystemInfoModal()"
   [nzFooter]="null">
   <ng-container *nzModalContent>
-    <div style="max-height: 600px; overflow-y: auto">
-      <!-- System Prompt Section -->
-      <div style="margin-bottom: 24px">
-        <h4 style="margin-bottom: 12px; color: #595959">
-          <i
-            nz-icon
-            nzType="file-text"
-            nzTheme="outline"
-            style="margin-right: 8px"></i>
-          System Prompt
-        </h4>
-        <div
-          style="
-            background: #fafafa;
-            padding: 12px;
-            border-radius: 4px;
-            border: 1px solid #d9d9d9;
-            max-height: 300px;
-            overflow-y: auto;
-          ">
-          <markdown [data]="systemPrompt"></markdown>
+    <nz-tabset>
+      <!-- System Prompt Tab -->
+      <nz-tab nzTitle="System Prompt">
+        <div class="settings-section">
+          <!-- View Mode -->
+          <div *ngIf="!isEditingSystemPrompt">
+            <div class="settings-prompt-actions">
+              <button
+                nz-button
+                nzType="link"
+                nzSize="small"
+                (click)="startEditingSystemPrompt()">
+                <i
+                  nz-icon
+                  nzType="edit"
+                  nzTheme="outline"></i>
+                Edit
+              </button>
+              <button
+                nz-button
+                nzType="link"
+                nzSize="small"
+                (click)="resetSystemPromptToDefault()">
+                <i
+                  nz-icon
+                  nzType="undo"
+                  nzTheme="outline"></i>
+                Reset to default
+              </button>
+            </div>
+            <div class="settings-prompt-display">
+              <markdown [data]="systemPrompt"></markdown>
+            </div>
+          </div>
+
+          <!-- Edit Mode -->
+          <div *ngIf="isEditingSystemPrompt">
+            <div class="settings-prompt-actions">
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveSystemPrompt()">
+                <i
+                  nz-icon
+                  nzType="save"
+                  nzTheme="outline"></i>
+                Save
+              </button>
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                (click)="cancelEditingSystemPrompt()">
+                Cancel
+              </button>
+            </div>
+            <textarea
+              nz-input
+              [(ngModel)]="editingSystemPrompt"
+              [nzAutosize]="{ minRows: 20, maxRows: 30 }"
+              placeholder="Enter system prompt..."
+              class="settings-textarea"></textarea>
+          </div>
         </div>
-      </div>
+      </nz-tab>
 
-      <!-- Available Tools Section -->
-      <div>
-        <h4 style="margin-bottom: 12px; color: #595959">
-          <i
-            nz-icon
-            nzType="tool"
-            nzTheme="outline"
-            style="margin-right: 8px"></i>
-          Available Tools ({{ availableTools.length }})
-        </h4>
-        <nz-collapse>
-          <nz-collapse-panel
-            *ngFor="let tool of availableTools"
-            [nzHeader]="tool.name"
-            [nzActive]="false">
-            <!-- Tool Description -->
-            <div style="background: #fafafa; padding: 12px; border-radius: 4px; margin-bottom: 12px">
-              <div style="margin-bottom: 8px">
-                <strong style="color: #595959">Description:</strong>
-              </div>
-              <div style="color: #262626">{{ tool.description }}</div>
+      <!-- Tools Tab -->
+      <nz-tab [nzTitle]="'Tools (' + getEnabledToolsCount() + '/' + availableTools.length + ')'">
+        <div class="settings-section">
+          <div class="settings-tools-header">
+            <span class="settings-tools-count"
+              >{{ getEnabledToolsCount() }} of {{ availableTools.length }} tools enabled</span
+            >
+            <div class="settings-tools-actions">
+              <button
+                nz-button
+                nzType="link"
+                nzSize="small"
+                (click)="enableAllTools()">
+                Enable all
+              </button>
+              <button
+                nz-button
+                nzType="link"
+                nzSize="small"
+                (click)="disableAllTools()">
+                Disable all
+              </button>
             </div>
+          </div>
 
-            <!-- Tool Input Schema -->
-            <div style="background: #fafafa; padding: 12px; border-radius: 4px">
-              <div style="margin-bottom: 8px">
-                <strong style="color: #595959">Input Schema:</strong>
-              </div>
+          <div class="settings-tools-list">
+            <nz-collapse [nzBordered]="false">
+              <nz-collapse-panel
+                *ngFor="let tool of availableTools"
+                [nzHeader]="toolHeaderTemplate"
+                [nzActive]="expandedToolName === tool.name"
+                (nzActiveChange)="onToolPanelChange(tool.name, $event)"
+                class="settings-tool-panel">
+                <ng-template #toolHeaderTemplate>
+                  <div
+                    class="settings-tool-item"
+                    (click)="$event.stopPropagation()">
+                    <nz-switch
+                      [ngModel]="tool.enabled"
+                      (ngModelChange)="toggleToolEnabled(tool)"
+                      nzSize="small"></nz-switch>
+                    <div class="settings-tool-info">
+                      <span class="settings-tool-name">{{ tool.name }}</span>
+                      <span class="settings-tool-description">{{ tool.description }}</span>
+                    </div>
+                  </div>
+                </ng-template>
+                <!-- Collapsible Input Schema Content -->
+                <div class="settings-tool-schema">
+                  <div class="schema-header">
+                    <i
+                      nz-icon
+                      nzType="code"
+                      nzTheme="outline"></i>
+                    <span>Input Schema</span>
+                  </div>
+                  <pre class="schema-content">{{ formatToolSchema(tool.inputSchema) }}</pre>
+                </div>
+              </nz-collapse-panel>
+            </nz-collapse>
+          </div>
+        </div>
+      </nz-tab>
+
+      <!-- Parameters Tab -->
+      <nz-tab nzTitle="Parameters">
+        <div class="settings-section">
+          <div class="settings-param-item">
+            <label class="settings-param-label">Max Operator Result Character Limit</label>
+            <div class="settings-param-input">
+              <nz-input-number
+                [(ngModel)]="settingsMaxCharLimit"
+                [nzMin]="1000"
+                [nzMax]="100000"
+                [nzStep]="1000"
+                nzSize="small"
+                style="width: 120px"></nz-input-number>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveMaxCharLimit()">
+                Save
+              </button>
+              <span class="settings-param-hint">Max characters for operator results (uses symmetric truncation)</span>
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Max Cell Character Limit</label>
+            <div class="settings-param-input">
+              <nz-input-number
+                [(ngModel)]="settingsMaxCellCharLimit"
+                [nzMin]="100"
+                [nzMax]="20000"
+                [nzStep]="100"
+                nzSize="small"
+                style="width: 120px"></nz-input-number>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveMaxCellCharLimit()">
+                Save
+              </button>
+              <span class="settings-param-hint">Max characters per cell - truncates large cell values</span>
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Result Serialization Mode</label>
+            <div class="settings-param-input">
+              <nz-radio-group
+                [(ngModel)]="settingsSerializationMode"
+                nzSize="small"
+                style="display: inline-flex; gap: 16px; margin-right: 12px">
+                <label
+                  nz-radio
+                  nzValue="json"
+                  >JSON</label
+                >
+                <label
+                  nz-radio
+                  nzValue="table"
+                  >TABLE</label
+                >
+                <label
+                  nz-radio
+                  nzValue="toon"
+                  >TOON</label
+                >
+              </nz-radio-group>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveSerializationMode()">
+                Save
+              </button>
+              <span class="settings-param-hint">JSON: array of objects, TABLE: CSV-like, TOON: Token-Oriented Object Notation (most compact for LLMs)</span>
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Tool Execution Timeout (seconds)</label>
+            <div class="settings-param-input">
+              <nz-input-number
+                [(ngModel)]="settingsToolTimeoutSeconds"
+                [nzMin]="1"
+                [nzMax]="600"
+                [nzStep]="10"
+                nzSize="small"
+                style="width: 120px"></nz-input-number>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveToolTimeout()">
+                Save
+              </button>
+              <span class="settings-param-hint">Max time for individual tool execution (1-600 seconds)</span>
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Workflow Execution Timeout (minutes)</label>
+            <div class="settings-param-input">
+              <nz-input-number
+                [(ngModel)]="settingsExecutionTimeoutMinutes"
+                [nzMin]="1"
+                [nzMax]="60"
+                [nzStep]="1"
+                nzSize="small"
+                style="width: 120px"></nz-input-number>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveExecutionTimeout()">
+                Save
+              </button>
+              <span class="settings-param-hint">Max time for workflow execution (1-60 minutes)</span>
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Max Steps per Message</label>
+            <div class="settings-param-input">
+              <nz-input-number
+                [(ngModel)]="settingsMaxSteps"
+                [nzMin]="1"
+                [nzMax]="50"
+                [nzStep]="1"
+                nzSize="small"
+                style="width: 120px"></nz-input-number>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveMaxSteps()">
+                Save
+              </button>
+              <span class="settings-param-hint">Maximum reasoning/tool steps per message (1-50)</span>
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Agent Mode</label>
+            <div class="settings-param-input">
+              <nz-radio-group
+                [(ngModel)]="settingsAgentMode"
+                nzSize="small"
+                style="display: inline-flex; gap: 16px; margin-right: 12px">
+                <label
+                  nz-radio
+                  nzValue="code"
+                  >CODE</label
+                >
+                <label
+                  nz-radio
+                  nzValue="general"
+                  >GENERAL</label
+                >
+              </nz-radio-group>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveAgentMode()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >CODE: Python code operators only. GENERAL: All operators with schema hints.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Fine-Grained Prompts</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsFineGrainedPrompt"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveFineGrainedPrompt()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When enabled, uses stricter "one line = one operation" constraints for more atomic, debuggable operators.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Context Optimization</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsEnableContextOptimization"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveContextOptimization()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >Condenses message history between steps to reduce token usage. Keeps workflow topology, frontier operator details, and the last tool exchange.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Latest Only</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsLatestOnly"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveLatestOnly()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >Keep only the latest tool results for each operator still in the workflow.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Frontier Depth</label>
+            <div class="settings-param-input">
+              <nz-input-number
+                [(ngModel)]="settingsFrontierDepth"
+                [nzMin]="1"
+                [nzMax]="10"
+                [nzStep]="1"
+                nzSize="small"
+                [nzDisabled]="!settingsEnableContextOptimization || settingsDynamicDepthEnabled"
+                style="width: 120px"></nz-input-number>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                [disabled]="!settingsEnableContextOptimization || settingsDynamicDepthEnabled"
+                (click)="saveFrontierDepth()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >Number of BFS levels backward from leaf operators for frontier computation (1 = leaves only, higher = more context).</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Dynamic Depth</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsDynamicDepthEnabled"
+                nzSize="small"
+                [nzDisabled]="!settingsEnableContextOptimization"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                [disabled]="!settingsEnableContextOptimization"
+                (click)="saveDynamicDepthEnabled()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >Automatically set frontier depth to ceil(average source-to-sink path length).</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Minimum Result Char Limit</label>
+            <div class="settings-param-input">
+              <nz-input-number
+                [(ngModel)]="settingsMinimumResultCharLimit"
+                [nzMin]="0"
+                [nzMax]="100000"
+                [nzStep]="500"
+                nzSize="small"
+                [nzDisabled]="!settingsEnableContextOptimization"
+                style="width: 120px"></nz-input-number>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                [disabled]="!settingsEnableContextOptimization"
+                (click)="saveMinimumResultCharLimit()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >Lower bound for log-decay trimming. Frontier uses max operator result limit, each deeper depth halves. 0 = fully skip non-frontier.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Operator Result Caching</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsCacheEnabled"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveCacheEnabled()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When disabled, every execution runs fresh without caching. Useful for debugging or ensuring up-to-date results.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Execution Backend</label>
+            <div class="settings-param-input">
+              <nz-radio-group
+                [(ngModel)]="settingsExecutionBackend"
+                nzSize="small"
+                style="display: inline-flex; gap: 16px; margin-right: 12px">
+                <label
+                  nz-radio
+                  nzValue="texera"
+                  >TEXERA</label
+                >
+                <label
+                  nz-radio
+                  nzValue="hamilton"
+                  >HAMILTON</label
+                >
+              </nz-radio-group>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveExecutionBackend()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >TEXERA: Execute via Texera backend (Scala). HAMILTON: Execute via Hamilton sidecar (Python, CODE mode only).</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Parallel Tool Calls</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsParallelToolCalls"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveParallelToolCalls()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >Allow the model to issue multiple tool calls in a single response for independent operations.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Optional Result Retrieval</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsOptionalResultRetrieval"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveOptionalResultRetrieval()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When enabled, the LLM can choose per-call whether to retrieve execution results. When disabled, results
+                are always retrieved.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">No Execution Metadata</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsNoExecutionMetadata"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveNoExecutionMetadata()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When enabled, execution metadata (input/output shapes, upstream IDs, row counts) is omitted from tool
+                results.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Simplified Tools</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsSimplifiedTools"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveSimplifiedTools()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When enabled, the getCurrentWorkflow tool is not registered, reducing the tool set for simpler
+                interactions.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">No Action Detail</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsNoActionDetail"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveNoActionDetail()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When enabled, code and properties in prior tool calls are replaced with a placeholder, forcing the agent
+                to focus on operator semantics and lineage rather than implementation details.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">No Log Fallback</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsNoLogFallback"
+                nzSize="small"
+                [nzDisabled]="!settingsEnableContextOptimization"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                [disabled]="!settingsEnableContextOptimization"
+                (click)="saveNoLogFallback()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When enabled, non-frontier operators use the minimum result char limit directly instead of log-fallback
+                decay from the max limit.</span
+              >
+            </div>
+          </div>
+
+          <div class="settings-param-item">
+            <label class="settings-param-label">Carry Metadata</label>
+            <div class="settings-param-input">
+              <nz-switch
+                [(ngModel)]="settingsCarryMetadata"
+                nzSize="small"
+                style="margin-right: 12px"></nz-switch>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                (click)="saveCarryMetadata()">
+                Save
+              </button>
+              <span class="settings-param-hint"
+                >When enabled, per-column statistics are included in the execution metadata section.</span
+              >
+            </div>
+          </div>
+        </div>
+      </nz-tab>
+
+      <!-- Agent State Tab -->
+      <nz-tab nzTitle="Agent State">
+        <div class="settings-section">
+          <div class="settings-prompt-actions">
+            <button
+              nz-button
+              nzType="link"
+              nzSize="small"
+              (click)="loadAgentInternalState()">
+              <i
+                nz-icon
+                nzType="reload"
+                nzTheme="outline"></i>
+              Refresh
+            </button>
+          </div>
+          <div class="settings-prompt-display">
+            <nz-spin [nzSpinning]="isLoadingAgentState">
               <pre
-                style="
-                  background: #fff;
-                  padding: 12px;
-                  border: 1px solid #d9d9d9;
-                  border-radius: 4px;
-                  overflow-x: auto;
-                  margin: 0;
-                "><code class="language-json">{{ formatJson(tool.inputSchema) }}</code></pre>
-            </div>
-          </nz-collapse-panel>
-        </nz-collapse>
+                *ngIf="agentInternalState"
+                class="agent-state-json">
+{{ agentInternalState | json }}</pre
+              >
+              <div *ngIf="!agentInternalState && !isLoadingAgentState">No agent state available</div>
+            </nz-spin>
+          </div>
+        </div>
+      </nz-tab>
+    </nz-tabset>
+  </ng-container>
+</nz-modal>
+
+<!-- Message Statistics Modal -->
+<nz-modal
+  [(nzVisible)]="isStatsModalVisible"
+  nzTitle="Message Statistics"
+  nzWidth="1000px"
+  (nzOnCancel)="closeStatsModal()"
+  [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <div style="max-height: 600px; overflow-y: auto">
+      <!-- Stats Table -->
+      <nz-table
+        #statsTable
+        [nzData]="messageStats"
+        [nzShowPagination]="false"
+        nzSize="small"
+        [nzScroll]="{ y: '500px' }">
+        <thead>
+          <tr>
+            <th nzWidth="60px">#</th>
+            <th nzWidth="120px">Status</th>
+            <th>User Message</th>
+            <th nzWidth="100px">Steps</th>
+            <th nzWidth="100px">Input Tokens</th>
+            <th nzWidth="100px">Output Tokens</th>
+            <th nzWidth="100px">Cached Tokens</th>
+            <th nzWidth="120px">Execution Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let stat of statsTable.data; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>
+              <nz-tag [nzColor]="getStatusColor(stat.status)"> {{ stat.status }} </nz-tag>
+            </td>
+            <td
+              style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+              [nz-tooltip]="stat.userMessage">
+              {{ stat.userMessage }}
+            </td>
+            <td>{{ stat.stepCount }}</td>
+            <td>{{ stat.totalInputTokens }}</td>
+            <td>{{ stat.totalOutputTokens }}</td>
+            <td>{{ stat.cachedInputTokens }}</td>
+            <td>{{ getExecutionTime(stat) }}</td>
+          </tr>
+        </tbody>
+      </nz-table>
+
+      <!-- No Data Message -->
+      <div
+        *ngIf="messageStats.length === 0"
+        style="text-align: center; padding: 40px; color: #8c8c8c">
+        <i
+          nz-icon
+          nzType="info-circle"
+          nzTheme="outline"
+          style="font-size: 32px; margin-bottom: 8px"></i>
+        <div>No message statistics available yet. Send a message to generate statistics.</div>
       </div>
     </div>
   </ng-container>
 </nz-modal>
+

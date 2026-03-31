@@ -137,6 +137,87 @@
   }
 }
 
+.baseline-mode-toggle {
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+
+  label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #262626;
+  }
+
+  .baseline-description {
+    margin: 8px 0 0 24px;
+    font-size: 12px;
+    color: #8c8c8c;
+    line-height: 1.5;
+  }
+}
+
+.trace-import-section {
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #262626;
+  }
+
+  ::ng-deep .ant-upload-drag {
+    border: 2px dashed #d9d9d9;
+    border-radius: 8px;
+    background: #fafafa;
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: #1890ff;
+    }
+
+    .ant-upload-drag-icon {
+      margin-bottom: 8px;
+
+      i {
+        font-size: 36px;
+        color: #1890ff;
+      }
+    }
+
+    .ant-upload-text {
+      font-size: 14px;
+      color: #262626;
+      margin-bottom: 4px;
+    }
+
+    .ant-upload-hint {
+      font-size: 12px;
+      color: #8c8c8c;
+    }
+  }
+
+  .trace-loaded-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    border-radius: 4px;
+
+    i {
+      color: #52c41a;
+      font-size: 16px;
+    }
+
+    span {
+      flex: 1;
+      font-size: 13px;
+      color: #52c41a;
+    }
+  }
+}
+
 .action-buttons {
   display: flex;
   justify-content: center;
