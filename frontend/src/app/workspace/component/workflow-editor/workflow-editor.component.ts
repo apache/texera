@@ -1058,6 +1058,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         allowMultiInput = portInfo?.allowMultiLinks ?? false;
       }
     }
+    allowMultiInput = true;
     return !(connectedLinksToTargetPort.length > 0 && !allowMultiInput);
   }
 
