@@ -47,9 +47,9 @@ StorageConfig.initialize(
     directory_path="../../../../../../amber/user-resources/workflow-results",
     commit_batch_size=4096,
     s3_endpoint="http://localhost:9000",
-    s3_region="us-west-2",
-    s3_auth_username="texera_minio",
-    s3_auth_password="password",
+    s3_region="us-east-1",
+    s3_auth_username="minioadmin",
+    s3_auth_password="minioadmin",
 )
 
 

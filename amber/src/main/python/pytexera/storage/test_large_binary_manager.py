@@ -37,9 +37,9 @@ class TestLargeBinaryManager:
                 directory_path="/tmp/test",
                 commit_batch_size=1000,
                 s3_endpoint="http://localhost:9000",
-                s3_region="us-west-2",
-                s3_auth_username="texera_minio",
-                s3_auth_password="password",
+                s3_region="us-east-1",
+                s3_auth_username="minioadmin",
+                s3_auth_password="minioadmin",
             )
 
     def test_get_s3_client_initializes_once(self):
