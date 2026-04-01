@@ -15,22 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-server:
-  applicationConnectors:
-    - type: http
-      port: 9096
-  adminConnectors: []
-  requestLog:
-    type: classic
-    appenders: []
-
-logging:
-  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-  appenders:
-    - type: console
-      threshold: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-    - type: file
-      currentLogFilename: logs/access-control-service.log
-      archive: true
-      archivedLogFilenamePattern: logs/access-control-service-%d.log.gz
-      archivedFileCount: 5
+{{- if .Values.litellm.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-litellm-config
+  namespace: {{ .Release.Namespace }}
+data:
+  litellm-config.yaml: |
+{{ .Values.litellm.config | indent 4 }}
+{{- end }}

@@ -18,7 +18,7 @@
  */
 
 import { Injectable, NgZone } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpHeaders } from "@angular/common/http";
 import {
   Observable,
   Subject,
@@ -276,6 +276,21 @@ export class TexeraCopilotManagerService {
     // Sync local cache with backend on service initialization
     // This handles cases where the backend was restarted
     this.syncAgentsWithBackend();
+  }
+
+  /**
+   * Build HTTP headers for agent-service requests.
+   * Includes X-Agent-Workflow-Id for consistent hash routing in k8s.
+   */
+  private agentHeaders(agentId?: string): { headers: HttpHeaders } {
+    let headers = new HttpHeaders();
+    if (agentId) {
+      const wid = this.agentStateTracking.get(agentId)?.workflowId;
+      if (wid !== undefined) {
+        headers = headers.set("X-Agent-Workflow-Id", String(wid));
+      }
+    }
+    return { headers };
   }
 
   /**
@@ -922,7 +937,7 @@ export class TexeraCopilotManagerService {
       }
 
       // Fetch from API if not in cache
-      return this.http.get<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents/${agentId}`).pipe(
+      return this.http.get<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents/${agentId}`, this.agentHeaders(agentId)).pipe(
         map(response => {
           const agentInfo: AgentInfo = {
             id: response.id,
@@ -1001,7 +1016,7 @@ export class TexeraCopilotManagerService {
    * Delete an agent by ID.
    */
   public deleteAgent(agentId: string): Observable<boolean> {
-    return this.http.delete<{ deleted: boolean }>(`${this.AGENT_API_BASE}/agents/${agentId}`).pipe(
+    return this.http.delete<{ deleted: boolean }>(`${this.AGENT_API_BASE}/agents/${agentId}`, this.agentHeaders(agentId)).pipe(
       map(response => {
         if (response.deleted) {
           this.agents.delete(agentId);
@@ -1150,7 +1165,7 @@ export class TexeraCopilotManagerService {
    * Get the current ReActSteps.
    */
   public getReActSteps(agentId: string): Observable<ReActStep[]> {
-    return this.http.get<ApiReActStepsResponse>(`${this.AGENT_API_BASE}/agents/${agentId}/react-steps`).pipe(
+    return this.http.get<ApiReActStepsResponse>(`${this.AGENT_API_BASE}/agents/${agentId}/react-steps`, this.agentHeaders(agentId)).pipe(
       map(response => response.steps.map((s: any) => this.convertApiReActStep(s))),
       catchError(() => of([]))
     );
@@ -1160,7 +1175,7 @@ export class TexeraCopilotManagerService {
    * Clear all messages for an agent.
    */
   public clearMessages(agentId: string): void {
-    this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/clear`, {}).subscribe({
+    this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/clear`, {}, this.agentHeaders(agentId)).subscribe({
       next: () => {
         const tracking = this.agentStateTracking.get(agentId);
         if (tracking) {
@@ -1189,7 +1204,7 @@ export class TexeraCopilotManagerService {
       }
     } else {
       // Fallback to HTTP if WebSocket not available
-      this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/stop`, {}).subscribe({
+      this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/stop`, {}, this.agentHeaders(agentId)).subscribe({
         error: (error: unknown) => {
           console.error(`Error stopping agent ${agentId}:`, error);
         },
@@ -1263,7 +1278,7 @@ export class TexeraCopilotManagerService {
    * The backend broadcasts headChange + visible steps via WebSocket to all clients.
    */
   public checkoutAction(agentId: string, actionId: string): Observable<any> {
-    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { actionId });
+    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { actionId }, this.agentHeaders(agentId));
   }
 
   /**
@@ -1278,7 +1293,7 @@ export class TexeraCopilotManagerService {
       .get<{
         systemPrompt: string;
         tools: Array<{ name: string; description: string; inputSchema: any; enabled: boolean }>;
-      }>(`${this.AGENT_API_BASE}/agents/${agentId}/system-info`)
+      }>(`${this.AGENT_API_BASE}/agents/${agentId}/system-info`, this.agentHeaders(agentId))
       .pipe(
         catchError(() =>
           of({
@@ -1294,7 +1309,7 @@ export class TexeraCopilotManagerService {
    * Fetches from agent-service API.
    */
   public getAgentInternalState(agentId: string): Observable<object> {
-    return this.http.get<object>(`${this.AGENT_API_BASE}/agents/${agentId}/state`).pipe(catchError(() => of({})));
+    return this.http.get<object>(`${this.AGENT_API_BASE}/agents/${agentId}/state`, this.agentHeaders(agentId)).pipe(catchError(() => of({})));
   }
 
   /**
@@ -1352,7 +1367,7 @@ export class TexeraCopilotManagerService {
    * Returns the messages in Vercel AI SDK ModelMessage format.
    */
   public getMessages(agentId: string): Observable<{ messages: any[] }> {
-    return this.http.get<{ messages: any[] }>(`${this.AGENT_API_BASE}/agents/${agentId}/messages`).pipe(
+    return this.http.get<{ messages: any[] }>(`${this.AGENT_API_BASE}/agents/${agentId}/messages`, this.agentHeaders(agentId)).pipe(
       catchError((error: unknown) => {
         const err = error as { error?: { error?: string }; message?: string };
         const errorMsg = err.error?.error || err.message || "Failed to get messages";
@@ -1417,7 +1432,7 @@ export class TexeraCopilotManagerService {
    * Get agent settings.
    */
   public getAgentSettings(agentId: string): Observable<AgentSettingsApi> {
-    return this.http.get<AgentSettingsApi>(`${this.AGENT_API_BASE}/agents/${agentId}/settings`).pipe(
+    return this.http.get<AgentSettingsApi>(`${this.AGENT_API_BASE}/agents/${agentId}/settings`, this.agentHeaders(agentId)).pipe(
       catchError(() =>
         of({
           maxOperatorResultCharLimit: 20000,
@@ -1452,7 +1467,7 @@ export class TexeraCopilotManagerService {
    * Only provided values will be updated.
    */
   public updateAgentSettings(agentId: string, settings: Partial<AgentSettingsApi>): Observable<AgentSettingsApi> {
-    return this.http.patch<AgentSettingsApi>(`${this.AGENT_API_BASE}/agents/${agentId}/settings`, settings).pipe(
+    return this.http.patch<AgentSettingsApi>(`${this.AGENT_API_BASE}/agents/${agentId}/settings`, settings, this.agentHeaders(agentId)).pipe(
       map(response => {
         // Update local cache if we have this agent
         const agent = this.agents.get(agentId);
@@ -1484,7 +1499,7 @@ export class TexeraCopilotManagerService {
    */
   public getStepsByOperatorIds(agentId: string, operatorIds: string[]): Observable<{ steps: ReActStep[] }> {
     return this.http
-      .post<{ steps: ReActStep[] }>(`${this.AGENT_API_BASE}/agents/${agentId}/steps-by-operators`, { operatorIds })
+      .post<{ steps: ReActStep[] }>(`${this.AGENT_API_BASE}/agents/${agentId}/steps-by-operators`, { operatorIds }, this.agentHeaders(agentId))
       .pipe(
         map(response => ({
           steps: response.steps.map((s: any) => this.convertApiReActStep(s)),
@@ -1831,7 +1846,8 @@ export class TexeraCopilotManagerService {
   public fetchOperatorResults(agentId: string): void {
     this.http
       .get<{ results: Record<string, OperatorResultSummary> }>(
-        `${this.AGENT_API_BASE}/agents/${agentId}/operator-results`
+        `${this.AGENT_API_BASE}/agents/${agentId}/operator-results`,
+        this.agentHeaders(agentId)
       )
       .pipe(catchError(() => of({ results: {} as Record<string, OperatorResultSummary> })))
       .subscribe(response => {

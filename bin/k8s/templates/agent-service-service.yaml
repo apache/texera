@@ -15,22 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-server:
-  applicationConnectors:
-    - type: http
-      port: 9096
-  adminConnectors: []
-  requestLog:
-    type: classic
-    appenders: []
-
-logging:
-  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-  appenders:
-    - type: console
-      threshold: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-    - type: file
-      currentLogFilename: logs/access-control-service.log
-      archive: true
-      archivedLogFilenamePattern: logs/access-control-service-%d.log.gz
-      archivedFileCount: 5
+{{- if .Values.agentService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.agentService.name }}-svc
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ .Values.agentService.service.type }}
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.agentService.name }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.agentService.service.port }}
+      targetPort: {{ .Values.agentService.service.port }}
+{{- end }}

@@ -69,6 +69,14 @@ COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
 # Copy code for python UDF
 COPY --from=build /texera/amber/src/main/python /texera/amber/src/main/python
+# Copy ASF licensing files
+COPY --from=build /texera/LICENSE /texera/NOTICE /texera/DISCLAIMER-WIP /texera/
+
+# Remove application.ini if it exists — the SBT launcher doesn't recognize
+# --add-opens as a JVM flag and passes it as an app arg, causing a crash.
+# The --add-opens flags are instead passed via JAVA_OPTS env var.
+RUN rm -f conf/application.ini
+
 CMD ["bin/computing-unit-master"]
 
 EXPOSE 8085

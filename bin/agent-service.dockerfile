@@ -15,22 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-server:
-  applicationConnectors:
-    - type: http
-      port: 9096
-  adminConnectors: []
-  requestLog:
-    type: classic
-    appenders: []
+FROM oven/bun:1-alpine
 
-logging:
-  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-  appenders:
-    - type: console
-      threshold: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-    - type: file
-      currentLogFilename: logs/access-control-service.log
-      archive: true
-      archivedLogFilenamePattern: logs/access-control-service-%d.log.gz
-      archivedFileCount: 5
+WORKDIR /app
+
+# Copy dependency files first for layer caching
+COPY agent-service/package.json agent-service/bun.lock ./
+
+RUN bun install
+
+# Copy source code and config
+COPY agent-service/src ./src
+COPY agent-service/config ./config
+COPY agent-service/tsconfig.json ./
+
+EXPOSE 3001
+
+CMD ["bun", "run", "src/server.ts"]

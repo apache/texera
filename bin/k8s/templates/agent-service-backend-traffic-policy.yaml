@@ -15,22 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-server:
-  applicationConnectors:
-    - type: http
-      port: 9096
-  adminConnectors: []
-  requestLog:
-    type: classic
-    appenders: []
-
-logging:
-  level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-  appenders:
-    - type: console
-      threshold: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
-    - type: file
-      currentLogFilename: logs/access-control-service.log
-      archive: true
-      archivedLogFilenamePattern: logs/access-control-service-%d.log.gz
-      archivedFileCount: 5
+{{- if .Values.agentService.enabled }}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: {{ .Release.Name }}-agent-service-traffic-policy
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ .Release.Name }}-agent-service-route
+  loadBalancer:
+    type: ConsistentHash
+    consistentHash:
+      type: Header
+      header:
+        name: X-Agent-Workflow-Id
+{{- end }}
