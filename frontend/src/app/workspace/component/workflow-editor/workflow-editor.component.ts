@@ -30,6 +30,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink } from "../../types/workflow-common.interface";
+import { EdgeStatistics } from "../../types/workflow-websocket.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -94,6 +95,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private currentOpenedOperatorID: string | null = null;
   private removeButton!: new () => joint.linkTools.Button;
   private breakpointButton!: new () => joint.linkTools.Button;
+  private latestEdgeStatistics: ReadonlyArray<EdgeStatistics> = [];
+  private latestMaxCreditAllowedInBytesPerChannel = 0;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -163,6 +166,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
+    this.handleEdgeStatisticsUpdate();
+    this.handleEdgeStatsVisibilityEvents();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
@@ -249,6 +254,143 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     });
     this.editor.classList.add("hide-worker-count");
     this.editor.classList.add("hide-operator-status");
+    this.editor.classList.add("hide-edge-stats");
+  }
+
+  private handleEdgeStatisticsUpdate(): void {
+    this.executeWorkflowService
+      .getEdgeStatisticsUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        this.latestEdgeStatistics = event.edgeStatistics;
+        this.latestMaxCreditAllowedInBytesPerChannel = event.maxCreditAllowedInBytesPerChannel;
+        this.updateEdgeStatisticsLabels();
+      });
+  }
+
+  private updateEdgeStatisticsLabels(): void {
+    const edgeStatsVisible = !this.editor.classList.contains("hide-edge-stats");
+
+    this.paper.model.getLinks().forEach(link => {
+      link.labels([]);
+      this.applyEdgeStyle(link, linkPathStrokeColor, 2);
+    });
+    if (!edgeStatsVisible) {
+      return;
+    }
+
+    const keyToLink = new Map<string, joint.dia.Link>();
+    this.paper.model.getLinks().forEach(link => {
+      const source = link.get("source");
+      const target = link.get("target");
+      if (!source?.id || !target?.id || source.port === undefined || target.port === undefined) {
+        return;
+      }
+      const fromPort = this.toPortNumber(source.port);
+      const toPort = this.toPortNumber(target.port);
+      if (fromPort === undefined || toPort === undefined) {
+        return;
+      }
+      keyToLink.set(this.makeEdgeKey(String(source.id), fromPort, String(target.id), toPort), link);
+    });
+
+    this.latestEdgeStatistics.forEach(edgeStat => {
+      const link = keyToLink.get(
+        this.makeEdgeKey(edgeStat.fromOpId, edgeStat.fromPortId, edgeStat.toOpId, edgeStat.toPortId)
+      );
+      if (!link) {
+        return;
+      }
+      link.labels([
+        {
+          position: 0.5,
+          attrs: {
+            rect: {
+              class: "edge-stats-bg",
+            },
+            text: {
+              class: "edge-stats-label",
+              text: this.formatEdgeUsage(edgeStat.usageBytes, this.latestMaxCreditAllowedInBytesPerChannel),
+            },
+          },
+        },
+      ]);
+      this.applyEdgeStyle(
+        link,
+        this.getEdgeUsageColor(edgeStat.usageBytes, this.latestMaxCreditAllowedInBytesPerChannel),
+        this.getEdgeUsageStrokeWidth(edgeStat.usageBytes, this.latestMaxCreditAllowedInBytesPerChannel)
+      );
+    });
+  }
+
+  private makeEdgeKey(fromOpId: string, fromPortId: number, toOpId: string, toPortId: number): string {
+    return `${fromOpId}:${fromPortId}->${toOpId}:${toPortId}`;
+  }
+
+  private toPortNumber(port: unknown): number | undefined {
+    if (typeof port === "number" && Number.isFinite(port)) {
+      return port;
+    }
+    if (typeof port !== "string") {
+      return undefined;
+    }
+    const direct = Number(port);
+    if (!Number.isNaN(direct)) {
+      return direct;
+    }
+    const match = port.match(/(\d+)$/);
+    if (!match) {
+      return undefined;
+    }
+    const parsed = Number(match[1]);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+
+  private formatEdgeUsage(usageBytes: number, maxCreditAllowedInBytesPerChannel: number): string {
+    const usage = Math.max(0, usageBytes);
+    const maxCredit = Math.max(1, maxCreditAllowedInBytesPerChannel);
+    const percentage = (usage / maxCredit) * 100;
+    return `${this.formatBytes(usage)} (${percentage.toFixed(1)}%)`;
+  }
+
+  private formatBytes(bytes: number): string {
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  }
+
+  private getEdgeUsageColor(usageBytes: number, maxCreditAllowedInBytesPerChannel: number): string {
+    const usage = Math.max(0, usageBytes);
+    const maxCredit = Math.max(1, maxCreditAllowedInBytesPerChannel);
+    const ratio = usage / maxCredit;
+    if (ratio >= 0.6) {
+      return "#ff4d4f";
+    }
+    if (ratio >= 0.3) {
+      return "#fa8c16";
+    }
+    return "#52c41a";
+  }
+
+  private getEdgeUsageStrokeWidth(usageBytes: number, maxCreditAllowedInBytesPerChannel: number): number {
+    const usage = Math.max(0, usageBytes);
+    const maxCredit = Math.max(1, maxCreditAllowedInBytesPerChannel);
+    const ratio = Math.min(usage / maxCredit, 1);
+    return 2 + ratio * 4;
+  }
+
+  private applyEdgeStyle(link: joint.dia.Link, color: string, strokeWidth: number): void {
+    link.attr(".connection/stroke", color);
+    link.attr(".connection/stroke-width", strokeWidth);
+    link.attr(".marker-source/fill", color);
+    link.attr(".marker-target/fill", color);
   }
 
   private handleDisableJointPaperInteractiveness(): void {
@@ -265,6 +407,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
         this.changeDetectorRef.detectChanges();
       });
+  }
+
+  private handleEdgeStatsVisibilityEvents(): void {
+    this.paper.on("edge-stats-visibility-changed", () => {
+      this.updateEdgeStatisticsLabels();
+    });
   }
 
   /**

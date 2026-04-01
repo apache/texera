@@ -116,6 +116,15 @@ class OperatorMetrics(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class EdgeStatistics(betterproto.Message):
+    from_op_id: str = betterproto.string_field(1)
+    from_port_id: int = betterproto.int32_field(2)
+    to_op_id: str = betterproto.string_field(3)
+    to_port_id: int = betterproto.int32_field(4)
+    usage_bytes: int = betterproto.int64_field(5)
+
+
+@dataclass(eq=False, repr=False)
 class ExecutionStatsStore(betterproto.Message):
     start_time_stamp: int = betterproto.int64_field(1)
     end_time_stamp: int = betterproto.int64_field(2)
@@ -125,6 +134,7 @@ class ExecutionStatsStore(betterproto.Message):
     operator_worker_mapping: List["OperatorWorkerMapping"] = betterproto.message_field(
         4
     )
+    edge_info: List["EdgeStatistics"] = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)

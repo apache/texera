@@ -52,7 +52,8 @@ trait WorkerStateUpdatedHandler {
         operatorExecution.getWorkerExecution(ctx.sender).update(System.nanoTime(), msg.state)
       )
     val stats = cp.workflowExecution.getAllRegionExecutionsStats
-    sendToClient(ExecutionStatsUpdate(stats))
+    val edgeStats = cp.workflowExecution.getAllRegionEdgeStatistics
+    sendToClient(ExecutionStatsUpdate(stats, edgeStats))
     sendToClient(RuntimeStatisticsPersist(stats))
     EmptyReturn()
   }

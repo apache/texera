@@ -70,7 +70,7 @@ class AkkaMessageTransferService(
   private def checkCreditPolling(): Unit = {
     channelToFC.foreach {
       case (channel, fc) =>
-        if (fc.isOverloaded) {
+        if (fc.isOverloaded || fc.getQueuedBytes > 0) {
           refService.askForCredit(channel)
         }
     }
@@ -162,6 +162,14 @@ class AkkaMessageTransferService(
     logger.debug(s"current backpressure status = $backpressured channel credits = ${channelToFC
       .map(c => c._1 -> c._2.getCredit)}")
     handleBackpressure(backpressured)
+  }
+
+  def getChannelUsageBytes: Map[String, Long] = {
+    channelToFC.map {
+      case (channelId, flowControl) =>
+      val key = java.util.Base64.getEncoder.encodeToString(channelId.toByteArray)
+      key -> flowControl.getUsedBytes
+    }.toMap
   }
 
   private def checkResend(): Unit = {

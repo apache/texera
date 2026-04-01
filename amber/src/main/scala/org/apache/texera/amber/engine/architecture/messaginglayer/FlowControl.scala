@@ -119,4 +119,12 @@ class FlowControl {
   def getCredit: Long = {
     maxByteAllowed - inflightCredit - queuedCredit
   }
+
+  def getUsedBytes: Long = {
+    inflightCredit + queuedCredit
+  }
+
+  def getQueuedBytes: Long = {
+    queuedCredit
+  }
 }

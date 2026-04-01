@@ -95,6 +95,7 @@ class WorkflowWorker(
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)
+    dp.setChannelUsageBytesProvider(() => transferService.getChannelUsageBytes)
     if (replayInitialization.restoreConfOpt.isDefined) {
       context.parent ! ReplayStatusUpdate(actorId, status = true)
       setupReplay(
@@ -172,6 +173,7 @@ class WorkflowWorker(
     logger.info("output messages restored.")
     dp = dpState // overwrite dp state
     dp.outputHandler = logManager.sendCommitted
+    dp.setChannelUsageBytesProvider(() => transferService.getChannelUsageBytes)
     dp.initTimerService(timerService)
     logger.info("start re-initialize executor from checkpoint.")
     val (executor, iter) = dp.serializationManager.restoreExecutorState(chkpt)

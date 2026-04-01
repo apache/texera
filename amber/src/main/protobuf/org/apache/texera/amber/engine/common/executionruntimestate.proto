@@ -84,11 +84,20 @@ message OperatorMetrics{
   OperatorStatistics operator_statistics = 2 [(scalapb.field).no_box = true];
 }
 
+message EdgeStatistics{
+  string from_op_id = 1;
+  int32 from_port_id = 2;
+  string to_op_id = 3;
+  int32 to_port_id = 4;
+  int64 usage_bytes = 5;
+}
+
 message ExecutionStatsStore {
   int64 startTimeStamp = 1;
   int64 endTimeStamp = 2;
   map<string, OperatorMetrics> operator_info = 3;
   repeated OperatorWorkerMapping operator_worker_mapping = 4;
+  repeated EdgeStatistics edge_info = 5;
 }
 
 

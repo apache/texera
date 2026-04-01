@@ -39,6 +39,7 @@ service WorkerService {
   rpc OpenExecutor(EmptyRequest) returns (EmptyReturn);
   rpc PauseWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc PrepareCheckpoint(PrepareCheckpointRequest) returns (EmptyReturn);
+  rpc QueryFlowControlUsage(EmptyRequest) returns (FlowControlUsageResponse);
   rpc QueryStatistics(EmptyRequest) returns (WorkerMetricsResponse);
   rpc ResumeWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc RetrieveState(EmptyRequest) returns (EmptyReturn);

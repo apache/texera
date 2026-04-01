@@ -219,8 +219,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
     val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
     schemaRoot.allocateNew()
+    var tupleInMemBytes: Long = 0L
     while (tuples.nonEmpty) {
-      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
+      val tuple = tuples.dequeue()
+      tupleInMemBytes += tuple.inMemSize
+      ArrowUtils.appendTexeraTuple(tuple, schemaRoot)
     }
     writer.putNext()
     schemaRoot.clear()

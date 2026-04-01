@@ -185,6 +185,19 @@ export type RegionStateEvent = Readonly<{
   state: string;
 }>;
 
+export type EdgeStatistics = Readonly<{
+  fromOpId: string;
+  fromPortId: number;
+  toOpId: string;
+  toPortId: number;
+  usageBytes: number;
+}>;
+
+export type EdgeStatisticsUpdateEvent = Readonly<{
+  edgeStatistics: ReadonlyArray<EdgeStatistics>;
+  maxCreditAllowedInBytesPerChannel: number;
+}>;
+
 export type ModifyLogicResponse = Readonly<{
   opId: string;
   isValid: boolean;
@@ -243,6 +256,7 @@ export type TexeraWebsocketEventTypeMap = {
   ClusterStatusUpdateEvent: ClusterStatusUpdateEvent;
   RegionUpdateEvent: RegionUpdateEvent;
   RegionStateEvent: RegionStateEvent;
+  EdgeStatisticsUpdateEvent: EdgeStatisticsUpdateEvent;
 };
 
 // helper type definitions to generate the request and event types

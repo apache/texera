@@ -16,7 +16,7 @@
 # under the License.
 
 from collections import defaultdict
-from typing import DefaultDict
+from typing import DefaultDict, Optional
 
 from proto.org.apache.texera.amber.core import PortIdentity
 from proto.org.apache.texera.amber.engine.architecture.worker import (
@@ -40,7 +40,11 @@ class StatisticsManager:
         self._total_execution_time: int = 0
         self._worker_start_time: int = 0
 
-    def get_statistics(self) -> WorkerStatistics:
+    def get_statistics(
+        self, channel_usage_bytes: Optional[dict[str, int]] = None
+    ) -> WorkerStatistics:
+        if channel_usage_bytes is None:
+            channel_usage_bytes = {}
         # Compile and return worker statistics
         return WorkerStatistics(
             [
@@ -56,6 +60,7 @@ class StatisticsManager:
             self._total_execution_time
             - self._data_processing_time
             - self._control_processing_time,
+            channel_usage_bytes,
         )
 
     def increase_input_statistics(self, port_id: PortIdentity, size: int) -> None:

@@ -30,6 +30,7 @@ import {
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import {
+  EdgeStatisticsUpdateEvent,
   OperatorCurrentTuples,
   RegionStateEvent,
   RegionUpdateEvent,
@@ -89,6 +90,7 @@ export class ExecuteWorkflowService {
 
   private regionUpdateStream = new Subject<RegionUpdateEvent>();
   private regionStateStream = new Subject<RegionStateEvent>();
+  private edgeStatisticsUpdateStream = new Subject<EdgeStatisticsUpdateEvent>();
 
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
@@ -109,6 +111,9 @@ export class ExecuteWorkflowService {
           break;
         case "RegionStateEvent":
           this.regionStateStream.next(event);
+          break;
+        case "EdgeStatisticsUpdateEvent":
+          this.edgeStatisticsUpdateStream.next(event);
           break;
         case "WorkerAssignmentUpdateEvent":
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
@@ -346,6 +351,10 @@ export class ExecuteWorkflowService {
 
   public getRegionStateStream(): Observable<RegionStateEvent> {
     return this.regionStateStream.asObservable();
+  }
+
+  public getEdgeStatisticsUpdateStream(): Observable<EdgeStatisticsUpdateEvent> {
+    return this.edgeStatisticsUpdateStream.asObservable();
   }
 
   public resetExecutionState(): void {
