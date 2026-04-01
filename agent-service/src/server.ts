@@ -186,6 +186,7 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
     noActionDetail: agentSettings.noActionDetail,
     noLogFallback: agentSettings.noLogFallback,
     carryMetadata: agentSettings.carryMetadata,
+    allowedOperatorTypes: agentSettings.allowedOperatorTypes,
   };
 
   const delegateConfig = agent.getDelegateConfig();
@@ -293,6 +294,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           noActionDetail: settings.noActionDetail,
           noLogFallback: settings.noLogFallback,
           carryMetadata: settings.carryMetadata,
+          allowedOperatorTypes: settings.allowedOperatorTypes,
         });
       }
 
@@ -332,6 +334,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             noActionDetail: t.Optional(t.Boolean()),
             noLogFallback: t.Optional(t.Boolean()),
             carryMetadata: t.Optional(t.Boolean()),
+            allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
       }),
@@ -514,6 +517,14 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     };
   })
 
+  // Get all available operator types (for operator configuration UI)
+  .get("/:id/operator-types", ({ params: { id } }) => {
+    const agent = getAgent(id);
+    const metadataStore = agent.getMetadataStore();
+    const allTypes = metadataStore.getAllOperatorTypes();
+    return Object.entries(allTypes).map(([type, description]) => ({ type, description }));
+  })
+
   // Get agent settings
   .get("/:id/settings", ({ params: { id } }) => {
     const agent = getAgent(id);
@@ -542,6 +553,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       noActionDetail: agentSettings.noActionDetail,
       noLogFallback: agentSettings.noLogFallback,
       carryMetadata: agentSettings.carryMetadata,
+      allowedOperatorTypes: agentSettings.allowedOperatorTypes,
     };
   })
 
@@ -587,6 +599,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         noActionDetail: settings.noActionDetail,
         noLogFallback: settings.noLogFallback,
         carryMetadata: settings.carryMetadata,
+        allowedOperatorTypes: settings.allowedOperatorTypes,
       });
 
       // Return updated settings
@@ -615,6 +628,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         noActionDetail: agentSettings.noActionDetail,
         noLogFallback: agentSettings.noLogFallback,
         carryMetadata: agentSettings.carryMetadata,
+        allowedOperatorTypes: agentSettings.allowedOperatorTypes,
       };
     },
     {
@@ -644,6 +658,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         noActionDetail: t.Optional(t.Boolean()),
         noLogFallback: t.Optional(t.Boolean()),
         carryMetadata: t.Optional(t.Boolean()),
+        allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),
     }
   );

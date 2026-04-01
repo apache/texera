@@ -1039,6 +1039,75 @@
         </div>
       </nz-tab>
 
+      <!-- Operators Tab -->
+      <nz-tab [nzTitle]="operatorsTabTitle">
+        <ng-template #operatorsTabTitle>
+          Operators
+          <nz-tag
+            *ngIf="allAvailableOperatorTypes.length > 0"
+            style="margin-left: 4px"
+            >{{ settingsAllowedOperatorTypes.length }}/{{ allAvailableOperatorTypes.length }}</nz-tag
+          >
+        </ng-template>
+        <div class="settings-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
+            <span class="settings-param-hint" style="margin: 0">
+              Toggle which operators are included in the agent's system prompt (general mode).
+              When none are selected, all operators are included.
+            </span>
+          </div>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center">
+            <nz-input-group
+              [nzPrefix]="searchIcon"
+              style="flex: 1">
+              <input
+                nz-input
+                placeholder="Search operators..."
+                [(ngModel)]="operatorTypeSearchQuery"
+                nzSize="small" />
+            </nz-input-group>
+            <ng-template #searchIcon>
+              <i
+                nz-icon
+                nzType="search"></i>
+            </ng-template>
+            <button
+              nz-button
+              nzSize="small"
+              (click)="enableAllOperatorTypes()">
+              Select All
+            </button>
+            <button
+              nz-button
+              nzSize="small"
+              (click)="deselectAllOperatorTypes()">
+              Deselect All
+            </button>
+          </div>
+          <div style="max-height: 400px; overflow-y: auto">
+            <div
+              *ngFor="let op of getFilteredOperatorTypes()"
+              style="display: flex; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0">
+              <nz-switch
+                [ngModel]="isOperatorTypeEnabled(op.type)"
+                (ngModelChange)="toggleOperatorType(op.type, $event)"
+                nzSize="small"
+                style="margin-right: 8px"></nz-switch>
+              <span style="font-weight: 500; min-width: 180px">{{ op.type }}</span>
+              <span
+                style="color: #888; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+                nz-tooltip
+                [nzTooltipTitle]="op.description"
+                >{{ op.description }}</span
+              >
+            </div>
+            <div *ngIf="getFilteredOperatorTypes().length === 0 && operatorTypeSearchQuery">
+              No operators match "{{ operatorTypeSearchQuery }}"
+            </div>
+          </div>
+        </div>
+      </nz-tab>
+
       <!-- Agent State Tab -->
       <nz-tab nzTitle="Agent State">
         <div class="settings-section">

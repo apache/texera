@@ -27,7 +27,7 @@
  * - Build functions to assemble final prompts
  */
 
-import { OperatorMetadataStore, ALLOWED_OPERATOR_TYPES } from "../tools/metadata-tools";
+import { OperatorMetadataStore } from "../tools/metadata-tools";
 
 // ============================================================================
 // Shared Prompt Sections
@@ -1001,11 +1001,18 @@ export function buildCodeModeSystemPrompt(examples: string = EXAMPLES_STANDARD, 
 
 /**
  * Build the operator schemas string for allowed operators.
+ * @param metadataStore - The operator metadata store
+ * @param allowedOperatorTypes - List of allowed operator types. If empty, all operators are included.
  */
-export function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore): string {
+export function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
   const schemas: string[] = [];
 
-  for (const operatorType of ALLOWED_OPERATOR_TYPES) {
+  // If allowedOperatorTypes is empty, use all available operators
+  const operatorTypes = allowedOperatorTypes.length > 0
+    ? allowedOperatorTypes
+    : Object.keys(metadataStore.getAllOperatorTypes());
+
+  for (const operatorType of operatorTypes) {
     const compactSchema = metadataStore.getCompactSchema(operatorType);
     const description = metadataStore.getDescription(operatorType);
 
@@ -1023,9 +1030,11 @@ export function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore
 
 /**
  * Build general mode system prompt with operator schemas.
+ * @param metadataStore - The operator metadata store
+ * @param allowedOperatorTypes - List of allowed operator types. If empty, all operators are included.
  */
-export function buildGeneralModeSystemPrompt(metadataStore: OperatorMetadataStore): string {
-  const operatorSchemas = buildAllowedOperatorSchemas(metadataStore);
+export function buildGeneralModeSystemPrompt(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
+  const operatorSchemas = buildAllowedOperatorSchemas(metadataStore, allowedOperatorTypes);
   return GENERAL_MODE_TEMPLATE.replace("{{OPERATOR_SCHEMA}}", operatorSchemas);
 }
 

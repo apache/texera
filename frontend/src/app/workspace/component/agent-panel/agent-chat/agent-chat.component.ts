@@ -166,6 +166,9 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public settingsNoActionDetail = false; // Replace code/properties with placeholder in message history
   public settingsNoLogFallback = false; // Non-frontier operators use minimum limit directly
   public settingsCarryMetadata = false; // Include per-column statistics in execution metadata
+  public settingsAllowedOperatorTypes: string[] = []; // Allowed operator types for general mode
+  public allAvailableOperatorTypes: Array<{ type: string; description: string }> = []; // All operator types from backend
+  public operatorTypeSearchQuery = ""; // Search filter for operator types
   public agentInternalState: object | null = null;
   public isLoadingAgentState = false;
 
@@ -493,6 +496,15 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.settingsNoActionDetail = settings.noActionDetail ?? false;
         this.settingsNoLogFallback = settings.noLogFallback ?? false;
         this.settingsCarryMetadata = settings.carryMetadata ?? false;
+        this.settingsAllowedOperatorTypes = settings.allowedOperatorTypes ?? [];
+      });
+
+    // Fetch all available operator types
+    this.copilotManagerService
+      .getAvailableOperatorTypes(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(types => {
+        this.allAvailableOperatorTypes = types.sort((a, b) => a.type.localeCompare(b.type));
       });
 
     // Also load agent internal state
@@ -1552,6 +1564,74 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
           this.notificationService.success(
             this.settingsSimplifiedTools ? "Simplified tools enabled" : "Simplified tools disabled"
           ),
+        error: () => {},
+      });
+  }
+
+  /**
+   * Toggle an operator type in the allowed list and save.
+   */
+  public toggleOperatorType(operatorType: string, enabled: boolean): void {
+    if (enabled) {
+      if (!this.settingsAllowedOperatorTypes.includes(operatorType)) {
+        this.settingsAllowedOperatorTypes = [...this.settingsAllowedOperatorTypes, operatorType];
+      }
+    } else {
+      this.settingsAllowedOperatorTypes = this.settingsAllowedOperatorTypes.filter(t => t !== operatorType);
+    }
+    this.saveAllowedOperatorTypes();
+  }
+
+  /**
+   * Check if an operator type is enabled (in allowed list).
+   */
+  public isOperatorTypeEnabled(operatorType: string): boolean {
+    return this.settingsAllowedOperatorTypes.includes(operatorType);
+  }
+
+  /**
+   * Enable all operator types.
+   */
+  public enableAllOperatorTypes(): void {
+    this.settingsAllowedOperatorTypes = this.allAvailableOperatorTypes.map(op => op.type);
+    this.saveAllowedOperatorTypes();
+  }
+
+  /**
+   * Deselect all operator types.
+   */
+  public deselectAllOperatorTypes(): void {
+    this.settingsAllowedOperatorTypes = [];
+    this.saveAllowedOperatorTypes();
+  }
+
+  /**
+   * Get filtered operator types based on search query.
+   */
+  public getFilteredOperatorTypes(): Array<{ type: string; description: string }> {
+    if (!this.operatorTypeSearchQuery) {
+      return this.allAvailableOperatorTypes;
+    }
+    const query = this.operatorTypeSearchQuery.toLowerCase();
+    return this.allAvailableOperatorTypes.filter(
+      op => op.type.toLowerCase().includes(query) || op.description.toLowerCase().includes(query)
+    );
+  }
+
+  /**
+   * Save allowed operator types to backend.
+   */
+  private saveAllowedOperatorTypes(): void {
+    this.copilotManagerService
+      .updateAgentSettings(this.agentInfo.id, {
+        allowedOperatorTypes: this.settingsAllowedOperatorTypes,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          const count = this.settingsAllowedOperatorTypes.length;
+          this.notificationService.success(count === 0 ? "All operators enabled" : `${count} operators enabled`);
+        },
         error: () => {},
       });
   }

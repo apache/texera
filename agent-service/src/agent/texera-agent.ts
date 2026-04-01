@@ -261,7 +261,7 @@ export class TexeraAgent {
    */
   private rebuildSystemPrompt(): void {
     if (this.settings.agentMode === AgentMode.GENERAL) {
-      this.systemPrompt = buildGeneralModeSystemPrompt(this.metadataStore);
+      this.systemPrompt = buildGeneralModeSystemPrompt(this.metadataStore, this.settings.allowedOperatorTypes);
     } else {
       let examples: string;
       if (this.settings.noActionDetail && this.settings.carryMetadata && this.settings.parallelToolCalls) {
@@ -721,6 +721,7 @@ export class TexeraAgent {
     noActionDetail?: boolean;
     noLogFallback?: boolean;
     carryMetadata?: boolean;
+    allowedOperatorTypes?: string[];
   }): void {
     let promptNeedsRebuild = false;
 
@@ -797,6 +798,10 @@ export class TexeraAgent {
     }
     if (updates.carryMetadata !== undefined && updates.carryMetadata !== this.settings.carryMetadata) {
       this.settings.carryMetadata = updates.carryMetadata;
+      promptNeedsRebuild = true;
+    }
+    if (updates.allowedOperatorTypes !== undefined) {
+      this.settings.allowedOperatorTypes = updates.allowedOperatorTypes;
       promptNeedsRebuild = true;
     }
 

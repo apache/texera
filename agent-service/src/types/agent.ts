@@ -237,6 +237,8 @@ export interface AgentSettings {
   noLogFallback: boolean;
   /** When true, per-column statistics are included in the execution metadata section */
   carryMetadata: boolean;
+  /** List of allowed operator types for general mode (when empty, all operators are allowed) */
+  allowedOperatorTypes: string[];
 }
 
 /**
@@ -266,6 +268,17 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   noActionDetail: false,
   noLogFallback: false,
   carryMetadata: true,
+  allowedOperatorTypes: [
+    "CSVFileScan",
+    "Sort",
+    "HashJoin",
+    "Limit",
+    "Projection",
+    "TableLimit",
+    "LineChart",
+    "BarChart",
+    "PythonUDFV2",
+  ],
 };
 
 // ============================================================================
@@ -348,6 +361,8 @@ export interface AgentSettingsApi {
   noLogFallback?: boolean;
   /** When true, per-column statistics are included in the execution metadata section */
   carryMetadata?: boolean;
+  /** List of allowed operator types for general mode (empty = all operators allowed) */
+  allowedOperatorTypes?: string[];
 }
 
 /**
@@ -431,6 +446,8 @@ export interface UpdateAgentSettingsRequest {
   noLogFallback?: boolean;
   /** When true, per-column statistics are included in the execution metadata section */
   carryMetadata?: boolean;
+  /** List of allowed operator types for general mode (empty = all operators allowed) */
+  allowedOperatorTypes?: string[];
 }
 
 // ============================================================================
