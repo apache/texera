@@ -19,9 +19,16 @@
 
 .preview-box {
   position: relative;
-  margin-top: 8px;
-  max-height: 50vh;
-  overflow-y: auto;
+  margin-top: 5px;
+
+  &.collapsed {
+    overflow-y: hidden;
+  }
+}
+
+.view-more-btn {
+  margin-top: 6px;
+  color: #0c7ec8;
 }
 
 .md-actions {
@@ -61,7 +68,7 @@
 .md-right {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 10px;
   border: 1px solid #e8e8e8;
   border-radius: 4px;
 }

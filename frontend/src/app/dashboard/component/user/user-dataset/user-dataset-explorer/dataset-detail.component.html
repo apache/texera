@@ -19,9 +19,9 @@
 
 <div *ngIf="!isMaximized">
   <nz-card>
-    <h2 class="dataset-title">Dataset: {{datasetName}}</h2>
+    <h2>Dataset: {{datasetName}}</h2>
     <nz-card-meta
-      style="padding-top: 10px"
+      style="padding-top: 5px"
       [nzDescription]="descriptionTemplate">
       <ng-template #descriptionTemplate>
         Created at:
@@ -32,64 +32,96 @@
         </span>
       </ng-template>
     </nz-card-meta>
-    <texera-markdown-description
-      [description]="datasetDescription"
-      [editable]="userDatasetAccessLevel === 'WRITE'"
-      (descriptionChange)="onDatasetDescriptionChange($event)">
-    </texera-markdown-description>
-    <div
-      class="workflow-panel"
-      style="padding-top: 30px">
-      <div
-        *ngIf="!(userDatasetAccessLevel === 'NONE')"
-        class="dataset-controls">
-        <div class="control-row">
-          <label>Visibility:</label>
-          <nz-switch
-            [ngModel]="datasetIsPublic"
-            (ngModelChange)="onPublicStatusChange($event)"
-            [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
-            nzCheckedChildren="public"
-            nzUnCheckedChildren="private"></nz-switch>
-        </div>
-        <div
-          class="control-row"
-          *ngIf="isOwner">
-          <label>Download:</label>
-          <nz-switch
-            [ngModel]="datasetIsDownloadable"
-            (ngModelChange)="onDownloadableStatusChange($event)"
-            nzCheckedChildren="allowed"
-            nzUnCheckedChildren="blocked"></nz-switch>
-        </div>
-      </div>
-      <button
-        nz-button
-        nzType="text"
-        class="dropdown-item like-button"
-        title="View"
-        (click)="changeViewDisplayStyle()">
+
+    <div class="status-tag-row">
+      <nz-tag
+        class="status-tag"
+        [ngClass]="{ 'tag-public': datasetIsPublic }">
         <i
           nz-icon
-          [nzType]="'eye'"
-          class="like-icon">
-        </i>
-        <span>{{ formatCount(viewCount) }}</span>
-      </button>
-      <button
-        nz-button
-        nzType="text"
-        class="like-button"
-        title="Like"
-        [disabled]="!isLogin"
-        (click)="toggleLike()">
+          [nzType]="datasetIsPublic ? 'global' : 'lock'"
+          nzTheme="outline"></i>
+        {{ datasetIsPublic ? "Public" : "Private" }}
+      </nz-tag>
+
+      <nz-tag
+        class="status-tag"
+        [ngClass]="{ 'tag-downloadable': datasetIsDownloadable }">
         <i
           nz-icon
-          [nzType]="'like'"
-          [ngClass]="{liked: isLiked}">
-        </i>
-        <span>{{ formatCount(likeCount) }}</span>
+          [nzType]="datasetIsDownloadable ? 'download' : 'stop'"
+          nzTheme="outline"></i>
+        {{ datasetIsDownloadable ? "Downloadable" : "Download restricted" }}
+      </nz-tag>
+
+      <nz-tag class="status-tag">
+        <i
+          nz-icon
+          nzType="eye"
+          nzTheme="outline"></i>
+        {{ formatCount(viewCount) }}
+      </nz-tag>
+
+      <nz-tag
+        class="status-tag like-tag"
+        [ngClass]="{ liked: isLiked, disabled: !isLogin }"
+        (click)="isLogin && toggleLike()">
+        <i
+          nz-icon
+          nzType="like"
+          nzTheme="outline"></i>
+        {{ formatCount(likeCount) }}
+      </nz-tag>
+
+      <button
+        *ngIf="userHasWriteAccess()"
+        nz-button
+        nzType="text"
+        class="tag-settings-btn"
+        nz-popover
+        nzPopoverTrigger="click"
+        nzPopoverPlacement="bottomRight"
+        [nzPopoverContent]="tagSettingsPopover"
+        nz-tooltip
+        nzTooltipTitle="Settings">
+        <i
+          nz-icon
+          nzType="setting"
+          nzTheme="outline"></i>
       </button>
+
+      <ng-template #tagSettingsPopover>
+        <div>
+          <div class="tag-settings-title">Quick Settings</div>
+          <div class="tag-settings-row">
+            <span>Visibility:</span>
+            <nz-switch
+              [ngModel]="datasetIsPublic"
+              (ngModelChange)="onPublicStatusChange($event)"
+              [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+              nzCheckedChildren="public"
+              nzUnCheckedChildren="private"></nz-switch>
+          </div>
+          <div class="tag-settings-row">
+            <span>Downloadable:</span>
+            <nz-switch
+              [ngModel]="datasetIsDownloadable"
+              (ngModelChange)="onDownloadableStatusChange($event)"
+              [nzDisabled]="!isOwner"
+              nzCheckedChildren="allowed"
+              nzUnCheckedChildren="blocked"></nz-switch>
+          </div>
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="description-section">
+      <texera-markdown-description
+        [description]="datasetDescription"
+        [editable]="userDatasetAccessLevel === 'WRITE'"
+        [enableViewMore]="true"
+        (descriptionChange)="onDatasetDescriptionChange($event)">
+      </texera-markdown-description>
     </div>
   </nz-card>
 </div>
