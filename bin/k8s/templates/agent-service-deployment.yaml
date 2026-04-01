@@ -43,9 +43,19 @@ spec:
             - name: PORT
               value: "{{ .Values.agentService.service.port }}"
             - name: API_ENDPOINT
-              value: http://{{ .Release.Name }}-{{ .Values.webserver.name }}-svc:{{ .Values.webserver.service.port }}
+              value: http://{{ .Values.webserver.name }}-svc:{{ .Values.webserver.service.port }}
+            - name: OPERATOR_METADATA_ENDPOINT
+              value: http://{{ .Values.webserver.name }}-svc:{{ .Values.webserver.service.port }}
             - name: MODELS_ENDPOINT
               value: http://{{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc:{{ .Values.accessControlService.service.port }}
+            - name: COMPILE_ENDPOINT
+              value: http://{{ .Values.workflowCompilingService.name }}-svc:{{ .Values.workflowCompilingService.service.port }}
+            - name: DATASET_ENDPOINT
+              value: http://{{ .Values.fileService.name }}-svc:{{ .Values.fileService.service.port }}
+            - name: COMPUTING_ENDPOINT
+              value: http://{{ .Values.workflowComputingUnitManager.name }}-svc:{{ .Values.workflowComputingUnitManager.service.port }}
+            - name: CONFIG_ENDPOINT
+              value: http://{{ .Values.configService.name }}-svc:{{ .Values.configService.service.port }}
             - name: WS_ENDPOINT
               value: ws://{{ .Release.Name }}-dynamic-backend
             - name: LLM_API_KEY

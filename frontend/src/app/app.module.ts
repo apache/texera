@@ -92,6 +92,7 @@ import { UserProjectSectionComponent } from "./dashboard/component/user/user-pro
 import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
+import { MarkdownDescriptionComponent } from "./dashboard/component/user/markdown-description/markdown-description.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
@@ -298,6 +299,7 @@ registerLocaleData(en);
     UserComputingUnitComponent,
     UserComputingUnitListItemComponent,
     InlineCodePanelComponent,
+    MarkdownDescriptionComponent,
     AgentInteractionComponent,
   ],
   imports: [
