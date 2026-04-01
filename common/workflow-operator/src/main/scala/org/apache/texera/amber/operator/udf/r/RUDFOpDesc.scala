@@ -158,7 +158,63 @@ class RUDFOpDesc extends LogicalOp {
 
     OperatorInfo(
       "R UDF",
-      "User-defined function operator in R script",
+      """User-defined function operator in R script.
+        |Two modes: Table API and Tuple API.
+        |
+        |## Table API
+        |Passes the entire input as an R data frame to your function and expects a data frame in return.
+        |
+        |Template:
+        |```r
+        |function(table, port) {
+        |  return(table)
+        |}
+        |```
+        |
+        |Example - Keep rows where quantities align and net value is valid:
+        |```r
+        |function(table, port) {
+        |  valid_qty <- !is.na(table$KWMENG) & !is.na(table$KBMENG) & table$KWMENG <= table$KBMENG
+        |  valid_value <- !is.na(table$NET_VALUE) & table$NET_VALUE >= 0
+        |  valid_rows <- valid_qty & valid_value
+        |  return(table[valid_rows, , drop = FALSE])
+        |}
+        |```
+        |
+        |## Tuple API
+        |Uses coro::generator to yield tuples (lists) one by one.
+        |
+        |Template:
+        |```r
+        |library(coro)
+        |
+        |coro::generator(function(tuple, port) {
+        |  yield(tuple)
+        |})
+        |```
+        |
+        |Example - Emit tuples that flag problematic status values:
+        |```r
+        |library(coro)
+        |
+        |coro::generator(function(tuple, port) {
+        |  status <- tuple$STATUS
+        |  if (!is.null(status) && status == "ERROR") {
+        |    yield(tuple)
+        |  }
+        |})
+        |```
+        |
+        |## Important Rules
+        |
+        |- Return a function(table, port) for Table API; use coro::generator(function(tuple, port) { ... }) for Tuple API.
+        |- Load libraries explicitly with library().
+        |- Handle NA with is.na() before comparisons.
+        |- Use yield() inside generators for each tuple to emit.
+        |- Keep output schema consistent with Retain input columns and Extra output columns settings.
+        |- Keep scripts focused on one task.
+        |- Only modify the script code field unless necessary.
+        |""".stripMargin,
       OperatorGroupConstants.R_GROUP,
       inputPortInfo,
       outputPortInfo,

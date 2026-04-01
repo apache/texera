@@ -166,7 +166,76 @@ class PythonUDFOpDescV2 extends LogicalOp {
 
     OperatorInfo(
       "Python UDF",
-      "User-defined function operator in Python script",
+      """User-defined function operator in Python script.
+        |There are 2 APIs to process data:
+        |
+        |## Tuple API
+        |Takes one input tuple from a port at a time. Returns an iterator of optional TupleLike instances.
+        |Use cases: Functional operations applied to tuples one by one (map, reduce, filter).
+        |
+        |Template:
+        |```python
+        |from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield tuple_
+        |```
+        |
+        |Example - Filter tuples by conditions:
+        |```python
+        |from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        q = tuple_["QUANTITY"]
+        |        oq = tuple_["ORDERED_QUANTITY"]
+        |        p = tuple_["UNIT_PRICE"]
+        |        if q is not None and oq is not None and p is not None:
+        |            if q <= oq and p >= 0:
+        |                yield tuple_
+        |```
+        |
+        |## Table API
+        |Consumes a whole Table (pandas DataFrame) from a port. Returns an iterator of optional TableLike instances.
+        |Use cases: Blocking operations that consume the whole table.
+        |
+        |Template:
+        |```python
+        |from pytexera import *
+        |
+        |class ProcessTableOperator(UDFTableOperator):
+        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        |        yield table
+        |```
+        |
+        |Example - Filter DataFrame rows:
+        |```python
+        |from pytexera import *
+        |import pandas as pd
+        |
+        |class ProcessTableOperator(UDFTableOperator):
+        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        |        df: pd.DataFrame = table
+        |        m1 = (df["KWMENG"].notna()) & (df["KBMENG"].notna()) & (df["KWMENG"] <= df["KBMENG"])
+        |        m2 = (df["NET_VALUE"].notna()) & (df["NET_VALUE"] >= 0)
+        |        yield df[m1 & m2]
+        |```
+        |
+        |## Important Rules
+        |
+        |- DO NOT change the class name (ProcessTupleOperator or ProcessTableOperator).
+        |- Import packages explicitly (pandas, numpy, etc.).
+        |- Tuple is a Python dict. Access fields with tuple_["field"] ONLY (no .get/.set/.values).
+        |- Table is a pandas DataFrame.
+        |- Use yield to return results.
+        |- Handle None values carefully.
+        |- Do not cast types.
+        |- Keep each UDF focused on one task.
+        |- Only change the python code property, not other properties.
+        |- If adding extra columns, specify them in the Extra Output Columns property.
+        |- Prefer native operators over Python UDF when possible.
+        |""".stripMargin,
       OperatorGroupConstants.PYTHON_GROUP,
       inputPortInfo,
       outputPortInfo,
