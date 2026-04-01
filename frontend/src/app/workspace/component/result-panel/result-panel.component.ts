@@ -40,9 +40,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
-import { ResultStatisticsFrameComponent } from "./result-statistics-frame/result-statistics-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
-import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
@@ -54,7 +52,7 @@ import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 
 export const DEFAULT_WIDTH = 800;
-export const DEFAULT_HEIGHT = 300;
+export const DEFAULT_HEIGHT = 500;
 /**
  * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -90,7 +88,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowConsoleService: WorkflowConsoleService,
-    private workflowStatusService: WorkflowStatusService,
     private resizeService: PanelResizeService,
     private panelService: PanelService
   ) {
@@ -248,7 +245,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
     if (this.currentOperatorId) {
       this.displayResult(this.currentOperatorId);
-      this.displayResultStatistics(this.currentOperatorId);
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
       if (this.workflowConsoleService.hasConsoleMessages(this.currentOperatorId) || isPythonUdf(operator)) {
         this.displayConsole(this.currentOperatorId, isPythonUdf(operator));
@@ -270,13 +266,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   displayError(operatorId: string | undefined) {
     this.frameComponentConfigs.set("Static Error", {
       component: ErrorFrameComponent,
-      componentInputs: { operatorId },
-    });
-  }
-
-  displayResultStatistics(operatorId: string) {
-    this.frameComponentConfigs.set("Statistics", {
-      component: ResultStatisticsFrameComponent,
       componentInputs: { operatorId },
     });
   }

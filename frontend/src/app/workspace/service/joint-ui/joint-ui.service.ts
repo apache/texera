@@ -27,8 +27,6 @@ import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-
 /**
  * Defines the SVG path for the delete button
  */
@@ -136,9 +134,9 @@ export const operatorAgentActionProgressClass = "texera-operator-agent-action-pr
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
-export const operatorTypeClass = "texera-operator-type";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
 const operatorWorkerCountClass = "operator-worker-count";
+const operatorStatusTextClass = "operator-status";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -154,10 +152,10 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <rect class="body"></rect>
       <image class="${operatorIconClass}"></image>
       <text class="${operatorFriendlyNameClass}"></text>
-      <text class="${operatorTypeClass}"></text>
       <text class="${operatorNameClass}"></text>
       <text class="${operatorPortMetricsClass}"></text>
       <text class="${operatorWorkerCountClass}"></text>
+      <text class="${operatorStatusTextClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -165,6 +163,9 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorAgentActionProgressClass}"></text>
       <image class="${operatorViewResultIconClass}"></image>
       <image class="${operatorReuseCacheIconClass}"></image>
+      <text class="${operatorCoeditorEditingClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyClass}"></text>
+      <image class="${operatorViewResultIconClass}"></image>
       <rect class="boundary"></rect>
       <path class="left-boundary"></path>
       <path class="right-boundary"></path>
@@ -213,10 +214,6 @@ export class JointUIService {
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
 
   private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
-
-  /** Stores original port label text before expansion, keyed by "operatorId::portId" */
-  private savedPortLabels = new Map<string, string>();
-  private savedDisplayNames = new Map<string, string>();
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
@@ -285,7 +282,7 @@ export class JointUIService {
         id: port.portID,
         attrs: {
           ".port-label": {
-            text: "",
+            text: port.displayName ?? "",
             event: "input-port-label:pointerdown",
           },
         },
@@ -303,7 +300,7 @@ export class JointUIService {
         id: port.portID,
         attrs: {
           ".port-label": {
-            text: "",
+            text: port.displayName ?? "",
             event: "output-port-label:pointerdown",
           },
         },
@@ -344,6 +341,52 @@ export class JointUIService {
     const workerCount = statistics.numWorkers ?? 1;
     element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
 
+    element.attr(
+      `.${operatorStatusTextClass}/text`,
+      "status: " + JointUIService.getStatusDisplayText(statistics.operatorState)
+    );
+
+    inPorts.forEach(portDef => {
+      const portId = portDef.id;
+      if (portId != null) {
+        const parts = portId.split("-");
+        const numericSuffix = parts.length > 1 ? parts[1] : portId;
+
+        const count: number = inputMetrics[numericSuffix] ?? 0;
+        const rawAttrs = (portDef.attrs as any) || {};
+        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
+        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
+
+        if (!originalName) {
+          originalName = portId;
+        }
+
+        const labelText = count.toLocaleString();
+        element.portProp(portId, "attrs/.port-label/text", labelText);
+      }
+    });
+
+    outPorts.forEach(portDef => {
+      const portId = portDef.id;
+      if (portId != null) {
+        const parts = portId.split("-");
+        const numericSuffix = parts.length > 1 ? parts[1] : portId;
+
+        const count: number = outputMetrics[numericSuffix] ?? 0;
+        const rawAttrs = (portDef.attrs as any) || {};
+        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
+        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
+
+        if (!originalName) {
+          originalName = portId;
+        }
+
+        const labelText = count.toLocaleString();
+
+        element.portProp(portId, "attrs/.port-label/text", labelText);
+      }
+    });
+    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
@@ -369,6 +412,11 @@ export class JointUIService {
       ".remove-input-port-button": { visibility: "visible" },
       ".remove-output-port-button": { visibility: "visible" },
     });
+
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    if (!element) {
+      return;
+    }
   }
 
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
@@ -397,6 +445,7 @@ export class JointUIService {
       "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
       [`.${operatorWorkerCountClass}`]: { fill: fillColor },
+      [`.${operatorStatusTextClass}`]: { fill: fillColor },
     });
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -682,8 +731,8 @@ export class JointUIService {
         "font-weight": "bold",
         "font-family": "'Inter', 'SF Pro Display', -apple-system, sans-serif",
         visibility: "hidden",
-        "ref-x": 0.5, // Center horizontally
-        "ref-y": 95, // Below the operator name
+        "ref-x": 0.5,
+        "ref-y": 95,
         ref: "rect.body",
         "text-anchor": "middle",
         "x-alignment": "middle",
@@ -782,19 +831,13 @@ export class JointUIService {
         fill: "#595959",
         "font-size": "14px",
         "ref-x": 0.5,
-        "ref-y": this.DEFAULT_OPERATOR_HEIGHT + 8,
+        "ref-y": 80,
         ref: "rect.body",
-        "y-alignment": "top",
+        "y-alignment": "middle",
         "x-alignment": "middle",
-        cursor: "pointer",
-        event: "element:name:pointerclick",
-        textWrap: {
-          width: 330,
-          height: 80,
-        },
       },
       ".texera-operator-friendly-name": {
-        text: operator.operatorID,
+        text: operatorFriendlyName,
         fill: "#888888",
         "font-size": "10px",
         "ref-x": 0.5,
@@ -803,18 +846,12 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      [`.${operatorTypeClass}`]: {
-        text: operatorFriendlyName,
-        fill: "#888888",
-        "font-size": "9px",
-        "ref-x": 0.5,
-        "ref-y": 52,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
       [`.${operatorWorkerCountClass}`]: {
         "ref-x": -5,
+        "ref-y": -35,
+      },
+      [`.${operatorStatusTextClass}`]: {
+        "ref-x": -10,
         "ref-y": -35,
       },
       ".delete-button": {
@@ -990,6 +1027,13 @@ export class JointUIService {
     return userCursor;
   }
 
+  private static getStatusDisplayText(state: OperatorState): string {
+    if (state === OperatorState.Uninitialized) {
+      return "Waiting";
+    }
+    return String(state);
+  }
+
   public static getJointUserPointerName(coeditor: Coeditor) {
     return "pointer_" + coeditor.clientId;
   }
@@ -997,10 +1041,6 @@ export class JointUIService {
   /**
    * Shows agent action labels (viewed/added/modified) on operators.
    * Displays bold agent name and action type as text below the operator.
-   * @param jointPaper The JointJS paper
-   * @param operatorID The operator ID to show labels on
-   * @param actionType The type of action: "viewed", "added", or "modified"
-   * @param agentName The name of the agent performing the action
    */
   public showAgentActionLabel(
     jointPaper: joint.dia.Paper,
@@ -1013,7 +1053,6 @@ export class JointUIService {
       return;
     }
 
-    // Format: "AgentName: action" with bold styling
     const labelText = `${agentName}: ${actionType}`;
 
     element.attr({
@@ -1028,8 +1067,6 @@ export class JointUIService {
 
   /**
    * Hides agent action labels on operators.
-   * @param jointPaper The JointJS paper
-   * @param operatorID The operator ID to hide labels on
    */
   public hideAgentActionLabel(jointPaper: joint.dia.Paper, operatorID: string): void {
     const element = jointPaper.getModelById(operatorID);
@@ -1044,498 +1081,6 @@ export class JointUIService {
       },
     });
   }
-
-  /**
-   * Extract key properties from an operator for display in the expanded view.
-   */
-  /**
-   * Derive a clean, short type name from the raw operatorType string.
-   * Strips "Table", "CSV", "Hash" prefixes and "Source", "V2", "File" suffixes.
-   */
-  private static getCleanTypeName(operatorType: string): string {
-    let name = operatorType;
-    name = name.replace(/^Table/, "");
-    name = name.replace(/^CSV/, "");
-    name = name.replace(/^Hash/, "");
-    name = name.replace(/File/g, "");
-    name = name.replace(/Source$/, "");
-    name = name.replace(/V2$/, "");
-    return name || operatorType;
-  }
-
-  public static extractOperatorProperties(
-    operator: OperatorPredicate,
-    inputLinks?: OperatorLink[]
-  ): Array<{ label: string; value: string }> {
-    const props = operator.operatorProperties as Record<string, any>;
-    const type = operator.operatorType;
-
-    // UDF operators: show opid: customDisplayName
-    const udfTypes = [
-      "PythonUDFV2",
-      "PythonUDFSourceV2",
-      "DualInputPortsPythonUDFV2",
-      "PythonTableUDF",
-      "DataProcessing",
-      "DataLoading",
-    ];
-    if (udfTypes.includes(type)) {
-      return [{ label: operator.operatorID, value: operator.customDisplayName || "UDF" }];
-    }
-
-    // Header property: opid: cleanTypeName
-    const headerProp = { label: operator.operatorID, value: JointUIService.getCleanTypeName(type) };
-
-    // Type-specific properties
-    let specificProps: Array<{ label: string; value: string }> = [];
-
-    switch (type) {
-      case "Projection":
-      case "TableProjection": {
-        specificProps.push({ label: "mode", value: props["isDrop"] ? "Drop" : "Keep" });
-        const attrs = props["attributes"] as Array<{ originalAttribute?: string; alias?: string }> | undefined;
-        if (attrs && attrs.length > 0) {
-          const names = attrs
-            .map(a => (a.alias && a.alias !== a.originalAttribute ? `${a.originalAttribute}→${a.alias}` : a.originalAttribute || ""))
-            .filter(Boolean);
-          specificProps.push({ label: "attributes", value: names.join(", ") || "(none)" });
-        }
-        break;
-      }
-      case "Sort":
-      case "TableSort": {
-        const attrs = props["attributes"] as Array<{ attribute?: string; sortPreference?: string }> | undefined;
-        if (attrs && attrs.length > 0) {
-          const spec = attrs.map(a => `${a.attribute || ""} ${a.sortPreference === "DESC" ? "↓" : "↑"}`).join(", ");
-          specificProps.push({ label: "sort by", value: spec });
-        }
-        break;
-      }
-      case "Limit":
-      case "TableLimit":
-        if (props["limit"] !== undefined) {
-          specificProps.push({ label: "limit", value: String(props["limit"]) });
-        }
-        break;
-      case "CSVScanSource":
-      case "TableFileScan":
-      case "CSVFileScan": {
-        if (props["fileName"]) {
-          const parts = String(props["fileName"]).split("/");
-          specificProps.push({ label: "file", value: parts[parts.length - 1] || props["fileName"] });
-        }
-        break;
-      }
-      case "HashJoin":
-      case "Join": {
-        const buildAttr = props["buildAttributeName"];
-        if (buildAttr) {
-          const buildOpId = inputLinks?.find(l => l.target.portID === "input-0")?.source.operatorID;
-          specificProps.push({ label: "key", value: buildOpId ? `${buildOpId}.${buildAttr}` : String(buildAttr) });
-        }
-        break;
-      }
-      case "Aggregate":
-      case "TableAggregate": {
-        const groupByKeys = props["groupByKeys"] as string[] | undefined;
-        if (groupByKeys && groupByKeys.length > 0) {
-          specificProps.push({ label: "group by", value: groupByKeys.join(", ") });
-        }
-        const aggs = props["aggregations"] as Array<{
-          aggFunction?: string;
-          attribute?: string;
-        }> | undefined;
-        if (aggs && aggs.length > 0) {
-          for (const a of aggs) {
-            const fn = a.aggFunction || "?";
-            const attr = a.attribute || "?";
-            specificProps.push({ label: fn.toLowerCase(), value: `${fn}(${attr})` });
-          }
-        }
-        break;
-      }
-      case "BarChart": {
-        if (props["fields"]) {
-          specificProps.push({ label: "fields", value: String(props["fields"]) });
-        }
-        break;
-      }
-      default: {
-        for (const key of Object.keys(props).slice(0, 3)) {
-          const val = props[key];
-          if (val !== undefined && val !== null && typeof val !== "object") {
-            const label = key.replace(/([A-Z])/g, " $1").trim();
-            specificProps.push({ label, value: String(val) });
-          }
-        }
-        break;
-      }
-    }
-
-    return [headerProp, ...specificProps];
-  }
-
-  /**
-   * Apply the expanded detail layout to an operator on the paper.
-   * This is the default layout — no toggle needed.
-   */
-  public applyExpandedLayout(
-    jointPaper: joint.dia.Paper,
-    operatorID: string,
-    operator: OperatorPredicate
-  ): void {
-    const properties = JointUIService.extractOperatorProperties(operator);
-    this.expandOperatorWithResults(jointPaper, operatorID, undefined, properties);
-  }
-
-  /**
-   * Apply expanded layout to an operator, optionally with agent result summary.
-   * Layout:
-   *   In/Out info written to port labels (when summary provided)
-   *   Inside the box:
-   *     Left: [icon] [type]   Right: key properties (full text, no truncation)
-   *   Width is flexible based on content.
-   */
-  public expandOperatorWithResults(
-    jointPaper: joint.dia.Paper,
-    operatorID: string,
-    summary?: {
-      state: string;
-      inputTuples: number;
-      outputTuples: number;
-      inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-      outputColumns?: number;
-      error?: string;
-    },
-    properties?: Array<{ label: string; value: string }>,
-    showPortShapes: boolean = true,
-    operatorType?: string
-  ): void {
-    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
-    if (!element) return;
-
-    const svgNs = "http://www.w3.org/2000/svg";
-    const view = jointPaper.findViewByModel(operatorID);
-    if (!view) return;
-    const groupEl = view.el.querySelector(".element-node") || view.el;
-
-    // Remove any previously injected result elements
-    groupEl.querySelectorAll(".result-info").forEach((el: Element) => el.remove());
-
-    const fontFamily = "'Inter', -apple-system, sans-serif";
-    const textColor = "#595959";
-    const headerColor = "#262626";
-
-    // --- Write in/out info to port labels when agent summary is available ---
-    if (summary && showPortShapes) {
-      const allPorts = element.getPorts();
-      const outPorts = allPorts.filter(p => p.group === "out");
-
-      // Only show shape on output ports (input shape is symmetric — same as upstream output)
-      outPorts.forEach(portDef => {
-        if (!portDef.id) return;
-        const outVal =
-          summary.outputColumns !== undefined
-            ? `(${summary.outputTuples}, ${summary.outputColumns})`
-            : `(${summary.outputTuples})`;
-        element.portProp(portDef.id, "attrs/.port-label/text", outVal);
-        element.portProp(portDef.id, "attrs/.port-label/fill", "#52c41a");
-      });
-    }
-
-    // --- Layout constants ---
-    const regularProps = properties ?? [];
-    const hasProps = regularProps.length > 0 || summary?.error;
-
-    // Icon size: larger when no properties to display
-    const iconSize = hasProps ? 36 : 48;
-    const pad = 6; // inner padding
-    const propFontSize = 15; // text for key properties
-    const propCharW = 7.8; // approx character width at 15px font
-    const propLineH = 20; // line height for 15px font
-
-    let ew: number;
-    let eh: number;
-    let iconTopY: number;
-    let iconRefX: number | string;
-    let iconXAlignment: string;
-    let contentPropX = 0;
-    let contentWidth = 0;
-    let contentHeight = 0;
-
-    if (hasProps) {
-      // Two-column layout: icon left, properties right
-      const leftColumnEnd = pad + iconSize;
-      const gap = 6;
-      const propX = leftColumnEnd + gap;
-      let rightContentWidth = 0;
-
-      for (const prop of regularProps) {
-        rightContentWidth = Math.max(rightContentWidth, (prop.label.length + 2 + prop.value.length) * propCharW);
-      }
-      if (summary?.error) {
-        rightContentWidth = Math.max(rightContentWidth, summary.error.length * propCharW);
-      }
-
-      const udfTypes = ["PythonUDFV2", "PythonUDFSourceV2", "DualInputPortsPythonUDFV2", "PythonTableUDF", "DataProcessing", "DataLoading"];
-      const isUdf = operatorType ? udfTypes.includes(operatorType) : false;
-      const minWidth = JointUIService.DEFAULT_OPERATOR_WIDTH;
-      const maxWidth = isUdf ? 180 : 350;
-      const maxHeight = 300;
-      ew = isUdf ? 200 : Math.min(maxWidth, Math.max(minWidth, propX + rightContentWidth + pad));
-
-      // Content area width for text wrapping estimation
-      const availTextWidth = ew - propX - pad + 2;
-
-      // Compute box height — estimate wrapped lines per property
-      let propBottomY = pad;
-      for (const prop of regularProps) {
-        const textLen = (prop.label.length + 2 + prop.value.length) * propCharW;
-        const lines = Math.max(1, Math.ceil(textLen / availTextWidth));
-        propBottomY += propLineH * lines;
-      }
-      if (summary?.error) {
-        const errLines = Math.max(1, Math.ceil((summary.error.length * propCharW) / availTextWidth));
-        propBottomY += propLineH * errLines;
-      }
-      propBottomY += pad;
-
-      const minH = iconSize + pad * 2;
-      eh = Math.min(maxHeight, Math.max(propBottomY, minH));
-      iconTopY = (eh - iconSize) / 2;
-      iconRefX = pad;
-      iconXAlignment = "none";
-      contentPropX = propX;
-      contentWidth = availTextWidth;
-      contentHeight = eh - pad * 2;
-    } else {
-      // Centered icon layout for operators with no properties (e.g. Python UDF)
-      ew = iconSize + pad * 2;
-      eh = iconSize + pad * 2;
-      iconTopY = 0.5;
-      iconRefX = 0.5;
-      iconXAlignment = "middle";
-    }
-
-    // Thin scrollbar CSS shared by code and property foreignObjects
-    const thinScrollbarCss = `
-      scrollbar-width: thin; scrollbar-color: #ccc transparent;
-    `;
-    // Webkit thin scrollbar (injected as a <style> inside the foreignObject)
-    const thinScrollbarStyleTag = `<style>
-      ::-webkit-scrollbar { width: 4px; height: 4px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
-    </style>`;
-
-    // --- Render right side content (only if there are properties) ---
-    if (hasProps) {
-      const fo = document.createElementNS(svgNs, "foreignObject");
-      fo.classList.add("result-info");
-      fo.setAttribute("x", String(contentPropX));
-      fo.setAttribute("y", String(pad));
-      fo.setAttribute("width", String(contentWidth));
-      fo.setAttribute("height", String(contentHeight));
-
-      const div = document.createElement("div");
-      div.style.cssText = `
-        width: 100%; height: 100%; overflow: auto;
-        background: transparent; padding: 2px 0;
-        box-sizing: border-box; font-family: ${fontFamily};
-        font-size: ${propFontSize}px; line-height: ${propLineH}px;
-        ${thinScrollbarCss}
-      `;
-      div.innerHTML = thinScrollbarStyleTag;
-
-      for (const prop of regularProps) {
-        const row = document.createElement("div");
-        row.style.cssText = "word-wrap: break-word;";
-        const labelSpan = document.createElement("span");
-        labelSpan.style.cssText = `color: ${headerColor}; font-weight: 600;`;
-        labelSpan.textContent = `${prop.label}: `;
-        const valueSpan = document.createElement("span");
-        valueSpan.style.cssText = `color: ${textColor}; font-weight: 400;`;
-        valueSpan.textContent = prop.value;
-        row.appendChild(labelSpan);
-        row.appendChild(valueSpan);
-        div.appendChild(row);
-      }
-
-      if (summary?.error) {
-        const errDiv = document.createElement("div");
-        errDiv.style.cssText = "color: #ff4d4f; word-wrap: break-word;";
-        errDiv.textContent = summary.error;
-        div.appendChild(errDiv);
-      }
-
-      fo.appendChild(div);
-      groupEl.appendChild(fo);
-    }
-
-    // --- Save original display name before modifying ---
-    if (!this.savedDisplayNames.has(operatorID)) {
-      this.savedDisplayNames.set(operatorID, element.attr(`.${operatorNameClass}/text`) || "");
-    }
-
-    // --- Resize element ---
-    element.resize(ew, eh);
-
-    // --- Reposition controls for new size ---
-    element.attr({
-      "rect.boundary": { width: ew + 20, height: eh + 20 },
-      ".delete-button": { x: ew, y: -20 },
-      ".chat-button": { x: ew + 25, y: -20 },
-      ".add-input-port-button": { x: -25, y: eh + 5 },
-      ".remove-input-port-button": { x: -25, y: eh + 25 },
-      ".add-output-port-button": { x: ew + 5, y: eh + 5 },
-      ".remove-output-port-button": { x: ew + 5, y: eh + 25 },
-      ".texera-operator-icon": {
-        width: iconSize,
-        height: iconSize,
-        "ref-x": iconRefX,
-        "ref-y": iconTopY,
-        "x-alignment": iconXAlignment,
-        "y-alignment": hasProps ? "none" : "middle",
-      },
-      ".texera-operator-friendly-name": {
-        // Hide operator ID above the box — it's now shown in the display name area
-        visibility: "hidden",
-      },
-      [`.${operatorTypeClass}`]: {
-        visibility: "hidden",
-      },
-      ".texera-operator-name": {
-        text: "",
-        visibility: "hidden",
-      },
-      [`.${operatorStateClass}`]: { visibility: "hidden" },
-    });
-  }
-
-
-  /**
-   * Collapse an operator back to its default size, removing result info.
-   */
-  public collapseOperator(jointPaper: joint.dia.Paper, operatorID: string): void {
-    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
-    if (!element) return;
-
-    const dw = JointUIService.DEFAULT_OPERATOR_WIDTH;
-    const dh = JointUIService.DEFAULT_OPERATOR_HEIGHT;
-
-    // Restore original size
-    element.resize(dw, dh);
-
-    // Restore boundary, buttons, and label positions
-    element.attr({
-      "rect.boundary": { width: dw + 20, height: dh + 20 },
-      ".delete-button": { x: 60, y: -20 },
-      ".chat-button": { x: 85, y: -20 },
-      ".add-input-port-button": { x: -25, y: 65 },
-      ".remove-input-port-button": { x: -25, y: 85 },
-      ".add-output-port-button": { x: 65, y: 65 },
-      ".remove-output-port-button": { x: 65, y: 85 },
-      ".texera-operator-icon": {
-        width: 35,
-        height: 35,
-        "ref-x": 0.5,
-        "ref-y": 0.5,
-        "x-alignment": "middle",
-        "y-alignment": "middle",
-      },
-      ".texera-operator-friendly-name": {
-        // Restore operator ID text
-        text: operatorID,
-        visibility: "visible",
-        "ref-x": 0.5,
-        "ref-y": -12,
-        "x-alignment": "middle",
-        "text-anchor": "middle",
-        fill: "#888888",
-        "font-size": "10px",
-        "font-weight": "normal",
-      },
-      [`.${operatorTypeClass}`]: {
-        visibility: "visible",
-        "ref-x": 0.5,
-        "ref-y": 52,
-        "x-alignment": "middle",
-        "text-anchor": "middle",
-        fill: "#888888",
-        "font-size": "9px",
-      },
-      ".texera-operator-name": {
-        text: this.savedDisplayNames.get(operatorID) ?? element.attr(`.${operatorNameClass}/text`) ?? "",
-        visibility: "visible",
-        "ref-x": 0.5,
-        "ref-y": dh + 8,
-        "x-alignment": "middle",
-        "y-alignment": "top",
-      },
-      [`.${operatorStateClass}`]: { visibility: "hidden" },
-    });
-
-    // Clean up saved display name
-    this.savedDisplayNames.delete(operatorID);
-
-    // Restore port labels from saved state
-    const allPorts = element.getPorts();
-    for (const portDef of allPorts) {
-      if (portDef.id) {
-        const key = `${operatorID}::${portDef.id}`;
-        const originalText = this.savedPortLabels.get(key) ?? "";
-        this.savedPortLabels.delete(key);
-        element.portProp(portDef.id, "attrs/.port-label/text", originalText);
-        element.portProp(portDef.id, "attrs/.port-label/fill", "#000");
-      }
-    }
-
-    // Remove injected result info elements
-    const view = jointPaper.findViewByModel(operatorID);
-    if (!view) return;
-    const groupEl = view.el.querySelector(".element-node") || view.el;
-    groupEl.querySelectorAll(".result-info").forEach((el: Element) => el.remove());
-  }
-
-  /**
-   * Collapse all operators back to default size.
-   */
-  public collapseAllOperators(jointPaper: joint.dia.Paper, operatorIDs: string[]): void {
-    for (const opId of operatorIDs) {
-      this.collapseOperator(jointPaper, opId);
-    }
-  }
-
-  /**
-   * Render a diff view on an operator's expanded panel.
-   * For code operators: shows git-style line diff with +/- coloring.
-   * For regular operators: shows before→after property changes.
-   */
-  public applyDiffLayout(
-    jointPaper: joint.dia.Paper,
-    operatorID: string,
-    beforeOp: OperatorPredicate,
-    afterOp: OperatorPredicate
-  ): void {
-    const beforeProps = JointUIService.extractOperatorProperties(beforeOp);
-    const afterProps = JointUIService.extractOperatorProperties(afterOp);
-
-    // Build diff properties array showing before→after changes
-    const diffProps: Array<{ label: string; value: string }> = [];
-    const allLabels = new Set([...beforeProps.map(p => p.label), ...afterProps.map(p => p.label)]);
-    for (const label of allLabels) {
-      const bVal = beforeProps.find(p => p.label === label)?.value || "";
-      const aVal = afterProps.find(p => p.label === label)?.value || "";
-      if (bVal !== aVal) {
-        if (bVal) diffProps.push({ label: `- ${label}`, value: bVal });
-        if (aVal) diffProps.push({ label: `+ ${label}`, value: aVal });
-      } else {
-        diffProps.push({ label, value: aVal });
-      }
-    }
-    this.expandOperatorWithResults(jointPaper, operatorID, undefined, diffProps);
-  }
-
 }
 
 export function fromJointPaperEvent<T extends keyof joint.dia.Paper.EventMap = keyof joint.dia.Paper.EventMap>(

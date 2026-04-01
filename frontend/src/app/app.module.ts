@@ -133,7 +133,6 @@ import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.compon
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
-import { ResultStatisticsFrameComponent } from "./workspace/component/result-panel/result-statistics-frame/result-statistics-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
@@ -239,7 +238,6 @@ registerLocaleData(en);
     WorkflowExecutionHistoryComponent,
     ConsoleFrameComponent,
     ErrorFrameComponent,
-    ResultStatisticsFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     ResultTableFrameComponent,

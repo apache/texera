@@ -89,7 +89,7 @@ th.header-size {
 
 .table-cell {
   position: relative;
-  padding-right: 56px; // Increased to accommodate both buttons
+  padding-right: 28px;
 }
 
 .cell-content {
@@ -97,24 +97,6 @@ th.header-size {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.expand-button {
-  position: absolute;
-  right: 32px; // Position to the left of download button
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out;
-  padding: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-
-  i {
-    font-size: 16px;
-    color: #52c41a; // Ant Design's success green color
-  }
 }
 
 .download-button {
@@ -136,7 +118,6 @@ th.header-size {
 }
 
 .table-row-hover:hover {
-  .expand-button,
   .download-button {
     opacity: 0.7;
 

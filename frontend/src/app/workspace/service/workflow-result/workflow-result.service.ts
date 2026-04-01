@@ -29,7 +29,7 @@ import {
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
-import { BehaviorSubject, map, Observable, of, pairwise, ReplaySubject, Subject } from "rxjs";
+import { map, Observable, of, pairwise, ReplaySubject, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
@@ -49,13 +49,11 @@ export class WorkflowResultService {
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
   private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
   private resultInitiateStream = new Subject<string>();
-  private sinkStorageModeSubject = new BehaviorSubject<string>("");
 
   constructor(private wsService: WorkflowWebsocketService) {
     this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => {
       this.handleResultUpdate(event.updates);
       this.handleTableStatsUpdate(event.tableStats);
-      this.handleSinkStorageModeUpdate(event.sinkStorageMode);
     });
     this.wsService
       .subscribeToEvent("WorkflowAvailableResultEvent")
@@ -163,14 +161,6 @@ export class WorkflowResultService {
       paginatedResultService.handleStatsUpdate(event[operatorID]);
     });
     this.resultTableStats.next(event);
-  }
-
-  private handleSinkStorageModeUpdate(sinkStorageMode: string): void {
-    this.sinkStorageModeSubject.next(sinkStorageMode);
-  }
-
-  public getSinkStorageMode(): BehaviorSubject<string> {
-    return this.sinkStorageModeSubject;
   }
 
   private getOrInitPaginatedResultService(operatorID: string): OperatorPaginationResultService {
@@ -299,13 +289,12 @@ export class OperatorPaginationResultService {
 
   public selectTuple(
     tupleIndex: number,
-    pageSize: number,
-    noTruncation: boolean = false
+    pageSize: number
   ): Observable<{ tuple: IndexableObject; schema: ReadonlyArray<SchemaAttribute> }> {
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
-    return this.selectPage(pageIndex, pageSize, noTruncation).pipe(
+    return this.selectPage(pageIndex, pageSize).pipe(
       map(p => ({
         tuple: p.table[tupleIndex % pageSize],
         schema: this.schema,
@@ -316,12 +305,15 @@ export class OperatorPaginationResultService {
   public selectPage(
     pageIndex: number,
     pageSize: number,
-    noTruncation: boolean = false
+    columnOffset: number = 0,
+    columnLimit: number = Number.MAX_SAFE_INTEGER,
+    columnSearch: string = ""
   ): Observable<PaginatedResultEvent> {
     // update currently selected page
     this.currentPageIndex = pageIndex;
-    // first fetch from frontend result cache (only use cache if noTruncation is false)
-    const pageCache = !noTruncation ? this.resultCache.get(pageIndex) : undefined;
+    // first fetch from frontend result cache
+    const useCache = columnOffset === 0 && columnLimit === Number.MAX_SAFE_INTEGER && columnSearch === "";
+    const pageCache = useCache ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
         requestID: "",
@@ -334,16 +326,15 @@ export class OperatorPaginationResultService {
       // fetch result data from server
       const requestID = uuid();
       const operatorID = this.operatorID;
-      const request: any = {
+      this.workflowWebsocketService.send("ResultPaginationRequest", {
         requestID,
         operatorID,
         pageIndex,
         pageSize,
-      };
-      if (noTruncation) {
-        request.noTruncation = true;
-      }
-      this.workflowWebsocketService.send("ResultPaginationRequest", request);
+        columnOffset,
+        columnLimit,
+        columnSearch,
+      });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);
       return pendingRequestSubject;

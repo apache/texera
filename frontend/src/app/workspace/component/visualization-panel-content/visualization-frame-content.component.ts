@@ -30,14 +30,11 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./visualization-frame-content.component.scss"],
 })
 export class VisualizationFrameContentComponent implements AfterContentInit {
+  // operatorId: string = inject(NZ_MODAL_DATA).operatorId;
   @Input() operatorId?: string;
   // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
-
   htmlData: any = "";
-  jsonData: string = "";
-  hasJsonContent: boolean = false;
-  activeTab: "html" | "json" = "html";
 
   constructor(
     private workflowResultService: WorkflowResultService,
@@ -59,7 +56,6 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
         this.drawChart();
       });
   }
-
   drawChart() {
     if (!this.operatorId) {
       return;
@@ -73,44 +69,19 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
       return;
     }
 
-    const lastData = data[data.length - 1] as Record<string, any>;
+    const parser = new DOMParser();
+    const lastData = data[data.length - 1];
+    const doc = parser.parseFromString(Object(lastData)["html-content"], "text/html");
 
-    // Extract HTML content
-    const htmlContent = lastData["html-content"];
-    if (htmlContent) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
+    doc.documentElement.style.height = "100%";
+    doc.body.style.height = "95%";
 
-      doc.documentElement.style.height = "100%";
-      doc.body.style.height = "95%";
+    const firstDiv = doc.body.querySelector("div");
+    if (firstDiv) firstDiv.style.height = "100%";
 
-      const firstDiv = doc.body.querySelector("div");
-      if (firstDiv) firstDiv.style.height = "100%";
+    const serializer = new XMLSerializer();
+    const newHtmlString = serializer.serializeToString(doc);
 
-      const serializer = new XMLSerializer();
-      const newHtmlString = serializer.serializeToString(doc);
-
-      this.htmlData = this.sanitizer.bypassSecurityTrustHtml(newHtmlString);
-    }
-
-    // Extract JSON content if available
-    const jsonContent = lastData["json-content"];
-    if (jsonContent && jsonContent !== "{}") {
-      this.hasJsonContent = true;
-      try {
-        // Pretty print the JSON
-        const parsed = JSON.parse(jsonContent);
-        this.jsonData = JSON.stringify(parsed, null, 2);
-      } catch {
-        this.jsonData = jsonContent;
-      }
-    } else {
-      this.hasJsonContent = false;
-      this.jsonData = "";
-    }
-  }
-
-  switchTab(tab: "html" | "json") {
-    this.activeTab = tab;
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(newHtmlString); // this line bypasses angular security
   }
 }

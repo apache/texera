@@ -131,7 +131,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   } | null = null;
 
   // Cached agent result summaries for port label display
-  private currentResultSummaries = new Map<string, any>();
 
 
   // Message region highlighting state
@@ -213,7 +212,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
-    this.handleOperatorResultAnnotations();
     this.handleCodePanels();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -1541,56 +1539,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Apply expanded detail layout to all operators.
-   * Every operator is always shown in expanded form (icon + type + properties).
-   * Agent result summaries update port labels when available.
-   */
-  private handleOperatorResultAnnotations(): void {
-    // Apply expanded layout to every new operator added to the graph
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorAddStream()
-      .pipe(
-        auditTime(0), // Batch synchronous adds, apply immediately after
-        untilDestroyed(this)
-      )
-      .subscribe(() => {
-        this.applyExpandedLayoutToAll();
-      });
-
-    // Update port labels when agent result summaries change
-    this.copilotManagerService.operatorResultSummaries$
-      .pipe(untilDestroyed(this))
-      .subscribe(summaries => {
-        this.currentResultSummaries = summaries;
-        if (summaries.size > 0) {
-          this.applyExpandedLayoutToAll();
-        }
-      });
-
-    // Re-render when port shapes toggle changes
-    this.copilotManagerService.showPortShapes$
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.applyExpandedLayoutToAll();
-      });
-  }
-
-  /**
-   * Apply expanded layout to all operators on the canvas.
-   */
-  private applyExpandedLayoutToAll(): void {
-    const graph = this.workflowActionService.getTexeraGraph();
-    const showPortShapes = this.copilotManagerService.getShowPortShapes();
-    for (const op of graph.getAllOperators()) {
-      const summary = this.currentResultSummaries.get(op.operatorID);
-      const inputLinks = graph.getInputLinksByOperatorId(op.operatorID);
-      const props = JointUIService.extractOperatorProperties(op, inputLinks);
-      this.jointUIService.expandOperatorWithResults(this.paper, op.operatorID, summary, props, showPortShapes, op.operatorType);
-    }
-  }
-
-  /**
    * Handle code panels visibility and position updates for Python UDF operators.
    * Panels are now per-operator (click on name to toggle).
    */
@@ -2123,19 +2071,16 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.changeDetectorRef.detectChanges();
   }
 
-  getOperatorSampleRecords(operatorId: string): Record<string, any>[] | undefined {
-    const summary = this.currentResultSummaries.get(operatorId);
-    return summary?.sampleRecords;
+  getOperatorSampleRecords(_operatorId: string): Record<string, any>[] | undefined {
+    return undefined;
   }
 
-  getOperatorResultStatistics(operatorId: string): Record<string, string> | undefined {
-    const summary = this.currentResultSummaries.get(operatorId);
-    return summary?.resultStatistics;
+  getOperatorResultStatistics(_operatorId: string): Record<string, string> | undefined {
+    return undefined;
   }
 
-  isOperatorVisualization(operatorId: string): boolean {
-    const records = this.getOperatorSampleRecords(operatorId);
-    return !!records && records.length > 0 && records[0]["__is_visualization__"] === true;
+  isOperatorVisualization(_operatorId: string): boolean {
+    return false;
   }
 
 
