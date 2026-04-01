@@ -56,6 +56,8 @@ spec:
               value: http://{{ .Values.workflowComputingUnitManager.name }}-svc:{{ .Values.workflowComputingUnitManager.service.port }}
             - name: CONFIG_ENDPOINT
               value: http://{{ .Values.configService.name }}-svc:{{ .Values.configService.service.port }}
+            - name: EXECUTION_ENDPOINT_TEMPLATE
+              value: http://computing-unit-{cuid}.{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}
             - name: WS_ENDPOINT
               value: ws://{{ .Release.Name }}-dynamic-backend
             - name: LLM_API_KEY

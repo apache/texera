@@ -302,10 +302,17 @@ async function executeWorkflowHttp(
   options: { abortSignal?: AbortSignal } = {}
 ): Promise<SyncExecutionResult> {
   const backendConfig = getBackendConfig();
-  const executionEndpoint = backendConfig.executionEndpoint || "http://localhost:8085";
 
   const workflowId = config.workflowId;
   const computingUnitId = config.computingUnitId ?? 0;
+
+  // In k8s, each computing unit is a separate pod in the pool namespace.
+  // Use EXECUTION_ENDPOINT_TEMPLATE if set (e.g. "http://computing-unit-{cuid}.texera-workflow-computing-unit-svc.texera-workflow-computing-unit-pool.svc.cluster.local:8085")
+  // Otherwise fall back to a static endpoint.
+  const endpointTemplate = process.env.EXECUTION_ENDPOINT_TEMPLATE;
+  const executionEndpoint = endpointTemplate
+    ? endpointTemplate.replace("{cuid}", String(computingUnitId))
+    : backendConfig.executionEndpoint || "http://localhost:8085";
 
   const url = `${executionEndpoint}/api/execution/${workflowId}/${computingUnitId}/run`;
 
