@@ -215,7 +215,7 @@ Texera's security model does NOT guarantee:
 - DDoS protection (requires external infrastructure)
 - Compliance with specific regulatory requirements without additional configuration
 
-## What is NOT a Security Issue
+## What are NOT Security Issues
 
 The following are **NOT considered security vulnerabilities** in Texera:
 
@@ -223,12 +223,10 @@ The following are **NOT considered security vulnerabilities** in Texera:
 
 REGULAR and ADMIN users can execute arbitrary code (Python, R, Java, Scala) within computing units through UDFs. This is by design — custom code execution is a core feature of the platform.
 
-UDF code may access resources available in the execution environment, including:
+UDF code may access resources available in the execution environment, including but not limited to:
 
 - Texera's application configurations
 - Environment variables of the host
-
-This is not considered a vulnerability. Deployment managers are expected to mitigate this risk by ensuring only trusted users are granted access to the platform. Users who are no longer trusted should have their roles adjusted to RESTRICTED, which disallows any workflow execution.
 
 ### Resource Consumption
 
@@ -272,7 +270,7 @@ lists and website.
 
 ---
 
-**Last Updated**: March 2026
+**Last Updated**: April 2026
 
 **Disclaimer**: This project is currently undergoing incubation at The Apache Software Foundation (ASF). Incubation is
 required of all newly accepted projects until a further review indicates that the infrastructure, communications, and
