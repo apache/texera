@@ -29,7 +29,6 @@ import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
 import org.apache.iceberg.{Schema, Table}
 
-import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -107,10 +106,11 @@ private[storage] class IcebergTableWriter[T](
   private def flushBuffer(): Unit = {
     if (buffer.nonEmpty) {
       // Create a unique file path using the writer's identifier and the filename index
-      val filepath = Paths.get(table.location()).resolve(s"${writerIdentifier}_${filenameIdx}")
+      val location = table.location().stripSuffix("/")
+      val filepathString = s"$location/${writerIdentifier}_$filenameIdx"
       // Increment the filename index by 1
       filenameIdx += 1
-      val outputFile: OutputFile = table.io().newOutputFile(filepath.toString)
+      val outputFile: OutputFile = table.io().newOutputFile(filepathString)
       // Create a Parquet data writer to write a new file
       val dataWriter: DataWriter[Record] = Parquet
         .writeData(outputFile)
