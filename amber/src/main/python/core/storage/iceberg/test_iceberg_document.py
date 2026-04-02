@@ -37,9 +37,12 @@ from proto.org.apache.texera.amber.core import (
 
 # Hardcoded storage config only for test purposes.
 StorageConfig.initialize(
+    catalog_type="postgres",
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
     postgres_username="texera",
     postgres_password="password",
+    rest_catalog_uri="http://localhost:8181/catalog/",
+    rest_catalog_warehouse_name="texera",
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../amber/user-resources/workflow-results",
     commit_batch_size=4096,

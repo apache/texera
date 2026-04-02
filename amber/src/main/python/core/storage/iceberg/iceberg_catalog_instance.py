@@ -18,14 +18,17 @@
 from pyiceberg.catalog import Catalog
 from typing import Optional
 
-from core.storage.iceberg.iceberg_utils import create_postgres_catalog
+from core.storage.iceberg.iceberg_utils import (
+    create_postgres_catalog,
+    create_rest_catalog,
+)
 from core.storage.storage_config import StorageConfig
 
 
 class IcebergCatalogInstance:
     """
     IcebergCatalogInstance is a singleton that manages the Iceberg catalog instance.
-    Currently only postgres SQL catalog is supported.
+    Supports postgres SQL catalog and REST catalog.
     - Provides a single shared catalog for all Iceberg table-related operations.
     - Lazily initializes the catalog on first access.
     - Supports replacing the catalog instance for testing or reconfiguration.
@@ -39,16 +42,31 @@ class IcebergCatalogInstance:
         Retrieves the singleton Iceberg catalog instance.
         - If the catalog is not initialized, it is lazily created using the configured
         properties.
+        - Supports "postgres" and "rest" catalog types.
         :return: the Iceberg catalog instance.
         """
         if cls._instance is None:
-            cls._instance = create_postgres_catalog(
-                "texera_iceberg",
-                StorageConfig.ICEBERG_FILE_STORAGE_DIRECTORY_PATH,
-                StorageConfig.ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME,
-                StorageConfig.ICEBERG_POSTGRES_CATALOG_USERNAME,
-                StorageConfig.ICEBERG_POSTGRES_CATALOG_PASSWORD,
-            )
+            catalog_type = StorageConfig.ICEBERG_CATALOG_TYPE
+            if catalog_type == "postgres":
+                cls._instance = create_postgres_catalog(
+                    "texera_iceberg",
+                    StorageConfig.ICEBERG_FILE_STORAGE_DIRECTORY_PATH,
+                    StorageConfig.ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME,
+                    StorageConfig.ICEBERG_POSTGRES_CATALOG_USERNAME,
+                    StorageConfig.ICEBERG_POSTGRES_CATALOG_PASSWORD,
+                )
+            elif catalog_type == "rest":
+                cls._instance = create_rest_catalog(
+                    "texera_iceberg",
+                    StorageConfig.ICEBERG_REST_CATALOG_WAREHOUSE_NAME,
+                    StorageConfig.ICEBERG_REST_CATALOG_URI,
+                    StorageConfig.S3_ENDPOINT,
+                    StorageConfig.S3_REGION,
+                    StorageConfig.S3_AUTH_USERNAME,
+                    StorageConfig.S3_AUTH_PASSWORD,
+                )
+            else:
+                raise ValueError(f"Unsupported catalog type: {catalog_type}")
         return cls._instance
 
     @classmethod

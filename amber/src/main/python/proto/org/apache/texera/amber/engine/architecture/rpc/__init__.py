@@ -43,6 +43,12 @@ class ConsoleMessageType(betterproto.Enum):
     DEBUGGER = 3
 
 
+class StatisticsUpdateTarget(betterproto.Enum):
+    BOTH_UI_AND_PERSISTENCE = 0
+    UI_ONLY = 1
+    PERSISTENCE_ONLY = 2
+
+
 class ErrorLanguage(betterproto.Enum):
     PYTHON = 0
     SCALA = 1
@@ -385,6 +391,7 @@ class QueryStatisticsRequest(betterproto.Message):
     filter_by_workers: List["___core__.ActorVirtualIdentity"] = (
         betterproto.message_field(1)
     )
+    update_target: "StatisticsUpdateTarget" = betterproto.enum_field(2)
 
 
 @dataclass(eq=False, repr=False)
