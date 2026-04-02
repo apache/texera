@@ -21,7 +21,14 @@ import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
-import { isDashboardDataset, isDashboardFile, isDashboardProject, isDashboardWorkflow } from "./type-predicates";
+import { DashboardWorkflowComputingUnit } from "../../workspace/types/workflow-computing-unit";
+import {
+  isDashboardDataset,
+  isDashboardFile,
+  isDashboardProject,
+  isDashboardWorkflow,
+  isDashboardWorkflowComputingUnit,
+} from "./type-predicates";
 import { EntityType } from "../../hub/service/hub.service";
 
 export interface UserInfo {
@@ -50,7 +57,14 @@ export class DashboardEntry {
   accessibleUserIds: number[];
   coverImageUrl?: string;
 
-  constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile | DashboardDataset) {
+  constructor(
+    public value:
+      | DashboardWorkflow
+      | DashboardProject
+      | DashboardFile
+      | DashboardDataset
+      | DashboardWorkflowComputingUnit
+  ) {
     if (isDashboardWorkflow(value)) {
       this.type = EntityType.Workflow;
       this.id = value.workflow.wid;
@@ -124,6 +138,20 @@ export class DashboardEntry {
       this.isLiked = false;
       this.accessibleUserIds = [];
       this.coverImageUrl = value.dataset.coverImage;
+    } else if (isDashboardWorkflowComputingUnit(value)) {
+      this.type = EntityType.ComputingUnit;
+      this.id = value.computingUnit.cuid;
+      this.name = value.computingUnit.name;
+      this.creationTime = value.computingUnit.creationTime;
+      this.accessLevel = value.accessPrivilege;
+      this.ownerName = "";
+      this.ownerGoogleAvatar = "";
+      this.ownerId = value.computingUnit.uid;
+      this.viewCount = 0;
+      this.cloneCount = 0;
+      this.likeCount = 0;
+      this.isLiked = false;
+      this.accessibleUserIds = [];
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
@@ -179,6 +207,13 @@ export class DashboardEntry {
   get dataset(): DashboardDataset {
     if (!isDashboardDataset(this.value)) {
       throw new Error("Value is not of type DashboardDataset");
+    }
+    return this.value;
+  }
+
+  get computingUnit(): DashboardWorkflowComputingUnit {
+    if (!isDashboardWorkflowComputingUnit(this.value)) {
+      throw new Error("Value is not of type DashboardWorkflowComputingUnit");
     }
     return this.value;
   }
