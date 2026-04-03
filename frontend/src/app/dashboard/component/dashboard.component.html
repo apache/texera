@@ -98,6 +98,17 @@
             <span>Datasets</span>
           </li>
           <li
+            nz-menu-item
+            nz-tooltip="Manage computing units"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_COMPUTING_UNIT">
+            <span
+              nz-icon
+              nzType="deployment-unit"></span>
+            <span>Computing Units</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.quota_enabled"
             nz-menu-item
             nz-tooltip="Quota information"
