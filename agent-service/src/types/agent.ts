@@ -38,57 +38,7 @@ export enum AgentState {
 }
 
 // ============================================================================
-// Agent Action Types
-// ============================================================================
-
-/**
- * The kind of agent action.
- * - "tool_call"       — a workflow-modifying tool call (existing behaviour)
- * - "user_request"    — the user sent a message
- * - "agent_response"  — the agent finished responding
- */
-export type AgentActionType = "tool_call" | "user_request" | "agent_response";
-
-/**
- * Operations performed by an agent action
- */
-export interface AgentActionOperations {
-  add?: { operatorIds: string[]; linkIds: string[] };
-  modify?: { operatorIds: string[] };
-  delete?: { operatorIds: string[]; linkIds: string[] };
-  execute?: { operatorIds: string[] };
-}
-
-/**
- * Complete agent action record
- */
-export interface AgentAction {
-  id: string;
-  agentId: string;
-  agentName: string;
-  executorAgentId?: string;
-  summary: string;
-  operations: AgentActionOperations;
-  createdAt: Date;
-  /** The tool call ID that produced this action (patched in onStepFinish) */
-  toolCallId?: string;
-  /** Parent action ID in the action tree (null/undefined for the first action) */
-  parentId?: string;
-  /** Distinguishes tool-call actions from user/agent message actions */
-  actionType?: AgentActionType;
-  /** Source of the user message: "chat" (agent panel) or "feedback" (operator feedback panel) */
-  messageSource?: "chat" | "feedback";
-  workflowMetadata?: {
-    wid?: number;
-    name?: string;
-  };
-  beforeWorkflowContent?: WorkflowContent;
-  afterWorkflowContent?: WorkflowContent;
-}
-
-// ============================================================================
-// ReAct Step Types (Agent reasoning trace)
-// Aligned with frontend texera-copilot.ts ReActStep interface
+// ReAct Step Types (Agent reasoning trace + versioning)
 // ============================================================================
 
 /**
@@ -105,7 +55,14 @@ export interface TokenUsage {
  * ReActStep - Represents a single reasoning and acting step in the agent's response.
  * Each step contains the agent's reasoning text, tool calls, results, and metadata.
  */
+/** Sentinel ID for the initial step (before any real steps). */
+export const INITIAL_STEP_ID = "step-initial";
+
 export interface ReActStep {
+  /** Unique step ID string for tree references */
+  id: string;
+  /** Parent step ID — forms the version tree. undefined for the initial step. */
+  parentId?: string;
   messageId: string;
   stepId: number;
   timestamp: number;
@@ -128,6 +85,12 @@ export interface ReActStep {
   usage?: TokenUsage;
   /** Messages array sent to the LLM for this step (only when context optimization is active) */
   inputMessages?: any[];
+  /** Source of the user message: "chat" or "feedback" (only for user steps) */
+  messageSource?: "chat" | "feedback";
+  /** Workflow state before this step executed */
+  beforeWorkflowContent?: WorkflowContent;
+  /** Workflow state after this step executed */
+  afterWorkflowContent?: WorkflowContent;
 }
 
 /**

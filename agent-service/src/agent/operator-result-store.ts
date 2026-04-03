@@ -20,56 +20,54 @@
 /**
  * Versioned operator result store.
  *
- * Stores raw OperatorInfo per (operatorId, actionId) pair. Results are
+ * Stores raw OperatorInfo per (operatorId, stepId) pair. Results are
  * looked up using the HEAD ancestor path so that only results from the
  * current branch are visible. Append-only — no invalidation needed.
  */
 
 import type { OperatorInfo } from "../types/execution";
-import type { AgentActionManager } from "./agent-action-manager";
 
 /**
- * Unified operator result entry — stores the raw structured data
- * instead of pre-serialized strings.
+ * Unified operator result entry — stores the raw structured data.
  */
 export interface OperatorResultEntry {
   /** The raw OperatorInfo from the backend execution result. */
   operatorInfo: OperatorInfo;
-  /** The action ID under which this result was produced. */
-  actionId: string;
+  /** The step ID under which this result was produced. */
+  stepId: string;
 }
 
 /**
  * Versioned, HEAD-aware operator result store.
  *
- * Data model: Map<operatorId, Map<actionId, OperatorResultEntry>>
+ * Data model: Map<operatorId, Map<stepId, OperatorResultEntry>>
  *
  * Lookup: Given an operatorId and the HEAD ancestor path, return the
- * result whose actionId is the latest on that path.
+ * result whose stepId is the latest on that path.
  */
 export class OperatorResultStore {
-  /** operatorId → (actionId → entry) */
+  /** operatorId → (stepId → entry) */
   private store = new Map<string, Map<string, OperatorResultEntry>>();
 
-  constructor(private agentActionManager: AgentActionManager) {}
+  constructor(private getAncestorPath: () => string[]) {}
 
   /**
-   * Store a result for an operator at a specific action version.
+   * Store a result for an operator at a specific step version.
    */
-  set(operatorId: string, actionId: string, operatorInfo: OperatorInfo): void {
+  set(operatorId: string, stepId: string, operatorInfo: OperatorInfo): void {
     let versions = this.store.get(operatorId);
     if (!versions) {
       versions = new Map();
       this.store.set(operatorId, versions);
     }
-    versions.set(actionId, { operatorInfo, actionId });
+    versions.set(stepId, { operatorInfo, stepId });
   }
 
   /**
    * Get the result for an operator visible from the current HEAD.
    *
-   * Walks the ancestor path from root to HEAD and returns the result
-   * whose actionId is the latest (closest to HEAD) on that path.
+   * Walks the ancestor path from HEAD to root and returns the result
+   * whose stepId is the latest (closest to HEAD) on that path.
    * Returns undefined if no result exists on the current branch.
    */
   get(operatorId: string): OperatorResultEntry | undefined {
@@ -77,7 +75,7 @@ export class OperatorResultStore {
     if (!versions) return undefined;
 
     // Walk ancestor path in reverse (HEAD → root) to find the latest match
-    const path = this.agentActionManager.getAncestorPath();
+    const path = this.getAncestorPath();
     for (let i = path.length - 1; i >= 0; i--) {
       const entry = versions.get(path[i]);
       if (entry) return entry;
@@ -99,11 +97,10 @@ export class OperatorResultStore {
    */
   getAllVisible(): Map<string, OperatorResultEntry> {
     const result = new Map<string, OperatorResultEntry>();
-    const pathSet = new Set(this.agentActionManager.getAncestorPath());
+    const path = this.getAncestorPath();
 
     for (const [operatorId, versions] of this.store) {
       // Walk ancestor path in reverse to find the latest match
-      const path = this.agentActionManager.getAncestorPath();
       for (let i = path.length - 1; i >= 0; i--) {
         if (versions.has(path[i])) {
           result.set(operatorId, versions.get(path[i])!);

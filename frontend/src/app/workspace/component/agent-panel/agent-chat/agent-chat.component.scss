@@ -233,7 +233,7 @@
   }
 
   // Tool call nodes (Add, Modify, Execute): green tint when on-path
-  &.on-path:not(.user-request):not(.agent-response):not(.initial):not(.action-delete) {
+  &.on-path:not(.user-request):not(.agent-response):not(.initial) {
     border-color: #b7eb8f;
     background: #f6ffed;
   }
@@ -248,13 +248,7 @@
   &.agent-response {
     background: #eeeeff;
     border-color: #3333FF;
-    .node-text { color: #3333FF; }
-  }
-
-  // Delete: light red tint (overrides green)
-  &.action-delete {
-    background: #fff1f0;
-    border-color: #ffa39e;
+    .node-lines, .node-line { color: #3333FF; }
   }
 
   // Input Task (user request from chat): white
@@ -269,20 +263,25 @@
     border-color: #ffd591;
   }
 
-  .node-text {
-    font-size: 14px;
+  .node-lines {
+    font-size: 12px;
     font-weight: 500;
     color: #595959;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .node-line {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1;
+    line-height: 18px;
     width: 100%;
-    text-align: center;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
 }

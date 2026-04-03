@@ -179,25 +179,20 @@
             [class.is-head]="node.isHead"
             [class.on-path]="node.isOnHeadPath"
             [class.off-path]="!node.isOnHeadPath"
-            [class.user-request]="node.actionType === 'user_request' && node.messageSource !== 'feedback'"
-            [class.user-feedback]="node.actionType === 'user_request' && node.messageSource === 'feedback'"
-            [class.agent-response]="node.actionType === 'agent_response'"
-            [class.initial]="node.actionType === 'initial'"
-            [class.action-delete]="node.actionLabel === 'Delete'"
+            [class.user-request]="node.stepType === 'user' && node.messageSource !== 'feedback'"
+            [class.user-feedback]="node.stepType === 'user' && node.messageSource === 'feedback'"
+            [class.agent-response]="node.stepType === 'agent' && node.lines[0] === 'Task Done'"
+            [class.initial]="node.stepType === 'initial'"
             [style.left.px]="node.x - node.width / 2"
-            [style.top.px]="node.y - 12"
+            [style.top.px]="node.y - node.height / 2"
             [style.width.px]="node.width"
+            [style.height.px]="node.height"
             (click)="onTimelineNodeClick(node)"
             (mouseenter)="onTimelineNodeMouseEnter(node)"
             (mouseleave)="onTimelineNodeMouseLeave()">
-            <span class="node-text">
-              <ng-container *ngIf="node.actionType === 'user_request'">{{ node.messageSource === 'feedback' ? 'Feedback' : 'Input Task' }}</ng-container>
-              <ng-container *ngIf="node.actionType === 'agent_response'">Task Done</ng-container>
-              <ng-container *ngIf="node.actionType === 'initial'">Ready</ng-container>
-              <ng-container *ngIf="node.actionType !== 'user_request' && node.actionType !== 'agent_response' && node.actionType !== 'initial'">
-                {{ node.actionLabel }} {{ node.operatorId }}
-              </ng-container>
-            </span>
+            <div class="node-lines">
+              <div *ngFor="let line of node.lines" class="node-line">{{ line }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -215,7 +210,7 @@
         #messageContainer
         class="messages-container">
         <div
-          *ngFor="let response of agentResponses; let i = index"
+          *ngFor="let response of visibleSteps; let i = index"
           class="message"
           [class.user-message]="response.role === 'user'"
           [class.ai-message]="response.role === 'agent'">

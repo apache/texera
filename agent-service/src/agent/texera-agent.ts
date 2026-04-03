@@ -26,7 +26,6 @@ import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "../workflow/workflow-state";
 import { OperatorMetadataStore } from "../tools/metadata-tools";
-import { AgentActionManager, INITIAL_ACTION_ID } from "./agent-action-manager";
 import { OperatorResultStore } from "./operator-result-store";
 import { formatOperatorResult, type FormatOptions } from "../tools/result-formatting";
 import type {
@@ -34,7 +33,6 @@ import type {
   ReActStep,
   AgentMessageStats,
   TokenUsage,
-  AgentAction,
   UserInfo,
   TraceContent,
 } from "../types/agent";
@@ -45,6 +43,7 @@ import {
   AgentMode,
   ExecutionBackend,
   REPLAY_SKIP_TOOLS,
+  INITIAL_STEP_ID,
 } from "../types/agent";
 import {
   BASE_SYSTEM_PROMPT,
@@ -150,8 +149,10 @@ export class TexeraAgent {
   private workflowState: WorkflowState;
   // Uses global singleton - initialized once at server startup
   private metadataStore: OperatorMetadataStore;
-  // Agent action manager for tracking workflow modifications
-  private agentActionManager: AgentActionManager;
+  // Step-level versioning: HEAD pointer and step map
+  private head: string = INITIAL_STEP_ID;
+  private stepsById: Map<string, ReActStep> = new Map();
+  private stepCounter = 0;
   // Versioned operator result store
   private operatorResultStore: OperatorResultStore;
 
@@ -168,9 +169,6 @@ export class TexeraAgent {
 
   // ReActSteps grouped by messageId
   private reActStepsByMessageId: Map<string, ReActStep[]> = new Map();
-
-  // messageId → (startActionId, endActionId) — which HEAD range a message spans
-  private messageActionRange: Map<string, { startActionId: string; endActionId: string }> = new Map();
 
   // Current messageId during an ongoing generateText call; undefined otherwise
   private currentMessageId: string | undefined = undefined;
@@ -211,10 +209,22 @@ export class TexeraAgent {
     this.workflowState = new WorkflowState();
     // Always use global singleton metadata store
     this.metadataStore = OperatorMetadataStore.getInstance();
-    // Initialize agent action manager
-    this.agentActionManager = new AgentActionManager();
-    // Initialize versioned operator result store
-    this.operatorResultStore = new OperatorResultStore(this.agentActionManager);
+    // Initialize versioned operator result store (uses ancestor path from step tree)
+    this.operatorResultStore = new OperatorResultStore(() => this.getAncestorPath());
+
+    // Create and register the initial step (root of the step tree)
+    const initialStep: ReActStep = {
+      id: INITIAL_STEP_ID,
+      messageId: "initial",
+      stepId: -1,
+      timestamp: Date.now(),
+      role: "user",
+      content: "",
+      isBegin: true,
+      isEnd: true,
+      parentId: undefined,
+    };
+    this.stepsById.set(INITIAL_STEP_ID, initialStep);
 
     // Initialize settings with defaults
     this.settings = {
@@ -370,8 +380,7 @@ export class TexeraAgent {
         this.workflowState,
         getExecutionConfig,
         (opId, operatorInfo) => {
-          const actionId = this.agentActionManager.getHead();
-          this.operatorResultStore.set(opId, actionId, operatorInfo);
+          this.operatorResultStore.set(opId, this.head, operatorInfo);
         }
       );
     }
@@ -395,19 +404,27 @@ export class TexeraAgent {
     return this.metadataStore;
   }
 
-  getAgentActionManager(): AgentActionManager {
-    return this.agentActionManager;
+  getHead(): string {
+    return this.head;
+  }
+
+  getAncestorPath(stepId?: string): string[] {
+    const target = stepId ?? this.head;
+    const chain: string[] = [];
+    let current: string | undefined = target;
+    while (current) {
+      chain.unshift(current);
+      current = this.stepsById.get(current)?.parentId;
+    }
+    return chain;
+  }
+
+  getStepsById(): Map<string, ReActStep> {
+    return this.stepsById;
   }
 
   getOperatorResultStore(): OperatorResultStore {
     return this.operatorResultStore;
-  }
-
-  /**
-   * Get all agent actions.
-   */
-  getAgentActions(): AgentAction[] {
-    return this.agentActionManager.getAllAgentActions();
   }
 
   // ============================================================================
@@ -469,100 +486,48 @@ export class TexeraAgent {
   // ============================================================================
 
   /**
-   * Get the visible ReActSteps for a messageId, truncated to the cutoff step.
+   * Get ReActSteps visible from the current HEAD.
    *
-   * For completed messages on the HEAD path, only steps up to (and including) the step
-   * that contains the last action's toolCallId are returned. This prevents showing steps
-   * from sibling branches that share the same messageId.
-   *
-   * For the current in-flight message, all steps are returned (no truncation).
+   * Walks the ancestor path from root to HEAD and returns all steps on that path
+   * (excluding the sentinel initial step).
    */
-  private getStepsForMessage(
-    msgId: string,
-    lastActionPerMessage: Map<string, string>
-  ): ReActStep[] {
-    const allSteps = this.reActStepsByMessageId.get(msgId);
-    if (!allSteps || allSteps.length === 0) return [];
-
-    // Current in-flight message: return all steps (no truncation)
-    if (msgId === this.currentMessageId) return allSteps;
-
-    // Find the last action on the path for this messageId
-    const lastActionId = lastActionPerMessage.get(msgId);
-    if (!lastActionId) return allSteps; // no action for this message — return all
-
-    const action = this.agentActionManager.getAgentAction(lastActionId);
-    if (!action) return allSteps;
-
-    // Truncation based on action type:
-    // - user_request: only show the user step (nothing has happened yet)
-    // - agent_response: show all steps (everything is done)
-    // - tool_call: truncate to the step containing the tool call
-    if (action.actionType === "user_request") {
-      return allSteps.filter(s => s.role === "user");
-    }
-
-    if (action.actionType === "agent_response") {
-      return allSteps;
-    }
-
-    // tool_call: find the step containing the toolCallId and truncate there
-    if (!action.toolCallId) return allSteps;
-    const toolCallId = action.toolCallId;
-    let cutoffStepId = -1;
-    for (const step of allSteps) {
-      if (step.toolCalls?.some(tc => tc.toolCallId === toolCallId)) {
-        cutoffStepId = step.stepId;
-      }
-    }
-
-    if (cutoffStepId === -1) return allSteps; // toolCallId not found — return all
-    return allSteps.filter(s => s.stepId <= cutoffStepId);
+  getVisibleReActSteps(): ReActStep[] {
+    const path = this.getAncestorPath();
+    return path
+      .filter(id => id !== INITIAL_STEP_ID)
+      .map(id => this.stepsById.get(id)!)
+      .filter(Boolean);
   }
 
   /**
-   * Get ReActSteps visible from the current HEAD.
-   *
-   * 1. Walk the action tree from root to HEAD → get messageIds on that path.
-   * 2. For each messageId, truncate steps to the cutoff point (last action on path).
-   * 3. Include the current in-flight messageId with all its steps.
+   * Get ALL steps (including those not on the current HEAD path).
+   * Used by the timeline UI to show full history even after checkout.
    */
-  getVisibleReActSteps(): ReActStep[] {
-    const lastActionPerMessage = this.agentActionManager.getLastActionPerMessageOnPath();
-    const messageIds = this.agentActionManager.getMessageIdsOnPath();
-    if (this.currentMessageId && !messageIds.includes(this.currentMessageId)) {
-      messageIds.push(this.currentMessageId);
-    }
-
-    if (messageIds.length === 0) return [];
-
-    const result: ReActStep[] = [];
-    for (const msgId of messageIds) {
-      result.push(...this.getStepsForMessage(msgId, lastActionPerMessage));
-    }
-    return result;
+  getAllSteps(): ReActStep[] {
+    return Array.from(this.stepsById.values()).filter(s => s.id !== INITIAL_STEP_ID);
   }
 
   /**
    * Get the historical interactions as ModelMessage[] for the current HEAD path.
    *
-   * 1. Get messageIds on the ancestor path (chronological order).
-   * 2. Include the current in-flight messageId.
-   * 3. For each messageId, get truncated steps, serialize into a summary text.
-   * 4. Wrap each as a user-type ModelMessage.
+   * Walks the ancestor path, groups visible steps by messageId, serializes each group.
    */
   getHistoricalInteractions(): ModelMessage[] {
-    const lastActionPerMessage = this.agentActionManager.getLastActionPerMessageOnPath();
-    const messageIds = this.agentActionManager.getMessageIdsOnPath();
-    if (this.currentMessageId && !messageIds.includes(this.currentMessageId)) {
-      messageIds.push(this.currentMessageId);
+    const visibleSteps = this.getVisibleReActSteps();
+
+    // Group steps by messageId preserving order
+    const messageGroups = new Map<string, ReActStep[]>();
+    for (const step of visibleSteps) {
+      let group = messageGroups.get(step.messageId);
+      if (!group) {
+        group = [];
+        messageGroups.set(step.messageId, group);
+      }
+      group.push(step);
     }
 
     const result: ModelMessage[] = [];
-    for (const msgId of messageIds) {
-      const steps = this.getStepsForMessage(msgId, lastActionPerMessage);
-      if (steps.length === 0) continue;
-
+    for (const [msgId, steps] of messageGroups) {
       const text = this.serializeInteraction(msgId, steps);
       result.push({ role: "user", content: text });
     }
@@ -619,14 +584,15 @@ export class TexeraAgent {
   }
 
   /**
-   * Checkout to a specific agent action: move HEAD, restore workflow state.
-   * Returns false if the action doesn't exist.
+   * Checkout to a specific step: move HEAD, restore workflow state.
+   * Returns false if the step doesn't exist.
    */
-  checkout(actionId: string): boolean {
-    const result = this.agentActionManager.checkout(actionId);
-    if (!result) return false;
-    if (result.workflowContent) {
-      this.workflowState.setWorkflowContent(result.workflowContent);
+  checkout(stepId: string): boolean {
+    const step = this.stepsById.get(stepId);
+    if (!step && stepId !== INITIAL_STEP_ID) return false;
+    this.head = stepId;
+    if (step?.afterWorkflowContent) {
+      this.workflowState.setWorkflowContent(step.afterWorkflowContent);
     }
     return true;
   }
@@ -640,15 +606,26 @@ export class TexeraAgent {
   }
 
   /**
+   * Generate a unique step ID.
+   */
+  private generateStepId(): string {
+    return `step-${this.agentId}-${++this.stepCounter}-${Date.now()}`;
+  }
+
+  /**
    * Add a ReActStep and notify the callback if set.
    */
   private addStep(step: ReActStep): void {
+    // Store by message ID (existing)
     let steps = this.reActStepsByMessageId.get(step.messageId);
     if (!steps) {
       steps = [];
       this.reActStepsByMessageId.set(step.messageId, steps);
     }
     steps.push(step);
+    // Store by step ID (new)
+    this.stepsById.set(step.id, step);
+    // Notify callback
     if (this.stepCallback) {
       this.stepCallback(step);
     }
@@ -826,9 +803,9 @@ export class TexeraAgent {
    * Called before processing each message to ensure we have the latest workflow.
    */
   async refreshWorkflowFromBackend(): Promise<void> {
-    // If HEAD points to a real action (not the initial dummy), the workflow is determined
-    // by that action's snapshot. Only load from backend when HEAD is the initial state.
-    if (this.agentActionManager.getHead() !== INITIAL_ACTION_ID) {
+    // If HEAD points to a real step (not the initial dummy), the workflow is determined
+    // by that step's snapshot. Only load from backend when HEAD is the initial state.
+    if (this.head !== INITIAL_STEP_ID) {
       return;
     }
 
@@ -969,9 +946,15 @@ export class TexeraAgent {
     this.currentMessageId = messageId;
 
     try {
-      // Create user message step (stepId 0) - show original message for display
+      // Capture workflow state before the user step
+      let beforeStepContent = this.workflowState.getWorkflowContent();
+
+      // Create user message step (stepId 0) with versioning fields
       const estimatedInputTokens = Math.ceil(actualUserMessage.length / 4);
+      const userStepId = this.generateStepId();
       const userStep: ReActStep = {
+        id: userStepId,
+        parentId: this.head,
         messageId,
         stepId: 0,
         timestamp: Date.now(),
@@ -980,6 +963,9 @@ export class TexeraAgent {
         actualContent: actualUserMessage !== userMessage ? actualUserMessage : undefined,
         isBegin: true,
         isEnd: true,
+        messageSource,
+        beforeWorkflowContent: beforeStepContent,
+        afterWorkflowContent: beforeStepContent, // no change for user step
         usage: {
           inputTokens: estimatedInputTokens,
           outputTokens: 0,
@@ -987,30 +973,10 @@ export class TexeraAgent {
         },
       };
       this.addStep(userStep);
+      this.head = userStepId;
 
       let isFirstStep = true;
       let lastPreparedMessages: ModelMessage[] | undefined;
-      // Capture workflow state before each step for action before/after snapshots
-      let beforeStepContent = this.workflowState.getWorkflowContent();
-
-      // Create "user_request" action so every user message appears in the action tree
-      const userAction = this.agentActionManager.createAgentAction(
-        this.agentId,
-        this.agentName,
-        `User: ${userMessage.substring(0, 50)}${userMessage.length > 50 ? "..." : ""}`,
-        {}, // empty operations — no workflow changes
-        this.delegateConfig
-          ? { wid: this.delegateConfig.workflowId, name: this.delegateConfig.workflowName }
-          : {},
-        beforeStepContent,
-        beforeStepContent, // after = same (no change)
-        undefined,
-        undefined,
-        "user_request",
-        messageSource
-      );
-      this.agentActionManager.setActionMessageId(userAction.id, messageId);
-      const startActionId = userAction.id;
 
       // Pass only the current user message to generateText.
       // prepareStep will build the full context (historical interactions + DAG + this message).
@@ -1076,47 +1042,40 @@ export class TexeraAgent {
             isError: !!(tr.output as any)?.error,
           }));
 
-          // Create agent actions for workflow-modifying tool calls and executions.
-          // We have full context here: toolCallId, tool result (success/error), and
-          // before/after workflow snapshots.
+          // Capture workflow snapshot AFTER tool calls (but before post-step execution)
           const afterStepContent = this.workflowState.getWorkflowContent();
-          if (toolCalls && toolResults) {
-            const ACTION_TOOL_NAMES = new Set([
-              TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR,
-              TOOL_NAME_CREATE_OR_MODIFY_OPERATOR, TOOL_NAME_DELETE_OPERATOR,
-              TOOL_NAME_EXECUTE_OPERATOR,
-            ]);
-            for (let i = 0; i < toolCalls.length; i++) {
-              const tc = toolCalls[i];
-              const tr = toolResults[i];
-              if (!ACTION_TOOL_NAMES.has(tc.toolName)) continue;
-              // Skip failed tool calls — but always create actions for executeOperator
-              // so that errors are versioned and visible in the DAG summary
-              const resultText = typeof tr?.output === "string" ? tr.output : String(tr?.output ?? "");
-              if (resultText.startsWith("[ERROR]") && tc.toolName !== TOOL_NAME_EXECUTE_OPERATOR) continue;
 
-              const operatorId = (tc.input as any)?.operatorId || "unknown";
-              const summary = (tc.input as any)?.summary || `${tc.toolName} ${operatorId}`;
-              const action = this.agentActionManager.createAgentAction(
-                this.agentId,
-                this.agentName,
-                summary,
-                this.parseOperations(tc.toolName, operatorId),
-                this.delegateConfig
-                  ? { wid: this.delegateConfig.workflowId, name: this.delegateConfig.workflowName }
-                  : {},
-                beforeStepContent,
-                afterStepContent,
-                undefined,
-                tc.toolCallId
-              );
-              // Link this action to the current messageId
-              this.agentActionManager.setActionMessageId(action.id, messageId);
-              // Progressively update the action range for this message
-              this.messageActionRange.set(messageId, { startActionId, endActionId: action.id });
-            }
-          }
-          // Post-step auto-execution: execute operators that were successfully added/modified
+          // Create agent step with versioning fields and advance HEAD
+          const agentStepId = this.generateStepId();
+          const agentStep: ReActStep = {
+            id: agentStepId,
+            parentId: this.head,
+            messageId,
+            stepId: stepIndex,
+            timestamp: Date.now(),
+            role: "agent",
+            content: text || "",
+            isBegin: isFirstStep,
+            isEnd: false,
+            toolCalls: formattedToolCalls,
+            toolResults: formattedToolResults,
+            usage: usage
+              ? {
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  totalTokens: usage.totalTokens,
+                }
+              : undefined,
+            inputMessages: lastPreparedMessages,
+            beforeWorkflowContent: beforeStepContent,
+            afterWorkflowContent: afterStepContent,
+          };
+          lastPreparedMessages = undefined;
+          this.addStep(agentStep);
+          this.head = agentStepId;
+
+          // Post-step auto-execution: execute operators that were successfully added/modified.
+          // Results are stored at the new HEAD (this step's ID).
           const execConfig = this.buildExecutionConfig();
           if (execConfig && toolCalls && toolResults) {
             const EXECUTE_AFTER_TOOLS = new Set([
@@ -1144,8 +1103,7 @@ export class TexeraAgent {
                   {
                     abortSignal: this.abortController?.signal,
                     onResult: (opId, operatorInfo) => {
-                      const actionId = this.agentActionManager.getHead();
-                      this.operatorResultStore.set(opId, actionId, operatorInfo);
+                      this.operatorResultStore.set(opId, this.head, operatorInfo);
                     },
                   }
                 );
@@ -1158,30 +1116,6 @@ export class TexeraAgent {
 
           // Update before snapshot for next step
           beforeStepContent = afterStepContent;
-
-          // Create agent step
-          const agentStep: ReActStep = {
-            messageId,
-            stepId: stepIndex,
-            timestamp: Date.now(),
-            role: "agent",
-            content: text || "",
-            isBegin: isFirstStep,
-            isEnd: false,
-            toolCalls: formattedToolCalls,
-            toolResults: formattedToolResults,
-            usage: usage
-              ? {
-                  inputTokens: usage.inputTokens,
-                  outputTokens: usage.outputTokens,
-                  totalTokens: usage.totalTokens,
-                }
-              : undefined,
-            inputMessages: lastPreparedMessages,
-          };
-          lastPreparedMessages = undefined;
-          this.addStep(agentStep);
-
           isFirstStep = false;
           // Note: per-step usage is stored in each ReActStep.usage
           // Final totals are computed from result.totalUsage after generateText completes
@@ -1196,26 +1130,6 @@ export class TexeraAgent {
           lastStep.isEnd = true;
         }
       }
-
-      // Create "agent_response" action so every agent reply appears in the action tree
-      const finalContent = this.workflowState.getWorkflowContent();
-      const responseText = result.text || "";
-      const agentResponseAction = this.agentActionManager.createAgentAction(
-        this.agentId,
-        this.agentName,
-        `Agent: ${responseText.substring(0, 50)}${responseText.length > 50 ? "..." : ""}`,
-        {}, // empty operations
-        this.delegateConfig
-          ? { wid: this.delegateConfig.workflowId, name: this.delegateConfig.workflowName }
-          : {},
-        finalContent,
-        finalContent, // after = same
-        undefined,
-        undefined,
-        "agent_response"
-      );
-      this.agentActionManager.setActionMessageId(agentResponseAction.id, messageId);
-      this.messageActionRange.set(messageId, { startActionId, endActionId: agentResponseAction.id });
 
       // Update final stats - use totalUsage from result (aggregate across all steps)
       // Note: result.usage is only the final step, result.totalUsage is the aggregate
@@ -1249,7 +1163,10 @@ export class TexeraAgent {
       if (isAborted) {
         // Handle stop gracefully
         stepIndex++;
+        const stoppedStepId = this.generateStepId();
         const stoppedStep: ReActStep = {
+          id: stoppedStepId,
+          parentId: this.head,
           messageId,
           stepId: stepIndex,
           timestamp: Date.now(),
@@ -1259,6 +1176,7 @@ export class TexeraAgent {
           isEnd: true,
         };
         this.addStep(stoppedStep);
+        this.head = stoppedStepId;
 
         stats.endTime = Date.now();
         stats.stepCount = stepIndex;
@@ -1279,7 +1197,10 @@ export class TexeraAgent {
 
       // Handle actual error - add error step
       stepIndex++;
+      const errorStepId = this.generateStepId();
       const errorStep: ReActStep = {
+        id: errorStepId,
+        parentId: this.head,
         messageId,
         stepId: stepIndex,
         timestamp: Date.now(),
@@ -1289,6 +1210,7 @@ export class TexeraAgent {
         isEnd: true,
       };
       this.addStep(errorStep);
+      this.head = errorStepId;
 
       // Update stats
       stats.endTime = Date.now();
@@ -1312,25 +1234,6 @@ export class TexeraAgent {
       this.abortController = null;
       this.currentMessageId = undefined;
       this.state = AgentStateEnum.AVAILABLE;
-    }
-  }
-
-  /**
-   * Derive AgentActionOperations from a tool name and operator ID.
-   */
-  private parseOperations(toolName: string, operatorId: string): import("../types/agent").AgentActionOperations {
-    switch (toolName) {
-      case TOOL_NAME_ADD_OPERATOR:
-      case TOOL_NAME_CREATE_OR_MODIFY_OPERATOR:
-        return { add: { operatorIds: [operatorId], linkIds: [] } };
-      case TOOL_NAME_MODIFY_OPERATOR:
-        return { modify: { operatorIds: [operatorId] } };
-      case TOOL_NAME_DELETE_OPERATOR:
-        return { delete: { operatorIds: [operatorId], linkIds: [] } };
-      case TOOL_NAME_EXECUTE_OPERATOR:
-        return { execute: { operatorIds: [operatorId] } };
-      default:
-        return { modify: { operatorIds: [operatorId] } };
     }
   }
 
@@ -1369,19 +1272,43 @@ export class TexeraAgent {
    */
   clearHistory(): void {
     this.reActStepsByMessageId.clear();
-    this.messageActionRange.clear();
+    this.stepsById.clear();
     this.currentMessageId = undefined;
-    this.agentActionManager.clearAllAgentActions();
+    this.head = INITIAL_STEP_ID;
+    // Re-create initial step
+    const initialStep: ReActStep = {
+      id: INITIAL_STEP_ID,
+      messageId: "initial",
+      stepId: -1,
+      timestamp: Date.now(),
+      role: "user",
+      content: "",
+      isBegin: true,
+      isEnd: true,
+    };
+    this.stepsById.set(INITIAL_STEP_ID, initialStep);
   }
 
   /**
-   * Reset the agent (clear history, ReActSteps, actions, and workflow).
+   * Reset the agent (clear history, ReActSteps, step tree, and workflow).
    */
   reset(): void {
     this.reActStepsByMessageId.clear();
-    this.messageActionRange.clear();
+    this.stepsById.clear();
     this.currentMessageId = undefined;
-    this.agentActionManager.clearAllAgentActions();
+    this.head = INITIAL_STEP_ID;
+    // Re-create initial step
+    const initialStep: ReActStep = {
+      id: INITIAL_STEP_ID,
+      messageId: "initial",
+      stepId: -1,
+      timestamp: Date.now(),
+      role: "user",
+      content: "",
+      isBegin: true,
+      isEnd: true,
+    };
+    this.stepsById.set(INITIAL_STEP_ID, initialStep);
     this.workflowState.reset();
     this.operatorResultStore.clear();
   }
@@ -1556,15 +1483,12 @@ export class TexeraAgent {
     // Cleanup workflow state (unsubscribes all RxJS subscriptions, completes subjects)
     this.workflowState.destroy();
 
-    // Cleanup agent action manager
-    this.agentActionManager.destroy();
-
     // Clear websocket connections
     this.websockets.clear();
 
-    // Clear conversation history
+    // Clear conversation history and step tree
     this.reActStepsByMessageId.clear();
-    this.messageActionRange.clear();
+    this.stepsById.clear();
     this.currentMessageId = undefined;
   }
 
@@ -1681,7 +1605,10 @@ export class TexeraAgent {
           typeof message.content === "string" ? message.content : JSON.stringify(message.content);
 
         // Create user step (stepId 0)
+        const replayUserStepId = this.generateStepId();
         const userStep: ReActStep = {
+          id: replayUserStepId,
+          parentId: this.head,
           messageId: currentMessageId,
           stepId: stepId++,
           timestamp: Date.now(),
@@ -1692,6 +1619,7 @@ export class TexeraAgent {
         };
 
         this.addStep(userStep);
+        this.head = replayUserStepId;
         onStep(userStep);
       } else if (message.role === "assistant") {
         // Parse assistant message content
@@ -1724,7 +1652,10 @@ export class TexeraAgent {
         // stepId 0 = user, stepId 1 = first assistant step, etc.
         const isFirstAssistantStep = stepId === 1;
 
+        const replayAssistantStepId = this.generateStepId();
         const assistantStep: ReActStep = {
+          id: replayAssistantStepId,
+          parentId: this.head,
           messageId: currentMessageId,
           stepId: stepId++,
           timestamp: Date.now(),
@@ -1737,6 +1668,7 @@ export class TexeraAgent {
         };
 
         this.addStep(assistantStep);
+        this.head = replayAssistantStepId;
         onStep(assistantStep);
       } else if (message.role === "tool") {
         // Tool messages are already processed into the map — no storage needed

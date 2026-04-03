@@ -23,7 +23,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
-import { AgentAction } from "../../service/agent-action/agent-action.service";
+import { ReActStep } from "../../service/copilot/copilot-types";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -123,9 +123,9 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.operatorId}): ${this.feedbackMessage.trim()}`;
 
     if (this.checkoutBeforeSend) {
-      const actionToCheckout = this.findLatestActionForOperatorOnHeadBranch(agentId, this.operatorId);
-      if (actionToCheckout) {
-        this.copilotManagerService.checkoutAction(agentId, actionToCheckout.id).subscribe({
+      const stepToCheckout = this.findLatestStepForOperator(agentId, this.operatorId);
+      if (stepToCheckout) {
+        this.copilotManagerService.checkoutStep(agentId, stepToCheckout.id).subscribe({
           next: () => {
             this.copilotManagerService.sendMessage(agentId, contextMessage, [], "feedback");
             this.notificationService.success("Checked out version and sent message to agent");
@@ -148,30 +148,18 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Traverse the current head branch (from head to root via parentId) and find the latest
-   * action that added or modified the given operator. "Latest" = closest to head on the branch.
+   * Find the latest step that added or modified the given operator.
+   * Walks from latest to earliest visible step.
    */
-  private findLatestActionForOperatorOnHeadBranch(agentId: string, operatorId: string): AgentAction | null {
-    const allActions = this.copilotManagerService.getAgentActions(agentId);
-    const headId = this.copilotManagerService.getHeadId(agentId);
-    if (!headId || allActions.length === 0) return null;
-
-    const actionMap = new Map(allActions.map(a => [a.id, a]));
-    let currentId: string | undefined = headId;
-
-    while (currentId) {
-      const action = actionMap.get(currentId);
-      if (!action) break;
-
-      const addedOps = action.operations?.add?.operatorIds || [];
-      const modifiedOps = action.operations?.modify?.operatorIds || [];
-      if (addedOps.includes(operatorId) || modifiedOps.includes(operatorId)) {
-        return action;
+  private findLatestStepForOperator(agentId: string, operatorId: string): ReActStep | null {
+    const steps = this.copilotManagerService.getVisibleSteps(agentId);
+    // Walk from latest to earliest, find step that added/modified this operator
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const step = steps[i];
+      if (step.toolCalls?.some((tc: any) => tc.input?.operatorId === operatorId)) {
+        return step;
       }
-
-      currentId = action.parentId;
     }
-
     return null;
   }
 

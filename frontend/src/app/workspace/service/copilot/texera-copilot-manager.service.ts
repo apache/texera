@@ -40,7 +40,6 @@ import { AppSettings } from "../../../common/app-setting";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { CopilotState, ReActStep, ModelMessage, CopilotMessageStats, OperatorStepRef } from "./copilot-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
-import { AgentAction } from "../agent-action/agent-action.service";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 
 /**
@@ -205,9 +204,7 @@ interface AgentStateTracking {
     addedOperatorIds: string[];
     modifiedOperatorIds: string[];
   }>;
-  /** Agent actions received from the backend */
-  agentActionsSubject: BehaviorSubject<AgentAction[]>;
-  /** Current HEAD action ID in the action tree */
+  /** Current HEAD step ID in the version tree */
   headIdSubject: BehaviorSubject<string | null>;
   workflowSubject: BehaviorSubject<Workflow | null>;
   workflowId?: number;
@@ -386,69 +383,13 @@ export class TexeraCopilotManagerService {
       usage: apiStep.usage,
       inputMessages: apiStep.inputMessages,
       operatorAccess,
+      // Versioning fields
+      id: apiStep.id || `${apiStep.messageId}-${apiStep.stepId || 0}`,
+      parentId: apiStep.parentId,
+      messageSource: apiStep.messageSource,
+      beforeWorkflowContent: apiStep.beforeWorkflowContent,
+      afterWorkflowContent: apiStep.afterWorkflowContent,
     };
-  }
-
-  /**
-   * Convert API AgentAction to frontend AgentAction format.
-   * The backend sends the complete action, we just need to convert dates and ensure defaults.
-   */
-  private convertApiAgentAction(apiAction: any): AgentAction {
-    // Ensure operations have defaults
-    const operations = {
-      add: apiAction.operations?.add || { operatorIds: [], linkIds: [] },
-      modify: apiAction.operations?.modify || { operatorIds: [] },
-      delete: apiAction.operations?.delete || { operatorIds: [], linkIds: [] },
-      execute: apiAction.operations?.execute || { operatorIds: [] },
-    };
-
-    // Collect all operator and link IDs for highlighting
-    const operatorIds = [
-      ...(operations.add.operatorIds || []),
-      ...(operations.modify.operatorIds || []),
-      ...(operations.delete.operatorIds || []),
-      ...(operations.execute.operatorIds || []),
-    ];
-    const linkIds = [...(operations.add.linkIds || []), ...(operations.delete.linkIds || [])];
-
-    return {
-      id: apiAction.id,
-      agentId: apiAction.agentId,
-      agentName: apiAction.agentName,
-      executorAgentId: apiAction.executorAgentId || apiAction.agentId,
-      summary: apiAction.summary,
-      operations,
-      createdAt: new Date(apiAction.createdAt),
-      toolCallId: apiAction.toolCallId,
-      parentId: apiAction.parentId,
-      actionType: apiAction.actionType,
-      messageSource: apiAction.messageSource,
-      operatorIds,
-      linkIds,
-      workflowMetadata: apiAction.workflowMetadata || {},
-      beforeWorkflowContent: apiAction.beforeWorkflowContent || { operators: [], links: [], operatorPositions: {} },
-      afterWorkflowContent: apiAction.afterWorkflowContent || { operators: [], links: [], operatorPositions: {} },
-    };
-  }
-
-  /**
-   * Handle agent action received from WebSocket.
-   * Adds the action to the agent's action list.
-   */
-  private handleAgentActionFromApi(agentId: string, tracking: AgentStateTracking, apiAction: any): void {
-    const agentAction = this.convertApiAgentAction(apiAction);
-    const currentActions = tracking.agentActionsSubject.getValue();
-    tracking.agentActionsSubject.next([...currentActions, agentAction]);
-    console.log(`[CopilotManager] Received agent action from agent-service: ${apiAction.id} - ${apiAction.summary}`);
-  }
-
-  /**
-   * Handle initial agent actions received from WebSocket init message.
-   */
-  private handleInitialAgentActions(tracking: AgentStateTracking, apiActions: any[]): void {
-    const agentActions = apiActions.map(apiAction => this.convertApiAgentAction(apiAction));
-    tracking.agentActionsSubject.next(agentActions);
-    console.log(`[CopilotManager] Initialized ${apiActions.length} agent actions from agent-service`);
   }
 
   /**
@@ -468,7 +409,6 @@ export class TexeraCopilotManagerService {
           addedOperatorIds: string[];
           modifiedOperatorIds: string[];
         }>({ viewedOperatorIds: [], addedOperatorIds: [], modifiedOperatorIds: [] }),
-        agentActionsSubject: new BehaviorSubject<AgentAction[]>([]),
         headIdSubject: new BehaviorSubject<string | null>(null),
         workflowSubject: new BehaviorSubject<Workflow | null>(null),
         workflowId,
@@ -580,10 +520,6 @@ export class TexeraCopilotManagerService {
           // Update operator steps map so it's ready for highlighting
           this.updateOperatorStepsMap();
         }
-        // Handle initial agent actions
-        if (message.agentActions && Array.isArray(message.agentActions)) {
-          this.handleInitialAgentActions(tracking, message.agentActions);
-        }
         // Handle initial HEAD pointer
         if (message.headId !== undefined) {
           tracking.headIdSubject.next(message.headId);
@@ -625,6 +561,22 @@ export class TexeraCopilotManagerService {
           }
           // Update operator steps map so it's ready for highlighting
           this.updateOperatorStepsMap();
+
+          // Advance HEAD to the step's id (each step advances HEAD)
+          if (convertedStep.id) {
+            tracking.headIdSubject.next(convertedStep.id);
+          }
+
+          // If the step has afterWorkflowContent, update the workflow
+          if (convertedStep.afterWorkflowContent) {
+            tracking.wsWorkflowActive = true;
+            const existingWorkflow = tracking.workflowSubject.getValue();
+            const workflow = {
+              ...(existingWorkflow || {}),
+              content: convertedStep.afterWorkflowContent,
+            } as Workflow;
+            tracking.workflowSubject.next(workflow);
+          }
         }
         break;
 
@@ -667,29 +619,6 @@ export class TexeraCopilotManagerService {
         }
         break;
 
-      case "agentAction":
-        // New agent action received from agent-service
-        if (message.agentAction) {
-          this.handleAgentActionFromApi(agentId, tracking, message.agentAction);
-          // HEAD advances to the latest action
-          tracking.headIdSubject.next(message.agentAction.id);
-          // Update workflow from the action's afterWorkflowContent (ground truth from agent service)
-          const actionContent = message.agentAction.afterWorkflowContent;
-          if (actionContent) {
-            tracking.wsWorkflowActive = true;
-            const workflow: Workflow = {
-              ...(message.agentAction.workflowMetadata || tracking.workflowSubject.getValue() || {}),
-              content: actionContent,
-            };
-            tracking.workflowSubject.next(workflow as Workflow);
-          }
-          // Update operator results if included (so shapes appear during step generation)
-          if (message.operatorResults) {
-            this.updateOperatorResultSummaries(message.operatorResults);
-          }
-        }
-        break;
-
       case "headChange":
         // HEAD moved (checkout) — update HEAD, visible steps, and workflow
         if (message.headId !== undefined) {
@@ -702,25 +631,12 @@ export class TexeraCopilotManagerService {
         }
         // Update workflow content from agent service (ground truth)
         if (message.workflowContent) {
-          // Backend sent workflow content directly — use it
           tracking.wsWorkflowActive = true;
           const workflow: Workflow = {
             ...(message.workflowMetadata || tracking.workflowSubject.getValue() || {}),
             content: message.workflowContent,
           };
           tracking.workflowSubject.next(workflow as Workflow);
-        } else if (message.headId) {
-          // Fallback: look up the action's afterWorkflowContent from local cache
-          const actions = tracking.agentActionsSubject.getValue();
-          const headAction = actions.find(a => a.id === message.headId);
-          if (headAction?.afterWorkflowContent) {
-            tracking.wsWorkflowActive = true;
-            const workflow: Workflow = {
-              ...(headAction.workflowMetadata || tracking.workflowSubject.getValue() || {}),
-              content: headAction.afterWorkflowContent,
-            };
-            tracking.workflowSubject.next(workflow as Workflow);
-          }
         }
         // Update operator results on HEAD change
         if (message.operatorResults) {
@@ -1243,24 +1159,7 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Get agent actions observable for an agent.
-   * Returns the stream of agent actions from the backend.
-   */
-  public getAgentActionsObservable(agentId: string): Observable<AgentAction[]> {
-    const tracking = this.getOrCreateStateTracking(agentId);
-    return tracking.agentActionsSubject.asObservable();
-  }
-
-  /**
-   * Get all agent actions for an agent (current snapshot).
-   */
-  public getAgentActions(agentId: string): AgentAction[] {
-    const tracking = this.agentStateTracking.get(agentId);
-    return tracking ? tracking.agentActionsSubject.getValue() : [];
-  }
-
-  /**
-   * Get HEAD action ID observable for an agent.
+   * Get HEAD step ID observable for an agent.
    */
   public getHeadIdObservable(agentId: string): Observable<string | null> {
     const tracking = this.getOrCreateStateTracking(agentId);
@@ -1268,7 +1167,7 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Get current HEAD action ID for an agent.
+   * Get current HEAD step ID for an agent.
    */
   public getHeadId(agentId: string): string | null {
     const tracking = this.agentStateTracking.get(agentId);
@@ -1276,11 +1175,26 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Checkout to a specific agent action (move HEAD, restore workflow).
+   * Checkout to a specific step (move HEAD, restore workflow).
    * The backend broadcasts headChange + visible steps via WebSocket to all clients.
    */
+  public checkoutStep(agentId: string, stepId: string): Observable<any> {
+    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { stepId });
+  }
+
+  /**
+   * @deprecated Use checkoutStep instead. Kept for backward compatibility.
+   */
   public checkoutAction(agentId: string, actionId: string): Observable<any> {
-    return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { actionId }, this.agentHeaders(agentId));
+    return this.checkoutStep(agentId, actionId);
+  }
+
+  /**
+   * Get visible steps for an agent (current snapshot).
+   */
+  public getVisibleSteps(agentId: string): ReActStep[] {
+    const tracking = this.agentStateTracking.get(agentId);
+    return tracking ? tracking.reActStepsSubject.getValue() : [];
   }
 
   /**

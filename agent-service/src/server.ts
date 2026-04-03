@@ -34,7 +34,6 @@
 import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
-import { Subscription } from "rxjs";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
@@ -47,7 +46,6 @@ import type {
   UpdateAgentSettingsRequest,
   AgentSettingsApi,
   ReActStep,
-  AgentAction,
   AgentMessageStats,
   TraceContent,
 } from "./types/agent";
@@ -129,31 +127,10 @@ async function createAgentInstance(
     }
   }
 
-  // Setup agent action streaming subscription
-  const subscription = setupAgentActionStreaming(agentId, agent);
-  agent.setAgentActionSubscription(subscription);
-
   agentStore.set(agentId, agent);
   console.log(`[Server] Created new agent: ${agentId} (delegate: ${!!delegateConfig})`);
 
   return { agentId, agent };
-}
-
-/**
- * Setup RxJS subscription for streaming agent actions to WebSocket clients.
- */
-function setupAgentActionStreaming(agentId: string, agent: TexeraAgent): Subscription {
-  const agentActionManager = agent.getAgentActionManager();
-  const agentActionStream$ = agentActionManager.getAgentActionStream();
-
-  return agentActionStream$.subscribe((agentAction: AgentAction) => {
-    console.log(`[Server] Agent ${agentId} created action: ${agentAction.id} - ${agentAction.summary}`);
-    broadcastToAgent(agentId, {
-      type: "agentAction",
-      agentAction,
-      operatorResults: getOperatorResultSummaries(agent),
-    });
-  });
 }
 
 /**
@@ -358,7 +335,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       throw new Error("Agent not found");
     }
 
-    // Destroy agent (cleans up all subscriptions, websockets, workflow state, and agent action manager)
+    // Destroy agent (cleans up all subscriptions, websockets, and workflow state)
     agent.destroy();
 
     agentStore.delete(id);
@@ -401,12 +378,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .get("/:id/react-steps", ({ params: { id } }) => {
     const agent = getAgent(id);
     return { steps: agent.getReActSteps(), state: agent.getState() };
-  })
-
-  // Get all agent actions (for polling fallback or initial load)
-  .get("/:id/agent-actions", ({ params: { id } }) => {
-    const agent = getAgent(id);
-    return { agentActions: agent.getAgentActions() };
   })
 
   // Get all visible operator results (summarized for annotation)
@@ -491,29 +462,30 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     return { status: "cleared" };
   })
 
-  // Checkout to a specific agent action (move HEAD, restore workflow)
+  // Checkout to a specific step (move HEAD, restore workflow)
   .post("/:id/checkout", ({ params: { id }, body }) => {
     const agent = getAgent(id);
-    const { actionId } = body as { actionId: string };
-    if (!actionId) throw new Error("actionId is required");
+    const { stepId } = body as { stepId: string };
+    if (!stepId) throw new Error("stepId is required");
 
-    const success = agent.checkout(actionId);
-    if (!success) throw new Error(`Action ${actionId} not found or checkout failed`);
+    const success = agent.checkout(stepId);
+    if (!success) throw new Error(`Step ${stepId} not found or checkout failed`);
 
-    const visibleSteps = agent.getVisibleReActSteps();
+    const allSteps = agent.getAllSteps();
+    const workflowContent = agent.getWorkflowState().getWorkflowContent();
 
-    // Broadcast HEAD change + visible steps + operator results to all WebSocket clients
+    // Broadcast HEAD change + all steps + workflow content + operator results
     broadcastToAgent(id, {
       type: "headChange",
-      headId: actionId,
-      steps: visibleSteps,
+      headId: stepId,
+      steps: allSteps,
+      workflowContent,
       operatorResults: getOperatorResultSummaries(agent),
     });
 
     return {
       status: "checked out",
-      headId: actionId,
-      visibleSteps,
+      headId: stepId,
     };
   })
 
@@ -692,16 +664,15 @@ interface OperatorResultSummaryWs {
 }
 
 interface WsOutgoingMessage {
-  type: "step" | "state" | "error" | "complete" | "init" | "agentAction" | "headChange";
+  type: "step" | "state" | "error" | "complete" | "init" | "headChange";
   step?: ReActStep;
   state?: string;
   error?: string;
   steps?: ReActStep[];
-  agentAction?: AgentAction;
-  agentActions?: AgentAction[];
   stats?: AgentMessageStats;
   headId?: string;
   operatorResults?: Record<string, OperatorResultSummaryWs>;
+  workflowContent?: any;
 }
 
 /**
@@ -780,13 +751,12 @@ const app = new Elysia()
       // Add this websocket to the agent's set
       agent.addWebsocket(ws);
 
-      // Send initial state, visible steps (based on HEAD), agent actions, and operator results
+      // Send initial state, visible steps (based on HEAD), and operator results
       const initMessage: WsOutgoingMessage = {
         type: "init",
         state: agent.getState(),
-        steps: agent.getVisibleReActSteps(),
-        agentActions: agent.getAgentActions(),
-        headId: agent.getAgentActionManager().getHead(),
+        steps: agent.getAllSteps(),
+        headId: agent.getHead(),
         operatorResults: getOperatorResultSummaries(agent),
       };
       ws.send(JSON.stringify(initMessage));
@@ -828,8 +798,14 @@ const app = new Elysia()
         }
 
         // Set up step callback to stream steps in real-time
+        // Include operatorResults when the step has tool calls (which may modify workflow/execution state)
         agent.setStepCallback((step: ReActStep) => {
-          broadcastToAgent(agentId, { type: "step", step });
+          const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
+          broadcastToAgent(agentId, {
+            type: "step",
+            step,
+            ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
+          });
         });
 
         // Broadcast GENERATING state immediately before starting processing
@@ -880,9 +856,14 @@ const app = new Elysia()
         // Replay the trace
         await agent.replayTrace(
           msg.trace,
-          // onStep callback - broadcast each step
+          // onStep callback - broadcast each step (include operatorResults when step has tool calls)
           (step: ReActStep) => {
-            broadcastToAgent(agentId, { type: "step", step });
+            const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
+            broadcastToAgent(agentId, {
+              type: "step",
+              step,
+              ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
+            });
           },
           // onError callback - broadcast error and abort
           (errorMessage: string) => {

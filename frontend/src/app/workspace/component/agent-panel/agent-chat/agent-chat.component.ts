@@ -34,7 +34,6 @@ import { Subject } from "rxjs";
 import { distinctUntilChanged, filter, pairwise, startWith, takeUntil } from "rxjs/operators";
 import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/copilot-types";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
-import { AgentAction, AgentActionService } from "../../../service/agent-action/agent-action.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -42,31 +41,23 @@ import { WorkflowPersistService } from "../../../../common/service/workflow-pers
 import * as dagre from "dagre";
 
 /**
- * Represents a single node in the action tree.
+ * Represents a single node in the version tree (built from ReActSteps).
  */
 export interface TimelineNode {
   id: string;
+  stepId: string;
   timestamp: Date;
-  agentActionId: string;
-  /** Whether this node is the current HEAD in the action tree */
   isHead: boolean;
-  /** Whether this node is on the ancestor path from root to HEAD */
   isOnHeadPath: boolean;
-  /** Short action label: "Add", "Modify", "Delete", "User", or "Agent" */
-  actionLabel: string;
-  /** Operator ID affected by this action, or summary text for non-tool actions */
-  operatorId: string;
-  /** Action summary */
-  summary: string;
-  /** Action type: "tool_call", "user_request", or "agent_response" */
-  actionType?: string;
-  /** Message source: "chat" or "feedback" (only for user_request) */
+  /** Multi-line label: one line per tool call, or message summary */
+  lines: string[];
+  /** Step type for styling */
+  stepType: "initial" | "user" | "agent";
   messageSource?: string;
-  /** Layout position computed by dagre (x, y in pixels) */
   x: number;
   y: number;
-  /** Computed width based on text length */
   width: number;
+  height: number;
 }
 
 /**
@@ -107,7 +98,10 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
   @ViewChild("timelineContainer", { static: false }) timelineContainer?: ElementRef;
 
+  /** All steps (for timeline rendering) */
   public agentResponses: ReActStep[] = [];
+  /** Steps on the HEAD path only (for chat rendering) */
+  public visibleSteps: ReActStep[] = [];
   public currentMessage = "";
   private shouldScrollToBottom = false;
   public isDetailsModalVisible = false;
@@ -131,15 +125,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public treePanelCollapsed: boolean = false;
   public showPortShapes: boolean = true;
 
-  // Agent actions for this agent (from copilot manager)
-  public agentActions: AgentAction[] = [];
-  // Current HEAD action ID in the action tree
+  // Current HEAD step ID in the version tree
   public currentHeadId: string | null = null;
 
-  // Diff toggle state
-  public diffVisible: boolean = false;
-
   // Hover diff state — tracks which operators had their expanded layout replaced with diff
+  private hoveredDiffOperatorIds: string[] = [];
+  private currentHoverDiff: any = null;
 
   // System info modal state (with editing capabilities)
   public isEditingSystemPrompt = false;
@@ -188,7 +179,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   private stopWorkflowSubscription$ = new Subject<void>();
 
   constructor(
-    private agentActionService: AgentActionService,
     private copilotManagerService: TexeraCopilotManagerService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
@@ -234,25 +224,23 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .getReActStepsObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(steps => {
-        const previousLength = this.agentResponses.length;
+        const previousLength = this.visibleSteps.length;
         this.agentResponses = steps;
+        this.updateVisibleSteps();
         this.shouldScrollToBottom = true;
 
         // Rebuild timeline nodes whenever responses change
         this.buildTimelineNodes();
 
-        // Automatically highlight the latest ReAct step
-        if (steps.length > 0) {
-          const latestIndex = steps.length - 1;
+        // Automatically highlight the latest visible step
+        if (this.visibleSteps.length > 0) {
+          const latestIndex = this.visibleSteps.length - 1;
           const previousLatestIndex = previousLength - 1;
 
-          // Auto-highlight the latest if:
-          // 1. No message is currently hovered, OR
-          // 2. We were hovering the previous latest (so update to new latest)
           if (
             this.hoveredMessageIndex === null ||
             this.hoveredMessageIndex === previousLatestIndex ||
-            this.hoveredMessageIndex >= steps.length
+            this.hoveredMessageIndex >= this.visibleSteps.length
           ) {
             this.setHoveredMessage(latestIndex);
           }
@@ -262,32 +250,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.cdr.detectChanges();
       });
 
-    // Subscribe to agent actions from copilot manager
-    this.copilotManagerService
-      .getAgentActionsObservable(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(actions => {
-        this.agentActions = actions;
-        this.buildTimelineNodes();
-        this.cdr.detectChanges();
-      });
-
     // Subscribe to HEAD changes
     this.copilotManagerService
       .getHeadIdObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(headId => {
         this.currentHeadId = headId;
+        this.updateVisibleSteps();
         this.buildTimelineNodes();
-        this.cdr.detectChanges();
-      });
-
-    // Subscribe to diff visibility state
-    this.agentActionService
-      .getDiffVisibleStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(visible => {
-        this.diffVisible = visible;
         this.cdr.detectChanges();
       });
 
@@ -429,13 +399,13 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   public setHoveredMessage(index: number | null): void {
     // When unhovered (null), automatically revert to latest step
-    if (index === null && this.agentResponses.length > 0) {
-      index = this.agentResponses.length - 1;
+    if (index === null && this.visibleSteps.length > 0) {
+      index = this.visibleSteps.length - 1;
     }
 
     this.hoveredMessageIndex = index;
     // Notify the copilot service about the hovered message
-    const hoveredStep = index !== null && index >= 0 ? this.agentResponses[index] : null;
+    const hoveredStep = index !== null && index >= 0 ? this.visibleSteps[index] : null;
     this.copilotManagerService.setHoveredMessage(this.agentInfo.id, hoveredStep);
   }
 
@@ -590,8 +560,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   }
 
   public getTotalInputTokens(): number {
-    for (let i = this.agentResponses.length - 1; i >= 0; i--) {
-      const response = this.agentResponses[i];
+    for (let i = this.visibleSteps.length - 1; i >= 0; i--) {
+      const response = this.visibleSteps[i];
       if (response.usage?.inputTokens !== undefined) {
         return response.usage.inputTokens;
       }
@@ -600,8 +570,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   }
 
   public getTotalOutputTokens(): number {
-    for (let i = this.agentResponses.length - 1; i >= 0; i--) {
-      const response = this.agentResponses[i];
+    for (let i = this.visibleSteps.length - 1; i >= 0; i--) {
+      const response = this.visibleSteps[i];
       if (response.usage?.outputTokens !== undefined) {
         return response.usage.outputTokens;
       }
@@ -708,7 +678,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * This format is compatible with the import/replay functionality.
    */
   public exportMessages(): void {
-    if (this.agentResponses.length === 0) {
+    if (this.visibleSteps.length === 0) {
       this.notificationService.warning("No messages to export");
       return;
     }
@@ -773,7 +743,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Fetches steps from the backend to get clean JSON (without Map objects).
    */
   public exportReActSteps(): void {
-    if (this.agentResponses.length === 0) {
+    if (this.visibleSteps.length === 0) {
       this.notificationService.warning("No ReAct steps to export");
       return;
     }
@@ -845,36 +815,114 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   /**
    * Show diff highlighting when hovering over a tree node.
-   * Highlights added/modified operators on the canvas with colored borders.
+   * Uses step's beforeWorkflowContent/afterWorkflowContent directly.
    */
   public onTimelineNodeMouseEnter(node: TimelineNode): void {
-    const action = this.agentActions.find(a => a.id === node.agentActionId);
-    if (!action) return;
+    const step = this.agentResponses.find(s => s.id === node.stepId);
+    if (!step?.beforeWorkflowContent || !step?.afterWorkflowContent) return;
 
-    // Show border highlighting (green for added, red for modified)
-    this.agentActionService.showDiff(action);
+    const diff = this.workflowVersionService.getWorkflowsDifference(
+      step.beforeWorkflowContent,
+      step.afterWorkflowContent
+    );
+    this.workflowVersionService.highlightOpVersionDiffSimple(diff, step.beforeWorkflowContent);
+    this.currentHoverDiff = diff;
+
+    // For modified operators, render code diff
+    const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+    if (paper && diff.modified?.length) {
+      for (const opId of diff.modified) {
+        const beforeOp = step.beforeWorkflowContent.operators?.find(
+          (o: OperatorPredicate) => o.operatorID === opId
+        );
+        const afterOp = step.afterWorkflowContent.operators?.find(
+          (o: OperatorPredicate) => o.operatorID === opId
+        );
+        if (beforeOp && afterOp) {
+          this.jointUIService.applyDiffLayout(paper, opId, beforeOp, afterOp);
+          this.hoveredDiffOperatorIds.push(opId);
+        }
+      }
+    }
   }
 
   /**
    * Clear diff highlighting when mouse leaves.
    */
   public onTimelineNodeMouseLeave(): void {
-    this.agentActionService.clearDiff();
+    this.clearHoverDiff();
+  }
+
+  /**
+   * Clear any active hover diff highlighting.
+   */
+  private clearHoverDiff(): void {
+    if (this.currentHoverDiff) {
+      this.workflowVersionService.unhighlightOpVersionDiff(this.currentHoverDiff);
+      this.currentHoverDiff = null;
+    }
+
+    // Restore normal expanded layout for operators that had diff view
+    if (this.hoveredDiffOperatorIds.length > 0) {
+      const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+      if (paper) {
+        for (const opId of this.hoveredDiffOperatorIds) {
+          try {
+            const graph = this.workflowActionService.getTexeraGraph();
+            const operator = graph.getOperator(opId);
+            if (operator) {
+              this.jointUIService.applyExpandedLayout(paper, opId, operator);
+            }
+          } catch {
+            // Operator may have been removed from graph (e.g., after checkout)
+          }
+        }
+      }
+      this.hoveredDiffOperatorIds = [];
+    }
   }
 
   // =====================
   // Timeline Methods
   // =====================
 
-  /**
-   * Build timeline nodes from agent responses.
-   * Each tool call becomes a node in the timeline.
-   */
-  /** Sentinel ID for the initial dummy action — must match agent-service INITIAL_ACTION_ID. */
-  private static readonly INITIAL_ACTION_ID = "agent-action-initial";
+  /** Sentinel ID for the initial step — must match backend constant. */
+  private static readonly INITIAL_STEP_ID = "step-initial";
 
+  /**
+   * Recompute visibleSteps: only steps on the ancestor path from root to HEAD.
+   */
+  private updateVisibleSteps(): void {
+    if (!this.currentHeadId || this.agentResponses.length === 0) {
+      this.visibleSteps = this.agentResponses;
+      return;
+    }
+    // Walk parentId chain from HEAD to root to build the ancestor set
+    const stepMap = new Map(this.agentResponses.map(s => [s.id, s]));
+    const ancestorIds = new Set<string>();
+    let current: string | undefined = this.currentHeadId;
+    while (current) {
+      ancestorIds.add(current);
+      current = stepMap.get(current)?.parentId;
+    }
+    this.visibleSteps = this.agentResponses.filter(s => ancestorIds.has(s.id));
+  }
+
+  /**
+   * Build timeline nodes from visible ReActSteps.
+   */
   private buildTimelineNodes(): void {
-    if (this.agentActions.length === 0 && this.currentHeadId !== AgentChatComponent.INITIAL_ACTION_ID) {
+    const steps = this.agentResponses;
+
+    // Filter steps to those that should appear as nodes
+    const visibleSteps = steps.filter(step => {
+      if (step.role === "user") return true;
+      if (step.role === "agent" && step.toolCalls && step.toolCalls.length > 0) return true;
+      if (step.role === "agent" && step.isEnd) return true;
+      return false;
+    });
+
+    if (visibleSteps.length === 0 && this.currentHeadId !== AgentChatComponent.INITIAL_STEP_ID) {
       this.timelineNodes = [];
       this.treeEdges = [];
       this.timeAxisNodes = [];
@@ -883,60 +931,51 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       return;
     }
 
-    // Inject a synthetic "Ready" action for the initial state so it appears as the root node.
-    // Use the earliest real action's timestamp (minus 1ms) or now if no actions yet.
-    const earliestTime = this.agentActions.length > 0
-      ? new Date(Math.min(...this.agentActions.map(a => new Date(a.createdAt).getTime())) - 1)
+    // Create synthetic initial step
+    const earliestTime = visibleSteps.length > 0
+      ? new Date(Math.min(...visibleSteps.map(s => new Date(s.timestamp).getTime())) - 1)
       : new Date();
-    const initialAction: AgentAction = {
-      id: AgentChatComponent.INITIAL_ACTION_ID,
-      agentId: this.agentInfo?.id || "",
-      agentName: this.agentInfo?.name || "Agent",
-      executorAgentId: this.agentInfo?.id || "",
-      summary: "Ready",
-      operations: { add: { operatorIds: [], linkIds: [] }, modify: { operatorIds: [] }, delete: { operatorIds: [], linkIds: [] }, execute: { operatorIds: [] } },
-      createdAt: earliestTime,
-      parentId: undefined,
-      actionType: "initial",
-      operatorIds: [],
-      linkIds: [],
-      workflowMetadata: {} as any,
-      beforeWorkflowContent: { operators: [], links: [], operatorPositions: {}, commentBoxes: [], settings: {} as any },
-      afterWorkflowContent: { operators: [], links: [], operatorPositions: {}, commentBoxes: [], settings: {} as any },
+    const initialStep: ReActStep = {
+      id: AgentChatComponent.INITIAL_STEP_ID,
+      messageId: "",
+      stepId: -1,
+      timestamp: earliestTime,
+      role: "agent",
+      content: "",
+      isBegin: false,
+      isEnd: false,
     };
 
-    // Merge: prepend the initial action, filtering out any duplicate
-    const allActions = [initialAction, ...this.agentActions.filter(a => a.id !== AgentChatComponent.INITIAL_ACTION_ID)];
+    // Merge: prepend the initial step
+    const allSteps = [initialStep, ...visibleSteps.filter(s => s.id !== AgentChatComponent.INITIAL_STEP_ID)];
 
     // Build the HEAD ancestor path for highlighting
     const headPath = new Set<string>();
     if (this.currentHeadId) {
-      const actionMap = new Map(allActions.map(a => [a.id, a]));
+      const stepMap = new Map(allSteps.map(s => [s.id, s]));
       let current: string | undefined = this.currentHeadId;
       while (current) {
         headPath.add(current);
-        current = actionMap.get(current)?.parentId;
+        current = stepMap.get(current)?.parentId;
       }
     }
 
-    // Sort actions chronologically for consistent ordering
-    const sortedActions = [...allActions].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    // Sort steps chronologically
+    const sortedSteps = [...allSteps].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
 
-    // Assign each action a chronological index for constant vertical spacing
-    const actionChronIndex = new Map<string, number>();
-    sortedActions.forEach((action, idx) => actionChronIndex.set(action.id, idx));
+    const stepChronIndex = new Map<string, number>();
+    sortedSteps.forEach((step, idx) => stepChronIndex.set(step.id, idx));
 
     // Constants for layout
-    const nodeHeight = 24;
-    const uniformNodeWidth = 90; // Fixed width for all nodes
-    const constantRowSpacing = 40; // Constant distance between each row
+    const uniformNodeWidth = 90;
+    const constantRowSpacing = 40;
     const marginX = 16;
     const marginY = 16;
-    const timeAxisWidth = 72; // Width reserved for the time axis on the left
+    const timeAxisWidth = 72;
 
-    // Use dagre for horizontal positioning (tree structure), but override Y with constant spacing
+    // Use dagre for horizontal positioning
     const g = new dagre.graphlib.Graph();
     g.setGraph({
       rankdir: "TB",
@@ -947,56 +986,69 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     });
     g.setDefaultEdgeLabel(() => ({}));
 
-    for (const action of allActions) {
-      g.setNode(action.id, { width: uniformNodeWidth, height: nodeHeight });
+    for (const step of allSteps) {
+      const lines = this.getStepLines(step);
+      const nodeHeight = Math.max(24, lines.length * 18);
+      g.setNode(step.id, { width: uniformNodeWidth, height: nodeHeight });
     }
 
-    const actionIds = new Set(allActions.map(a => a.id));
-    for (const action of allActions) {
-      if (action.parentId && actionIds.has(action.parentId)) {
-        g.setEdge(action.parentId, action.id);
+    const stepIds = new Set(allSteps.map(s => s.id));
+    for (const step of allSteps) {
+      if (step.parentId && stepIds.has(step.parentId)) {
+        g.setEdge(step.parentId, step.id);
       }
     }
 
     dagre.layout(g);
 
-    // Override Y positions with constant spacing based on chronological order
+    // Override Y positions with constant spacing
     const nodePositions = new Map<string, { x: number; y: number }>();
-    for (const action of allActions) {
-      const dagreNode = g.node(action.id);
-      const chronIdx = actionChronIndex.get(action.id) ?? 0;
-      const y = marginY + chronIdx * constantRowSpacing + nodeHeight / 2;
-      nodePositions.set(action.id, { x: dagreNode.x, y });
+    for (const step of allSteps) {
+      const dagreNode = g.node(step.id);
+      const chronIdx = stepChronIndex.get(step.id) ?? 0;
+      const y = marginY + chronIdx * constantRowSpacing + 12;
+      nodePositions.set(step.id, { x: dagreNode.x, y });
     }
 
     // Build TimelineNodes
-    this.timelineNodes = allActions.map(action => {
-      const pos = nodePositions.get(action.id)!;
+    this.timelineNodes = allSteps.map(step => {
+      const pos = nodePositions.get(step.id)!;
+      const lines = this.getStepLines(step);
+      const nodeHeight = Math.max(24, lines.length * 18);
+      const stepType: "initial" | "user" | "agent" =
+        step.id === AgentChatComponent.INITIAL_STEP_ID ? "initial" :
+        step.role === "user" ? "user" : "agent";
       return {
-        id: action.id,
-        timestamp: action.createdAt,
-        agentActionId: action.id,
-        isHead: action.id === this.currentHeadId,
-        isOnHeadPath: headPath.has(action.id),
-        actionLabel: this.getActionLabel(action),
-        operatorId: this.getActionOperatorId(action),
-        summary: action.summary,
-        actionType: action.actionType,
-        messageSource: action.messageSource,
+        id: step.id,
+        stepId: step.id,
+        timestamp: step.timestamp,
+        isHead: step.id === this.currentHeadId,
+        isOnHeadPath: headPath.has(step.id),
+        lines,
+        stepType,
+        messageSource: step.messageSource,
         x: pos.x,
         y: pos.y,
         width: uniformNodeWidth,
+        height: nodeHeight,
       };
     });
 
-    // Build time axis nodes (one per action, sorted chronologically)
-    this.timeAxisNodes = sortedActions.map((action, idx) => {
-      const y = marginY + idx * constantRowSpacing + nodeHeight / 2;
-      const d = new Date(action.createdAt);
+    // Build time axis nodes
+    this.timeAxisNodes = sortedSteps.map((step, idx) => {
+      const y = marginY + idx * constantRowSpacing + 12;
+      const d = new Date(step.timestamp);
       const hh = String(d.getHours()).padStart(2, "0");
       const mm = String(d.getMinutes()).padStart(2, "0");
       const ss = String(d.getSeconds()).padStart(2, "0");
-      return { y, timeLabel: `${hh}:${mm}:${ss}`, actionType: action.actionType, agentName: action.agentName };
+      const actionType = step.id === AgentChatComponent.INITIAL_STEP_ID ? "initial" :
+        step.role === "user" ? "user_request" : "agent_response";
+      return {
+        y,
+        timeLabel: `${hh}:${mm}:${ss}`,
+        actionType,
+        agentName: this.agentInfo?.name || "Agent",
+      };
     });
 
     // Build edges with SVG paths
@@ -1005,61 +1057,68 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       const source = nodeMap.get(e.v)!;
       const target = nodeMap.get(e.w)!;
       const isOnPath = headPath.has(e.v) && headPath.has(e.w);
-      const halfH = nodeHeight / 2;
+      const halfH = source.height / 2;
+      const targetHalfH = target.height / 2;
       const path =
         source.x === target.x
-          ? `M ${source.x} ${source.y + halfH} L ${target.x} ${target.y - halfH}`
-          : `M ${source.x} ${source.y + halfH} C ${source.x} ${(source.y + target.y) / 2}, ${target.x} ${(source.y + target.y) / 2}, ${target.x} ${target.y - halfH}`;
+          ? `M ${source.x} ${source.y + halfH} L ${target.x} ${target.y - targetHalfH}`
+          : `M ${source.x} ${source.y + halfH} C ${source.x} ${(source.y + target.y) / 2}, ${target.x} ${(source.y + target.y) / 2}, ${target.x} ${target.y - targetHalfH}`;
       return { sourceId: e.v, targetId: e.w, path, isOnHeadPath: isOnPath };
     });
 
     // Compute total tree canvas dimensions
     const maxX = Math.max(...this.timelineNodes.map(n => n.x + n.width / 2), 200);
     const maxY = this.timeAxisNodes.length > 0
-      ? this.timeAxisNodes[this.timeAxisNodes.length - 1].y + nodeHeight
+      ? this.timeAxisNodes[this.timeAxisNodes.length - 1].y + 24
       : 100;
     this.treeCanvasWidth = Math.max(200, maxX + marginX);
     this.treeHeight = maxY + marginY;
   }
 
-  /** Extract the primary operator ID (or summary text for non-tool actions). */
-  private getActionOperatorId(action: AgentAction): string {
-    if (action.actionType === "initial") return "";
-    if (action.actionType === "user_request" || action.actionType === "agent_response") {
-      return action.summary;
+  /** Get display lines for a step in the timeline. */
+  private getStepLines(step: ReActStep): string[] {
+    if (step.id === AgentChatComponent.INITIAL_STEP_ID) return ["Ready"];
+    if (step.role === "user") {
+      return [step.messageSource === "feedback" ? "Feedback" : "Input Task"];
     }
-    return (
-      action.operations.add?.operatorIds?.[0] ||
-      action.operations.execute?.operatorIds?.[0] ||
-      action.operations.modify?.operatorIds?.[0] ||
-      action.operations.delete?.operatorIds?.[0] ||
-      "unknown"
-    );
+    if (step.toolCalls && step.toolCalls.length > 0) {
+      return step.toolCalls.map((tc: any) => {
+        const opId = tc.input?.operatorId || "";
+        const toolLabel = this.getToolLabel(tc.toolName);
+        return opId ? `${toolLabel} ${opId}` : toolLabel;
+      });
+    }
+    if (step.isEnd) return ["Task Done"];
+    return ["Thinking..."];
   }
 
-  /** Derive a short label from an agent action. */
-  private getActionLabel(action: AgentAction): string {
-    if (action.actionType === "user_request") return "User";
-    if (action.actionType === "agent_response") return "Agent";
-    if (action.actionType === "initial") return "Ready";
-    if (action.operations.add?.operatorIds?.length) return "Add";
-    if (action.operations.delete?.operatorIds?.length) return "Delete";
-    if (action.operations.execute?.operatorIds?.length) return "Execute";
-    if (action.operations.modify?.operatorIds?.length) return "Modify";
-    return "Action";
+  /** Get short label for a tool name. */
+  private getToolLabel(toolName: string): string {
+    switch (toolName) {
+      case "addOperator":
+      case "createOrModifyOperator":
+        return "Add";
+      case "modifyOperator":
+        return "Modify";
+      case "deleteFromWorkflow":
+        return "Delete";
+      case "executeOperator":
+        return "Execute";
+      default:
+        return toolName;
+    }
   }
 
   /**
    * Handle click on a timeline node.
-   * Checkout to that action (move HEAD). The backend broadcasts a headChange WS message
-   * which includes the workflow content — the frontend renders whatever the agent service sends.
+   * Checkout to that step (move HEAD). The backend broadcasts a headChange WS message
+   * which includes the workflow content.
    */
   public onTimelineNodeClick(node: TimelineNode): void {
-    // Clear any existing diff when switching actions
-    this.agentActionService.clearDiff();
+    this.clearHoverDiff();
 
-    this.copilotManagerService.checkoutAction(this.agentInfo.id, node.agentActionId).subscribe({
-      next: () => console.log(`[Timeline] Checked out action ${node.agentActionId}`),
+    this.copilotManagerService.checkoutStep(this.agentInfo.id, node.stepId).subscribe({
+      next: () => console.log(`[Timeline] Checked out step ${node.stepId}`),
       error: err => console.error("[Timeline] Checkout failed:", err),
     });
   }
@@ -1748,8 +1807,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Scroll to a specific step in the chat by messageId and stepId.
    */
   private scrollToStep(messageId: string, stepId: number): void {
-    // Find the step index in agentResponses
-    const stepIndex = this.agentResponses.findIndex(step => step.messageId === messageId && step.stepId === stepId);
+    // Find the step index in visibleSteps
+    const stepIndex = this.visibleSteps.findIndex(step => step.messageId === messageId && step.stepId === stepId);
 
     if (stepIndex >= 0) {
       this.scrollToMessage(stepIndex);

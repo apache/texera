@@ -68,6 +68,18 @@ export interface ReActStep {
   inputMessages?: any[];
   // Map from tool call index to operator access information
   operatorAccess?: Map<number, ToolOperatorAccess>;
+
+  // Versioning fields:
+  /** Unique step ID string for tree references */
+  id: string;
+  /** Parent step ID — forms the version tree */
+  parentId?: string;
+  /** Source of the user message: "chat" or "feedback" */
+  messageSource?: string;
+  /** Workflow state before this step executed */
+  beforeWorkflowContent?: any;
+  /** Workflow state after this step executed */
+  afterWorkflowContent?: any;
 }
 
 /**
