@@ -18,7 +18,7 @@
  */
 
 /**
- * No-action-detail filter — builds the model's context from pre-serialized
+ * Context assembler — builds the model's context from pre-serialized
  * historical interactions and a DAG summary of the current workflow state.
  *
  * Returns: [...historicalInteractions, dagSummaryMessage]
@@ -34,16 +34,17 @@ import type { OperatorPredicate } from "../types/workflow";
  * @param historicalInteractions - Pre-serialized interaction summaries (user-type messages)
  * @param workflowState          - Live workflow state (matches HEAD)
  * @param operatorExecutionResults - Map of operatorId → formatted result text
- * @param removeProperties        - If true, strip operator properties from the summary (default: true)
+ * @param useRedact               - If true, strip operator properties from the summary
+ *                                  (properties are always shown for operators with execution errors)
  * @returns ModelMessage array: [...historicalInteractions, dagSummary]
  */
-export function redactActionDetails(
+export function assembleContext(
   historicalInteractions: ModelMessage[],
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
-  removeProperties: boolean = true
+  useRedact: boolean = false
 ): ModelMessage[] {
-  const dagSummary = serializeDag(workflowState, operatorExecutionResults, removeProperties);
+  const dagSummary = serializeDag(workflowState, operatorExecutionResults, useRedact);
 
   const result: ModelMessage[] = [...historicalInteractions];
   if (dagSummary) {
@@ -51,8 +52,8 @@ export function redactActionDetails(
   }
 
   console.log(
-    `[NoActionDetailFilter] Built context: ${result.length} messages ` +
-      `(${historicalInteractions.length} interactions, ${operatorExecutionResults.size} with results)`
+    `[ContextAssembler] Built context: ${result.length} messages ` +
+      `(${historicalInteractions.length} interactions, ${operatorExecutionResults.size} with results, useRedact: ${useRedact})`
   );
 
   return result;
@@ -66,16 +67,19 @@ function appendOperatorEntry(
   index: number,
   op: OperatorPredicate,
   execResult: string | undefined,
-  removeProperties: boolean
+  useRedact: boolean
 ): void {
   const summary = op.customDisplayName || op.operatorID;
   const hasError = execResult !== undefined && execResult.includes("[ERROR]");
+
+  // Show properties when redaction is off, or when the operator has an execution error
+  const showProperties = !useRedact || hasError;
 
   lines.push("");
   lines.push(`[${index}] Created ${op.operatorType} Operator: ${op.operatorID}`);
   lines.push(`  Summary: ${summary}`);
 
-  if (!removeProperties) {
+  if (showProperties) {
     const props = op.operatorProperties;
     if (props && Object.keys(props).length > 0) {
       lines.push(`  Properties:`);
@@ -85,11 +89,6 @@ function appendOperatorEntry(
           lines.push(`    - ${key}: ${valueStr}`);
         }
       }
-    }
-  } else if (hasError) {
-    const code = op.operatorProperties?.code;
-    if (code) {
-      lines.push(`  Code: ${code}`);
     }
   }
 
@@ -107,12 +106,12 @@ function appendOperatorEntry(
 
 /**
  * Serialize the workflow into a compact text DAG summary.
- * No longer needs creationOrder — uses topological order of operators.
+ * Uses topological order of operators.
  */
 function serializeDag(
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
-  removeProperties: boolean
+  useRedact: boolean
 ): string | null {
   const allOperators = workflowState.getAllOperators();
   if (allOperators.length === 0) return null;
@@ -152,7 +151,7 @@ function serializeDag(
 
   let index = 1;
   for (const op of sortedOps) {
-    appendOperatorEntry(lines, index, op, operatorExecutionResults.get(op.operatorID), removeProperties);
+    appendOperatorEntry(lines, index, op, operatorExecutionResults.get(op.operatorID), useRedact);
     index++;
   }
 

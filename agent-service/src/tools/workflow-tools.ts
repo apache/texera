@@ -42,13 +42,7 @@ export interface ToolContext {
     maxOperatorResultCharLimit?: number;
     toolTimeoutMs?: number;
     executionTimeoutMs?: number;
-    optionalResultRetrieval?: boolean;
   };
-  /**
-   * Execute a specific operator and return formatted result.
-   * Available when execution is configured for the agent.
-   */
-  executeOperator?: (operatorId: string) => Promise<string>;
   /** Coordinates parallel tool calls with inter-operator dependencies */
   parallelCoordinator?: ParallelCallCoordinator;
 }

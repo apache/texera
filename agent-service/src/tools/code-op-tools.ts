@@ -333,24 +333,14 @@ Example: operatorId="filtered" (requires "customers" to exist)
   def process(customers) -> pd.DataFrame:
       return customers[customers['age'] > 18]
   # Creates link: customers-->filtered`,
-    inputSchema: (() => {
-      const baseFields = {
-        operatorId: z.string().describe(
-          "Unique operator name (valid Python variable). Other operators reference this as input parameter."
-        ),
-        code: z.string().describe("Python function: def load() or def process(...)"),
-        summary: z.string().optional().describe("Detailed summary of the operator behavior. For load() operators, include the filename(s) being loaded."),
-      };
-      return context?.settings?.optionalResultRetrieval
-        ? z.object({
-            ...baseFields,
-            retrieveResult: z.boolean().describe(
-              "If true, include execution result and metadata. Set false for full data loads or intermediate operators to save tokens."
-            ),
-          })
-        : z.object(baseFields);
-    })(),
-    execute: async (args: { operatorId: string; code: string; retrieveResult?: boolean; summary?: string }) => {
+    inputSchema: z.object({
+      operatorId: z.string().describe(
+        "Unique operator name (valid Python variable). Other operators reference this as input parameter."
+      ),
+      code: z.string().describe("Python function: def load() or def process(...)"),
+      summary: z.string().optional().describe("Detailed summary of the operator behavior. For load() operators, include the filename(s) being loaded."),
+    }),
+    execute: async (args: { operatorId: string; code: string; summary?: string }) => {
       const coordinator = context?.parallelCoordinator;
       try {
         const { operatorId, code, summary } = args;
@@ -487,17 +477,6 @@ Example: operatorId="filtered" (requires "customers" to exist)
             createdLinkPairs.length > 0 ? createdLinkPairs : undefined,
             deletedLinkPairs.length > 0 ? deletedLinkPairs : undefined
           );
-        }
-
-        // Always auto-execute
-        if (context?.executeOperator) {
-          const retrieveResult = args.retrieveResult ?? true;
-          const executionResult = await context.executeOperator(operatorId);
-          if (!retrieveResult && !executionResult.startsWith("[ERROR]")) {
-            resultMsg += "\nExecuted successfully.";
-          } else {
-            resultMsg += `\n\n${executionResult}`;
-          }
         }
 
         return createToolResult(resultMsg);

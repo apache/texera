@@ -83,8 +83,7 @@ import {
   type ExecutionConfig,
 } from "../tools/execution-tools";
 import { trimNonFrontierResults } from "./context-optimization";
-import { filterLatestOnlyMessages } from "./latest-only-filter";
-import { redactActionDetails } from "./no-action-detail-filter";
+import { assembleContext } from "./context-assembler";
 
 // ============================================================================
 // Constants
@@ -289,6 +288,31 @@ export class TexeraAgent {
   }
 
   // ============================================================================
+  // Execution Config
+  // ============================================================================
+
+  /**
+   * Build execution config from current delegate config and settings.
+   * Returns undefined if no delegate config (execution not available).
+   */
+  private buildExecutionConfig(): ExecutionConfig | undefined {
+    if (!this.delegateConfig) return undefined;
+    return {
+      userToken: this.delegateConfig.userToken,
+      workflowId: this.delegateConfig.workflowId,
+      computingUnitId: this.delegateConfig.computingUnitId,
+      maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
+      maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
+      serializationMode: this.settings.operatorResultSerializationMode,
+      executionTimeoutMs: this.settings.executionTimeoutMs,
+      cacheEnabled: this.settings.cacheEnabled,
+      executionBackend: this.settings.executionBackend,
+      noExecutionMetadata: this.settings.noExecutionMetadata,
+      carryMetadata: this.settings.carryMetadata,
+    };
+  }
+
+  // ============================================================================
   // Tool Creation
   // ============================================================================
 
@@ -304,45 +328,18 @@ export class TexeraAgent {
       }
     }
 
-    // Build execution config getter for auto-execute feature
     const getExecutionConfig = this.delegateConfig
-      ? (): ExecutionConfig => ({
-          userToken: this.delegateConfig!.userToken,
-          workflowId: this.delegateConfig!.workflowId,
-          computingUnitId: this.delegateConfig!.computingUnitId,
-          maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
-          maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
-          serializationMode: this.settings.operatorResultSerializationMode,
-          executionTimeoutMs: this.settings.executionTimeoutMs,
-          cacheEnabled: this.settings.cacheEnabled,
-          executionBackend: this.settings.executionBackend,
-          noExecutionMetadata: this.settings.noExecutionMetadata,
-          carryMetadata: this.settings.carryMetadata,
-        })
+      ? () => this.buildExecutionConfig()!
       : undefined;
 
-    // Build tool context
+    // Build tool context — execution is handled in post-step phase, not inside tools
     const context: ToolContext = {
       metadataStore: this.metadataStore,
       settings: {
         maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
         toolTimeoutMs: this.settings.toolTimeoutMs,
         executionTimeoutMs: this.settings.executionTimeoutMs,
-        optionalResultRetrieval: this.settings.optionalResultRetrieval,
       },
-      // Provide execution helper when execution is configured
-      executeOperator: getExecutionConfig
-        ? async (operatorId: string) => {
-            const result = await executeOperatorAndFormat(this.workflowState, getExecutionConfig(), operatorId, {
-              onResult: (opId, operatorInfo) => {
-                // Store raw OperatorInfo in versioned store at the current HEAD action
-                const actionId = this.agentActionManager.getHead();
-                this.operatorResultStore.set(opId, actionId, operatorInfo);
-              },
-            });
-            return result;
-          }
-        : undefined,
       // Coordinate parallel tool calls with inter-operator dependencies
       parallelCoordinator: this.settings.parallelToolCalls
         ? new ParallelCallCoordinator(this.settings.toolTimeoutMs)
@@ -601,8 +598,7 @@ export class TexeraAgent {
             const tr = step.toolResults?.[i];
             if (tr && !tr.isError) {
               const outputStr = typeof tr.output === "string" ? tr.output : String(tr.output ?? "");
-              const firstLine = outputStr.split("\n")[0];
-              lines.push(`    - ${tc.toolName}: ${firstLine}`);
+              lines.push(`    - ${tc.toolName}: ${outputStr}`);
             } else if (tr?.isError) {
               lines.push(`    - ${tc.toolName}: [ERROR]`);
             } else {
@@ -1030,21 +1026,11 @@ export class TexeraAgent {
               // Build historical interactions from HEAD path + current message
               const historicalInteractions = this.getHistoricalInteractions();
 
-              // Use redactActionDetails to combine historicalInteractions + DAG summary
-              const useRedact = this.settings.noActionDetail || this.settings.agentMode === AgentMode.GENERAL;
-              let processed: ModelMessage[];
-              if (useRedact) {
-                const removeProperties = this.settings.noActionDetail;
-                processed = redactActionDetails(historicalInteractions, this.workflowState, this.getFormattedResultsForDAG(), removeProperties);
-              } else {
-                // Without redact: use historical interactions + current messages (which contain tool calls/results from prior steps)
-                processed = [...historicalInteractions, ...currentMessages];
-              }
-
-              // latestOnly: removes whole tool-call/result pairs for stale operators
-              if (this.settings.latestOnly && !useRedact) {
-                processed = filterLatestOnlyMessages(processed, this.workflowState);
-              }
+              // Assemble context: historical interactions + DAG summary with execution results.
+              // useRedact controls whether operator properties are shown in the DAG
+              // (properties are always shown for operators with execution errors).
+              const useRedact = this.settings.noActionDetail;
+              let processed = assembleContext(historicalInteractions, this.workflowState, this.getFormattedResultsForDAG(), useRedact);
               // context optimization: trims execution result sections
               if (this.settings.enableContextOptimization) {
                 const effectiveDepth = this.settings.dynamicDepthEnabled
@@ -1130,6 +1116,46 @@ export class TexeraAgent {
               this.messageActionRange.set(messageId, { startActionId, endActionId: action.id });
             }
           }
+          // Post-step auto-execution: execute operators that were successfully added/modified
+          const execConfig = this.buildExecutionConfig();
+          if (execConfig && toolCalls && toolResults) {
+            const EXECUTE_AFTER_TOOLS = new Set([
+              TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR,
+              TOOL_NAME_CREATE_OR_MODIFY_OPERATOR,
+            ]);
+
+            for (let i = 0; i < toolCalls.length; i++) {
+              const tc = toolCalls[i];
+              const tr = toolResults[i];
+              if (!EXECUTE_AFTER_TOOLS.has(tc.toolName)) continue;
+
+              // Skip failed tool calls
+              const resultText = typeof tr?.output === "string" ? tr.output : String(tr?.output ?? "");
+              if (resultText.startsWith("[ERROR]")) continue;
+
+              const operatorId = (tc.input as any)?.operatorId;
+              if (!operatorId) continue;
+
+              try {
+                await executeOperatorAndFormat(
+                  this.workflowState,
+                  execConfig,
+                  operatorId,
+                  {
+                    abortSignal: this.abortController?.signal,
+                    onResult: (opId, operatorInfo) => {
+                      const actionId = this.agentActionManager.getHead();
+                      this.operatorResultStore.set(opId, actionId, operatorInfo);
+                    },
+                  }
+                );
+              } catch (e: any) {
+                // Non-fatal: log but don't fail the step
+                console.warn(`[PostStepExecution] Failed to execute ${operatorId}:`, e?.message || e);
+              }
+            }
+          }
+
           // Update before snapshot for next step
           beforeStepContent = afterStepContent;
 

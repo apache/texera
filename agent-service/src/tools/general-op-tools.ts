@@ -201,16 +201,6 @@ Examples:
           createdLinkPairs.length > 0 ? createdLinkPairs : undefined
         );
 
-        // Auto-execute the operator after adding
-        if (context?.executeOperator) {
-          const executionResult = await context.executeOperator(operator.operatorID);
-          if (executionResult.startsWith("[ERROR]")) {
-            resultMsg += `\n\n${executionResult}`;
-          } else {
-            resultMsg += `\n\n${executionResult}`;
-          }
-        }
-
         return createToolResult(resultMsg);
       } catch (error: any) {
         return createErrorResult(error.message || String(error));
@@ -339,12 +329,6 @@ Examples:
           createdLinkPairs.length > 0 ? createdLinkPairs : undefined,
           deletedLinkPairs.length > 0 ? deletedLinkPairs : undefined
         );
-
-        // Auto-execute the operator after modifying
-        if (context?.executeOperator) {
-          const executionResult = await context.executeOperator(args.operatorId);
-          resultMsg += `\n\n${executionResult}`;
-        }
 
         return createToolResult(resultMsg);
       } catch (error: any) {
