@@ -18,95 +18,151 @@
  */
 
 /**
- * Context assembler — builds the model's context from pre-serialized
- * historical interactions and a DAG summary of the current workflow state.
- *
- * Returns: [...historicalInteractions, dagSummaryMessage]
+ * Context assembler — builds the model's context as a single structured
+ * user message containing completed tasks, the ongoing task, and the
+ * current workflow DAG with execution results.
  */
 
 import type { ModelMessage } from "ai";
 import type { WorkflowState } from "../workflow/workflow-state";
 import type { OperatorPredicate } from "../types/workflow";
+import type { ReActStep } from "../types/agent";
 
 /**
- * Build the model context from historical interactions and current workflow state.
+ * Build the full model context as a single user message.
  *
- * @param historicalInteractions - Pre-serialized interaction summaries (user-type messages)
- * @param workflowState          - Live workflow state (matches HEAD)
+ * Layout:
+ *   # Completed Tasks
+ *   <task status="completed">...</task>
+ *   ...
+ *   # Ongoing Task
+ *   <task status="ongoing">...</task>
+ *   (instruction line)
+ *   # Current Workflow
+ *   <operator ...>...</operator>
+ *   <links>...</links>
+ *
+ * @param visibleSteps  - ReActSteps on the HEAD ancestor path (ordered root→HEAD)
+ * @param workflowState - Live workflow state
  * @param operatorExecutionResults - Map of operatorId → formatted result text
- * @param useRedact               - If true, strip operator properties from the summary
- *                                  (properties are always shown for operators with execution errors)
- * @returns ModelMessage array: [...historicalInteractions, dagSummary]
+ * @param useRedact     - If true, strip operator properties (except for errored operators)
+ * @returns Single-element ModelMessage array with the assembled context
  */
 export function assembleContext(
-  historicalInteractions: ModelMessage[],
+  visibleSteps: ReActStep[],
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
   useRedact: boolean = false
 ): ModelMessage[] {
-  const dagSummary = serializeDag(workflowState, operatorExecutionResults, useRedact);
-
-  const result: ModelMessage[] = [...historicalInteractions];
-  if (dagSummary) {
-    result.push({ role: "user", content: dagSummary });
+  // Group steps by messageId, preserving insertion order
+  const messageIds: string[] = [];
+  const stepsByMessage = new Map<string, ReActStep[]>();
+  for (const step of visibleSteps) {
+    let group = stepsByMessage.get(step.messageId);
+    if (!group) {
+      group = [];
+      stepsByMessage.set(step.messageId, group);
+      messageIds.push(step.messageId);
+    }
+    group.push(step);
   }
 
-  console.log(
-    `[ContextAssembler] Built context: ${result.length} messages ` +
-      `(${historicalInteractions.length} interactions, ${operatorExecutionResults.size} with results, useRedact: ${useRedact})`
-  );
+  const sections: string[] = [];
+  let completedCount = 0;
+  let hasOngoing = false;
 
-  return result;
-}
+  // Determine completed vs ongoing: a task is ongoing if none of its steps has isEnd=true
+  for (const msgId of messageIds) {
+    const steps = stepsByMessage.get(msgId)!;
+    // A task is completed when an agent step has isEnd=true (not user steps,
+    // which always have isEnd=true as they are single-step messages).
+    const isCompleted = steps.some(s => s.role === "agent" && s.isEnd);
 
-/**
- * Append a single operator entry to the DAG summary lines.
- */
-function appendOperatorEntry(
-  lines: string[],
-  index: number,
-  op: OperatorPredicate,
-  execResult: string | undefined,
-  useRedact: boolean
-): void {
-  const summary = op.customDisplayName || op.operatorID;
-  const hasError = execResult !== undefined && execResult.includes("[ERROR]");
-
-  // Show properties when redaction is off, or when the operator has an execution error
-  const showProperties = !useRedact || hasError;
-
-  lines.push("");
-  lines.push(`[${index}] Created ${op.operatorType} Operator: ${op.operatorID}`);
-  lines.push(`  Summary: ${summary}`);
-
-  if (showProperties) {
-    const props = op.operatorProperties;
-    if (props && Object.keys(props).length > 0) {
-      lines.push(`  Properties:`);
-      for (const [key, value] of Object.entries(props)) {
-        if (value !== undefined && value !== null && value !== "") {
-          const valueStr = typeof value === "string" ? value : JSON.stringify(value);
-          lines.push(`    - ${key}: ${valueStr}`);
-        }
+    if (isCompleted) {
+      if (completedCount === 0) {
+        sections.push("# Completed Tasks");
       }
+      sections.push(serializeTask(steps, "completed"));
+      completedCount++;
+    } else {
+      hasOngoing = true;
+      sections.push("");
+      sections.push("# Ongoing Task");
+      sections.push(serializeTask(steps, "ongoing"));
+      sections.push("");
+      sections.push("Above is user's request and the steps you already took. You as an assistant please keep working on solving user's request based on the progress of current workflow.");
     }
   }
 
-  if (execResult) {
-    lines.push("  Result:");
-    const indented = execResult
-      .split("\n")
-      .map(l => "  " + l)
-      .join("\n");
-    lines.push(indented);
-  } else {
-    lines.push("  Not yet executed.");
+  // --- Current Workflow ---
+  const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact);
+  if (dagSection) {
+    sections.push("");
+    sections.push("# Current Workflow");
+    sections.push(dagSection);
   }
+
+  const content = sections.join("\n");
+
+  console.log(
+    `[ContextAssembler] Built context: ${completedCount} completed tasks, ` +
+      `${hasOngoing ? 1 : 0} ongoing, ${operatorExecutionResults.size} operator results, useRedact: ${useRedact}`
+  );
+
+  return [{ role: "user", content }];
 }
 
+// ============================================================================
+// Task Serialization
+// ============================================================================
+
 /**
- * Serialize the workflow into a compact text DAG summary.
- * Uses topological order of operators.
+ * Serialize a task (one user message + its assistant steps) into XML-like format.
+ */
+function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): string {
+  const lines: string[] = [];
+  lines.push(`<task status="${status}">`);
+
+  const userStep = steps.find(s => s.role === "user");
+  const assistantSteps = steps.filter(s => s.role === "agent");
+
+  // User request
+  if (userStep) {
+    lines.push(`<user-request>`);
+    lines.push(userStep.content);
+    lines.push(`</user-request>`);
+  }
+
+  // Assistant steps
+  for (const step of assistantSteps) {
+    lines.push("");
+    lines.push(`<assistant-step${step.stepId}>`);
+    if (step.content) {
+      lines.push(`<thought>${step.content}</thought>`);
+    }
+    if (step.toolCalls && step.toolCalls.length > 0) {
+      for (let i = 0; i < step.toolCalls.length; i++) {
+        const tc = step.toolCalls[i];
+        const tr = step.toolResults?.[i];
+        const isError = tr?.isError;
+        const statusAttr = isError ? "failed" : "succeeded";
+        const outputStr = tr ? (typeof tr.output === "string" ? tr.output : String(tr.output ?? "")) : "";
+        lines.push(`<action tool="${tc.toolName}" status="${statusAttr}">${outputStr}</action>`);
+      }
+    }
+    lines.push(`</assistant-step${step.stepId}>`);
+  }
+
+  lines.push(`</task>`);
+  return lines.join("\n");
+}
+
+// ============================================================================
+// DAG Serialization
+// ============================================================================
+
+/**
+ * Serialize the workflow into XML-like operator entries with links.
  */
 function serializeDag(
   workflowState: WorkflowState,
@@ -116,9 +172,9 @@ function serializeDag(
   const allOperators = workflowState.getAllOperators();
   if (allOperators.length === 0) return null;
 
-  const lines: string[] = ["=== Current Workflow ==="];
+  const lines: string[] = [];
 
-  // Build topological ordering for consistent display
+  // Build topological ordering
   const allLinks = workflowState.getAllLinks();
   const opIds = new Set(allOperators.map(op => op.operatorID));
   const inDegree = new Map<string, number>();
@@ -144,18 +200,15 @@ function serializeDag(
     }
   }
 
-  // Sort operators by topological rank
   const sortedOps = [...allOperators].sort(
     (a, b) => (topoOrder.get(a.operatorID) ?? 0) - (topoOrder.get(b.operatorID) ?? 0)
   );
 
-  let index = 1;
   for (const op of sortedOps) {
-    appendOperatorEntry(lines, index, op, operatorExecutionResults.get(op.operatorID), useRedact);
-    index++;
+    lines.push(serializeOperator(op, operatorExecutionResults.get(op.operatorID), useRedact));
   }
 
-  // Append links section in topological order
+  // Links section
   if (allLinks.length > 0) {
     const sortedLinks = [...allLinks].sort((a, b) => {
       const srcA = topoOrder.get(a.source.operatorID) ?? 0;
@@ -165,11 +218,55 @@ function serializeDag(
     });
 
     lines.push("");
-    lines.push("Links:");
+    lines.push("<links>");
     for (const link of sortedLinks) {
-      lines.push(`  ${link.source.operatorID} --> ${link.target.operatorID}`);
+      lines.push(`${link.source.operatorID} --> ${link.target.operatorID}`);
+    }
+    lines.push("</links>");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Serialize a single operator entry.
+ */
+function serializeOperator(
+  op: OperatorPredicate,
+  execResult: string | undefined,
+  useRedact: boolean
+): string {
+  const hasError = execResult !== undefined && execResult.includes("[ERROR]");
+  const status = execResult
+    ? (hasError ? "failed" : "executed")
+    : "not-executed";
+
+  const summary = op.customDisplayName || op.operatorID;
+  const showProperties = !useRedact || hasError;
+
+  const lines: string[] = [];
+  lines.push(`<operator type="${op.operatorType}" id="${op.operatorID}" status="${status}">`);
+  lines.push(`  Summary: ${summary}`);
+
+  if (showProperties) {
+    const props = op.operatorProperties;
+    if (props && Object.keys(props).length > 0) {
+      lines.push(`  Properties:`);
+      for (const [key, value] of Object.entries(props)) {
+        if (value !== undefined && value !== null && value !== "") {
+          const valueStr = typeof value === "string" ? value : JSON.stringify(value);
+          lines.push(`    ${key}: ${valueStr}`);
+        }
+      }
     }
   }
 
+  if (execResult) {
+    lines.push(`  Result:`);
+    const indented = execResult.split("\n").map(l => "  " + l).join("\n");
+    lines.push(indented);
+  }
+
+  lines.push(`</operator>`);
   return lines.join("\n");
 }

@@ -508,82 +508,6 @@ export class TexeraAgent {
   }
 
   /**
-   * Get the historical interactions as ModelMessage[] for the current HEAD path.
-   *
-   * Walks the ancestor path, groups visible steps by messageId, serializes each group.
-   */
-  getHistoricalInteractions(): ModelMessage[] {
-    const visibleSteps = this.getVisibleReActSteps();
-
-    // Group steps by messageId preserving order
-    const messageGroups = new Map<string, ReActStep[]>();
-    for (const step of visibleSteps) {
-      let group = messageGroups.get(step.messageId);
-      if (!group) {
-        group = [];
-        messageGroups.set(step.messageId, group);
-      }
-      group.push(step);
-    }
-
-    const result: ModelMessage[] = [];
-    for (const [msgId, steps] of messageGroups) {
-      const text = this.serializeInteraction(msgId, steps);
-      result.push({ role: "user", content: text });
-    }
-    return result;
-  }
-
-  /**
-   * Serialize a single message's ReActSteps into a summary string.
-   */
-  private serializeInteraction(messageId: string, steps: ReActStep[]): string {
-    const isOngoing = messageId === this.currentMessageId;
-    const lines: string[] = [];
-
-    // Extract user task content first, then assistant steps
-    const userStep = steps.find(s => s.role === "user");
-    const assistantSteps = steps.filter(s => s.role !== "user");
-
-    // Task header
-    lines.push(`[Task: ${userStep?.content ?? ""}]`);
-
-    // Assistant steps (if any)
-    if (assistantSteps.length > 0) {
-      lines.push("The steps you as an assistant already took:");
-      for (const step of assistantSteps) {
-        lines.push(`[Assistant Step ${step.stepId}]`);
-        if (step.content) {
-          lines.push(`- thought: ${step.content}`);
-        }
-        if (step.toolCalls && step.toolCalls.length > 0) {
-          lines.push(`- actions:`);
-          for (let i = 0; i < step.toolCalls.length; i++) {
-            const tc = step.toolCalls[i];
-            const tr = step.toolResults?.[i];
-            if (tr && !tr.isError) {
-              const outputStr = typeof tr.output === "string" ? tr.output : String(tr.output ?? "");
-              lines.push(`    - ${tc.toolName}: ${outputStr}`);
-            } else if (tr?.isError) {
-              lines.push(`    - ${tc.toolName}: [ERROR]`);
-            } else {
-              lines.push(`    - ${tc.toolName}`);
-            }
-          }
-        }
-        lines.push(`[Step ${step.stepId} Finished]`);
-      }
-    }
-
-    // Footer: only for completed tasks
-    if (!isOngoing) {
-      lines.push("[Task Completed]");
-    }
-
-    return lines.join("\n");
-  }
-
-  /**
    * Checkout to a specific step: move HEAD, restore workflow state.
    * Returns false if the step doesn't exist.
    */
@@ -989,14 +913,12 @@ export class TexeraAgent {
         temperature: 0.2,
         stopWhen: stepCountIs(this.settings.maxSteps),
         prepareStep: ({ stepNumber, messages: currentMessages }) => {
-              // Build historical interactions from HEAD path + current message
-              const historicalInteractions = this.getHistoricalInteractions();
-
-              // Assemble context: historical interactions + DAG summary with execution results.
+              // Assemble context: completed tasks + ongoing task + current workflow DAG.
               // useRedact controls whether operator properties are shown in the DAG
               // (properties are always shown for operators with execution errors).
               const useRedact = this.settings.noActionDetail;
-              let processed = assembleContext(historicalInteractions, this.workflowState, this.getFormattedResultsForDAG(), useRedact);
+              const visibleSteps = this.getVisibleReActSteps();
+              let processed = assembleContext(visibleSteps, this.workflowState, this.getFormattedResultsForDAG(), useRedact);
               // context optimization: trims execution result sections
               if (this.settings.enableContextOptimization) {
                 const effectiveDepth = this.settings.dynamicDepthEnabled
