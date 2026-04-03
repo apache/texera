@@ -128,8 +128,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   // Current HEAD step ID in the version tree
   public currentHeadId: string | null = null;
 
-  // Hover diff state — tracks which operators had their expanded layout replaced with diff
-  private hoveredDiffOperatorIds: string[] = [];
+  // Hover diff state
   private currentHoverDiff: any = null;
 
   // System info modal state (with editing capabilities)
@@ -827,23 +826,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     );
     this.workflowVersionService.highlightOpVersionDiffSimple(diff, step.beforeWorkflowContent);
     this.currentHoverDiff = diff;
-
-    // For modified operators, render code diff
-    const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
-    if (paper && diff.modified?.length) {
-      for (const opId of diff.modified) {
-        const beforeOp = step.beforeWorkflowContent.operators?.find(
-          (o: OperatorPredicate) => o.operatorID === opId
-        );
-        const afterOp = step.afterWorkflowContent.operators?.find(
-          (o: OperatorPredicate) => o.operatorID === opId
-        );
-        if (beforeOp && afterOp) {
-          this.jointUIService.applyDiffLayout(paper, opId, beforeOp, afterOp);
-          this.hoveredDiffOperatorIds.push(opId);
-        }
-      }
-    }
   }
 
   /**
@@ -862,24 +844,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       this.currentHoverDiff = null;
     }
 
-    // Restore normal expanded layout for operators that had diff view
-    if (this.hoveredDiffOperatorIds.length > 0) {
-      const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
-      if (paper) {
-        for (const opId of this.hoveredDiffOperatorIds) {
-          try {
-            const graph = this.workflowActionService.getTexeraGraph();
-            const operator = graph.getOperator(opId);
-            if (operator) {
-              this.jointUIService.applyExpandedLayout(paper, opId, operator);
-            }
-          } catch {
-            // Operator may have been removed from graph (e.g., after checkout)
-          }
-        }
-      }
-      this.hoveredDiffOperatorIds = [];
-    }
   }
 
   // =====================
