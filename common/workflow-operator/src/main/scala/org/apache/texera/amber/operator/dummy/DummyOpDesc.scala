@@ -44,7 +44,7 @@ class DummyOpDesc extends LogicalOp with PortDescriptor {
           )
       }
     } else {
-      List(InputPort(PortIdentity(), allowMultiLinks = true))
+      List(InputPort())
     }
     val outputPortInfo = if (outputPorts != null) {
       outputPorts.zipWithIndex.map {
