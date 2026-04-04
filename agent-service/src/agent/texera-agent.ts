@@ -83,6 +83,7 @@ import {
 } from "../tools/execution-tools";
 import { trimNonFrontierResults } from "./context-optimization";
 import { assembleContext } from "./context-assembler";
+import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 
 // ============================================================================
 // Constants
@@ -912,13 +913,27 @@ export class TexeraAgent {
         tools: this.tools,
         temperature: 0.2,
         stopWhen: stepCountIs(this.settings.maxSteps),
-        prepareStep: ({ stepNumber, messages: currentMessages }) => {
+        prepareStep: async ({ stepNumber, messages: currentMessages }) => {
+              // In general mode, compile the workflow to get operator schemas and errors.
+              // This gives the LLM column-level type information for each operator.
+              let compilationResult: WorkflowCompilationResponse | null = null;
+              if (this.settings.agentMode === AgentMode.GENERAL && this.workflowState.getAllOperators().length > 0) {
+                try {
+                  const logicalPlan = this.workflowState.toLogicalPlan();
+                  compilationResult = await compileWorkflowAsync(logicalPlan);
+                } catch (e: any) {
+                  console.warn(`[TexeraAgent ${this.agentId}] Compilation failed, proceeding without schemas:`, e?.message || e);
+                }
+              }
+
               // Assemble context: completed tasks + ongoing task + current workflow DAG.
               // useRedact controls whether operator properties are shown in the DAG
               // (properties are always shown for operators with execution errors).
               const useRedact = this.settings.noActionDetail;
               const visibleSteps = this.getVisibleReActSteps();
-              let processed = assembleContext(visibleSteps, this.workflowState, this.getFormattedResultsForDAG(), useRedact);
+              let processed = assembleContext(
+                visibleSteps, this.workflowState, this.getFormattedResultsForDAG(), useRedact, compilationResult
+              );
               // context optimization: trims execution result sections
               if (this.settings.enableContextOptimization) {
                 const effectiveDepth = this.settings.dynamicDepthEnabled

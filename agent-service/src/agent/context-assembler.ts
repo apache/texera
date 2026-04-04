@@ -25,8 +25,10 @@
 
 import type { ModelMessage } from "ai";
 import type { WorkflowState } from "../workflow/workflow-state";
-import type { OperatorPredicate } from "../types/workflow";
+import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../types/workflow";
 import type { ReActStep } from "../types/agent";
+import type { WorkflowCompilationResponse, WorkflowFatalError } from "../api/compile-api";
+import { extractOperatorInputPortSchemaMap } from "../workflow/workflow-util";
 
 /**
  * Build the full model context as a single user message.
@@ -46,13 +48,15 @@ import type { ReActStep } from "../types/agent";
  * @param workflowState - Live workflow state
  * @param operatorExecutionResults - Map of operatorId → formatted result text
  * @param useRedact     - If true, strip operator properties (except for errored operators)
+ * @param compilationResult - Optional compilation response with output schemas and errors (general mode only)
  * @returns Single-element ModelMessage array with the assembled context
  */
 export function assembleContext(
   visibleSteps: ReActStep[],
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
-  useRedact: boolean = false
+  useRedact: boolean = false,
+  compilationResult?: WorkflowCompilationResponse | null
 ): ModelMessage[] {
   // Group steps by messageId, preserving insertion order
   const messageIds: string[] = [];
@@ -95,7 +99,7 @@ export function assembleContext(
   }
 
   // --- Current Workflow ---
-  const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact);
+  const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact, compilationResult);
   if (dagSection) {
     sections.push("");
     sections.push("# Current Workflow");
@@ -167,7 +171,8 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
 function serializeDag(
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
-  useRedact: boolean
+  useRedact: boolean,
+  compilationResult?: WorkflowCompilationResponse | null
 ): string | null {
   const allOperators = workflowState.getAllOperators();
   if (allOperators.length === 0) return null;
@@ -204,8 +209,22 @@ function serializeDag(
     (a, b) => (topoOrder.get(a.operatorID) ?? 0) - (topoOrder.get(b.operatorID) ?? 0)
   );
 
+  // Pre-compute per-operator input schemas from compilation output schemas + links
+  const outputSchemas = compilationResult?.operatorOutputSchemas ?? {};
+  const compilationErrors = compilationResult?.operatorErrors ?? {};
+
   for (const op of sortedOps) {
-    lines.push(serializeOperator(op, operatorExecutionResults.get(op.operatorID), useRedact));
+    const inputSchemaMap = extractOperatorInputPortSchemaMap(op.operatorID, op, outputSchemas, allLinks);
+    const outputSchemaMap = outputSchemas[op.operatorID];
+    const compilationError = compilationErrors[op.operatorID];
+    lines.push(serializeOperator(
+      op,
+      operatorExecutionResults.get(op.operatorID),
+      useRedact,
+      inputSchemaMap,
+      outputSchemaMap,
+      compilationError,
+    ));
   }
 
   // Links section
@@ -234,7 +253,10 @@ function serializeDag(
 function serializeOperator(
   op: OperatorPredicate,
   execResult: string | undefined,
-  useRedact: boolean
+  useRedact: boolean,
+  inputSchemaMap?: OperatorPortSchemaMap,
+  outputSchemaMap?: OperatorPortSchemaMap,
+  compilationError?: WorkflowFatalError,
 ): string {
   const hasError = execResult !== undefined && execResult.includes("[ERROR]");
   const status = execResult
@@ -247,6 +269,15 @@ function serializeOperator(
   const lines: string[] = [];
   lines.push(`<operator type="${op.operatorType}" id="${op.operatorID}" status="${status}">`);
   lines.push(`  Summary: ${summary}`);
+
+  // Input schemas (derived from upstream operators' output schemas)
+  if (inputSchemaMap) {
+    for (const [portId, schema] of Object.entries(inputSchemaMap)) {
+      if (schema) {
+        lines.push(`  Input Schema (port ${parsePortIndex(portId)}): ${formatSchema(schema)}`);
+      }
+    }
+  }
 
   if (showProperties) {
     const props = op.operatorProperties;
@@ -261,6 +292,19 @@ function serializeOperator(
     }
   }
 
+  // Output schema (from compilation) — assume single output port
+  if (outputSchemaMap) {
+    const firstSchema = Object.values(outputSchemaMap).find(s => s !== undefined);
+    if (firstSchema) {
+      lines.push(`  Output Schema: ${formatSchema(firstSchema)}`);
+    }
+  }
+
+  // Compilation error
+  if (compilationError) {
+    lines.push(`  Compilation Error: ${compilationError.message}`);
+  }
+
   if (execResult) {
     lines.push(`  Result:`);
     const indented = execResult.split("\n").map(l => "  " + l).join("\n");
@@ -269,4 +313,21 @@ function serializeOperator(
 
   lines.push(`</operator>`);
   return lines.join("\n");
+}
+
+/**
+ * Format a port schema as a compact bracket notation.
+ * Example: [name: string, age: integer, city: string]
+ */
+function formatSchema(schema: PortSchema): string {
+  const attrs = schema.map(a => `${a.attributeName}: ${a.attributeType}`);
+  return `[${attrs.join(", ")}]`;
+}
+
+/**
+ * Extract the port index from a serialized port identity (e.g. "0_false" → "0").
+ */
+function parsePortIndex(portId: string): string {
+  const idx = portId.indexOf("_");
+  return idx >= 0 ? portId.substring(0, idx) : portId;
 }
