@@ -86,6 +86,14 @@ object ResultExportService {
         "http://localhost:9092/api/dataset/did/upload"
       )
       .trim
+
+  lazy val fileServiceCreateDatasetVersionEndpoint: String =
+    sys.env
+      .getOrElse(
+        EnvironmentalVariable.ENV_FILE_SERVICE_CREATE_DATASET_VERSION_ENDPOINT,
+        "http://localhost:9092/api/dataset/did/version/create"
+      )
+      .trim
 }
 
 class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: Int) {
@@ -110,6 +118,18 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       } catch {
         case ex: Exception =>
           errorMessages += s"Error exporting operator $op: ${ex.getMessage}"
+      }
+    }
+
+    // After all operators are uploaded, commit each dataset as a new version
+    if (successMessages.nonEmpty) {
+      request.datasetIds.foreach { did =>
+        try {
+          commitDatasetVersion(user, did, s"Export from workflow ${request.workflowName}")
+        } catch {
+          case ex: Exception =>
+            errorMessages += s"Failed to create version for dataset $did: ${ex.getMessage}"
+        }
       }
     }
 
@@ -568,6 +588,50 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       } finally {
         if (connection != null) connection.disconnect()
       }
+    }
+  }
+
+  /**
+    * Commit staged files in a dataset as a new version by calling the file service.
+    */
+  private def commitDatasetVersion(
+      user: User,
+      did: Int,
+      versionName: String
+  ): Unit = {
+    val createVersionUrl = s"$fileServiceCreateDatasetVersionEndpoint"
+      .replace("did", did.toString)
+
+    var connection: HttpURLConnection = null
+    try {
+      val url = new URL(createVersionUrl)
+      connection = url.openConnection().asInstanceOf[HttpURLConnection]
+      connection.setDoOutput(true)
+      connection.setRequestMethod("POST")
+      connection.setRequestProperty("Content-Type", "text/plain")
+      connection.setRequestProperty(
+        "Authorization",
+        s"Bearer ${JwtAuth.jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES))}"
+      )
+
+      val outputStream = connection.getOutputStream
+      outputStream.write(versionName.getBytes(StandardCharsets.UTF_8))
+      outputStream.close()
+
+      val responseCode = connection.getResponseCode
+      if (responseCode != HttpURLConnection.HTTP_OK) {
+        throw new RuntimeException(
+          s"Failed to create dataset version. Server responded with: $responseCode"
+        )
+      }
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(
+          s"Error creating version for dataset $did: ${e.getMessage}",
+          e
+        )
+    } finally {
+      if (connection != null) connection.disconnect()
     }
   }
 
