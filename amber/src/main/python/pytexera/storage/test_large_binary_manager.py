@@ -27,9 +27,12 @@ class TestLargeBinaryManager:
         """Initialize StorageConfig for tests."""
         if not StorageConfig._initialized:
             StorageConfig.initialize(
+                catalog_type="postgres",
                 postgres_uri_without_scheme="localhost:5432/test",
                 postgres_username="test",
                 postgres_password="test",
+                rest_catalog_uri="http://localhost:8181/catalog/",
+                rest_catalog_warehouse_name="texera",
                 table_result_namespace="test",
                 directory_path="/tmp/test",
                 commit_batch_size=1000,

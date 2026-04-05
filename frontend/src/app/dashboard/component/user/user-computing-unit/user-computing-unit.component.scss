@@ -17,25 +17,13 @@
  * under the License.
  */
 
-import {
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity,
-} from "./proto/org/apache/texera/amber/core/virtualidentity";
-import { PhysicalLink } from "./proto/org/apache/texera/amber/core/workflow";
+@import "../../dashboard.component.scss";
+@import "../../section-style";
+@import "../../button-style";
 
-export interface PhysicalOp {
-  id: PhysicalOpIdentity;
-  workflowId: WorkflowIdentity;
-  executionId: ExecutionIdentity;
-  parallelizable: boolean;
-  isOneToManyOp: boolean;
-  suggestedWorkerNum: number | null;
-  sourceOperator: boolean;
-  sinkOperator: boolean;
-}
-
-export interface PhysicalPlan {
-  operators: Set<PhysicalOp>;
-  links: Set<PhysicalLink>;
+.subsection-grid-container {
+  min-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
 }
