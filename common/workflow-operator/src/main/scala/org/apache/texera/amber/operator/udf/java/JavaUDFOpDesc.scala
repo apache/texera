@@ -143,7 +143,7 @@ class JavaUDFOpDesc extends LogicalOp {
           InputPort(
             PortIdentity(idx),
             displayName = portDesc.displayName,
-            allowMultiLinks = portDesc.allowMultiInputs,
+            disallowMultiLinks = portDesc.disallowMultiInputs,
             dependencies = portDesc.dependencies.map(idx => PortIdentity(idx))
           )
       }
