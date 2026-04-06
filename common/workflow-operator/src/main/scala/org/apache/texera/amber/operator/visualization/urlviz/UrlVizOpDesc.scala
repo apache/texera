@@ -78,7 +78,7 @@ class UrlVizOpDesc extends LogicalOp {
     OperatorInfo(
       "URL Visualizer",
       "Render the content of URL",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
     )
 
 }

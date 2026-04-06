@@ -60,7 +60,7 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Line Chart",
       "View the result in line chart",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

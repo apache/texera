@@ -57,7 +57,7 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Word Cloud",
       "Generate word cloud for   texts",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

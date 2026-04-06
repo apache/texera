@@ -81,7 +81,7 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Time Series Plot",
       "Visualize trends and patterns over time.",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
     )
 
   override def generatePythonCode(): String = {

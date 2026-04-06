@@ -66,7 +66,7 @@ class DendrogramOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Dendrogram",
       "Visualize data in a Dendrogram",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
     )
 
   private def createDendrogram(): PythonTemplateBuilder = {

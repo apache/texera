@@ -67,7 +67,7 @@ class HtmlVizOpDesc extends LogicalOp {
     OperatorInfo(
       "HTML Visualizer",
       "Render the result of HTML content",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
     )
 
 }

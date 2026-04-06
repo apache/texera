@@ -72,7 +72,7 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Icicle Chart",
       "Visualize hierarchical data from root to leaves",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
     )
 
   private def getIcicleAttributesInPython: String =

@@ -67,7 +67,7 @@ class StripChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Strip Chart",
       "Visualize distribution of data points as a strip plot",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
     )
 
   override def generatePythonCode(): String = {

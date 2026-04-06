@@ -73,7 +73,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = "Ternary Plot",
       operatorDescription = "Points are graphed on a Ternary Plot using 3 specified data fields",
-      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
+      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
     )
 
   override def getOutputSchemas(
