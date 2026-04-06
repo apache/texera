@@ -49,14 +49,16 @@ export class GmailService {
   }
 
   public notifyUnauthorizedLogin(userEmail: string, affiliation: string, reason: string): void {
-    this.http.post(`${AppSettings.getApiEndpoint()}/gmail/notify-unauthorized`, { receiver: userEmail, affiliation, reason }).subscribe({
-      next: () => this.notificationService.success("An admin has been notified about your account request."),
-      error: (error: unknown) => {
-        if (error instanceof HttpErrorResponse) {
-          this.notificationService.error("Failed to notify admin about your account request.");
-          console.error("Notify error:", error.error);
-        }
-      },
-    });
+    this.http
+      .post(`${AppSettings.getApiEndpoint()}/gmail/notify-unauthorized`, { receiver: userEmail, affiliation, reason })
+      .subscribe({
+        next: () => this.notificationService.success("An admin has been notified about your account request."),
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            this.notificationService.error("Failed to notify admin about your account request.");
+            console.error("Notify error:", error.error);
+          }
+        },
+      });
   }
 }

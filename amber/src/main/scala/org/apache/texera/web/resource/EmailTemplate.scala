@@ -42,15 +42,16 @@ object EmailTemplate {
     * @return an EmailMessage ready to be sent
     */
   def userRegistrationNotification(
-                                    receiverEmail: String,
-                                    userEmail: Option[String],
-                                    affiliation: Option[String],
-                                    reason: Option[String],
-                                    toAdmin: Boolean
-                                  ): EmailMessage = {
+      receiverEmail: String,
+      userEmail: Option[String],
+      affiliation: Option[String],
+      reason: Option[String],
+      toAdmin: Boolean
+  ): EmailMessage = {
     if (toAdmin) {
       val subject =
-        s"New Account Request Pending Approval${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
+        s"New Account Request Pending Approval${if (deployment.nonEmpty) s" for [$deployment]"
+        else ""}"
       val content =
         s"""
            |Hello Admin,
