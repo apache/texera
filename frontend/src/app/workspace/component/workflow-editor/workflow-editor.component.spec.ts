@@ -501,7 +501,7 @@ describe("WorkflowEditorComponent", () => {
           mockUnionPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBeFalse();
     });
 
     it(
