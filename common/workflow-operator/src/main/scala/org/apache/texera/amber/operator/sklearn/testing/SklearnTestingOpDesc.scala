@@ -91,7 +91,7 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor {
         InputPort(
           PortIdentity(),
           "model",
-          dependencies = List(PortIdentity(1)),
+          dependencies = List(PortIdentity(1))
         ),
         InputPort(PortIdentity(1), "data")
       ),
