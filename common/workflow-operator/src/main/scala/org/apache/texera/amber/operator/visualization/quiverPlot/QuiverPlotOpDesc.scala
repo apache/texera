@@ -76,7 +76,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Quiver Plot",
       "Visualize vector data in a Quiver Plot",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   //data cleaning for missing value

@@ -53,7 +53,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = "Volcano Plot",
       operatorDescription = "Displays statistical significance versus effect size",
-      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
+      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   override def getOutputSchemas(

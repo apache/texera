@@ -63,7 +63,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Gauge Chart",
       "Visualize a single value with a radial gauge chart, showing progress towards a goal with optional steps, threshold, and delta.",
-      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
   private val mapper = new ObjectMapper()

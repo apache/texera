@@ -71,7 +71,7 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Pie Chart",
       "Visualize data in a Pie Chart",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

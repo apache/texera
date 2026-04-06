@@ -62,7 +62,7 @@ class HeatMapOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Heatmap",
       "Visualize data in a HeatMap Chart",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   private def createHeatMap(): PythonTemplateBuilder = {

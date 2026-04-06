@@ -77,7 +77,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hierarchy Chart",
       "Visualize data in hierarchy",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   private def getHierarchyAttributesInPython: String =

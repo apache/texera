@@ -84,7 +84,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Filled Area Plot",
       "Visualize data in filled area plot",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

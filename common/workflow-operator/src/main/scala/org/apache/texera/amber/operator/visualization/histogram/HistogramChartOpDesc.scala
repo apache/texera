@@ -63,7 +63,7 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Histogram",
       "Visualize data in a Histogram Chart",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

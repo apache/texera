@@ -50,7 +50,7 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Image Visualizer",
       "visualize image content",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
 
   def createBinaryData(): PythonTemplateBuilder = {

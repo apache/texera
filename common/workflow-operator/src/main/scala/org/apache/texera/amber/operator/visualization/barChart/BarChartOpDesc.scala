@@ -88,7 +88,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Bar Chart",
       "Visualize data in a Bar Chart",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

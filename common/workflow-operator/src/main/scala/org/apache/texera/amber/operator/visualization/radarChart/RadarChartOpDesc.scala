@@ -72,7 +72,7 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Radar Chart",
       "Visualize data in a Radar Chart",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   override def getOutputSchemas(
