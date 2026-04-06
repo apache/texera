@@ -22,9 +22,10 @@ package org.apache.texera.amber.operator.visualization.continuousErrorBands
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -60,6 +61,8 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
       "Continuous Error Bands",
       "Visualize error or uncertainty along a continuous line",
       OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
