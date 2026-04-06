@@ -300,8 +300,36 @@ object LakeFSStorageClient {
       .sortBy(_.getCreationDate)(Ordering[java.lang.Long].reverse) // Sort in descending order
   }
 
+  /**
+    * Fetches all pages from a paginated LakeFS API call.
+    *
+    * @param fetch A function that takes a pagination cursor and returns (results, pagination).
+    * @return All results across all pages.
+    */
+  private def fetchAllPages[T](
+      fetch: String => (java.util.List[T], Pagination)
+  ): List[T] = {
+    val allResults = scala.collection.mutable.ListBuffer[T]()
+    var hasMore = true
+    var after = ""
+
+    while (hasMore) {
+      val (results, pagination) = fetch(after)
+      allResults ++= results.asScala
+      hasMore = pagination.getHasMore
+      if (hasMore) after = pagination.getNextOffset
+    }
+
+    allResults.toList
+  }
+
   def retrieveObjectsOfVersion(repoName: String, commitHash: String): List[ObjectStats] = {
-    objectsApi.listObjects(repoName, commitHash).execute().getResults.asScala.toList
+    fetchAllPages[ObjectStats] { after =>
+      val request = objectsApi.listObjects(repoName, commitHash).amount(1000)
+      if (after.nonEmpty) request.after(after)
+      val response = request.execute()
+      (response.getResults, response.getPagination)
+    }
   }
 
   def retrieveRepositorySize(repoName: String, commitHash: String = ""): Long = {
@@ -334,12 +362,12 @@ object LakeFSStorageClient {
     * @return List of uncommitted object stats.
     */
   def retrieveUncommittedObjects(repoName: String): List[Diff] = {
-    branchesApi
-      .diffBranch(repoName, branchName)
-      .execute()
-      .getResults
-      .asScala
-      .toList
+    fetchAllPages[Diff] { after =>
+      val request = branchesApi.diffBranch(repoName, branchName).amount(1000)
+      if (after.nonEmpty) request.after(after)
+      val response = request.execute()
+      (response.getResults, response.getPagination)
+    }
   }
 
   def createCommit(repoName: String, branch: String, commitMessage: String): Commit = {
