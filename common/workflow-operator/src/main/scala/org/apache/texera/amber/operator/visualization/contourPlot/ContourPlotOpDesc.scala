@@ -77,12 +77,10 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Contour Plot",
       "Displays terrain or gradient variations in a Contour Plot",
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def generatePythonCode(): String = {

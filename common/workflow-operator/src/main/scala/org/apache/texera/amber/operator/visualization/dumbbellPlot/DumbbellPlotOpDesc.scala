@@ -97,12 +97,10 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Dumbbell Plot",
       "Visualize data in a Dumbbell Plots. A dumbbell plots (also known as a lollipop chart) is typically used to compare two distinct values or time points for the same entity.",
       OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyDumbbellLineFigure(): PythonTemplateBuilder = {
