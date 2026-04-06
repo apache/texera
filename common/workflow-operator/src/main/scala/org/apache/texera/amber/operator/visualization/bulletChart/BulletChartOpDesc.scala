@@ -22,10 +22,9 @@ package org.apache.texera.amber.operator.visualization.bulletChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -72,8 +71,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
       """Visualize data using a Bullet Chart that shows a primary quantitative bar and delta indicator.
         |Optional elements such as qualitative ranges (steps) and a performance threshold are displayed only when provided.""".stripMargin,
       OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def generatePythonCode(): String = {
