@@ -16,16 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Bootstrap script to start Lakekeeper and create warehouse (idempotent).
-# This script does four things:
-#   1. Starts Lakekeeper if it's not already running
-#   2. Bootstraps the Lakekeeper server (creates default project, idempotent)
-#   3. Checks if MinIO bucket exists (and creates it if needed)
-#   4. Checks and creates the warehouse if it doesn't exist
-#
-#
-# Usage:
-#   ./bin/bootstrap-lakekeeper.sh
+# Prerequisites:
+#   - Already know how to setup Texera
+#   - macOS or Linux (Lakekeeper does not publish Windows binaries)
+#   - A running PostgreSQL instance (the same one Texera uses is fine)
+#   - An accessible S3 bucket
+#   - The AWS CLI (awscli) installed
 
 set -e
 
@@ -33,16 +29,13 @@ set -e
 # User Configuration - Edit the values below before running this script
 # ==============================================================================
 #
-# IMPORTANT: This script does NOT read storage.conf. The Java/Scala backend
-# reads common/config/src/main/resources/storage.conf directly, but this bash
-# script only reads the variables below. If you change values in storage.conf,
-# you MUST also update the matching defaults here (or export the corresponding
-# STORAGE_* environment variables before running this script), otherwise the
-# bootstrap will register a warehouse that does not match what the backend uses.
+# IMPORTANT: If you change values in storage.conf, you MUST also update the
+# matching defaults here (or export the corresponding STORAGE_* environment
+# variables before running this script)
 #
 # ==============================================================================
 
-# Storage settings — must stay in sync with storage.conf (see note above)
+# Storage settings — must stay in sync with storage.conf
 STORAGE_ICEBERG_CATALOG_REST_URI="${STORAGE_ICEBERG_CATALOG_REST_URI:-http://localhost:8181/catalog}"
 STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME="${STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME:-texera}"
 STORAGE_ICEBERG_CATALOG_REST_REGION="${STORAGE_ICEBERG_CATALOG_REST_REGION:-us-west-2}"
@@ -57,8 +50,8 @@ STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 LAKEKEEPER_BINARY_PATH="${LAKEKEEPER_BINARY_PATH:-lakekeeper}"
 
 # Lakekeeper PostgreSQL connection URLs
-#(LAKEKEEPER__PG_DATABASE_URL_READ="postgres://postgres_user:postgres_urlencoded_password@hostname:5432/texera_lakekeeper"
-# LAKEKEEPER__PG_DATABASE_URL_WRITE="postgres://postgres_user:postgres_urlencoded_password@hostname:5432/texera_lakekeeper")
+# LAKEKEEPER__PG_DATABASE_URL_READ="postgres://<user>:<urlencoded_password>@<host>:5432/texera_lakekeeper"
+# LAKEKEEPER__PG_DATABASE_URL_WRITE="postgres://<user>:<urlencoded_password>@<host>:5432/texera_lakekeeper"
 LAKEKEEPER__PG_DATABASE_URL_READ=""
 LAKEKEEPER__PG_DATABASE_URL_WRITE=""
 
