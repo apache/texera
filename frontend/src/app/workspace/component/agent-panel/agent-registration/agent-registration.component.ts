@@ -23,6 +23,8 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { ComputingUnitStatusService } from "../../../service/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitState } from "../../../types/computing-unit-connection.interface";
 import { WorkflowContent } from "../../../../common/type/workflow";
 import { Subject, takeUntil } from "rxjs";
 import { NzUploadFile } from "ng-zorro-antd/upload";
@@ -48,6 +50,7 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
 
   public traceFileList: NzUploadFile[] = [];
   public traceContent: TraceContent | null = null;
+  public computingUnitConnected: boolean = false;
 
   private destroy$ = new Subject<void>();
 
@@ -56,12 +59,20 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
     private notificationService: NotificationService,
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
-    private guiConfigService: GuiConfigService
+    private guiConfigService: GuiConfigService,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {}
 
   ngOnInit(): void {
     this.isLoadingModels = true;
     this.hasLoadingError = false;
+
+    this.computingUnitStatusService
+      .getStatus()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(status => {
+        this.computingUnitConnected = status === ComputingUnitState.Running;
+      });
 
     this.copilotManagerService
       .fetchModelTypes()
@@ -220,6 +231,6 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
   }
 
   public canCreate(): boolean {
-    return this.selectedModelType !== null && !this.isCreating;
+    return this.selectedModelType !== null && !this.isCreating && this.computingUnitConnected;
   }
 }

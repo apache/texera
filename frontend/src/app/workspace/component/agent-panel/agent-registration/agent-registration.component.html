@@ -117,12 +117,21 @@
   </div>
 
   <div class="action-buttons">
+    <nz-alert
+      *ngIf="!computingUnitConnected"
+      nzType="warning"
+      nzMessage="Please connect to a computing unit before creating an agent."
+      nzShowIcon
+      style="margin-bottom: 12px">
+    </nz-alert>
     <button
       nz-button
       nzType="primary"
       nzSize="large"
       [nzLoading]="isCreating"
       [disabled]="!canCreate()"
+      nz-tooltip
+      [nzTooltipTitle]="!computingUnitConnected ? 'Connect to a computing unit first' : ''"
       (click)="createAgent()">
       <i
         *ngIf="!isCreating"
