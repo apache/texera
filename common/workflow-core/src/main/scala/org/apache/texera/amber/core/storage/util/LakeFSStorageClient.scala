@@ -35,6 +35,9 @@ import scala.jdk.CollectionConverters._
   */
 object LakeFSStorageClient {
 
+  // Maximum number of results per LakeFS API request (pagination page size)
+  private val PageSize = 1000
+
   private lazy val apiClient: ApiClient = {
     val client = new ApiClient()
     client.setApiKey(StorageConfig.lakefsPassword)
@@ -311,7 +314,7 @@ object LakeFSStorageClient {
   ): List[T] = {
     val allResults = scala.collection.mutable.ListBuffer[T]()
     var hasMore = true
-    var after = ""
+    var after = "" // Pagination cursor returned by LakeFS
 
     while (hasMore) {
       val (results, pagination) = fetch(after)
@@ -325,7 +328,7 @@ object LakeFSStorageClient {
 
   def retrieveObjectsOfVersion(repoName: String, commitHash: String): List[ObjectStats] = {
     fetchAllPages[ObjectStats] { after =>
-      val request = objectsApi.listObjects(repoName, commitHash).amount(1000)
+      val request = objectsApi.listObjects(repoName, commitHash).amount(PageSize)
       if (after.nonEmpty) request.after(after)
       val response = request.execute()
       (response.getResults, response.getPagination)
@@ -363,7 +366,7 @@ object LakeFSStorageClient {
     */
   def retrieveUncommittedObjects(repoName: String): List[Diff] = {
     fetchAllPages[Diff] { after =>
-      val request = branchesApi.diffBranch(repoName, branchName).amount(1000)
+      val request = branchesApi.diffBranch(repoName, branchName).amount(PageSize)
       if (after.nonEmpty) request.after(after)
       val response = request.execute()
       (response.getResults, response.getPagination)
