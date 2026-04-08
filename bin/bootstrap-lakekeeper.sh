@@ -42,8 +42,19 @@ set -e
 #
 # ==============================================================================
 
-# Lakekeeper binary path
-LAKEKEEPER_BINARY_PATH=""
+# Storage settings — must stay in sync with storage.conf (see note above)
+STORAGE_ICEBERG_CATALOG_REST_URI="${STORAGE_ICEBERG_CATALOG_REST_URI:-http://localhost:8181/catalog}"
+STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME="${STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME:-texera}"
+STORAGE_ICEBERG_CATALOG_REST_REGION="${STORAGE_ICEBERG_CATALOG_REST_REGION:-us-west-2}"
+STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET="${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET:-texera-iceberg}"
+STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://localhost:9000}"
+STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
+STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
+
+# Lakekeeper binary — defaults to `lakekeeper` on $PATH (e.g. after
+# `brew install lakekeeper`). Override by exporting LAKEKEEPER_BINARY_PATH
+# or by editing the default below.
+LAKEKEEPER_BINARY_PATH="${LAKEKEEPER_BINARY_PATH:-lakekeeper}"
 
 # Lakekeeper PostgreSQL connection URLs
 #(LAKEKEEPER__PG_DATABASE_URL_READ="postgres://postgres_user:postgres_urlencoded_password@hostname:5432/texera_lakekeeper"
@@ -57,14 +68,6 @@ LAKEKEEPER__PG_ENCRYPTION_KEY="texera_key"
 # Lakekeeper metrics port
 LAKEKEEPER__METRICS_PORT="9091"
 
-# Storage settings — must stay in sync with storage.conf (see note above)
-STORAGE_ICEBERG_CATALOG_REST_URI="${STORAGE_ICEBERG_CATALOG_REST_URI:-http://localhost:8181/catalog}"
-STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME="${STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME:-texera}"
-STORAGE_ICEBERG_CATALOG_REST_REGION="${STORAGE_ICEBERG_CATALOG_REST_REGION:-us-west-2}"
-STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET="${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET:-texera-iceberg}"
-STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://localhost:9000}"
-STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
-STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 
 # ==============================================================================
 # End of User Configuration
@@ -202,16 +205,12 @@ start_lakekeeper() {
 
     echo "Starting Lakekeeper..."
 
-    # Validate LAKEKEEPER_BINARY_PATH
-    if [ -z "$LAKEKEEPER_BINARY_PATH" ]; then
-        echo "✗ Error: LAKEKEEPER_BINARY_PATH is not set."
-        echo "  Please set it in the User Configuration section at the top of this script."
-        exit 1
-    fi
-
-    if [ ! -x "$LAKEKEEPER_BINARY_PATH" ]; then
-        echo "✗ Error: Lakekeeper binary not found or not executable at '$LAKEKEEPER_BINARY_PATH'"
-        echo "  Please update LAKEKEEPER_BINARY_PATH in the User Configuration section."
+    # Validate LAKEKEEPER_BINARY_PATH — `command -v` resolves both bare names
+    # via $PATH lookup and absolute paths.
+    if ! command -v "$LAKEKEEPER_BINARY_PATH" >/dev/null 2>&1; then
+        echo "✗ Error: Lakekeeper binary '$LAKEKEEPER_BINARY_PATH' not found."
+        echo "  Install it via 'brew install lakekeeper' (macOS) or set"
+        echo "  LAKEKEEPER_BINARY_PATH to an absolute path / edit the default in this script."
         exit 1
     fi
 
