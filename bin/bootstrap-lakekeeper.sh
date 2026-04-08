@@ -32,6 +32,15 @@ set -e
 # ==============================================================================
 # User Configuration - Edit the values below before running this script
 # ==============================================================================
+#
+# IMPORTANT: This script does NOT read storage.conf. The Java/Scala backend
+# reads common/config/src/main/resources/storage.conf directly, but this bash
+# script only reads the variables below. If you change values in storage.conf,
+# you MUST also update the matching defaults here (or export the corresponding
+# STORAGE_* environment variables before running this script), otherwise the
+# bootstrap will register a warehouse that does not match what the backend uses.
+#
+# ==============================================================================
 
 # Lakekeeper binary path
 LAKEKEEPER_BINARY_PATH=""
@@ -48,85 +57,28 @@ LAKEKEEPER__PG_ENCRYPTION_KEY="texera_key"
 # Lakekeeper metrics port
 LAKEKEEPER__METRICS_PORT="9091"
 
+# Storage settings — must stay in sync with storage.conf (see note above)
+STORAGE_ICEBERG_CATALOG_REST_URI="${STORAGE_ICEBERG_CATALOG_REST_URI:-http://localhost:8181/catalog}"
+STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME="${STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME:-texera}"
+STORAGE_ICEBERG_CATALOG_REST_REGION="${STORAGE_ICEBERG_CATALOG_REST_REGION:-us-west-2}"
+STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET="${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET:-texera-iceberg}"
+STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://localhost:9000}"
+STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
+STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
+
 # ==============================================================================
 # End of User Configuration
 # ==============================================================================
 
-# Read remaining configuration from storage.conf
-# Priority: user config above > storage.conf > default value
-
-# Find storage.conf path
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -n "$TEXERA_HOME" ]; then
-    STORAGE_CONF_PATH="$TEXERA_HOME/common/config/src/main/resources/storage.conf"
-else
-    STORAGE_CONF_PATH="$SCRIPT_DIR/../common/config/src/main/resources/storage.conf"
-fi
-
-# Extract values from storage.conf using pyhocon for proper HOCON parsing
-if [ -f "$STORAGE_CONF_PATH" ]; then
-    # Check if pyhocon is available
-    if ! command -v python3 >/dev/null 2>&1; then
-        echo "✗ Error: python3 is required to parse storage.conf"
-        echo "  Please install Python 3"
-        exit 1
-    fi
-
-    if ! python3 -c "import pyhocon" 2>/dev/null; then
-        echo "✗ Error: pyhocon is required to parse storage.conf"
-        echo "  Install it with: pip install pyhocon"
-        exit 1
-    fi
-
-    # Use batch mode to parse all config values in a single python invocation
-    CONF_OUTPUT=$(python3 "$SCRIPT_DIR/parse-storage-config.py" --batch \
-        REST_URI_FROM_CONF=storage.iceberg.catalog.rest.uri \
-        WAREHOUSE_NAME_FROM_CONF=storage.iceberg.catalog.rest.warehouse-name \
-        REST_REGION_FROM_CONF=storage.iceberg.catalog.rest.region \
-        S3_BUCKET_FROM_CONF=storage.iceberg.catalog.rest.s3-bucket \
-        S3_ENDPOINT_FROM_CONF=storage.s3.endpoint \
-        S3_USERNAME_FROM_CONF=storage.s3.auth.username \
-        S3_PASSWORD_FROM_CONF=storage.s3.auth.password \
-        2>/dev/null) || true
-
-    # Parse the batch output (each line is VAR_NAME=value)
-    while IFS='=' read -r var_name var_value; do
-        [ -z "$var_name" ] && continue
-        declare "$var_name=$var_value"
-    done <<< "$CONF_OUTPUT"
-
-    # Strip trailing /catalog/ from REST URI
-    REST_URI_FROM_CONF=$(echo "${REST_URI_FROM_CONF:-}" | sed 's|/catalog/*$||')
-
-    echo "Configuration read from storage.conf:"
-    echo "  REST_URI=$REST_URI_FROM_CONF"
-    echo "  WAREHOUSE_NAME=$WAREHOUSE_NAME_FROM_CONF"
-    echo "  REGION=$REST_REGION_FROM_CONF"
-    echo "  S3_BUCKET=$S3_BUCKET_FROM_CONF"
-    echo "  S3_ENDPOINT=$S3_ENDPOINT_FROM_CONF"
-    echo "  S3_USERNAME=$S3_USERNAME_FROM_CONF"
-    echo "  S3_PASSWORD=***"
-    echo ""
-else
-    REST_URI_FROM_CONF=""
-    WAREHOUSE_NAME_FROM_CONF=""
-    REST_REGION_FROM_CONF=""
-    S3_BUCKET_FROM_CONF=""
-    S3_ENDPOINT_FROM_CONF=""
-    S3_USERNAME_FROM_CONF=""
-    S3_PASSWORD_FROM_CONF=""
-    echo "storage.conf not found, using environment variables or defaults"
-    echo ""
-fi
-
-# Use values from storage.conf with defaults
-LAKEKEEPER_BASE_URI="${REST_URI_FROM_CONF:-http://localhost:8181}"
-WAREHOUSE_NAME="${WAREHOUSE_NAME_FROM_CONF:-texera}"
-S3_REGION="${REST_REGION_FROM_CONF:-us-west-2}"
-S3_BUCKET="${S3_BUCKET_FROM_CONF:-texera-iceberg}"
-S3_ENDPOINT="${S3_ENDPOINT_FROM_CONF:-http://localhost:9000}"
-S3_USERNAME="${S3_USERNAME_FROM_CONF:-texera_minio}"
-S3_PASSWORD="${S3_PASSWORD_FROM_CONF:-password}"
+# Derive bootstrap-internal values from the storage settings above.
+LAKEKEEPER_BASE_URI="${STORAGE_ICEBERG_CATALOG_REST_URI%/}"
+LAKEKEEPER_BASE_URI="${LAKEKEEPER_BASE_URI%/catalog}"
+WAREHOUSE_NAME="$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME"
+S3_REGION="$STORAGE_ICEBERG_CATALOG_REST_REGION"
+S3_BUCKET="$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET"
+S3_ENDPOINT="$STORAGE_S3_ENDPOINT"
+S3_USERNAME="$STORAGE_S3_AUTH_USERNAME"
+S3_PASSWORD="$STORAGE_S3_AUTH_PASSWORD"
 STORAGE_PATH="s3://${S3_BUCKET}/iceberg/${WAREHOUSE_NAME}"
 
 echo "=========================================="
