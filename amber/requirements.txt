@@ -43,6 +43,9 @@ bidict==0.22.0
 cached_property==1.5.2
 psutil==5.9.0
 tzlocal==2.1
+s3fs==2025.9.0
+aiobotocore==2.25.1
+botocore==1.40.53
 pyiceberg==0.11.1
 readerwriterlock==1.0.9
 tenacity==8.5.0
