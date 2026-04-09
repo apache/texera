@@ -17,7 +17,7 @@
 
 TEXERA_HOME="$(git rev-parse --show-toplevel)"
 GUI_DIR="$TEXERA_HOME/frontend"
-PROTOBUF_DIR="$TEXERA_HOME/core/workflow-core/src/main/protobuf"
+PROTOBUF_DIR="$TEXERA_HOME/common/workflow-core/src/main/protobuf"
 GUI_PROTO_DIR="$GUI_DIR/src/app/common/type"
 
 WORKFLOW_PROTO=$(find "$PROTOBUF_DIR" -iname "workflow.proto")
