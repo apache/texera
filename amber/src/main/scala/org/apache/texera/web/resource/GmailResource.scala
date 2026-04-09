@@ -191,7 +191,7 @@ class GmailResource {
       sendEmail(
         userRegistrationNotification(
           receiverEmail = emailMessage.receiver,
-          userEmail = None
+          userEmail = None,
           affiliation = None,
           reason = None,
           toAdmin = false
