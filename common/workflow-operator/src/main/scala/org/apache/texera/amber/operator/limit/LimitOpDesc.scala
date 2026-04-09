@@ -49,6 +49,7 @@ class LimitOpDesc extends LogicalOp {
         OpExecWithClassName(
           "org.apache.texera.amber.operator.limit.LimitOpExec",
           objectMapper.writeValueAsString(this)
+
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
