@@ -248,7 +248,7 @@ export class AuthService {
 
         try {
           await firstValueFrom(this.submitRegistration(uid, affiliation, reason));
-          this.gmailService.notifyUnauthorizedLogin(email);
+          this.gmailService.notifyUnauthorizedLogin(email, affiliation, reason);
         } finally {
           this.logout();
         }
