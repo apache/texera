@@ -17,25 +17,28 @@
  * under the License.
  */
 
-import {
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity,
-} from "./proto/org/apache/texera/amber/core/virtualidentity";
-import { PhysicalLink } from "./proto/org/apache/texera/amber/core/workflow";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { UserComputingUnitComponent } from "./user-computing-unit.component";
+import { NzCardModule } from "ng-zorro-antd/card";
 
-export interface PhysicalOp {
-  id: PhysicalOpIdentity;
-  workflowId: WorkflowIdentity;
-  executionId: ExecutionIdentity;
-  parallelizable: boolean;
-  isOneToManyOp: boolean;
-  suggestedWorkerNum: number | null;
-  sourceOperator: boolean;
-  sinkOperator: boolean;
-}
+describe("UserComputingUnitComponent", () => {
+  let component: UserComputingUnitComponent;
+  let fixture: ComponentFixture<UserComputingUnitComponent>;
 
-export interface PhysicalPlan {
-  operators: Set<PhysicalOp>;
-  links: Set<PhysicalLink>;
-}
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [UserComputingUnitComponent],
+      imports: [NzCardModule],
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(UserComputingUnitComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
+});

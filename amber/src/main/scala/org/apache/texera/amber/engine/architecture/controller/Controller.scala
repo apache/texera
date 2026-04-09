@@ -199,8 +199,7 @@ class Controller(
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
 
-  // adopted solution from
-  // https://stackoverflow.com/questions/54228901/right-way-of-exception-handling-when-using-akka-actors
+  // Use AllForOneStrategy to stop all children on any fatal error and report it to the client.
   override val supervisorStrategy: SupervisorStrategy =
     AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
       case e: Throwable =>

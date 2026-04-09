@@ -17,25 +17,11 @@
  * under the License.
  */
 
-import {
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity,
-} from "./proto/org/apache/texera/amber/core/virtualidentity";
-import { PhysicalLink } from "./proto/org/apache/texera/amber/core/workflow";
+import { Component } from "@angular/core";
 
-export interface PhysicalOp {
-  id: PhysicalOpIdentity;
-  workflowId: WorkflowIdentity;
-  executionId: ExecutionIdentity;
-  parallelizable: boolean;
-  isOneToManyOp: boolean;
-  suggestedWorkerNum: number | null;
-  sourceOperator: boolean;
-  sinkOperator: boolean;
-}
-
-export interface PhysicalPlan {
-  operators: Set<PhysicalOp>;
-  links: Set<PhysicalLink>;
-}
+@Component({
+  selector: "texera-computing-unit-section",
+  templateUrl: "user-computing-unit.component.html",
+  styleUrls: ["user-computing-unit.component.scss"],
+})
+export class UserComputingUnitComponent {}
