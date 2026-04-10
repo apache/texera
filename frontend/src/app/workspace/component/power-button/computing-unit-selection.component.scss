@@ -388,3 +388,109 @@
     outline: none;
   }
 }
+
+.package-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.package-inputs {
+  display: flex;
+  flex: 1;
+  gap: 10px; /* space between name and version */
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* ensures both inputs are equal width */
+}
+
+.add-btn {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+.footer-all{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.footer-right{
+  display: flex;
+  gap: 8px;
+}
+
+.system-section {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.system-panel-inner {
+  padding: 16px;
+}
+
+.system-row {
+  margin-bottom: 14px;
+}
+
+.system-input {
+  background: #f5f5f5 !important;
+  border-radius: 4px !important;
+}
+
+.package-row {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.package-inputs {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+}
+
+.field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.package-inputs .field.operator {
+  width: 50px;
+  text-align: center;
+}
+
+.operator-select ::ng-deep .ant-select-selector {
+  display: flex;
+  align-items: center;
+}
+
+.operator-select ::ng-deep .ant-select-selection-placeholder,
+.operator-select ::ng-deep .ant-select-selection-item {
+  width: 100%;
+  text-align: center;
+}
+
+.operator-select {
+  width: 120px;
+}
+
+.operator-select ::ng-deep .ant-select {
+  width: 100%;
+}
+
+.section-title {
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+

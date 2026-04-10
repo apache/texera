@@ -53,6 +53,27 @@ import {
   isComputingUnitShmTooLarge,
   getJvmMemorySliderConfig,
 } from "../../../common/util/computing-unit.util";
+import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
+
+type PackageRow = {
+  name: string;
+  operator?: "==" | ">=" | "<=";
+  version?: string;
+  isHighlighted?: boolean;
+};
+
+type PveDraft = {
+  id: number;
+  name: string;
+  userPackages: PackageRow[];
+  newPackages: PackageRow[];
+  deletingPackages: { name: string; version: string }[];
+  pipOutput: string;
+  prettyPipOutput: string;
+  expanded: boolean;
+  source?: EventSource;
+  isInstalling: boolean;
+};
 
 @UntilDestroy()
 @Component({
@@ -61,6 +82,13 @@ import {
   styleUrls: ["./computing-unit-selection.component.scss"],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  // variables for creating a virtual environment
+  pves: PveDraft[] = [this.makeEmptyPve(true)];
+  systemPackages: { name: string; version: string }[] = [];
+  pipModalCloseHandler: (() => void) | null = null;
+  PVEmodalVisible = false;
+  nextPveId = 1;
+
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   protected readonly unitTypeMessageTemplate = unitTypeMessageTemplate;
   workflowId: number | undefined;
@@ -108,7 +136,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NzModalService,
     private cdr: ChangeDetectorRef,
-    private computingUnitActionsService: ComputingUnitActionsService
+    private computingUnitActionsService: ComputingUnitActionsService,
+    private workflowPveService: WorkflowPveService
   ) {}
 
   ngOnInit(): void {
@@ -160,14 +189,18 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe(unit => {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
 
-        // ── compare with the *previous* cuid, not the one we are just about to store ──
+        // compare with the previous cuid, not the one we are just about to store
         if (isDefined(wid) && unit?.computingUnit.cuid !== this.lastSelectedCuid) {
           this.updateWorkflowModificationStatus(wid);
         }
 
-        // update local caches **after** the comparison
+        // update local caches after the comparison
         this.lastSelectedCuid = unit?.computingUnit.cuid;
         this.selectedComputingUnit = unit;
+
+        if (unit?.computingUnit.cuid != null) {
+          this.workflowPveService.setCuid(unit.computingUnit.cuid);
+        }
       });
 
     this.computingUnitStatusService
@@ -227,7 +260,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
                 next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
                   this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
                 },
-                error: (err: unknown) => {
+                error: (_err: unknown) => {
                   const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
                   if (runningUnit) {
                     this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
@@ -606,7 +639,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     // Get the current memory in GB
     const memoryValue = parseResourceNumber(this.selectedMemory);
     const memoryUnit = parseResourceUnit(this.selectedMemory);
-    let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
+    const cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
 
     // Only try to preserve previous value for larger memory sizes where slider is shown
     if (
@@ -633,5 +666,252 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (visible) {
       this.computingUnitStatusService.refreshComputingUnitList();
     }
+  }
+
+  private makeEmptyPve(expanded: boolean): PveDraft {
+    return {
+      id: this.nextPveId++,
+      name: "",
+      userPackages: [],
+      newPackages: [{ name: "", operator: "==", version: "" }],
+      deletingPackages: [],
+      pipOutput: "",
+      prettyPipOutput: "",
+      expanded,
+      isInstalling: false,
+    };
+  }
+
+  addEnvironment(): void {
+    this.pves.push(this.makeEmptyPve(true));
+  }
+
+  trackByPveId(_index: number, pve: PveDraft): number {
+    return pve.id;
+  }
+
+  showPVEmodalVisible(): void {
+    this.PVEmodalVisible = true;
+    this.getPVEs();
+  }
+
+  getPVEs(): void {
+    const cuId: number | undefined = this.selectedComputingUnit?.computingUnit.cuid;
+
+    if (cuId == null) {
+      this.notificationService.error("No computing unit selected. Please select a CU first.");
+      return;
+    }
+
+    this.workflowPveService.setCuid(cuId);
+
+    this.workflowPveService.fetchPVEs(cuId).subscribe({
+      next: (resp: PvePackageResponse[]) => {
+        this.pves = resp.map((pve, index) => ({
+          id: index,
+          name: pve.pveName,
+          expanded: false,
+          isInstalling: false,
+          pipOutput: "",
+          prettyPipOutput: "",
+          userPackages: (pve.userPackages ?? []).map(pkg => {
+            const [name, version] = pkg.split("==");
+            return {
+              name: name.trim(),
+              version: (version ?? "").trim(),
+              isHighlighted: false,
+            };
+          }),
+          newPackages: [],
+          deletingPackages: [],
+        }));
+      },
+      error: err => {
+        console.error("Failed to fetch PVEs:", err);
+        this.pves = [];
+      },
+    });
+  }
+
+  addPackage(index: number): void {
+    const env = this.pves[index];
+    env.newPackages.push({ name: "", version: "", operator: undefined, isHighlighted: false });
+  }
+
+  togglePackageDelete(index: number, pkg: PackageRow): void {
+    const env = this.pves[index];
+
+    pkg.isHighlighted = !pkg.isHighlighted;
+
+    const version = pkg.version ?? "";
+
+    if (pkg.isHighlighted) {
+      const exists = env.deletingPackages.some(p => p.name === pkg.name && (p.version ?? "") === version);
+      if (!exists) {
+        env.deletingPackages.push({ name: pkg.name, version });
+      }
+    } else {
+      env.deletingPackages = env.deletingPackages.filter(p => !(p.name === pkg.name && (p.version ?? "") === version));
+    }
+  }
+
+  scrollToBottomOfPipModal(index: number) {
+    setTimeout(() => {
+      const pre = document.getElementById(`pip-log-${index}`) as HTMLElement | null;
+      if (pre) {
+        pre.scrollTop = pre.scrollHeight;
+      }
+    }, 50);
+  }
+
+  updatePrettyPipOutput(index: number) {
+    const env = this.pves[index];
+
+    const escapeHtml = (s: string) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    const raw = env.pipOutput ?? "";
+    const safe = escapeHtml(raw);
+
+    env.prettyPipOutput = safe
+      .replace(
+        /^(\[pip\].*finished with exit code\s+0.*)$/gm,
+        '<span class="pip-exit ok"><strong>$1</strong></span>'
+      )
+      .replace(
+        /^(\[pip\].*finished with exit code\s+1.*)$/gm,
+        '<span class="pip-exit err"><strong>$1</strong></span>'
+      )
+      .replace(
+        /^(\[pip\].*finished with exit code\s+([2-9]\d*).*)$/gm,
+        '<span class="pip-exit err"><strong>$1</strong></span>'
+      )
+      .replace(/ERROR/g, '<span class="error">ERROR</span>')
+      .replace(/WARNING/g, '<span class="warning">WARNING</span>')
+      .replace(/already satisfied/g, '<span class="success">already satisfied</span>')
+      .replace(/\n/g, "<br/>");
+  }
+
+  createVirtualEnvironment(index: number): void {
+    const cuId = this.selectedComputingUnit?.computingUnit.cuid;
+    const env = this.pves[index];
+
+    if (cuId == null) {
+      this.notificationService.error("No computing unit selected. Please select a CU first.");
+      return;
+    }
+
+    if (!env.name?.trim()) {
+      this.notificationService.error("Environment name cannot be empty.");
+      return;
+    }
+
+    env.isInstalling = true;
+
+    this.workflowPveService.setCuid(cuId);
+    this.workflowPveService.setPveName(env.name);
+
+    for (const pkg of env.deletingPackages) {
+      this.workflowPveService.deletePackage(pkg.name).subscribe({
+        next: () => {
+          env.pipOutput += `\nSuccessfully uninstalled package ${pkg.name}`;
+          this.updatePrettyPipOutput(index);
+          this.scrollToBottomOfPipModal(index);
+        },
+        error: err => {
+          console.error("Error deleting package:", err);
+          env.pipOutput += `\nError uninstalling ${pkg.name}`;
+          this.updatePrettyPipOutput(index);
+          this.scrollToBottomOfPipModal(index);
+        },
+      });
+    }
+
+    env.userPackages = env.userPackages.filter(
+      pkg => !env.deletingPackages.some(d => d.name === pkg.name && d.version === pkg.version)
+    );
+
+    const packageArray: string[] = [];
+
+    for (const p of env.newPackages) {
+      const name = (p.name ?? "").trim();
+      const version = (p.version ?? "").trim();
+      const op = (p.operator ?? "==").trim() || "==";
+
+      if (name !== "") {
+        const formatted = version !== "" ? `${name}${op}${version}` : name;
+        packageArray.push(formatted);
+      }
+    }
+
+    const token = localStorage.getItem("access_token") ?? "";
+    const tokenParam = token ? `&access-token=${encodeURIComponent(token)}` : "";
+    const query = encodeURIComponent(JSON.stringify(packageArray));
+
+    env.source?.close();
+    env.source = undefined;
+
+    const url =
+      `/pve/?packages=${query}` + `&cuid=${cuId}` + `&pveName=${encodeURIComponent(env.name)}` + tokenParam;
+
+    const source = new EventSource(url);
+    env.source = source;
+
+    env.pipOutput += "Starting Installation...";
+    this.updatePrettyPipOutput(index);
+    this.scrollToBottomOfPipModal(index);
+
+    source.onmessage = event => {
+      if (event.data === "__DONE__") {
+        this.workflowPveService.getInstalledPackages().subscribe({
+          next: resp => {
+            this.systemPackages = resp.system.map(pkg => {
+              const [name, version] = pkg.split("==");
+              return { name: name.trim(), version: (version ?? "").trim() };
+            });
+
+            env.userPackages = resp.user.map(pkg => {
+              const [name, version] = pkg.split("==");
+              return { name: name.trim(), version: (version ?? "").trim(), isHighlighted: false };
+            });
+
+            env.newPackages = [];
+            env.deletingPackages = [];
+          },
+          error: e => console.error("Failed to refresh packages", e),
+        });
+
+        env.source?.close();
+        env.source = undefined;
+        env.isInstalling = false;
+        return;
+      }
+
+      env.pipOutput += `${event.data}\n`;
+      this.updatePrettyPipOutput(index);
+      this.scrollToBottomOfPipModal(index);
+    };
+
+    source.onerror = err => {
+      console.log("SSE error/closed", err);
+      env.pipOutput += "\n[Stream closed]\n";
+      this.updatePrettyPipOutput(index);
+      env.source?.close();
+      env.source = undefined;
+      env.isInstalling = false;
+    };
+
+    this.pipModalCloseHandler = () => {
+      env.source?.close();
+      env.source = undefined;
+      env.pipOutput = "";
+      this.updatePrettyPipOutput(index);
+      env.isInstalling = false;
+    };
   }
 }
