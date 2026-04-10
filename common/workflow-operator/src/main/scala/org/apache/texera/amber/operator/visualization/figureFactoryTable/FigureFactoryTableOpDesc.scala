@@ -120,7 +120,7 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Figure Factory Table",
       "Visualize data in a figure factory table",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
   }
 

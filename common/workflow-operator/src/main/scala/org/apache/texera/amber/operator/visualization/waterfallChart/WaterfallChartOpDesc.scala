@@ -58,7 +58,7 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Waterfall Chart",
       "Visualize data as a waterfall chart",
-      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

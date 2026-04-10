@@ -105,7 +105,7 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Scatter Plot",
       "View the result in a scatterplot",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

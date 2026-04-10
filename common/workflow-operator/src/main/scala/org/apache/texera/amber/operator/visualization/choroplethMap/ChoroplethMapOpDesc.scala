@@ -73,7 +73,7 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Choropleth Map",
       "Visualize data using a Choropleth Map that uses shades of colors to show differences in properties or quantities between regions",
-      OperatorGroupConstants.VISUALIZATION_ADVANCED_GROUP,
+      OperatorGroupConstants.VISUALIZATION_ADVANCED_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

@@ -70,7 +70,7 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Funnel Plot",
       "Visualize data in a Funnel Plot",
-      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
   private def createPlotlyFigure(): PythonTemplateBuilder = {

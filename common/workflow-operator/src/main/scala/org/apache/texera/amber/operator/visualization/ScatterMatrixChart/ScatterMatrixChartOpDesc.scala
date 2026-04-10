@@ -69,7 +69,7 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Scatter Matrix Chart",
       "Visualize datasets in a Scatter Matrix",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

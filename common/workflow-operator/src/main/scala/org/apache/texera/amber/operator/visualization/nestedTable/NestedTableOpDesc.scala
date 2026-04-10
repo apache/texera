@@ -50,7 +50,7 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Nested Table",
       "Visualize Data in a Depth Two Nested Table",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_GROUP
     )
 
   private def createNestedTable(): PythonTemplateBuilder = {

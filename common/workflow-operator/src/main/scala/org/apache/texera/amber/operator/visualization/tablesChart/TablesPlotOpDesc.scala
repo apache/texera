@@ -98,7 +98,7 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Tables Plot",
       "Visualize data in a table chart.",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
   }
 

@@ -69,7 +69,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Sankey Diagram",
       "Visualize data using a Sankey diagram",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

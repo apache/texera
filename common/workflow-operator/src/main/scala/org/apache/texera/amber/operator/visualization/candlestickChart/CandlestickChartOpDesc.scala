@@ -75,7 +75,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Candlestick Chart",
       "Visualize data in a Candlestick Chart",
-      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
   override def generatePythonCode(): String = {

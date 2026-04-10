@@ -61,7 +61,7 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Network Graph",
       "Visualize data in a network graph",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

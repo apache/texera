@@ -75,7 +75,7 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
     OperatorInfo.forVisualization(
       "Range Slider",
       "Visualize data in a Range Slider",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
