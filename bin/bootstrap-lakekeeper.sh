@@ -82,9 +82,10 @@ echo "=========================================="
 echo "Lakekeeper Bootstrap and Warehouse Setup"
 echo "=========================================="
 echo "Lakekeeper Base URI: $LAKEKEEPER_BASE_URI"
-echo "Lakekeeper Binary: ${LAKEKEEPER_BINARY_PATH:-lakekeeper}"
+echo "Lakekeeper Binary: $LAKEKEEPER_BINARY_PATH"
 echo "Warehouse Name: $WAREHOUSE_NAME"
 echo "S3 Endpoint: $S3_ENDPOINT"
+echo "S3 Region: $S3_REGION"
 echo "S3 Bucket: $S3_BUCKET"
 echo "Storage Path: $STORAGE_PATH"
 echo ""
@@ -156,6 +157,7 @@ check_S3_bucket() {
     local endpoint="$2"
     local username="$3"
     local password="$4"
+    local region="$5"
 
     if ! command -v aws >/dev/null 2>&1; then
         echo "✗ Error: AWS CLI is required for S3 bucket operations."
@@ -163,7 +165,7 @@ check_S3_bucket() {
         return 1
     fi
 
-    if AWS_ACCESS_KEY_ID="$username" AWS_SECRET_ACCESS_KEY="$password" AWS_DEFAULT_REGION="us-west-2" \
+    if AWS_ACCESS_KEY_ID="$username" AWS_SECRET_ACCESS_KEY="$password" AWS_DEFAULT_REGION="$region" \
        aws --endpoint-url="$endpoint" s3 ls "s3://${bucket_name}/" >/dev/null 2>&1; then
         return 0  # Bucket exists
     else
@@ -177,6 +179,7 @@ create_S3_bucket() {
     local endpoint="$2"
     local username="$3"
     local password="$4"
+    local region="$5"
 
     if ! command -v aws >/dev/null 2>&1; then
         echo "✗ Error: AWS CLI is required for S3 bucket operations."
@@ -184,7 +187,7 @@ create_S3_bucket() {
         return 1
     fi
 
-    if AWS_ACCESS_KEY_ID="$username" AWS_SECRET_ACCESS_KEY="$password" AWS_DEFAULT_REGION="us-west-2" \
+    if AWS_ACCESS_KEY_ID="$username" AWS_SECRET_ACCESS_KEY="$password" AWS_DEFAULT_REGION="$region" \
        aws --endpoint-url="$endpoint" s3 mb "s3://${bucket_name}" >/dev/null 2>&1; then
         return 0  # Success
     else
@@ -214,7 +217,7 @@ start_lakekeeper() {
     if [ -z "$LAKEKEEPER__PG_DATABASE_URL_READ" ] || [ -z "$LAKEKEEPER__PG_DATABASE_URL_WRITE" ]; then
         echo "✗ Error: Database URLs not configured."
         echo "  Please set LAKEKEEPER__PG_DATABASE_URL_READ and LAKEKEEPER__PG_DATABASE_URL_WRITE"
-        echo "  in the User Configuration section at the top of this script."
+        echo "  by exporting them as env vars or editing the User Configuration section in this script."
         exit 1
     fi
     export LAKEKEEPER__PG_DATABASE_URL_READ
@@ -411,11 +414,11 @@ echo ""
 
 # Step 3: Check and create S3 bucket
 echo "Step 3: Checking S3 bucket..."
-if check_S3_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"; then
+if check_S3_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD" "$S3_REGION"; then
     echo "✓ S3 bucket '$S3_BUCKET' already exists"
 else
     echo "S3 bucket '$S3_BUCKET' does not exist, creating..."
-    if create_S3_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"; then
+    if create_S3_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD" "$S3_REGION"; then
         echo "✓ S3 bucket '$S3_BUCKET' created successfully"
     else
         echo "✗ Failed to create S3 bucket '$S3_BUCKET'"
