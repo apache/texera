@@ -104,6 +104,7 @@ import { AgentPanelComponent } from "./workspace/component/agent-panel/agent-pan
 import { AgentChatComponent } from "./workspace/component/agent-panel/agent-chat/agent-chat.component";
 import { AgentRegistrationComponent } from "./workspace/component/agent-panel/agent-registration/agent-registration.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
+import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { TexeraCopilot } from "./workspace/service/copilot/texera-copilot";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
@@ -257,6 +258,7 @@ registerLocaleData(en);
     AgentChatComponent,
     AgentRegistrationComponent,
     InputAutoCompleteComponent,
+    DatasetVersionSelectorComponent,
     FileSelectionComponent,
     CollabWrapperComponent,
     AboutComponent,
