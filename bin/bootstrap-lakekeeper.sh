@@ -150,15 +150,15 @@ bootstrap_lakekeeper_server() {
     esac
 }
 
-# Function to check if MinIO bucket exists (requires AWS CLI)
-check_minio_bucket() {
+# Function to check if S3 bucket exists (requires AWS CLI)
+check_S3_bucket() {
     local bucket_name="$1"
     local endpoint="$2"
     local username="$3"
     local password="$4"
 
     if ! command -v aws >/dev/null 2>&1; then
-        echo "✗ Error: AWS CLI is required for MinIO bucket operations."
+        echo "✗ Error: AWS CLI is required for S3 bucket operations."
         echo "  Install it with: pip install awscli"
         return 1
     fi
@@ -171,15 +171,15 @@ check_minio_bucket() {
     fi
 }
 
-# Function to create MinIO bucket (requires AWS CLI)
-create_minio_bucket() {
+# Function to create S3 bucket (requires AWS CLI)
+create_S3_bucket() {
     local bucket_name="$1"
     local endpoint="$2"
     local username="$3"
     local password="$4"
 
     if ! command -v aws >/dev/null 2>&1; then
-        echo "✗ Error: AWS CLI is required for MinIO bucket operations."
+        echo "✗ Error: AWS CLI is required for S3 bucket operations."
         echo "  Install it with: pip install awscli"
         return 1
     fi
@@ -409,17 +409,17 @@ else
 fi
 echo ""
 
-# Step 3: Check and create MinIO bucket
-echo "Step 3: Checking MinIO bucket..."
-if check_minio_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"; then
-    echo "✓ MinIO bucket '$S3_BUCKET' already exists"
+# Step 3: Check and create S3 bucket
+echo "Step 3: Checking S3 bucket..."
+if check_S3_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"; then
+    echo "✓ S3 bucket '$S3_BUCKET' already exists"
 else
-    echo "MinIO bucket '$S3_BUCKET' does not exist, creating..."
-    if create_minio_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"; then
-        echo "✓ MinIO bucket '$S3_BUCKET' created successfully"
+    echo "S3 bucket '$S3_BUCKET' does not exist, creating..."
+    if create_S3_bucket "$S3_BUCKET" "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"; then
+        echo "✓ S3 bucket '$S3_BUCKET' created successfully"
     else
-        echo "✗ Failed to create MinIO bucket '$S3_BUCKET'"
-        echo "  Please ensure MinIO is running and accessible at $S3_ENDPOINT"
+        echo "✗ Failed to create S3 bucket '$S3_BUCKET'"
+        echo "  Please ensure S3 is running and accessible at $S3_ENDPOINT"
         exit 1
     fi
 fi
