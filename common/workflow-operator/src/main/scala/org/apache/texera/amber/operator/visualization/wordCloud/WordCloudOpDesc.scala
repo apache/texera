@@ -55,12 +55,10 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Word Cloud",
       "Generate word cloud for   texts",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

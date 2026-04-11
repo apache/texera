@@ -57,12 +57,10 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Continuous Error Bands",
       "Visualize error or uncertainty along a continuous line",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

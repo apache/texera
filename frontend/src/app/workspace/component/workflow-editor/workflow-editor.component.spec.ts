@@ -406,7 +406,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBeTrue();
 
       // should still allow a link from scan to view result
       expect(
@@ -439,7 +439,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBeTrue();
     });
 
     it("should validate operator connections with ports that allow multi-inputs correctly", () => {

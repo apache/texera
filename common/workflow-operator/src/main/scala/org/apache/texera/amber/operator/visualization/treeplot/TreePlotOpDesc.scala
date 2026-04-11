@@ -46,13 +46,11 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
   var edgeListColumn: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       userFriendlyName = "Tree Plot",
       operatorDescription =
         "Visualize hierarchical data as a top-down, interactive, auto-sizing tree",
-      operatorGroupName = OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      operatorGroupName = OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
   override def getOutputSchemas(

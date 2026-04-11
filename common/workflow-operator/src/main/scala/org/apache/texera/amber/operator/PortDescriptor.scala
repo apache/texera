@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.workflow.PartitionInfo
 case class PortDescription(
     portID: String,
     displayName: String,
-    allowMultiInputs: Boolean,
+    disallowMultiInputs: Boolean,
     isDynamicPort: Boolean,
     partitionRequirement: PartitionInfo,
     dependencies: List[Int] = List.empty

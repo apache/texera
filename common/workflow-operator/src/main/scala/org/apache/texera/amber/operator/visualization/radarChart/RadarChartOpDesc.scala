@@ -70,12 +70,10 @@ class RadarChartOpDesc extends PythonOperatorDescriptor {
   var fillOpacity: Double = 0.5
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Radar Chart",
       "Visualize data in a Radar Chart",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   override def getOutputSchemas(
