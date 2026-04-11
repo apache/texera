@@ -52,7 +52,9 @@ class DatasetSelectorSourceOpDesc extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> Schema().add("filename", AttributeType.STRING)))
+        SchemaPropagationFunc(_ =>
+          Map(operatorInfo.outputPorts.head.id -> Schema().add("filename", AttributeType.STRING))
+        )
       )
 
   override def operatorInfo: OperatorInfo =

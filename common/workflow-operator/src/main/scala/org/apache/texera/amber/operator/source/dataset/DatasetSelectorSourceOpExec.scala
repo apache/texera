@@ -28,19 +28,25 @@ import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 
-class DatasetSelectorSourceOpExec private[dataset] (descString: String) extends SourceOperatorExecutor {
-  private val desc: DatasetSelectorSourceOpDesc = objectMapper.readValue(descString, classOf[DatasetSelectorSourceOpDesc])
+class DatasetSelectorSourceOpExec private[dataset] (descString: String)
+    extends SourceOperatorExecutor {
+  private val desc: DatasetSelectorSourceOpDesc =
+    objectMapper.readValue(descString, classOf[DatasetSelectorSourceOpDesc])
 
   override def produceTuple(): Iterator[TupleLike] = {
     val Seq(_, ownerEmail, datasetName, versionName) =
       desc.datasetVersionPath.split("/").toSeq
 
     val (repositoryName, versionHash) =
-      SqlServer.getInstance().createDSLContext()
+      SqlServer
+        .getInstance()
+        .createDSLContext()
         .select(DATASET.REPOSITORY_NAME, DATASET_VERSION.VERSION_HASH)
         .from(DATASET)
-        .join(USER).on(USER.UID.eq(DATASET.OWNER_UID))
-        .join(DATASET_VERSION).on(DATASET_VERSION.DID.eq(DATASET.DID))
+        .join(USER)
+        .on(USER.UID.eq(DATASET.OWNER_UID))
+        .join(DATASET_VERSION)
+        .on(DATASET_VERSION.DID.eq(DATASET.DID))
         .where(USER.EMAIL.eq(ownerEmail))
         .and(DATASET.NAME.eq(datasetName))
         .and(DATASET_VERSION.NAME.eq(versionName))
