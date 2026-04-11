@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
+import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
@@ -44,6 +45,21 @@ case class OperatorInfo(
     supportReconfiguration: Boolean = false,
     allowPortCustomization: Boolean = false
 )
+
+object OperatorInfo {
+  def forVisualization(
+      userFriendlyName: String,
+      operatorDescription: String,
+      operatorGroupName: String
+  ): OperatorInfo =
+    OperatorInfo(
+      userFriendlyName,
+      operatorDescription,
+      operatorGroupName,
+      inputPorts = List(InputPort(disallowMultiLinks = true)),
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+    )
+}
 
 case class OperatorMetadata(
     operatorType: String,
