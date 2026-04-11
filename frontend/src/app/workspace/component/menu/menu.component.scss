@@ -171,3 +171,7 @@ texera-user-icon {
 texera-coeditor-user-icon {
   margin-left: -10px;
 }
+
+::ng-deep .layers-dropdown {
+  user-select: none;
+}
