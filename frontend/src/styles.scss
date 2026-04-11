@@ -19,7 +19,9 @@
 
 @import "@ali-hm/angular-tree-component/css/angular-tree-component.css";
 
-* {
+.ant-menu-item,
+.ant-menu-submenu-title,
+img {
   user-select: none;
 }
 

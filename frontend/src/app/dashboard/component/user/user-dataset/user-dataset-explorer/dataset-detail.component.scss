@@ -292,12 +292,3 @@ nz-select {
   padding-top: 10px;
   border-top: 1px solid #eee;
 }
-
-h2,
-.file-title,
-:host ::ng-deep .description-section {
-  &,
-  * {
-    user-select: text;
-  }
-}
