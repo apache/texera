@@ -449,11 +449,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
 
       // if the title is fileName, then change it to custom autocomplete input template
-      if (mappedField.key == "fileName") {
+      if (mappedField.key === "fileName") {
         mappedField.type = "inputautocomplete";
       }
 
-      if (mappedField.key == "datasetVersionPath") {
+      if (mappedField.key === "datasetVersionPath") {
         mappedField.type = "datasetversionselector";
       }
 
