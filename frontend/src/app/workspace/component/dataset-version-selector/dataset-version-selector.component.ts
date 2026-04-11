@@ -48,8 +48,9 @@ export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> 
       .pipe(untilDestroyed(this))
       .subscribe(datasets => {
         this.datasets = datasets;
-        const [_, ownerEmail, datasetName, versionName] = this.formControl.value.split("/");
-        if (versionName) {
+        const path = this.formControl.value.split("/")
+        if (path) {
+          const [_, ownerEmail, datasetName, versionName] = this.formControl.value.split("/");
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
