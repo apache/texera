@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import {ChangeDetectorRef, Component, OnInit} from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
@@ -35,7 +35,10 @@ export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> 
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
 
-  constructor(private datasetService: DatasetService, private changeDetectorRef: ChangeDetectorRef) {
+  constructor(
+    private datasetService: DatasetService,
+    private changeDetectorRef: ChangeDetectorRef
+  ) {
     super();
   }
 
@@ -45,16 +48,15 @@ export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> 
       .pipe(untilDestroyed(this))
       .subscribe(datasets => {
         this.datasets = datasets;
-        const [_, ownerEmail, datasetName, versionName] = this.formControl.value.split("/")
+        const [_, ownerEmail, datasetName, versionName] = this.formControl.value.split("/");
         if (versionName) {
           this.selectedDataset = this.datasets.find(
-            dataset =>
-              dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
+            dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
-          this.onDatasetChange()
+          this.onDatasetChange();
         }
       });
-    }
+  }
 
   onDatasetChange(): void {
     if (this.selectedDataset) {
