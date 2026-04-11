@@ -81,12 +81,10 @@ class UrlVizOpDesc extends LogicalOp {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "URL Visualizer",
       "Render the content of URL",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
 
 }

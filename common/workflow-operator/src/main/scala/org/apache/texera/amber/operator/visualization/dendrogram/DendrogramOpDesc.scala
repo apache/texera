@@ -64,12 +64,10 @@ class DendrogramOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Dendrogram",
       "Visualize data in a Dendrogram",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   private def createDendrogram(): PythonTemplateBuilder = {

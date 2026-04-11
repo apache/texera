@@ -47,7 +47,7 @@ class UnionOpDesc extends LogicalOp {
       "Union",
       "Unions the output rows from multiple input operators",
       OperatorGroupConstants.SET_GROUP,
-      inputPorts = List(InputPort(PortIdentity(0), allowMultiLinks = true)),
+      inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
 }
