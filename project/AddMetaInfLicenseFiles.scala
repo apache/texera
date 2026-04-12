@@ -20,8 +20,8 @@ import sbt.Keys._
 import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
 
 /**
- * Copies hand-curated LICENSE, NOTICE, and DISCLAIMER-WIP files from legal/
- * into jar META-INF directories and sbt-native-packager dist zip top level.
+ * Copies the repo-root LICENSE, NOTICE, and DISCLAIMER-WIP into jar META-INF
+ * directories and sbt-native-packager dist zip top level.
  *
  * Modeled after Apache Pekko's project/AddMetaInfLicenseFiles.scala.
  * See https://github.com/apache/texera/issues/4131
@@ -37,12 +37,12 @@ object AddMetaInfLicenseFiles {
     dest
   }
 
-  lazy val defaultLicenseFile = Def.setting { rootDir.value / "legal" / "StandardLicense.txt" }
-  lazy val defaultNoticeFile = Def.setting { rootDir.value / "legal" / "TexeraNotice.txt" }
+  lazy val defaultLicenseFile = Def.setting { rootDir.value / "LICENSE" }
+  lazy val defaultNoticeFile = Def.setting { rootDir.value / "NOTICE" }
   lazy val defaultDisclaimerFile = Def.setting { rootDir.value / "DISCLAIMER-WIP" }
 
   /** Settings for all modules: copies LICENSE, NOTICE, and DISCLAIMER-WIP
-   *  from legal/ into the jar's META-INF directory. */
+   *  into the jar's META-INF directory. */
   lazy val defaultSettings: Seq[Setting[_]] = Seq(
     Compile / resourceGenerators += Def.task {
       val managed = (Compile / resourceManaged).value
@@ -66,8 +66,7 @@ object AddMetaInfLicenseFiles {
       val licenseFile = defaultLicenseFile.value
       val noticeFile = defaultNoticeFile.value
       val disclaimerFile = defaultDisclaimerFile.value
-      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER", "DISCLAIMER-WIP",
-        "StandardLicense.txt", "TexeraNotice.txt")
+      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER", "DISCLAIMER-WIP")
       val filtered = existing.filterNot { case (_, path) => reserved.contains(path) }
       val extras = Seq(
         licenseFile -> "LICENSE",
