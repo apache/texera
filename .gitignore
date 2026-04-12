@@ -125,3 +125,4 @@ values-*.yaml    # Any environment-specific value overrides
 # Ignore nested node modules
 **/node_modules/
 **/package-lock.json
+.env
