@@ -17,52 +17,56 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.source.scan
+package org.apache.texera.amber.operator.source.scan.file
 
-import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
-import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseField
-import org.apache.texera.amber.core.tuple.{LargeBinary, Tuple, TupleLike}
-import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.service.util.LargeBinaryOutputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import org.apache.commons.io.IOUtils.toByteArray
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseField
+import org.apache.texera.amber.core.tuple.{LargeBinary, TupleLike}
+import org.apache.texera.amber.operator.source.scan.{
+  AutoClosingIterator,
+  FileAttributeType,
+  FileDecodingMethod
+}
+import org.apache.texera.service.util.LargeBinaryOutputStream
 
 import java.io._
 import java.net.URI
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class InputFileScanSourceOpExec private[scan] (
-    descString: String
-) extends OperatorExecutor {
-  private val desc: InputFileScanSourceOpDesc =
-    objectMapper.readValue(descString, classOf[InputFileScanSourceOpDesc])
+private[scan] trait FileScanSourceOpExecSupport {
 
-  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    val fileName =
-      FileResolver.resolve(tuple.getFields.collectFirst { case s: String => s }.get).toASCIIString
-    val is: InputStream =
-      DocumentFactory.openReadonlyDocument(new URI(fileName)).asInputStream()
+  protected def createTuplesFromFile(
+      fileName: String,
+      attributeType: FileAttributeType,
+      fileEncoding: FileDecodingMethod,
+      extract: Boolean,
+      outputFileName: Boolean,
+      fileScanOffset: Option[Int],
+      fileScanLimit: Option[Int]
+  ): Iterator[TupleLike] = {
+    val inputStream = DocumentFactory.openReadonlyDocument(new URI(fileName)).asInputStream()
 
     val closeables = mutable.ArrayBuffer.empty[AutoCloseable]
     var zipIn: ZipArchiveInputStream = null
-    var archiveStream: InputStream = null
-    if (desc.extract) {
-      zipIn = new ArchiveStreamFactory()
-        .createArchiveInputStream(new BufferedInputStream(is))
-        .asInstanceOf[ZipArchiveInputStream]
-      archiveStream = zipIn
-      closeables += zipIn
-    } else {
-      archiveStream = is
-      closeables += is
-    }
+    val archiveStream: InputStream =
+      if (extract) {
+        zipIn = new ArchiveStreamFactory()
+          .createArchiveInputStream(new BufferedInputStream(inputStream))
+          .asInstanceOf[ZipArchiveInputStream]
+        closeables += zipIn
+        zipIn
+      } else {
+        closeables += inputStream
+        inputStream
+      }
 
     var filenameIt: Iterator[String] = Iterator.empty
-    val fileEntries: Iterator[InputStream] = {
-      if (desc.extract) {
+    val fileEntries: Iterator[InputStream] =
+      if (extract) {
         val (it1, it2) = Iterator
           .continually(zipIn.getNextEntry)
           .takeWhile(_ != null)
@@ -73,19 +77,18 @@ class InputFileScanSourceOpExec private[scan] (
       } else {
         Iterator(archiveStream)
       }
-    }
 
     val rawIterator: Iterator[TupleLike] =
-      if (desc.attributeType.isSingle) {
+      if (attributeType.isSingle) {
         fileEntries.zipAll(filenameIt, null, null).map {
-          case (entry, fileName) =>
-            val fields: mutable.ListBuffer[Any] = mutable.ListBuffer()
-            if (desc.outputFileName) {
-              fields.addOne(fileName)
+          case (entry, entryFileName) =>
+            val fields = mutable.ListBuffer.empty[Any]
+            if (outputFileName) {
+              fields += entryFileName
             }
-            fields.addOne(desc.attributeType match {
+            fields += (attributeType match {
               case FileAttributeType.SINGLE_STRING =>
-                new String(toByteArray(entry), desc.fileEncoding.getCharset)
+                new String(toByteArray(entry), fileEncoding.getCharset)
               case FileAttributeType.LARGE_BINARY =>
                 val largeBinary = new LargeBinary()
                 val out = new LargeBinaryOutputStream(largeBinary)
@@ -100,24 +103,24 @@ class InputFileScanSourceOpExec private[scan] (
                   out.close()
                 }
                 largeBinary
-              case _ => parseField(toByteArray(entry), desc.attributeType.getType)
+              case _ => parseField(toByteArray(entry), attributeType.getType)
             })
             TupleLike(fields.toSeq: _*)
         }
       } else {
         fileEntries.flatMap(entry =>
-          new BufferedReader(new InputStreamReader(entry, desc.fileEncoding.getCharset))
+          new BufferedReader(new InputStreamReader(entry, fileEncoding.getCharset))
             .lines()
             .iterator()
             .asScala
             .slice(
-              desc.fileScanOffset.getOrElse(0),
-              desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
+              fileScanOffset.getOrElse(0),
+              fileScanOffset.getOrElse(0) + fileScanLimit.getOrElse(Int.MaxValue)
             )
             .map(line =>
-              TupleLike(desc.attributeType match {
+              TupleLike(attributeType match {
                 case FileAttributeType.SINGLE_STRING => line
-                case _                               => parseField(line, desc.attributeType.getType)
+                case _                               => parseField(line, attributeType.getType)
               })
             )
         )
@@ -125,5 +128,4 @@ class InputFileScanSourceOpExec private[scan] (
 
     new AutoClosingIterator(rawIterator, () => closeables.foreach(_.close()))
   }
-
 }
