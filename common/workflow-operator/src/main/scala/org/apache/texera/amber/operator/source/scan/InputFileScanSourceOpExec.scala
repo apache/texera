@@ -41,7 +41,8 @@ class InputFileScanSourceOpExec private[scan] (
     objectMapper.readValue(descString, classOf[InputFileScanSourceOpDesc])
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    val fileName = FileResolver.resolve(tuple.getFields.collectFirst { case s: String => s }.get).toASCIIString
+    val fileName =
+      FileResolver.resolve(tuple.getFields.collectFirst { case s: String => s }.get).toASCIIString
     val is: InputStream =
       DocumentFactory.openReadonlyDocument(new URI(fileName)).asInputStream()
 
@@ -124,7 +125,5 @@ class InputFileScanSourceOpExec private[scan] (
 
     new AutoClosingIterator(rawIterator, () => closeables.foreach(_.close()))
   }
-
-
 
 }
