@@ -19,14 +19,15 @@
 
 package org.apache.texera.amber.operator.source.scan
 
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseField
-import org.apache.texera.amber.core.tuple.{LargeBinary, TupleLike}
+import org.apache.texera.amber.core.tuple.{LargeBinary, Tuple, TupleLike}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.service.util.LargeBinaryOutputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import org.apache.commons.io.IOUtils.toByteArray
+import org.apache.texera.amber.core.executor.OperatorExecutor
 
 import java.io._
 import java.net.URI
@@ -35,18 +36,14 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class InputFileScanSourceOpExec private[scan] (
     descString: String
-) extends InputFileSourceOpExec {
+) extends OperatorExecutor {
   private val desc: InputFileScanSourceOpDesc =
     objectMapper.readValue(descString, classOf[InputFileScanSourceOpDesc])
 
-  @throws[IOException]
-  override def produceTuple(): Iterator[TupleLike] = {
-    resolvedInputFileNames.iterator.flatMap(produceTuplesForFile)
-  }
-
-  private def produceTuplesForFile(resolvedFileName: String): Iterator[TupleLike] = {
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    val fileName = FileResolver.resolve(tuple.getFields.collectFirst { case s: String => s }.get).toASCIIString
     val is: InputStream =
-      DocumentFactory.openReadonlyDocument(new URI(resolvedFileName)).asInputStream()
+      DocumentFactory.openReadonlyDocument(new URI(fileName)).asInputStream()
 
     val closeables = mutable.ArrayBuffer.empty[AutoCloseable]
     var zipIn: ZipArchiveInputStream = null
@@ -127,4 +124,7 @@ class InputFileScanSourceOpExec private[scan] (
 
     new AutoClosingIterator(rawIterator, () => closeables.foreach(_.close()))
   }
+
+
+
 }
