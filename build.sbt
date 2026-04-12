@@ -15,9 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Copies LICENSE, NOTICE, and DISCLAIMER-WIP from project root into
-// jar META-INF directories. See project/AddMetaInfLicenseFiles.scala.
+// Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
+// Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
+// See project/AddMetaInfLicenseFiles.scala.
 lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings
 lazy val asfDistLicensingSettings = AddMetaInfLicenseFiles.distSettings
 
 lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
@@ -85,7 +87,7 @@ lazy val FileService = (project in file("file-service"))
     )
   )
 
-lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettings).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
   .settings(asfLicensingSettings)

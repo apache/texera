@@ -20,40 +20,95 @@ import sbt.Keys._
 import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
 
 /**
- * Copies the repo-root LICENSE, NOTICE, and DISCLAIMER-WIP into jar META-INF
- * directories and sbt-native-packager dist zip top level.
+ * Generates per-module LICENSE files for jar META-INF and dist zip top level.
  *
- * Modeled after Apache Pekko's project/AddMetaInfLicenseFiles.scala.
+ * Each jar's META-INF/LICENSE describes only what is in that specific jar:
+ *  - Modules without vendored code get Apache 2.0 only.
+ *  - workflow-operator gets Apache 2.0 plus the mbknor-jackson-jsonschema
+ *    attribution and the full MIT license text.
+ *
+ * NOTICE and DISCLAIMER are copied as-is from the repo root.
+ *
  * See https://github.com/apache/texera/issues/4131
  */
 object AddMetaInfLicenseFiles {
 
   private lazy val rootDir = LocalRootProject / baseDirectory
 
-  private def addFileToMetaInf(resourceManaged: File, file: File, targetName: String): File = {
-    val metaInfDir = resourceManaged / "META-INF"
-    val dest = metaInfDir / targetName
-    IO.copyFile(file, dest)
+  /** Extract the Apache 2.0 license text (before the THIRD-PARTY section) from root LICENSE. */
+  private def apacheLicenseText(rootDir: File): String = {
+    val lines = IO.readLines(rootDir / "LICENSE")
+    val cutoffIndex = lines.zipWithIndex.collectFirst {
+      case (line, idx) if idx >= 200 && line.startsWith("---") => idx
+    }.getOrElse(lines.length)
+    lines.take(cutoffIndex).mkString("\n").trim + "\n"
+  }
+
+  /** The vendored code section for workflow-operator (mbknor-jackson-jsonschema). */
+  private def workflowOperatorVendoredSection(rootDir: File): String = {
+    val mitLicense = IO.read(rootDir / "licenses" / "LICENSE-MIT.txt")
+    s"""
+       |--------------------------------------------------------------------------------
+       |THIRD-PARTY DEPENDENCIES
+       |--------------------------------------------------------------------------------
+       |
+       |This jar bundles compiled code from the following third-party project.
+       |The full license text is included below.
+       |
+       |MIT License
+       |--------------------------------------
+       |
+       |This product bundles code derived from mbknor-jackson-jsonschema:
+       |  - com/kjetland/jackson/jsonSchema/
+       |  Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
+       |  Source: https://github.com/mbknor/mbknor-jackson-jsonschema
+       |
+       |--------------------------------------------------------------------------------
+       |Full text of the MIT License:
+       |--------------------------------------------------------------------------------
+       |
+       |${mitLicense.trim}
+       |""".stripMargin
+  }
+
+  private def writeToMetaInf(managed: File, fileName: String, content: String): File = {
+    val dest = managed / "META-INF" / fileName
+    IO.write(dest, content)
     dest
   }
 
-  lazy val defaultLicenseFile = Def.setting { rootDir.value / "LICENSE" }
-  lazy val defaultNoticeFile = Def.setting { rootDir.value / "NOTICE" }
-  lazy val defaultDisclaimerFile = Def.setting { rootDir.value / "DISCLAIMER-WIP" }
+  private def copyToMetaInf(managed: File, src: File, fileName: String): File = {
+    val dest = managed / "META-INF" / fileName
+    IO.copyFile(src, dest)
+    dest
+  }
 
-  /** Settings for all modules: copies LICENSE, NOTICE, and DISCLAIMER-WIP
-   *  into the jar's META-INF directory. */
+  private def noticeAndDisclaimer(managed: File, rootDir: File): Seq[File] = {
+    val files = Seq(copyToMetaInf(managed, rootDir / "NOTICE", "NOTICE"))
+    val disclaimer = rootDir / "DISCLAIMER"
+    if (disclaimer.exists()) files :+ copyToMetaInf(managed, disclaimer, "DISCLAIMER")
+    else files
+  }
+
+  /** Settings for modules WITHOUT vendored third-party code.
+   *  META-INF/LICENSE contains only the Apache 2.0 license text. */
   lazy val defaultSettings: Seq[Setting[_]] = Seq(
     Compile / resourceGenerators += Def.task {
       val managed = (Compile / resourceManaged).value
-      val licenseFile = defaultLicenseFile.value
-      val noticeFile = defaultNoticeFile.value
-      val disclaimerFile = defaultDisclaimerFile.value
-      val files = Seq(
-        addFileToMetaInf(managed, licenseFile, "LICENSE"),
-        addFileToMetaInf(managed, noticeFile, "NOTICE")
-      )
-      if (disclaimerFile.exists()) files :+ addFileToMetaInf(managed, disclaimerFile, "DISCLAIMER-WIP") else files
+      val root = rootDir.value
+      val licenseContent = apacheLicenseText(root)
+      writeToMetaInf(managed, "LICENSE", licenseContent) +: noticeAndDisclaimer(managed, root)
+    }.taskValue
+  )
+
+  /** Settings for workflow-operator which contains vendored mbknor-jackson-jsonschema code.
+   *  META-INF/LICENSE contains Apache 2.0 plus the mbknor attribution and MIT license text. */
+  lazy val workflowOperatorSettings: Seq[Setting[_]] = Seq(
+    Compile / resourceGenerators += Def.task {
+      val managed = (Compile / resourceManaged).value
+      val root = rootDir.value
+      val licenseContent = apacheLicenseText(root) + "\n" + workflowOperatorVendoredSection(root)
+      writeToMetaInf(managed, "LICENSE", licenseContent) +: noticeAndDisclaimer(managed, root)
     }.taskValue
   )
 
@@ -63,15 +118,16 @@ object AddMetaInfLicenseFiles {
   lazy val distSettings: Seq[Setting[_]] = Seq(
     Universal / mappings := {
       val existing = (Universal / mappings).value
-      val licenseFile = defaultLicenseFile.value
-      val noticeFile = defaultNoticeFile.value
-      val disclaimerFile = defaultDisclaimerFile.value
-      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER", "DISCLAIMER-WIP")
+      val root = rootDir.value
+      val licenseFile = root / "LICENSE"
+      val noticeFile = root / "NOTICE"
+      val disclaimerFile = root / "DISCLAIMER"
+      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER", "DISCLAIMER")
       val filtered = existing.filterNot { case (_, path) => reserved.contains(path) }
       val extras = Seq(
         licenseFile -> "LICENSE",
         noticeFile -> "NOTICE"
-      ) ++ (if (disclaimerFile.exists()) Seq(disclaimerFile -> "DISCLAIMER-WIP") else Seq.empty)
+      ) ++ (if (disclaimerFile.exists()) Seq(disclaimerFile -> "DISCLAIMER") else Seq.empty)
       filtered ++ extras
     }
   )
