@@ -15,13 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Copies hand-curated LICENSE, NOTICE, and DISCLAIMER-WIP from legal/ into
+// Copies LICENSE, NOTICE, and DISCLAIMER-WIP from project root into
 // jar META-INF directories. See project/AddMetaInfLicenseFiles.scala.
-// Modeled after Apache Pekko's approach:
-//   https://github.com/apache/pekko/blob/main/project/AddMetaInfLicenseFiles.scala
-//
-// Required for Apache release policy compliance — see
-// https://github.com/apache/texera/issues/4131
 lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings
 lazy val asfDistLicensingSettings = AddMetaInfLicenseFiles.distSettings
 
