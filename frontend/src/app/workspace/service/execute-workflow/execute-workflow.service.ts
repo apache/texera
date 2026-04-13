@@ -421,7 +421,7 @@ export class ExecuteWorkflowService {
       ...op.operatorProperties,
       operatorID: op.operatorID,
       operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
+      inputPorts: op.inputPorts.map(({ allowMultiInputs, ...port }: any) => port),
       outputPorts: op.outputPorts,
     }));
 
