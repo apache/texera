@@ -66,12 +66,8 @@ export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
     });
   }
 
-  get enableDatasetSource(): boolean {
-    return this.config.env.selectingFilesFromDatasetsEnabled;
-  }
-
   get isFileSelectionEnabled(): boolean {
-    return this.enableDatasetSource;
+    return this.config.env.selectingFilesFromDatasetsEnabled;
   }
 
   get selectedFilePath(): string | null {
