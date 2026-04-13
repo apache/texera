@@ -20,7 +20,6 @@
 package org.apache.texera.web.resource
 
 import org.apache.texera.config.UserSystemConfig
-import org.apache.texera.config.UserSystemConfig.appDomain
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 
 /**
@@ -34,7 +33,6 @@ object EmailTemplate {
 
   private val projectName: String =
     UserSystemConfig.projectName
-
 
   /**
     * Creates an email message for user registration notifications.
