@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
-COPY LICENSE NOTICE DISCLAIMER ./
+COPY LICENSE NOTICE DISCLAIMER-WIP ./
 
 RUN sbt clean FileService/dist
 

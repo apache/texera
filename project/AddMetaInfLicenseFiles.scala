@@ -27,7 +27,7 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
  *  - workflow-operator gets Apache 2.0 plus the mbknor-jackson-jsonschema
  *    attribution and the full MIT license text.
  *
- * NOTICE and DISCLAIMER are copied as-is from the repo root.
+ * NOTICE and DISCLAIMER-WIP are copied as-is from the repo root.
  *
  * See https://github.com/apache/texera/issues/4131
  */
@@ -93,8 +93,8 @@ object AddMetaInfLicenseFiles {
 
   private def noticeAndDisclaimer(managed: File, rootDir: File): Seq[File] = {
     val files = Seq(copyToMetaInf(managed, rootDir / "NOTICE", "NOTICE"))
-    val disclaimer = rootDir / "DISCLAIMER"
-    if (disclaimer.exists()) files :+ copyToMetaInf(managed, disclaimer, "DISCLAIMER")
+    val disclaimer = rootDir / "DISCLAIMER-WIP"
+    if (disclaimer.exists()) files :+ copyToMetaInf(managed, disclaimer, "DISCLAIMER-WIP")
     else files
   }
 
@@ -129,13 +129,13 @@ object AddMetaInfLicenseFiles {
       val root = rootDir.value
       val licenseFile = root / "LICENSE"
       val noticeFile = root / "NOTICE"
-      val disclaimerFile = root / "DISCLAIMER"
-      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER")
+      val disclaimerFile = root / "DISCLAIMER-WIP"
+      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER-WIP")
       val filtered = existing.filterNot { case (_, path) => reserved.contains(path) }
       val extras = Seq(
         licenseFile -> "LICENSE",
         noticeFile -> "NOTICE"
-      ) ++ (if (disclaimerFile.exists()) Seq(disclaimerFile -> "DISCLAIMER") else Seq.empty)
+      ) ++ (if (disclaimerFile.exists()) Seq(disclaimerFile -> "DISCLAIMER-WIP") else Seq.empty)
       filtered ++ extras
     }
   )

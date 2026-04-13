@@ -11,7 +11,7 @@ header:
     - '**/*.json'
     - '**/*.jsonl'
     - 'DESCRIPTION'
-    - 'DISCLAIMER'
+    - 'DISCLAIMER-WIP'
     - 'LICENSE'
     - 'NOTICE'
     - '.dockerignore'
