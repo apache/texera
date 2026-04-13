@@ -31,6 +31,9 @@ object EmailTemplate {
   private val deployment: String =
     UserSystemConfig.appDomain.map(_.replaceFirst("^https?://", "")).getOrElse("")
 
+  private val projectName: String =
+    UserSystemConfig.projectName
+
   /**
     * Creates an email message for user registration notifications.
     * Depending on the 'toAdmin' flag, it either notifies an administrator
@@ -79,7 +82,7 @@ object EmailTemplate {
            |We have received your request and it is currently under review.
            |You will be notified once your account has been approved.
            |
-           |Thank you for your interest in Texera!
+           |Thank you for your interest in $projectName!
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     }
@@ -104,7 +107,7 @@ object EmailTemplate {
          |
          |If you have any questions, please contact the administrator.
          |
-         |Thank you for using Texera!
+         |Thank you for using $projectName!
          |""".stripMargin
 
     EmailMessage(subject = subject, content = content, receiver = receiverEmail)
