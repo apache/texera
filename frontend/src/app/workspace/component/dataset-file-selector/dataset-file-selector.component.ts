@@ -40,7 +40,6 @@ export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
 
   onClickOpenFileSelectionModal(): void {
     const modal = this.modalService.create({
-      nzTitle: "Please select one file from datasets",
       nzContent: DatasetSelectionModalComponent,
       nzFooter: null,
       nzData: {
@@ -58,7 +57,6 @@ export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
       },
       nzWidth: "fit-content",
     });
-    // Handle the selection from the modal
     modal.afterClose.pipe(untilDestroyed(this)).subscribe(selectedPath => {
       if (selectedPath) {
         this.formControl.setValue(selectedPath);
@@ -68,9 +66,5 @@ export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
 
   get isFileSelectionEnabled(): boolean {
     return this.config.env.selectingFilesFromDatasetsEnabled;
-  }
-
-  get selectedFilePath(): string | null {
-    return this.formControl.value;
   }
 }

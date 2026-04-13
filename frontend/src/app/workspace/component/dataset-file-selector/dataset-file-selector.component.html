@@ -17,7 +17,7 @@
  under the License.
 -->
 <input
-  *ngIf="selectedFilePath || !isFileSelectionEnabled"
+  *ngIf="this.formControl.value || !isFileSelectionEnabled"
   nz-input
   required
   [readOnly]="isFileSelectionEnabled"

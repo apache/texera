@@ -40,7 +40,6 @@ interface ParsedDatasetVersionPath {
 
 @UntilDestroy()
 @Component({
-  selector: "texera-dataset-selection-modal",
   templateUrl: "dataset-selection-modal.component.html",
   styleUrls: ["dataset-selection-modal.component.scss"],
 })
@@ -161,20 +160,12 @@ export class DatasetSelectionModalComponent implements OnInit {
     return this._datasets;
   }
 
-  get confirmButtonText(): string {
-    return this.mode === "version" ? "Select Dataset" : "Select File";
-  }
-
   get isConfirmDisabled(): boolean {
     return this.mode === "version" ? !(this.selectedDataset && this.selectedVersion) : !this.selectedFileNode;
   }
 
   private parseDatasetVersionPath(path: string): ParsedDatasetVersionPath {
     const parts = path.split("/").filter(part => part.length > 0);
-
-    if (parts.length < 3) {
-      throw new Error("Invalid dataset version path format");
-    }
 
     const [ownerEmail, datasetName, versionName] = parts;
     return { ownerEmail, datasetName, versionName };

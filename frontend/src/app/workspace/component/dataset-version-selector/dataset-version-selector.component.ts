@@ -34,7 +34,6 @@ export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> 
 
   onClickOpenDatasetSelectionModal(): void {
     const modal = this.modalService.create({
-      nzTitle: "Please select a dataset version",
       nzContent: DatasetSelectionModalComponent,
       nzFooter: null,
       nzData: {
