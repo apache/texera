@@ -413,7 +413,6 @@ object PveManager {
 
     val updated = (existing ++ installedEntries).distinct.sorted
     writeMetadata(userFile, updated)
-    queue.put(s"[PVE] Updated user-packages.txt")
 
     queue.put("\n\n\n[PVE] Final package list (pip list --format=freeze):")
 
