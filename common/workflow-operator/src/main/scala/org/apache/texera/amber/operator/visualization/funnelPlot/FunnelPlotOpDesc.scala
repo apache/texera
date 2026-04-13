@@ -67,12 +67,10 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Funnel Plot",
       "Visualize data in a Funnel Plot",
-      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
   private def createPlotlyFigure(): PythonTemplateBuilder = {
