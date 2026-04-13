@@ -17,30 +17,6 @@
  * under the License.
  */
 
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 10px;
-}
-
-.selectors {
-  display: flex;
-  gap: 16px;
-}
-
-
-
-.version-select {
-  flex: 1;
-  min-width: 0;
-}
-
-.dataset-select {
-  flex: 1;
-  min-width: 0;
-}
-
 .dataset-dropdown {
   display: flex;
 }
