@@ -17,70 +17,50 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
-import { DatasetVersion } from "../../../common/type/dataset";
-import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { DatasetSelectionComponent } from "../dataset-selection/dataset-selection.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-dataset-version-selector-template",
   templateUrl: "./dataset-version-selector.component.html",
 })
-export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> implements OnInit {
-  datasets: ReadonlyArray<DashboardDataset> = [];
-  datasetVersions: ReadonlyArray<DatasetVersion> = [];
-  selectedDataset?: DashboardDataset;
-  selectedVersion?: DatasetVersion;
-
-  constructor(
-    private datasetService: DatasetService,
-    private changeDetectorRef: ChangeDetectorRef
-  ) {
+export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> {
+  constructor(private modalService: NzModalService) {
     super();
   }
 
-  ngOnInit(): void {
-    this.datasetService
-      .retrieveAccessibleDatasets()
-      .pipe(untilDestroyed(this))
-      .subscribe(datasets => {
-        this.datasets = datasets;
-        const path = this.formControl.value.split("/");
-        if (path) {
-          const [, ownerEmail, datasetName] = this.formControl.value.split("/");
-          this.selectedDataset = this.datasets.find(
-            dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
-          );
-          this.onDatasetChange();
-        }
-      });
+  onClickOpenDatasetSelectionModal(): void {
+    const modal = this.modalService.create({
+      nzTitle: "Please select a dataset version",
+      nzContent: DatasetSelectionComponent,
+      nzFooter: null,
+      nzData: {
+        mode: "version",
+        selectedPath: this.formControl.getRawValue(),
+      },
+      nzBodyStyle: {
+        resize: "both",
+        overflow: "auto",
+        minHeight: "200px",
+        minWidth: "550px",
+        maxWidth: "90vw",
+        maxHeight: "80vh",
+      },
+      nzWidth: "fit-content",
+    });
+
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(selectedPath => {
+      if (selectedPath) {
+        this.formControl.setValue(selectedPath);
+      }
+    });
   }
 
-  onDatasetChange(): void {
-    if (this.selectedDataset) {
-      this.datasetService
-        .retrieveDatasetVersionList(this.selectedDataset.dataset.did!)
-        .pipe(untilDestroyed(this))
-        .subscribe(versions => {
-          this.datasetVersions = versions;
-          this.selectedVersion = versions[0];
-          this.onVersionChange();
-          this.changeDetectorRef.detectChanges();
-        });
-    } else {
-      this.selectedVersion = undefined;
-      this.onVersionChange();
-    }
-  }
-
-  onVersionChange(): void {
-    this.formControl.setValue(
-      this.selectedDataset && this.selectedVersion
-        ? `/${this.selectedDataset?.ownerEmail}/${this.selectedDataset?.dataset?.name}/${this.selectedVersion?.name}`
-        : null
-    );
+  get selectedDatasetVersionPath(): string | null {
+    return this.formControl.value;
   }
 }

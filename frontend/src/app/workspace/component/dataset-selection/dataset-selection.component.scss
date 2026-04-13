@@ -38,7 +38,7 @@
 }
 
 .select-dataset {
-  transition: width 0.3s; /* Add animation effect */
+  transition: width 0.3s;
 }
 
 .select-version {
@@ -60,7 +60,7 @@
 
 .dataset-name {
   display: inline-block;
-  max-width: calc(100% - 100px); /* Adjust to fit other elements */
+  max-width: calc(100% - 100px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,4 +86,9 @@
   margin-left: 10px;
   font-size: 12px;
   color: grey;
+}
+
+.action-row {
+  display: flex;
+  justify-content: flex-end;
 }
