@@ -192,7 +192,7 @@ export function extractOperatorInputPortSchemaMap(
  */
 interface InputPortInfo {
   displayName?: string;
-  allowMultiLinks?: boolean;
+  disallowMultiLinks?: boolean;
   dependencies?: { id: number; internal: boolean }[];
 }
 
@@ -210,7 +210,7 @@ function inputPortToPortDescription(portID: string, inputPortInfo: InputPortInfo
   return {
     portID,
     displayName: inputPortInfo.displayName ?? "",
-    allowMultiInputs: inputPortInfo.allowMultiLinks ?? false,
+    disallowMultiInputs: inputPortInfo.disallowMultiLinks ?? false,
     isDynamicPort: false,
     dependencies: inputPortInfo.dependencies ?? [],
   };
@@ -223,7 +223,7 @@ function outputPortToPortDescription(portID: string, outputPortInfo: OutputPortI
   return {
     portID,
     displayName: outputPortInfo.displayName ?? "",
-    allowMultiInputs: false,
+    disallowMultiInputs: false,
     isDynamicPort: false,
   };
 }

@@ -146,7 +146,7 @@ export function getBackendConfig(): BackendConfig {
 
 export interface InputPortInfo {
   displayName?: string;
-  allowMultiLinks?: boolean;
+  disallowMultiLinks?: boolean;
   dependencies?: { id: number; internal: boolean }[];
 }
 

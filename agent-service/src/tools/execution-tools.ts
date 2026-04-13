@@ -152,15 +152,15 @@ function validateOperatorConnection(operatorId: string, workflowState: WorkflowS
   for (const port of operator.inputPorts) {
     const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
 
-    if (port.allowMultiInputs) {
-      if (portNumInputs < 1) {
-        satisfyInput = false;
-        violationMessage += `${port.displayName ?? port.portID} requires at least 1 input, has ${portNumInputs}. `;
-      }
-    } else {
+    if (port.disallowMultiInputs) {
       if (portNumInputs !== 1) {
         satisfyInput = false;
         violationMessage += `${port.displayName ?? port.portID} requires 1 input, has ${portNumInputs}. `;
+      }
+    } else {
+      if (portNumInputs < 1) {
+        satisfyInput = false;
+        violationMessage += `${port.displayName ?? port.portID} requires at least 1 input, has ${portNumInputs}. `;
       }
     }
   }

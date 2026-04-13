@@ -253,7 +253,7 @@ export class WorkflowState {
       newInputPorts.push({
         portID: `input-${i}`,
         displayName: `Input ${i}`,
-        allowMultiInputs: false,
+        disallowMultiInputs: true,
         isDynamicPort: i > 0, // First port is not dynamic, subsequent ports are
       });
     }

@@ -58,7 +58,7 @@ class PortRef(BaseModel):
 class PortDescription(BaseModel):
     portID: str
     displayName: str | None = None
-    allowMultiInputs: bool | None = False
+    disallowMultiInputs: bool | None = False
     isDynamicPort: bool | None = False
 
     class Config:

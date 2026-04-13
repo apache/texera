@@ -63,7 +63,7 @@ export type PartitionInfo =
 export interface PortDescription {
   readonly portID: string;
   readonly displayName?: string;
-  readonly allowMultiInputs?: boolean;
+  readonly disallowMultiInputs?: boolean;
   readonly isDynamicPort?: boolean;
   readonly partitionRequirement?: PartitionInfo;
   readonly dependencies?: { id: number; internal: boolean }[];
