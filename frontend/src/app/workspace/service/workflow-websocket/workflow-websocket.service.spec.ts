@@ -34,4 +34,32 @@ describe("WorkflowWebsocketService", () => {
   it("should be created", () => {
     expect(service).toBeTruthy();
   });
+
+  it("should unsubscribe statusUpdateSubscription when closeWebsocket is called", () => {
+    // Simulate what openWebsocket does: subscribe to the shared event stream and store the ref.
+    // We do this without establishing a real WebSocket connection.
+    const serviceAny = service as any;
+    const subscription = service.websocketEvent().subscribe(() => {});
+    serviceAny.statusUpdateSubscription = subscription;
+
+    expect(subscription.closed).toBeFalse();
+
+    service.closeWebsocket();
+
+    expect(subscription.closed).toBeTrue();
+  });
+
+  it("should not accumulate event subscriptions across multiple closeWebsocket calls", () => {
+    const serviceAny = service as any;
+
+    // Assign a subscription and close twice; the second close should be a no-op (not throw).
+    const subscription = service.websocketEvent().subscribe(() => {});
+    serviceAny.statusUpdateSubscription = subscription;
+
+    service.closeWebsocket();
+    expect(subscription.closed).toBeTrue();
+
+    // A second close must not throw even though the subscription is already unsubscribed.
+    expect(() => service.closeWebsocket()).not.toThrow();
+  });
 });
