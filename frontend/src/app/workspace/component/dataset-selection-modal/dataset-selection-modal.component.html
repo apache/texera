@@ -21,8 +21,6 @@
   <div class="container">
     <div class="selection-row">
       <nz-select
-        nzShowSearch
-        nzAllowClear
         nzPlaceHolder="Select dataset"
         [(ngModel)]="selectedDataset"
         (ngModelChange)="onDatasetChange()"
@@ -52,8 +50,6 @@
 
       <nz-select
         *ngIf="selectedDataset"
-        nzShowSearch
-        nzAllowClear
         nzPlaceHolder="Select version"
         [(ngModel)]="selectedVersion"
         (ngModelChange)="onVersionChange()"
@@ -70,8 +66,7 @@
       *ngIf="mode === 'file' && suggestedFileTreeNodes.length > 0"
       [isExpandAllAfterViewInit]="true"
       [fileTreeNodes]="suggestedFileTreeNodes"
-      (selectedTreeNode)="onFileTreeNodeSelected($event)"
-      class="texera-user-dataset-version-filetree">
+      (selectedTreeNode)="onFileTreeNodeSelected($event)">
     </texera-user-dataset-version-filetree>
 
     <div class="action-row">
