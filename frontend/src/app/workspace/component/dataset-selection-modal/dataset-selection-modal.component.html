@@ -32,7 +32,7 @@
           [nzCustomContent]="true">
           <div class="dataset-option">
             #{{ dataset.dataset.did }} &nbsp;
-            <span class="dataset-name">{{ dataset.dataset.name }}</span>
+            <span class="dataset-name">{{ dataset.dataset.name }}</span>&nbsp;
             <span class="access-level">{{ dataset.isOwner ? 'OWNER' : dataset.accessPrivilege }}</span>
           </div>
         </nz-option>
@@ -60,6 +60,7 @@
   </div>
   <button
     nz-button
+    nzSize="small"
     nzType="primary"
     [disabled]="!selectedFilePath"
     (click)="onConfirmSelection()">
