@@ -19,7 +19,13 @@
 
 package org.apache.texera.amber.operator.source.scan.file
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
+import org.apache.texera.amber.core.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple
+}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
