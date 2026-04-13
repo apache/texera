@@ -22,8 +22,7 @@ import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { FileSelectionComponent } from "../file-selection/file-selection.component";
-import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
+import { DatasetSelectionComponent } from "../dataset-selection/dataset-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
@@ -44,10 +43,11 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   onClickOpenFileSelectionModal(): void {
     const modal = this.modalService.create({
       nzTitle: "Please select one file from datasets",
-      nzContent: FileSelectionComponent,
+      nzContent: DatasetSelectionComponent,
       nzFooter: null,
       nzData: {
-        selectedFilePath: this.formControl.getRawValue(),
+        mode: "file",
+        selectedPath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {
         // Enables the file selection window to be resizable
@@ -61,9 +61,10 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       nzWidth: "fit-content",
     });
     // Handle the selection from the modal
-    modal.afterClose.pipe(untilDestroyed(this)).subscribe(fileNode => {
-      const node: DatasetFileNode = fileNode as DatasetFileNode;
-      this.formControl.setValue(getFullPathFromDatasetFileNode(node));
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(selectedPath => {
+      if (selectedPath) {
+        this.formControl.setValue(selectedPath);
+      }
     });
   }
 

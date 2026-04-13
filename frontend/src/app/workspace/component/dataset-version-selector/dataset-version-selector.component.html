@@ -17,29 +17,17 @@
  under the License.
 -->
 
-<nz-select
-  nzShowSearch
-  nzAllowClear
-  nzPlaceHolder="dataset"
-  [ngModel]="selectedDataset"
-  (ngModelChange)="selectedDataset = $event; onDatasetChange()">
-  <nz-option
-    *ngFor="let dataset of datasets"
-    [nzValue]="dataset"
-    [nzLabel]="dataset.dataset.name">
-  </nz-option>
-</nz-select>
-
-<nz-select
-  nzShowSearch
-  nzAllowClear
-  nzPlaceHolder="version"
-  [ngModel]="selectedVersion"
-  (ngModelChange)="selectedVersion = $event; onVersionChange()"
-  [disabled]="!selectedDataset">
-  <nz-option
-    *ngFor="let version of datasetVersions"
-    [nzValue]="version"
-    [nzLabel]="version.name">
-  </nz-option>
-</nz-select>
+<div class="input-autocomplete-container">
+  <input
+    nz-input
+    readOnly
+    required
+    [formControl]="formControl"
+    [formlyAttributes]="field" />
+  <button
+    nz-button
+    nzSize="small"
+    (click)="onClickOpenDatasetSelectionModal()">
+    Select Dataset
+  </button>
+</div>

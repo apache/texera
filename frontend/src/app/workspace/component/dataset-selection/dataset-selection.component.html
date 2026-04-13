@@ -67,11 +67,21 @@
     </div>
 
     <texera-user-dataset-version-filetree
-      *ngIf="suggestedFileTreeNodes.length > 0"
+      *ngIf="mode === 'file' && suggestedFileTreeNodes.length > 0"
       [isExpandAllAfterViewInit]="true"
       [fileTreeNodes]="suggestedFileTreeNodes"
       (selectedTreeNode)="onFileTreeNodeSelected($event)"
       class="texera-user-dataset-version-filetree">
     </texera-user-dataset-version-filetree>
+
+    <div class="action-row">
+      <button
+        nz-button
+        nzType="primary"
+        [disabled]="isConfirmDisabled"
+        (click)="onConfirmSelection()">
+        {{ confirmButtonText }}
+      </button>
+    </div>
   </div>
 </nz-spin>
