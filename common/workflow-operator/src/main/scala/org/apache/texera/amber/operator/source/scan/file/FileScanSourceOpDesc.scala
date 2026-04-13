@@ -74,7 +74,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         executionId,
         operatorIdentifier,
         OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.FileScanSourceOpExec",
+          "org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpExec",
           objectMapper.writeValueAsString(this)
         )
       )
