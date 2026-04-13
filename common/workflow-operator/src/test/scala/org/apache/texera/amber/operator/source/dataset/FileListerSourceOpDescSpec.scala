@@ -22,10 +22,10 @@ package org.apache.texera.amber.operator.source.dataset
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.scalatest.flatspec.AnyFlatSpec
 
-class DatasetSelectorSourceOpDescSpec extends AnyFlatSpec {
+class FileListerSourceOpDescSpec extends AnyFlatSpec {
 
-  "DatasetSelectorSourceOpDesc" should "expose a filename output column" in {
-    val opDesc = new DatasetSelectorSourceOpDesc()
+  "FileListerSourceOpDesc" should "expose a filename output column" in {
+    val opDesc = new FileListerSourceOpDesc()
 
     val outputSchema = opDesc.getExternalOutputSchemas(Map.empty).values.head
 
@@ -34,9 +34,9 @@ class DatasetSelectorSourceOpDescSpec extends AnyFlatSpec {
   }
 
   it should "use the expected operator metadata" in {
-    val opDesc = new DatasetSelectorSourceOpDesc()
+    val opDesc = new FileListerSourceOpDesc()
 
-    assert(opDesc.operatorInfo.userFriendlyName == "Dataset Selector")
+    assert(opDesc.operatorInfo.userFriendlyName == "File Lister")
     assert(opDesc.operatorInfo.inputPorts.isEmpty)
     assert(opDesc.operatorInfo.outputPorts.length == 1)
   }

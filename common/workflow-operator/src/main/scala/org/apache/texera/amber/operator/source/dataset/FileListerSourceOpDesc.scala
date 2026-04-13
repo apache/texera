@@ -29,7 +29,7 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class DatasetSelectorSourceOpDesc extends LogicalOp {
+class FileListerSourceOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Dataset")
@@ -45,7 +45,7 @@ class DatasetSelectorSourceOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.dataset.DatasetSelectorSourceOpExec",
+          "org.apache.texera.amber.operator.source.dataset.FileListerSourceOpExec",
           objectMapper.writeValueAsString(this)
         )
       )
@@ -59,7 +59,7 @@ class DatasetSelectorSourceOpDesc extends LogicalOp {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      userFriendlyName = "Dataset Selector",
+      userFriendlyName = "File Lister",
       operatorDescription = "Select a dataset version and output one filename tuple per file",
       operatorGroupName = OperatorGroupConstants.INPUT_GROUP,
       inputPorts = List.empty,
