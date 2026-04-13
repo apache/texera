@@ -35,12 +35,20 @@ object AddMetaInfLicenseFiles {
 
   private lazy val rootDir = LocalRootProject / baseDirectory
 
+  private val ThirdPartyHeader = "THIRD-PARTY DEPENDENCIES"
+
   /** Extract the Apache 2.0 license text (before the THIRD-PARTY section) from root LICENSE. */
   private def apacheLicenseText(rootDir: File): String = {
     val lines = IO.readLines(rootDir / "LICENSE")
-    val cutoffIndex = lines.zipWithIndex.collectFirst {
-      case (line, idx) if idx >= 200 && line.startsWith("---") => idx
-    }.getOrElse(lines.length)
+    val headerIndex = lines.indexWhere(_.trim == ThirdPartyHeader)
+    val cutoffIndex =
+      if (headerIndex >= 0) {
+        // Cut at the "---" delimiter line preceding the header
+        val delimiterIndex = lines.lastIndexWhere(_.startsWith("---"), headerIndex - 1)
+        if (delimiterIndex >= 0) delimiterIndex else headerIndex
+      } else {
+        lines.length
+      }
     lines.take(cutoffIndex).mkString("\n").trim + "\n"
   }
 
@@ -122,7 +130,7 @@ object AddMetaInfLicenseFiles {
       val licenseFile = root / "LICENSE"
       val noticeFile = root / "NOTICE"
       val disclaimerFile = root / "DISCLAIMER"
-      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER", "DISCLAIMER")
+      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER")
       val filtered = existing.filterNot { case (_, path) => reserved.contains(path) }
       val extras = Seq(
         licenseFile -> "LICENSE",
