@@ -24,21 +24,28 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.{Files, Path, Paths}
-import javax.ws.rs.BadRequestException
+import java.util.concurrent.LinkedBlockingQueue
 import scala.jdk.CollectionConverters._
 
-class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
+class PveManagerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
-  private val resource = new PveResource()
   private val testCuid = 10
-  private val testRoot: Path = Paths.get("/tmp/texera-pve/venvs").resolve(testCuid.toString)
+  private var testPveName: String = _
+  private var testRoot: Path = _
+  private var queue: LinkedBlockingQueue[String] = _
+
+  override protected def beforeEach(): Unit = {
+    testPveName = s"test-env-${System.currentTimeMillis()}"
+    testRoot = Paths.get("/tmp/texera-pve/venvs").resolve(testCuid.toString)
+    queue = new LinkedBlockingQueue[String]()
+  }
 
   override protected def afterEach(): Unit = {
     deleteRecursively(testRoot)
   }
 
   private def deleteRecursively(path: Path): Unit = {
-    if (Files.exists(path)) {
+    if (path != null && Files.exists(path)) {
       Files
         .walk(path)
         .iterator()
@@ -50,59 +57,60 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
     }
   }
 
-  "createPve" should "throw BadRequestException when cuid is invalid" in {
-    intercept[BadRequestException] {
-      resource.createPve("[]", 0, "test-env")
-    }
+  private def queueMessages(): List[String] = {
+    queue.iterator().asScala.toList
   }
 
-  it should "throw BadRequestException when environment name is missing" in {
-    intercept[BadRequestException] {
-      resource.createPve("[]", testCuid, "")
-    }
+  private def queueText(): String = {
+    queueMessages().mkString("\n")
   }
 
-  "getInstalledPackages" should "throw BadRequestException when cuid is invalid" in {
-    intercept[BadRequestException] {
-      resource.getInstalledPackages(0, "test-env")
-    }
-  }
+  "PveManager" should "create a real pve, install a package, and uninstall it" in {
+    PveManager.createNewPve(testCuid, queue, testPveName)
 
-  it should "throw BadRequestException when environment name is missing" in {
-    intercept[BadRequestException] {
-      resource.getInstalledPackages(testCuid, "")
-    }
-  }
+    val createLogs = queueText()
 
-  it should "return empty system and user package lists when metadata does not exist" in {
-    val result = resource.getInstalledPackages(testCuid, "test-env")
+    createLogs should not include "[PVE][ERR]"
+    PveManager.pveExists(testCuid, testPveName) shouldBe true
 
-    result.get("system").asScala.toList shouldBe List.empty
-    result.get("user").asScala.toList shouldBe List.empty
-  }
+    val pythonPath = Paths.get(PveManager.pythonBin(testCuid, testPveName))
+    val pipPath = testRoot.resolve(testPveName).resolve("pve").resolve("bin").resolve("pip")
+    val metadataDir = testRoot.resolve(testPveName).resolve("pve").resolve("metadata")
 
-  "getEnvironments" should "return an empty list when the user has no environments" in {
-    resource.getEnvironments(testCuid).asScala.toList shouldBe List.empty
-  }
+    Files.exists(pythonPath) shouldBe true
+    Files.exists(pipPath) shouldBe true
+    Files.exists(metadataDir.resolve("system-packages.txt")) shouldBe true
+    Files.exists(metadataDir.resolve("user-packages.txt")) shouldBe true
 
-  it should "return the list of environment names for the given cuid" in {
-    Files.createDirectories(testRoot.resolve("env1"))
-    Files.createDirectories(testRoot.resolve("env2"))
+    PveManager.getEnvironments(testCuid) should contain(testPveName)
 
-    val result = resource.getEnvironments(testCuid).asScala.toSet
+    val (_, userPackagesBeforeInstall) =
+      PveManager.getSystemAndUserPackages(testCuid, testPveName)
 
-    result shouldBe Set("env1", "env2")
-  }
+    userPackagesBeforeInstall shouldBe empty
 
-  "uninstallPackage" should "throw BadRequestException when environment name is missing" in {
-    intercept[BadRequestException] {
-      resource.uninstallPackage("numpy", testCuid, "")
-    }
-  }
+    val packageToInstall = "charset-normalizer==3.4.1"
 
-  it should "return an error message when pip does not exist" in {
-    val result = resource.uninstallPackage("numpy", testCuid, "test-env").asScala.toList
+    PveManager.installPackages(
+      List(packageToInstall),
+      testCuid,
+      queue,
+      testPveName
+    )
 
-    result.head should include("No pip found")
+    val (_, userPackagesAfterInstall) =
+      PveManager.getSystemAndUserPackages(testCuid, testPveName)
+
+    userPackagesAfterInstall.exists(_.startsWith("charset-normalizer==")) shouldBe true
+
+    val uninstallResult =
+      PveManager.deletePackages(testCuid, "charset-normalizer", testPveName)
+
+    uninstallResult.exists(_.toLowerCase.contains("uninstalled charset-normalizer successfully")) shouldBe true
+
+    val (_, userPackagesAfterDelete) =
+      PveManager.getSystemAndUserPackages(testCuid, testPveName)
+
+    userPackagesAfterDelete.exists(_.startsWith("charset-normalizer==")) shouldBe false
   }
 }
