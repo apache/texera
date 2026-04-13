@@ -22,16 +22,14 @@ import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { DatasetSelectionComponent } from "../dataset-selection/dataset-selection.component";
+import { DatasetSelectionModalComponent } from "../dataset-selection-modal/dataset-selection-modal.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-input-autocomplete-template",
-  templateUrl: "./input-autocomplete.component.html",
-  styleUrls: ["input-autocomplete.component.scss"],
+  templateUrl: "dataset-file-selector.component.html",
 })
-export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
+export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
   constructor(
     private modalService: NzModalService,
     public workflowActionService: WorkflowActionService,
@@ -42,15 +40,13 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
 
   onClickOpenFileSelectionModal(): void {
     const modal = this.modalService.create({
-      nzTitle: "Please select one file from datasets",
-      nzContent: DatasetSelectionComponent,
+      nzContent: DatasetSelectionModalComponent,
       nzFooter: null,
       nzData: {
-        mode: "file",
+        selectFile: true,
         selectedPath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {
-        // Enables the file selection window to be resizable
         resize: "both",
         overflow: "auto",
         minHeight: "200px",
@@ -60,7 +56,6 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       },
       nzWidth: "fit-content",
     });
-    // Handle the selection from the modal
     modal.afterClose.pipe(untilDestroyed(this)).subscribe(selectedPath => {
       if (selectedPath) {
         this.formControl.setValue(selectedPath);
@@ -68,15 +63,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
     });
   }
 
-  get enableDatasetSource(): boolean {
-    return this.config.env.selectingFilesFromDatasetsEnabled;
-  }
-
   get isFileSelectionEnabled(): boolean {
-    return this.enableDatasetSource;
-  }
-
-  get selectedFilePath(): string | null {
-    return this.formControl.value;
+    return this.config.env.selectingFilesFromDatasetsEnabled;
   }
 }

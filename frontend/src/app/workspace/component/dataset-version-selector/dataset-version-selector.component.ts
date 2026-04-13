@@ -21,12 +21,11 @@ import { Component } from "@angular/core";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { DatasetSelectionComponent } from "../dataset-selection/dataset-selection.component";
+import { DatasetSelectionModalComponent } from "../dataset-selection-modal/dataset-selection-modal.component";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-dataset-version-selector-template",
-  templateUrl: "./dataset-version-selector.component.html",
+  templateUrl: "dataset-version-selector.component.html",
 })
 export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> {
   constructor(private modalService: NzModalService) {
@@ -35,11 +34,10 @@ export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> 
 
   onClickOpenDatasetSelectionModal(): void {
     const modal = this.modalService.create({
-      nzTitle: "Please select a dataset version",
-      nzContent: DatasetSelectionComponent,
+      nzContent: DatasetSelectionModalComponent,
       nzFooter: null,
       nzData: {
-        mode: "version",
+        selectFile: false,
         selectedPath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {
@@ -58,9 +56,5 @@ export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> 
         this.formControl.setValue(selectedPath);
       }
     });
-  }
-
-  get selectedDatasetVersionPath(): string | null {
-    return this.formControl.value;
   }
 }

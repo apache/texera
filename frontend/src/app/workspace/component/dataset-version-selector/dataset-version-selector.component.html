@@ -16,18 +16,15 @@
  specific language governing permissions and limitations
  under the License.
 -->
-
-<div class="input-autocomplete-container">
-  <input
-    nz-input
-    readOnly
-    required
-    [formControl]="formControl"
-    [formlyAttributes]="field" />
-  <button
-    nz-button
-    nzSize="small"
-    (click)="onClickOpenDatasetSelectionModal()">
-    Select Dataset
-  </button>
-</div>
+<input
+  *ngIf="formControl.value"
+  nz-input
+  readonly
+  required
+  [formControl]="formControl"/>
+<button
+  nz-button
+  nzSize="small"
+  (click)="onClickOpenDatasetSelectionModal()">
+  Select Dataset
+</button>
