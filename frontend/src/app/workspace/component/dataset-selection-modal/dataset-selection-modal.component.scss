@@ -29,22 +29,20 @@
   gap: 16px;
 }
 
-.dataset-select {
-  flex: 1;
-  min-width: 0;
-}
+
 
 .version-select {
   flex: 1;
   min-width: 0;
 }
 
-.dataset-option {
+.dataset-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.dataset-dropdown {
   display: flex;
-  align-items: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .dataset-name {
