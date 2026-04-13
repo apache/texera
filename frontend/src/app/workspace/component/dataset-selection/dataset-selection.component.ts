@@ -81,9 +81,7 @@ export class DatasetSelectionComponent implements OnInit {
 
         const parsedPath = this.parseDatasetVersionPath(this.selectedPath);
         this.selectedDataset = this.datasets.find(
-          dataset =>
-            dataset.ownerEmail === parsedPath.ownerEmail &&
-            dataset.dataset.name === parsedPath.datasetName
+          dataset => dataset.ownerEmail === parsedPath.ownerEmail && dataset.dataset.name === parsedPath.datasetName
         );
         this.isDatasetSelected = !!this.selectedDataset;
 
@@ -168,9 +166,7 @@ export class DatasetSelectionComponent implements OnInit {
   }
 
   get isConfirmDisabled(): boolean {
-    return this.mode === "version"
-      ? !(this.selectedDataset && this.selectedVersion)
-      : !this.selectedFileNode;
+    return this.mode === "version" ? !(this.selectedDataset && this.selectedVersion) : !this.selectedFileNode;
   }
 
   private parseDatasetVersionPath(path: string): ParsedDatasetVersionPath {
