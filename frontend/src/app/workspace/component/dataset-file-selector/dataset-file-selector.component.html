@@ -34,9 +34,3 @@
     {{ selectedFilePath ? 'Reselect File' : 'Select File' }}
   </button>
 </div>
-<div
-  class="alert alert-danger"
-  role="alert"
-  *ngIf="props.showError && formControl.errors">
-  <formly-validation-message [field]="field"></formly-validation-message>
-</div>

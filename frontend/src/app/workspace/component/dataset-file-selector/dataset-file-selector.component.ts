@@ -27,9 +27,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-dataset-file-selector-template",
-  templateUrl: "./dataset-file-selector.component.html",
-  styleUrls: ["dataset-file-selector.component.scss"],
+  templateUrl: "dataset-file-selector.component.html",
 })
 export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
   constructor(
