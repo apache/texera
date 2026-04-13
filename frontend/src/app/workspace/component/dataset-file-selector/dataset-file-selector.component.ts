@@ -43,11 +43,10 @@ export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
       nzContent: DatasetSelectionModalComponent,
       nzFooter: null,
       nzData: {
-        mode: "file",
+        selectFile: true,
         selectedPath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {
-        // Enables the file selection window to be resizable
         resize: "both",
         overflow: "auto",
         minHeight: "200px",

@@ -25,39 +25,27 @@ import { DatasetVersion } from "../../../common/type/dataset";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 
-type DatasetSelectionMode = "file" | "version";
-
-interface DatasetSelectionModalData {
-  mode: DatasetSelectionMode;
-  selectedPath?: string | null;
-}
-
-interface ParsedDatasetVersionPath {
-  ownerEmail: string;
-  datasetName: string;
-  versionName: string;
-}
-
 @UntilDestroy()
 @Component({
   templateUrl: "dataset-selection-modal.component.html",
   styleUrls: ["dataset-selection-modal.component.scss"],
 })
 export class DatasetSelectionModalComponent implements OnInit {
-  private readonly data: DatasetSelectionModalData = inject(NZ_MODAL_DATA);
-  private _datasets: ReadonlyArray<DashboardDataset> = [];
+  private readonly data = inject(NZ_MODAL_DATA) as {
+    selectFile: boolean;
+    selectedPath?: string | null;
+  };
 
-  readonly mode: DatasetSelectionMode = this.data.mode;
-  readonly selectedPath: string = this.data.selectedPath ?? "";
+  readonly selectFile: boolean = this.data.selectFile;
 
-  isAccessibleDatasetsLoading = true;
+  loading = true;
 
+  datasets: ReadonlyArray<DashboardDataset> = [];
+  datasetVersions: ReadonlyArray<DatasetVersion> = [];
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
-  selectedFileNode?: DatasetFileNode;
-  datasetVersions?: DatasetVersion[];
   suggestedFileTreeNodes: DatasetFileNode[] = [];
-  isDatasetSelected = false;
+  selectedFilePath?: string;
 
   constructor(
     private modalRef: NzModalRef,
@@ -65,66 +53,41 @@ export class DatasetSelectionModalComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.isAccessibleDatasetsLoading = true;
-
     this.datasetService
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
       .subscribe(datasets => {
-        this._datasets = datasets;
-        this.isAccessibleDatasetsLoading = false;
-
-        if (!this.selectedPath) {
-          return;
+        this.datasets = datasets;
+        const selectedPath = this.data.selectedPath;
+        if (selectedPath) {
+          const [ownerEmail, datasetName, versionName] = selectedPath.split("/").filter(part => part.length > 0);
+          this.selectedDataset = this.datasets.find(
+            dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
+          );
+          this.loadDatasetVersions(versionName);
         }
-
-        const parsedPath = this.parseDatasetVersionPath(this.selectedPath);
-        this.selectedDataset = this.datasets.find(
-          dataset => dataset.ownerEmail === parsedPath.ownerEmail && dataset.dataset.name === parsedPath.datasetName
-        );
-        this.isDatasetSelected = !!this.selectedDataset;
-
-        if (this.selectedDataset?.dataset.did !== undefined) {
-          this.datasetService
-            .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
-            .pipe(untilDestroyed(this))
-            .subscribe(versions => {
-              this.datasetVersions = versions;
-              this.selectedVersion =
-                this.datasetVersions.find(version => version.name === parsedPath.versionName) ??
-                this.datasetVersions[0];
-              this.onVersionChange();
-            });
-        }
+        this.loading = false;
       });
   }
 
   onDatasetChange() {
     this.selectedVersion = undefined;
-    this.selectedFileNode = undefined;
+    this.selectedFilePath = undefined;
     this.suggestedFileTreeNodes = [];
-    this.isDatasetSelected = !!this.selectedDataset;
-
-    if (this.selectedDataset?.dataset.did !== undefined) {
-      this.datasetService
-        .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
-        .pipe(untilDestroyed(this))
-        .subscribe(versions => {
-          this.datasetVersions = versions;
-          if (this.datasetVersions.length > 0) {
-            this.selectedVersion = this.datasetVersions[0];
-            this.onVersionChange();
-          }
-        });
-    }
+    this.loadDatasetVersions();
   }
 
   onVersionChange() {
-    this.selectedFileNode = undefined;
+    this.selectedFilePath = undefined;
     this.suggestedFileTreeNodes = [];
 
+    if (!this.selectFile && this.selectedDataset && this.selectedVersion) {
+      this.selectedFilePath =
+        `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+    }
+
     if (
-      this.mode === "file" &&
+      this.selectFile &&
       this.selectedDataset?.dataset.did !== undefined &&
       this.selectedVersion?.dvid !== undefined
     ) {
@@ -138,36 +101,27 @@ export class DatasetSelectionModalComponent implements OnInit {
   }
 
   onFileTreeNodeSelected(node: DatasetFileNode) {
-    this.selectedFileNode = node.type === "file" ? node : undefined;
+    this.selectedFilePath = getFullPathFromDatasetFileNode(node)
   }
 
   onConfirmSelection(): void {
-    if (this.mode === "version") {
-      if (this.selectedDataset && this.selectedVersion) {
-        this.modalRef.close(
-          `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`
-        );
-      }
+    this.modalRef.close(this.selectedFilePath);
+  }
+
+  private loadDatasetVersions(preferredVersionName?: string): void {
+    if (this.selectedDataset?.dataset.did === undefined) {
+      this.datasetVersions = [];
       return;
     }
 
-    if (this.selectedFileNode) {
-      this.modalRef.close(getFullPathFromDatasetFileNode(this.selectedFileNode));
-    }
-  }
-
-  get datasets(): ReadonlyArray<DashboardDataset> {
-    return this._datasets;
-  }
-
-  get isConfirmDisabled(): boolean {
-    return this.mode === "version" ? !(this.selectedDataset && this.selectedVersion) : !this.selectedFileNode;
-  }
-
-  private parseDatasetVersionPath(path: string): ParsedDatasetVersionPath {
-    const parts = path.split("/").filter(part => part.length > 0);
-
-    const [ownerEmail, datasetName, versionName] = parts;
-    return { ownerEmail, datasetName, versionName };
+    this.datasetService
+      .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
+      .pipe(untilDestroyed(this))
+      .subscribe(versions => {
+        this.datasetVersions = versions;
+        this.selectedVersion =
+          versions.find(version => version.name === preferredVersionName) ?? versions[0];
+        this.onVersionChange();
+      });
   }
 }
