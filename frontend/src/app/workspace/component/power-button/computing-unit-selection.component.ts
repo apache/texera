@@ -862,7 +862,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const source = new EventSource(url);
     env.source = source;
 
-    env.pipOutput += "Starting Installation...";
+    env.pipOutput += "Starting ...";
     this.updatePrettyPipOutput(index);
     this.scrollToBottomOfPipModal(index);
 
