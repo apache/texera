@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource
 
 import org.apache.texera.config.UserSystemConfig
+import org.apache.texera.config.UserSystemConfig.appDomain
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 
 /**
@@ -30,6 +31,10 @@ object EmailTemplate {
 
   private val deployment: String =
     UserSystemConfig.appDomain.map(_.replaceFirst("^https?://", "")).getOrElse("")
+
+  private val projectName: String =
+    UserSystemConfig.projectName
+
 
   /**
     * Creates an email message for user registration notifications.
@@ -79,7 +84,7 @@ object EmailTemplate {
            |We have received your request and it is currently under review.
            |You will be notified once your account has been approved.
            |
-           |Thank you for your interest in Texera!
+           |Thank you for your interest in $projectName!
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     }
@@ -104,7 +109,7 @@ object EmailTemplate {
          |
          |If you have any questions, please contact the administrator.
          |
-         |Thank you for using Texera!
+         |Thank you for using $projectName!
          |""".stripMargin
 
     EmailMessage(subject = subject, content = content, receiver = receiverEmail)
