@@ -421,7 +421,8 @@ export class ExecuteWorkflowService {
       ...op.operatorProperties,
       operatorID: op.operatorID,
       operatorType: op.operatorType,
-      inputPorts: op.inputPorts.map(({ allowMultiInputs, ...port }: any) => port),
+      inputPorts: op.inputPorts
+        .map(({ allowMultiInputs, ...port }: any) => port), //TODO: for backward compatibility, remove later
       outputPorts: op.outputPorts,
     }));
 
