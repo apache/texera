@@ -36,7 +36,6 @@ export class DatasetSelectionModalComponent implements OnInit {
     selectedPath?: string | null;
   };
 
-  loading = true;
   datasets: ReadonlyArray<DashboardDataset> = [];
   datasetVersions: ReadonlyArray<DatasetVersion> = [];
   fileTree: DatasetFileNode[] = [];
@@ -62,7 +61,6 @@ export class DatasetSelectionModalComponent implements OnInit {
           );
           this.onDatasetChange(versionName);
         }
-        this.loading = false;
       });
   }
 
