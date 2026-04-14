@@ -22,7 +22,8 @@
 }
 
 .dataset-dropdown {
-  display: flex;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dataset-name {
