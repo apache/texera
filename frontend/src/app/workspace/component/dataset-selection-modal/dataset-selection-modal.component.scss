@@ -21,16 +21,11 @@
   padding-top: 30px;
 }
 
-.dataset-dropdown {
+#dataset-name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dataset-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.access-level{
+#access-level {
   color: grey;
 }

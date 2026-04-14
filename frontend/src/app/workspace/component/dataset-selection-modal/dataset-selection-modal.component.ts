@@ -73,9 +73,8 @@ export class DatasetSelectionModalComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(versions => {
           this.datasetVersions = versions;
-          if (this.data.fileMode){
-            this.selectedVersion =
-              versions.find(version => version.name === versionName) ?? versions[0];
+          if (this.data.fileMode) {
+            this.selectedVersion = versions.find(version => version.name === versionName) ?? versions[0];
             this.onVersionChange();
           }
         });
@@ -83,10 +82,7 @@ export class DatasetSelectionModalComponent implements OnInit {
   }
 
   onVersionChange() {
-    if (
-      this.selectedDataset?.dataset.did !== undefined &&
-      this.selectedVersion?.dvid !== undefined
-    ) {
+    if (this.selectedDataset?.dataset.did !== undefined && this.selectedVersion?.dvid !== undefined) {
       if (this.data.fileMode) {
         this.datasetService
           .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
@@ -95,12 +91,14 @@ export class DatasetSelectionModalComponent implements OnInit {
             this.fileTree = data.fileNodes;
           });
       } else {
-        this.modalRef.close(`/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`);
+        this.modalRef.close(
+          `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`
+        );
       }
     }
   }
 
   onFileSelected(node: DatasetFileNode) {
-    this.modalRef.close(getFullPathFromDatasetFileNode(node))
+    this.modalRef.close(getFullPathFromDatasetFileNode(node));
   }
 }

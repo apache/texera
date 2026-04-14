@@ -17,10 +17,15 @@
  under the License.
 -->
 
-<nz-spin [nzSpinning]="loading" id="container">
-  <div nz-row nzGutter="8">
+<nz-spin
+  [nzSpinning]="loading"
+  id="container">
+  <div
+    nz-row
+    nzGutter="8">
     <nz-select
-      nz-col nzFlex="0 0 300px"
+      nz-col
+      nzFlex="auto"
       nzPlaceHolder="Select dataset"
       [(ngModel)]="selectedDataset"
       (ngModelChange)="onDatasetChange()">
@@ -29,17 +34,26 @@
         [nzValue]="dataset"
         [nzLabel]="dataset.dataset.name"
         [nzCustomContent]="true">
-        <div class="dataset-dropdown">
-          #{{ dataset.dataset.did }} &nbsp;
-          <span class="dataset-name">{{ dataset.dataset.name }}</span>&nbsp;
-          <span class="access-level">{{ dataset.isOwner ? 'OWNER' : dataset.accessPrivilege }}</span>
+        <div nz-row>
+          <div
+            nz-col
+            nzFlex="auto"
+            id="dataset-name">
+            #{{ dataset.dataset.did }}&nbsp;{{ dataset.dataset.name }}
+          </div>
+          <div
+            nz-col
+            nzFlex="50px"
+            id="access-level">
+            {{ dataset.isOwner ? 'OWNER' : dataset.accessPrivilege }}
+          </div>
         </div>
       </nz-option>
     </nz-select>
 
     <nz-select
-      nz-col nzFlex="1 1 50px"
-      *ngIf="selectedDataset"
+      nz-col
+      nzFlex="130px"
       nzPlaceHolder="Select version"
       [(ngModel)]="selectedVersion"
       (ngModelChange)="onVersionChange()">

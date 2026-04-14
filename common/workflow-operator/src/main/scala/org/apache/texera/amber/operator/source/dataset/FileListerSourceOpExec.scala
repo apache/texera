@@ -28,8 +28,7 @@ import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 
-class FileListerSourceOpExec private[dataset] (descString: String)
-    extends SourceOperatorExecutor {
+class FileListerSourceOpExec private[dataset] (descString: String) extends SourceOperatorExecutor {
   private val desc: FileListerSourceOpDesc =
     objectMapper.readValue(descString, classOf[FileListerSourceOpDesc])
 
