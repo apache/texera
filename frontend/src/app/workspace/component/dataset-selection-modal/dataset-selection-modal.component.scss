@@ -21,31 +21,11 @@
   padding-top: 30px;
 }
 
-.dataset-option-row {
-  width: 100%;
-  min-width: 0;
-}
-
-
 .dataset-name {
-  min-width: 0;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .access-level {
   color: grey;
-}
-
-.ant-select-item-option-content {
-  min-width: 0;
-}
-
-.ant-select-item {
-  min-width: 0;
-}
-
-.ant-select-item-option-content > * {
-  min-width: 0;
 }
