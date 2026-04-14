@@ -129,26 +129,35 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "use comma as the default delimiter when customDelimiter is not set for parallel CSV" in {
-
-    // When no customDelimiter is provided (None), getPhysicalOp must not throw a
-    // NoSuchElementException.  It should fall back to the default comma delimiter.
     parallelCsvScanSourceOpDesc.customDelimiter = None
 
-    // Should not throw
     parallelCsvScanSourceOpDesc.getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
 
-    // Default delimiter should have been applied
     assert(parallelCsvScanSourceOpDesc.customDelimiter.contains(","))
   }
 
   it should "use comma as the default delimiter when customDelimiter is empty string for parallel CSV" in {
-
-    // An explicitly empty delimiter should also fall back to the default comma.
     parallelCsvScanSourceOpDesc.customDelimiter = Some("")
 
     parallelCsvScanSourceOpDesc.getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
 
     assert(parallelCsvScanSourceOpDesc.customDelimiter.contains(","))
+  }
+
+  it should "use comma as the default delimiter when customDelimiter is not set for CSV" in {
+    csvScanSourceOpDesc.customDelimiter = None
+
+    csvScanSourceOpDesc.getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
+
+    assert(csvScanSourceOpDesc.customDelimiter.contains(","))
+  }
+
+  it should "use comma as the default delimiter when customDelimiter is empty string for CSV" in {
+    csvScanSourceOpDesc.customDelimiter = Some("")
+
+    csvScanSourceOpDesc.getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
+
+    assert(csvScanSourceOpDesc.customDelimiter.contains(","))
   }
 
 }
