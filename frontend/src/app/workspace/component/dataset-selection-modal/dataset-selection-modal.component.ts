@@ -67,6 +67,7 @@ export class DatasetSelectionModalComponent implements OnInit {
   }
 
   onDatasetChange(versionName?: string) {
+    this.fileTree = [];
     if (this.selectedDataset?.dataset.did !== undefined) {
       this.datasetService
         .retrieveDatasetVersionList(this.selectedDataset.dataset.did)

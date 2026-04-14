@@ -18,7 +18,12 @@
  */
 
 #container {
-  padding-top: 30px;
+  margin-top: 30px;
+}
+
+.dataset-row {
+  display: flex;
+  justify-content: space-between;
 }
 
 .dataset-name {

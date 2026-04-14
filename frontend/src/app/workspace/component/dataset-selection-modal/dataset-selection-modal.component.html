@@ -30,24 +30,13 @@
       [(ngModel)]="selectedDataset"
       (ngModelChange)="onDatasetChange()">
       <nz-option
-        class="dataset-option-row"
         *ngFor="let dataset of datasets"
         [nzValue]="dataset"
         [nzLabel]="dataset.dataset.name"
         [nzCustomContent]="true">
-        <div nz-row class="dataset-option-row">
-          <div
-            nz-col
-            nzFlex="auto"
-            class="dataset-name">
-            #{{ dataset.dataset.did }}&nbsp;{{ dataset.dataset.name }}
-          </div>
-          <div
-            nz-col
-            nzFlex="50px"
-            class="access-level">
-            {{ dataset.isOwner ? 'OWNER' : dataset.accessPrivilege }}
-          </div>
+        <div class="dataset-row">
+          <span class="dataset-name"> #{{ dataset.dataset.did }}&nbsp;{{ dataset.dataset.name }} </span>
+          <span class="access-level"> {{ dataset.isOwner ? 'OWNER' : dataset.accessPrivilege }} </span>
         </div>
       </nz-option>
     </nz-select>
