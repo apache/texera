@@ -26,6 +26,9 @@ services:
       - "${MINIO_PORT:-9000}:9000"
     env_file:
       - .env
+    environment:
+      - MINIO_ROOT_USER=${STORAGE_S3_AUTH_USERNAME}
+      - MINIO_ROOT_PASSWORD=${STORAGE_S3_AUTH_PASSWORD}
     volumes:
       - minio_data:/data
     command: server --console-address ":9001" /data
@@ -63,6 +66,8 @@ services:
     environment:
       # This port also need to be changed if the port of MinIO service is changed
       - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:${MINIO_PORT:-9000}
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=${STORAGE_S3_AUTH_USERNAME}
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=${STORAGE_S3_AUTH_PASSWORD}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -184,7 +189,7 @@ services:
           "storage-profile": {
             "type": "s3",
             "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
-            "region": "$$STORAGE_ICEBERG_CATALOG_REST_REGION",
+            "region": "$$STORAGE_S3_REGION",
             "endpoint": "$$STORAGE_S3_ENDPOINT",
             "flavor": "s3-compat",
             "path-style-access": true,
