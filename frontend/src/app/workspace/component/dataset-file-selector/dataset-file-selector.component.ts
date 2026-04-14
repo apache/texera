@@ -43,7 +43,7 @@ export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
       nzContent: DatasetSelectionModalComponent,
       nzFooter: null,
       nzData: {
-        selectFile: true,
+        fileMode: true,
         selectedPath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {

@@ -37,7 +37,7 @@ export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> 
       nzContent: DatasetSelectionModalComponent,
       nzFooter: null,
       nzData: {
-        selectFile: false,
+        fileMode: false,
         selectedPath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {

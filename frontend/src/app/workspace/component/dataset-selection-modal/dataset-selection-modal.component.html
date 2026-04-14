@@ -17,7 +17,7 @@
  under the License.
 -->
 
-<nz-spin [nzSpinning]="loading">
+<nz-spin [nzSpinning]="loading" id="container">
   <div nz-row>
     <nz-select
       nz-col nzFlex="auto"
@@ -38,7 +38,7 @@
     </nz-select>
 
     <nz-select
-      nz-col nzFlex="100px"
+      nz-col nzFlex="70px"
       *ngIf="selectedDataset"
       nzPlaceHolder="Select version"
       [(ngModel)]="selectedVersion"
@@ -52,18 +52,8 @@
   </div>
 
   <texera-user-dataset-version-filetree
-    *ngIf="selectFile && suggestedFileTreeNodes.length > 0"
     [isExpandAllAfterViewInit]="true"
-    [fileTreeNodes]="suggestedFileTreeNodes"
-    (selectedTreeNode)="onFileTreeNodeSelected($event)">
+    [fileTreeNodes]="fileTree"
+    (selectedTreeNode)="onFileSelected($event)">
   </texera-user-dataset-version-filetree>
-
-  <button
-    nz-button
-    nzSize="small"
-    nzType="primary"
-    [disabled]="!selectedFilePath"
-    (click)="onConfirmSelection()">
-    Select
-  </button>
 </nz-spin>
