@@ -32,6 +32,31 @@ services:
     volumes:
       - minio_data:/data
     command: server --console-address ":9001" /data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot init container that creates the Iceberg warehouse bucket on first
+  # startup. MinIO's server image has no built-in "create bucket on boot" flag,
+  # so this sidecar uses the official `mc` client to do it idempotently.
+  minio-init:
+    image: minio/mc:RELEASE.2025-02-28T09-55-16Z
+    container_name: texera-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD"
+        mc mb --ignore-existing "local/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET"
+        echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' is ready."
 
   # PostgreSQL with PGroonga extension for full-text search.
   # Used by lakeFS and Texera's metadata storage.
@@ -119,14 +144,16 @@ services:
       retries: 10
       start_period: 10s
 
+  # One-shot init container that creates the Lakekeeper default project and
+  # the Iceberg warehouse pointing at the MinIO bucket prepared by minio-init.
   lakekeeper-init:
     image: alpine:3.19
     container_name: texera-lakekeeper-init
     depends_on:
       lakekeeper:
         condition: service_healthy
-      minio:
-        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     env_file:
       - .env
     restart: "no"
@@ -134,14 +161,10 @@ services:
     command:
       - |
         set -e
-        
+
         echo "Installing dependencies..."
         apk add --no-cache curl ca-certificates
-        
-        echo "Installing MinIO Client..."
-        wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
-        chmod +x /usr/local/bin/mc
-        
+
         check_status() {
           if [ "$$1" -ge 200 ] && [ "$$1" -lt 300 ]; then
             echo "Created $$2 successfully (HTTP $$1)."
@@ -155,37 +178,24 @@ services:
             exit 1
           fi
         }
-        
-        echo "Step 1: Initializing MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET'..."
-        mc alias set minio "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD" || true
-        if mc ls minio/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET > /dev/null 2>&1; then
-          echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' already exists."
-        else
-          mc mb minio/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET || {
-            echo "Failed to create MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET'"
-            exit 1
-          }
-          echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' created successfully."
-        fi
-        
-        
-        echo "Step 2: Initializing Default Project..."
+
+        echo "Step 1: Initializing Default Project..."
         PROJECT_PAYLOAD='{"project-id": "00000000-0000-0000-0000-000000000000", "project-name": "default"}'
-        
+
         PROJECT_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
             -d "$$PROJECT_PAYLOAD" \
             "$$LAKEKEEPER_BASE_URI/management/v1/project" || echo "000")
-        
+
         check_status "$$PROJECT_CODE" "Default Project"
-        
-        
-        echo "Step 3: Initializing Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
+
+
+        echo "Step 2: Initializing Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
         CREATE_PAYLOAD=$$(cat <<EOF
         {
           "warehouse-name": "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME",
-          "project-id": "00000000-0000-0000-0000-000000000000", 
+          "project-id": "00000000-0000-0000-0000-000000000000",
           "storage-profile": {
             "type": "s3",
             "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
@@ -204,15 +214,15 @@ services:
         }
         EOF
         )
-        
+
         WAREHOUSE_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
             -d "$$CREATE_PAYLOAD" \
             "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
-        
+
         check_status "$$WAREHOUSE_CODE" "Lakekeeper Warehouse"
-        
+
         echo "Initialization sequence completed successfully!"
 
 
