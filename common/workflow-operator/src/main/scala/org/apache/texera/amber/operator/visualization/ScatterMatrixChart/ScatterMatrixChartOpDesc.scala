@@ -66,12 +66,10 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Scatter Matrix Chart",
       "Visualize datasets in a Scatter Matrix",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

@@ -85,7 +85,7 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "showLegends", required = false)
   @JsonSchemaTitle("Show Legends?")
   @JsonPropertyDescription("whether show legends in the graph")
-  var showLegends: Boolean = false;
+  var showLegends: Boolean = false
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -97,12 +97,10 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Dumbbell Plot",
       "Visualize data in a Dumbbell Plots. A dumbbell plots (also known as a lollipop chart) is typically used to compare two distinct values or time points for the same entity.",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def createPlotlyDumbbellLineFigure(): PythonTemplateBuilder = {
@@ -113,27 +111,27 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
     }
     pyb"""
        |
-       |        entityNames = list(table[${comparedColumnName}].unique())
+       |        entityNames = list(table[$comparedColumnName].unique())
        |        entityNames = sorted(entityNames, reverse=True)
-       |        categoryValues = [${dumbbellValues}]
-       |        filtered_table = table[(table[${comparedColumnName}].isin(entityNames)) &
-       |                    (table[${categoryColumnName}].isin(categoryValues))]
+       |        categoryValues = [$dumbbellValues]
+       |        filtered_table = table[(table[$comparedColumnName].isin(entityNames)) &
+       |                    (table[$categoryColumnName].isin(categoryValues))]
        |
        |        # Create the dumbbell line using Plotly
        |        fig = go.Figure()
        |        color = 'black'
        |        for entity in entityNames:
-       |          entity_data = filtered_table[filtered_table[${comparedColumnName}] == entity]
-       |          fig.add_trace(go.Scatter(x=entity_data[${measurementColumnName}],
+       |          entity_data = filtered_table[filtered_table[$comparedColumnName] == entity]
+       |          fig.add_trace(go.Scatter(x=entity_data[$measurementColumnName],
        |                             y=[entity]*len(entity_data),
        |                             mode='lines',
        |                             name=entity,
        |                             line=dict(color=color)))
        |
-       |          fig.update_layout(xaxis_title=${measurementColumnName},
-       |                  yaxis_title=${comparedColumnName},
+       |          fig.update_layout(xaxis_title=$measurementColumnName,
+       |                  yaxis_title=$comparedColumnName,
        |                  yaxis=dict(categoryorder='array', categoryarray=entityNames),
-       |                  ${showLegendsOption}
+       |                  $showLegendsOption
        |                  )
        |"""
   }
@@ -150,12 +148,12 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
     }
 
     pyb"""
-       |        dotColumnNames = [${dotColumnNames}]
+       |        dotColumnNames = [$dotColumnNames]
        |        if len(dotColumnNames) > 0:
        |          for dotColumn in dotColumnNames:
        |              # Extract dot data for each entity
        |              for entity in entityNames:
-       |                  entity_dot_data = filtered_table[filtered_table[${comparedColumnName}] == entity]
+       |                  entity_dot_data = filtered_table[filtered_table[$comparedColumnName] == entity]
        |                  # Extract X and Y values for the dot
        |                  x_values = entity_dot_data[dotColumn].values
        |                  y_values = [entity] * len(x_values)
