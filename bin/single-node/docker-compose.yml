@@ -219,7 +219,14 @@ services:
             -d "$$CREATE_PAYLOAD" \
             "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
 
-        check_status "$$WAREHOUSE_CODE" "Lakekeeper Warehouse"
+        # Lakekeeper returns 400 CreateWarehouseStorageProfileOverlap when a
+        # warehouse with the same name + storage profile already exists.
+        # Treat that as success so this init is idempotent across restarts.
+        if [ "$$WAREHOUSE_CODE" = "400" ] && grep -q "CreateWarehouseStorageProfileOverlap" /tmp/response.txt 2>/dev/null; then
+          echo "Lakekeeper Warehouse already exists (storage profile overlap). Treating as success."
+        else
+          check_status "$$WAREHOUSE_CODE" "Lakekeeper Warehouse"
+        fi
 
         echo "Initialization sequence completed successfully!"
 
