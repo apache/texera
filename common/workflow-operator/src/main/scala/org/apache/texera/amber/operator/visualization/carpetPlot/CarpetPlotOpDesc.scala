@@ -1,0 +1,104 @@
+package org.apache.texera.amber.operator.visualization.carpetPlot
+
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+
+class CarpetPlotOpDesc extends PythonOperatorDescriptor {
+
+  @JsonProperty(value = "a", required = true)
+  @JsonSchemaTitle("First Parameter Axis Column")
+  @JsonPropertyDescription("Column representing the first parameter axis (a)")
+  @AutofillAttributeName
+  var a: EncodableString = ""
+
+  @JsonProperty(value = "b", required = true)
+  @JsonSchemaTitle("Second Parameter Axis Column")
+  @JsonPropertyDescription("Column representing the second parameter axis (b)")
+  @AutofillAttributeName
+  var b: EncodableString = ""
+
+  @JsonProperty(value = "y", required = true)
+  @JsonSchemaTitle("Value Column")
+  @JsonPropertyDescription("Column representing the value at each (a, b) coordinate")
+  @AutofillAttributeName
+  var y: EncodableString = ""
+
+  override def getOutputSchemas(
+                                 inputSchemas: Map[PortIdentity, Schema]
+                               ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+  }
+
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "Carpet Plot",
+      "Visualize data in a Carpet Plot",
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+    )
+
+  override def generatePythonCode(): String = {
+    val finalCode =
+      pyb"""
+           |from pytexera import *
+           |import plotly.graph_objects as go
+           |import plotly.io as pio
+           |from overrides import overrides
+           |
+           |class ProcessTableOperator(UDFTableOperator):
+           |
+           |    @overrides
+           |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+           |
+           |        if table.empty:
+           |            yield {"html-content": "<h3>Input table is empty</h3>"}
+           |            return
+           |
+           |        try:
+           |            a_col = $a
+           |            b_col = $b
+           |            y_col = $y
+           |
+           |            for col in [a_col, b_col, y_col]:
+           |                if col not in table.columns:
+           |                    yield {"html-content": f"<h3>Column '{col}' not found</h3>"}
+           |                    return
+           |
+           |            table = table.dropna(subset=[a_col, b_col, y_col])
+           |
+           |            if table.empty:
+           |                yield {"html-content": "<h3>No valid rows after removing nulls</h3>"}
+           |                return
+           |
+           |            table[a_col] = table[a_col].astype(float)
+           |            table[b_col] = table[b_col].astype(float)
+           |            table[y_col] = table[y_col].astype(float)
+           |
+           |            fig = go.Figure(go.Carpet(
+           |                a=table[a_col],
+           |                b=table[b_col],
+           |                y=table[y_col]
+           |            ))
+           |
+           |            html = pio.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+           |
+           |            yield {"html-content": html}
+           |
+           |        except Exception as e:
+           |            yield {"html-content": f"<h3>Error: {str(e)}</h3>"}
+           |"""
+    finalCode.encode
+  }
+
+}
