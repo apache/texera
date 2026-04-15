@@ -1,0 +1,67 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<br />
+<div
+  nz-row
+  nzGutter="8">
+  <nz-select
+    nz-col
+    nzFlex="auto"
+    nzPlaceHolder="Select dataset"
+    [(ngModel)]="selectedDataset"
+    (ngModelChange)="onDatasetChange()">
+    <nz-option
+      *ngFor="let dataset of datasets"
+      [nzValue]="dataset"
+      [nzLabel]="dataset.dataset.name"
+      [nzCustomContent]="true">
+      <div class="dataset-row">
+        <span class="dataset-name"> #{{ dataset.dataset.did }}&nbsp;{{ dataset.dataset.name }} </span>
+        <span class="access-level"> {{ dataset.isOwner ? 'OWNER' : dataset.accessPrivilege }} </span>
+      </div>
+    </nz-option>
+  </nz-select>
+
+  <nz-select
+    nz-col
+    nzFlex="130px"
+    nzPlaceHolder="Select version"
+    [(ngModel)]="selectedVersion"
+    (ngModelChange)="onVersionChange()">
+    <nz-option
+      *ngFor="let version of datasetVersions"
+      [nzValue]="version"
+      [nzLabel]="version.name">
+    </nz-option>
+  </nz-select>
+</div>
+<br />
+<texera-user-dataset-version-filetree
+  [isExpandAllAfterViewInit]="true"
+  [fileTreeNodes]="fileTree"
+  (selectedTreeNode)="onFileSelected($event)">
+</texera-user-dataset-version-filetree>
+<br />
+<button
+  nz-button
+  nzType="primary"
+  [disabled]="!selectedPath"
+  (click)="onConfirmSelection()">
+  Select
+</button>
