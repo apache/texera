@@ -48,12 +48,10 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Image Visualizer",
       "visualize image content",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
 
   def createBinaryData(): PythonTemplateBuilder = {

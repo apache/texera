@@ -66,12 +66,10 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Sankey Diagram",
       "Visualize data using a Sankey diagram",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

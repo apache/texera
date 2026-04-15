@@ -95,12 +95,10 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo = {
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Tables Plot",
       "Visualize data in a table chart.",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
   }
 
