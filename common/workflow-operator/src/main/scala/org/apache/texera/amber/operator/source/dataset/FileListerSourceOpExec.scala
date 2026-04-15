@@ -33,7 +33,7 @@ class FileListerSourceOpExec private[dataset] (descString: String) extends Sourc
     objectMapper.readValue(descString, classOf[FileListerSourceOpDesc])
 
   override def produceTuple(): Iterator[TupleLike] = {
-    val Seq(_, ownerEmail, datasetName, versionName) =
+    val Seq(_, ownerEmail, datasetName, versionName, _*) =
       desc.datasetVersionPath.split("/").toSeq
 
     val (repositoryName, versionHash) =

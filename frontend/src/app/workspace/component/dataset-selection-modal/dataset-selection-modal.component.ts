@@ -41,6 +41,7 @@ export class DatasetSelectionModalComponent implements OnInit {
   fileTree: DatasetFileNode[] = [];
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
+  selectedPath?: string;
 
   constructor(
     private modalRef: NzModalRef,
@@ -82,22 +83,26 @@ export class DatasetSelectionModalComponent implements OnInit {
 
   onVersionChange() {
     if (this.selectedDataset?.dataset.did !== undefined && this.selectedVersion?.dvid !== undefined) {
-      if (this.data.fileMode) {
-        this.datasetService
-          .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
-          .pipe(untilDestroyed(this))
-          .subscribe(data => {
-            this.fileTree = data.fileNodes;
-          });
-      } else {
-        this.modalRef.close(
-          `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`
-        );
+      this.selectedPath = undefined;
+      this.datasetService
+        .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
+        .pipe(untilDestroyed(this))
+        .subscribe(data => {
+          this.fileTree = data.fileNodes;
+        });
+      if (!this.data.fileMode) {
+        this.selectedPath = `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
       }
     }
   }
 
   onFileSelected(node: DatasetFileNode) {
-    this.modalRef.close(getFullPathFromDatasetFileNode(node));
+    if (this.data.fileMode) {
+      this.selectedPath = getFullPathFromDatasetFileNode(node);
+    }
+  }
+
+  onConfirmSelection() {
+    this.modalRef.close(this.selectedPath);
   }
 }

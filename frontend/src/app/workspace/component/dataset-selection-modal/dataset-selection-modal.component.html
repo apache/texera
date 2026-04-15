@@ -57,3 +57,11 @@
   [fileTreeNodes]="fileTree"
   (selectedTreeNode)="onFileSelected($event)">
 </texera-user-dataset-version-filetree>
+<br />
+<button
+  nz-button
+  nzType="primary"
+  [disabled]="!selectedPath"
+  (click)="onConfirmSelection()">
+  Select
+</button>
