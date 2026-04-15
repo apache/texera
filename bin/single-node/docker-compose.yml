@@ -135,8 +135,6 @@ services:
       - .env
     entrypoint: ["/home/nonroot/lakekeeper"]
     command: ["serve"]
-    ports:
-      - "8181:8181"
     healthcheck:
       test: ["CMD", "/home/nonroot/lakekeeper", "healthcheck"]
       interval: 10s
