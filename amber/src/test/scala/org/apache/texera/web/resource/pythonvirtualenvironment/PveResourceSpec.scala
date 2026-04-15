@@ -106,7 +106,9 @@ class PveManagerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
     val uninstallResult =
       PveManager.deletePackages(testCuid, "charset-normalizer", testPveName)
 
-    uninstallResult.exists(_.toLowerCase.contains("uninstalled charset-normalizer successfully")) shouldBe true
+    uninstallResult.exists(
+      _.toLowerCase.contains("uninstalled charset-normalizer successfully")
+    ) shouldBe true
 
     val (_, userPackagesAfterDelete) =
       PveManager.getSystemAndUserPackages(testCuid, testPveName)

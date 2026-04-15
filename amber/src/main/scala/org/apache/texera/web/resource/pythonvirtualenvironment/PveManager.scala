@@ -477,7 +477,9 @@ object PveManager {
       ).!(ProcessLogger(_ => (), _ => ()))
 
       if (installOperatorReqCode != 0) {
-        queue.put(s"[PVE][ERR] Failed to install operator-requirements.txt (exit=$installOperatorReqCode)")
+        queue.put(
+          s"[PVE][ERR] Failed to install operator-requirements.txt (exit=$installOperatorReqCode)"
+        )
         return
       }
 
