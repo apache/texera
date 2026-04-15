@@ -705,7 +705,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     this.workflowPveService.setCuid(cuId);
 
-    this.workflowPveService.fetchPVEs(cuId).subscribe({
+    this.workflowPveService
+      .fetchPVEs(cuId)
+      .pipe(untilDestroyed(this))
+      .subscribe({
       next: (resp: PvePackageResponse[]) => {
         this.pves = resp.map((pve, index) => ({
           id: index,
@@ -726,7 +729,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           deletingPackages: [],
         }));
       },
-      error: err => {
+      error: (err: unknown) => {
         console.error("Failed to fetch PVEs:", err);
         this.pves = [];
       },
@@ -781,19 +784,19 @@ export class ComputingUnitSelectionComponent implements OnInit {
     env.prettyPipOutput = safe
       .replace(
         /^(\[pip\].*finished with exit code\s+0.*)$/gm,
-        '<span class="pip-exit ok"><strong>$1</strong></span>'
+        "<span class=\"pip-exit ok\"><strong>$1</strong></span>"
       )
       .replace(
         /^(\[pip\].*finished with exit code\s+1.*)$/gm,
-        '<span class="pip-exit err"><strong>$1</strong></span>'
+        "<span class=\"pip-exit err\"><strong>$1</strong></span>"
       )
       .replace(
         /^(\[pip\].*finished with exit code\s+([2-9]\d*).*)$/gm,
-        '<span class="pip-exit err"><strong>$1</strong></span>'
+        "<span class=\"pip-exit err\"><strong>$1</strong></span>"
       )
-      .replace(/ERROR/g, '<span class="error">ERROR</span>')
-      .replace(/WARNING/g, '<span class="warning">WARNING</span>')
-      .replace(/already satisfied/g, '<span class="success">already satisfied</span>')
+      .replace(/ERROR/g, "<span class=\"error\">ERROR</span>")
+      .replace(/WARNING/g, "<span class=\"warning\">WARNING</span>")
+      .replace(/already satisfied/g, "<span class=\"success\">already satisfied</span>")
       .replace(/\n/g, "<br/>");
   }
 
@@ -817,13 +820,19 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.workflowPveService.setPveName(env.name);
 
     for (const pkg of env.deletingPackages) {
-      this.workflowPveService.deletePackage(pkg.name).subscribe({
+      this.workflowPveService
+        .deletePackage(pkg.name)
+        .pipe(untilDestroyed(this))
+        .subscribe({
         next: () => {
           env.pipOutput += `Starting ...\nSuccessfully uninstalled package ${pkg.name}`;
           this.updatePrettyPipOutput(index);
           this.scrollToBottomOfPipModal(index);
 
-          this.workflowPveService.getInstalledPackages().subscribe({
+          this.workflowPveService
+            .getInstalledPackages()
+            .pipe(untilDestroyed(this))
+            .subscribe({
             next: resp => {
               this.systemPackages = resp.system.map(pkgStr => {
                 const [name, version] = pkgStr.split("==");
@@ -837,10 +846,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
               env.deletingPackages = [];
             },
-            error: e => console.error("Failed to refresh packages after delete", e),
+            error: (e: unknown) => console.error("Failed to refresh packages after delete", e),
           });
         },
-        error: err => {
+        error: (err: unknown) => {
           console.error("Error deleting package:", err);
           env.pipOutput += `\nError uninstalling ${pkg.name}`;
           this.updatePrettyPipOutput(index);
@@ -886,7 +895,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     source.onmessage = event => {
       if (event.data === "__DONE__") {
-        this.workflowPveService.getInstalledPackages().subscribe({
+        this.workflowPveService
+          .getInstalledPackages()
+          .pipe(untilDestroyed(this))
+          .subscribe({
           next: resp => {
             this.systemPackages = resp.system.map(pkg => {
               const [name, version] = pkg.split("==");
@@ -901,7 +913,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
             env.newPackages = [];
             env.deletingPackages = [];
           },
-          error: e => console.error("Failed to refresh packages", e),
+          error: (e: unknown) => console.error("Failed to refresh packages", e),
         });
 
         env.source?.close();
