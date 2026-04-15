@@ -58,8 +58,8 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   public presetMenuVisible = false;
   private searchTerm: string = ""; // a copy of the form field value, used as a search term to narrow suggested presets
   private presetType: string = ""; // corresponds to type used in presetService.getPresets(type, target). Usually "operator"
-  private saveTarget: string = ""; // corresponds to target used in presetService.getPresets(type, target). Usually operator type, i.e. "MySQLSource"
-  private applyTarget: string = ""; // corresponds to target used in presetService.applyPreset(type, target). Usually operatorID, i.e "MySQLSource-operator-8fb88f81-1bb1-4b00-bbd1-3d2f23c5e1d7"
+  private saveTarget: string = ""; // corresponds to target used in presetService.getPresets(type, target). Usually operator type, i.e. "PostgreSQLSource"
+  private applyTarget: string = ""; // corresponds to target used in presetService.applyPreset(type, target). Usually operatorID, i.e "PostgreSQLSource-operator-8fb88f81-1bb1-4b00-bbd1-3d2f23c5e1d7"
   private basePreset: Preset = {};
   private teardownObservable: ReplaySubject<boolean> = new ReplaySubject(1); // observable used OnDestroy to tear down subscriptions that takeUntil(teardownObservable)
 
@@ -272,8 +272,8 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
    * adds preset-wrapper and form-field (default wrapper) as wrappers
    * @param config FormlyFieldConfig to setup
    * @param presetType corresponds to type used in presetService.getPresets(type, target). Usually "operator"
-   * @param saveTarget corresponds to target used in presetService.getPresets(type, target). Usually operator type, i.e. "MySQLSource"
-   * @param applyTarget corresponds to target used in presetService.applyPreset(type, target). Usually operatorID, i.e "MySQLSource-operator-8fb88f81-1bb1-4b00-bbd1-3d2f23c5e1d7"
+   * @param saveTarget corresponds to target used in presetService.getPresets(type, target). Usually operator type, i.e. "PostgreSQLSource"
+   * @param applyTarget corresponds to target used in presetService.applyPreset(type, target). Usually operatorID, i.e "PostgreSQLSource-operator-8fb88f81-1bb1-4b00-bbd1-3d2f23c5e1d7"
    */
   public static setupFieldConfig(
     config: FormlyFieldConfig,
