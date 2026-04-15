@@ -819,9 +819,26 @@ export class ComputingUnitSelectionComponent implements OnInit {
     for (const pkg of env.deletingPackages) {
       this.workflowPveService.deletePackage(pkg.name).subscribe({
         next: () => {
-          env.pipOutput += `\nSuccessfully uninstalled package ${pkg.name}`;
+          env.pipOutput += `Starting ...\nSuccessfully uninstalled package ${pkg.name}`;
           this.updatePrettyPipOutput(index);
           this.scrollToBottomOfPipModal(index);
+
+          this.workflowPveService.getInstalledPackages().subscribe({
+            next: resp => {
+              this.systemPackages = resp.system.map(pkgStr => {
+                const [name, version] = pkgStr.split("==");
+                return { name: name.trim(), version: (version ?? "").trim() };
+              });
+
+              env.userPackages = resp.user.map(pkgStr => {
+                const [name, version] = pkgStr.split("==");
+                return { name: name.trim(), version: (version ?? "").trim(), isHighlighted: false };
+              });
+
+              env.deletingPackages = [];
+            },
+            error: e => console.error("Failed to refresh packages after delete", e),
+          });
         },
         error: err => {
           console.error("Error deleting package:", err);
@@ -831,10 +848,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
         },
       });
     }
-
-    env.userPackages = env.userPackages.filter(
-      pkg => !env.deletingPackages.some(d => d.name === pkg.name && d.version === pkg.version)
-    );
 
     const packageArray: string[] = [];
 
@@ -847,6 +860,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
         const formatted = version !== "" ? `${name}${op}${version}` : name;
         packageArray.push(formatted);
       }
+    }
+
+    if (packageArray.length === 0) {
+      env.isInstalling = false;
+      return;
     }
 
     const token = localStorage.getItem("access_token") ?? "";
