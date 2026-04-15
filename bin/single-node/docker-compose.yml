@@ -42,7 +42,7 @@ services:
   # startup. MinIO's server image has no built-in "create bucket on boot" flag,
   # so this sidecar uses the official `mc` client to do it idempotently.
   minio-init:
-    image: minio/mc:RELEASE.2025-02-28T09-55-16Z
+    image: minio/mc:RELEASE.2025-05-21T01-59-54Z
     container_name: texera-minio-init
     depends_on:
       minio:
