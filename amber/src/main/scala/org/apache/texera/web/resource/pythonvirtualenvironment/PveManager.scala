@@ -226,8 +226,142 @@ object PveManager {
     exitCode
   }
 
+//  def createNewPve(cuid: Int, queue: BlockingQueue[String], pveName: String): Unit = {
+//    queue.put(s"[PVE with heartbeat and custom] Creating new PVE for cuid=$cuid and name=$pveName")
+//
+//    val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
+//    ensureDirExists(cuidDir(cuid, pveName))
+//
+//    val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
+//    val envVars = pipEnv
+//
+//    val pveBase = sys.env.getOrElse("PVE_BASE", "/opt/pve-base")
+//    val basePython = Paths.get(pveBase).resolve("bin").resolve("python")
+//
+//    if (!Files.exists(basePython)) {
+//      queue.put(s"[PVE][ERR] Base venv not found at ${basePython.toString} (PVE_BASE=$pveBase)")
+//      return
+//    }
+//
+//    if (Files.exists(venvDirPath)) {
+//      val rmCode = Process(Seq("bash", "-lc", s"rm -rf '${venvDirPath.toString}'")).!(
+//        ProcessLogger(
+//          out => queue.put(s"[pve] $out"),
+//          err => queue.put(s"[pve][ERR] $err")
+//        )
+//      )
+//      queue.put(s"[pve] removed existing venv with exit code $rmCode")
+//    }
+//
+//    ensureDirExists(venvDirPath.getParent)
+//    queue.put(s"[PVE] Copying base venv from $pveBase to ${venvDirPath.toString}")
+//
+//    val copyCode = Process(Seq("bash", "-lc", s"cp -a '${pveBase}' '${venvDirPath.toString}'")).!(
+//      ProcessLogger(
+//        out => queue.put(s"[pve] $out"),
+//        err => queue.put(s"[pve][ERR] $err")
+//      )
+//    )
+//    queue.put(s"[pve] base copy finished with exit code $copyCode")
+//
+//    if (copyCode != 0) {
+//      queue.put(s"[PVE][ERR] Failed to copy base venv (exit=$copyCode)")
+//      return
+//    }
+//
+//    val fixCode = Process(
+//      Seq(
+//        "bash",
+//        "-lc",
+//        s"""
+//           |set -e
+//           |PY='${python}'
+//           |BIN='${venvDirPath.toString}/bin'
+//           |for f in "$$BIN"/*; do
+//           |  [ -f "$$f" ] || continue
+//           |  head -n 1 "$$f" | grep -q '^#!' || continue
+//           |  head -n 1 "$$f" | grep -qi 'python' || continue
+//           |  sed -i.bak "1s|^#!.*python.*|#!$$PY|" "$$f" || true
+//           |  rm -f "$$f.bak" || true
+//           |done
+//           |""".stripMargin
+//      )
+//    ).!(
+//      ProcessLogger(
+//        out => queue.put(s"[pve] $out"),
+//        err => queue.put(s"[pve][ERR] $err")
+//      )
+//    )
+//    queue.put(s"[pve] rewrite finished with exit code $fixCode")
+//
+//    val Requirements: String =
+//      """wheel==0.41.2
+//        |setuptools==80.10.2
+//        |numpy==2.1.0
+//        |pandas==2.2.3
+//        |ruff==0.14.7
+//        |iniconfig==1.1.1
+//        |loguru==0.7.0
+//        |pyarrow==21.0.0
+//        |pytest==7.4.0
+//        |python-dateutil==2.8.2
+//        |pytest-timeout==2.2.0
+//        |protobuf==4.25.8
+//        |betterproto==2.0.0b7
+//        |typing==3.7.4.3
+//        |pampy==0.3.0
+//        |overrides==7.4.0
+//        |typing_extensions==4.10.0
+//        |pytest-reraise==2.1.2
+//        |dataclasses==0.6
+//        |Deprecated==1.2.14
+//        |fs==2.4.16
+//        |praw==7.6.1
+//        |python-lsp-server[all]==1.12.0
+//        |python-lsp-server[websockets]==1.12.0
+//        |bidict==0.22.0
+//        |cached_property==1.5.2
+//        |psutil==5.9.0
+//        |tzlocal==2.1
+//        |pyiceberg==0.8.1
+//        |readerwriterlock==1.0.9
+//        |tenacity==8.5.0
+//        |SQLAlchemy==2.0.37
+//        |pg8000==1.31.5
+//        |pympler==1.1
+//        |""".stripMargin
+//
+//    val OperatorRequirements: String =
+//      """|wordcloud==1.9.3
+//         |plotly==5.24.1
+//         |praw==7.6.1
+//         |pillow==10.2.0
+//         |pybase64==1.3.2
+//         |torch==2.8.0
+//         |scikit-learn==1.5.0
+//         |transformers==4.57.3
+//         |boto3==1.40.53
+//         |""".stripMargin
+//
+//    ensureDirExists(metadataDir(cuid, pveName))
+//    val reqFile1 = metadataDir(cuid, pveName).resolve("requirements.txt")
+//    val reqFile2 = metadataDir(cuid, pveName).resolve("operator-requirements.txt")
+//    Files.write(reqFile1, Requirements.getBytes(StandardCharsets.UTF_8))
+//    Files.write(reqFile2, OperatorRequirements.getBytes(StandardCharsets.UTF_8))
+//
+//    queue.put("[PVE] Base environment copied; skipping system requirements install.")
+//
+//    val freezeOutput = Process(Seq(python, "-m", "pip", "freeze"), None, envVars.toSeq: _*).!!
+//    val systemFreezeLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
+//
+//    writeMetadata(systemPackagesPath(cuid, pveName), systemFreezeLines)
+//    writeMetadata(userPackagesPath(cuid, pveName), Seq.empty)
+//
+//    queue.put(s"[PVE] Created new environment for cuid=$cuid")
+//  }
+
   def createNewPve(cuid: Int, queue: BlockingQueue[String], pveName: String): Unit = {
-    queue.put(s"[PVE with heartbeat and custom] Creating new PVE for cuid=$cuid and name=$pveName")
+    queue.put(s"[PVE] Creating new PVE for cuid=$cuid with name=$pveName")
 
     val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
     ensureDirExists(cuidDir(cuid, pveName))
@@ -235,11 +369,125 @@ object PveManager {
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val envVars = pipEnv
 
+    val Requirements: String =
+      """wheel==0.41.2
+        |setuptools==80.10.2
+        |numpy==2.1.0
+        |pandas==2.2.3
+        |ruff==0.14.7
+        |iniconfig==1.1.1
+        |loguru==0.7.0
+        |pyarrow==21.0.0
+        |pytest==7.4.0
+        |python-dateutil==2.8.2
+        |pytest-timeout==2.2.0
+        |protobuf==4.25.8
+        |betterproto==2.0.0b7
+        |typing==3.7.4.3
+        |pampy==0.3.0
+        |overrides==7.4.0
+        |typing_extensions==4.10.0
+        |pytest-reraise==2.1.2
+        |dataclasses==0.6
+        |Deprecated==1.2.14
+        |fs==2.4.16
+        |python-lsp-server[all]==1.12.0
+        |python-lsp-server[websockets]==1.12.0
+        |bidict==0.22.0
+        |cached_property==1.5.2
+        |psutil==5.9.0
+        |tzlocal==2.1
+        |pyiceberg==0.8.1
+        |readerwriterlock==1.0.9
+        |tenacity==8.5.0
+        |SQLAlchemy==2.0.37
+        |pg8000==1.31.5
+        |pympler==1.1
+        |""".stripMargin
+
+    val OperatorRequirements: String =
+      """|wordcloud==1.9.3
+         |plotly==5.24.1
+         |praw==7.6.1
+         |pillow==10.2.0
+         |pybase64==1.3.2
+         |torch==2.8.0
+         |scikit-learn==1.5.0
+         |transformers==4.57.3
+         |boto3==1.40.53
+         |""".stripMargin
+
     val pveBase = sys.env.getOrElse("PVE_BASE", "/opt/pve-base")
     val basePython = Paths.get(pveBase).resolve("bin").resolve("python")
 
-    if (!Files.exists(basePython)) {
-      queue.put(s"[PVE][ERR] Base venv not found at ${basePython.toString} (PVE_BASE=$pveBase)")
+    val hasBasePve = Files.exists(basePython)
+
+    if (!hasBasePve) {
+      if (Files.exists(venvDirPath)) {
+        val rmCode = Process(Seq("bash", "-lc", s"rm -rf '${venvDirPath.toString}'")).!(
+          ProcessLogger(
+            out => queue.put(s"[pve] $out"),
+            err => queue.put(s"[pve][ERR] $err")
+          )
+        )
+        queue.put(s"[pve] removed existing venv with exit code $rmCode")
+      }
+
+      ensureDirExists(venvDirPath.getParent)
+      queue.put(s"[PVE] Creating fresh local venv at ${venvDirPath.toString}")
+
+      val createCode = Process(Seq("python3", "-m", "venv", venvDirPath.toString)).!(
+        ProcessLogger(
+          out => queue.put(s"[pve] $out"),
+          err => queue.put(s"[pve][ERR] $err")
+        )
+      )
+      queue.put(s"[pve] local venv creation finished with exit code $createCode")
+
+      if (createCode != 0) {
+        queue.put(s"[PVE][ERR] Failed to create local venv (exit=$createCode)")
+        return
+      }
+
+      ensureDirExists(metadataDir(cuid, pveName))
+      val reqFile1 = metadataDir(cuid, pveName).resolve("requirements.txt")
+      val reqFile2 = metadataDir(cuid, pveName).resolve("operator-requirements.txt")
+      Files.write(reqFile1, Requirements.getBytes(StandardCharsets.UTF_8))
+      Files.write(reqFile2, OperatorRequirements.getBytes(StandardCharsets.UTF_8))
+
+      queue.put("[PVE] Installing local base requirements")
+
+      val installReqCode = Process(
+        Seq(python, "-m", "pip", "install", "-r", reqFile1.toString),
+        None,
+        envVars.toSeq: _*
+      ).!(ProcessLogger(_ => (), _ => ()))
+
+      if (installReqCode != 0) {
+        queue.put(s"[PVE][ERR] Failed to install requirements.txt (exit=$installReqCode)")
+        return
+      }
+
+      queue.put("[PVE] Installing local operator requirements")
+
+      val installOperatorReqCode = Process(
+        Seq(python, "-m", "pip", "install", "-r", reqFile2.toString),
+        None,
+        envVars.toSeq: _*
+      ).!(ProcessLogger(_ => (), _ => ()))
+
+      if (installOperatorReqCode != 0) {
+        queue.put(s"[PVE][ERR] Failed to install operator-requirements.txt (exit=$installOperatorReqCode)")
+        return
+      }
+
+      val freezeOutput = Process(Seq(python, "-m", "pip", "freeze"), None, envVars.toSeq: _*).!!
+      val installedLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
+
+      writeMetadata(systemPackagesPath(cuid, pveName), installedLines)
+      writeMetadata(userPackagesPath(cuid, pveName), Seq.empty)
+
+      queue.put(s"[PVE] Created new local environment for cuid=$cuid")
       return
     }
 
@@ -293,55 +541,6 @@ object PveManager {
       )
     )
     queue.put(s"[pve] rewrite finished with exit code $fixCode")
-
-    val Requirements: String =
-      """wheel==0.41.2
-        |setuptools==80.10.2
-        |numpy==2.1.0
-        |pandas==2.2.3
-        |ruff==0.14.7
-        |iniconfig==1.1.1
-        |loguru==0.7.0
-        |pyarrow==21.0.0
-        |pytest==7.4.0
-        |python-dateutil==2.8.2
-        |pytest-timeout==2.2.0
-        |protobuf==4.25.8
-        |betterproto==2.0.0b7
-        |typing==3.7.4.3
-        |pampy==0.3.0
-        |overrides==7.4.0
-        |typing_extensions==4.10.0
-        |pytest-reraise==2.1.2
-        |dataclasses==0.6
-        |Deprecated==1.2.14
-        |fs==2.4.16
-        |praw==7.6.1
-        |python-lsp-server[all]==1.12.0
-        |python-lsp-server[websockets]==1.12.0
-        |bidict==0.22.0
-        |cached_property==1.5.2
-        |psutil==5.9.0
-        |tzlocal==2.1
-        |pyiceberg==0.8.1
-        |readerwriterlock==1.0.9
-        |tenacity==8.5.0
-        |SQLAlchemy==2.0.37
-        |pg8000==1.31.5
-        |pympler==1.1
-        |""".stripMargin
-
-    val OperatorRequirements: String =
-      """|wordcloud==1.9.3
-         |plotly==5.24.1
-         |praw==7.6.1
-         |pillow==10.2.0
-         |pybase64==1.3.2
-         |torch==2.8.0
-         |scikit-learn==1.5.0
-         |transformers==4.57.3
-         |boto3==1.40.53
-         |""".stripMargin
 
     ensureDirExists(metadataDir(cuid, pveName))
     val reqFile1 = metadataDir(cuid, pveName).resolve("requirements.txt")
