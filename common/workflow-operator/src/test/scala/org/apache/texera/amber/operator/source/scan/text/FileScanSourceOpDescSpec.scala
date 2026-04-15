@@ -22,10 +22,7 @@ package org.apache.texera.amber.operator.source.scan.text
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
 import org.apache.texera.amber.operator.TestOperators
-import org.apache.texera.amber.operator.source.scan.{
-  FileAttributeType,
-  FileDecodingMethod,
-}
+import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.operator.source.scan.file.{
   FileScanSourceOpDesc,
   FileScanSourceOpExec
