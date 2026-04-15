@@ -32,20 +32,16 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
 })
 export class DatasetSelectionModalComponent implements OnInit {
   private readonly data = inject(NZ_MODAL_DATA) as {
-    selectFile: boolean;
+    fileMode: boolean;
     selectedPath?: string | null;
   };
 
-  readonly selectFile: boolean = this.data.selectFile;
-
-  loading = true;
-
   datasets: ReadonlyArray<DashboardDataset> = [];
   datasetVersions: ReadonlyArray<DatasetVersion> = [];
+  fileTree: DatasetFileNode[] = [];
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
-  suggestedFileTreeNodes: DatasetFileNode[] = [];
-  selectedFilePath?: string;
+  selectedPath?: string;
 
   constructor(
     private modalRef: NzModalRef,
@@ -64,64 +60,49 @@ export class DatasetSelectionModalComponent implements OnInit {
           this.selectedDataset = this.datasets.find(
             dataset => dataset.ownerEmail === ownerEmail && dataset.dataset.name === datasetName
           );
-          this.loadDatasetVersions(versionName);
+          this.onDatasetChange(versionName);
         }
-        this.loading = false;
       });
   }
 
-  onDatasetChange() {
-    this.selectedVersion = undefined;
-    this.selectedFilePath = undefined;
-    this.suggestedFileTreeNodes = [];
-    this.loadDatasetVersions();
-  }
-
-  onVersionChange() {
-    this.selectedFilePath = undefined;
-    this.suggestedFileTreeNodes = [];
-
-    if (!this.selectFile && this.selectedDataset && this.selectedVersion) {
-      this.selectedFilePath =
-        `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
-    }
-
-    if (
-      this.selectFile &&
-      this.selectedDataset?.dataset.did !== undefined &&
-      this.selectedVersion?.dvid !== undefined
-    ) {
+  onDatasetChange(versionName?: string) {
+    this.fileTree = [];
+    if (this.selectedDataset?.dataset.did !== undefined) {
       this.datasetService
-        .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
+        .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
         .pipe(untilDestroyed(this))
-        .subscribe(data => {
-          this.suggestedFileTreeNodes = data.fileNodes;
+        .subscribe(versions => {
+          this.datasetVersions = versions;
+          if (this.data.fileMode) {
+            this.selectedVersion = versions.find(version => version.name === versionName) ?? versions[0];
+            this.onVersionChange();
+          }
         });
     }
   }
 
-  onFileTreeNodeSelected(node: DatasetFileNode) {
-    this.selectedFilePath = getFullPathFromDatasetFileNode(node)
-  }
-
-  onConfirmSelection(): void {
-    this.modalRef.close(this.selectedFilePath);
-  }
-
-  private loadDatasetVersions(preferredVersionName?: string): void {
-    if (this.selectedDataset?.dataset.did === undefined) {
-      this.datasetVersions = [];
-      return;
+  onVersionChange() {
+    if (this.selectedDataset?.dataset.did !== undefined && this.selectedVersion?.dvid !== undefined) {
+      this.selectedPath = undefined;
+      this.datasetService
+        .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
+        .pipe(untilDestroyed(this))
+        .subscribe(data => {
+          this.fileTree = data.fileNodes;
+        });
+      if (!this.data.fileMode) {
+        this.selectedPath = `/${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`;
+      }
     }
+  }
 
-    this.datasetService
-      .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
-      .pipe(untilDestroyed(this))
-      .subscribe(versions => {
-        this.datasetVersions = versions;
-        this.selectedVersion =
-          versions.find(version => version.name === preferredVersionName) ?? versions[0];
-        this.onVersionChange();
-      });
+  onFileSelected(node: DatasetFileNode) {
+    if (this.data.fileMode) {
+      this.selectedPath = getFullPathFromDatasetFileNode(node);
+    }
+  }
+
+  onConfirmSelection() {
+    this.modalRef.close(this.selectedPath);
   }
 }

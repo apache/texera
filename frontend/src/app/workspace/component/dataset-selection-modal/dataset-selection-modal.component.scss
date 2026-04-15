@@ -17,34 +17,9 @@
  * under the License.
  */
 
-.content {
+.dataset-row {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 10px;
-}
-
-.selectors {
-  display: flex;
-  gap: 16px;
-}
-
-.dataset-select {
-  flex: 1;
-  min-width: 0;
-}
-
-.version-select {
-  flex: 1;
-  min-width: 0;
-}
-
-.dataset-option {
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  justify-content: space-between;
 }
 
 .dataset-name {
@@ -52,6 +27,6 @@
   text-overflow: ellipsis;
 }
 
-.access-level{
+.access-level {
   color: grey;
 }
