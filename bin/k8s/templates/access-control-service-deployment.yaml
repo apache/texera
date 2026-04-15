@@ -18,7 +18,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name:  {{.Release.Name}}-{{ .Values.accessControlService.name }}
+  name: {{.Release.Name}}-{{ .Values.accessControlService.name }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Release.Name }}-{{ .Values.accessControlService.name }}
@@ -50,6 +50,10 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.name }}
             - name: KUBERNETES_COMPUTE_UNIT_POOL_NAMESPACE
               value: {{ .Values.workflowComputingUnitPool.namespace }}
+            {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /api/healthcheck
