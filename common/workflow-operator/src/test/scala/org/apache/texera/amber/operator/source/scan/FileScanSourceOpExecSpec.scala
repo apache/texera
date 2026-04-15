@@ -20,10 +20,7 @@
 package org.apache.texera.amber.operator.source.scan
 
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, SchemaEnforceable}
-import org.apache.texera.amber.operator.source.scan.file.{
-  FileScanSourceOpDesc,
-  FileScanSourceOpExec
-}
+import org.apache.texera.amber.operator.source.scan.file.{FileScanSourceOpDesc, FileScanSourceOpExec}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
