@@ -29,29 +29,16 @@ import org.apache.texera.amber.config.{EnvironmentalVariable, StorageConfig}
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.auth.{JwtAuth, SessionUser}
-import org.apache.texera.config.KubernetesConfig.{
-  cpuLimitOptions,
-  gpuLimitOptions,
-  maxNumOfRunningComputingUnitsPerUser,
-  memoryLimitOptions
-}
-import org.apache.texera.config.{ComputingUnitConfig, KubernetesConfig}
+import org.apache.texera.config.KubernetesConfig.{cpuLimitOptions, gpuLimitOptions, maxNumOfRunningComputingUnitsPerUser, memoryLimitOptions}
+import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, KubernetesConfig}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  ComputingUnitUserAccessDao,
-  UserDao,
-  WorkflowComputingUnitDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource._
 import org.apache.texera.service.resource.ComputingUnitState._
-import org.apache.texera.service.util.{
-  ComputingUnitManagingServiceException,
-  InsufficientComputingUnitQuota,
-  KubernetesClient
-}
+import org.apache.texera.service.util.{ComputingUnitManagingServiceException, InsufficientComputingUnitQuota, KubernetesClient}
 import org.jooq.{DSLContext, EnumType}
 import play.api.libs.json._
 
@@ -67,6 +54,7 @@ object ComputingUnitManagingResource {
 
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] = Map(
+    EnvironmentalVariable.ENV_AUTH_JWT_SECRET -> AuthConfig.jwtSecretKey,
     // Variables for saving results to Iceberg
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_URI -> StorageConfig.icebergRESTCatalogUri,
