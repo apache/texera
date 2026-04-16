@@ -133,7 +133,7 @@ export class WorkflowWebsocketService {
       this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
     );
 
-    // refresh connection status — store the reference so it is torn down in closeWebsocket()
+    // refresh connection status
     this.statusUpdateSubscription = this.websocketEvent().subscribe(evt => {
       if (evt.type === "ClusterStatusUpdateEvent") {
         this.numWorkers = evt.numWorkers;
