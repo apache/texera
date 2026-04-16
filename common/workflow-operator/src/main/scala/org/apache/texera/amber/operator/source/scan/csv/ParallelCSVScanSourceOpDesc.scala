@@ -56,7 +56,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
-    if (customDelimiter.isEmpty || customDelimiter.get.isEmpty) {
+    if (customDelimiter.forall(_.isEmpty)) {
       customDelimiter = Option(",")
     }
 
