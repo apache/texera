@@ -21,7 +21,7 @@ import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
-import { DashboardWorkflowComputingUnit } from "../../workspace/types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import {
   isDashboardDataset,
   isDashboardFile,

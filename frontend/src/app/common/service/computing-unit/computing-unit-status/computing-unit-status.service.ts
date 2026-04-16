@@ -20,14 +20,14 @@
 import { Injectable, OnDestroy } from "@angular/core";
 import { BehaviorSubject, interval, Observable, of, Subject, Subscription } from "rxjs";
 import { catchError, distinctUntilChanged, filter, map, switchMap, take, tap } from "rxjs/operators";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
-import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
-import { isDefined } from "../../../common/util/predicate";
-import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
-import { UserService } from "../../../common/service/user/user.service";
+import { ComputingUnitState } from "../../../type/computing-unit-connection.interface";
+import { isDefined } from "../../../util/predicate";
+import { WorkflowStatusService } from "../../../../workspace/service/workflow-status/workflow-status.service";
+import { UserService } from "../../user/user.service";
 
 /**
  * Service that manages and provides access to computing unit status information
