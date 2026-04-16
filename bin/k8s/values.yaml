@@ -248,8 +248,8 @@ texeraEnvVars:
   - name: USER_SYS_DOMAIN
     value: ""
   - name: AUTH_JWT_SECRET
-    # PLACEHOLDER: must be >=32 chars (256 bits) for HS256. Override in production.
-    value: "REPLACE_ME_WITH_A_RANDOM_32B_PLACEHOLDER_SECRET"
+    # Development-only default (256-bit HS256 secret). Production environments MUST override this with a different, securely generated secret.
+    value: "a7f3c8e9b14d2e6f5a0b9c3d8e1f4a6b2c5d7e9f0a3b6c8d1e4f7a9b2c5d8e1f"
 
 yWebsocketServer:
   name: y-websocket-server

@@ -18,7 +18,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{.Release.Name}}-{{ .Values.accessControlService.name }}
+  name:  {{.Release.Name}}-{{ .Values.accessControlService.name }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Release.Name }}-{{ .Values.accessControlService.name }}
