@@ -41,7 +41,7 @@ import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class InputFileScanSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
+class FileScanOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("Encoding")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
@@ -71,7 +71,7 @@ class InputFileScanSourceOpDesc extends SourceOperatorDescriptor with TextSource
         executionId,
         operatorIdentifier,
         OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.file.InputFileScanSourceOpExec",
+          "org.apache.texera.amber.operator.source.scan.file.FileScanOpExec",
           objectMapper.writeValueAsString(this)
         )
       )

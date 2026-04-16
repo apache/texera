@@ -24,16 +24,16 @@ import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class InputFileScanSourceOpExec private[scan] (
+class FileScanOpExec private[scan] (
     descString: String
 ) extends OperatorExecutor {
-  private val desc: InputFileScanSourceOpDesc =
-    objectMapper.readValue(descString, classOf[InputFileScanSourceOpDesc])
+  private val desc: FileScanOpDesc =
+    objectMapper.readValue(descString, classOf[FileScanOpDesc])
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     val fileName =
       FileResolver.resolve(tuple.getFields.collectFirst { case s: String => s }.get).toASCIIString
-    FileScanSourceOpExec.createTuplesFromFile(
+    FileScanUtils.createTuplesFromFile(
       fileName = fileName,
       attributeType = desc.attributeType,
       fileEncoding = desc.fileEncoding,

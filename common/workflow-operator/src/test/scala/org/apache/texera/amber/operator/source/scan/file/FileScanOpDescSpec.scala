@@ -32,39 +32,39 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-class InputFileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
+class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private val inputSchema = new Schema(new Attribute("filename", AttributeType.STRING))
 
-  var inputFileScanSourceOpDesc: InputFileScanSourceOpDesc = _
+  var fileScanOpDesc: FileScanOpDesc = _
 
   before {
-    inputFileScanSourceOpDesc = new InputFileScanSourceOpDesc()
-    inputFileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
+    fileScanOpDesc = new FileScanOpDesc()
+    fileScanOpDesc.fileEncoding = FileDecodingMethod.UTF_8
   }
 
   it should "infer schema with single column representing each line of text" in {
-    val inferredSchema: Schema = inputFileScanSourceOpDesc.sourceSchema()
+    val inferredSchema: Schema = fileScanOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
   it should "read first 5 lines from the input file path tuple into output tuples" in {
-    inputFileScanSourceOpDesc.attributeType = FileAttributeType.STRING
-    inputFileScanSourceOpDesc.fileScanLimit = Option(5)
+    fileScanOpDesc.attributeType = FileAttributeType.STRING
+    fileScanOpDesc.fileScanLimit = Option(5)
 
     val inputTuple = Tuple(inputSchema, Array[Any](TestOperators.TestTextFilePath))
-    val inputFileScanSourceOpExec =
-      new InputFileScanSourceOpExec(objectMapper.writeValueAsString(inputFileScanSourceOpDesc))
+    val fileScanOpExec =
+      new FileScanOpExec(objectMapper.writeValueAsString(fileScanOpDesc))
 
-    inputFileScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = inputFileScanSourceOpExec
+    fileScanOpExec.open()
+    val processedTuple: Iterator[Tuple] = fileScanOpExec
       .processTuple(inputTuple, 0)
       .map(tupleLike =>
         tupleLike
           .asInstanceOf[SchemaEnforceable]
-          .enforceSchema(inputFileScanSourceOpDesc.sourceSchema())
+          .enforceSchema(fileScanOpDesc.sourceSchema())
       )
 
     assert(processedTuple.next().getField("line").equals("line1"))
@@ -73,6 +73,6 @@ class InputFileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line4"))
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    inputFileScanSourceOpExec.close()
+    fileScanOpExec.close()
   }
 }

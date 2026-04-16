@@ -140,8 +140,8 @@ import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.source.scan.file.{
+  FileScanOpDesc,
   FileScanSourceOpDesc,
-  InputFileScanSourceOpDesc
 }
 import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
 
@@ -168,7 +168,7 @@ trait StateTransferFunc
     // new Type(value = classOf[ParallelCSVScanSourceOpDesc], name = "ParallelCSVFileScan"),
     new Type(value = classOf[JSONLScanSourceOpDesc], name = "JSONLFileScan"),
     new Type(value = classOf[FileScanSourceOpDesc], name = "FileScan"),
-    new Type(value = classOf[InputFileScanSourceOpDesc], name = "InputFileScan"),
+    new Type(value = classOf[FileScanOpDesc], name = "FileScanOp"),
     new Type(value = classOf[TextInputSourceOpDesc], name = "TextInput"),
     new Type(
       value = classOf[TwitterFullArchiveSearchSourceOpDesc],
