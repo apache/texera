@@ -20,16 +20,13 @@
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { ShareAccessComponent } from "../../../component/user/share-access/share-access.component";
-import { WorkflowComputingUnitManagingService } from "../../../../workspace/service/workflow-computing-unit/workflow-computing-unit-managing.service";
-import {
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitType,
-} from "../../../../workspace/types/workflow-computing-unit";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { unitTypeMessageTemplate } from "../../../../common/util/computing-unit.util";
-import { ComputingUnitStatusService } from "../../../../workspace/service/computing-unit-status/computing-unit-status.service";
-import { extractErrorMessage } from "../../../../common/util/error";
+import { ShareAccessComponent } from "../../../../dashboard/component/user/share-access/share-access.component";
+import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
+import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../../type/workflow-computing-unit";
+import { NotificationService } from "../../notification/notification.service";
+import { unitTypeMessageTemplate } from "../../../util/computing-unit.util";
+import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { extractErrorMessage } from "../../../util/error";
 
 export interface StartComputingUnitRequest {
   type: WorkflowComputingUnitType;
