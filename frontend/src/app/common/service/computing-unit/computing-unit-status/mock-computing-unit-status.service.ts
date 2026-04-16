@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
 import { Observable, of } from "rxjs";
 
 @Injectable()
