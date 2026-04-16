@@ -21,6 +21,7 @@ import { TestBed } from "@angular/core/testing";
 import { WorkflowWebsocketService } from "./workflow-websocket.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
+/** Browser-like WebSocket test double used to verify websocket reopen and subscription cleanup behavior. */
 class FakeWebSocket extends EventTarget {
   public static readonly CONNECTING = 0;
   public static readonly OPEN = 1;
