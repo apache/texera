@@ -18,18 +18,18 @@
  */
 
 import { Component, Input, OnInit } from "@angular/core";
-import { ComputingUnitStatusService } from "../../../../workspace/service/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import {
   DashboardWorkflowComputingUnit,
   WorkflowComputingUnitType,
-} from "../../../../workspace/types/workflow-computing-unit";
+} from "../../../../common/type/workflow-computing-unit";
 import { extractErrorMessage } from "../../../../common/util/error";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
-import { WorkflowComputingUnitManagingService } from "../../../../workspace/service/workflow-computing-unit/workflow-computing-unit-managing.service";
+import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import {
   parseResourceUnit,
   parseResourceNumber,
@@ -38,7 +38,7 @@ import {
   isComputingUnitShmTooLarge,
   getJvmMemorySliderConfig,
 } from "../../../../common/util/computing-unit.util";
-import { ComputingUnitActionsService } from "../../../service/user/computing-unit-actions/computing-unit-actions.service";
+import { ComputingUnitActionsService } from "../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 
 @UntilDestroy()
 @Component({
