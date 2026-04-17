@@ -248,6 +248,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       height: this.editor.offsetHeight,
     });
     this.editor.classList.add("hide-worker-count");
+    this.editor.classList.add("hide-operator-status");
   }
 
   private handleDisableJointPaperInteractiveness(): void {
@@ -391,9 +392,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
+    const padding = 15;
     const points = operators.flatMap(op => {
-      const { x, y, width, height } = op.getBBox(),
-        padding = 15;
+      const { x, y, width, height } = op.getBBox();
       return [
         [x - padding, y - padding],
         [x + width + padding, y - padding],
@@ -401,7 +402,49 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         [x + width + padding, y + height + padding + 10],
       ];
     });
-    regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
+
+    const links = [...this.getRegionLinks(operators)];
+    const link_points = links.flatMap(link => {
+      const linkView = this.paper.findViewByModel(link as joint.dia.Link);
+      const bbox = (linkView as joint.dia.LinkView).getConnection().bbox();
+      if (!bbox) {
+        return [];
+      }
+      const { x, y, width, height } = bbox;
+      return [
+        [x - padding, y - padding],
+        [x + width + padding, y - padding],
+        [x - padding, y + height + padding],
+        [x + width + padding, y + height + padding],
+      ];
+    });
+    points.push(...link_points);
+    regionElement.attr(
+      "body/d",
+      line().curve(curveCatmullRomClosed)(concaveman(points, Infinity, 0) as [number, number][])
+    );
+  }
+
+  private getRegionLinks(ops: joint.dia.Cell[]): Set<joint.dia.Link> {
+    const ops_set = new Set(ops);
+    const links_set = new Set<joint.dia.Link>();
+    for (const op of ops) {
+      for (const link of this.paper.model.getConnectedLinks(op)) {
+        if (links_set.has(link)) {
+          continue;
+        }
+        const sourceCell = link.getSourceCell();
+        if (sourceCell && !ops_set.has(sourceCell)) {
+          continue;
+        }
+        const targetCell = link.getTargetCell();
+        if (targetCell && !ops_set.has(targetCell)) {
+          continue;
+        }
+        links_set.add(link);
+      }
+    }
+    return links_set;
   }
 
   /**
@@ -1003,7 +1046,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       return false;
     }
 
-    let allowMultiInput = false;
+    let disallowMultiInput = false;
     if (this.workflowActionService.getTexeraGraph().hasOperator(targetCellID)) {
       const portIndex = this.workflowActionService
         .getTexeraGraph()
@@ -1012,10 +1055,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       if (portIndex >= 0) {
         const portInfo =
           this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
-        allowMultiInput = portInfo?.allowMultiLinks ?? false;
+        disallowMultiInput = portInfo?.disallowMultiLinks ?? false;
       }
     }
-    return !(connectedLinksToTargetPort.length > 0 && !allowMultiInput);
+    return !(connectedLinksToTargetPort.length > 0 && disallowMultiInput);
   }
 
   /**

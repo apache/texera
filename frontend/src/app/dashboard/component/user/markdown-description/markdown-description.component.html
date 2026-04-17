@@ -1,0 +1,112 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- Preview mode -->
+<ng-container *ngIf="currentMode === 'preview'">
+  <div
+    *ngIf="editable"
+    class="md-actions">
+    <button
+      nz-button
+      nzType="text"
+      nzSize="small"
+      (click)="enterEditMode()">
+      <i
+        nz-icon
+        nzType="edit"></i>
+      Edit
+    </button>
+  </div>
+  <div
+    #previewBox
+    class="preview-box"
+    [class.collapsed]="enableViewMore && !isExpanded"
+    [style.max-height]="enableViewMore && !isExpanded ? COLLAPSED_HEIGHT_PX + 'px' : null">
+    <div
+      *ngIf="renderedDescription; else noDescription"
+      class="md-rendered"
+      [innerHTML]="renderedDescription"></div>
+    <ng-template #noDescription>
+      <p>No description provided.</p>
+    </ng-template>
+  </div>
+  <button
+    *ngIf="enableViewMore && hasOverflow"
+    nz-button
+    nzType="text"
+    class="view-more-btn"
+    (click)="toggleViewMore()">
+    <i
+      nz-icon
+      [nzType]="isExpanded ? 'up' : 'down'"></i>
+    {{ isExpanded ? "View less" : "View more" }}
+  </button>
+</ng-container>
+
+<!-- Edit mode -->
+<ng-container *ngIf="currentMode === 'edit'">
+  <div class="md-split">
+    <div class="md-left">
+      <div class="md-toolbar">
+        <button
+          *ngFor="let btn of toolbar"
+          nz-button
+          nzType="text"
+          nzSize="small"
+          [nz-tooltip]="btn.tip"
+          (click)="insert(btn)">
+          <i
+            nz-icon
+            [nzType]="btn.icon"></i>
+        </button>
+      </div>
+
+      <textarea
+        #textarea
+        nz-input
+        [(ngModel)]="editingContent"
+        (ngModelChange)="renderMarkdown($event)"
+        placeholder="Write Markdown here..."
+        class="md-textarea"></textarea>
+    </div>
+
+    <div class="md-right">
+      <div
+        *ngIf="renderedDescription"
+        class="md-rendered"
+        [innerHTML]="renderedDescription"></div>
+    </div>
+  </div>
+
+  <div class="md-actions">
+    <button
+      nz-button
+      nzSize="small"
+      (click)="cancel()">
+      Cancel
+    </button>
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="small"
+      (click)="save()">
+      Save
+    </button>
+  </div>
+</ng-container>

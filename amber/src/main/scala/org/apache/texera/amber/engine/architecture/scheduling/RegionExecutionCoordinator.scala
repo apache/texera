@@ -38,6 +38,7 @@ import org.apache.texera.amber.engine.architecture.controller.execution.{
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerConfig,
   ExecutionStatsUpdate,
+  RuntimeStatisticsPersist,
   WorkerAssignmentUpdate
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands._
@@ -275,9 +276,9 @@ class RegionExecutionCoordinator(
     val resourceConfig = region.resourceConfig.get
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
-    asyncRPCClient.sendToClient(
-      ExecutionStatsUpdate(workflowExecution.getAllRegionExecutionsStats)
-    )
+    val stats = workflowExecution.getAllRegionExecutionsStats
+    asyncRPCClient.sendToClient(ExecutionStatsUpdate(stats))
+    asyncRPCClient.sendToClient(RuntimeStatisticsPersist(stats))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         operatorsToRun
@@ -489,11 +490,9 @@ class RegionExecutionCoordinator(
       region: Region,
       isDependeePhase: Boolean
   ): Future[Seq[Unit]] = {
-    asyncRPCClient.sendToClient(
-      ExecutionStatsUpdate(
-        workflowExecution.getAllRegionExecutionsStats
-      )
-    )
+    val stats = workflowExecution.getAllRegionExecutionsStats
+    asyncRPCClient.sendToClient(ExecutionStatsUpdate(stats))
+    asyncRPCClient.sendToClient(RuntimeStatisticsPersist(stats))
     val allStarterOperators = region.getStarterOperators
     val starterOpsForThisPhase =
       if (isDependeePhase) allStarterOperators.filter(_.dependeeInputs.nonEmpty)

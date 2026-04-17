@@ -51,12 +51,10 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName var pvalueColumn: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       userFriendlyName = "Volcano Plot",
       operatorDescription = "Displays statistical significance versus effect size",
-      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   override def getOutputSchemas(

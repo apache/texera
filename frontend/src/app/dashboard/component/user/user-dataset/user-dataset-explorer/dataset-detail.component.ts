@@ -733,4 +733,25 @@ export class DatasetDetailComponent implements OnInit {
         },
       });
   }
+
+  onDatasetDescriptionChange(description: string): void {
+    const updatedDescription = description ?? "";
+    const previousDescription = this.datasetDescription;
+
+    if (!this.did || this.datasetDescription === updatedDescription) {
+      return;
+    }
+
+    this.datasetDescription = updatedDescription;
+
+    this.datasetService
+      .updateDatasetDescription(this.did, updatedDescription)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => {
+          this.datasetDescription = previousDescription;
+          this.notificationService.error("Failed to update dataset description");
+        },
+      });
+  }
 }

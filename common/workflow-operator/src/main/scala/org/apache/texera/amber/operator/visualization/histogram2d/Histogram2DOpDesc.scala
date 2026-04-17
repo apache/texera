@@ -61,12 +61,10 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
   var normalize: NormalizationType = NormalizationType.DENSITY
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Histogram2D",
       "Displays a bivariate histogram as a density heatmap",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
   override def getOutputSchemas(

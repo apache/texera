@@ -51,12 +51,13 @@ import { ReportGenerationService } from "../../service/report-generation/report-
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
 import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
+import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/markdown-description/markdown-description.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -92,6 +93,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showRegion: boolean = false;
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
+  public showStatus: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -261,6 +263,23 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService
       .getJointGraphWrapper()
       .mainPaper.el.classList.toggle("hide-worker-count", !this.showNumWorkers);
+    this.applyOperatorStatusPosition();
+  }
+
+  toggleStatus() {
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .mainPaper.el.classList.toggle("hide-operator-status", !this.showStatus);
+    this.applyOperatorStatusPosition();
+  }
+
+  private applyOperatorStatusPosition(): void {
+    const refY = this.showNumWorkers ? -55 : -35;
+    const paperModel = this.workflowActionService.getJointGraphWrapper().mainPaper.model as any;
+    paperModel.getElements().forEach((el: any) => {
+      el.attr(".operator-status/ref-x", -10);
+      el.attr(".operator-status/ref-y", refY);
+    });
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -587,6 +606,44 @@ export class MenuComponent implements OnInit, OnDestroy {
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+  }
+
+  /**
+   * Calls Markdown Description Component
+   */
+  public onClickEditDescription(): void {
+    const currentWorkflow = this.workflowActionService.getWorkflow();
+    const currentDescription = currentWorkflow.description ?? "";
+
+    const modalRef = this.modalService.create<MarkdownDescriptionComponent>({
+      nzTitle: "Edit Workflow Description",
+      nzContent: MarkdownDescriptionComponent,
+      nzData: {
+        description: currentDescription,
+      },
+      nzWidth: "900px",
+      nzMaskClosable: true,
+      nzKeyboard: true,
+      nzClosable: true,
+      nzFooter: null,
+    });
+
+    const comp: MarkdownDescriptionComponent = modalRef.getContentComponent();
+
+    comp.descriptionChange.pipe(untilDestroyed(this)).subscribe((updatedDescription: string) => {
+      const updatedWorkflow: Workflow = {
+        ...currentWorkflow,
+        description: updatedDescription,
+      };
+
+      this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+
+      if (this.userService.isLogin()) {
+        this.persistWorkflow();
+      }
+
+      modalRef.close();
+    });
   }
 
   /**

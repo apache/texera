@@ -85,12 +85,10 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Bubble Chart",
       "a 3D Scatter Plot; Bubbles are graphed using x and y labels, and their sizes determined by a z-value.",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
@@ -105,7 +103,7 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(xValue.nonEmpty && yValue.nonEmpty && zValue.nonEmpty)
     pyb"""
-         |        if $enableColor == 'true':
+         |        if '$enableColor' == 'true':
          |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100, color=$colorCategory))
          |        else:
          |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100))
