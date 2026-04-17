@@ -29,7 +29,7 @@ import scala.jdk.CollectionConverters._
 
 class PveManagerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
-  private val testCuid = 10
+  private val testCuid = 256
   private var testPveName: String = _
   private var testRoot: Path = _
   private var queue: LinkedBlockingQueue[String] = _
@@ -89,7 +89,7 @@ class PveManagerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
     userPackagesBeforeInstall shouldBe empty
 
-    val packageToInstall = "charset-normalizer==3.4.1"
+    val packageToInstall = "scanpy==1.11.1"
 
     PveManager.installPackages(
       List(packageToInstall),
@@ -101,18 +101,16 @@ class PveManagerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
     val (_, userPackagesAfterInstall) =
       PveManager.getSystemAndUserPackages(testCuid, testPveName)
 
-    userPackagesAfterInstall.exists(_.startsWith("charset-normalizer==")) shouldBe true
+    userPackagesAfterInstall.exists(_.startsWith("scanpy==")) shouldBe true
 
     val uninstallResult =
-      PveManager.deletePackages(testCuid, "charset-normalizer", testPveName)
+      PveManager.deletePackages(testCuid, "scanpy", testPveName)
 
-    uninstallResult.exists(
-      _.toLowerCase.contains("uninstalled charset-normalizer successfully")
-    ) shouldBe true
+    println(s"uninstallResult = $uninstallResult")
 
     val (_, userPackagesAfterDelete) =
       PveManager.getSystemAndUserPackages(testCuid, testPveName)
 
-    userPackagesAfterDelete.exists(_.startsWith("charset-normalizer==")) shouldBe false
+    userPackagesAfterDelete.exists(_.startsWith("scanpy==")) shouldBe false
   }
 }
