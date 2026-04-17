@@ -17,9 +17,10 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.source.scan
+package org.apache.texera.amber.operator.source.scan.file
 
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, SchemaEnforceable}
+import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec

@@ -20,13 +20,13 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
-import { AppSettings } from "../../../common/app-setting";
+import { AppSettings } from "../../../app-setting";
 import {
   DashboardWorkflowComputingUnit,
   WorkflowComputingUnit,
   WorkflowComputingUnitResourceLimit,
   WorkflowComputingUnitType,
-} from "../../types/workflow-computing-unit";
+} from "../../../type/workflow-computing-unit";
 import { map } from "rxjs/operators";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
