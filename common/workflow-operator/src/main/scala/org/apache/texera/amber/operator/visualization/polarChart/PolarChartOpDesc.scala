@@ -27,6 +27,8 @@ import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentit
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class PolarChartOpDesc extends PythonOperatorDescriptor {
 
@@ -34,13 +36,13 @@ class PolarChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("r")
   @JsonPropertyDescription("The column name for radial values (must be numeric)")
   @AutofillAttributeName
-  var r: String = ""
+  var r: EncodableString = ""
 
   @JsonProperty(value = "theta", required = true)
   @JsonSchemaTitle("theta")
   @JsonPropertyDescription("The column name for angular values (must be numeric)")
   @AutofillAttributeName
-  var theta: String = ""
+  var theta: EncodableString = ""
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -61,7 +63,8 @@ class PolarChartOpDesc extends PythonOperatorDescriptor {
     )
 
   override def generatePythonCode(): String = {
-    s"""from pytexera import *
+    val finalCode =
+      pyb"""from pytexera import *
        |import plotly.graph_objects as go
        |import plotly.io as pio
        |import numpy as np
@@ -75,16 +78,16 @@ class PolarChartOpDesc extends PythonOperatorDescriptor {
        |            yield {'html-content': '<h3>No data available for Polar Chart</h3>'}
        |            return
        |
-       |        if '${r}' not in table.columns or '${theta}' not in table.columns:
+       |        if $r not in table.columns or $theta not in table.columns:
        |            yield {'html-content': '<h3>Selected columns not found in input table</h3>'}
        |            return
        |
-       |        if not np.issubdtype(table['${r}'].dtype, np.number) or not np.issubdtype(table['${theta}'].dtype, np.number):
+       |        if not np.issubdtype(table[$r].dtype, np.number) or not np.issubdtype(table[$theta].dtype, np.number):
        |            yield {'html-content': '<h3>Selected columns must be numeric</h3>'}
        |            return
        |
-       |        r_vals = table['${r}'].values
-       |        theta_vals = table['${theta}'].values
+       |        r_vals = table[$r].values
+       |        theta_vals = table[$theta].values
        |
        |        fig = go.Figure(data=go.Scatterpolargl(
        |            r=r_vals,
@@ -104,6 +107,7 @@ class PolarChartOpDesc extends PythonOperatorDescriptor {
        |
        |        html = pio.to_html(fig, include_plotlyjs='cdn', full_html=False)
        |        yield {'html-content': html}
-       |""".stripMargin
+       |"""
+    finalCode.encode
   }
 }
