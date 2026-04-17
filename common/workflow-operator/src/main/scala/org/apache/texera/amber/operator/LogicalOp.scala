@@ -75,8 +75,8 @@ import org.apache.texera.amber.operator.source.apis.twitter.v2.{
   TwitterFullArchiveSearchSourceOpDesc,
   TwitterSearchSourceOpDesc
 }
+import org.apache.texera.amber.operator.source.dataset.FileListerSourceOpDesc
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
-import org.apache.texera.amber.operator.source.scan.FileScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
@@ -139,6 +139,7 @@ import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallCh
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
+import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
 
 import java.util.UUID
@@ -158,11 +159,13 @@ trait StateTransferFunc
     new Type(value = classOf[IfOpDesc], name = "If"),
     new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
+    new Type(value = classOf[FileListerSourceOpDesc], name = "FileLister"),
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     // disabled the ParallelCSVScanSourceOpDesc so that it does not confuse user. it can be re-enabled when doing experiments.
     // new Type(value = classOf[ParallelCSVScanSourceOpDesc], name = "ParallelCSVFileScan"),
     new Type(value = classOf[JSONLScanSourceOpDesc], name = "JSONLFileScan"),
     new Type(value = classOf[FileScanSourceOpDesc], name = "FileScan"),
+    new Type(value = classOf[FileScanOpDesc], name = "FileScanOp"),
     new Type(value = classOf[TextInputSourceOpDesc], name = "TextInput"),
     new Type(
       value = classOf[TwitterFullArchiveSearchSourceOpDesc],
