@@ -68,9 +68,6 @@ COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
 COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/config/src/main/resources
-# Copy ASF licensing files
-COPY --from=build /texera/LICENSE /texera/NOTICE /texera/DISCLAIMER-WIP /texera/
-
 CMD ["bin/computing-unit-worker"]
 
 EXPOSE 8085

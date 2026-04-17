@@ -98,7 +98,7 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
        |        y = table[$y].values
        |        z = table[$z].values
        |        grid_size = int($gridSize)
-       |        connGaps = True if $connectGaps == 'true' else False
+       |        connGaps = True if '$connectGaps' == 'true' else False
        |
        |        grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
        |        grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
