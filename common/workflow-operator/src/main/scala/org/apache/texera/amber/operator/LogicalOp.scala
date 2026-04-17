@@ -136,6 +136,7 @@ import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
 import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
+import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
@@ -190,6 +191,7 @@ trait StateTransferFunc
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
+    new Type(value = classOf[WindRoseChartOpDesc], name = "WindRoseChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[RangeSliderOpDesc], name = "RangeSlider"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
