@@ -65,6 +65,7 @@ jobs:
   # Step 0: Set runtime parameters (handles both manual and scheduled runs)
   set-parameters:
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' || github.repository == 'apache/texera'
     outputs:
       branch: ${{ steps.set-params.outputs.branch }}
       image_tag: ${{ steps.set-params.outputs.image_tag }}
