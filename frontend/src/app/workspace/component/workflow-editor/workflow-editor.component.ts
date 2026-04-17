@@ -1046,7 +1046,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       return false;
     }
 
-    let allowMultiInput = false;
+    let disallowMultiInput = false;
     if (this.workflowActionService.getTexeraGraph().hasOperator(targetCellID)) {
       const portIndex = this.workflowActionService
         .getTexeraGraph()
@@ -1055,10 +1055,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       if (portIndex >= 0) {
         const portInfo =
           this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
-        allowMultiInput = portInfo?.allowMultiLinks ?? false;
+        disallowMultiInput = portInfo?.disallowMultiLinks ?? false;
       }
     }
-    return !(connectedLinksToTargetPort.length > 0 && !allowMultiInput);
+    return !(connectedLinksToTargetPort.length > 0 && disallowMultiInput);
   }
 
   /**

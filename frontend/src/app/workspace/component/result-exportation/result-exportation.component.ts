@@ -28,8 +28,8 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { UserDatasetVersionCreatorComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 
 @UntilDestroy()

@@ -117,12 +117,10 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo = {
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Figure Factory Table",
       "Visualize data in a figure factory table",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
   }
 

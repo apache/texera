@@ -17,34 +17,31 @@
  * under the License.
  */
 
-mat-form-field {
-  width: 100%;
-}
-.input-autocomplete-container {
-  display: flex;
-  align-items: center;
-  width: 100%;
+import { Injectable } from "@angular/core";
+import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
+import { Observable, of } from "rxjs";
 
-  input {
-    flex: 1;
-    margin-right: 10px;
+@Injectable()
+export class MockComputingUnitStatusService {
+  listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
+    return of([]);
   }
 
-  button {
-    white-space: nowrap;
+  getSelectedComputingUnit(): Observable<DashboardWorkflowComputingUnit | null> {
+    return of(null);
   }
 
-  .file-select-button {
-    border: 2px solid #1890ff;
-    color: #1890ff;
-
-    &:hover {
-      background-color: #e6f7ff;
-      border-color: #1890ff;
-    }
-
-    &:focus {
-      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
-    }
+  getSelectedComputingUnitValue(): DashboardWorkflowComputingUnit | null {
+    return null;
   }
+
+  getAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
+    return of([]);
+  }
+
+  selectComputingUnit(): void {}
+
+  startPolling(): void {}
+
+  stopPolling(): void {}
 }

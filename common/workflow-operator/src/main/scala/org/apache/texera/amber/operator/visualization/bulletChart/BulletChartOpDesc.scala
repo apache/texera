@@ -30,6 +30,7 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import java.util
 import java.util.{ArrayList, List => JList}
 import scala.jdk.CollectionConverters._
 
@@ -57,7 +58,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "steps", required = false)
   @JsonSchemaTitle("Steps")
   @JsonPropertyDescription("Optional: Each step includes a start and end value e.g., 0, 100.")
-  var steps: JList[BulletChartStepDefinition] = new ArrayList[BulletChartStepDefinition]()
+  var steps: JList[BulletChartStepDefinition] = new util.ArrayList[BulletChartStepDefinition]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -67,13 +68,11 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Bullet Chart",
       """Visualize data using a Bullet Chart that shows a primary quantitative bar and delta indicator.
         |Optional elements such as qualitative ranges (steps) and a performance threshold are displayed only when provided.""".stripMargin,
-      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
   override def generatePythonCode(): String = {

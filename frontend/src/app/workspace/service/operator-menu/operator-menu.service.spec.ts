@@ -23,8 +23,8 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 
 import { OperatorMenuService } from "./operator-menu.service";
 import { HttpClientModule } from "@angular/common/http";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("OperatorMenuService", () => {

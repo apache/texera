@@ -70,12 +70,10 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Choropleth Map",
       "Visualize data using a Choropleth Map that uses shades of colors to show differences in properties or quantities between regions",
-      OperatorGroupConstants.VISUALIZATION_ADVANCED_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_ADVANCED_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
