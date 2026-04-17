@@ -16,27 +16,16 @@
  specific language governing permissions and limitations
  under the License.
 -->
-
-<div [ngClass]="{'input-autocomplete-container': isFileSelectionEnabled}">
-  <input
-    *ngIf="selectedFilePath || !isFileSelectionEnabled"
-    nz-input
-    [readOnly]="isFileSelectionEnabled"
-    required
-    [formControl]="formControl"
-    [formlyAttributes]="field" />
-  <button
-    *ngIf="isFileSelectionEnabled"
-    nz-button
-    class="file-select-button"
-    nzSize="small"
-    (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()">
-    {{ selectedFilePath ? 'Reselect File' : 'Select File' }}
-  </button>
-</div>
-<div
-  class="alert alert-danger"
-  role="alert"
-  *ngIf="props.showError && formControl.errors">
-  <formly-validation-message [field]="field"></formly-validation-message>
-</div>
+<input
+  *ngIf="formControl.value || !isFileSelectionEnabled"
+  nz-input
+  required
+  [readOnly]="isFileSelectionEnabled"
+  [formControl]="formControl" />
+<button
+  *ngIf="isFileSelectionEnabled"
+  nz-button
+  nzSize="small"
+  (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()">
+  Select File
+</button>
