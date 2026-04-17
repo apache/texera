@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package edu.uci.ics.amber.operator.visualization.radarPlot;
+package org.apache.texera.amber.operator.visualization.radarPlot;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 

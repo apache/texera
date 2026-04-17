@@ -17,19 +17,18 @@
  * under the License.
  */
 
-package edu.uci.ics.amber.operator.visualization.radarPlot
+package org.apache.texera.amber.operator.visualization.radarPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.amber.operator.metadata.annotations.{
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
 }
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.core.workflow.PortIdentity
 
 @JsonSchemaInject(json = """
 {
@@ -47,7 +46,7 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeNameList
   var selectedAttributes: List[String] = _
 
-  @JsonProperty(value = "traceNameAttribute", defaultValue = "-- No Selection --", required = false)
+  @JsonProperty(value = "traceNameAttribute", defaultValue = "No Selection", required = false)
   @JsonSchemaTitle("Trace Name Column")
   @JsonPropertyDescription("Optional - Select a column to use for naming each radar trace")
   @AutofillAttributeName
@@ -55,7 +54,7 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(
     value = "traceColorAttribute",
-    defaultValue = "-- No Selection --",
+    defaultValue = "No Selection",
     required = false
   )
   @JsonSchemaTitle("Trace Color Column")
@@ -102,12 +101,10 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Radar Plot",
-      "View the result in a radar plot. A radar plot displays multivariate data on multiple axes arranged in a circular layout, allowing for comparison between different entities.",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      "View the result in a radar plot.",
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   def generateRadarPlotCode(): String = {
@@ -115,12 +112,12 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
 
     val attrList = selectedAttributes.map(attr => s""""$attr"""").mkString(", ")
     val traceNameCol = traceNameAttribute match {
-      case "" | "-- No Selection --" => "None"
-      case col                       => s"'$col'"
+      case "" | "No Selection" => "None"
+      case col                 => s"'$col'"
     }
     val traceColorCol = traceColorAttribute match {
-      case "" | "-- No Selection --" => "None"
-      case col                       => s"'$col'"
+      case "" | "No Selection" => "None"
+      case col                 => s"'$col'"
     }
 
     s"""
