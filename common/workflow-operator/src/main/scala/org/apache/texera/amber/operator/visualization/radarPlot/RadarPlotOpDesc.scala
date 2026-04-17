@@ -29,6 +29,9 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 @JsonSchemaInject(json = """
 {
@@ -44,13 +47,13 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Axes")
   @JsonPropertyDescription("Numeric columns to use as radar axes")
   @AutofillAttributeNameList
-  var selectedAttributes: List[String] = _
+  var selectedAttributes: List[EncodableString] = _
 
   @JsonProperty(value = "traceNameAttribute", defaultValue = "No Selection", required = false)
   @JsonSchemaTitle("Trace Name Column")
   @JsonPropertyDescription("Optional - Select a column to use for naming each radar trace")
   @AutofillAttributeName
-  var traceNameAttribute: String = ""
+  var traceNameAttribute: EncodableString = ""
 
   @JsonProperty(
     value = "traceColorAttribute",
@@ -62,7 +65,7 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
     "Optional - Select a column to use for coloring each radar trace (note: if there are too many traces with distinct coloring values, colors may repeat)"
   )
   @AutofillAttributeName
-  var traceColorAttribute: String = ""
+  var traceColorAttribute: EncodableString = ""
 
   @JsonProperty(value = "linePattern", defaultValue = "solid", required = true)
   @JsonPropertyDescription("Pattern of the lines connecting points on the radar plot")
@@ -107,20 +110,21 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
-  def generateRadarPlotCode(): String = {
-    def toPythonBool(value: Boolean): String = if (value) "True" else "False"
+  private def toPythonBool(value: Boolean): String = if (value) "True" else "False"
 
-    val attrList = selectedAttributes.map(attr => s""""$attr"""").mkString(", ")
-    val traceNameCol = traceNameAttribute match {
-      case "" | "No Selection" => "None"
-      case col                 => s"'$col'"
-    }
-    val traceColorCol = traceColorAttribute match {
-      case "" | "No Selection" => "None"
-      case col                 => s"'$col'"
+  private def optionalColumnExpr(column: EncodableString): PythonTemplateBuilder =
+    Option(column).filterNot(col => col.isEmpty || col == "No Selection") match {
+      case Some(col) => pyb"$col"
+      case None      => pyb"None"
     }
 
-    s"""
+  def generateRadarPlotCode(): PythonTemplateBuilder = {
+    val attributes = Option(selectedAttributes).getOrElse(Nil)
+    val attrList = attributes.map(attr => pyb"$attr").mkString(", ")
+    val traceNameCol = optionalColumnExpr(traceNameAttribute)
+    val traceColorCol = optionalColumnExpr(traceColorAttribute)
+
+    pyb"""
        |        categories = [$attrList]
        |        if not categories:
        |            yield {'html-content': self.render_error("No columns selected as axes.")}
@@ -191,34 +195,36 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor {
        |            width=600,
        |            height=600
        |        )
-       |""".stripMargin
+       |"""
   }
 
   override def generatePythonCode(): String = {
-    s"""
-       |from pytexera import *
-       |import numpy as np
-       |import plotly.graph_objects as go
-       |import plotly.express as px
-       |import plotly.io
-       |
-       |class ProcessTableOperator(UDFTableOperator):
-       |
-       |    def render_error(self, error_msg):
-       |        return '''<h1>Radar Plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
-       |
-       |    @overrides
-       |    def process_table(self, table: Table, port: int):
-       |        if table.empty:
-       |            yield {'html-content': self.render_error("Input table is empty.")}
-       |            return
-       |
-       |        ${generateRadarPlotCode()}
-       |
-       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False, config={'responsive': True})
-       |        yield {'html-content': html}
-       |""".stripMargin
+    val finalCode =
+      pyb"""
+         |from pytexera import *
+         |import numpy as np
+         |import plotly.graph_objects as go
+         |import plotly.express as px
+         |import plotly.io
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    def render_error(self, error_msg):
+         |        return '''<h1>Radar Plot is not available.</h1>
+         |                  <p>Reason is: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int):
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("Input table is empty.")}
+         |            return
+         |
+         |        ${generateRadarPlotCode()}
+         |
+         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False, config={'responsive': True})
+         |        yield {'html-content': html}
+         |"""
+    finalCode.encode
   }
 }
