@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.visualization.sunburstChart
+package org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
@@ -27,7 +27,7 @@ import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class SunburstChartOpDesc extends PythonOperatorDescriptor {
+class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Names Column")
@@ -57,9 +57,9 @@ class SunburstChartOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
-      "Sunburst Chart",
-      "Visualize hierarchical data using a radial layout",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
+      "Parallel Coordinates Plot",
+      "Visualize data using parallel coordinates",
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
 }
