@@ -45,12 +45,6 @@
   width: 100%; /* Make the select element take the full width of its parent */
 }
 
-.right-panel-title {
-  padding-left: 20px;
-  text-align: center;
-  margin-top: 10px;
-}
-
 nz-layout {
   height: 100%;
 }
@@ -89,10 +83,6 @@ body {
   width: 95%;
   height: 80%;
   margin: auto;
-}
-
-.dataset-version-creator {
-  height: 100%;
 }
 
 .grayed-out {
@@ -149,30 +139,6 @@ nz-select {
   font-size: 14px;
 }
 
-.version-size-badge {
-  margin-top: 10px;
-}
-
-.nz-tag {
-  font-size: 12px;
-}
-
-.workflow-panel {
-  align-items: center;
-  gap: 10px;
-}
-
-.like-button {
-  margin-left: 15px;
-  width: 70px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.liked {
-  color: red;
-}
-
 .empty-version-indicator {
   margin-top: 15%;
 }
@@ -214,37 +180,6 @@ nz-select {
   padding: 6px;
 }
 
-.dataset-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-right: 20px;
-  margin-bottom: 20px;
-}
-
-.control-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  label {
-    min-width: 80px;
-    font-weight: 500;
-    color: #666;
-  }
-
-  nz-switch {
-    margin-left: 8px;
-  }
-
-  .help-text {
-    margin-left: 8px;
-    font-size: 12px;
-    color: #999;
-    font-style: italic;
-  }
-}
-
 .upload-stats {
   font-size: 13px;
   margin-bottom: 20px;
@@ -272,4 +207,88 @@ nz-select {
 
 .section-divider {
   margin: 8px 0;
+}
+
+.status-tag-row {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-tag {
+  padding: 3px 10px 3px 2px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border-radius: 5px;
+
+  i {
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 4px;
+    background: #f0f0f0;
+  }
+}
+
+.tag-public i {
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
+.tag-downloadable i {
+  color: #22c55e;
+  background: #f0fdf4;
+}
+
+.like-tag {
+  cursor: pointer;
+}
+
+.like-tag.liked {
+  i {
+    color: #ef4444;
+    background: #fef2f2;
+  }
+}
+
+.like-tag.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.tag-settings-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #d9d9d9;
+}
+
+.tag-settings-title {
+  font-weight: 600;
+}
+
+.tag-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.tag-settings-row span {
+  min-width: 110px;
+}
+
+.tag-settings-row ::ng-deep .ant-switch {
+  min-width: 80px;
+}
+
+.description-section {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
 }

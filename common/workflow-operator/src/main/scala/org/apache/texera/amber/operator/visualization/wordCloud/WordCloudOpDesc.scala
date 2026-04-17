@@ -52,22 +52,19 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Word Cloud",
       "Generate word cloud for   texts",
-      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
     pyb"""
        |        table.dropna(subset = [$textColumn], inplace = True) #remove missing values
-       |        table = table[table[$textColumn].str.contains(r'\\w', regex=True)]
+       |        table = table[table[$textColumn].str.contains(r'\w', regex=True)]
        |"""
   }
 

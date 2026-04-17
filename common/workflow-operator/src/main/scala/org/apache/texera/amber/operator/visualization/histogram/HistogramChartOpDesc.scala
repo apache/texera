@@ -61,12 +61,10 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
   var pattern: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Histogram",
       "Visualize data in a Histogram Chart",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

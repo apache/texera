@@ -28,49 +28,59 @@ import {
   ViewChild,
   ElementRef,
   inject,
+  AfterViewInit,
+  OnDestroy,
 } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
+
+const COLLAPSED_HEIGHT_PX = 320;
+
+const TOOLBAR = [
+  { icon: "bold", tip: "Bold", prefix: "**", suffix: "**", default: "bold" },
+  { icon: "italic", tip: "Italic", prefix: "_", suffix: "_", default: "italic" },
+  { icon: "strikethrough", tip: "Strikethrough", prefix: "~~", suffix: "~~", default: "text" },
+  { icon: "font-size", tip: "Heading", prefix: "### ", suffix: "", default: "Heading" },
+  { icon: "code", tip: "Code", prefix: "`", suffix: "`", default: "code" },
+  { icon: "block", tip: "Code Block", prefix: "\n```\n", suffix: "\n```\n", default: "code" },
+  { icon: "minus", tip: "Quote", prefix: "> ", suffix: "", default: "quote" },
+  { icon: "unordered-list", tip: "Bullet List", prefix: "- ", suffix: "", default: "item" },
+  { icon: "ordered-list", tip: "Numbered List", prefix: "1. ", suffix: "", default: "item" },
+  { icon: "link", tip: "Link", prefix: "[", suffix: "](url)", default: "text" },
+  { icon: "picture", tip: "Image", prefix: "![", suffix: "](url)", default: "alt text" },
+  {
+    icon: "table",
+    tip: "Table",
+    prefix: "\n| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| ",
+    suffix: " |  |  |\n",
+    default: "",
+  },
+  { icon: "line", tip: "Divider", prefix: "\n---\n", suffix: "", default: "" },
+] as const;
 
 @Component({
   selector: "texera-markdown-description",
   templateUrl: "./markdown-description.component.html",
   styleUrls: ["./markdown-description.component.scss"],
 })
-export class MarkdownDescriptionComponent implements OnInit, OnChanges {
+export class MarkdownDescriptionComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   private modalData = inject(NZ_MODAL_DATA, { optional: true });
+  private resizeObserver?: ResizeObserver;
 
   @Input() description = "";
-  @Input() mode: "preview" | "edit" = "preview";
   @Input() editable = false;
+  @Input() enableViewMore = false;
   @Output() descriptionChange = new EventEmitter<string>();
   @ViewChild("textarea") textareaRef!: ElementRef<HTMLTextAreaElement>;
+  @ViewChild("previewBox") previewBoxRef?: ElementRef<HTMLDivElement>;
 
   currentMode: "preview" | "edit" = "preview";
   editingContent = "";
   renderedDescription = "";
-
-  readonly toolbar: { icon: string; tip: string; prefix: string; suffix: string; default: string }[] = [
-    { icon: "bold", tip: "Bold", prefix: "**", suffix: "**", default: "bold" },
-    { icon: "italic", tip: "Italic", prefix: "_", suffix: "_", default: "italic" },
-    { icon: "strikethrough", tip: "Strikethrough", prefix: "~~", suffix: "~~", default: "text" },
-    { icon: "font-size", tip: "Heading", prefix: "### ", suffix: "", default: "Heading" },
-    { icon: "code", tip: "Code", prefix: "`", suffix: "`", default: "code" },
-    { icon: "block", tip: "Code Block", prefix: "\n```\n", suffix: "\n```\n", default: "code" },
-    { icon: "minus", tip: "Quote", prefix: "> ", suffix: "", default: "quote" },
-    { icon: "unordered-list", tip: "Bullet List", prefix: "- ", suffix: "", default: "item" },
-    { icon: "ordered-list", tip: "Numbered List", prefix: "1. ", suffix: "", default: "item" },
-    { icon: "link", tip: "Link", prefix: "[", suffix: "](url)", default: "text" },
-    { icon: "picture", tip: "Image", prefix: "![", suffix: "](url)", default: "alt text" },
-    {
-      icon: "table",
-      tip: "Table",
-      prefix: "\n| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| ",
-      suffix: " |  |  |\n",
-      default: "",
-    },
-    { icon: "line", tip: "Divider", prefix: "\n---\n", suffix: "", default: "" },
-  ];
+  isExpanded = false;
+  hasOverflow = false;
+  readonly toolbar = TOOLBAR;
+  readonly COLLAPSED_HEIGHT_PX = COLLAPSED_HEIGHT_PX;
 
   constructor(private markdownService: MarkdownService) {}
   ngOnInit(): void {
@@ -78,20 +88,12 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges {
       this.description = this.modalData.description ?? "";
       this.editable = true;
     }
-    this.currentMode = this.modalData ? "edit" : this.mode;
+    this.currentMode = this.modalData ? "edit" : "preview";
     this.editingContent = this.description;
     this.renderMarkdown(this.description);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["mode"] && !changes["mode"].firstChange && !this.modalData) {
-      this.currentMode = this.mode;
-      if (this.currentMode === "edit") {
-        this.editingContent = this.description;
-        this.renderMarkdown(this.description);
-      }
-    }
-
     if (changes["description"] && !changes["description"].firstChange) {
       if (this.currentMode === "edit") {
         return;
@@ -114,7 +116,7 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges {
     this.description = this.editingContent;
     this.descriptionChange.emit(this.description);
     this.renderMarkdown(this.description);
-    this.currentMode = this.modalData ? "edit" : this.mode;
+    this.currentMode = this.modalData ? "edit" : "preview";
   }
 
   cancel(): void {
@@ -139,5 +141,33 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges {
 
   renderMarkdown(text: string): void {
     this.renderedDescription = text?.trim() ? this.markdownService.parse(text) : "";
+    this.scheduleOverflowCheck();
+  }
+
+  toggleViewMore(): void {
+    this.isExpanded = !this.isExpanded;
+  }
+
+  ngAfterViewInit(): void {
+    if (this.enableViewMore && this.previewBoxRef) {
+      this.resizeObserver = new ResizeObserver(() => this.scheduleOverflowCheck());
+      this.resizeObserver.observe(this.previewBoxRef.nativeElement);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
+  private scheduleOverflowCheck(): void {
+    if (!this.enableViewMore) {
+      this.hasOverflow = false;
+      this.isExpanded = false;
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (!this.previewBoxRef) return;
+      this.hasOverflow = this.previewBoxRef.nativeElement.scrollHeight > COLLAPSED_HEIGHT_PX;
+    });
   }
 }

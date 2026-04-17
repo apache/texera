@@ -86,12 +86,10 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Bar Chart",
       "Visualize data in a Bar Chart",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {
