@@ -103,7 +103,7 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(xValue.nonEmpty && yValue.nonEmpty && zValue.nonEmpty)
     pyb"""
-         |        if $enableColor == 'true':
+         |        if '$enableColor' == 'true':
          |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100, color=$colorCategory))
          |        else:
          |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100))
