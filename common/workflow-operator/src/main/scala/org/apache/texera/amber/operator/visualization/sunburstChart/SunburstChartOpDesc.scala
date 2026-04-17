@@ -19,10 +19,31 @@
 
 package org.apache.texera.amber.operator.visualization.sunburstChart
 
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class SunburstChartOpDesc extends PythonOperatorDescriptor {
+
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Names Column")
+  @JsonPropertyDescription("Column containing node names (labels)")
+  @AutofillAttributeName
+  var names: String = _
+
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Parents Column")
+  @JsonPropertyDescription("Column defining parent-child relationships")
+  @AutofillAttributeName
+  var parents: String = _
+
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Values Column")
+  @JsonPropertyDescription("Column representing size of each sector")
+  @AutofillAttributeName
+  var values: String = _
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
