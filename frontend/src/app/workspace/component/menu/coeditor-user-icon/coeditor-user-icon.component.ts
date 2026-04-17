@@ -33,7 +33,15 @@ import { CoeditorPresenceService } from "../../../service/workflow-graph/model/c
   styleUrls: ["coeditor-user-icon.component.css"],
 })
 export class CoeditorUserIconComponent {
-  @Input() coeditor: Coeditor = { name: "", email: "", uid: -1, role: Role.REGULAR, comment: "", clientId: "0" };
+  @Input() coeditor: Coeditor = {
+    name: "",
+    email: "",
+    uid: -1,
+    role: Role.REGULAR,
+    comment: "",
+    clientId: "0",
+    joiningReason: "",
+  };
 
   constructor(public coeditorPresenceService: CoeditorPresenceService) {}
 

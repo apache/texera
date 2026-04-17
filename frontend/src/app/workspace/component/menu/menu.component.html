@@ -141,6 +141,14 @@
             nz-icon
             nzType="download"></i>
         </button>
+        <button
+          (click)="onClickEditDescription()"
+          nz-button
+          title="change description">
+          <i
+            nz-icon
+            nzType="info-circle"></i>
+        </button>
       </nz-button-group>
       <ng-template #utilities>
         <nz-button-group>
@@ -148,6 +156,7 @@
             nz-dropdown
             [nzDropdownMenu]="menu"
             [nzClickHide]="false"
+            nzOverlayClassName="layers-dropdown"
             nz-button
             title="Layers">
             <i
@@ -178,6 +187,14 @@
                   [(ngModel)]="showNumWorkers"
                   (ngModelChange)="toggleNumWorkers()"
                   >Workers</label
+                >
+              </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showStatus"
+                  (ngModelChange)="toggleStatus()"
+                  >Status</label
                 >
               </li>
             </ul>

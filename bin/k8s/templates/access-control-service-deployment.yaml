@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: {{ .Values.accessControlService.name }}
-          image: {{ .Values.accessControlService.imageName }}
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.accessControlService.imageName }}:{{ .Values.texera.imageTag }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           ports:
             - containerPort: {{ .Values.accessControlService.service.port }}
@@ -46,6 +46,14 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
+            - name: KUBERNETES_COMPUTE_UNIT_POOL_NAME
+              value: {{ .Values.workflowComputingUnitPool.name }}
+            - name: KUBERNETES_COMPUTE_UNIT_POOL_NAMESPACE
+              value: {{ .Values.workflowComputingUnitPool.namespace }}
+            {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /api/healthcheck

@@ -47,12 +47,10 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Nested Table",
       "Visualize Data in a Depth Two Nested Table",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_GROUP
     )
 
   private def createNestedTable(): PythonTemplateBuilder = {

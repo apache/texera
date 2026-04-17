@@ -58,12 +58,10 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Network Graph",
       "Visualize data in a network graph",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   def manipulateTable(): PythonTemplateBuilder = {

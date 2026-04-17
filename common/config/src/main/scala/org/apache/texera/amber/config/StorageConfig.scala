@@ -28,9 +28,6 @@ object StorageConfig {
   // Load configuration
   private val conf: Config = ConfigFactory.parseResources("storage.conf").resolve()
 
-  // General storage settings
-  val resultStorageMode: String = conf.getString("storage.result-storage-mode")
-
   // JDBC specifics
   val jdbcUrl: String = conf.getString("storage.jdbc.url")
   val jdbcUrlForTestCases: String = conf.getString("storage.jdbc.url-for-test-cases")
@@ -39,7 +36,9 @@ object StorageConfig {
 
   // Iceberg specifics
   val icebergCatalogType: String = conf.getString("storage.iceberg.catalog.type")
-  val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest-uri")
+  val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
+  val icebergRESTCatalogWarehouseName: String =
+    conf.getString("storage.iceberg.catalog.rest.warehouse-name")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =

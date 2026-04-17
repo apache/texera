@@ -35,7 +35,7 @@ spec:
       serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
       containers:
         - name: {{ .Values.workflowComputingUnitManager.name }}
-          image: {{ .Values.workflowComputingUnitManager.imageName }}
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitManager.imageName }}:{{ .Values.texera.imageTag }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           ports:
             - containerPort: {{ .Values.workflowComputingUnitManager.service.port }}
@@ -46,7 +46,7 @@ spec:
             - name: KUBERNETES_COMPUTE_UNIT_SERVICE_NAME
               value: {{ .Values.workflowComputingUnitPool.name }}-svc
             - name: KUBERNETES_IMAGE_NAME
-              value: {{ .Values.workflowComputingUnitPool.imageName }}
+              value: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
               value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
