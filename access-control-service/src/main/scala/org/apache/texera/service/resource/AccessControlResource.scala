@@ -43,8 +43,7 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
-  private val authPveRoot: Regex = """auth/pve/?""".r
-  private val authPveAny: Regex = """auth/pve/.*""".r
+  private val authPve: Regex = """auth/pve(?:/.*)?""".r
 
   /**
     * Authorize the request based on the path and headers.
@@ -63,7 +62,7 @@ object AccessControlResource extends LazyLogging {
 
     path match {
       case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
-          authPveRoot() | authPveAny() =>
+          authPve() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
