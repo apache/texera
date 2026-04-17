@@ -1,0 +1,294 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.create-dataset-version-button {
+  display: flex; /* Use flexbox for centering */
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+  color: white;
+  border: none;
+  padding: 12px 40px; /* Increase padding for a wider button */
+  border-radius: 25px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin: 18px auto 0 auto; /* Auto margins for horizontal centering */
+  width: 200px; /* Adjust width as needed */
+  font-size: 18px; /* Make text slightly bigger */
+  font-weight: bold; /* Optional: Make text bold */
+}
+
+.version-storage {
+  padding-left: 20px;
+  width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 25px;
+}
+
+.version-storage nz-select {
+  width: 100%; /* Make the select element take the full width of its parent */
+}
+
+nz-layout {
+  height: 100%;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.right-sider {
+  height: 100%;
+  overflow-y: auto;
+  position: relative;
+  z-index: 0;
+}
+
+.sider-resize-line {
+  height: 100%;
+  width: 5px;
+  border-right: 1px solid #e8e8e8;
+}
+
+.sider-resize-handle {
+  background: #fff;
+  border: 1px solid #ddd;
+  text-align: center;
+  font-size: 12px;
+  height: 20px;
+  line-height: 20px;
+  margin-top: 400px;
+}
+
+.file-renderer {
+  width: 95%;
+  height: 80%;
+  margin: auto;
+}
+
+.grayed-out {
+  filter: grayscale(1) opacity(0.7);
+  background-color: #f0f0f0; /* Adjust the color as needed */
+}
+
+.disabled-click {
+  pointer-events: none;
+}
+
+.select-and-button-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spaced-button {
+  flex-shrink: 0;
+  width: 30px;
+  height: 24px;
+}
+
+nz-select {
+  flex-grow: 1;
+}
+
+.file-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-size,
+.version-size,
+.version-date {
+  font-size: 12px;
+  color: #8c8c8c;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.version-date {
+  display: flex;
+}
+
+.version-size {
+  margin-top: 8px;
+}
+
+.icon-database,
+.icon-file {
+  font-size: 14px;
+}
+
+.empty-version-indicator {
+  margin-top: 15%;
+}
+
+.upload-progress-wrapper,
+.upload-progress-wrapper-pending {
+  margin-top: 5px;
+  max-height: 25vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.upload-progress-container {
+  margin-left: 20px;
+}
+
+.upload-progress-wrapper-pending {
+  display: flex;
+  flex-direction: column;
+  max-height: 15vh;
+}
+
+.version-creator {
+  margin-top: 20px;
+  padding: 40px;
+}
+
+.version-input-container label {
+  font-size: 15px;
+}
+
+.version-input-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.version-input {
+  padding: 6px;
+}
+
+.upload-stats {
+  font-size: 13px;
+  margin-bottom: 20px;
+  nz-progress {
+    width: 97%;
+    display: inline-block;
+  }
+}
+
+:host ::ng-deep .upload-stats .ant-tag {
+  border: none;
+}
+
+.fixed-width-speed {
+  display: inline-block;
+  min-width: 5ch;
+  text-align: right;
+}
+
+.fixed-width-time {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: right;
+}
+
+.section-divider {
+  margin: 8px 0;
+}
+
+.status-tag-row {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-tag {
+  padding: 3px 10px 3px 2px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border-radius: 5px;
+
+  i {
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 4px;
+    background: #f0f0f0;
+  }
+}
+
+.tag-public i {
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
+.tag-downloadable i {
+  color: #22c55e;
+  background: #f0fdf4;
+}
+
+.like-tag {
+  cursor: pointer;
+}
+
+.like-tag.liked {
+  i {
+    color: #ef4444;
+    background: #fef2f2;
+  }
+}
+
+.like-tag.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.tag-settings-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #d9d9d9;
+}
+
+.tag-settings-title {
+  font-weight: 600;
+}
+
+.tag-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.tag-settings-row span {
+  min-width: 110px;
+}
+
+.tag-settings-row ::ng-deep .ant-switch {
+  min-width: 80px;
+}
+
+.description-section {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}

@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
+ * Licensed under the MIT License.
+ *
+ * This file is derived from mbknor-jackson-jsonschema.
+ * Source: https://github.com/mbknor/mbknor-jackson-jsonschema
+ */
+
+
+package com.kjetland.jackson.jsonSchema.annotations;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+import static java.lang.annotation.ElementType.*;
+
+/**
+ * Injects custom values to the schema generated for fields or getters.
+ *
+ * @author bbyk
+ */
+@Target({METHOD, FIELD, TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface JsonSchemaBool {
+    /**
+     * @return a slash separated path to the value in the schema
+     */
+    String path();
+
+    /**
+     * @return a boolean value to place in the schema
+     */
+    boolean value();
+}

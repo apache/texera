@@ -1,0 +1,53 @@
+<!--
+Thanks for sending a pull request (PR)! Here are some tips for you:
+  1. If this is your first time, please read our contributor guidelines: 
+     [Contributing to Texera](https://github.com/apache/texera/blob/main/CONTRIBUTING.md)
+  2. Ensure you have added or run the appropriate tests for your PR
+  3. If the PR is work in progress, mark it a draft on GitHub.
+  4. Please write your PR title to summarize what this PR proposes, we 
+    are following Conventional Commits style for PR titles as well.
+  5. Be sure to keep the PR description updated to reflect all changes.
+-->
+
+### What changes were proposed in this PR?
+<!--
+Please clarify what changes you are proposing. The purpose of this section 
+is to outline the changes. Here are some tips for you:
+  1. If you propose a new API, clarify the use case for a new API.
+  2. If you fix a bug, you can clarify why it is a bug.
+  3. If it is a refactoring, clarify what has been changed.
+  3. It would be helpful to include a before-and-after comparison using 
+     screenshots or GIFs.
+  4. Please consider writing useful notes for better and faster reviews.
+-->
+
+
+### Any related issues, documentation, discussions?
+<!--
+Please use this section to link other resources if not mentioned already.
+  1. If this PR fixes an issue, please include `Fixes #1234`, `Resolves #1234`
+     or `Closes #1234`. If it is only related, simply mention the issue number.
+  2. If there is design documentation, please add the link.
+  3. If there is a discussion in the mailing list, please add the link.
+-->
+
+
+### How was this PR tested?
+<!--
+If tests were added, say they were added here. Or simply mention that if the PR 
+is tested with existing test cases.  Make sure to include/update test cases that
+check the changes thoroughly including negative and positive cases if possible.
+If it was tested in a way different from regular unit tests, please clarify how
+you tested step by step, ideally copy and paste-able, so that other reviewers can
+test and check, and descendants can verify in the future. If tests were not added, 
+please describe why they were not added and/or why it was difficult to add. 
+-->
+
+
+### Was this PR authored or co-authored using generative AI tooling?
+<!--
+If generative AI tooling has been used in the process of authoring this PR, 
+please include the phrase: 'Generated-by: ' followed by the name of the tool 
+and its version. If no, write 'No'. 
+Please refer to the [ASF Generative Tooling Guidance](https://www.apache.org/legal/generative-tooling.html) for details.
+-->

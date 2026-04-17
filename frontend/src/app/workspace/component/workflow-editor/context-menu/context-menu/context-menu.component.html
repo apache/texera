@@ -1,0 +1,180 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<ul nz-menu>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  !hasHighlightedLinks()"
+    (click)="onCopy()">
+    <span
+      nz-icon
+      nzType="copy"
+      nzTheme="outline"></span
+    >copy
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  !hasHighlightedLinks() &&
+  isWorkflowModifiable"
+    (click)="onCut()">
+    <span
+      nz-icon
+      nzType="scissor"
+      nzTheme="outline"></span
+    >cut
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.highlightedOperators.value.length === 0 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  !hasHighlightedLinks()) &&
+  isWorkflowModifiable"
+    (click)="onPaste()">
+    <span
+      nz-icon
+      nzType="snippets"
+      nzTheme="outline"></span
+    >paste
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
+  !hasHighlightedLinks()"
+    (click)="operatorMenuService.disableHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="stop"
+      nzTheme="outline"></span
+    >disable
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="!operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
+  !hasHighlightedLinks()"
+    (click)="operatorMenuService.disableHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="stop"
+      nzTheme="twotone"></span
+    >enable
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable) &&
+  !hasHighlightedLinks()"
+    (click)="operatorMenuService.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye"
+      nzTheme="outline"></span
+    >view result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(! operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable) &&
+  !hasHighlightedLinks()"
+    (click)="operatorMenuService.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye-invisible"
+      nzTheme="twotone"></span
+    >remove view result
+  </li>
+  <li
+    nz-menu-item
+    [nzDisabled]="true"
+    *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable) &&
+  !hasHighlightedLinks()"
+    (click)="operatorMenuService.reuseResultHighlightedOperator()">
+    <span
+      nz-icon
+      nzType="database"
+      nzTheme="outline"></span
+    >reuse result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(! operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable) &&
+  !hasHighlightedLinks()"
+    (click)="operatorMenuService.reuseResultHighlightedOperator()">
+    <span
+      nz-icon
+      nzType="eye-invisible"
+      nzTheme="twotone"></span
+    >remove reusing result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  isWorkflowModifiable"
+    (click)="onDelete()">
+    <span
+      nz-icon
+      nzType="delete"
+      nzTheme="outline"></span
+    >delete
+  </li>
+
+  <!-- Delete option for links only -->
+  <li
+    nz-menu-item
+    *ngIf="hasHighlightedLinks() && 
+  operatorMenuService.highlightedOperators.value.length === 0 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  isWorkflowModifiable"
+    (click)="onDelete()">
+    <span
+      nz-icon
+      nzType="delete"
+      nzTheme="outline"></span
+    >delete
+  </li>
+
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  !hasHighlightedLinks()"
+    [nzDisabled]="!canExecuteOperator()"
+    (click)="operatorMenuService.executeUpToOperator()">
+    <span
+      nz-icon
+      nzType="play-circle"
+      nzTheme="outline"></span>
+    execute to this operator
+  </li>
+
+  <li
+    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators &&
+           this.config.env.exportExecutionResultEnabled &&
+           !hasHighlightedLinks()"
+    (click)="onClickExportHighlightedExecutionResult()"
+    nz-menu-item>
+    <span
+      nz-icon
+      nzType="cloud"
+      nzTheme="outline"></span>
+    Export result
+  </li>
+</ul>

@@ -1,0 +1,113 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  z-index: 4;
+}
+
+#texera-workspace {
+  position: relative;
+}
+
+#result-container {
+  position: absolute;
+  top: -300px;
+  left: 0;
+  background: white;
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+// make modal body scrollable and modal size fixed
+.modal-body {
+  min-height: calc(50vh);
+  overflow-y: auto !important;
+}
+// change the internal color of pretty json of the result details
+
+$type-colors: (
+  string: black,
+  number: #27837a,
+  boolean: #751866,
+  date: #10536d,
+  array: #999,
+  object: #999,
+  function: #999,
+  "null": #fff,
+  undefined: #fff,
+);
+
+#content {
+  overflow-y: auto;
+  padding-top: 38px;
+  width: inherit;
+  height: inherit;
+}
+
+#result-buttons {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+}
+
+#panel-button {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 4;
+  display: flex;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
+}
+
+#divider {
+  margin: 0;
+}
+
+.shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+#title {
+  padding: 5px 9px;
+  border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  background: white;
+  width: 100%;
+  z-index: 2;
+}

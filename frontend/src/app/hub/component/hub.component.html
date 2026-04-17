@@ -1,0 +1,57 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<ul>
+  <li
+    *ngIf="sidebarTabs.home_enabled"
+    nz-menu-item
+    nz-tooltip="Home Page"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    [routerLink]="DASHBOARD_HOME">
+    <span
+      nz-icon
+      nzType="home"></span>
+    <span> Home </span>
+  </li>
+  <li
+    *ngIf="sidebarTabs.workflow_enabled"
+    nz-menu-item
+    nz-tooltip="Search public workflows"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    [routerLink]="DASHBOARD_HUB_WORKFLOW_RESULT">
+    <span
+      nz-icon
+      nzType="project"></span>
+    <span>Workflows</span>
+  </li>
+  <li
+    *ngIf="sidebarTabs.dataset_enabled"
+    nz-menu-item
+    nz-tooltip="Search public dataset"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    [routerLink]="DASHBOARD_HUB_DATASET_RESULT">
+    <span
+      nz-icon
+      nzType="database"></span>
+    <span>Datasets</span>
+  </li>
+</ul>

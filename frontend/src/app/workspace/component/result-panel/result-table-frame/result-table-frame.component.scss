@@ -1,0 +1,144 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host ::ng-deep .ant-table-pagination.ant-pagination {
+  margin: 16px 0;
+}
+
+// make the pagination button to the left
+:host ::ng-deep .ant-table-pagination-right {
+  justify-content: left;
+}
+
+td.data-size {
+  font-size: 12px;
+}
+
+th.header-size {
+  font-size: 14px;
+  padding: 2px;
+}
+
+.custom-stats-row th {
+  background-color: #ccc;
+  border-bottom: 1px solid #ccc;
+  border-top: 1px solid #ccc;
+  border-left: 1px solid #ccc;
+  height: auto;
+  padding: 2px 4px;
+}
+
+.custom-stats-row th:first-child {
+  border-left: none; /* To remove the left border from the first column */
+}
+
+.statsHeader {
+  max-height: none;
+  padding: 2px 0;
+}
+
+.statsLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 16px;
+}
+
+.statsLine h5 {
+  margin: 0;
+  line-height: 1.2;
+  font-size: 12px;
+}
+
+.leftAlign {
+  text-align: left;
+  margin-right: 10px;
+}
+
+.rightAlign {
+  text-align: right;
+}
+
+.borderless-button {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.table-cell {
+  position: relative;
+  padding-right: 28px;
+}
+
+.cell-content {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-button {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+
+  i {
+    font-size: 16px; // Slightly larger to match the cloud icon
+    color: #1890ff; // Ant Design's primary blue color
+  }
+}
+
+.table-row-hover:hover {
+  .download-button {
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.table-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.table-container {
+  position: relative;
+}
+
+.download-all-button {
+  position: absolute;
+  bottom: 16px;
+  right: 0;
+}

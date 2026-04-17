@@ -1,0 +1,342 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card class="section-title">
+  <h2 class="page-title">General Settings</h2>
+</nz-card>
+
+<nz-card nzTitle="Branding">
+  <div class="upload-row">
+    <span>Logo:</span>
+    <button
+      nz-button
+      (click)="logoInput.click()">
+      Choose a Logo
+    </button>
+    <input
+      #logoInput
+      type="file"
+      accept="image/*"
+      hidden
+      (change)="onFileChange('logo', $event)" />
+    <img
+      *ngIf="logoData"
+      [src]="logoData"
+      alt="Logo Preview"
+      class="preview-img" />
+  </div>
+  <div class="help-text">The logo will appear in the expanded sidebar. Recommended: use a square image.</div>
+
+  <div class="upload-row">
+    <span>Mini Logo:</span>
+    <button
+      nz-button
+      (click)="miniLogoInput.click()">
+      Choose a Mini Logo
+    </button>
+    <input
+      #miniLogoInput
+      type="file"
+      accept="image/*"
+      hidden
+      (change)="onFileChange('mini_logo', $event)" />
+    <img
+      *ngIf="miniLogoData"
+      [src]="miniLogoData"
+      alt="Mini Logo Preview"
+      class="preview-img" />
+  </div>
+  <div class="help-text">
+    The mini logo will appear in the collapsed sidebar as a small icon. Recommended: use a square image.
+  </div>
+
+  <div class="upload-row">
+    <span>Favicon:</span>
+    <button
+      nz-button
+      (click)="faviconInput.click()">
+      Choose a Favicon
+    </button>
+    <input
+      #faviconInput
+      type="file"
+      accept="image/*"
+      hidden
+      (change)="onFileChange('favicon', $event)" />
+    <img
+      *ngIf="faviconData"
+      [src]="faviconData"
+      alt="Favicon Preview"
+      class="preview-img" />
+  </div>
+  <div class="help-text">
+    This image will be used as your browser tab icon. Recommended: use a square image (16×16 or 32×32 pixels).
+  </div>
+
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="saveLogos()">
+      Save
+    </button>
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetBranding()">
+      Reset
+    </button>
+  </div>
+</nz-card>
+
+<nz-card nzTitle="Sidebar Tabs">
+  <div class="tabs-group">
+    <details>
+      <summary class="tab-row">
+        <i
+          nz-icon
+          nzType="caret-right"
+          nzTheme="outline"
+          class="arrow"></i>
+        <span>Hub</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.hub_enabled">
+        </nz-switch>
+      </summary>
+
+      <div class="submenu-item">
+        <span>Home</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.home_enabled"
+          [nzDisabled]="!sidebarTabs.hub_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Workflows</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.workflow_enabled"
+          [nzDisabled]="!sidebarTabs.hub_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Datasets</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.dataset_enabled"
+          [nzDisabled]="!sidebarTabs.hub_enabled">
+        </nz-switch>
+      </div>
+    </details>
+
+    <details>
+      <summary class="tab-row">
+        <i
+          nz-icon
+          nzType="caret-right"
+          nzTheme="outline"
+          class="arrow"></i>
+        <span>Your Work</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </summary>
+
+      <div class="submenu-item">
+        <span>Projects</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.projects_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Workflows</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.workflows_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Datasets</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.datasets_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Quota</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.quota_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Forum</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.forum_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </div>
+    </details>
+
+    <div class="tab-row">
+      <span>About</span>
+      <nz-switch
+        class="tab-switch"
+        [(ngModel)]="sidebarTabs.about_enabled">
+      </nz-switch>
+    </div>
+
+    <div class="button-row">
+      <button
+        nz-button
+        nzType="primary"
+        (click)="saveTabs()">
+        Save
+      </button>
+      <button
+        nz-button
+        nzType="default"
+        (click)="resetTabs()">
+        Reset
+      </button>
+    </div>
+  </div>
+</nz-card>
+
+<nz-card [nzTitle]="datasetTitle">
+  <ng-template #datasetTitle>
+    Dataset
+    <span
+      nz-tooltip
+      [nzTooltipTitle]="awsTip"
+      nzTooltipPlacement="right"
+      class="icon-info"
+      role="button">
+      <i
+        nz-icon
+        nzType="info-circle"
+        nzTheme="outline"></i>
+    </span>
+  </ng-template>
+
+  <ng-template #awsTip>
+    <div>
+      <strong>Configuration Guidelines</strong><br />
+      • Concurrent parts &times; part size ≈ in-flight data per file<br />
+      • Keep usage within your client memory/bandwidth limits<br />
+      • Use larger part size for large files to avoid &gt;10,000 parts<br />
+      • Out-of-range inputs will be auto-adjusted to the nearest valid value<br /><br />
+      Learn more:
+      <a
+        href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html"
+        target="_blank"
+        rel="noopener noreferrer">
+        AWS S3 Multipart Upload Limits
+      </a>
+    </div>
+  </ng-template>
+
+  <div class="settings-row">
+    <span>Concurrent Files:</span>
+    <nz-input-number
+      [(ngModel)]="maxConcurrentFiles"
+      [nzMin]="1"
+      [nzMax]="1000"
+      [nzStep]="1"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">Number of files that can be uploaded simultaneously. (Range: 1 - 1000)</div>
+
+  <div class="settings-row">
+    <span>File Size:</span>
+    <nz-input-number
+      [(ngModel)]="maxFileSizeMiB"
+      [nzMin]="1"
+      [nzMax]="MAX_FILE_SIZE_MiB"
+      [nzStep]="10"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">
+    Maximum size allowed for individual file uploads. Range: 1 MiB - {{ MAX_FILE_SIZE_MiB | number }} MiB (5 TiB).
+  </div>
+
+  <div class="settings-row">
+    <span>Concurrent Parts:</span>
+    <nz-input-number
+      [(ngModel)]="maxConcurrentChunks"
+      [nzMin]="1"
+      [nzMax]="MAX_TOTAL_PARTS"
+      [nzStep]="1"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">
+    Number of parts uploaded in parallel. Range: 1 - {{ MAX_TOTAL_PARTS | number }}. Current configuration will use
+    approximately {{ partsAtMax | number }} parts for maximum file size.
+  </div>
+
+  <div class="settings-row">
+    <span>Part Size:</span>
+    <nz-input-number
+      [(ngModel)]="chunkSizeMiB"
+      [nzMin]="MIN_PART_SIZE_MiB"
+      [nzMax]="MAX_PART_SIZE_MiB"
+      [nzStep]="10"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">
+    Size of each chunk during multipart upload. Range: {{ MIN_PART_SIZE_MiB }} MiB - {{ MAX_PART_SIZE_MiB | number }}
+    MiB (5 GiB). Minimum required for current configuration: {{ requiredMinPartSizeMiB | number }} MiB.
+    <br />
+    In-flight data per file: ~{{ maxConcurrentChunks * chunkSizeMiB | number }} MiB
+  </div>
+
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="saveDatasetSettings()">
+      Save
+    </button>
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetDatasetSettings()">
+      Reset
+    </button>
+  </div>
+</nz-card>
