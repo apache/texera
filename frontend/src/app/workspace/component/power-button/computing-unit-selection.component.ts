@@ -86,7 +86,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   pves: PveDraft[] = [this.makeEmptyPve(true)];
   systemPackages: { name: string; version: string }[] = [];
   pipModalCloseHandler: (() => void) | null = null;
-  PVEmodalVisible = false;
+  pveModalVisible = false;
   nextPveId = 1;
 
   // current workflow's Id, will change with wid in the workflowActionService.metadata
@@ -189,12 +189,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe(unit => {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
 
-        // compare with the previous cuid, not the one we are just about to store
+        // ── compare with the *previous* cuid, not the one we are just about to store ──
         if (isDefined(wid) && unit?.computingUnit.cuid !== this.lastSelectedCuid) {
           this.updateWorkflowModificationStatus(wid);
         }
 
-        // update local caches after the comparison
+        // update local caches **after** the comparison
         this.lastSelectedCuid = unit?.computingUnit.cuid;
         this.selectedComputingUnit = unit;
 
@@ -260,7 +260,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
                 next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
                   this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
                 },
-                error: (_err: unknown) => {
+                error: (err: unknown) => {
                   const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
                   if (runningUnit) {
                     this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
@@ -639,7 +639,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     // Get the current memory in GB
     const memoryValue = parseResourceNumber(this.selectedMemory);
     const memoryUnit = parseResourceUnit(this.selectedMemory);
-    const cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
+    let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
 
     // Only try to preserve previous value for larger memory sizes where slider is shown
     if (
@@ -691,7 +691,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   showPVEmodalVisible(): void {
-    this.PVEmodalVisible = true;
+    this.pveModalVisible = true;
     this.getPVEs();
   }
 

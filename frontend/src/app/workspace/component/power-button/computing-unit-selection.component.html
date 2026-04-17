@@ -440,15 +440,14 @@
 <nz-modal
   nzWrapClassName="pve-modal"
   nzClassName="pve-modal"
-  [nzVisible]="PVEmodalVisible"
+  [nzVisible]="pveModalVisible"
   nzTitle="Python Environments"
-  (nzOnCancel)="PVEmodalVisible = false"
+  (nzOnCancel)="pveModalVisible = false"
   [nzFooter]="customFooter"
 >
-  <!-- Modal footer: no global OK anymore -->
   <ng-template #customFooter>
     <div class="footer-all">
-      <button nz-button nzType="default" (click)="PVEmodalVisible = false">Close</button>
+      <button nz-button nzType="default" (click)="pveModalVisible = false">Close</button>
       <button nz-button nzType="primary" (click)="addEnvironment()">Add Environment</button>
     </div>
   </ng-template>
