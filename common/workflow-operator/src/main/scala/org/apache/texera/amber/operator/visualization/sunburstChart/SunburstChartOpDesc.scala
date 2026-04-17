@@ -21,6 +21,8 @@ package org.apache.texera.amber.operator.visualization.sunburstChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -44,6 +46,14 @@ class SunburstChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Column representing size of each sector")
   @AutofillAttributeName
   var values: String = _
+
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
