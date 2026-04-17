@@ -132,6 +132,7 @@ import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dCh
 import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
@@ -194,6 +195,7 @@ trait StateTransferFunc
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
     new Type(value = classOf[WindRoseChartOpDesc], name = "WindRoseChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
+    new Type(value = classOf[PolarChartOpDesc], name = "PolarChart"),
     new Type(value = classOf[RangeSliderOpDesc], name = "RangeSlider"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
