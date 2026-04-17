@@ -457,6 +457,22 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = "datasetversionselector";
       }
 
+      if (this.currentOperatorSchema?.operatorType === "FileScanOp" && mappedField.key === "outputFileName") {
+        mappedField.expressions = {
+          ...mappedField.expressions,
+          hide: (field: FormlyFieldConfig) => {
+            const model = field.model as { extract?: boolean; attributeType?: string } | undefined;
+            const attributeType = model?.attributeType;
+            return !(
+              model?.extract === true ||
+              attributeType === "single string" ||
+              attributeType === "binary" ||
+              attributeType === "large binary"
+            );
+          },
+        };
+      }
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {

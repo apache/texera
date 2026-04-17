@@ -75,4 +75,25 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     fileScanOpExec.close()
   }
+
+  it should "preserve the original input filename when include filename is enabled" in {
+    fileScanOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    fileScanOpDesc.outputFileName = true
+
+    val inputFilePath = TestOperators.TestTextFilePath
+    val inputTuple = Tuple(inputSchema, Array[Any](inputFilePath))
+    val fileScanOpExec =
+      new FileScanOpExec(objectMapper.writeValueAsString(fileScanOpDesc))
+
+    fileScanOpExec.open()
+    val outputSchema = fileScanOpDesc.sourceSchema()
+    val processedTuple = fileScanOpExec
+      .processTuple(inputTuple, 0)
+      .next()
+      .asInstanceOf[SchemaEnforceable]
+      .enforceSchema(outputSchema)
+
+    assert(processedTuple.getField[String]("filename") == inputFilePath)
+    fileScanOpExec.close()
+  }
 }

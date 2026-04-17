@@ -31,10 +31,11 @@ class FileScanOpExec private[scan] (
     objectMapper.readValue(descString, classOf[FileScanOpDesc])
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    val fileName =
-      FileResolver.resolve(tuple.getFields.collectFirst { case s: String => s }.get).toASCIIString
+    val originalFileName = tuple.getFields.collectFirst { case s: String => s }.get
+    val fileName = FileResolver.resolve(originalFileName).toASCIIString
     FileScanUtils.createTuplesFromFile(
       fileName = fileName,
+      displayFileName = originalFileName,
       attributeType = desc.attributeType,
       fileEncoding = desc.fileEncoding,
       extract = desc.extract,

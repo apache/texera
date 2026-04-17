@@ -41,6 +41,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 private[file] object FileScanUtils {
   def createTuplesFromFile(
       fileName: String,
+      displayFileName: String,
       attributeType: FileAttributeType,
       fileEncoding: FileDecodingMethod,
       extract: Boolean,
@@ -75,6 +76,7 @@ private[file] object FileScanUtils {
         filenameIt = it1.map(_.getName)
         it2.map(_ => zipIn)
       } else {
+        filenameIt = Iterator.single(displayFileName)
         Iterator(archiveStream)
       }
 
@@ -127,5 +129,26 @@ private[file] object FileScanUtils {
       }
 
     new AutoClosingIterator(rawIterator, () => closeables.foreach(_.close()))
+  }
+
+  def createTuplesFromFile(
+      fileName: String,
+      attributeType: FileAttributeType,
+      fileEncoding: FileDecodingMethod,
+      extract: Boolean,
+      outputFileName: Boolean,
+      fileScanOffset: Option[Int],
+      fileScanLimit: Option[Int]
+  ): Iterator[TupleLike] = {
+    createTuplesFromFile(
+      fileName = fileName,
+      displayFileName = fileName,
+      attributeType = attributeType,
+      fileEncoding = fileEncoding,
+      extract = extract,
+      outputFileName = outputFileName,
+      fileScanOffset = fileScanOffset,
+      fileScanLimit = fileScanLimit
+    )
   }
 }
