@@ -64,7 +64,7 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
       if (color != null && color.nonEmpty) pyb"&(table[$color].notnull())"
       else ""
     pyb"""
-         |        table = table[table[$dimCols].notnull().all(axis=1)$colorFilter].copy()
+         |        table = table[table[[$dimCols]].notnull().all(axis=1)$colorFilter].copy()
          |"""
   }
 
