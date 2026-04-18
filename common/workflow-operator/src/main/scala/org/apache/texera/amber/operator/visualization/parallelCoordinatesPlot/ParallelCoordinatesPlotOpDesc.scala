@@ -67,4 +67,17 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
          |        table = table[table[$dimCols].notnull().all(axis=1)$colorFilter].copy()
          |"""
   }
+
+  def createPlotlyFigure(): PythonTemplateBuilder = {
+    val dimCols = dimensions.map(c => pyb"$c").mkString(",")
+    val colorArg =
+      if (color != null && color.nonEmpty) pyb", color=$color"
+      else ""
+    pyb"""
+       |        fig = px.parallel_coordinates(
+       |            table,
+       |            dimensions=[$dimCols]$colorArg
+       |        )
+       |"""
+  }
 }
