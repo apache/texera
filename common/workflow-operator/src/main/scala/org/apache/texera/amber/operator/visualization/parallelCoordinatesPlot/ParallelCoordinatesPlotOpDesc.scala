@@ -43,29 +43,6 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var color: String = _
 
-  def manipulateTable(): PythonTemplateBuilder = {
-
-    val dimCols = dimensions.map(c => pyb"$c").mkString(",")
-
-    val colorFilter =
-      if (color != null && color.nonEmpty) pyb"&(table[$color].notnull())"
-      else ""
-
-    pyb"""
-       |        table = table[table[$dimCols].notnull().all(axis=1)$colorFilter].copy()
-       |"""
-  }
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       "Parallel Coordinates Plot",
@@ -73,4 +50,21 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+  }
+
+  def manipulateTable(): PythonTemplateBuilder = {
+    val dimCols = dimensions.map(c => pyb"$c").mkString(",")
+    val colorFilter =
+      if (color != null && color.nonEmpty) pyb"&(table[$color].notnull())"
+      else ""
+    pyb"""
+         |        table = table[table[$dimCols].notnull().all(axis=1)$colorFilter].copy()
+         |"""
+  }
 }
