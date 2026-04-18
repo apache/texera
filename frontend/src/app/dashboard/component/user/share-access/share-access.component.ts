@@ -155,7 +155,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
       this.emailTags.forEach(email => {
         let message = `${this.userService.getCurrentUser()?.email} shared a ${this.type} with you`;
         if (this.type !== "computing-unit")
-          message += `, access the ${this.type} at ${location.origin}/workflow/${this.id}`;
+          message += `, access the ${this.type} at ${location.origin}/dashboard/user/workflow/${this.id}`;
         this.accessService
           .grantAccess(this.type, this.id, email, this.validateForm.value.accessLevel)
           .pipe(untilDestroyed(this))
