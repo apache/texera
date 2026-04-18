@@ -59,7 +59,11 @@ libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
   "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
-  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
+  "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
+  // Embedded MariaDB for MySQL operator tests. Wire-compatible with MySQL. The
+  // suite in MySQLSourceOpExecSpec skips gracefully if the platform-specific
+  // binary bundled by mariaDB4j fails to start (e.g. macOS without OpenSSL 1.0).
+  "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 )
 
 
@@ -114,7 +118,9 @@ libraryDependencies ++= Seq(
   "org.tukaani" % "xz" % "1.9",
   "com.univocity" % "univocity-parsers" % "2.9.1",
   "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4",
-  "io.github.redouane59.twitter" % "twittered" % "2.21"
+  "io.github.redouane59.twitter" % "twittered" % "2.21",
+  // Eclipse Vert.x MySQL client (Apache 2.0) — replaces GPL'd mysql-connector-java
+  "io.vertx" % "vertx-mysql-client" % "4.5.11"
 )
 
 libraryDependencies += "io.github.classgraph" % "classgraph" % "4.8.184" % Test
