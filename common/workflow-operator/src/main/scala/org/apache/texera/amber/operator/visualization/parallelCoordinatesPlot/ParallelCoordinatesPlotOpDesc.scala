@@ -80,4 +80,35 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
        |        )
        |"""
   }
+
+  override def generatePythonCode(): String = {
+    val finalcode =
+      pyb"""
+         |from pytexera import *
+         |
+         |import plotly.express as px
+         |import plotly.io
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    def render_error(self, error_msg):
+         |        return '''<h1>Parallel coordinates chart is not available.</h1>
+         |                  <p>Reason is: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int):
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("Input table is empty.")}
+         |            return
+         |        ${manipulateTable()}
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("No valid rows after filtering.")}
+         |            return
+         |        ${createPlotlyFigure()}
+         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |        yield {'html-content': html}
+         |"""
+    finalcode.encode
+  }
 }
