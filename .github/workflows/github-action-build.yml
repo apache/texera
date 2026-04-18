@@ -124,6 +124,8 @@ jobs:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Lint with scalafmt
         run: sbt scalafmtCheckAll
+      - name: Lint with scalafix
+        run: sbt "scalafixAll --check"
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
