@@ -92,8 +92,7 @@ class TestCreatePostgresCatalog:
         args, kwargs = mock_sql_catalog.call_args
         assert args == ("texera_iceberg",)
         assert kwargs["uri"] == (
-            "postgresql+pg8000://texera:s3cret@"
-            "db.internal:5432/texera_iceberg_catalog"
+            "postgresql+pg8000://texera:s3cret@db.internal:5432/texera_iceberg_catalog"
         )
         # And warehouse is still the plain path.
         assert kwargs["warehouse"] == warehouse_path
