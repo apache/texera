@@ -99,7 +99,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   /** Returns a Python string that creates the ternary plot figure */
   def createPlotlyFigure(): PythonTemplateBuilder = {
     pyb"""
-       |        if $colorEnabled == 'true' and $colorDataField != "":
+       |        if '$colorEnabled' == 'true' and $colorDataField != "":
        |            fig = px.scatter_ternary(table, a=$firstVariable, b=$secondVariable, c=$thirdVariable, color=$colorDataField)
        |        else:
        |            fig = px.scatter_ternary(table, a=$firstVariable, b=$secondVariable, c=$thirdVariable)
