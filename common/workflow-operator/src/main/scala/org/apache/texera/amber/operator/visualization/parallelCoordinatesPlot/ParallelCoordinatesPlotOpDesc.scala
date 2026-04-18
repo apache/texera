@@ -26,6 +26,8 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
 
@@ -40,6 +42,19 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Column used to color or group the lines")
   @AutofillAttributeName
   var color: String = _
+
+  def manipulateTable(): PythonTemplateBuilder = {
+
+    val dimCols = dimensions.map(c => pyb"$c").mkString(",")
+
+    val colorFilter =
+      if (color != null && color.nonEmpty) pyb"&(table[$color].notnull())"
+      else ""
+
+    pyb"""
+       |        table = table[table[$dimCols].notnull().all(axis=1)$colorFilter].copy()
+       |"""
+  }
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
