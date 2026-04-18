@@ -29,36 +29,32 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 
 class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Names Column")
-  @JsonPropertyDescription("Column containing node names (labels)")
+  @JsonProperty(value = "dimensions", required = true)
+  @JsonSchemaTitle("Dimensions")
+  @JsonPropertyDescription("List of numeric columns to visualize as parallel axes")
   @AutofillAttributeName
-  var names: String = _
+  var dimensions: List[String] = List()
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Parents Column")
-  @JsonPropertyDescription("Column defining parent-child relationships")
+  @JsonProperty(value = "color", required = false)
+  @JsonSchemaTitle("Color Column")
+  @JsonPropertyDescription("Column used to color or group the lines")
   @AutofillAttributeName
-  var parents: String = _
-
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Values Column")
-  @JsonPropertyDescription("Column representing size of each sector")
-  @AutofillAttributeName
-  var values: String = _
+  var color: String = _
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
+
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
+
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       "Parallel Coordinates Plot",
-      "Visualize data using parallel coordinates",
+      "Visualize multivariate data using parallel coordinate axes",
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
