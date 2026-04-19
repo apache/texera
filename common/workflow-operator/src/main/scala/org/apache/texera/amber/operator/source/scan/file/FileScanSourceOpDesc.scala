@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.source.scan
+package org.apache.texera.amber.operator.source.scan.file
 
 import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{
@@ -31,6 +31,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.{FileDecodingMethod, ScanSourceOpDesc}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
@@ -73,7 +74,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         executionId,
         operatorIdentifier,
         OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.FileScanSourceOpExec",
+          "org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpExec",
           objectMapper.writeValueAsString(this)
         )
       )

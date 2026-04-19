@@ -22,10 +22,9 @@ package org.apache.texera.amber.operator.visualization.bubbleChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -103,7 +102,7 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(xValue.nonEmpty && yValue.nonEmpty && zValue.nonEmpty)
     pyb"""
-         |        if $enableColor == 'true':
+         |        if '$enableColor' == 'true':
          |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100, color=$colorCategory))
          |        else:
          |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100))

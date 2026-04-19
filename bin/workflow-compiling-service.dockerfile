@@ -52,9 +52,6 @@ COPY --from=build /texera/target/workflow-compiling-service-* /texera/
 # Copy resources directories from build phase
 COPY --from=build /texera/common/config/src/main/resources /texera/common/config/src/main/resources
 COPY --from=build /texera/workflow-compiling-service/src/main/resources /texera/workflow-compiling-service/src/main/resources
-# Copy ASF licensing files
-COPY --from=build /texera/LICENSE /texera/NOTICE /texera/DISCLAIMER-WIP /texera/
-
 CMD ["bin/workflow-compiling-service"]
 
 EXPOSE 9090
