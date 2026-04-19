@@ -30,6 +30,8 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
+import javax.validation.constraints.NotNull
+
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -46,6 +48,7 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Dimensions")
   @JsonPropertyDescription("List of numeric columns to visualize as parallel axes")
   @AutofillAttributeNameList
+  @NotNull(message = "Dimensions cannot be empty")
   var dimensions: List[EncodableString] = List()
 
   @JsonProperty(value = "color", required = false)
