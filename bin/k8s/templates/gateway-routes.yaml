@@ -117,7 +117,7 @@ rules:
         urlRewrite:
           path:
             type: ReplacePrefixMatch
-            replacePrefixMatch: /wsapi/pve
+            replacePrefixMatch: /api/pve
     backendRefs:
       - group: gateway.envoyproxy.io
         kind: Backend

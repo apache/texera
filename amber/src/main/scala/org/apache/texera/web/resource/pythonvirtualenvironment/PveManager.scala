@@ -1,5 +1,3 @@
-
-
 package org.apache.texera.web.resource.pythonvirtualenvironment
 /*
  * Licensed to the Apache Software Foundation (ASF) under one

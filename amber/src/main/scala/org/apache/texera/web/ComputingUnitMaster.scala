@@ -46,7 +46,7 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
-import org.apache.texera.web.resource.pythonvirtualenvironment.WsPveResource
+import org.apache.texera.web.resource.pythonvirtualenvironment.PveResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
 import org.apache.texera.web.service.ExecutionsMetadataPersistService
@@ -54,8 +54,6 @@ import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.FilterHolder
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 
-import org.glassfish.jersey.server.ResourceConfig
-import org.glassfish.jersey.servlet.ServletContainer
 
 import java.net.URI
 import java.time.Duration
@@ -162,24 +160,14 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     environment.jersey.register(
       classOf[org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature]
     )
+
+    environment.jersey.register(classOf[PveResource])
+
     environment
       .servlets()
       .addServletListeners(
         new WebsocketPayloadSizeTuner(ApplicationConfig.maxWorkflowWebsocketRequestPayloadSizeKb)
       )
-
-    val wsPveConfig = new ResourceConfig()
-    wsPveConfig.register(classOf[WsPveResource])
-
-    wsPveConfig.register(
-      new io.dropwizard.auth.AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
-    )
-    wsPveConfig.register(classOf[org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature])
-
-    environment
-      .servlets()
-      .addServlet("wsapi-pve", new ServletContainer(wsPveConfig))
-      .addMapping("/wsapi/pve/*")
 
     val timeToLive: Int = ApplicationConfig.sinkStorageTTLInSecs
     if (ApplicationConfig.cleanupAllExecutionResults) {
