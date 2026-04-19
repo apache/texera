@@ -24,7 +24,7 @@ export interface GlobalPortIdentity {
 export interface InputPort {
   id: PortIdentity | undefined;
   displayName: string;
-  allowMultiLinks: boolean;
+  disallowMultiLinks: boolean;
   dependencies: PortIdentity[];
 }
 
@@ -256,7 +256,7 @@ export const GlobalPortIdentity: MessageFns<GlobalPortIdentity> = {
 };
 
 function createBaseInputPort(): InputPort {
-  return { id: undefined, displayName: "", allowMultiLinks: false, dependencies: [] };
+  return { id: undefined, displayName: "", disallowMultiLinks: false, dependencies: [] };
 }
 
 export const InputPort: MessageFns<InputPort> = {
@@ -267,8 +267,8 @@ export const InputPort: MessageFns<InputPort> = {
     if (message.displayName !== "") {
       writer.uint32(18).string(message.displayName);
     }
-    if (message.allowMultiLinks !== false) {
-      writer.uint32(24).bool(message.allowMultiLinks);
+    if (message.disallowMultiLinks !== false) {
+      writer.uint32(24).bool(message.disallowMultiLinks);
     }
     for (const v of message.dependencies) {
       PortIdentity.encode(v!, writer.uint32(34).fork()).join();
@@ -302,7 +302,7 @@ export const InputPort: MessageFns<InputPort> = {
             break;
           }
 
-          message.allowMultiLinks = reader.bool();
+          message.disallowMultiLinks = reader.bool();
           continue;
         case 4:
           if (tag !== 34) {
@@ -324,7 +324,7 @@ export const InputPort: MessageFns<InputPort> = {
     return {
       id: isSet(object.id) ? PortIdentity.fromJSON(object.id) : undefined,
       displayName: isSet(object.displayName) ? globalThis.String(object.displayName) : "",
-      allowMultiLinks: isSet(object.allowMultiLinks) ? globalThis.Boolean(object.allowMultiLinks) : false,
+      disallowMultiLinks: isSet(object.disallowMultiLinks) ? globalThis.Boolean(object.disallowMultiLinks) : false,
       dependencies: globalThis.Array.isArray(object?.dependencies)
         ? object.dependencies.map((e: any) => PortIdentity.fromJSON(e))
         : [],
@@ -339,8 +339,8 @@ export const InputPort: MessageFns<InputPort> = {
     if (message.displayName !== "") {
       obj.displayName = message.displayName;
     }
-    if (message.allowMultiLinks !== false) {
-      obj.allowMultiLinks = message.allowMultiLinks;
+    if (message.disallowMultiLinks !== false) {
+      obj.disallowMultiLinks = message.disallowMultiLinks;
     }
     if (message.dependencies?.length) {
       obj.dependencies = message.dependencies.map((e) => PortIdentity.toJSON(e));
@@ -355,7 +355,7 @@ export const InputPort: MessageFns<InputPort> = {
     const message = createBaseInputPort();
     message.id = (object.id !== undefined && object.id !== null) ? PortIdentity.fromPartial(object.id) : undefined;
     message.displayName = object.displayName ?? "";
-    message.allowMultiLinks = object.allowMultiLinks ?? false;
+    message.disallowMultiLinks = object.disallowMultiLinks ?? false;
     message.dependencies = object.dependencies?.map((e) => PortIdentity.fromPartial(e)) || [];
     return message;
   },

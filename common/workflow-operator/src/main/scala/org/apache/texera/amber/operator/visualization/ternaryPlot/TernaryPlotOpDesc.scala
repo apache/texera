@@ -22,10 +22,9 @@ package org.apache.texera.amber.operator.visualization.ternaryPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -71,12 +70,10 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
 
   // OperatorInfo instance describing ternary plot
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       userFriendlyName = "Ternary Plot",
       operatorDescription = "Points are graphed on a Ternary Plot using 3 specified data fields",
-      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   override def getOutputSchemas(
@@ -101,7 +98,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   /** Returns a Python string that creates the ternary plot figure */
   def createPlotlyFigure(): PythonTemplateBuilder = {
     pyb"""
-       |        if $colorEnabled == 'true' and $colorDataField != "":
+       |        if '$colorEnabled' == 'true' and $colorDataField != "":
        |            fig = px.scatter_ternary(table, a=$firstVariable, b=$secondVariable, c=$thirdVariable, color=$colorDataField)
        |        else:
        |            fig = px.scatter_ternary(table, a=$firstVariable, b=$secondVariable, c=$thirdVariable)
