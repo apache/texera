@@ -19,21 +19,24 @@
 
 import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
 import { take } from "rxjs/operators";
-import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
-import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
+import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
+import {
+  DashboardWorkflowComputingUnit,
+  WorkflowComputingUnitType,
+} from "../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
-import { ComputingUnitActionsService } from "../../../dashboard/service/user/computing-unit-actions/computing-unit-actions.service";
+import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import {
   ComputingUnitMetadataComponent,
   parseResourceUnit,
