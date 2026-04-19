@@ -27,15 +27,7 @@ import org.apache.texera.amber.operator.source.sql.SQLSourceOpDesc
 
 import java.sql.Connection
 
-/**
-  * Backward-compatibility shell for the MySQL source operator.
-  *
-  * The executor and JDBC driver (`mysql-connector-java`, GPLv2 / ASF Category X)
-  * were removed for license compliance. The descriptor is kept so that
-  * workflows previously persisted with a `MySQLSource` node can still be
-  * deserialized and opened in the editor. Attempting to execute the operator
-  * raises a clear error.
-  */
+@deprecated("MySQL source is no longer executable; use PostgreSQLSource instead.", "1.0.0")
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def getPhysicalOp(
@@ -43,26 +35,19 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       executionId: ExecutionIdentity
   ): PhysicalOp =
     throw new UnsupportedOperationException(
-      "MySQL source operator is no longer executable. The mysql-connector-java " +
-        "driver (GPLv2 / ASF Category X) was removed for Apache license compliance. " +
-        "This descriptor is retained only so existing workflows can still be loaded. " +
-        "Replace this node with PostgreSQLSource or another supported source to run the workflow."
+      "MySQL source operator is no longer executable. Replace this node with " +
+        "PostgreSQLSource or another supported source."
     )
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "MySQL Source",
-      "[Disabled] MySQL source is no longer available due to license restrictions. " +
-        "Replace this operator to run the workflow.",
+      "MySQL Source (deprecated)",
+      "[Deprecated] Not executable. Replace with PostgreSQLSource.",
       OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
 
-  // `SQLSourceOpDesc.querySchema` (invoked by the default `sourceSchema`) walks
-  // JDBC `DatabaseMetaData`, which is unusable without the removed driver.
-  // Return null so the frontend can still open the workflow; the clear error
-  // is deferred to `getPhysicalOp`.
   override def sourceSchema(): Schema = null
 
   override protected def establishConn: Connection = null
