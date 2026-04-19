@@ -24,8 +24,12 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
@@ -34,14 +38,14 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "dimensions", required = true)
   @JsonSchemaTitle("Dimensions")
   @JsonPropertyDescription("List of numeric columns to visualize as parallel axes")
-  @AutofillAttributeName
-  var dimensions: List[String] = List()
+  @AutofillAttributeNameList
+  var dimensions: List[EncodableString] = List()
 
   @JsonProperty(value = "color", required = false)
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("Column used to color or group the lines")
   @AutofillAttributeName
-  var color: String = _
+  var color: EncodableString = _
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
