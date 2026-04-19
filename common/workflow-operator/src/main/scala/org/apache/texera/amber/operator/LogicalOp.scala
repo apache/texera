@@ -84,7 +84,6 @@ import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDes
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
-import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
@@ -201,7 +200,6 @@ trait StateTransferFunc
     new Type(value = classOf[PythonUDFOpDescV2], name = "PythonUDFV2"),
     new Type(value = classOf[PythonUDFSourceOpDescV2], name = "PythonUDFSourceV2"),
     new Type(value = classOf[DualInputPortsPythonUDFOpDescV2], name = "DualInputPortsPythonUDFV2"),
-    new Type(value = classOf[MySQLSourceOpDesc], name = "MySQLSource"),
     new Type(value = classOf[PostgreSQLSourceOpDesc], name = "PostgreSQLSource"),
     new Type(value = classOf[AsterixDBSourceOpDesc], name = "AsterixDBSource"),
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
