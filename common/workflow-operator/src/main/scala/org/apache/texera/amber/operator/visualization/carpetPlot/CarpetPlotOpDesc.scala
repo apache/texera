@@ -28,22 +28,26 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import javax.validation.constraints.NotNull
 
 class CarpetPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "a", required = true)
+  @NotNull(message = "input axis a is required")
   @JsonSchemaTitle("First Parameter Axis Column")
   @JsonPropertyDescription("Column representing the first parameter axis (a)")
   @AutofillAttributeName
   var a: EncodableString = ""
 
   @JsonProperty(value = "b", required = true)
+  @NotNull(message = "input axis b is required")
   @JsonSchemaTitle("Second Parameter Axis Column")
   @JsonPropertyDescription("Column representing the second parameter axis (b)")
   @AutofillAttributeName
   var b: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
+  @NotNull(message = "input value y is required")
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Column representing the value at each (a, b) coordinate")
   @AutofillAttributeName
