@@ -67,14 +67,14 @@ esac
 
 # --- 1) Scala formatting ---
 if $run_scala; then
-  tx_info "Running sbt scalafmtAll at repo root..."
+  tx_info "Running sbt scalafmtAll and scalafixAll at repo root..."
   if ! command -v sbt >/dev/null 2>&1; then
     tx_error "sbt not found. Please install sbt."
     exit 1
   fi
   (
     cd "$TEXERA_HOME"
-    sbt scalafmtAll
+    sbt scalafmtAll scalafixAll
   )
   tx_success "Scala formatting completed."
 fi
