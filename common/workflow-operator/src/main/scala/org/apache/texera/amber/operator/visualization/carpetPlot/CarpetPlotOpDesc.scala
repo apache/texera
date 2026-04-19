@@ -80,38 +80,39 @@ class CarpetPlotOpDesc extends PythonOperatorDescriptor {
            |            yield {"html-content": "<h3>Input table is empty</h3>"}
            |            return
            |
-           |        try:
-           |            a_col = $a
-           |            b_col = $b
-           |            y_col = $y
+           |        a_col = $a
+           |        b_col = $b
+           |        y_col = $y
            |
-           |            for col in [a_col, b_col, y_col]:
-           |                if col not in table.columns:
-           |                    yield {"html-content": f"<h3>Column '{col}' not found</h3>"}
-           |                    return
-           |
-           |            table = table.dropna(subset=[a_col, b_col, y_col])
-           |
-           |            if table.empty:
-           |                yield {"html-content": "<h3>No valid rows after removing nulls</h3>"}
+           |        for col in [a_col, b_col, y_col]:
+           |            if col not in table.columns:
+           |                yield {"html-content": f"<h3>Column '{col}' not found</h3>"}
            |                return
            |
+           |        table = table.dropna(subset=[a_col, b_col, y_col])
+           |
+           |        if table.empty:
+           |            yield {"html-content": "<h3>No valid rows after removing nulls</h3>"}
+           |            return
+           |
+           |        try:
            |            table[a_col] = table[a_col].astype(float)
            |            table[b_col] = table[b_col].astype(float)
            |            table[y_col] = table[y_col].astype(float)
+           |        except Exception as e:
+           |            yield {"html-content": f"<h3>Error converting input columns to numeric values: {str(e)}</h3>"}
+           |            return
            |
+           |        try:
            |            fig = go.Figure(go.Carpet(
            |                a=table[a_col],
            |                b=table[b_col],
            |                y=table[y_col]
            |            ))
-           |
            |            html = pio.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-           |
            |            yield {"html-content": html}
-           |
            |        except Exception as e:
-           |            yield {"html-content": f"<h3>Error: {str(e)}</h3>"}
+           |            yield {"html-content": f"<h3>Error generating carpet plot: {str(e)}</h3>"}
            |"""
     finalCode.encode
   }
