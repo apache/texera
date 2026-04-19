@@ -109,14 +109,6 @@
       (keydown.control.enter)="sendFeedbackToAgent()"></textarea>
 
     <div class="controls-row">
-      <label
-        nz-checkbox
-        [(ngModel)]="checkoutBeforeSend"
-        class="checkout-checkbox"
-        nz-tooltip
-        nzTooltipTitle="Checkout to the latest version that modified this operator before sending feedback">
-        Checkout from version
-      </label>
       <span class="hint-text">Ctrl+Enter to send</span>
       <button
         nz-button

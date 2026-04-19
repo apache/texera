@@ -36,54 +36,7 @@ import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/c
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import * as dagre from "dagre";
-
-/**
- * Represents a single node in the version tree (built from ReActSteps).
- */
-export interface TimelineNode {
-  id: string;
-  stepId: string;
-  timestamp: Date;
-  isHead: boolean;
-  isOnHeadPath: boolean;
-  /** Multi-line label: one line per tool call, or message summary */
-  lines: string[];
-  /** Step type for styling */
-  stepType: "initial" | "user" | "agent";
-  messageSource?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * Represents a node on the vertical time axis, horizontally aligned with a timeline node.
- */
-export interface TimeAxisNode {
-  /** Y position (same as the corresponding timeline node) */
-  y: number;
-  /** Time label in HH:MM:SS format */
-  timeLabel: string;
-  /** Action type for icon display */
-  actionType?: string;
-  /** Agent name for tooltip on robot icons */
-  agentName?: string;
-}
-
-/**
- * Represents an edge between parent and child nodes in the action tree.
- */
-export interface TreeEdge {
-  sourceId: string;
-  targetId: string;
-  /** SVG path data for the edge */
-  path: string;
-  isOnHeadPath: boolean;
-}
 
 @UntilDestroy()
 @Component({
@@ -96,7 +49,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   @Input() isActive: boolean = false;
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
-  @ViewChild("timelineContainer", { static: false }) timelineContainer?: ElementRef;
 
   /** All steps (for timeline rendering) */
   public agentResponses: ReActStep[] = [];
@@ -114,22 +66,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public isStatsModalVisible = false;
   public messageStats: CopilotMessageStats[] = [];
 
-
-  // Tree-related properties
-  public timelineNodes: TimelineNode[] = [];
-  public treeEdges: TreeEdge[] = [];
-  public timeAxisNodes: TimeAxisNode[] = [];
-  public treeCanvasWidth: number = 200;
-  public treeHeight: number = 100;
-  public treePanelWidth: number = 260;
-  public treePanelCollapsed: boolean = false;
-  public showPortShapes: boolean = true;
-
   // Current HEAD step ID in the version tree
   public currentHeadId: string | null = null;
-
-  // Hover diff state
-  private currentHoverDiff: any = null;
 
   // System info modal state (with editing capabilities)
   public isEditingSystemPrompt = false;
@@ -182,7 +120,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
-    private workflowVersionService: WorkflowVersionService,
     private workflowPersistService: WorkflowPersistService
   ) {}
 
@@ -228,9 +165,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.updateVisibleSteps();
         this.shouldScrollToBottom = true;
 
-        // Rebuild timeline nodes whenever responses change
-        this.buildTimelineNodes();
-
         // Automatically highlight the latest visible step
         if (this.visibleSteps.length > 0) {
           const latestIndex = this.visibleSteps.length - 1;
@@ -256,7 +190,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe(headId => {
         this.currentHeadId = headId;
         this.updateVisibleSteps();
-        this.buildTimelineNodes();
         this.cdr.detectChanges();
       });
 
@@ -813,47 +746,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   }
 
   /**
-   * Show diff highlighting when hovering over a tree node.
-   * Uses step's beforeWorkflowContent/afterWorkflowContent directly.
-   */
-  public onTimelineNodeMouseEnter(node: TimelineNode): void {
-    const step = this.agentResponses.find(s => s.id === node.stepId);
-    if (!step?.beforeWorkflowContent || !step?.afterWorkflowContent) return;
-
-    const diff = this.workflowVersionService.getWorkflowsDifference(
-      step.beforeWorkflowContent,
-      step.afterWorkflowContent
-    );
-    this.workflowVersionService.highlightOpVersionDiffSimple(diff, step.beforeWorkflowContent);
-    this.currentHoverDiff = diff;
-  }
-
-  /**
-   * Clear diff highlighting when mouse leaves.
-   */
-  public onTimelineNodeMouseLeave(): void {
-    this.clearHoverDiff();
-  }
-
-  /**
-   * Clear any active hover diff highlighting.
-   */
-  private clearHoverDiff(): void {
-    if (this.currentHoverDiff) {
-      this.workflowVersionService.unhighlightOpVersionDiff(this.currentHoverDiff);
-      this.currentHoverDiff = null;
-    }
-
-  }
-
-  // =====================
-  // Timeline Methods
-  // =====================
-
-  /** Sentinel ID for the initial step — must match backend constant. */
-  private static readonly INITIAL_STEP_ID = "step-initial";
-
-  /**
    * Recompute visibleSteps: only steps on the ancestor path from root to HEAD.
    */
   private updateVisibleSteps(): void {
@@ -861,7 +753,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       this.visibleSteps = this.agentResponses;
       return;
     }
-    // Walk parentId chain from HEAD to root to build the ancestor set
     const stepMap = new Map(this.agentResponses.map(s => [s.id, s]));
     const ancestorIds = new Set<string>();
     let current: string | undefined = this.currentHeadId;
@@ -870,246 +761,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       current = stepMap.get(current)?.parentId;
     }
     this.visibleSteps = this.agentResponses.filter(s => ancestorIds.has(s.id));
-  }
-
-  /**
-   * Build timeline nodes from visible ReActSteps.
-   */
-  private buildTimelineNodes(): void {
-    const steps = this.agentResponses;
-
-    // Filter steps to those that should appear as nodes
-    const visibleSteps = steps.filter(step => {
-      if (step.role === "user") return true;
-      if (step.role === "agent" && step.toolCalls && step.toolCalls.length > 0) return true;
-      if (step.role === "agent" && step.isEnd) return true;
-      return false;
-    });
-
-    if (visibleSteps.length === 0 && this.currentHeadId !== AgentChatComponent.INITIAL_STEP_ID) {
-      this.timelineNodes = [];
-      this.treeEdges = [];
-      this.timeAxisNodes = [];
-      this.treeCanvasWidth = 200;
-      this.treeHeight = 100;
-      return;
-    }
-
-    // Create synthetic initial step
-    const earliestTime = visibleSteps.length > 0
-      ? new Date(Math.min(...visibleSteps.map(s => new Date(s.timestamp).getTime())) - 1)
-      : new Date();
-    const initialStep: ReActStep = {
-      id: AgentChatComponent.INITIAL_STEP_ID,
-      messageId: "",
-      stepId: -1,
-      timestamp: earliestTime,
-      role: "agent",
-      content: "",
-      isBegin: false,
-      isEnd: false,
-    };
-
-    // Merge: prepend the initial step
-    const allSteps = [initialStep, ...visibleSteps.filter(s => s.id !== AgentChatComponent.INITIAL_STEP_ID)];
-
-    // Build the HEAD ancestor path for highlighting
-    const headPath = new Set<string>();
-    if (this.currentHeadId) {
-      const stepMap = new Map(allSteps.map(s => [s.id, s]));
-      let current: string | undefined = this.currentHeadId;
-      while (current) {
-        headPath.add(current);
-        current = stepMap.get(current)?.parentId;
-      }
-    }
-
-    // Sort steps chronologically
-    const sortedSteps = [...allSteps].sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-
-    const stepChronIndex = new Map<string, number>();
-    sortedSteps.forEach((step, idx) => stepChronIndex.set(step.id, idx));
-
-    // Constants for layout
-    const uniformNodeWidth = 90;
-    const constantRowSpacing = 40;
-    const marginX = 16;
-    const marginY = 16;
-    const timeAxisWidth = 72;
-
-    // Use dagre for horizontal positioning
-    const g = new dagre.graphlib.Graph();
-    g.setGraph({
-      rankdir: "TB",
-      nodesep: 24,
-      ranksep: constantRowSpacing,
-      marginx: marginX + timeAxisWidth,
-      marginy: marginY,
-    });
-    g.setDefaultEdgeLabel(() => ({}));
-
-    for (const step of allSteps) {
-      const lines = this.getStepLines(step);
-      const nodeHeight = Math.max(24, lines.length * 18);
-      g.setNode(step.id, { width: uniformNodeWidth, height: nodeHeight });
-    }
-
-    const stepIds = new Set(allSteps.map(s => s.id));
-    for (const step of allSteps) {
-      if (step.parentId && stepIds.has(step.parentId)) {
-        g.setEdge(step.parentId, step.id);
-      }
-    }
-
-    dagre.layout(g);
-
-    // Override Y positions with constant spacing
-    const nodePositions = new Map<string, { x: number; y: number }>();
-    for (const step of allSteps) {
-      const dagreNode = g.node(step.id);
-      const chronIdx = stepChronIndex.get(step.id) ?? 0;
-      const y = marginY + chronIdx * constantRowSpacing + 12;
-      nodePositions.set(step.id, { x: dagreNode.x, y });
-    }
-
-    // Build TimelineNodes
-    this.timelineNodes = allSteps.map(step => {
-      const pos = nodePositions.get(step.id)!;
-      const lines = this.getStepLines(step);
-      const nodeHeight = Math.max(24, lines.length * 18);
-      const stepType: "initial" | "user" | "agent" =
-        step.id === AgentChatComponent.INITIAL_STEP_ID ? "initial" :
-        step.role === "user" ? "user" : "agent";
-      return {
-        id: step.id,
-        stepId: step.id,
-        timestamp: step.timestamp,
-        isHead: step.id === this.currentHeadId,
-        isOnHeadPath: headPath.has(step.id),
-        lines,
-        stepType,
-        messageSource: step.messageSource,
-        x: pos.x,
-        y: pos.y,
-        width: uniformNodeWidth,
-        height: nodeHeight,
-      };
-    });
-
-    // Build time axis nodes
-    this.timeAxisNodes = sortedSteps.map((step, idx) => {
-      const y = marginY + idx * constantRowSpacing + 12;
-      const d = new Date(step.timestamp);
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      const ss = String(d.getSeconds()).padStart(2, "0");
-      const actionType = step.id === AgentChatComponent.INITIAL_STEP_ID ? "initial" :
-        step.role === "user" ? "user_request" : "agent_response";
-      return {
-        y,
-        timeLabel: `${hh}:${mm}:${ss}`,
-        actionType,
-        agentName: this.agentInfo?.name || "Agent",
-      };
-    });
-
-    // Build edges with SVG paths
-    const nodeMap = new Map(this.timelineNodes.map(n => [n.id, n]));
-    this.treeEdges = g.edges().map(e => {
-      const source = nodeMap.get(e.v)!;
-      const target = nodeMap.get(e.w)!;
-      const isOnPath = headPath.has(e.v) && headPath.has(e.w);
-      const halfH = source.height / 2;
-      const targetHalfH = target.height / 2;
-      const path =
-        source.x === target.x
-          ? `M ${source.x} ${source.y + halfH} L ${target.x} ${target.y - targetHalfH}`
-          : `M ${source.x} ${source.y + halfH} C ${source.x} ${(source.y + target.y) / 2}, ${target.x} ${(source.y + target.y) / 2}, ${target.x} ${target.y - targetHalfH}`;
-      return { sourceId: e.v, targetId: e.w, path, isOnHeadPath: isOnPath };
-    });
-
-    // Compute total tree canvas dimensions
-    const maxX = Math.max(...this.timelineNodes.map(n => n.x + n.width / 2), 200);
-    const maxY = this.timeAxisNodes.length > 0
-      ? this.timeAxisNodes[this.timeAxisNodes.length - 1].y + 24
-      : 100;
-    this.treeCanvasWidth = Math.max(200, maxX + marginX);
-    this.treeHeight = maxY + marginY;
-  }
-
-  /** Get display lines for a step in the timeline. */
-  private getStepLines(step: ReActStep): string[] {
-    if (step.id === AgentChatComponent.INITIAL_STEP_ID) return ["Ready"];
-    if (step.role === "user") {
-      return [step.messageSource === "feedback" ? "Feedback" : "Input Task"];
-    }
-    if (step.toolCalls && step.toolCalls.length > 0) {
-      return step.toolCalls.map((tc: any) => {
-        const opId = tc.input?.operatorId || "";
-        const toolLabel = this.getToolLabel(tc.toolName);
-        return opId ? `${toolLabel} ${opId}` : toolLabel;
-      });
-    }
-    if (step.isEnd) return ["Task Done"];
-    return ["Thinking..."];
-  }
-
-  /** Get short label for a tool name. */
-  private getToolLabel(toolName: string): string {
-    switch (toolName) {
-      case "addOperator":
-      case "createOrModifyOperator":
-        return "Add";
-      case "modifyOperator":
-        return "Modify";
-      case "deleteFromWorkflow":
-        return "Delete";
-      case "executeOperator":
-        return "Execute";
-      default:
-        return toolName;
-    }
-  }
-
-  /**
-   * Handle click on a timeline node.
-   * Checkout to that step (move HEAD). The backend broadcasts a headChange WS message
-   * which includes the workflow content.
-   */
-  public onTimelineNodeClick(node: TimelineNode): void {
-    this.clearHoverDiff();
-
-    this.copilotManagerService.checkoutStep(this.agentInfo.id, node.stepId).subscribe({
-      next: () => console.log(`[Timeline] Checked out step ${node.stepId}`),
-      error: err => console.error("[Timeline] Checkout failed:", err),
-    });
-  }
-
-  /** Start resizing the tree panel by dragging the handle. */
-  public togglePortShapes(): void {
-    this.showPortShapes = !this.showPortShapes;
-    this.copilotManagerService.togglePortShapes(this.showPortShapes);
-  }
-
-  public onResizeStart(event: MouseEvent): void {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = this.treePanelWidth;
-
-    const onMouseMove = (e: MouseEvent) => {
-      const delta = e.clientX - startX;
-      this.treePanelWidth = Math.max(120, Math.min(500, startWidth + delta));
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
   }
 
   /**

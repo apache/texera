@@ -23,7 +23,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
-import { ReActStep } from "../../service/copilot/copilot-types";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -45,7 +44,6 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   public availableAgents: Array<{ id: string; name: string; isConnected: boolean }> = [];
   public selectedAgentId: string | null = null;
   public feedbackMessage: string = "";
-  public checkoutBeforeSend: boolean = true;
 
   // Cached visualization HTML to avoid iframe re-render on every WS update
   private cachedVisualizationHtml: SafeHtml | null = null;
@@ -122,45 +120,10 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     const operatorName = this.operatorDisplayName || this.getOperatorName() || "this operator";
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.operatorId}): ${this.feedbackMessage.trim()}`;
 
-    if (this.checkoutBeforeSend) {
-      const stepToCheckout = this.findLatestStepForOperator(agentId, this.operatorId);
-      if (stepToCheckout) {
-        this.copilotManagerService.checkoutStep(agentId, stepToCheckout.id).subscribe({
-          next: () => {
-            this.copilotManagerService.sendMessage(agentId, contextMessage, [], "feedback");
-            this.notificationService.success("Checked out version and sent message to agent");
-            this.feedbackMessage = "";
-            this.changeDetectorRef.detectChanges();
-          },
-          error: err => {
-            console.error("[AgentInteraction] Checkout failed:", err);
-            this.notificationService.error("Failed to checkout version. Message not sent.");
-          },
-        });
-        return;
-      }
-    }
-
     this.copilotManagerService.sendMessage(agentId, contextMessage, [], "feedback");
     this.notificationService.success("Message sent to agent successfully");
     this.feedbackMessage = "";
     this.changeDetectorRef.detectChanges();
-  }
-
-  /**
-   * Find the latest step that added or modified the given operator.
-   * Walks from latest to earliest visible step.
-   */
-  private findLatestStepForOperator(agentId: string, operatorId: string): ReActStep | null {
-    const steps = this.copilotManagerService.getVisibleSteps(agentId);
-    // Walk from latest to earliest, find step that added/modified this operator
-    for (let i = steps.length - 1; i >= 0; i--) {
-      const step = steps[i];
-      if (step.toolCalls?.some((tc: any) => tc.input?.operatorId === operatorId)) {
-        return step;
-      }
-    }
-    return null;
   }
 
   private getOperatorName(): string | undefined {
