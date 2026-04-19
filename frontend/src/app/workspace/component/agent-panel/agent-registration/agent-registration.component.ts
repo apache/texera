@@ -23,8 +23,8 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { ComputingUnitStatusService } from "../../../service/computing-unit-status/computing-unit-status.service";
-import { ComputingUnitState } from "../../../types/computing-unit-connection.interface";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitState } from "../../../../common/type/computing-unit-connection.interface";
 import { WorkflowContent } from "../../../../common/type/workflow";
 import { Subject, takeUntil } from "rxjs";
 import { NzUploadFile } from "ng-zorro-antd/upload";

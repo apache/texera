@@ -40,7 +40,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { CopilotState, ReActStep, ModelMessage, CopilotMessageStats, OperatorStepRef } from "./copilot-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 
 /**
  * Agent settings for API (serializable format).
