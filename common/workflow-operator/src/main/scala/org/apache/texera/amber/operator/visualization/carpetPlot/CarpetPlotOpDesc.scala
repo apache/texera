@@ -33,21 +33,21 @@ import javax.validation.constraints.NotNull
 class CarpetPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "a", required = true)
-  @NotNull(message = "input axis a is required")
+  @NotNull(message = "A-axis Attribute cannot be empty")
   @JsonSchemaTitle("First Parameter Axis Column")
   @JsonPropertyDescription("Column representing the first parameter axis (a)")
   @AutofillAttributeName
   var a: EncodableString = ""
 
   @JsonProperty(value = "b", required = true)
-  @NotNull(message = "input axis b is required")
+  @NotNull(message = "B-axis Attribute cannot be empty")
   @JsonSchemaTitle("Second Parameter Axis Column")
   @JsonPropertyDescription("Column representing the second parameter axis (b)")
   @AutofillAttributeName
   var b: EncodableString = ""
 
   @JsonProperty(value = "y", required = true)
-  @NotNull(message = "input value y is required")
+  @NotNull(message = "Y Value cannot be empty")
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Column representing the value at each (a, b) coordinate")
   @AutofillAttributeName
