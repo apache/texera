@@ -90,7 +90,6 @@ spec:
       backendRefs:
         - name: webserver-svc
           port: 8080
-
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -101,44 +100,41 @@ spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
   {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
-hostnames:
-  - {{ .Values.gatewayConfig.hostname }}
+  hostnames:
+    - {{ .Values.gatewayConfig.hostname }}
   {{- end }}
-rules:
-  - matches:
-      - path:
-          type: PathPrefix
-          value: /pve
-    timeouts:
-      request: 10m
-      backendRequest: 10m
-    filters:
-      - type: URLRewrite
-        urlRewrite:
-          path:
-            type: ReplacePrefixMatch
-            replacePrefixMatch: /api/pve
-    backendRefs:
-      - group: gateway.envoyproxy.io
-        kind: Backend
-        name: {{ .Release.Name }}-dynamic-backend
-
-  # existing dynamic routes
-  - matches:
-      - path:
-          type: PathPrefix
-          value: /wsapi
-      - path:
-          type: RegularExpression
-          value: "^/api/executions/\\d+/stats/\\d+$"
-      - path:
-          type: PathPrefix
-          value: /api/executions/result/export
-    backendRefs:
-      - group: gateway.envoyproxy.io
-        kind: Backend
-        name: {{ .Release.Name }}-dynamic-backend
-
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /pve
+      timeouts:
+        request: 10m
+        backendRequest: 10m
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /api/pve
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: {{ .Release.Name }}-dynamic-backend
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /wsapi
+        - path:
+            type: RegularExpression
+            value: "^/api/executions/\\d+/stats/\\d+$"
+        - path:
+            type: PathPrefix
+            value: /api/executions/result/export
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: texera-dynamic-backend
 ---
 # MinIO Route
   {{- if .Values.minio.gateway.enabled }}
