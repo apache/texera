@@ -132,6 +132,7 @@ import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dCh
 import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot.ParallelCoordinatesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
@@ -144,6 +145,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
+import org.apache.texera.amber.operator.visualization.carpetPlot.CarpetPlotOpDesc
 
 import java.util.UUID
 import scala.util.Try
@@ -201,6 +203,7 @@ trait StateTransferFunc
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
     new Type(value = classOf[RadarPlotOpDesc], name = "RadarPlot"),
     new Type(value = classOf[RadarChartOpDesc], name = "RadarChart"),
+    new Type(value = classOf[ParallelCoordinatesPlotOpDesc], name = "ParallelCoordinatesPlot"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[UrlVizOpDesc], name = "URLVisualizer"),
@@ -233,6 +236,7 @@ trait StateTransferFunc
     new Type(value = classOf[VolcanoPlotOpDesc], name = "VolcanoPlot"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
+    new Type(value = classOf[CarpetPlotOpDesc], name = "CarpetPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
     new Type(value = classOf[TreePlotOpDesc], name = "TreePlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),

@@ -17,46 +17,56 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.visualization.pieChart
+package org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
-import javax.validation.constraints.NotNull
+import javax.validation.constraints.{NotNull, Size}
 
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
-    "value": {
+    "dimensions": {
       "enum": ["integer", "long", "double"]
     }
   }
 }
 """)
-class PieChartOpDesc extends PythonOperatorDescriptor {
+class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
 
-  @JsonProperty(value = "value", required = true)
-  @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("The value associated with slice of pie")
-  @AutofillAttributeName
-  @NotNull(message = "Value column cannot be empty")
-  var value: EncodableString = ""
+  @JsonProperty(value = "dimensions", required = true)
+  @JsonSchemaTitle("Dimensions")
+  @JsonPropertyDescription("List of numeric columns to visualize as parallel axes")
+  @AutofillAttributeNameList
+  @NotNull(message = "Dimensions cannot be empty")
+  @Size(min = 1, message = "At least one dimension is required")
+  var dimensions: List[EncodableString] = List()
 
-  @JsonProperty(value = "name", required = true)
-  @JsonSchemaTitle("Name Column")
-  @JsonPropertyDescription("The name of the slice of pie")
+  @JsonProperty(value = "color", required = false)
+  @JsonSchemaTitle("Color Column")
+  @JsonPropertyDescription("Column used to color or group the lines")
   @AutofillAttributeName
-  @NotNull(message = "Name column cannot be empty")
-  var name: EncodableString = ""
+  var color: EncodableString = _
+
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo.forVisualization(
+      "Parallel Coordinates Plot",
+      "Visualize multivariate data using parallel coordinate axes",
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
+    )
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -64,29 +74,28 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
-  override def operatorInfo: OperatorInfo =
-    OperatorInfo.forVisualization(
-      "Pie Chart",
-      "Visualize data in a Pie Chart",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
-    )
-
   def manipulateTable(): PythonTemplateBuilder = {
-    assert(value.nonEmpty)
+    val dimCols = dimensions.map(c => pyb"$c").mkString(",")
+    val colorFilter =
+      if (color != null && color.nonEmpty) pyb"&(table[$color].notnull())"
+      else ""
     pyb"""
-         |        table.dropna(subset = [$value, $name], inplace = True) #remove missing values
+         |        table = table[table[[$dimCols]].notnull().all(axis=1)$colorFilter].copy()
          |"""
   }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(value.nonEmpty)
+    val dimCols = dimensions.map(c => pyb"$c").mkString(",")
+    val colorArg =
+      if (color != null && color.nonEmpty) pyb", color=$color"
+      else ""
     pyb"""
-       |        fig = px.pie(table, names=$name, values=$value)
-       |        fig.update_traces(textposition='inside', textinfo='percent+label')
-       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |        fig = px.parallel_coordinates(
+       |            table,
+       |            dimensions=[$dimCols]$colorArg
+       |        )
        |"""
   }
 
@@ -96,37 +105,28 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
          |from pytexera import *
          |
          |import plotly.express as px
-         |import plotly.graph_objects as go
          |import plotly.io
-         |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
+         |
          |    def render_error(self, error_msg):
-         |        return '''<h1>PieChart is not available.</h1>
+         |        return '''<h1>Parallel coordinates plot is not available.</h1>
          |                  <p>Reason is: {} </p>
          |               '''.format(error_msg)
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        original_table = table
          |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |            yield {'html-content': self.render_error("Input table is empty.")}
+         |            return
          |        ${manipulateTable()}
          |        if table.empty:
-         |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
-         |           return
-         |        duplicates = table.duplicated(subset=[$name])
-         |        if duplicates.any():
-         |           yield {'html-content': self.render_error("duplicates in name column, need to aggregate")}
-         |           return
+         |            yield {'html-content': self.render_error("No valid rows after filtering.")}
+         |            return
          |        ${createPlotlyFigure()}
-         |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
-         |
          |"""
     finalcode.encode
   }
-
 }
