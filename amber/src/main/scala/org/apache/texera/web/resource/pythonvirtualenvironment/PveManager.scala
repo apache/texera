@@ -26,6 +26,25 @@ import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 
+
+/**
+ * PveManager is responsible for managing Python Virtual Environments (PVEs)
+ * for each Computing Unit
+ *
+ * It supports:
+ * - Creating and initializing isolated Python environments
+ * - Installing and uninstalling Python packages
+ * - Tracking system vs user-installed packages via metadata files
+ * - Streaming pip output logs back to the caller
+ *
+ * Each PVE is stored under:
+ *   /tmp/texera-pve/venvs/{cuid}/{pveName}/
+ *
+ * The structure includes:
+ * - pve/              -> actual virtual environment
+ * - metadata/         -> package tracking (system + user)
+ */
+
 object PveManager {
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
@@ -104,6 +123,13 @@ object PveManager {
     (sys, usr)
   }
 
+  /**
+   * Uninstalls a user-installed package from the PVE.
+   *
+   * - Prevents deletion of system packages
+   * - Updates user metadata upon success
+   * - Returns status messages
+   */
   def deletePackages(cuid: Int, packageName: String, pveName: String): List[String] = {
     val pipPath = pipBinPath(cuid, pveName).toAbsolutePath
     val userFile = userPackagesPath(cuid, pveName)
@@ -150,6 +176,10 @@ object PveManager {
     }
   }
 
+  /**
+   * Tails a log file and streams new lines into a queue.
+   * Used for real-time pip output streaming.
+   */
   private def tailFileToQueue(
       file: File,
       queue: BlockingQueue[String],
@@ -204,6 +234,9 @@ object PveManager {
     }
   }
 
+  /**
+   * Filters noisy pip output to only stream relevant lines.
+   */
   private def shouldStream(line: String): Boolean = {
     val s = line.trim
     if (s.isEmpty) return false
@@ -218,6 +251,10 @@ object PveManager {
     true
   }
 
+  /**
+   * Runs a pip command and streams logs to the queue.
+   * Uses a temporary log file for better output capture.
+   */
   private def runPipWithLog(
       cmd: Seq[String],
       env: Map[String, String],
@@ -243,6 +280,21 @@ object PveManager {
     exitCode
   }
 
+  /**
+   * Creates a new PVE for a CU.
+   *
+   * Behavior:
+   * - If a base PVE exists (PVE_BASE), it clones it for faster setup
+   * - Otherwise, creates a fresh venv and installs dependencies
+   *
+   * Steps:
+   * 1. Remove existing environment (if present)
+   * 2. Create or copy base environment
+   * 3. Install system + operator dependencies
+   * 4. Record installed packages as system metadata
+   *
+   * Logs progress to the provided queue.
+   */
   def createNewPve(cuid: Int, queue: BlockingQueue[String], pveName: String): Unit = {
     queue.put(s"[PVE] Creating new PVE for cuid=$cuid with name=$pveName")
 
@@ -444,6 +496,13 @@ object PveManager {
     queue.put(s"[PVE] Created new environment for cuid=$cuid")
   }
 
+  /**
+   * Installs user-requested Python packages into the PVE.
+   *
+   * - Executes pip install for each package
+   * - Updates user metadata file
+   * - Streams logs back via queue
+   */
   def installPackages(
       packages: List[String],
       cuid: Int,
