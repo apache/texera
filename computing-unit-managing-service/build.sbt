@@ -34,9 +34,8 @@ libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
   "io.kubernetes" % "client-java" % "21.0.0",
   "org.jooq" % "jooq" % "3.14.16",
-  "com.typesafe" % "config" % "1.4.1",
+  "com.typesafe" % "config" % "1.4.6",
   "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M6",
-  "com.typesafe" % "config" % "1.4.2",
   "com.typesafe.play" %% "play-json" % "2.10.6",
   "io.fabric8" % "kubernetes-client" % "6.12.1"
 )
