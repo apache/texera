@@ -39,16 +39,6 @@
       "description": "WebSocket API for workflow execution",
       "target": "ws://localhost:8085",
       "endpoints": ["/wsapi"]
-    },
-    "hamilton": {
-      "description": "Hamilton execution sidecar",
-      "target": "http://localhost:8111",
-      "endpoints": ["/execute", "/health"]
-    },
-    "dagster": {
-      "description": "Dagster execution sidecar",
-      "target": "http://localhost:8112",
-      "endpoints": ["/execute", "/health"]
     }
   },
   "defaults": {

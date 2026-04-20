@@ -63,7 +63,7 @@ export interface ExecutionConfig {
   executionTimeoutMs?: number;
   /** Whether to enable operator result caching */
   cacheEnabled?: boolean;
-  /** Execution backend: texera (default) or hamilton */
+  /** Execution backend */
   executionBackend?: ExecutionBackend;
   /** When true, omit the execution metadata section from results */
   noExecutionMetadata?: boolean;
@@ -374,146 +374,6 @@ async function executeWorkflowHttp(
 }
 
 // ============================================================================
-// Hamilton Execution Function
-// ============================================================================
-
-/**
- * Execute a workflow via the Hamilton sidecar.
- * Sends WorkflowContent format (operators with operatorProperties.code,
- * links with source/target) rather than the Texera LogicalPlan format.
- * The sidecar is stateless — it translates to Hamilton and executes.
- */
-async function executeWorkflowHamilton(
-  config: ExecutionConfig,
-  workflowState: WorkflowState,
-  operatorId: string,
-  options: { abortSignal?: AbortSignal } = {}
-): Promise<SyncExecutionResult> {
-  const backendConfig = getBackendConfig();
-  const hamiltonEndpoint = backendConfig.hamiltonEndpoint || "http://localhost:8111";
-
-  const url = `${hamiltonEndpoint}/execute`;
-
-  const timeoutSeconds = config.executionTimeoutMs
-    ? Math.ceil(config.executionTimeoutMs / 1000)
-    : Math.ceil(DEFAULT_AGENT_SETTINGS.executionTimeoutMs / 1000);
-
-  // Get the sub-DAG up to the target operator, in WorkflowContent format
-  const subDAG = workflowState.getSubDAG(operatorId);
-
-  const request = {
-    operators: subDAG.operators,
-    links: subDAG.links,
-    targetOperatorIds: [operatorId],
-    timeoutSeconds,
-    maxResultChars: config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit,
-    maxCellChars: config.maxOperatorResultCellCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCellCharLimit,
-  };
-
-  console.log(
-    `[ExecutionTools] Executing workflow via Hamilton: ${url} ` +
-      `(operators: ${subDAG.operators.length}, links: ${subDAG.links.length}, target: ${operatorId})`
-  );
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      signal: options.abortSignal,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Hamilton execution failed: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw error;
-    }
-    console.error("[ExecutionTools] Hamilton execution failed:", error);
-    return {
-      success: false,
-      state: "Error",
-      operators: {},
-      errors: [error instanceof Error ? error.message : "Unknown error"],
-    };
-  }
-}
-
-// ============================================================================
-// Dagster Execution Function
-// ============================================================================
-
-/**
- * Execute a workflow via the Dagster sidecar.
- * Sends WorkflowContent format (operators with operatorProperties.code,
- * links with source/target) rather than the Texera LogicalPlan format.
- * The sidecar is stateless — it translates to Dagster assets and executes.
- */
-async function executeWorkflowDagster(
-  config: ExecutionConfig,
-  workflowState: WorkflowState,
-  operatorId: string,
-  options: { abortSignal?: AbortSignal } = {}
-): Promise<SyncExecutionResult> {
-  const backendConfig = getBackendConfig();
-  const dagsterEndpoint = backendConfig.dagsterEndpoint || "http://localhost:8112";
-
-  const url = `${dagsterEndpoint}/execute`;
-
-  const timeoutSeconds = config.executionTimeoutMs
-    ? Math.ceil(config.executionTimeoutMs / 1000)
-    : Math.ceil(DEFAULT_AGENT_SETTINGS.executionTimeoutMs / 1000);
-
-  // Get the sub-DAG up to the target operator, in WorkflowContent format
-  const subDAG = workflowState.getSubDAG(operatorId);
-
-  const request = {
-    operators: subDAG.operators,
-    links: subDAG.links,
-    targetOperatorIds: [operatorId],
-    timeoutSeconds,
-    maxResultChars: config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit,
-    maxCellChars: config.maxOperatorResultCellCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCellCharLimit,
-  };
-
-  console.log(
-    `[ExecutionTools] Executing workflow via Dagster: ${url} ` +
-      `(operators: ${subDAG.operators.length}, links: ${subDAG.links.length}, target: ${operatorId})`
-  );
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      signal: options.abortSignal,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Dagster execution failed: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw error;
-    }
-    console.error("[ExecutionTools] Dagster execution failed:", error);
-    return {
-      success: false,
-      state: "Error",
-      operators: {},
-      errors: [error instanceof Error ? error.message : "Unknown error"],
-    };
-  }
-}
-
-// ============================================================================
 // Result Formatting (agent-service side)
 // ============================================================================
 
@@ -812,20 +672,9 @@ export async function executeOperatorAndFormat(
       // Target operator is valid — proceed with execution despite other operators' errors
     }
 
-    let result: SyncExecutionResult;
-    if (config.executionBackend === ExecutionBackend.HAMILTON) {
-      result = await executeWorkflowHamilton(config, workflowState, operatorId, {
-        abortSignal: options.abortSignal,
-      });
-    } else if (config.executionBackend === ExecutionBackend.DAGSTER) {
-      result = await executeWorkflowDagster(config, workflowState, operatorId, {
-        abortSignal: options.abortSignal,
-      });
-    } else {
-      result = await executeWorkflowHttp(config, logicalPlan, {
-        abortSignal: options.abortSignal,
-      });
-    }
+    const result: SyncExecutionResult = await executeWorkflowHttp(config, logicalPlan, {
+      abortSignal: options.abortSignal,
+    });
 
     // Handle execution failure
     if (!result.success) {
@@ -884,7 +733,7 @@ export async function executeOperatorAndFormat(
       return "(no result data)";
     }
 
-    // Both Texera and Hamilton enforce per-cell truncation server-side.
+    // Texera enforces per-cell truncation server-side.
     const jsonArray = opInfo.result as Record<string, any>[];
     const headers = jsonArray.length > 0
       ? Object.keys(jsonArray[0]).filter(k => k !== "__row_index__")
