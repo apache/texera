@@ -27,7 +27,7 @@ import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.LinkedBlockingQueue
 import scala.jdk.CollectionConverters._
 
-class PveManagerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
+class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
 
   private val testCuid = 256
   private var testPveName: String = _
