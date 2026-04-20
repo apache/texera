@@ -19,22 +19,37 @@
 
 package org.apache.texera.amber.operator.source.sql.mysql
 
-import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp}
+import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.sql.SQLSourceOpDesc
+import org.apache.texera.amber.operator.source.sql.mysql.MySQLConnUtil.connect
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-import java.sql.Connection
+import java.sql.{Connection, SQLException}
 
-@deprecated("MySQL source operator is no longer executable.", "1.0.0")
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    throw new UnsupportedOperationException("MySQL source operator is no longer executable.")
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        this.operatorIdentifier,
+        OpExecWithClassName(
+          "org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpExec",
+          objectMapper.writeValueAsString(this)
+        )
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -45,9 +60,9 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       outputPorts = List(OutputPort())
     )
 
-  override def sourceSchema(): Schema = null
+  @throws[SQLException]
+  override def establishConn: Connection = connect(host, port, database, username, password)
 
-  override protected def establishConn: Connection = null
+  override def updatePort(): Unit = port = if (port.trim().equals("default")) "3306" else port
 
-  override protected def updatePort(): Unit = ()
 }
