@@ -103,6 +103,9 @@ object ComputingUnitManagingResource {
       .get,
     EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
+      .get,
+    EnvironmentalVariable.ENV_AUTH_JWT_SECRET -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_AUTH_JWT_SECRET)
       .get
   )
 
