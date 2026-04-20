@@ -46,15 +46,6 @@ class PveResource {
       @QueryParam("cuid") cuid: Int,
       @QueryParam("pveName") pveName: String
   ): ChunkedOutput[String] = {
-
-    if (cuid == 0) {
-      throw new BadRequestException("Missing or invalid cuid")
-    }
-
-    if (pveName == null || pveName.trim.isEmpty) {
-      throw new BadRequestException("Missing environment name")
-    }
-
     val mapper = new ObjectMapper()
     val packages =
       if (packagesJson == null || packagesJson.trim.isEmpty)
@@ -109,15 +100,6 @@ class PveResource {
       @QueryParam("cuid") cuid: Int,
       @QueryParam("pveName") pveName: String
   ): util.Map[String, util.List[String]] = {
-
-    if (cuid == 0) {
-      throw new BadRequestException("Missing or invalid cuid")
-    }
-
-    if (pveName == null || pveName.trim.isEmpty) {
-      throw new BadRequestException("Missing environment name")
-    }
-
     try {
 
       println(s"[PVE] HIT getInstalledPackages cuid=$cuid")
@@ -155,11 +137,6 @@ class PveResource {
   @Path("/pves")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def fetchPVEs(@QueryParam("cuid") cuid: Int): util.List[util.Map[String, Object]] = {
-
-    if (cuid == 0) {
-      throw new BadRequestException("Missing or invalid cuid")
-    }
-
     try {
       println(s"[PVE] HIT getInstalledPackages cuid=$cuid")
 
@@ -197,15 +174,6 @@ class PveResource {
       @QueryParam("cuid") cuid: Int,
       @QueryParam("pveName") pveName: String
   ): java.util.List[String] = {
-
-    if (cuid == 0) {
-      throw new BadRequestException("Missing or invalid cuid")
-    }
-
-    if (pveName == null || pveName.trim.isEmpty) {
-      throw new BadRequestException("Missing environment name")
-    }
-
     try {
       val output = PveManager.deletePackages(cuid, packageName, pveName)
       output.asJava
