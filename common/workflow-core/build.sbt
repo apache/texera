@@ -99,7 +99,7 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.18.6"
 libraryDependencies ++= Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,        // Jackson Databind

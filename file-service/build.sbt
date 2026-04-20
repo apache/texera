@@ -80,7 +80,7 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6",
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",
