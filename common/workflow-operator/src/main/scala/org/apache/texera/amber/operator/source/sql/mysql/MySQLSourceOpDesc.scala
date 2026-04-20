@@ -27,22 +27,19 @@ import org.apache.texera.amber.operator.source.sql.SQLSourceOpDesc
 
 import java.sql.Connection
 
-@deprecated("MySQL source is no longer executable; use PostgreSQLSource instead.", "1.0.0")
+@deprecated("MySQL source operator is no longer executable.", "1.0.0")
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    throw new UnsupportedOperationException(
-      "MySQL source operator is no longer executable. Replace this node with " +
-        "PostgreSQLSource or another supported source."
-    )
+    throw new UnsupportedOperationException("MySQL source operator is no longer executable.")
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "MySQL Source (deprecated)",
-      "[Deprecated] Not executable. Replace with PostgreSQLSource.",
+      "MySQL Source",
+      "Read data from a MySQL instance",
       OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
