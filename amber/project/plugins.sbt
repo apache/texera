@@ -16,7 +16,7 @@
 // under the License.
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.11.0")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.3")
 
 addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.11.1")
 // for scalapb code gen

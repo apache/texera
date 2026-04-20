@@ -16,7 +16,7 @@
 // under the License.
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.11.0")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.3")
 // License reporting for dependency compliance auditing
 // See: https://github.com/sbt/sbt-license-report
 addSbtPlugin("com.github.sbt" % "sbt-license-report" % "1.7.0")
