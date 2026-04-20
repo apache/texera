@@ -35,7 +35,6 @@ libraryDependencies ++= Seq(
   "io.kubernetes" % "client-java" % "21.0.0",
   "org.jooq" % "jooq" % "3.14.16",
   "com.typesafe" % "config" % "1.4.1",
-  "mysql" % "mysql-connector-java" % "8.0.33",
   "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M6",
   "com.typesafe" % "config" % "1.4.2",
   "com.typesafe.play" %% "play-json" % "2.10.6",

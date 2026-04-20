@@ -26,6 +26,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.sql._
 
+@deprecated("MySQL source operator is no longer executable.", "1.1.0-incubating")
 class MySQLSourceOpExec private[mysql] (
     descString: String
 ) extends SQLSourceOpExec(descString) {
