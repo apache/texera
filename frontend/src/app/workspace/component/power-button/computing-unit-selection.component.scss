@@ -389,26 +389,6 @@
   }
 }
 
-.package-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.package-inputs {
-  display: flex;
-  flex: 1;
-  gap: 10px; /* space between name and version */
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  flex: 1; /* ensures both inputs are equal width */
-}
-
 .add-btn {
   display: flex;
   justify-content: flex-start;
