@@ -1,4 +1,3 @@
-package org.apache.texera.web.resource.pythonvirtualenvironment
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,6 +16,8 @@ package org.apache.texera.web.resource.pythonvirtualenvironment
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.apache.texera.web.resource.pythonvirtualenvironment
 
 import java.io.{File, RandomAccessFile}
 import java.nio.charset.StandardCharsets
