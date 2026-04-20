@@ -144,6 +144,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
+import org.apache.texera.amber.operator.visualization.carpetPlot.CarpetPlotOpDesc
 
 import java.util.UUID
 import scala.util.Try
@@ -233,6 +234,7 @@ trait StateTransferFunc
     new Type(value = classOf[VolcanoPlotOpDesc], name = "VolcanoPlot"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
+    new Type(value = classOf[CarpetPlotOpDesc], name = "CarpetPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
     new Type(value = classOf[TreePlotOpDesc], name = "TreePlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
