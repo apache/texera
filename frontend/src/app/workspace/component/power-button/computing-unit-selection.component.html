@@ -561,7 +561,7 @@
               nzType="default"
               nzShape="circle"
               nzDanger
-              [ngClass]="{ 'highlighted-btn': pkg.isHighlighted }"
+              [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
               (click)="togglePackageDelete(envIndex, pkg)"
             >
               <i nz-icon nzType="delete"></i>
