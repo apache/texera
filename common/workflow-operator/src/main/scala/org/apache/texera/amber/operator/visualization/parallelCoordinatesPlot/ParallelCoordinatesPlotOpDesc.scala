@@ -114,7 +114,7 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
          |               '''.format(error_msg)
          |
          |    @overrides
-         |    def process_table(self, table: Table, port: int):
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        if table.empty:
          |            yield {'html-content': self.render_error("Input table is empty.")}
          |            return
