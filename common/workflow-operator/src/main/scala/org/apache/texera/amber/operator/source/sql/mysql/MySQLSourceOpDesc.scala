@@ -29,6 +29,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.sql.{Connection, SQLException}
 
+@deprecated("MySQL source operator is no longer executable.", "1.1.0-incubating")
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def getPhysicalOp(
