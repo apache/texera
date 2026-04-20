@@ -52,9 +52,6 @@ COPY --from=build /texera/target/computing-unit-managing-service-* /texera/
 # Copy resources directories from build phase
 COPY --from=build /texera/common/config/src/main/resources /texera/common/config/src/main/resources
 COPY --from=build /texera/computing-unit-managing-service/src/main/resources /texera/computing-unit-managing-service/src/main/resources
-# Copy ASF licensing files
-COPY --from=build /texera/LICENSE /texera/NOTICE /texera/DISCLAIMER-WIP /texera/
-
 CMD ["bin/computing-unit-managing-service"]
 
 EXPOSE 8888

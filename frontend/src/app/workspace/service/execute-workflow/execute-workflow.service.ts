@@ -47,7 +47,7 @@ import { WorkflowStatusService } from "../workflow-status/workflow-status.servic
 import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 import { DOCUMENT } from "@angular/common";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;

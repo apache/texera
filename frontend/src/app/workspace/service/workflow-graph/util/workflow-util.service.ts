@@ -189,7 +189,7 @@ export class WorkflowUtilService {
     return {
       portID,
       displayName: inputPortInfo.displayName ?? "",
-      allowMultiInputs: inputPortInfo.allowMultiLinks ?? false,
+      disallowMultiInputs: inputPortInfo.disallowMultiLinks ?? false,
       isDynamicPort: false,
       dependencies: inputPortInfo.dependencies ?? [],
     };
@@ -199,7 +199,7 @@ export class WorkflowUtilService {
     return {
       portID,
       displayName: outputPortInfo.displayName ?? "",
-      allowMultiInputs: false,
+      disallowMultiInputs: false,
       isDynamicPort: false,
     };
   }

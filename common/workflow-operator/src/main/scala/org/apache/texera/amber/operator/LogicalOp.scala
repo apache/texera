@@ -75,8 +75,8 @@ import org.apache.texera.amber.operator.source.apis.twitter.v2.{
   TwitterFullArchiveSearchSourceOpDesc,
   TwitterSearchSourceOpDesc
 }
+import org.apache.texera.amber.operator.source.dataset.FileListerSourceOpDesc
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
-import org.apache.texera.amber.operator.source.scan.FileScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
@@ -124,6 +124,7 @@ import org.apache.texera.amber.operator.visualization.nestedTable.NestedTableOpD
 import org.apache.texera.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import org.apache.texera.amber.operator.visualization.pieChart.PieChartOpDesc
 import org.apache.texera.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
+import org.apache.texera.amber.operator.visualization.radarPlot.RadarPlotOpDesc
 import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
 import org.apache.texera.amber.operator.visualization.rangeSlider.RangeSliderOpDesc
 import org.apache.texera.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
@@ -131,15 +132,19 @@ import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dCh
 import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
 import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
+import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
+import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.visualization.stripChart.StripChartOpDesc
+import org.apache.texera.amber.operator.visualization.carpetPlot.CarpetPlotOpDesc
 
 import java.util.UUID
 import scala.util.Try
@@ -158,11 +163,13 @@ trait StateTransferFunc
     new Type(value = classOf[IfOpDesc], name = "If"),
     new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
+    new Type(value = classOf[FileListerSourceOpDesc], name = "FileLister"),
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     // disabled the ParallelCSVScanSourceOpDesc so that it does not confuse user. it can be re-enabled when doing experiments.
     // new Type(value = classOf[ParallelCSVScanSourceOpDesc], name = "ParallelCSVFileScan"),
     new Type(value = classOf[JSONLScanSourceOpDesc], name = "JSONLFileScan"),
     new Type(value = classOf[FileScanSourceOpDesc], name = "FileScan"),
+    new Type(value = classOf[FileScanOpDesc], name = "FileScanOp"),
     new Type(value = classOf[TextInputSourceOpDesc], name = "TextInput"),
     new Type(
       value = classOf[TwitterFullArchiveSearchSourceOpDesc],
@@ -187,10 +194,13 @@ trait StateTransferFunc
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
+    new Type(value = classOf[WindRoseChartOpDesc], name = "WindRoseChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
+    new Type(value = classOf[PolarChartOpDesc], name = "PolarChart"),
     new Type(value = classOf[RangeSliderOpDesc], name = "RangeSlider"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
+    new Type(value = classOf[RadarPlotOpDesc], name = "RadarPlot"),
     new Type(value = classOf[RadarChartOpDesc], name = "RadarChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
@@ -224,6 +234,7 @@ trait StateTransferFunc
     new Type(value = classOf[VolcanoPlotOpDesc], name = "VolcanoPlot"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
+    new Type(value = classOf[CarpetPlotOpDesc], name = "CarpetPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
     new Type(value = classOf[TreePlotOpDesc], name = "TreePlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),

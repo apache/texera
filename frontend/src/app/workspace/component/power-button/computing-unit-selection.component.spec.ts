@@ -26,8 +26,8 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, Data, Params, UrlSegment } from "@angular/router";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("PowerButtonComponent", () => {

@@ -22,10 +22,9 @@ package org.apache.texera.amber.operator.visualization.contourPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -77,12 +76,10 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Contour Plot",
       "Displays terrain or gradient variations in a Contour Plot",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
 
   override def generatePythonCode(): String = {
@@ -100,7 +97,7 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
        |        y = table[$y].values
        |        z = table[$z].values
        |        grid_size = int($gridSize)
-       |        connGaps = True if $connectGaps == 'true' else False
+       |        connGaps = True if '$connectGaps' == 'true' else False
        |
        |        grid_x, grid_y = np.meshgrid(np.linspace(min(x), max(x), grid_size), np.linspace(min(y), max(y), grid_size))
        |        grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic')
