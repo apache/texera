@@ -62,7 +62,7 @@ type PackageRow = {
   name: string;
   operator?: "==" | ">=" | "<=";
   version?: string;
-  isHighlighted?: boolean;
+  deleteToggle?: boolean;
 };
 
 type PveDraft = {
@@ -725,7 +725,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
             return {
               name: name.trim(),
               version: (version ?? "").trim(),
-              isHighlighted: false,
+              deleteToggle: false,
             };
           }),
           newPackages: [],
@@ -741,17 +741,17 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   addPackage(index: number): void {
     const env = this.pves[index];
-    env.newPackages.push({ name: "", version: "", operator: undefined, isHighlighted: false });
+    env.newPackages.push({ name: "", version: "", operator: undefined, deleteToggle: false });
   }
 
   togglePackageDelete(index: number, pkg: PackageRow): void {
     const env = this.pves[index];
 
-    pkg.isHighlighted = !pkg.isHighlighted;
+    pkg.deleteToggle= !pkg.deleteToggle;
 
     const version = pkg.version ?? "";
 
-    if (pkg.isHighlighted) {
+    if (pkg.deleteToggle) {
       const exists = env.deletingPackages.some(p => p.name === pkg.name && (p.version ?? "") === version);
       if (!exists) {
         env.deletingPackages.push({ name: pkg.name, version });
@@ -844,7 +844,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
               env.userPackages = resp.user.map(pkgStr => {
                 const [name, version] = pkgStr.split("==");
-                return { name: name.trim(), version: (version ?? "").trim(), isHighlighted: false };
+                return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
               });
 
               env.deletingPackages = [];
@@ -910,7 +910,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
             env.userPackages = resp.user.map(pkg => {
               const [name, version] = pkg.split("==");
-              return { name: name.trim(), version: (version ?? "").trim(), isHighlighted: false };
+              return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
             });
 
             env.newPackages = [];
