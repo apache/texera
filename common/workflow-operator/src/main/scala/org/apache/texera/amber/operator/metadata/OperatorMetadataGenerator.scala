@@ -143,17 +143,9 @@ object OperatorMetadataGenerator {
     jsonSchema
   }
 
-  // Operator types that stay registered for JSON backward compatibility with
-  // stored workflows but are hidden from the UI operator palette.
-  val hiddenOperatorTypes: Set[String] = Set("MySQLSource")
-
   def generateAllOperatorMetadata(): AllOperatorMetadata = {
     AllOperatorMetadata(
-      operatorTypeMap
-        .filterNot { case (_, operatorType) => hiddenOperatorTypes.contains(operatorType) }
-        .keys
-        .map(generateOperatorMetadata)
-        .toList,
+      operatorTypeMap.keys.map(generateOperatorMetadata).toList,
       OperatorGroupConstants.OperatorGroupOrderList
     )
   }
