@@ -109,7 +109,7 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor {
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    def render_error(self, error_msg):
-         |        return '''<h1>Parallel coordinates chart is not available.</h1>
+         |        return '''<h1>Parallel coordinates plot is not available.</h1>
          |                  <p>Reason is: {} </p>
          |               '''.format(error_msg)
          |
