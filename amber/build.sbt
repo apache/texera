@@ -89,7 +89,7 @@ val dropwizardDependencies = Seq(
 )
 
 
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.18.6"
 val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
