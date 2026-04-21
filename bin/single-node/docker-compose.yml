@@ -160,9 +160,6 @@ services:
       - |
         set -e
 
-        # curl is used to call Lakekeeper's management API over the internal
-        # Docker network; jq parses list responses so we can detect existing
-        # resources before deciding to create them (keeps init idempotent).
         echo "Installing curl (to call Lakekeeper's management API) and jq (to parse its list responses)..."
         apk add --no-cache curl jq
 
