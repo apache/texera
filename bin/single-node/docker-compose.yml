@@ -160,9 +160,11 @@ services:
       - |
         set -e
 
-        # curl is used to POST to Lakekeeper's management API over the internal Docker network.
-        echo "Installing curl (required to call Lakekeeper's management API)..."
-        apk add --no-cache curl
+        # curl is used to call Lakekeeper's management API over the internal
+        # Docker network; jq parses list responses so we can detect existing
+        # resources before deciding to create them (keeps init idempotent).
+        echo "Installing curl (to call Lakekeeper's management API) and jq (to parse its list responses)..."
+        apk add --no-cache curl jq
 
         check_status() {
           if [ "$$1" -ge 200 ] && [ "$$1" -lt 300 ]; then
@@ -195,8 +197,27 @@ services:
         check_status "$$PROJECT_CODE" "Default Project"
 
 
-        echo "Step 2: Initializing Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
-        CREATE_PAYLOAD=$$(cat <<EOF
+        echo "Step 2: Ensuring Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' exists..."
+
+        # Detect existing warehouse first so we only POST when it's actually
+        # missing — keeps this init idempotent across re-runs. 
+        echo "Checking whether Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists..."
+        WAREHOUSE_LIST_CODE=$$(curl -s -o /tmp/warehouses.txt -w "%{http_code}" \
+            "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
+
+        if [ "$$WAREHOUSE_LIST_CODE" -lt 200 ] || [ "$$WAREHOUSE_LIST_CODE" -ge 300 ]; then
+          echo "Failed to list Lakekeeper warehouses. HTTP Code: $$WAREHOUSE_LIST_CODE"
+          echo "ERROR RESPONSE:"
+          if [ -f /tmp/warehouses.txt ]; then cat /tmp/warehouses.txt; fi
+          echo ""
+          exit 1
+        fi
+
+        if jq -e --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name)' /tmp/warehouses.txt >/dev/null; then
+          echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Skipping creation."
+        else
+          echo "Warehouse not found. Creating '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
+          CREATE_PAYLOAD=$$(cat <<EOF
         {
           "warehouse-name": "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME",
           "project-id": "00000000-0000-0000-0000-000000000000",
@@ -217,20 +238,14 @@ services:
           }
         }
         EOF
-        )
+          )
 
-        WAREHOUSE_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -d "$$CREATE_PAYLOAD" \
-            "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
+          WAREHOUSE_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$$CREATE_PAYLOAD" \
+              "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
 
-        # Lakekeeper returns 400 CreateWarehouseStorageProfileOverlap when a
-        # warehouse with the same name + storage profile already exists.
-        # Treat that as success so this init is idempotent across restarts.
-        if [ "$$WAREHOUSE_CODE" = "400" ] && grep -q "CreateWarehouseStorageProfileOverlap" /tmp/response.txt 2>/dev/null; then
-          echo "Lakekeeper Warehouse already exists (storage profile overlap). Treating as success."
-        else
           check_status "$$WAREHOUSE_CODE" "Lakekeeper Warehouse"
         fi
 
