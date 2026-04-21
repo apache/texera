@@ -160,8 +160,9 @@ services:
       - |
         set -e
 
-        echo "Installing dependencies..."
-        apk add --no-cache curl ca-certificates
+        # curl is used to POST to Lakekeeper's management API over the internal Docker network.
+        echo "Installing curl (required to call Lakekeeper's management API)..."
+        apk add --no-cache curl
 
         check_status() {
           if [ "$$1" -ge 200 ] && [ "$$1" -lt 300 ]; then
