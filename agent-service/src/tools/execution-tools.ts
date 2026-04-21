@@ -31,7 +31,7 @@ import { getBackendConfig } from "../api/backend-api";
 import type { LogicalPlan, LogicalLink } from "../api/execution-api";
 import type { OperatorInfo, SyncExecutionResult } from "../types/execution";
 import { OperatorMetadataStore } from "./metadata-tools";
-import { OperatorResultSerializationMode, ExecutionBackend, DEFAULT_AGENT_SETTINGS } from "../types/agent";
+import { OperatorResultSerializationMode, DEFAULT_AGENT_SETTINGS } from "../types/agent";
 
 // ============================================================================
 // Tool Name Constants
@@ -61,14 +61,6 @@ export interface ExecutionConfig {
   maxOperatorResultCellCharLimit?: number;
   /** Execution timeout in milliseconds */
   executionTimeoutMs?: number;
-  /** Whether to enable operator result caching */
-  cacheEnabled?: boolean;
-  /** Execution backend */
-  executionBackend?: ExecutionBackend;
-  /** When true, omit the execution metadata section from results */
-  noExecutionMetadata?: boolean;
-  /** When true, include per-column statistics in the execution metadata section */
-  carryMetadata?: boolean;
 }
 
 // ============================================================================
@@ -420,105 +412,6 @@ function formatInputOutput(
   return `Input operator(table shape): ${inputPart}\n${outputLine}`;
 }
 
-/** Maximum number of columns to include in the Column Stats section. */
-const MAX_STATS_COLUMNS = 50;
-
-/**
- * Type priority for sorting columns in the stats section.
- * Lower number = shown first (more informative types surface early).
- */
-function typePriority(dataType: string): number {
-  const t = dataType.toLowerCase();
-  if (t === "bool" || t === "boolean") return 0;
-  if (t === "str" || t === "string" || t === "object") return 1;
-  if (t.startsWith("date") || t === "datetime") return 2;
-  if (t === "int" || t === "integer" || t === "int64" || t === "int32") return 3;
-  if (t === "float" || t === "numeric" || t === "float64" || t === "float32" || t === "number") return 4;
-  return 5; // unknown types last among basic types but before numeric
-}
-
-/**
- * Format per-column statistics as a vertical "Column Stats" section.
- * Columns are sorted by type priority (bool > string > datetime > int > float)
- * and capped at MAX_STATS_COLUMNS with a truncation notice.
- *
- * If `headers` is provided, only those columns are included (in sorted order).
- * Otherwise, all columns in resultStatistics are used.
- *
- * Example output:
- *   Column Stats (showing 50 of 179 columns):
- *   - "Case_excluded" (str): null=0, distinct=2, top_10={"No"=144, "Yes"=9}
- *   - "age" (int): null=0, mean=62.3, min=28, max=91
- */
-function formatColumnStatsSection(resultStatistics: Record<string, string>, headers?: string[]): string[] {
-  // Parse all columns and their stats
-  const parsed: Array<{ colName: string; dataType: string; kvPairs: string }> = [];
-
-  const columnNames = headers ?? Object.keys(resultStatistics);
-  for (const colName of columnNames) {
-    const statsJson = resultStatistics[colName];
-    if (!statsJson) continue;
-    try {
-      const p = JSON.parse(statsJson);
-      const dataType: string = p.data_type ?? "unknown";
-      const stats: Record<string, any> = p.statistics ?? {};
-
-      const kvPairs = Object.entries(stats)
-        .filter(([k, v]) => v !== null && v !== undefined && !EXCLUDED_STAT_KEYS.has(k))
-        .map(([k, v]) => {
-          if (k === "top_10" && typeof v === "object") {
-            const inner = Object.entries(v)
-              .map(([ik, iv]) => `"${ik}"=${formatStatValue(iv)}`)
-              .join(", ");
-            return `top_10={${inner}}`;
-          }
-          if (typeof v === "object") return null;
-          return `${k}=${formatStatValue(v)}`;
-        })
-        .filter(Boolean)
-        .join(", ");
-
-      parsed.push({ colName, dataType, kvPairs });
-    } catch {
-      // skip unparseable columns
-    }
-  }
-
-  if (parsed.length === 0) return [];
-
-  // Sort by type priority (bool > string > datetime > int > float)
-  parsed.sort((a, b) => typePriority(a.dataType) - typePriority(b.dataType));
-
-  const totalColumns = parsed.length;
-  const truncated = totalColumns > MAX_STATS_COLUMNS;
-  const shown = truncated ? parsed.slice(0, MAX_STATS_COLUMNS) : parsed;
-
-  const header = truncated
-    ? `Column Stats (showing ${MAX_STATS_COLUMNS} of ${totalColumns} columns):`
-    : `Column Stats:`;
-
-  const lines = shown.map(({ colName, dataType, kvPairs }) =>
-    kvPairs ? `- "${colName}" (${dataType}): ${kvPairs}` : `- "${colName}" (${dataType})`
-  );
-
-  return [header, ...lines];
-}
-
-/** Stat keys to exclude from per-column stats (redundant with Output table shape). */
-const EXCLUDED_STAT_KEYS = new Set(["count", "std", "p25", "median", "p75"]);
-
-/** Maximum significant digits for floating-point stat values. */
-const STAT_PRECISION = 4;
-
-/** Format a stat value, rounding floats to STAT_PRECISION significant digits. */
-function formatStatValue(v: any): string {
-  if (v === null || v === undefined) return "N/A";
-  if (typeof v === "number" && !Number.isInteger(v)) {
-    return Number(v.toPrecision(STAT_PRECISION)).toString();
-  }
-  return String(v);
-}
-
 
 /**
  * Formats execution error with structured sections.
@@ -814,21 +707,10 @@ export async function executeOperatorAndFormat(
     // Surface warnings (e.g., duplicate column renames) so the agent can adjust its code
     const warningLines = opInfo.warnings?.map(w => w) ?? [];
 
-    // Per-column statistics as a vertical "Column Stats" section (after the table)
-    const columnStatsLines = (config.carryMetadata && opInfo.resultStatistics)
-      ? formatColumnStatsSection(opInfo.resultStatistics, headers)
-      : [];
-
-    // Build result: metadata lines → table data → column stats section.
-    // Context optimization / latest-only-filter locate the table by finding
-    // the first line starting with \t (the header row). Column stats go after
-    // the table so they don't interfere with table boundary detection.
-    const metadataLines = config.noExecutionMetadata
-      ? []
-      : [shapeLine, ...warningLines].filter(Boolean);
+    const metadataLines = [shapeLine, ...warningLines].filter(Boolean);
 
     const briefSummary = formatExecuteOperatorResult(operatorId);
-    return [briefSummary, ...metadataLines, dataString, ...columnStatsLines].filter(Boolean).join("\n");
+    return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw error;

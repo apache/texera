@@ -40,25 +40,10 @@ import {
   AgentState as AgentStateEnum,
   DEFAULT_AGENT_SETTINGS,
   OperatorResultSerializationMode,
-  AgentMode,
-  ExecutionBackend,
   REPLAY_SKIP_TOOLS,
   INITIAL_STEP_ID,
 } from "../types/agent";
-import {
-  BASE_SYSTEM_PROMPT,
-  buildGeneralModeSystemPrompt,
-  buildCodeModeSystemPrompt,
-  EXAMPLES_STANDARD,
-  EXAMPLES_CARRY_METADATA,
-  EXAMPLES_FINE_GRAINED,
-  EXAMPLES_PARALLEL,
-  EXAMPLES_RESULT_PARAM,
-  EXAMPLES_PARALLEL_RESULT_PARAM,
-  EXAMPLES_NO_ACTION_DETAIL,
-  EXAMPLES_NO_ACTION_DETAIL_CARRY_METADATA,
-  EXAMPLES_NO_ACTION_DETAIL_CARRY_METADATA_PARALLEL,
-} from "./prompts";
+import { buildSystemPrompt } from "./prompts";
 import {
   createDeleteOperatorTool,
   TOOL_NAME_DELETE_OPERATOR,
@@ -72,16 +57,11 @@ import {
   TOOL_NAME_MODIFY_OPERATOR,
 } from "../tools/general-op-tools";
 import {
-  createCreateOrModifyOperatorTool,
-  TOOL_NAME_CREATE_OR_MODIFY_OPERATOR,
-} from "../tools/code-op-tools";
-import {
   createExecuteOperatorTool,
   executeOperatorAndFormat,
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
 } from "../tools/execution-tools";
-import { trimNonFrontierResults } from "./context-optimization";
 import { assembleContext } from "./context-assembler";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 
@@ -105,7 +85,7 @@ export interface TexeraAgentConfig {
   agentId: string;
   /** Agent display name */
   agentName?: string;
-  /** Custom system prompt (optional, defaults to BASE_SYSTEM_PROMPT) */
+  /** Custom system prompt (optional; a general-mode prompt is rebuilt once metadata loads) */
   systemPrompt?: string;
 }
 
@@ -204,7 +184,7 @@ export class TexeraAgent {
     this.modelType = config.modelType;
     this.createdAt = new Date();
     this.model = config.model;
-    this.systemPrompt = config.systemPrompt || BASE_SYSTEM_PROMPT;
+    this.systemPrompt = config.systemPrompt || "";
 
     // Initialize state
     this.workflowState = new WorkflowState();
@@ -249,13 +229,13 @@ export class TexeraAgent {
         await this.metadataStore.initializeFromBackend();
       }
 
-      // Rebuild system prompt based on agent mode
+      // Rebuild system prompt with loaded operator metadata
       this.rebuildSystemPrompt();
 
       // Rebuild tools with loaded metadata
       this.tools = this.createTools();
       console.log(
-        `[TexeraAgent ${this.agentId}] Initialized in ${this.settings.agentMode} mode with ${this.metadataStore.getOperatorCount()} operators`
+        `[TexeraAgent ${this.agentId}] Initialized with ${this.metadataStore.getOperatorCount()} operators`
       );
     } catch (error) {
       console.error(`[TexeraAgent ${this.agentId}] Failed to initialize metadata:`, error);
@@ -264,37 +244,10 @@ export class TexeraAgent {
   }
 
   /**
-   * Rebuild system prompt based on current agent mode and settings.
-   * GENERAL mode: includes operator schemas in the prompt
-   * CODE mode: uses structured prompt with examples
-   * fineGrainedPrompt: uses stricter atomic operation constraints
+   * Rebuild system prompt (single general-mode template with operator schemas).
    */
   private rebuildSystemPrompt(): void {
-    if (this.settings.agentMode === AgentMode.GENERAL) {
-      this.systemPrompt = buildGeneralModeSystemPrompt(this.metadataStore, this.settings.allowedOperatorTypes);
-    } else {
-      let examples: string;
-      if (this.settings.noActionDetail && this.settings.carryMetadata && this.settings.parallelToolCalls) {
-        examples = EXAMPLES_NO_ACTION_DETAIL_CARRY_METADATA_PARALLEL;
-      } else if (this.settings.noActionDetail && this.settings.carryMetadata) {
-        examples = EXAMPLES_NO_ACTION_DETAIL_CARRY_METADATA;
-      } else if (this.settings.noActionDetail) {
-        examples = EXAMPLES_NO_ACTION_DETAIL;
-      } else if (this.settings.carryMetadata) {
-        examples = EXAMPLES_CARRY_METADATA;
-      } else if (this.settings.fineGrainedPrompt) {
-        examples = EXAMPLES_FINE_GRAINED;
-      } else if (this.settings.parallelToolCalls && this.settings.optionalResultRetrieval) {
-        examples = EXAMPLES_PARALLEL_RESULT_PARAM;
-      } else if (this.settings.parallelToolCalls) {
-        examples = EXAMPLES_PARALLEL;
-      } else if (this.settings.optionalResultRetrieval) {
-        examples = EXAMPLES_RESULT_PARAM;
-      } else {
-        examples = EXAMPLES_STANDARD;
-      }
-      this.systemPrompt = buildCodeModeSystemPrompt(examples, this.settings.noActionDetail);
-    }
+    this.systemPrompt = buildSystemPrompt(this.metadataStore, this.settings.allowedOperatorTypes);
     this.settings.systemPrompt = this.systemPrompt;
   }
 
@@ -316,10 +269,6 @@ export class TexeraAgent {
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
       serializationMode: this.settings.operatorResultSerializationMode,
       executionTimeoutMs: this.settings.executionTimeoutMs,
-      cacheEnabled: this.settings.cacheEnabled,
-      executionBackend: this.settings.executionBackend,
-      noExecutionMetadata: this.settings.noExecutionMetadata,
-      carryMetadata: this.settings.carryMetadata,
     };
   }
 
@@ -357,26 +306,16 @@ export class TexeraAgent {
         : undefined,
     };
 
-    // Common tools for both modes
+    // General-mode tools: addOperator, modifyOperator, deleteOperator.
+    // Links are created automatically via inputOperatorIds in addOperator.
     const tools: Record<string, any> = {
       [TOOL_NAME_DELETE_OPERATOR]: createDeleteOperatorTool(this.workflowState, context),
+      [TOOL_NAME_ADD_OPERATOR]: createAddOperatorTool(this.workflowState, operatorSchemas, context),
+      [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
     };
 
-    // Mode-specific tools
-    if (this.settings.agentMode === AgentMode.CODE) {
-      // CODE mode: Use unified coding tool (creates or modifies operators)
-      tools[TOOL_NAME_CREATE_OR_MODIFY_OPERATOR] = createCreateOrModifyOperatorTool(this.workflowState, operatorSchemas, context);
-    } else {
-      // GENERAL mode: Use workflow tools (addOperator, modifyOperator)
-      // Links are created automatically via inputOperatorIds in addOperator
-      tools[TOOL_NAME_ADD_OPERATOR] = createAddOperatorTool(this.workflowState, operatorSchemas, context);
-      tools[TOOL_NAME_MODIFY_OPERATOR] = createModifyOperatorTool(this.workflowState, context);
-    }
-
     // Add execution tools if delegateConfig is available (requires user token and workflow ID)
-    // In CODE mode, execution is handled inline — no separate executeOperator needed
-    // When noActionDetail is on, executeOperator is also not needed
-    if (getExecutionConfig && !this.settings.simplifiedTools && !this.settings.noActionDetail && this.settings.agentMode !== AgentMode.CODE) {
+    if (getExecutionConfig) {
       tools[TOOL_NAME_EXECUTE_OPERATOR] = createExecuteOperatorTool(
         this.workflowState,
         getExecutionConfig,
@@ -603,22 +542,7 @@ export class TexeraAgent {
     executionTimeoutMs?: number;
     disabledTools?: Set<string>;
     maxSteps?: number;
-    agentMode?: AgentMode;
-    fineGrainedPrompt?: boolean;
-    enableContextOptimization?: boolean;
-    frontierDepth?: number;
-    minimumResultCharLimit?: number;
-    cacheEnabled?: boolean;
-    executionBackend?: ExecutionBackend;
-    latestOnly?: boolean;
-    dynamicDepthEnabled?: boolean;
     parallelToolCalls?: boolean;
-    optionalResultRetrieval?: boolean;
-    noExecutionMetadata?: boolean;
-    simplifiedTools?: boolean;
-    noActionDetail?: boolean;
-    noLogFallback?: boolean;
-    carryMetadata?: boolean;
     allowedOperatorTypes?: string[];
   }): void {
     let promptNeedsRebuild = false;
@@ -644,66 +568,14 @@ export class TexeraAgent {
     if (updates.maxSteps !== undefined) {
       this.settings.maxSteps = updates.maxSteps;
     }
-    if (updates.agentMode !== undefined && updates.agentMode !== this.settings.agentMode) {
-      this.settings.agentMode = updates.agentMode;
-      promptNeedsRebuild = true;
-    }
-    if (updates.fineGrainedPrompt !== undefined && updates.fineGrainedPrompt !== this.settings.fineGrainedPrompt) {
-      this.settings.fineGrainedPrompt = updates.fineGrainedPrompt;
-      promptNeedsRebuild = true;
-    }
-    if (updates.enableContextOptimization !== undefined) {
-      this.settings.enableContextOptimization = updates.enableContextOptimization;
-    }
-    if (updates.frontierDepth !== undefined) {
-      this.settings.frontierDepth = Math.max(1, updates.frontierDepth);
-    }
-    if (updates.minimumResultCharLimit !== undefined) {
-      this.settings.minimumResultCharLimit = Math.max(0, updates.minimumResultCharLimit);
-    }
-    if (updates.cacheEnabled !== undefined) {
-      this.settings.cacheEnabled = updates.cacheEnabled;
-    }
-    if (updates.executionBackend !== undefined) {
-      this.settings.executionBackend = updates.executionBackend;
-    }
-    if (updates.latestOnly !== undefined) {
-      this.settings.latestOnly = updates.latestOnly;
-    }
-    if (updates.dynamicDepthEnabled !== undefined) {
-      this.settings.dynamicDepthEnabled = updates.dynamicDepthEnabled;
-    }
-    if (updates.parallelToolCalls !== undefined && updates.parallelToolCalls !== this.settings.parallelToolCalls) {
+    if (updates.parallelToolCalls !== undefined) {
       this.settings.parallelToolCalls = updates.parallelToolCalls;
-      promptNeedsRebuild = true;
-    }
-    if (updates.optionalResultRetrieval !== undefined && updates.optionalResultRetrieval !== this.settings.optionalResultRetrieval) {
-      this.settings.optionalResultRetrieval = updates.optionalResultRetrieval;
-      promptNeedsRebuild = true;
-    }
-    if (updates.noExecutionMetadata !== undefined) {
-      this.settings.noExecutionMetadata = updates.noExecutionMetadata;
-    }
-    if (updates.simplifiedTools !== undefined) {
-      this.settings.simplifiedTools = updates.simplifiedTools;
-    }
-    if (updates.noActionDetail !== undefined && updates.noActionDetail !== this.settings.noActionDetail) {
-      this.settings.noActionDetail = updates.noActionDetail;
-      promptNeedsRebuild = true;
-    }
-    if (updates.noLogFallback !== undefined) {
-      this.settings.noLogFallback = updates.noLogFallback;
-    }
-    if (updates.carryMetadata !== undefined && updates.carryMetadata !== this.settings.carryMetadata) {
-      this.settings.carryMetadata = updates.carryMetadata;
-      promptNeedsRebuild = true;
     }
     if (updates.allowedOperatorTypes !== undefined) {
       this.settings.allowedOperatorTypes = updates.allowedOperatorTypes;
       promptNeedsRebuild = true;
     }
 
-    // If mode or fineGrainedPrompt changed, rebuild system prompt
     if (promptNeedsRebuild) {
       this.rebuildSystemPrompt();
     }
@@ -712,8 +584,6 @@ export class TexeraAgent {
     this.tools = this.createTools();
     console.log(
       `[TexeraAgent ${this.agentId}] Settings updated: ` +
-        `mode=${this.settings.agentMode}, ` +
-        `fineGrainedPrompt=${this.settings.fineGrainedPrompt}, ` +
         `maxOperatorResultCharLimit=${this.settings.maxOperatorResultCharLimit}, ` +
         `maxOperatorResultCellCharLimit=${this.settings.maxOperatorResultCellCharLimit}`
     );
@@ -914,10 +784,10 @@ export class TexeraAgent {
         temperature: 0.2,
         stopWhen: stepCountIs(this.settings.maxSteps),
         prepareStep: async ({ stepNumber, messages: currentMessages }) => {
-              // In general mode, compile the workflow to get operator schemas and errors.
+              // Compile the workflow to get operator schemas and errors.
               // This gives the LLM column-level type information for each operator.
               let compilationResult: WorkflowCompilationResponse | null = null;
-              if (this.settings.agentMode === AgentMode.GENERAL && this.workflowState.getAllOperators().length > 0) {
+              if (this.workflowState.getAllOperators().length > 0) {
                 try {
                   const logicalPlan = this.workflowState.toLogicalPlan();
                   compilationResult = await compileWorkflowAsync(logicalPlan);
@@ -927,28 +797,10 @@ export class TexeraAgent {
               }
 
               // Assemble context: completed tasks + ongoing task + current workflow DAG.
-              // useRedact controls whether operator properties are shown in the DAG
-              // (properties are always shown for operators with execution errors).
-              const useRedact = this.settings.noActionDetail;
               const visibleSteps = this.getVisibleReActSteps();
-              let processed = assembleContext(
-                visibleSteps, this.workflowState, this.getFormattedResultsForDAG(), useRedact, compilationResult
+              const processed = assembleContext(
+                visibleSteps, this.workflowState, this.getFormattedResultsForDAG(), false, compilationResult
               );
-              // context optimization: trims execution result sections
-              if (this.settings.enableContextOptimization) {
-                const effectiveDepth = this.settings.dynamicDepthEnabled
-                  ? this.workflowState.computeAveragePathLength()
-                  : this.settings.frontierDepth;
-                processed = trimNonFrontierResults(
-                  processed,
-                  this.workflowState,
-                  effectiveDepth,
-                  this.settings.agentMode,
-                  this.settings.minimumResultCharLimit,
-                  this.settings.maxOperatorResultCharLimit,
-                  this.settings.noLogFallback
-                );
-              }
               lastPreparedMessages = processed;
               return { messages: processed };
             },
@@ -1017,7 +869,6 @@ export class TexeraAgent {
           if (execConfig && toolCalls && toolResults) {
             const EXECUTE_AFTER_TOOLS = new Set([
               TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR,
-              TOOL_NAME_CREATE_OR_MODIFY_OPERATOR,
             ]);
 
             for (let i = 0; i < toolCalls.length; i++) {
@@ -1184,8 +1035,6 @@ export class TexeraAgent {
     const formatOpts: FormatOptions = {
       serializationMode: this.settings.operatorResultSerializationMode,
       maxCharLimit: this.settings.maxOperatorResultCharLimit,
-      carryMetadata: this.settings.carryMetadata,
-      noExecutionMetadata: this.settings.noExecutionMetadata,
     };
     for (const [operatorId, entry] of visible) {
       result.set(operatorId, formatOperatorResult(operatorId, entry.operatorInfo, this.workflowState, formatOpts));

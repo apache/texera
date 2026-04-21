@@ -42,10 +42,6 @@ export interface FormatOptions {
   serializationMode?: OperatorResultSerializationMode;
   /** Max characters for the serialized data section. */
   maxCharLimit?: number;
-  /** If true, include per-column statistics after the table. */
-  carryMetadata?: boolean;
-  /** If true, omit the Input/Output shape metadata line. */
-  noExecutionMetadata?: boolean;
 }
 
 /**
@@ -110,18 +106,13 @@ export function formatOperatorResult(
     dataString = truncateData(dataString, charLimit);
   }
 
-  // Build metadata lines
-  const metadataLines = options.noExecutionMetadata
-    ? []
-    : [formatInputOutput(workflowState, operatorId, opInfo, columns), ...(opInfo.warnings ?? [])].filter(Boolean);
-
-  // Column stats
-  const columnStatsLines = (options.carryMetadata && opInfo.resultStatistics)
-    ? formatColumnStatsSection(opInfo.resultStatistics, headers)
-    : [];
+  const metadataLines = [
+    formatInputOutput(workflowState, operatorId, opInfo, columns),
+    ...(opInfo.warnings ?? []),
+  ].filter(Boolean);
 
   const briefSummary = formatExecuteOperatorResult(operatorId);
-  return [briefSummary, ...metadataLines, dataString, ...columnStatsLines].filter(Boolean).join("\n");
+  return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
 }
 
 // ============================================================================
@@ -213,84 +204,6 @@ function formatInputOutput(
     .join(", ");
 
   return `Input operator(table shape): ${inputPart}\n${outputLine}`;
-}
-
-// ============================================================================
-// Column Stats Formatting
-// ============================================================================
-
-const MAX_STATS_COLUMNS = 50;
-const EXCLUDED_STAT_KEYS = new Set(["count", "std", "p25", "median", "p75"]);
-const STAT_PRECISION = 4;
-
-function formatStatValue(v: any): string {
-  if (v === null || v === undefined) return "N/A";
-  if (typeof v === "number" && !Number.isInteger(v)) {
-    return Number(v.toPrecision(STAT_PRECISION)).toString();
-  }
-  return String(v);
-}
-
-function typePriority(dataType: string): number {
-  const t = dataType.toLowerCase();
-  if (t === "bool" || t === "boolean") return 0;
-  if (t === "str" || t === "string" || t === "object") return 1;
-  if (t.startsWith("date") || t === "datetime") return 2;
-  if (t === "int" || t === "integer" || t === "int64" || t === "int32") return 3;
-  if (t === "float" || t === "numeric" || t === "float64" || t === "float32" || t === "number") return 4;
-  return 5;
-}
-
-export function formatColumnStatsSection(resultStatistics: Record<string, string>, headers?: string[]): string[] {
-  const parsed: Array<{ colName: string; dataType: string; kvPairs: string }> = [];
-
-  const columnNames = headers ?? Object.keys(resultStatistics);
-  for (const colName of columnNames) {
-    const statsJson = resultStatistics[colName];
-    if (!statsJson) continue;
-    try {
-      const p = JSON.parse(statsJson);
-      const dataType: string = p.data_type ?? "unknown";
-      const stats: Record<string, any> = p.statistics ?? {};
-
-      const kvPairs = Object.entries(stats)
-        .filter(([k, v]) => v !== null && v !== undefined && !EXCLUDED_STAT_KEYS.has(k))
-        .map(([k, v]) => {
-          if (k === "top_10" && typeof v === "object") {
-            const inner = Object.entries(v)
-              .map(([ik, iv]) => `"${ik}"=${formatStatValue(iv)}`)
-              .join(", ");
-            return `top_10={${inner}}`;
-          }
-          if (typeof v === "object") return null;
-          return `${k}=${formatStatValue(v)}`;
-        })
-        .filter(Boolean)
-        .join(", ");
-
-      parsed.push({ colName, dataType, kvPairs });
-    } catch {
-      // skip unparseable columns
-    }
-  }
-
-  if (parsed.length === 0) return [];
-
-  parsed.sort((a, b) => typePriority(a.dataType) - typePriority(b.dataType));
-
-  const totalColumns = parsed.length;
-  const truncated = totalColumns > MAX_STATS_COLUMNS;
-  const shown = truncated ? parsed.slice(0, MAX_STATS_COLUMNS) : parsed;
-
-  const header = truncated
-    ? `Column Stats (showing ${MAX_STATS_COLUMNS} of ${totalColumns} columns):`
-    : `Column Stats:`;
-
-  const lines = shown.map(({ colName, dataType, kvPairs }) =>
-    kvPairs ? `- "${colName}" (${dataType}): ${kvPairs}` : `- "${colName}" (${dataType})`
-  );
-
-  return [header, ...lines];
 }
 
 // ============================================================================

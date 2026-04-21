@@ -126,3 +126,9 @@ values-*.yaml    # Any environment-specific value overrides
 **/node_modules/
 **/package-lock.json
 .env
+
+# agent-service is Bun-based; yarn/npm artifacts aren't needed
+agent-service/.yarn/
+agent-service/.yarnrc.yml
+agent-service/yarn.lock
+agent-service/CLAUDE.md

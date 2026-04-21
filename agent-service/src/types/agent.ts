@@ -127,24 +127,6 @@ export enum OperatorResultSerializationMode {
 }
 
 /**
- * Agent operating mode - determines which tools and prompts are used
- */
-export enum AgentMode {
-  /** Code mode: Uses code operator tools (addCodeOperator, modifyCodeOperator), no operator schemas in prompt */
-  CODE = "code",
-  /** General mode: Uses workflow tools (addOperator, modifyOperator), includes operator schemas in prompt */
-  GENERAL = "general",
-}
-
-/**
- * Execution backend - determines where workflows are executed
- */
-export enum ExecutionBackend {
-  /** Texera backend (Scala service, default) */
-  TEXERA = "texera",
-}
-
-/**
  * Configurable settings for an agent instance
  */
 export interface AgentSettings {
@@ -164,39 +146,9 @@ export interface AgentSettings {
   executionTimeoutMs: number;
   /** Maximum number of steps per message */
   maxSteps: number;
-  /** Agent operating mode (code or general) */
-  agentMode: AgentMode;
-  /** Use fine-grained prompts with atomic operation constraints (one line = one operation) */
-  fineGrainedPrompt: boolean;
-  /** Enable context optimization to condense message history between steps */
-  enableContextOptimization: boolean;
-  /** Number of BFS levels backward from leaf operators for frontier computation */
-  frontierDepth: number;
-  /** Minimum characters to keep from execution results after log-fallback decay (frontier uses maxOperatorResultCharLimit, each deeper depth halves) */
-  minimumResultCharLimit: number;
-  /** Whether to enable operator result caching (when disabled, every execution runs fresh) */
-  cacheEnabled: boolean;
-  /** Execution backend */
-  executionBackend: ExecutionBackend;
-  /** Keep only the latest tool call/result for each operator still in the workflow */
-  latestOnly: boolean;
-  /** Automatically compute frontier depth as ceil(average source-to-sink path length) */
-  dynamicDepthEnabled: boolean;
   /** Allow the model to issue multiple tool calls in a single response */
   parallelToolCalls: boolean;
-  /** When true, retrieveResult becomes an optional parameter the LLM can set per call; when false, results are always retrieved */
-  optionalResultRetrieval: boolean;
-  /** When true, execution metadata (shape, upstream IDs, row counts) is omitted from tool results */
-  noExecutionMetadata: boolean;
-  /** When true, getCurrentWorkflow tool is not registered (simplified tool set) */
-  simplifiedTools: boolean;
-  /** When true, code/properties details in definition tool calls are replaced with a placeholder in message history */
-  noActionDetail: boolean;
-  /** When true, non-frontier operators use minimumResultCharLimit directly instead of log-fallback decay */
-  noLogFallback: boolean;
-  /** When true, per-column statistics are included in the execution metadata section */
-  carryMetadata: boolean;
-  /** List of allowed operator types for general mode (when empty, all operators are allowed) */
+  /** List of allowed operator types (when empty, all operators are allowed) */
   allowedOperatorTypes: string[];
 }
 
@@ -205,28 +157,13 @@ export interface AgentSettings {
  */
 export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   disabledTools: new Set(),
-  maxOperatorResultCharLimit: 2000, // 20,000 characters (matches smolagents)
-  maxOperatorResultCellCharLimit: 2000, // 4,000 characters per cell
+  maxOperatorResultCharLimit: 2000,
+  maxOperatorResultCellCharLimit: 2000,
   operatorResultSerializationMode: OperatorResultSerializationMode.TABLE,
-  toolTimeoutMs: 240000, // 4 minutes
-  executionTimeoutMs: 240000, // 4 minutes
+  toolTimeoutMs: 240000,
+  executionTimeoutMs: 240000,
   maxSteps: 100,
-  agentMode: AgentMode.GENERAL, // Default to CODE mode
-  fineGrainedPrompt: false, // Default to standard prompts
-  enableContextOptimization: false,
-  frontierDepth: 1,
-  minimumResultCharLimit: 0,
-  cacheEnabled: true,
-  executionBackend: ExecutionBackend.TEXERA,
-  latestOnly: false,
-  dynamicDepthEnabled: false,
   parallelToolCalls: false,
-  optionalResultRetrieval: false,
-  noExecutionMetadata: false,
-  simplifiedTools: false,
-  noActionDetail: false,
-  noLogFallback: false,
-  carryMetadata: true,
   allowedOperatorTypes: [
     "CSVFileScan",
     "Sort",
@@ -288,39 +225,9 @@ export interface AgentSettingsApi {
   disabledTools?: string[];
   /** Maximum number of steps per message */
   maxSteps?: number;
-  /** Agent operating mode: "code" or "general" */
-  agentMode?: "code" | "general";
-  /** Use fine-grained prompts with atomic operation constraints */
-  fineGrainedPrompt?: boolean;
-  /** Enable context optimization to condense message history between steps */
-  enableContextOptimization?: boolean;
-  /** Number of BFS levels backward from leaf operators for frontier computation */
-  frontierDepth?: number;
-  /** Minimum characters to keep from execution results after log-fallback decay */
-  minimumResultCharLimit?: number;
-  /** Whether to enable operator result caching (when disabled, every execution runs fresh) */
-  cacheEnabled?: boolean;
-  /** Execution backend */
-  executionBackend?: "texera";
-  /** Keep only the latest tool call/result for each operator still in the workflow */
-  latestOnly?: boolean;
-  /** Automatically compute frontier depth as ceil(average source-to-sink path length) */
-  dynamicDepthEnabled?: boolean;
   /** Allow the model to issue multiple tool calls in a single response */
   parallelToolCalls?: boolean;
-  /** When true, retrieveResult becomes an optional parameter the LLM can set per call */
-  optionalResultRetrieval?: boolean;
-  /** When true, execution metadata is omitted from tool results */
-  noExecutionMetadata?: boolean;
-  /** When true, getCurrentWorkflow tool is not registered (simplified tool set) */
-  simplifiedTools?: boolean;
-  /** When true, code/properties details in definition tool calls are replaced with a placeholder in message history */
-  noActionDetail?: boolean;
-  /** When true, non-frontier operators use minimumResultCharLimit directly instead of log-fallback decay */
-  noLogFallback?: boolean;
-  /** When true, per-column statistics are included in the execution metadata section */
-  carryMetadata?: boolean;
-  /** List of allowed operator types for general mode (empty = all operators allowed) */
+  /** List of allowed operator types (empty = all operators allowed) */
   allowedOperatorTypes?: string[];
 }
 
@@ -373,39 +280,9 @@ export interface UpdateAgentSettingsRequest {
   disabledTools?: string[];
   /** Maximum number of steps per message */
   maxSteps?: number;
-  /** Agent operating mode: "code" or "general" */
-  agentMode?: "code" | "general";
-  /** Use fine-grained prompts with atomic operation constraints */
-  fineGrainedPrompt?: boolean;
-  /** Enable context optimization to condense message history between steps */
-  enableContextOptimization?: boolean;
-  /** Number of BFS levels backward from leaf operators for frontier computation */
-  frontierDepth?: number;
-  /** Minimum characters to keep from execution results after log-fallback decay */
-  minimumResultCharLimit?: number;
-  /** Whether to enable operator result caching (when disabled, every execution runs fresh) */
-  cacheEnabled?: boolean;
-  /** Execution backend */
-  executionBackend?: "texera";
-  /** Keep only the latest tool call/result for each operator still in the workflow */
-  latestOnly?: boolean;
-  /** Automatically compute frontier depth as ceil(average source-to-sink path length) */
-  dynamicDepthEnabled?: boolean;
   /** Allow the model to issue multiple tool calls in a single response */
   parallelToolCalls?: boolean;
-  /** When true, retrieveResult becomes an optional parameter the LLM can set per call */
-  optionalResultRetrieval?: boolean;
-  /** When true, execution metadata is omitted from tool results */
-  noExecutionMetadata?: boolean;
-  /** When true, getCurrentWorkflow tool is not registered (simplified tool set) */
-  simplifiedTools?: boolean;
-  /** When true, code/properties details in definition tool calls are replaced with a placeholder in message history */
-  noActionDetail?: boolean;
-  /** When true, non-frontier operators use minimumResultCharLimit directly instead of log-fallback decay */
-  noLogFallback?: boolean;
-  /** When true, per-column statistics are included in the execution metadata section */
-  carryMetadata?: boolean;
-  /** List of allowed operator types for general mode (empty = all operators allowed) */
+  /** List of allowed operator types (empty = all operators allowed) */
   allowedOperatorTypes?: string[];
 }
 

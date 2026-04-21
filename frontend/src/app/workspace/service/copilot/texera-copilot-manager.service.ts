@@ -60,39 +60,9 @@ export interface AgentSettingsApi {
   disabledTools?: string[];
   /** Maximum number of steps per message */
   maxSteps?: number;
-  /** Agent mode: "code" for Python code operators, "general" for all operators with schema hints */
-  agentMode?: "code" | "general";
-  /** Use fine-grained prompts with atomic operation constraints (one line = one operation) */
-  fineGrainedPrompt?: boolean;
-  /** Enable context optimization to condense message history between steps */
-  enableContextOptimization?: boolean;
-  /** Number of BFS levels backward from leaf operators for frontier computation */
-  frontierDepth?: number;
-  /** Minimum characters to keep from execution results after log-fallback decay */
-  minimumResultCharLimit?: number;
-  /** Whether to enable operator result caching (when disabled, every execution runs fresh) */
-  cacheEnabled?: boolean;
-  /** Execution backend: "texera" (default) or "hamilton" */
-  executionBackend?: "texera" | "hamilton";
-  /** Keep only the latest tool call/result for each operator still in the workflow */
-  latestOnly?: boolean;
-  /** Automatically compute frontier depth as ceil(average source-to-sink path length) */
-  dynamicDepthEnabled?: boolean;
   /** Allow the model to issue multiple tool calls in a single response */
   parallelToolCalls?: boolean;
-  /** When true, retrieveResult becomes an optional parameter the LLM can set per call */
-  optionalResultRetrieval?: boolean;
-  /** When true, execution metadata is omitted from tool results */
-  noExecutionMetadata?: boolean;
-  /** When true, getCurrentWorkflow tool is not registered (simplified tool set) */
-  simplifiedTools?: boolean;
-  /** When true, code/properties details in definition tool calls are replaced with a placeholder */
-  noActionDetail?: boolean;
-  /** When true, non-frontier operators use minimumResultCharLimit directly instead of log-fallback decay */
-  noLogFallback?: boolean;
-  /** When true, per-column statistics are included in the execution metadata section */
-  carryMetadata?: boolean;
-  /** List of allowed operator types for general mode (empty = all operators allowed) */
+  /** List of allowed operator types (empty = all operators allowed) */
   allowedOperatorTypes?: string[];
 }
 
@@ -1357,22 +1327,7 @@ export class TexeraCopilotManagerService {
           executionTimeoutMinutes: 10,
           disabledTools: [],
           maxSteps: 10,
-          agentMode: "code" as const,
-          fineGrainedPrompt: false,
-          enableContextOptimization: false,
-          frontierDepth: 1,
-          minimumResultCharLimit: 0,
-          cacheEnabled: true,
-          executionBackend: "texera" as const,
-          latestOnly: false,
-          dynamicDepthEnabled: false,
           parallelToolCalls: false,
-          optionalResultRetrieval: false,
-          noExecutionMetadata: false,
-          simplifiedTools: false,
-          noActionDetail: false,
-          noLogFallback: false,
-          carryMetadata: false,
           allowedOperatorTypes: [],
         })
       )
