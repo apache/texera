@@ -46,7 +46,6 @@ import concaveman from "concaveman";
 import { AgentActionService } from "../../service/agent-action/agent-action.service";
 import { OperatorResultSummary, TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
 import { OperatorStepRef } from "../../service/copilot/copilot-types";
-import { isPythonUdf } from "../../service/workflow-graph/model/workflow-graph";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -98,19 +97,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private currentOpenedOperatorID: string | null = null;
   private removeButton!: new () => joint.linkTools.Button;
   private breakpointButton!: new () => joint.linkTools.Button;
-
-  // Inline panels state - per-operator open panels
-  public openPanelIds: Set<string> = new Set();
-  public pythonUdfOperators: {
-    operatorId: string;
-    displayName: string;
-    position: { x: number; y: number };
-    code: string;
-    isDiffMode: boolean;
-    originalCode?: string;
-  }[] = [];
-  private agentActionPreviewActive: boolean = false;
-  private beforeWorkflowOperatorCodes: Map<string, string> = new Map();
 
   // Step badge overlay state (for message highlighting)
   public showStepBadges = false;
@@ -223,7 +209,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
-    this.handleCodePanels();
     this.handleElementDelete();
     this.handleElementSelectAll();
     this.handleElementCopy();
@@ -1547,195 +1532,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .forEach(op => {
         this.jointUIService.hideAgentActionLabel(this.paper, op.operatorID);
       });
-  }
-
-  /**
-   * Handle code panels visibility and position updates for Python UDF operators.
-   * Panels are now per-operator (click on name to toggle).
-   */
-  private handleCodePanels(): void {
-    // Handle operator name clicks to toggle code panel
-    fromJointPaperEvent(this.paper, "element:name:pointerclick")
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const cellView = event[0] as joint.dia.ElementView;
-        const operatorId = cellView.model.id.toString();
-        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
-
-        if (!operator) return;
-
-        // Highlight the operator first so that code editor dialog works correctly
-        this.workflowActionService.getJointGraphWrapper().highlightOperators(operatorId);
-
-        // Toggle panel for all operators (Python UDF shows code panel, others show property panel)
-        this.togglePanel(operatorId);
-      });
-
-    // Subscribe to diff visibility changes for diff mode in code panels
-    this.agentActionService
-      .getDiffVisibleStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(diffVisible => {
-        const diffAction = this.agentActionService.getCurrentDiffAction();
-        if (diffVisible && diffAction) {
-          // Diff is active - store the original code from beforeWorkflowContent
-          this.agentActionPreviewActive = true;
-          this.beforeWorkflowOperatorCodes.clear();
-
-          const beforeOperators = diffAction.beforeWorkflowContent?.operators || [];
-          beforeOperators.forEach(op => {
-            if (isPythonUdf(op)) {
-              const properties = op.operatorProperties as { code?: string };
-              if (properties.code) {
-                this.beforeWorkflowOperatorCodes.set(op.operatorID, properties.code);
-              }
-            }
-          });
-        } else {
-          // Diff is not active
-          this.agentActionPreviewActive = false;
-          this.beforeWorkflowOperatorCodes.clear();
-        }
-
-        if (this.openPanelIds.size > 0) {
-          this.updatePanelPositions();
-        }
-      });
-
-    // Update positions when operators are deleted (remove closed panels)
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorDeleteStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        // Remove deleted operator from open panels
-        this.openPanelIds.delete(event.deletedOperatorID);
-        if (this.openPanelIds.size > 0) {
-          this.updatePanelPositions();
-        } else {
-          this.pythonUdfOperators = [];
-          this.changeDetectorRef.detectChanges();
-        }
-      });
-
-    // Update positions when operators are moved
-    this.paper.model.on("change:position", () => {
-      if (this.openPanelIds.size > 0) {
-        this.updatePanelPositions();
-      }
-    });
-
-    // Update positions on zoom changes
-    this.wrapper
-      .getWorkflowEditorZoomStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.openPanelIds.size > 0) {
-          this.updatePanelPositions();
-        }
-      });
-
-    // Update positions when operator properties change (code or display name might have changed)
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorPropertyChangeStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.openPanelIds.size > 0) {
-          this.updatePanelPositions();
-        }
-      });
-  }
-
-  /**
-   * Toggle inline panel for a specific operator.
-   */
-  togglePanel(operatorId: string): void {
-    if (this.openPanelIds.has(operatorId)) {
-      this.openPanelIds.delete(operatorId);
-    } else {
-      this.openPanelIds.add(operatorId);
-    }
-    this.updatePanelPositions();
-  }
-
-  /**
-   * Close inline panel for a specific operator (called from panel close button).
-   */
-  closePanel(operatorId: string): void {
-    this.openPanelIds.delete(operatorId);
-    this.updatePanelPositions();
-  }
-
-  /**
-   * Update the list of operators with their canvas positions.
-   * Handles both Python UDF operators (code panels) and property operators (property panels).
-   */
-  private updatePanelPositions(): void {
-    const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
-
-    // Helper function to calculate screen position for an operator
-    const getOperatorPanelPosition = (operatorId: string, panelWidth: number): { x: number; y: number } | null => {
-      const jointCell = this.paper.getModelById(operatorId);
-      if (!jointCell) {
-        return null;
-      }
-
-      const bbox = jointCell.getBBox();
-      const scale = this.paper.scale();
-      const translate = this.paper.translate();
-
-      // Position panel centered on the operator name text (ref-y: 80 from operator top)
-      const nameY = bbox.y + 80;
-      const screenX = (bbox.x + bbox.width / 2) * scale.sx + translate.tx - panelWidth / 2;
-      const screenY = nameY * scale.sy + translate.ty - 10;
-
-      return { x: screenX, y: screenY };
-    };
-
-    // Filter to only Python UDFs that have their panel open
-    const openPythonUdfs = operators.filter(op => isPythonUdf(op) && this.openPanelIds.has(op.operatorID));
-
-    // Code panel width: 400px
-    const CODE_PANEL_WIDTH = 400;
-
-    this.pythonUdfOperators = openPythonUdfs
-      .map(op => {
-        const position = getOperatorPanelPosition(op.operatorID, CODE_PANEL_WIDTH);
-        if (!position) {
-          return null;
-        }
-
-        const properties = op.operatorProperties as { code?: string };
-        const code = properties.code || "";
-
-        // Get display name (custom or default)
-        const operatorSchema = this.dynamicSchemaService.getDynamicSchema(op.operatorID);
-        const displayName = op.customDisplayName ?? operatorSchema?.additionalMetadata.userFriendlyName ?? "Code";
-
-        // Check if this operator has code changes in agent action preview
-        const originalCode = this.beforeWorkflowOperatorCodes.get(op.operatorID);
-        const isDiffMode = this.agentActionPreviewActive && originalCode !== undefined && originalCode !== code;
-
-        return {
-          operatorId: op.operatorID,
-          displayName: displayName,
-          position: position,
-          code: code,
-          isDiffMode: isDiffMode,
-          originalCode: isDiffMode ? originalCode : undefined,
-        };
-      })
-      .filter(op => op !== null) as {
-      operatorId: string;
-      displayName: string;
-      position: { x: number; y: number };
-      code: string;
-      isDiffMode: boolean;
-      originalCode?: string;
-    }[];
-
-    this.changeDetectorRef.detectChanges();
   }
 
   // ============================================================================

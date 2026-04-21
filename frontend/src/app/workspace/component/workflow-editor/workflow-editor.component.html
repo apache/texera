@@ -27,24 +27,6 @@
     <texera-context-menu></texera-context-menu>
   </nz-dropdown-menu>
 
-  <!-- Code Panels Container -->
-  <div
-    class="panels-container"
-    *ngIf="pythonUdfOperators.length > 0">
-    <div
-      *ngFor="let op of pythonUdfOperators"
-      class="code-panel-wrapper"
-      [style.left.px]="op.position.x"
-      [style.top.px]="op.position.y">
-      <texera-inline-code-panel
-        [operatorId]="op.operatorId"
-        [displayName]="op.displayName"
-        [isDiffMode]="op.isDiffMode"
-        [originalCode]="op.originalCode"
-        (closePanel)="closePanel($event)"></texera-inline-code-panel>
-    </div>
-  </div>
-
   <!-- Step Badge Overlay Container (for message highlighting) -->
   <div
     class="step-badges-container"
