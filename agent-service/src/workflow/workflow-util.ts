@@ -46,7 +46,7 @@ import type { WorkflowState } from "./workflow-state";
  * @param internal Whether this is an internal port (typically false)
  * @returns A string representation (e.g., "0_false", "1_false")
  */
-export function serializePortIdentity(id: number, internal: boolean = false): string {
+function serializePortIdentity(id: number, internal: boolean = false): string {
   return `${id}_${internal}`;
 }
 
@@ -55,7 +55,7 @@ export function serializePortIdentity(id: number, internal: boolean = false): st
  * @param portId Port ID like "input-0", "output-1", etc.
  * @returns undefined if the portId is invalid; port number and the type of the port will be returned
  */
-export function parseLogicalOperatorPortID(
+function parseLogicalOperatorPortID(
   portId: string
 ): { portNumber: number; portType: "input" | "output" } | undefined {
   const match = portId.match(/^(input|output)-(\d+)$/);
@@ -75,51 +75,9 @@ export function parseLogicalOperatorPortID(
 // ============================================================================
 
 /**
- * Deep equality check for two values (simple implementation without lodash)
- */
-function isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (a === null || b === null) return a === b;
-  if (typeof a !== typeof b) return false;
-  if (typeof a !== "object") return a === b;
-
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    return a.every((val, i) => isEqual(val, b[i]));
-  }
-
-  if (Array.isArray(a) || Array.isArray(b)) return false;
-
-  const keysA = Object.keys(a as object);
-  const keysB = Object.keys(b as object);
-  if (keysA.length !== keysB.length) return false;
-
-  return keysA.every(key => isEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
-}
-
-/**
- * Checks if all PortSchemas in an array are equal to each other.
- * Requires either all schemas to be undefined, or all to be defined and equal.
- *
- * @param schemas Array of PortSchemas to compare (can contain undefined values)
- * @returns true if all schemas are equal, false otherwise
- */
-export function areAllPortSchemasEqual(schemas: (PortSchema | undefined)[]): boolean {
-  if (schemas.length <= 1) {
-    return true;
-  }
-  return schemas.every(schema => isEqual(schemas[0], schema));
-}
-
-// ============================================================================
-// Schema Extraction Utilities
-// (Mirrors frontend's WorkflowCompilingService.extractOperatorInputPortSchemaMap)
-// ============================================================================
-
-/**
  * Gets all links that have the given operator as their target (input links).
  */
-export function getInputLinksByOperatorId(operatorId: string, links: OperatorLink[]): OperatorLink[] {
+function getInputLinksByOperatorId(operatorId: string, links: OperatorLink[]): OperatorLink[] {
   return links.filter(link => link.target.operatorID === operatorId);
 }
 

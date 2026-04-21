@@ -43,7 +43,7 @@ export type { ValidationError, Validation } from "../types/workflow";
 // Validation Output Type
 // ============================================================================
 
-export interface ValidationOutput {
+interface ValidationOutput {
   errors: Record<string, ValidationError>;
   workflowEmpty: boolean;
 }

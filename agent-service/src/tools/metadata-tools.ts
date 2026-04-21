@@ -21,64 +21,23 @@
  * Operator metadata tools for Texera Agent Service.
  */
 
-import { z } from "zod";
-import { tool } from "ai";
 import Ajv from "ajv";
-import { createToolResult, createErrorResult } from "./tools-utility";
 import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../api/backend-api";
 import type { ValidationError, Validation } from "../types/workflow";
 
 // Re-export validation types for backwards compatibility
 export type { ValidationError, Validation } from "../types/workflow";
 
-// ============================================================================
-// Tool Name Constants
-// ============================================================================
-
-export const TOOL_NAME_LIST_ALL_AVAILABLE_OPERATOR_TYPES = "listAllAvailableOperatorTypes";
-export const TOOL_NAME_GET_OPERATOR_SCHEMA = "getOperatorSchema";
-
-// ============================================================================
-// Operator Schema Types
-// ============================================================================
-
-/**
- * Operator schema info structure
- */
-export interface OperatorSchemaInfo {
+interface OperatorSchemaInfo {
   properties: any;
   required: any;
   definitions: any;
 }
 
-/**
- * Compact operator schema with inlined definitions
- */
-export interface CompactOperatorSchema {
+interface CompactOperatorSchema {
   properties: Record<string, any>;
   required: string[];
 }
-
-// ============================================================================
-// Default Allowed Operator Types
-// ============================================================================
-
-export const DEFAULT_ALLOWED_OPERATOR_TYPES = [
-  "CSVFileScan",
-  "Sort",
-  "HashJoin",
-  "Limit",
-  "Projection",
-  "TableLimit",
-  "LineChart",
-  "BarChart",
-  "PythonUDFV2",
-  "RUDF",
-];
-
-// ============================================================================
-// Schema Processing Utilities
-// ============================================================================
 
 // Keys to filter out from properties
 const FILTERED_PROPERTY_KEYS = ["dummyPropertyList"];
@@ -151,7 +110,7 @@ function inlineRefs(schema: any, definitions: Record<string, any>): any {
 /**
  * Get compact schema with inlined definitions.
  */
-export function getCompactSchema(jsonSchema: any): CompactOperatorSchema | null {
+function getCompactSchema(jsonSchema: any): CompactOperatorSchema | null {
   try {
     const properties = filterObjectKeys(jsonSchema.properties, FILTERED_PROPERTY_KEYS);
     const definitions = filterObjectKeys(jsonSchema.definitions, FILTERED_DEFINITION_KEYS) || {};
@@ -250,17 +209,6 @@ export class OperatorMetadataStore {
     return this.initialized;
   }
 
-  /**
-   * Register an operator schema manually (for testing or custom operators).
-   */
-  registerOperator(operatorType: string, jsonSchema: any, description: string = ""): void {
-    this.schemas.set(operatorType, jsonSchema);
-    this.descriptions.set(operatorType, description);
-  }
-
-  /**
-   * Get schema for an operator type.
-   */
   getSchema(operatorType: string): any | undefined {
     return this.schemas.get(operatorType);
   }
@@ -385,74 +333,3 @@ export function formatCompactSchemaForError(compactSchema: CompactOperatorSchema
   return `required: [${compactSchema.required.join(", ")}], properties: ${JSON.stringify(requiredProps)}`;
 }
 
-// ============================================================================
-// Tool Creators
-// ============================================================================
-
-/**
- * Create tool to list all available operator types with descriptions.
- * @param metadataStore - The operator metadata store
- * @param onlyUseRelationalOperators - If true, only return operators from DEFAULT_ALLOWED_OPERATOR_TYPES list
- */
-export function createListAllAvailableOperatorTypesTool(
-  metadataStore: OperatorMetadataStore,
-  onlyUseRelationalOperators: boolean = false
-) {
-  return tool({
-    description:
-      "List all available operator types in Texera with their descriptions. " +
-      "Use this to discover what operators are available before adding them to a workflow.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      let operators = metadataStore.getAllOperatorTypes();
-
-      // Filter to only allowed relational operators if setting is enabled
-      if (onlyUseRelationalOperators) {
-        const allowedSet = new Set<string>(DEFAULT_ALLOWED_OPERATOR_TYPES);
-        operators = Object.fromEntries(Object.entries(operators).filter(([type]) => allowedSet.has(type)));
-      }
-
-      const count = Object.keys(operators).length;
-      if (count === 0) {
-        return createErrorResult("No operator types registered.");
-      }
-
-      const lines = [`Found ${count} available operator type(s):`];
-      for (const [type, description] of Object.entries(operators)) {
-        lines.push(`  - ${type}: ${description}`);
-      }
-
-      return createToolResult(lines.join("\n"));
-    },
-  });
-}
-
-/**
- * Create tool to get the schema of a specific operator type.
- */
-export function createGetOperatorSchemaTool(metadataStore: OperatorMetadataStore) {
-  return tool({
-    description:
-      "Get the JSON schema for a specific operator type. " +
-      "Returns a compact schema with inlined definitions. " +
-      "Use this to understand what properties an operator requires.",
-    inputSchema: z.object({
-      operatorType: z.string().describe("The operator type to get the schema for"),
-    }),
-    execute: async (args: { operatorType: string }) => {
-      const compactSchema = metadataStore.getCompactSchema(args.operatorType);
-      if (!compactSchema) {
-        return createErrorResult(`Operator type "${args.operatorType}" not found.`);
-      }
-
-      const lines = [
-        `Schema for operator type "${args.operatorType}":`,
-        `required: [${compactSchema.required.join(", ")}]`,
-        `properties:`,
-        JSON.stringify(compactSchema.properties, null, 2),
-      ];
-
-      return createToolResult(lines.join("\n"));
-    },
-  });
-}

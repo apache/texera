@@ -29,7 +29,7 @@
 /**
  * Reference to an operator's port (input or output)
  */
-export interface LogicalPort {
+interface LogicalPort {
   readonly operatorID: string;
   readonly portID: string;
 }
@@ -37,7 +37,7 @@ export interface LogicalPort {
 /**
  * Port identity for backend API
  */
-export interface PortIdentity {
+interface PortIdentity {
   readonly id: number;
   readonly internal: boolean;
 }
@@ -45,7 +45,7 @@ export interface PortIdentity {
 /**
  * Data partitioning strategies for operator ports
  */
-export type PartitionInfo =
+type PartitionInfo =
   | { readonly type: "hash"; readonly hashAttributeNames: string[] }
   | {
       readonly type: "range";
@@ -184,7 +184,7 @@ export interface WorkflowContent {
 /**
  * Attribute type for schema definitions
  */
-export type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
+type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
 
 /**
  * Single attribute in a schema

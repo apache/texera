@@ -30,10 +30,8 @@ import type { OperatorInfo } from "../types/execution";
 /**
  * Unified operator result entry — stores the raw structured data.
  */
-export interface OperatorResultEntry {
-  /** The raw OperatorInfo from the backend execution result. */
+interface OperatorResultEntry {
   operatorInfo: OperatorInfo;
-  /** The step ID under which this result was produced. */
   stepId: string;
 }
 

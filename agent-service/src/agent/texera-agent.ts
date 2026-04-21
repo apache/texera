@@ -113,7 +113,7 @@ export interface AgentMessageResult {
 // ============================================================================
 
 /** Callback for receiving ReActStep updates */
-export type ReActStepCallback = (step: ReActStep) => void;
+type ReActStepCallback = (step: ReActStep) => void;
 
 /**
  * TexeraAgent is the core agent implementation.

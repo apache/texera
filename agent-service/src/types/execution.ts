@@ -29,7 +29,7 @@
 /**
  * Simplified console message - just type and message.
  */
-export interface ConsoleMessage {
+interface ConsoleMessage {
   msgType: string;
   message: string;
 }
@@ -41,7 +41,7 @@ export interface ConsoleMessage {
 /**
  * Per-input-port shape info: rows and columns flowing through a port.
  */
-export interface PortShape {
+interface PortShape {
   portIndex: number;
   rows: number;
   columns: number;

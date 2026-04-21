@@ -18,89 +18,12 @@
  */
 
 /**
- * Texera Agent Service - Main Entry Point
- *
- * This is the main entry point for the Texera Agent Service.
- * It provides the TexeraAgent class and all necessary types for building
- * AI-powered workflow manipulation agents.
+ * Texera Agent Service library entry point.
+ * The runnable server lives in `server.ts`.
  */
 
-// Export types
 export * from "./types";
-
-// Export workflow state
 export { WorkflowState } from "./workflow/workflow-state";
-
-// Export tools
 export * from "./tools";
-
-// Export agent
 export { TexeraAgent, type TexeraAgentConfig, type AgentMessageResult } from "./agent/texera-agent";
 export { buildSystemPrompt } from "./agent/prompts";
-
-// ============================================================================
-// Simple Example Usage
-// ============================================================================
-
-/**
- * Example of how to use the TexeraAgent:
- *
- * ```typescript
- * import { createOpenAI } from "@ai-sdk/openai";
- * import { TexeraAgent } from "texera-agent-service";
- *
- * // Create OpenAI client
- * const openai = createOpenAI({
- *   apiKey: process.env.OPENAI_API_KEY,
- * });
- *
- * // Create agent
- * const agent = new TexeraAgent({
- *   model: openai("gpt-4-turbo"),
- *   agentId: "agent-1",
- *   agentName: "My Workflow Agent",
- * });
- *
- * // Register some operator schemas
- * agent.getMetadataStore().registerOperator(
- *   "PythonTableUDF",
- *   { properties: { code: { type: "string" } }, required: ["code"] },
- *   "Python UDF for multi-table data processing"
- * );
- *
- * // Send a message
- * const result = await agent.sendMessage("Add a Python UDF that filters rows where value > 10");
- *
- * console.log("Response:", result.response);
- * console.log("Steps:", result.steps.length);
- * console.log("Tokens used:", result.usage.totalTokens);
- *
- * // Get the workflow
- * const workflow = agent.getWorkflowState().getWorkflowContent();
- * console.log("Operators:", workflow.operators);
- * console.log("Links:", workflow.links);
- * ```
- */
-
-// ============================================================================
-// Development Server (for testing)
-// ============================================================================
-
-if (import.meta.main) {
-  console.log("=".repeat(60));
-  console.log("Texera Agent Service");
-  console.log("=".repeat(60));
-  console.log("");
-  console.log("This is a library for building AI-powered workflow agents.");
-  console.log("Import and use the TexeraAgent class in your application.");
-  console.log("");
-  console.log("Available exports:");
-  console.log("  - TexeraAgent: Core agent class");
-  console.log("  - WorkflowState: Workflow state management");
-  console.log("  - OperatorMetadataStore: Operator schema management");
-  console.log("  - Tool creators: createAddOperatorTool, createModifyOperatorTool, etc.");
-  console.log("  - Types: All TypeScript types for workflow, execution, agent");
-  console.log("");
-  console.log("See src/index.ts for example usage.");
-  console.log("=".repeat(60));
-}

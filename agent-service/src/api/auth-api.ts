@@ -17,37 +17,12 @@
  * under the License.
  */
 
-/**
- * Authentication API client for Texera Agent Service.
- * Handles user authentication against the Texera backend.
- */
-
-import { getBackendConfig } from "./backend-api";
 import type { UserInfo } from "../types/agent";
 
-// Re-export UserInfo for backwards compatibility
 export type { UserInfo } from "../types/agent";
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface LoginResponse {
-  accessToken: string;
-}
-
-export interface AuthResult {
-  accessToken: string;
-  user: UserInfo;
-}
-
-// ============================================================================
-// JWT Parsing
-// ============================================================================
-
 /**
- * Decode a JWT token and extract the payload.
- * Note: This does not verify the signature, only decodes.
+ * Decode a JWT payload. Does not verify signature.
  */
 function decodeJWT(token: string): any {
   try {
@@ -55,17 +30,12 @@ function decodeJWT(token: string): any {
     if (parts.length !== 3) {
       throw new Error("Invalid JWT format");
     }
-    const payload = parts[1];
-    const decoded = Buffer.from(payload, "base64").toString("utf-8");
-    return JSON.parse(decoded);
+    return JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
   } catch (error) {
     throw new Error(`Failed to decode JWT: ${error}`);
   }
 }
 
-/**
- * Extract user info from a JWT token.
- */
 export function extractUserFromToken(token: string): UserInfo {
   const payload = decodeJWT(token);
   return {
@@ -76,72 +46,20 @@ export function extractUserFromToken(token: string): UserInfo {
   };
 }
 
-/**
- * Check if a JWT token is expired.
- */
-export function isTokenExpired(token: string): boolean {
+function isTokenExpired(token: string): boolean {
   try {
     const payload = decodeJWT(token);
-    if (!payload.exp) {
-      return false; // No expiration claim
-    }
-    const expirationTime = payload.exp * 1000; // Convert to milliseconds
-    return Date.now() >= expirationTime;
+    if (!payload.exp) return false;
+    return Date.now() >= payload.exp * 1000;
   } catch {
-    return true; // Assume expired if we can't decode
+    return true;
   }
 }
 
-// ============================================================================
-// API Functions
-// ============================================================================
-
-/**
- * Login to the Texera backend with username and password.
- * @param username - User's username
- * @param password - User's password
- * @returns AuthResult containing access token and user info
- */
-export async function login(username: string, password: string): Promise<AuthResult> {
-  const config = getBackendConfig();
-  const url = `${config.apiEndpoint}/api/auth/login`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ username, password }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Login failed: ${response.status} ${response.statusText} - ${errorText}`);
-  }
-
-  const data: LoginResponse = await response.json();
-  const user = extractUserFromToken(data.accessToken);
-
-  return {
-    accessToken: data.accessToken,
-    user,
-  };
-}
-
-/**
- * Validate an existing token by checking if it's expired.
- * @param token - JWT token to validate
- * @returns true if token is valid and not expired
- */
 export function validateToken(token: string): boolean {
   return !isTokenExpired(token);
 }
 
-/**
- * Create authorization headers for API requests.
- * @param token - JWT token
- * @returns Headers object with Authorization header
- */
 export function createAuthHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,

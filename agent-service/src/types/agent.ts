@@ -301,14 +301,6 @@ export interface TraceContent {
 }
 
 /**
- * WebSocket message for replaying a trace
- */
-export interface ReplayTraceMessage {
-  type: "replay";
-  trace: TraceContent;
-}
-
-/**
  * Tools that should be skipped during replay (execution-related tools)
  */
 export const REPLAY_SKIP_TOOLS = new Set([

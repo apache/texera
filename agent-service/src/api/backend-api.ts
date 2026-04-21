@@ -19,7 +19,6 @@
 
 /**
  * Backend API client for Texera Agent Service.
- * Provides functions to interact with various Texera backend services.
  *
  * Configuration priority (highest to lowest):
  * 1. Environment variables (API_ENDPOINT, MODELS_ENDPOINT, etc.)
@@ -31,28 +30,15 @@ import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-// ============================================================================
-// Configuration
-// ============================================================================
-
-export interface BackendConfig {
-  /** Main API endpoint (default: http://localhost:8080) */
+interface BackendConfig {
   apiEndpoint: string;
-  /** Operator metadata endpoint (default: http://localhost:8080) */
   operatorMetadataEndpoint: string;
-  /** Models API endpoint (default: http://localhost:9096) */
   modelsEndpoint: string;
-  /** Compile service endpoint (default: http://localhost:9090) */
   compileEndpoint: string;
-  /** Execution service endpoint (default: http://localhost:8085) */
   executionEndpoint: string;
-  /** WebSocket endpoint (default: ws://localhost:8085) */
   wsEndpoint: string;
-  /** Dataset service endpoint (default: http://localhost:9092) */
   datasetEndpoint: string;
-  /** Computing unit service endpoint (default: http://localhost:8888) */
   computingEndpoint: string;
-  /** Config service endpoint (default: http://localhost:9094) */
   configEndpoint: string;
 }
 
@@ -70,12 +56,8 @@ interface ConfigFile {
   };
 }
 
-/**
- * Load configuration from config/backend.config.json if it exists.
- */
 function loadConfigFile(): Partial<BackendConfig> {
   try {
-    // Try to find config file relative to this module
     const possiblePaths = [
       join(process.cwd(), "config", "backend.config.json"),
       join(dirname(fileURLToPath(import.meta.url)), "..", "..", "config", "backend.config.json"),
@@ -86,7 +68,6 @@ function loadConfigFile(): Partial<BackendConfig> {
         const configData = readFileSync(configPath, "utf-8");
         const config: ConfigFile = JSON.parse(configData);
 
-        // Map services to BackendConfig
         return {
           apiEndpoint: config.services.main?.target,
           operatorMetadataEndpoint: config.services.main?.target,
@@ -109,7 +90,7 @@ function loadConfigFile(): Partial<BackendConfig> {
 
 const fileConfig = loadConfigFile();
 
-const DEFAULT_CONFIG: BackendConfig = {
+const currentConfig: BackendConfig = {
   apiEndpoint: process.env.API_ENDPOINT || fileConfig.apiEndpoint || "http://localhost:8080",
   operatorMetadataEndpoint:
     process.env.OPERATOR_METADATA_ENDPOINT || fileConfig.operatorMetadataEndpoint || "http://localhost:8080",
@@ -122,19 +103,9 @@ const DEFAULT_CONFIG: BackendConfig = {
   configEndpoint: process.env.CONFIG_ENDPOINT || fileConfig.configEndpoint || "http://localhost:9094",
 };
 
-let currentConfig = { ...DEFAULT_CONFIG };
-
-export function setBackendConfig(config: Partial<BackendConfig>): void {
-  currentConfig = { ...currentConfig, ...config };
-}
-
 export function getBackendConfig(): BackendConfig {
   return { ...currentConfig };
 }
-
-// ============================================================================
-// Operator Metadata Types
-// ============================================================================
 
 export interface InputPortInfo {
   displayName?: string;
@@ -146,7 +117,7 @@ export interface OutputPortInfo {
   displayName?: string;
 }
 
-export interface OperatorAdditionalMetadata {
+interface OperatorAdditionalMetadata {
   userFriendlyName: string;
   operatorGroupName: string;
   operatorDescription?: string;
@@ -165,7 +136,7 @@ export interface OperatorSchema {
   operatorVersion: string;
 }
 
-export interface GroupInfo {
+interface GroupInfo {
   groupName: string;
   children?: GroupInfo[] | null;
 }
@@ -175,36 +146,6 @@ export interface OperatorMetadata {
   groups: GroupInfo[];
 }
 
-// ============================================================================
-// Model Types
-// ============================================================================
-
-export interface LiteLLMModel {
-  id: string;
-  object: string;
-  created: number;
-  owned_by: string;
-}
-
-export interface LiteLLMModelsResponse {
-  data: LiteLLMModel[];
-  object: string;
-}
-
-export interface ModelType {
-  id: string;
-  name: string;
-  description: string;
-}
-
-// ============================================================================
-// API Functions
-// ============================================================================
-
-/**
- * Fetch operator metadata from the backend.
- * @returns Promise with operator metadata
- */
 export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
   const url = `${currentConfig.operatorMetadataEndpoint}/api/resources/operator-metadata`;
   const response = await fetch(url);
@@ -214,59 +155,4 @@ export async function fetchOperatorMetadata(): Promise<OperatorMetadata> {
   }
 
   return response.json();
-}
-
-/**
- * Fetch available models from the models API.
- * @returns Promise with array of model types
- */
-export async function fetchModels(): Promise<ModelType[]> {
-  const url = `${currentConfig.modelsEndpoint}/api/models`;
-
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      console.warn(`Failed to fetch models: ${response.status} ${response.statusText}`);
-      return [];
-    }
-
-    const data: LiteLLMModelsResponse = await response.json();
-
-    return data.data.map(model => ({
-      id: model.id,
-      name: formatModelName(model.id),
-      description: `Model: ${model.id}`,
-    }));
-  } catch (error) {
-    console.warn("Failed to fetch models:", error);
-    return [];
-  }
-}
-
-/**
- * Format model ID into a human-readable name.
- * Example: "claude-3.7" -> "Claude 3.7"
- */
-function formatModelName(modelId: string): string {
-  return modelId
-    .split("-")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-/**
- * Health check for the main API endpoint.
- * @returns Promise with health status
- */
-export async function healthCheck(): Promise<{ healthy: boolean; message: string }> {
-  try {
-    const response = await fetch(`${currentConfig.apiEndpoint}/api/health`);
-    if (response.ok) {
-      return { healthy: true, message: "Backend is healthy" };
-    }
-    return { healthy: false, message: `Backend returned ${response.status}` };
-  } catch (error) {
-    return { healthy: false, message: `Cannot reach backend: ${error}` };
-  }
 }

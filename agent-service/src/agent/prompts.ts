@@ -95,10 +95,8 @@ You have the following operators available:
 
 /**
  * Build the operator schemas string for allowed operators.
- * @param metadataStore - The operator metadata store
- * @param allowedOperatorTypes - List of allowed operator types. If empty, all operators are included.
  */
-export function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
+function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
   const schemas: string[] = [];
 
   const operatorTypes = allowedOperatorTypes.length > 0
