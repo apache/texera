@@ -59,7 +59,12 @@ object OperatorGroupConstants {
     GroupInfo(SEARCH_GROUP),
     GroupInfo(
       CLEANING_GROUP,
-      List(GroupInfo(JOIN_GROUP), GroupInfo(AGGREGATE_GROUP), GroupInfo(SORT_GROUP))
+      List(
+        GroupInfo(JOIN_GROUP),
+        GroupInfo(SET_GROUP),
+        GroupInfo(AGGREGATE_GROUP),
+        GroupInfo(SORT_GROUP)
+      )
     ),
     GroupInfo(
       MACHINE_LEARNING_GROUP,
