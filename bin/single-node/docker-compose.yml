@@ -162,35 +162,44 @@ services:
         echo "Installing curl (to call Lakekeeper's management API) and jq (to parse its list responses)..."
         apk add --no-cache curl jq
 
-        check_status() {
-          if [ "$$1" -ge 200 ] && [ "$$1" -lt 300 ]; then
-            echo "Created $$2 successfully (HTTP $$1)."
-          elif [ "$$1" -eq 409 ]; then
-            echo "$$2 already exists (HTTP 409). Treating as success."
-          else
-            echo "Failed to create $$2. HTTP Code: $$1"
+        # Lakekeeper organizes warehouses under "projects" (its top-level tenant
+        # abstraction). Texera is single-tenant, so we use the NIL UUID (all
+        # zeros) as the project ID — with LAKEKEEPER__ENABLE_DEFAULT_PROJECT=true
+        # (Lakekeeper's default), this is the project that any client request
+        # without a project-id is routed to.
+        echo "Step 1: Ensuring Lakekeeper's default project exists (top-level tenant that will hold the Iceberg warehouse)..."
+
+        echo "Checking whether Lakekeeper's default project already exists..."
+        PROJECT_GET_CODE=$$(curl -s -o /tmp/project.txt -w "%{http_code}" \
+            "$$LAKEKEEPER_BASE_URI/management/v1/project" || echo "000")
+
+        if [ "$$PROJECT_GET_CODE" = "200" ]; then
+          echo "Lakekeeper's default project already exists. Skipping creation."
+        elif [ "$$PROJECT_GET_CODE" = "404" ]; then
+          echo "Default project not found. Creating..."
+          PROJECT_PAYLOAD='{"project-id": "00000000-0000-0000-0000-000000000000", "project-name": "default"}'
+
+          PROJECT_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$$PROJECT_PAYLOAD" \
+              "$$LAKEKEEPER_BASE_URI/management/v1/project" || echo "000")
+
+          if [ "$$PROJECT_CODE" -lt 200 ] || [ "$$PROJECT_CODE" -ge 300 ]; then
+            echo "Failed to create Lakekeeper's default project. HTTP Code: $$PROJECT_CODE"
             echo "ERROR RESPONSE:"
             if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
             echo ""
             exit 1
           fi
-        }
-
-        # Lakekeeper organizes warehouses under "projects" (its top-level tenant
-        # abstraction). Texera is single-tenant, so we create one project using
-        # the NIL UUID (all zeros) — with LAKEKEEPER__ENABLE_DEFAULT_PROJECT=true
-        # (Lakekeeper's default), this is the project that any client request
-        # without a project-id is routed to.
-        echo "Step 1: Creating Lakekeeper's default project (top-level tenant that will hold the Iceberg warehouse)..."
-        PROJECT_PAYLOAD='{"project-id": "00000000-0000-0000-0000-000000000000", "project-name": "default"}'
-
-        PROJECT_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -d "$$PROJECT_PAYLOAD" \
-            "$$LAKEKEEPER_BASE_URI/management/v1/project" || echo "000")
-
-        check_status "$$PROJECT_CODE" "Default Project"
+          echo "Created Lakekeeper's default project successfully (HTTP $$PROJECT_CODE)."
+        else
+          echo "Failed to check Lakekeeper's default project. HTTP Code: $$PROJECT_GET_CODE"
+          echo "ERROR RESPONSE:"
+          if [ -f /tmp/project.txt ]; then cat /tmp/project.txt; fi
+          echo ""
+          exit 1
+        fi
 
 
         echo "Step 2: Ensuring Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' exists..."
@@ -242,7 +251,14 @@ services:
               -d "$$CREATE_PAYLOAD" \
               "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
 
-          check_status "$$WAREHOUSE_CODE" "Lakekeeper Warehouse"
+          if [ "$$WAREHOUSE_CODE" -lt 200 ] || [ "$$WAREHOUSE_CODE" -ge 300 ]; then
+            echo "Failed to create Lakekeeper Warehouse. HTTP Code: $$WAREHOUSE_CODE"
+            echo "ERROR RESPONSE:"
+            if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
+            echo ""
+            exit 1
+          fi
+          echo "Created Lakekeeper Warehouse successfully (HTTP $$WAREHOUSE_CODE)."
         fi
 
         echo "Initialization sequence completed successfully!"
