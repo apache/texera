@@ -178,7 +178,12 @@ services:
           fi
         }
 
-        echo "Step 1: Initializing Default Project..."
+        # Lakekeeper organizes warehouses under "projects" (its top-level tenant
+        # abstraction). Texera is single-tenant, so we create one project using
+        # the NIL UUID (all zeros) — with LAKEKEEPER__ENABLE_DEFAULT_PROJECT=true
+        # (Lakekeeper's default), this is the project that any client request
+        # without a project-id is routed to.
+        echo "Step 1: Creating Lakekeeper's default project (top-level tenant that will hold the Iceberg warehouse)..."
         PROJECT_PAYLOAD='{"project-id": "00000000-0000-0000-0000-000000000000", "project-name": "default"}'
 
         PROJECT_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
