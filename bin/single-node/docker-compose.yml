@@ -38,9 +38,8 @@ services:
       timeout: 3s
       retries: 10
 
-  # One-shot init container that creates the Iceberg warehouse bucket on first
-  # startup. MinIO's server image has no built-in "create bucket on boot" flag,
-  # so this sidecar uses the official `mc` client to do it idempotently.
+  # This job creates the S3 bucket used by the Iceberg warehouse that the
+  # Lakekeeper service manages.
   minio-init:
     image: minio/mc:RELEASE.2025-05-21T01-59-54Z
     container_name: texera-minio-init
