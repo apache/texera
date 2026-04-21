@@ -104,8 +104,8 @@ services:
       timeout: 5s
       retries: 10
 
-  # Lakekeeper migration init container
-  # This runs once to migrate the database before the lakekeeper server starts
+  # This job applies Lakekeeper's database schema to the Postgres instance —
+  # creating or upgrading the tables that Lakekeeper uses to track its catalog metadata.
   lakekeeper-migrate:
     image: vakamo/lakekeeper:v0.11.0
     container_name: texera-lakekeeper-migrate
