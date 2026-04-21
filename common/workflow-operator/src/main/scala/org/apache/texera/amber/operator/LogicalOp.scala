@@ -109,6 +109,7 @@ import org.apache.texera.amber.operator.visualization.continuousErrorBands.Conti
 import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
 import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import org.apache.texera.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ecdfPlot.ECDFPlotOpDesc
 import org.apache.texera.amber.operator.visualization.figureFactoryTable.FigureFactoryTableOpDesc
 import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import org.apache.texera.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
@@ -185,6 +186,7 @@ trait StateTransferFunc
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
+    new Type(value = classOf[ECDFPlotOpDesc], name = "ECDFPlot"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
