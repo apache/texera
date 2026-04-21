@@ -80,5 +80,5 @@ libraryDependencies ++= Seq(
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",
-  "com.typesafe" % "config" % "1.4.2" // For configuration management
+  "com.typesafe" % "config" % "1.4.6" // For configuration management
 ) 
