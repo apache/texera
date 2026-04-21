@@ -180,18 +180,6 @@ class SyncExecutionResource extends LazyLogging {
         computeSubDAGIfNeeded(request.logicalPlan, request.targetOperatorIds)
 
       // TODO: re-enable validation checks once all operators compile cleanly
-      // // Always validate Python UDFs for print statements
-      // val printErrors = validateNoPrintStatements(effectiveLogicalPlan)
-      // if (printErrors.nonEmpty) {
-      //   return SyncExecutionResult(
-      //     success = false,
-      //     state = "ValidationFailed",
-      //     operators = Map.empty,
-      //     compilationErrors = Some(printErrors),
-      //     errors = Some(printErrors.values.toList)
-      //   )
-      // }
-
       // // Pre-compile the workflow to catch errors early
       // val compilationErrors = validateWorkflow(workflowId, effectiveLogicalPlan)
       // if (compilationErrors.nonEmpty) {
@@ -975,41 +963,6 @@ class SyncExecutionResource extends LazyLogging {
       opsToViewResult = targetOperatorIds.filter(id => visited.contains(id)),
       opsToReuseResult = logicalPlan.opsToReuseResult.filter(id => visited.contains(id))
     )
-  }
-
-  /**
-    * Validate Python UDF operators for print statements.
-    * Returns a map of operator ID -> error message if print statements are found,
-    * or an empty map if no print statements are found.
-    */
-  private def validateNoPrintStatements(logicalPlan: LogicalPlanPojo): Map[String, String] = {
-    import org.apache.texera.amber.operator.PythonCodeValidator
-    import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
-    import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
-
-    val errors = mutable.Map[String, String]()
-
-    for (op <- logicalPlan.operators) {
-      op match {
-        case pythonUdf: PythonUDFOpDescV2 =>
-          try {
-            PythonCodeValidator.validateNoPrint(pythonUdf.code)
-          } catch {
-            case e: RuntimeException =>
-              errors(op.operatorIdentifier.id) = e.getMessage
-          }
-        case pythonSource: PythonUDFSourceOpDescV2 =>
-          try {
-            PythonCodeValidator.validateNoPrint(pythonSource.code)
-          } catch {
-            case e: RuntimeException =>
-              errors(op.operatorIdentifier.id) = e.getMessage
-          }
-        case _ => // Not a Python UDF, skip
-      }
-    }
-
-    errors.toMap
   }
 
   /**

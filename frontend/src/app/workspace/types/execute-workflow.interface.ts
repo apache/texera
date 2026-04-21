@@ -86,7 +86,6 @@ export interface OperatorStatistics
     aggregatedOutputRowCount: number;
     outputPortMetrics: Record<string, number>;
     numWorkers?: number;
-    operatorResultStats?: Record<string, string>;
   }> {}
 
 export interface OperatorStatsUpdate
@@ -121,7 +120,6 @@ export interface WorkflowResultUpdateEvent
   extends Readonly<{
     updates: WorkflowResultUpdate;
     tableStats: WorkflowResultTableStats;
-    sinkStorageMode: string;
   }> {}
 
 // user-defined type guards to check the type of the result update

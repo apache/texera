@@ -42,7 +42,6 @@ object EnvironmentalVariable {
   /**
     * Auth related vars
     */
-  val ENV_AUTH_JWT_SECRET = "AUTH_JWT_SECRET"
   val ENV_USER_JWT_TOKEN = "USER_JWT_TOKEN"
 
   // JDBC
