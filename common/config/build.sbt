@@ -53,5 +53,5 @@ Compile / scalacOptions ++= Seq(
 
 // Core Dependencies
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.2" // For configuration management
+  "com.typesafe" % "config" % "1.4.6" // For configuration management
 )
