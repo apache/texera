@@ -127,6 +127,7 @@ export class WorkflowActionService {
   private getDefaultSettings(): WorkflowSettings {
     return {
       dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+      executionMode: this.config.env.defaultExecutionMode,
     };
   }
 

@@ -31,6 +31,7 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import { MarkdownDescriptionComponent } from "../markdown-description/markdown-description.component";
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import {
   DEFAULT_WORKFLOW_NAME,
@@ -68,6 +69,8 @@ export class ListItemComponent implements OnChanges {
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
   editingName = false;
   editingDescription = false;
+  renderedDescription = "";
+
   likeCount: number = 0;
   viewCount = 0;
   entryLink: string[] = [];
@@ -146,9 +149,23 @@ export class ListItemComponent implements OnChanges {
     this.isLiked = this.entry.isLiked;
   }
 
+  private renderMarkdownPreview(text: string | undefined): void {
+    const trimmed = (text ?? "").trim();
+    if (!trimmed) {
+      this.renderedDescription = "";
+      return;
+    }
+    this.renderedDescription = trimmed
+      .replace(/[#*_~`>|]/g, "")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // [text](url) → text
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["entry"]) {
       this.initializeEntry();
+      this.renderMarkdownPreview(this.entry.description);
     }
   }
 
@@ -225,16 +242,24 @@ export class ListItemComponent implements OnChanges {
   }
 
   onEditDescription(): void {
+    if (!this.editable) return;
+
     this.originalDescription = this.entry.description;
-    this.editingDescription = true;
-    setTimeout(() => {
-      if (this.descriptionInput) {
-        const textareaElement = this.descriptionInput.nativeElement;
-        const valueLength = textareaElement.value.length;
-        textareaElement.focus();
-        textareaElement.setSelectionRange(valueLength, valueLength);
-      }
-    }, 0);
+
+    const modalRef = this.modalService.create<MarkdownDescriptionComponent>({
+      nzTitle: "Edit Description",
+      nzContent: MarkdownDescriptionComponent,
+      nzData: {
+        description: this.entry.description ?? "",
+      },
+      nzFooter: null,
+      nzWidth: "800px",
+    });
+
+    modalRef.componentInstance?.descriptionChange.pipe(untilDestroyed(this)).subscribe(desc => {
+      this.confirmUpdateCustomDescription(desc);
+      modalRef.destroy();
+    });
   }
 
   private updateProperty(
@@ -253,10 +278,16 @@ export class ListItemComponent implements OnChanges {
       .subscribe({
         next: () => {
           this.entry[propertyName] = newValue; // Dynamic property assignment
+          if (propertyName === "description") {
+            this.renderMarkdownPreview(newValue);
+          }
         },
         error: () => {
           this.notificationService.error("Update failed");
           (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
+          if (propertyName === "description") {
+            this.renderMarkdownPreview(originalValue);
+          }
           this.setEditingState(propertyName, false);
         },
         complete: () => {

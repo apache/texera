@@ -20,8 +20,14 @@
 import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../workspace/types/workflow-common.interface";
 
+export enum ExecutionMode {
+  PIPELINED = "PIPELINED",
+  MATERIALIZED = "MATERIALIZED",
+}
+
 export interface WorkflowSettings {
   dataTransferBatchSize: number;
+  executionMode: ExecutionMode;
 }
 
 /**
