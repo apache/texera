@@ -35,7 +35,6 @@
     "@angular/platform-browser-dynamic": "17.3.12",
     "@angular/router": "17.3.12",
     "@auth0/angular-jwt": "5.1.0",
-    "@bufbuild/protobuf": "2.2.2",
     "@codingame/monaco-vscode-java-default-extension": "8.0.4",
     "@codingame/monaco-vscode-python-default-extension": "8.0.4",
     "@codingame/monaco-vscode-r-default-extension": "8.0.4",
@@ -145,6 +144,7 @@
     "rxjs-marbles": "7.0.1",
     "sass": "1.71.1",
     "style-loader": "3.3.4",
+    "ts-proto": "2.2.0",
     "typescript": "5.4.5",
     "webpack": "5.89.0",
     "webpack-bundle-analyzer": "4.5.0"
