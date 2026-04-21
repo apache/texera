@@ -155,6 +155,6 @@ lazy val TexeraProject = (project in file("."))
     name := "texera",
     version := "1.1.0-incubating",
     organization := "org.apache",
-    scalaVersion := "2.13.12",
+    scalaVersion := "2.13.18",
     publishMavenStyle := true
   )

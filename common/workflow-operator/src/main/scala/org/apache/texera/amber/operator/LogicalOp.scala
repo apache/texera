@@ -109,6 +109,7 @@ import org.apache.texera.amber.operator.visualization.continuousErrorBands.Conti
 import org.apache.texera.amber.operator.visualization.contourPlot.ContourPlotOpDesc
 import org.apache.texera.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import org.apache.texera.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import org.apache.texera.amber.operator.visualization.ecdfPlot.ECDFPlotOpDesc
 import org.apache.texera.amber.operator.visualization.figureFactoryTable.FigureFactoryTableOpDesc
 import org.apache.texera.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import org.apache.texera.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
@@ -132,6 +133,7 @@ import org.apache.texera.amber.operator.visualization.scatter3DChart.Scatter3dCh
 import org.apache.texera.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import org.apache.texera.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot.ParallelCoordinatesPlotOpDesc
 import org.apache.texera.amber.operator.visualization.polarChart.PolarChartOpDesc
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
@@ -184,6 +186,7 @@ trait StateTransferFunc
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
+    new Type(value = classOf[ECDFPlotOpDesc], name = "ECDFPlot"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
@@ -202,6 +205,7 @@ trait StateTransferFunc
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
     new Type(value = classOf[RadarPlotOpDesc], name = "RadarPlot"),
     new Type(value = classOf[RadarChartOpDesc], name = "RadarChart"),
+    new Type(value = classOf[ParallelCoordinatesPlotOpDesc], name = "ParallelCoordinatesPlot"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[UrlVizOpDesc], name = "URLVisualizer"),
