@@ -123,7 +123,6 @@ val arrowDependencies = Seq(
   "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
-
 libraryDependencies ++= arrowDependencies
 
 // Netty dependency overrides to ensure compatibility with Arrow
