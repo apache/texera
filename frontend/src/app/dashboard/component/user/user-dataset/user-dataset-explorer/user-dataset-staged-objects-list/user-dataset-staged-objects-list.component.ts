@@ -26,10 +26,10 @@ import { formatTime } from "src/app/common/util/format.util";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-dataset-staged-objects-list",
-  templateUrl: "./user-dataset-staged-objects-list.component.html",
-  styleUrls: ["./user-dataset-staged-objects-list.component.scss"],
-  
+    selector: "texera-dataset-staged-objects-list",
+    templateUrl: "./user-dataset-staged-objects-list.component.html",
+    styleUrls: ["./user-dataset-staged-objects-list.component.scss"],
+    standalone: false
 })
 export class UserDatasetStagedObjectsListComponent implements OnInit {
   @Input() did?: number; // Dataset ID

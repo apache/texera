@@ -11,8 +11,8 @@ import { Component } from "@angular/core";
 import { FieldType } from "@ngx-formly/core";
 
 @Component({
-  // selector: 'formly-multi-schema-type',
-  template: `
+    // selector: 'formly-multi-schema-type',
+    template: `
     <div class="card mb-3">
       <div class="card-body">
         <legend *ngIf="props.label">{{ props.label }}</legend>
@@ -29,6 +29,6 @@ import { FieldType } from "@ngx-formly/core";
       </div>
     </div>
   `,
-  
+    standalone: false
 })
 export class MultiSchemaTypeComponent extends FieldType {}

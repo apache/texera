@@ -55,10 +55,10 @@ import { isDefined } from "../../../../common/util/predicate";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-list-item",
-  templateUrl: "./list-item.component.html",
-  styleUrls: ["./list-item.component.scss"],
-  
+    selector: "texera-list-item",
+    templateUrl: "./list-item.component.html",
+    styleUrls: ["./list-item.component.scss"],
+    standalone: false
 })
 export class ListItemComponent implements OnChanges {
   private owners: number[] = [];

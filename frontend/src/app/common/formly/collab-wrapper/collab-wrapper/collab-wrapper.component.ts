@@ -64,9 +64,9 @@ Quill.register("modules/cursors", QuillCursors);
  */
 @UntilDestroy()
 @Component({
-  templateUrl: "./collab-wrapper.component.html",
-  styleUrls: ["./collab-wrapper.component.css"],
-  
+    templateUrl: "./collab-wrapper.component.html",
+    styleUrls: ["./collab-wrapper.component.css"],
+    standalone: false
 })
 export class CollabWrapperComponent extends FieldWrapper<FieldTypeConfig> implements AfterContentInit {
   private quill?: Quill;

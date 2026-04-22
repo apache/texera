@@ -24,10 +24,10 @@ import { UserService } from "../../../../common/service/user/user.service";
 export type LoadMoreFunction = (start: number, count: number) => Promise<{ entries: DashboardEntry[]; more: boolean }>;
 
 @Component({
-  selector: "texera-search-results",
-  templateUrl: "./search-results.component.html",
-  styleUrls: ["./search-results.component.scss"],
-  
+    selector: "texera-search-results",
+    templateUrl: "./search-results.component.html",
+    styleUrls: ["./search-results.component.scss"],
+    standalone: false
 })
 export class SearchResultsComponent {
   loadMoreFunction: LoadMoreFunction | null = null;

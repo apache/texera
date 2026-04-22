@@ -33,10 +33,10 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
  */
 @UntilDestroy()
 @Component({
-  selector: "texera-codearea-custom-template",
-  templateUrl: "codearea-custom-template.component.html",
-  styleUrls: ["codearea-custom-template.component.scss"],
-  
+    selector: "texera-codearea-custom-template",
+    templateUrl: "codearea-custom-template.component.html",
+    styleUrls: ["codearea-custom-template.component.scss"],
+    standalone: false
 })
 export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
   componentRef: ComponentRef<CodeEditorComponent> | undefined;

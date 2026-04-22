@@ -29,10 +29,10 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-operator-menu",
-  templateUrl: "operator-menu.component.html",
-  styleUrls: ["operator-menu.component.scss"],
-  
+    selector: "texera-operator-menu",
+    templateUrl: "operator-menu.component.html",
+    styleUrls: ["operator-menu.component.scss"],
+    standalone: false
 })
 export class OperatorMenuComponent {
   public opList = new Map<string, Array<OperatorSchema>>();

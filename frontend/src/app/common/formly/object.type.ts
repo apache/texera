@@ -11,8 +11,8 @@ import { Component } from "@angular/core";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 
 @Component({
-  // selector: 'formly-object-type',
-  template: `
+    // selector: 'formly-object-type',
+    template: `
     <div class="mb-3">
       <legend *ngIf="props.label">{{ props.label }}</legend>
       <p *ngIf="props.description">{{ props.description }}</p>
@@ -27,7 +27,7 @@ import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
         [field]="f"></formly-field>
     </div>
   `,
-  
+    standalone: false
 })
 export class ObjectTypeComponent extends FieldType<FieldTypeConfig> {
   defaultOptions = {

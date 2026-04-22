@@ -34,10 +34,10 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 
 @UntilDestroy()
 @Component({
-  selector: "texera-share-access",
-  templateUrl: "share-access.component.html",
-  styleUrls: ["./share-access.component.scss"],
-  
+    selector: "texera-share-access",
+    templateUrl: "share-access.component.html",
+    styleUrls: ["./share-access.component.scss"],
+    standalone: false
 })
 export class ShareAccessComponent implements OnInit, OnDestroy {
   readonly nzModalData = inject(NZ_MODAL_DATA);
