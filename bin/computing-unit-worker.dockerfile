@@ -35,7 +35,8 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
-COPY LICENSE NOTICE DISCLAIMER-WIP ./
+COPY LICENSE LICENSE-binary NOTICE NOTICE-binary DISCLAIMER-WIP ./
+COPY licenses/ licenses/
 
 RUN sbt clean WorkflowExecutionService/dist
 
@@ -63,11 +64,27 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     (pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
      pip3 install --no-cache-dir wordcloud==1.9.2)
 
+# Generate an authoritative license manifest of the installed Python env.
+# Referenced by /texera/LICENSE (LICENSE-binary) as the source of truth for
+# the Python half of this image's bundled third-party dependencies.
+RUN pip3 install pip-licenses && \
+    mkdir -p /texera/licenses && \
+    pip-licenses --format=plain-vertical --with-urls --with-authors \
+      --output-file=/texera/licenses/python-3rdparty.txt
+
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
 COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/config/src/main/resources
+# Copy ASF licensing files. LICENSE-binary and NOTICE-binary describe the
+# bundled third-party contents of this image and ship as /texera/LICENSE
+# and /texera/NOTICE; licenses/ holds the per-license full texts referenced
+# by LICENSE-binary.
+COPY --from=build /texera/LICENSE-binary /texera/LICENSE
+COPY --from=build /texera/NOTICE-binary /texera/NOTICE
+COPY --from=build /texera/licenses /texera/licenses
+COPY --from=build /texera/DISCLAIMER-WIP /texera/
 CMD ["bin/computing-unit-worker"]
 
 EXPOSE 8085
