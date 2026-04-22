@@ -99,7 +99,7 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.18.6"
 libraryDependencies ++= Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,        // Jackson Databind
@@ -114,7 +114,7 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "14.0.1"
+val arrowVersion = "15.0.2"
 val nettyVersion = "4.1.96.Final"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
