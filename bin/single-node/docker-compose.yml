@@ -26,9 +26,36 @@ services:
       - "${MINIO_PORT:-9000}:9000"
     env_file:
       - .env
+    environment:
+      - MINIO_ROOT_USER=${STORAGE_S3_AUTH_USERNAME}
+      - MINIO_ROOT_PASSWORD=${STORAGE_S3_AUTH_PASSWORD}
     volumes:
       - minio_data:/data
     command: server --console-address ":9001" /data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # This job creates the S3 bucket used by the Iceberg warehouse that the
+  # Lakekeeper service manages.
+  minio-init:
+    image: minio/mc:RELEASE.2025-05-21T01-59-54Z
+    container_name: texera-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD"
+        mc mb --ignore-existing "local/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET"
+        echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' is ready."
 
   # PostgreSQL with PGroonga extension for full-text search.
   # Used by lakeFS and Texera's metadata storage.
@@ -63,6 +90,8 @@ services:
     environment:
       # This port also need to be changed if the port of MinIO service is changed
       - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:${MINIO_PORT:-9000}
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=${STORAGE_S3_AUTH_USERNAME}
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=${STORAGE_S3_AUTH_PASSWORD}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -74,6 +103,166 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # This job applies Lakekeeper's database schema to the Postgres instance —
+  # creating or upgrading the tables that Lakekeeper uses to track its catalog metadata.
+  lakekeeper-migrate:
+    image: vakamo/lakekeeper:v0.11.0
+    container_name: texera-lakekeeper-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: "no"
+    entrypoint: ["/home/nonroot/lakekeeper"]
+    command: ["migrate"]
+
+  # Lakekeeper is the Iceberg REST catalog service
+  lakekeeper:
+    image: vakamo/lakekeeper:v0.11.0
+    container_name: texera-lakekeeper
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      lakekeeper-migrate:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    entrypoint: ["/home/nonroot/lakekeeper"]
+    command: ["serve"]
+    healthcheck:
+      test: ["CMD", "/home/nonroot/lakekeeper", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # One-shot init container that creates the Lakekeeper default project and
+  # the Iceberg warehouse pointing at the MinIO bucket prepared by minio-init.
+  lakekeeper-init:
+    image: alpine:3.19
+    container_name: texera-lakekeeper-init
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    restart: "no"
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        set -e
+
+        echo "Installing curl (to call Lakekeeper's management API) and jq (to parse its list responses)..."
+        apk add --no-cache curl jq
+
+        # Lakekeeper organizes warehouses under "projects" (its top-level tenant
+        # abstraction). Texera is single-tenant, so we use the NIL UUID (all
+        # zeros) as the project ID — with LAKEKEEPER__ENABLE_DEFAULT_PROJECT=true
+        # (Lakekeeper's default), this is the project that any client request
+        # without a project-id is routed to.
+        echo "Step 1: Ensuring Lakekeeper's default project exists (top-level tenant that will hold the Iceberg warehouse)..."
+
+        echo "Checking whether Lakekeeper's default project already exists..."
+        PROJECT_GET_CODE=$$(curl -s -o /tmp/project.txt -w "%{http_code}" \
+            "$$LAKEKEEPER_BASE_URI/management/v1/project" || echo "000")
+
+        if [ "$$PROJECT_GET_CODE" = "200" ]; then
+          echo "Lakekeeper's default project already exists. Skipping creation."
+        elif [ "$$PROJECT_GET_CODE" = "404" ]; then
+          echo "Default project not found. Creating..."
+          PROJECT_PAYLOAD='{"project-id": "00000000-0000-0000-0000-000000000000", "project-name": "default"}'
+
+          PROJECT_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$$PROJECT_PAYLOAD" \
+              "$$LAKEKEEPER_BASE_URI/management/v1/project" || echo "000")
+
+          if [ "$$PROJECT_CODE" -lt 200 ] || [ "$$PROJECT_CODE" -ge 300 ]; then
+            echo "Failed to create Lakekeeper's default project. HTTP Code: $$PROJECT_CODE"
+            echo "ERROR RESPONSE:"
+            if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
+            echo ""
+            exit 1
+          fi
+          echo "Created Lakekeeper's default project successfully (HTTP $$PROJECT_CODE)."
+        else
+          echo "Failed to check Lakekeeper's default project. HTTP Code: $$PROJECT_GET_CODE"
+          echo "ERROR RESPONSE:"
+          if [ -f /tmp/project.txt ]; then cat /tmp/project.txt; fi
+          echo ""
+          exit 1
+        fi
+
+
+        echo "Step 2: Ensuring Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' exists..."
+
+        # Detect existing warehouse first so we only POST when it's actually
+        # missing — keeps this init idempotent across re-runs. 
+        echo "Checking whether Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists..."
+        WAREHOUSE_LIST_CODE=$$(curl -s -o /tmp/warehouses.txt -w "%{http_code}" \
+            "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
+
+        if [ "$$WAREHOUSE_LIST_CODE" -lt 200 ] || [ "$$WAREHOUSE_LIST_CODE" -ge 300 ]; then
+          echo "Failed to list Lakekeeper warehouses. HTTP Code: $$WAREHOUSE_LIST_CODE"
+          echo "ERROR RESPONSE:"
+          if [ -f /tmp/warehouses.txt ]; then cat /tmp/warehouses.txt; fi
+          echo ""
+          exit 1
+        fi
+
+        if jq -e --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name)' /tmp/warehouses.txt >/dev/null; then
+          echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Skipping creation."
+        else
+          echo "Warehouse not found. Creating '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME'..."
+          CREATE_PAYLOAD=$$(cat <<EOF
+        {
+          "warehouse-name": "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME",
+          "project-id": "00000000-0000-0000-0000-000000000000",
+          "storage-profile": {
+            "type": "s3",
+            "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "region": "$$STORAGE_S3_REGION",
+            "endpoint": "$$STORAGE_S3_ENDPOINT",
+            "flavor": "s3-compat",
+            "path-style-access": true,
+            "sts-enabled": false
+          },
+          "storage-credential": {
+            "type": "s3",
+            "credential-type": "access-key",
+            "aws-access-key-id": "$$STORAGE_S3_AUTH_USERNAME",
+            "aws-secret-access-key": "$$STORAGE_S3_AUTH_PASSWORD"
+          }
+        }
+        EOF
+          )
+
+          WAREHOUSE_CODE=$$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$$CREATE_PAYLOAD" \
+              "$$LAKEKEEPER_BASE_URI/management/v1/warehouse" || echo "000")
+
+          if [ "$$WAREHOUSE_CODE" -lt 200 ] || [ "$$WAREHOUSE_CODE" -ge 300 ]; then
+            echo "Failed to create Lakekeeper Warehouse. HTTP Code: $$WAREHOUSE_CODE"
+            echo "ERROR RESPONSE:"
+            if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
+            echo ""
+            exit 1
+          fi
+          echo "Created Lakekeeper Warehouse successfully (HTTP $$WAREHOUSE_CODE)."
+        fi
+
+        echo "Initialization sequence completed successfully!"
+
 
   # Part2: Specification of Texera's micro-services
   # FileService provides endpoints for Texera's dataset management
@@ -166,6 +355,10 @@ services:
     depends_on:
       workflow-compiling-service:
         condition: service_started
+      lakekeeper:
+        condition: service_healthy
+      lakekeeper-init:
+        condition: service_completed_successfully
     env_file:
       - .env
     volumes:
