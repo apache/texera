@@ -18,9 +18,10 @@
 // Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
 // Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
 // See project/AddMetaInfLicenseFiles.scala.
+// Dist-producing modules additionally override Universal / mappings in their own
+// build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
 lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings
 lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings
-lazy val asfDistLicensingSettings = AddMetaInfLicenseFiles.distSettings
 
 val jacksonVersion = "2.18.6"
 
@@ -32,7 +33,6 @@ lazy val Auth = (project in file("common/auth"))
 lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config)
   .settings(asfLicensingSettings)
-  .settings(asfDistLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -42,7 +42,6 @@ lazy val ConfigService = (project in file("config-service"))
 lazy val AccessControlService = (project in file("access-control-service"))
   .dependsOn(Auth, Config, DAO)
   .settings(asfLicensingSettings)
-  .settings(asfDistLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -67,7 +66,6 @@ lazy val WorkflowCore = (project in file("common/workflow-core"))
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config)
   .settings(asfLicensingSettings)
-  .settings(asfDistLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -76,7 +74,6 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   )
 lazy val FileService = (project in file("file-service"))
   .settings(asfLicensingSettings)
-  .settings(asfDistLicensingSettings)
   .dependsOn(WorkflowCore, Auth, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
@@ -93,7 +90,6 @@ lazy val WorkflowOperator = (project in file("common/workflow-operator")).settin
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
   .settings(asfLicensingSettings)
-  .settings(asfDistLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -106,7 +102,6 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
   .settings(asfLicensingSettings)
-  .settings(asfDistLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
