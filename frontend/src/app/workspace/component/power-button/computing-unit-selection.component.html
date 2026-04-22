@@ -166,7 +166,7 @@
             nz-tooltip
             *ngIf="unit.isOwner"
             [nzTooltipTitle]="'Python Environment'"
-            (click)="showPVEmodalVisible()">
+            (click)="selectedComputingUnit = unit; showPVEmodalVisible(); $event.stopPropagation()">
           </i>
           <i
             nz-icon
@@ -443,31 +443,49 @@
   [nzVisible]="pveModalVisible"
   nzTitle="Python Environments"
   (nzOnCancel)="pveModalVisible = false"
-  [nzFooter]="customFooter"
->
+  [nzFooter]="customFooter">
   <ng-template #customFooter>
     <div class="footer-all">
-      <button nz-button nzType="default" (click)="pveModalVisible = false">Close</button>
-      <button nz-button nzType="primary" (click)="addEnvironment()">Add Environment</button>
+      <button
+        nz-button
+        nzType="default"
+        (click)="pveModalVisible = false">
+        Close
+      </button>
+      <button
+        nz-button
+        nzType="primary"
+        (click)="addEnvironment()">
+        Add Environment
+      </button>
     </div>
   </ng-template>
 
   <ng-container *nzModalContent>
-
     <!-- Shared system packages -->
     <div class="system-section">
       <nz-collapse>
         <nz-collapse-panel nzHeader="System Packages (read-only)">
           <div class="system-panel-inner">
-            <div *ngFor="let pkg of systemPackages" class="package-row system-row">
+            <div
+              *ngFor="let pkg of systemPackages"
+              class="package-row system-row">
               <div class="package-inputs">
                 <div class="field">
                   <label>Package</label>
-                  <input nz-input class="system-input" [disabled]="true" [ngModel]="pkg.name" />
+                  <input
+                    nz-input
+                    class="system-input"
+                    [disabled]="true"
+                    [ngModel]="pkg.name" />
                 </div>
                 <div class="field">
                   <label>Version</label>
-                  <input nz-input class="system-input" [disabled]="true" [ngModel]="pkg.version" />
+                  <input
+                    nz-input
+                    class="system-input"
+                    [disabled]="true"
+                    [ngModel]="pkg.version" />
                 </div>
               </div>
             </div>
@@ -482,42 +500,54 @@
         *ngFor="let pve of pves; let envIndex = index; trackBy: trackByPveId"
         [nzActive]="pve.expanded"
         (nzActiveChange)="pve.expanded = $event"
-        [nzHeader]="headerTpl"
-      >
+        [nzHeader]="headerTpl">
         <!-- Custom header -->
         <ng-template #headerTpl>
           <div class="env-header">
-            <span class="env-title">
-              {{ pve.name }}
-            </span>
-            <span class="env-actions" (click)="$event.stopPropagation()">
+            <span class="env-title"> {{ pve.name }} </span>
+            <span
+              class="env-actions"
+              (click)="$event.stopPropagation()">
             </span>
           </div>
         </ng-template>
 
         <!-- Panel body -->
         <div class="ve-form">
-
           <div class="fieldRow">
             <label class="fieldLabel">Virtual Environment Name</label>
-            <input nz-input class="fieldInput" placeholder="Environment Name" [(ngModel)]="pve.name" />
+            <input
+              nz-input
+              class="fieldInput"
+              placeholder="Environment Name"
+              [(ngModel)]="pve.name" />
           </div>
 
           <!-- USER PACKAGES -->
-          <div class="section-title" *ngIf="pve.userPackages.length > 0">
+          <div
+            class="section-title"
+            *ngIf="pve.userPackages.length > 0">
             Installed User Packages
           </div>
 
-          <div *ngFor="let pkg of pve.userPackages; let i = index" class="package-row">
+          <div
+            *ngFor="let pkg of pve.userPackages; let i = index"
+            class="package-row">
             <div class="package-inputs">
               <div class="field">
                 <label>Package</label>
-                <input nz-input [ngModel]="pkg.name" [disabled]="true" />
+                <input
+                  nz-input
+                  [ngModel]="pkg.name"
+                  [disabled]="true" />
               </div>
 
               <div class="field">
                 <label>Version</label>
-                <input nz-input [ngModel]="pkg.version" [disabled]="true" />
+                <input
+                  nz-input
+                  [ngModel]="pkg.version"
+                  [disabled]="true" />
               </div>
             </div>
 
@@ -527,32 +557,50 @@
               nzShape="circle"
               nzDanger
               [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
-              (click)="togglePackageDelete(envIndex, pkg)"
-            >
-              <i nz-icon nzType="delete"></i>
+              (click)="togglePackageDelete(envIndex, pkg)">
+              <i
+                nz-icon
+                nzType="delete"></i>
             </button>
           </div>
 
           <!-- NEW PACKAGES -->
-          <div *ngFor="let pkg of pve.newPackages; let i = index" class="package-row">
+          <div
+            *ngFor="let pkg of pve.newPackages; let i = index"
+            class="package-row">
             <div class="package-inputs">
               <div class="field">
                 <label>Package</label>
-                <input nz-input placeholder="Package Name" [(ngModel)]="pve.newPackages[i].name" />
+                <input
+                  nz-input
+                  placeholder="Package Name"
+                  [(ngModel)]="pve.newPackages[i].name" />
               </div>
 
               <div class="field operator operator-select">
-                <label style="visibility: hidden;">Op</label>
-                <nz-select nzPlaceHolder="Select" nzCentered [(ngModel)]="pve.newPackages[i].operator">
-                  <nz-option nzValue="==" nzLabel="=="></nz-option>
-                  <nz-option nzValue=">=" nzLabel=">="></nz-option>
-                  <nz-option nzValue="<=" nzLabel="<="></nz-option>
+                <label style="visibility: hidden">Op</label>
+                <nz-select
+                  nzPlaceHolder="Select"
+                  nzCentered
+                  [(ngModel)]="pve.newPackages[i].operator">
+                  <nz-option
+                    nzValue="=="
+                    nzLabel="=="></nz-option>
+                  <nz-option
+                    nzValue=">="
+                    nzLabel=">="></nz-option>
+                  <nz-option
+                    nzValue="<="
+                    nzLabel="<="></nz-option>
                 </nz-select>
               </div>
 
               <div class="field">
                 <label>Version</label>
-                <input nz-input placeholder="Package Version (optional)" [(ngModel)]="pve.newPackages[i].version" />
+                <input
+                  nz-input
+                  placeholder="Package Version (optional)"
+                  [(ngModel)]="pve.newPackages[i].version" />
               </div>
             </div>
 
@@ -562,15 +610,22 @@
               nzShape="circle"
               nzDanger
               [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
-              (click)="togglePackageDelete(envIndex, pkg)"
-            >
-              <i nz-icon nzType="delete"></i>
+              (click)="togglePackageDelete(envIndex, pkg)">
+              <i
+                nz-icon
+                nzType="delete"></i>
             </button>
           </div>
 
           <div class="add-btn">
-            <button nz-button nzType="primary" nzShape="circle" (click)="addPackage(envIndex)">
-              <i nz-icon nzType="plus"></i>
+            <button
+              nz-button
+              nzType="primary"
+              nzShape="circle"
+              (click)="addPackage(envIndex)">
+              <i
+                nz-icon
+                nzType="plus"></i>
             </button>
           </div>
 
@@ -581,8 +636,7 @@
               nzType="primary"
               (click)="createVirtualEnvironment(envIndex)"
               [disabled]="!pve.name?.trim()"
-              [nzLoading]="pve.isInstalling"
-            >
+              [nzLoading]="pve.isInstalling">
               OK
             </button>
           </div>
@@ -591,17 +645,14 @@
           <div class="pip-panel">
             <div class="pip-panel-header">
               <span class="pip-panel-title">Pip Installation Output</span>
-              <span class="pip-panel-subtitle">
-                (Output will appear here after you click OK.)
-              </span>
+              <span class="pip-panel-subtitle"> (Output will appear here after you click OK.) </span>
             </div>
 
             <div class="pip-panel-body">
               <pre
                 class="pip-fullscreen-log"
                 [attr.id]="'pip-log-' + envIndex"
-                [innerHTML]="pve.prettyPipOutput || ' '"
-              ></pre>
+                [innerHTML]="pve.prettyPipOutput || ' '"></pre>
             </div>
           </div>
         </div>

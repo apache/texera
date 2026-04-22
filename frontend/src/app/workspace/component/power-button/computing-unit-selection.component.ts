@@ -86,11 +86,11 @@ type PveDraft = {
 })
 export class ComputingUnitSelectionComponent implements OnInit {
   // variables for creating a virtual environment
+  nextPveId = 1;
   pves: PveDraft[] = [this.makeEmptyPve(true)];
   systemPackages: { name: string; version: string }[] = [];
   pipModalCloseHandler: (() => void) | null = null;
   pveModalVisible = false;
-  nextPveId = 1;
 
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   protected readonly unitTypeMessageTemplate = unitTypeMessageTemplate;
@@ -712,31 +712,31 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .fetchPVEs(cuId)
       .pipe(untilDestroyed(this))
       .subscribe({
-      next: (resp: PvePackageResponse[]) => {
-        this.pves = resp.map((pve, index) => ({
-          id: index,
-          name: pve.pveName,
-          expanded: false,
-          isInstalling: false,
-          pipOutput: "",
-          prettyPipOutput: "",
-          userPackages: (pve.userPackages ?? []).map(pkg => {
-            const [name, version] = pkg.split("==");
-            return {
-              name: name.trim(),
-              version: (version ?? "").trim(),
-              deleteToggle: false,
-            };
-          }),
-          newPackages: [],
-          deletingPackages: [],
-        }));
-      },
-      error: (err: unknown) => {
-        console.error("Failed to fetch PVEs:", err);
-        this.pves = [];
-      },
-    });
+        next: (resp: PvePackageResponse[]) => {
+          this.pves = resp.map((pve, index) => ({
+            id: this.nextPveId++,
+            name: pve.pveName,
+            expanded: false,
+            isInstalling: false,
+            pipOutput: "",
+            prettyPipOutput: "",
+            userPackages: (pve.userPackages ?? []).map(pkg => {
+              const [name, version] = pkg.split("==");
+              return {
+                name: name.trim(),
+                version: (version ?? "").trim(),
+                deleteToggle: false,
+              };
+            }),
+            newPackages: [],
+            deletingPackages: [],
+          }));
+        },
+        error: (err: unknown) => {
+          console.error("Failed to fetch PVEs:", err);
+          this.pves = [];
+        },
+      });
   }
 
   addPackage(index: number): void {
@@ -747,7 +747,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   togglePackageDelete(index: number, pkg: PackageRow): void {
     const env = this.pves[index];
 
-    pkg.deleteToggle= !pkg.deleteToggle;
+    pkg.deleteToggle = !pkg.deleteToggle;
 
     const version = pkg.version ?? "";
 
@@ -770,6 +770,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }, 50);
   }
 
+  // Converts raw pip output for UI rendering by escaping unsafe characters and
+  // applying styling to exit codes, errors, warnings, and common success messages.
   updatePrettyPipOutput(index: number) {
     const env = this.pves[index];
 
@@ -785,14 +787,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const safe = escapeHtml(raw);
 
     env.prettyPipOutput = safe
-      .replace(
-        /^(\[pip\].*finished with exit code\s+0.*)$/gm,
-        "<span class=\"pip-exit ok\"><strong>$1</strong></span>"
-      )
-      .replace(
-        /^(\[pip\].*finished with exit code\s+1.*)$/gm,
-        "<span class=\"pip-exit err\"><strong>$1</strong></span>"
-      )
+      .replace(/^(\[pip\].*finished with exit code\s+0.*)$/gm, "<span class=\"pip-exit ok\"><strong>$1</strong></span>")
+      .replace(/^(\[pip\].*finished with exit code\s+1.*)$/gm, "<span class=\"pip-exit err\"><strong>$1</strong></span>")
       .replace(
         /^(\[pip\].*finished with exit code\s+([2-9]\d*).*)$/gm,
         "<span class=\"pip-exit err\"><strong>$1</strong></span>"
@@ -827,38 +823,38 @@ export class ComputingUnitSelectionComponent implements OnInit {
         .deletePackage(pkg.name)
         .pipe(untilDestroyed(this))
         .subscribe({
-        next: () => {
-          env.pipOutput += `Starting ...\nSuccessfully uninstalled package ${pkg.name}`;
-          this.updatePrettyPipOutput(index);
-          this.scrollToBottomOfPipModal(index);
+          next: () => {
+            env.pipOutput += `Starting ...\nSuccessfully uninstalled package ${pkg.name}`;
+            this.updatePrettyPipOutput(index);
+            this.scrollToBottomOfPipModal(index);
 
-          this.workflowPveService
-            .getInstalledPackages()
-            .pipe(untilDestroyed(this))
-            .subscribe({
-            next: resp => {
-              this.systemPackages = resp.system.map(pkgStr => {
-                const [name, version] = pkgStr.split("==");
-                return { name: name.trim(), version: (version ?? "").trim() };
+            this.workflowPveService
+              .getInstalledPackages()
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                next: resp => {
+                  this.systemPackages = resp.system.map(pkgStr => {
+                    const [name, version] = pkgStr.split("==");
+                    return { name: name.trim(), version: (version ?? "").trim() };
+                  });
+
+                  env.userPackages = resp.user.map(pkgStr => {
+                    const [name, version] = pkgStr.split("==");
+                    return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
+                  });
+
+                  env.deletingPackages = [];
+                },
+                error: (e: unknown) => console.error("Failed to refresh packages after delete", e),
               });
-
-              env.userPackages = resp.user.map(pkgStr => {
-                const [name, version] = pkgStr.split("==");
-                return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
-              });
-
-              env.deletingPackages = [];
-            },
-            error: (e: unknown) => console.error("Failed to refresh packages after delete", e),
-          });
-        },
-        error: (err: unknown) => {
-          console.error("Error deleting package:", err);
-          env.pipOutput += `\nError uninstalling ${pkg.name}`;
-          this.updatePrettyPipOutput(index);
-          this.scrollToBottomOfPipModal(index);
-        },
-      });
+          },
+          error: (err: unknown) => {
+            console.error("Error deleting package:", err);
+            env.pipOutput += `\nError uninstalling ${pkg.name}`;
+            this.updatePrettyPipOutput(index);
+            this.scrollToBottomOfPipModal(index);
+          },
+        });
     }
 
     const packageArray: string[] = [];
@@ -886,8 +882,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     env.source?.close();
     env.source = undefined;
 
-    const url =
-      `/pve/?packages=${query}` + `&cuid=${cuId}` + `&pveName=${encodeURIComponent(env.name)}` + tokenParam;
+    const url = `/pve/?packages=${query}` + `&cuid=${cuId}` + `&pveName=${encodeURIComponent(env.name)}` + tokenParam;
 
     const source = new EventSource(url);
     env.source = source;
@@ -902,22 +897,22 @@ export class ComputingUnitSelectionComponent implements OnInit {
           .getInstalledPackages()
           .pipe(untilDestroyed(this))
           .subscribe({
-          next: resp => {
-            this.systemPackages = resp.system.map(pkg => {
-              const [name, version] = pkg.split("==");
-              return { name: name.trim(), version: (version ?? "").trim() };
-            });
+            next: resp => {
+              this.systemPackages = resp.system.map(pkg => {
+                const [name, version] = pkg.split("==");
+                return { name: name.trim(), version: (version ?? "").trim() };
+              });
 
-            env.userPackages = resp.user.map(pkg => {
-              const [name, version] = pkg.split("==");
-              return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
-            });
+              env.userPackages = resp.user.map(pkg => {
+                const [name, version] = pkg.split("==");
+                return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
+              });
 
-            env.newPackages = [];
-            env.deletingPackages = [];
-          },
-          error: (e: unknown) => console.error("Failed to refresh packages", e),
-        });
+              env.newPackages = [];
+              env.deletingPackages = [];
+            },
+            error: (e: unknown) => console.error("Failed to refresh packages", e),
+          });
 
         env.source?.close();
         env.source = undefined;

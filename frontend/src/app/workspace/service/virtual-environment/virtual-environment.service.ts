@@ -18,8 +18,7 @@
 
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable } from "rxjs";
-import {HttpClient, HttpParams} from "@angular/common/http";
-
+import { HttpClient, HttpParams } from "@angular/common/http";
 
 export interface PackageResponse {
   system: string[];
@@ -60,7 +59,7 @@ export class WorkflowPveService {
 
   private requirePveName(): string {
     const pveName = this.pveNameSubject.value;
-    if (pveName === null){
+    if (pveName === null) {
       throw new Error("Environment Name is not set");
     }
 
@@ -108,7 +107,7 @@ export class WorkflowPveService {
     return this.http.post<string[]>(url, {}, { params });
   }
 
-  getEnvironments(): Observable<string[]>{
+  getEnvironments(): Observable<string[]> {
     let params = new HttpParams().set("cuid", this.requireCuid().toString());
     const token = this.getAccessToken();
     if (token) {

@@ -49,18 +49,9 @@ object PveManager {
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
-  private def ensureDirExists(path: Path): Unit = {
-    if (!Files.exists(path)) Files.createDirectories(path)
-  }
-
   private def cuidDir(cuid: Int, pvename: String): Path = {
-    ensureDirExists(VenvRoot)
-    val cuIdDir = VenvRoot.resolve(cuid.toString)
-    ensureDirExists(cuIdDir)
-
-    val dir = cuIdDir.resolve(pvename)
-    ensureDirExists(dir)
-
+    val dir = VenvRoot.resolve(cuid.toString).resolve(pvename)
+    Files.createDirectories(dir)
     dir
   }
 
@@ -82,13 +73,10 @@ object PveManager {
   private def userPackagesPath(cuid: Int, pveName: String): Path =
     metadataDir(cuid, pveName).resolve("user-packages.txt")
 
-  private def ensureParentDir(path: Path): Unit = {
-    val parent = path.getParent
-    if (parent != null && !Files.exists(parent)) Files.createDirectories(parent)
-  }
-
   private def writeMetadata(path: Path, lines: Seq[String]): Unit = {
-    ensureParentDir(path)
+    if (path.getParent != null) {
+      Files.createDirectories(path.getParent)
+    }
     Files.write(
       path,
       lines.asJava,
@@ -299,7 +287,6 @@ object PveManager {
     queue.put(s"[PVE] Creating new PVE for cuid=$cuid with name=$pveName")
 
     val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
-    ensureDirExists(cuidDir(cuid, pveName))
 
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val envVars = pipEnv
@@ -368,7 +355,7 @@ object PveManager {
         queue.put(s"[pve] removed existing venv with exit code $rmCode")
       }
 
-      ensureDirExists(venvDirPath.getParent)
+      Files.createDirectories(venvDirPath.getParent)
       queue.put(s"[PVE] Creating fresh local venv at ${venvDirPath.toString}")
 
       val createCode = Process(Seq("python3", "-m", "venv", venvDirPath.toString)).!(
@@ -384,7 +371,7 @@ object PveManager {
         return
       }
 
-      ensureDirExists(metadataDir(cuid, pveName))
+      Files.createDirectories(metadataDir(cuid, pveName))
       val reqFile1 = metadataDir(cuid, pveName).resolve("requirements.txt")
       val reqFile2 = metadataDir(cuid, pveName).resolve("operator-requirements.txt")
       Files.write(reqFile1, Requirements.getBytes(StandardCharsets.UTF_8))
@@ -438,7 +425,7 @@ object PveManager {
       queue.put(s"[pve] removed existing venv with exit code $rmCode")
     }
 
-    ensureDirExists(venvDirPath.getParent)
+    Files.createDirectories(venvDirPath.getParent)
     queue.put(s"[PVE] Copying base venv from $pveBase to ${venvDirPath.toString}")
 
     val copyCode = Process(Seq("bash", "-lc", s"cp -a '${pveBase}' '${venvDirPath.toString}'")).!(
@@ -479,7 +466,7 @@ object PveManager {
     )
     queue.put(s"[pve] rewrite finished with exit code $fixCode")
 
-    ensureDirExists(metadataDir(cuid, pveName))
+    Files.createDirectories(metadataDir(cuid, pveName))
     val reqFile1 = metadataDir(cuid, pveName).resolve("requirements.txt")
     val reqFile2 = metadataDir(cuid, pveName).resolve("operator-requirements.txt")
     Files.write(reqFile1, Requirements.getBytes(StandardCharsets.UTF_8))
