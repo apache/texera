@@ -28,10 +28,10 @@ import { CoeditorPresenceService } from "../../../service/workflow-graph/model/c
  */
 
 @Component({
-    selector: "texera-coeditor-user-icon",
-    templateUrl: "coeditor-user-icon.component.html",
-    styleUrls: ["coeditor-user-icon.component.css"],
-    standalone: false
+  selector: "texera-coeditor-user-icon",
+  templateUrl: "coeditor-user-icon.component.html",
+  styleUrls: ["coeditor-user-icon.component.css"],
+  
 })
 export class CoeditorUserIconComponent {
   @Input() coeditor: Coeditor = {

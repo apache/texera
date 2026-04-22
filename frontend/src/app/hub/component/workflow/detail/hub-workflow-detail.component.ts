@@ -36,10 +36,10 @@ export const THROTTLE_TIME_MS = 1000;
 
 @UntilDestroy()
 @Component({
-    selector: "texera-hub-workflow-detail",
-    templateUrl: "hub-workflow-detail.component.html",
-    styleUrls: ["hub-workflow-detail.component.scss"],
-    standalone: false
+  selector: "texera-hub-workflow-detail",
+  templateUrl: "hub-workflow-detail.component.html",
+  styleUrls: ["hub-workflow-detail.component.scss"],
+  
 })
 export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnInit {
   isHub: boolean = false;

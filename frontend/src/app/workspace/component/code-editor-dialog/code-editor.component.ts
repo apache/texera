@@ -65,10 +65,10 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
  */
 @UntilDestroy()
 @Component({
-    selector: "texera-code-editor",
-    templateUrl: "code-editor.component.html",
-    styleUrls: ["code-editor.component.scss"],
-    standalone: false
+  selector: "texera-code-editor",
+  templateUrl: "code-editor.component.html",
+  styleUrls: ["code-editor.component.scss"],
+  
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;

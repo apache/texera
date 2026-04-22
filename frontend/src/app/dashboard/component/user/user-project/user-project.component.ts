@@ -28,10 +28,10 @@ import { PublicProjectComponent } from "./public-project/public-project.componen
 
 @UntilDestroy()
 @Component({
-    selector: "texera-user-project-list",
-    templateUrl: "./user-project.component.html",
-    styleUrls: ["./user-project.component.scss"],
-    standalone: false
+  selector: "texera-user-project-list",
+  templateUrl: "./user-project.component.html",
+  styleUrls: ["./user-project.component.scss"],
+  
 })
 export class UserProjectComponent implements OnInit {
   // store list of projects / variables to create and edit projects

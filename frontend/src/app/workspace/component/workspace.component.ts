@@ -47,14 +47,14 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
 @UntilDestroy()
 @Component({
-    selector: "texera-workspace",
-    templateUrl: "./workspace.component.html",
-    styleUrls: ["./workspace.component.scss"],
-    providers: [
+  selector: "texera-workspace",
+  templateUrl: "./workspace.component.html",
+  styleUrls: ["./workspace.component.scss"],
+  providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-    ],
-    standalone: false
+  ],
+  
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;

@@ -30,10 +30,10 @@ import { YType } from "../../../types/shared-editing.interface";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-nz-modal-comment-box",
-    templateUrl: "./nz-modal-comment-box.component.html",
-    styleUrls: ["./nz-modal-comment-box.component.scss"],
-    standalone: false
+  selector: "texera-nz-modal-comment-box",
+  templateUrl: "./nz-modal-comment-box.component.html",
+  styleUrls: ["./nz-modal-comment-box.component.scss"],
+  
 })
 export class NzModalCommentBoxComponent {
   readonly commentBox: YType<CommentBox> = inject(NZ_MODAL_DATA).commentBox;

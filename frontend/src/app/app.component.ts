@@ -23,8 +23,8 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-root",
-    template: `
+  selector: "texera-root",
+  template: `
     <div
       *ngIf="!configLoaded"
       id="config-error">
@@ -35,7 +35,7 @@ import { UntilDestroy } from "@ngneat/until-destroy";
     </div>
     <router-outlet *ngIf="configLoaded"></router-outlet>
   `,
-    standalone: false
+  
 })
 export class AppComponent {
   configLoaded = false;

@@ -47,10 +47,10 @@ import { User } from "../../common/type/user";
 import { Role } from "../../common/type/user";
 
 @Component({
-    selector: "texera-dashboard",
-    templateUrl: "dashboard.component.html",
-    styleUrls: ["dashboard.component.scss"],
-    standalone: false
+  selector: "texera-dashboard",
+  templateUrl: "dashboard.component.html",
+  styleUrls: ["dashboard.component.scss"],
+  
 })
 @UntilDestroy()
 export class DashboardComponent implements OnInit {

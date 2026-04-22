@@ -22,10 +22,10 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { Observable, of } from "rxjs";
 
 @Component({
-    selector: "texera-user-avatar",
-    templateUrl: "./user-avatar.component.html",
-    styleUrls: ["./user-avatar.component.scss"],
-    standalone: false
+  selector: "texera-user-avatar",
+  templateUrl: "./user-avatar.component.html",
+  styleUrls: ["./user-avatar.component.scss"],
+  
 })
 
 /**

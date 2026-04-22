@@ -32,10 +32,10 @@ import { UdfDebugService } from "../../../service/operator-debug/udf-debug.servi
 
 @UntilDestroy()
 @Component({
-    selector: "texera-console-frame",
-    templateUrl: "./console-frame.component.html",
-    styleUrls: ["./console-frame.component.scss"],
-    standalone: false
+  selector: "texera-console-frame",
+  templateUrl: "./console-frame.component.html",
+  styleUrls: ["./console-frame.component.scss"],
+  
 })
 export class ConsoleFrameComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;

@@ -21,10 +21,10 @@ import { Component, Inject, Input, TemplateRef, ViewChild } from "@angular/core"
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @Component({
-    selector: "texera-registration-request-modal",
-    templateUrl: "./registration-request-modal.component.html",
-    styleUrls: ["./registration-request-modal.component.scss"],
-    standalone: false
+  selector: "texera-registration-request-modal",
+  templateUrl: "./registration-request-modal.component.html",
+  styleUrls: ["./registration-request-modal.component.scss"],
+  
 })
 
 // Component for registration form modal

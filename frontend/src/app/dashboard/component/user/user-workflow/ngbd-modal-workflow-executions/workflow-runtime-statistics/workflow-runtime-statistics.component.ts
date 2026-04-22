@@ -35,10 +35,10 @@ interface ChartData {
 
 @UntilDestroy()
 @Component({
-    selector: "texera-workflow-runtime-statistics",
-    templateUrl: "./workflow-runtime-statistics.component.html",
-    styleUrls: ["./workflow-runtime-statistics.component.scss"],
-    standalone: false
+  selector: "texera-workflow-runtime-statistics",
+  templateUrl: "./workflow-runtime-statistics.component.html",
+  styleUrls: ["./workflow-runtime-statistics.component.scss"],
+  
 })
 export class WorkflowRuntimeStatisticsComponent implements OnInit {
   readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;

@@ -37,10 +37,10 @@ import { map, tap } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-dataset-section",
-    templateUrl: "user-dataset.component.html",
-    styleUrls: ["user-dataset.component.scss"],
-    standalone: false
+  selector: "texera-dataset-section",
+  templateUrl: "user-dataset.component.html",
+  styleUrls: ["user-dataset.component.scss"],
+  
 })
 export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;

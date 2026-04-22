@@ -29,10 +29,10 @@ import { DASHBOARD_USER_PROJECT } from "../../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-user-project-list-item",
-    templateUrl: "./user-project-list-item.component.html",
-    styleUrls: ["./user-project-list-item.component.scss"],
-    standalone: false
+  selector: "texera-user-project-list-item",
+  templateUrl: "./user-project-list-item.component.html",
+  styleUrls: ["./user-project-list-item.component.scss"],
+  
 })
 export class UserProjectListItemComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = DASHBOARD_USER_PROJECT;

@@ -24,10 +24,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-gmail",
-    templateUrl: "./admin-gmail.component.html",
-    styleUrls: ["./admin-gmail.component.scss"],
-    standalone: false
+  selector: "texera-gmail",
+  templateUrl: "./admin-gmail.component.html",
+  styleUrls: ["./admin-gmail.component.scss"],
+  
 })
 export class AdminGmailComponent implements OnInit {
   public validateForm!: FormGroup;

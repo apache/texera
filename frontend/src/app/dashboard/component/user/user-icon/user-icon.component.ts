@@ -31,10 +31,10 @@ import { DASHBOARD_ABOUT } from "../../../../app-routing.constant";
  */
 @UntilDestroy()
 @Component({
-    selector: "texera-user-icon",
-    templateUrl: "./user-icon.component.html",
-    styleUrls: ["./user-icon.component.scss"],
-    standalone: false
+  selector: "texera-user-icon",
+  templateUrl: "./user-icon.component.html",
+  styleUrls: ["./user-icon.component.scss"],
+  
 })
 export class UserIconComponent {
   public user: User | undefined;

@@ -28,10 +28,10 @@ import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-add-project-workflow-modal",
-    templateUrl: "./ngbd-modal-add-project-workflow.component.html",
-    styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
-    standalone: false
+  selector: "texera-add-project-workflow-modal",
+  templateUrl: "./ngbd-modal-add-project-workflow.component.html",
+  styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
+  
 })
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   readonly projectId: number = inject(NZ_MODAL_DATA).projectId;
