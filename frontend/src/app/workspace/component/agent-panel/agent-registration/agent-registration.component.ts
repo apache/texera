@@ -186,6 +186,7 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
       operatorPositions: {},
       settings: {
         dataTransferBatchSize: this.guiConfigService.env.defaultDataTransferBatchSize,
+        executionMode: this.guiConfigService.env.defaultExecutionMode,
       },
     };
 

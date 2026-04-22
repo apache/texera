@@ -276,10 +276,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       )
       .subscribe(workflow => {
         if (workflow) {
-          // Reload the workflow in the workspace with preserveViewport=true
-          // to keep the user's current view position
           console.log("[AgentChat] Reloading workflow from backend (active agent)");
-          this.workflowActionService.reloadWorkflow(workflow, false, true);
+          this.workflowActionService.reloadWorkflow(workflow, false);
         }
       });
 
