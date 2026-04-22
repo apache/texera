@@ -26,10 +26,10 @@ import { forkJoin } from "rxjs";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-settings",
-    templateUrl: "./admin-settings.component.html",
-    styleUrls: ["./admin-settings.component.scss"],
-    standalone: false
+  selector: "texera-settings",
+  templateUrl: "./admin-settings.component.html",
+  styleUrls: ["./admin-settings.component.scss"],
+  standalone: false,
 })
 export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;

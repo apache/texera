@@ -29,10 +29,10 @@ import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-user-dataset-list-item",
-    templateUrl: "./user-dataset-list-item.component.html",
-    styleUrls: ["./user-dataset-list-item.component.scss"],
-    standalone: false
+  selector: "texera-user-dataset-list-item",
+  templateUrl: "./user-dataset-list-item.component.html",
+  styleUrls: ["./user-dataset-list-item.component.scss"],
+  standalone: false,
 })
 export class UserDatasetListItemComponent {
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;

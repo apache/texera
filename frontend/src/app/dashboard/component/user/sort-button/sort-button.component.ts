@@ -21,10 +21,10 @@ import { Component, EventEmitter, Output } from "@angular/core";
 import { SortMethod } from "../../../type/sort-method";
 
 @Component({
-    selector: "texera-sort-button",
-    templateUrl: "./sort-button.component.html",
-    styleUrls: ["./sort-button.component.scss"],
-    standalone: false
+  selector: "texera-sort-button",
+  templateUrl: "./sort-button.component.html",
+  styleUrls: ["./sort-button.component.scss"],
+  standalone: false,
 })
 export class SortButtonComponent {
   @Output()

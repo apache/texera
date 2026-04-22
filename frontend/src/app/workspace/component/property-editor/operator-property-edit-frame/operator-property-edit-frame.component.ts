@@ -88,10 +88,10 @@ Quill.register("modules/cursors", QuillCursors);
  */
 @UntilDestroy()
 @Component({
-    selector: "texera-formly-form-frame",
-    templateUrl: "./operator-property-edit-frame.component.html",
-    styleUrls: ["./operator-property-edit-frame.component.scss"],
-    standalone: false
+  selector: "texera-formly-form-frame",
+  templateUrl: "./operator-property-edit-frame.component.html",
+  styleUrls: ["./operator-property-edit-frame.component.scss"],
+  standalone: false,
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() currentOperatorId?: string;

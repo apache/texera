@@ -33,10 +33,10 @@ import { UserService } from "../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-landing-page",
-    templateUrl: "./landing-page.component.html",
-    styleUrls: ["./landing-page.component.scss"],
-    standalone: false
+  selector: "texera-landing-page",
+  templateUrl: "./landing-page.component.html",
+  styleUrls: ["./landing-page.component.scss"],
+  standalone: false,
 })
 export class LandingPageComponent implements OnInit {
   public isLogin = this.userService.isLogin();

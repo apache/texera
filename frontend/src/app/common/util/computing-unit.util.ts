@@ -22,7 +22,7 @@ import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
 
 @Component({
-    template: `
+  template: `
     <table class="ant-table">
       <tbody>
         <tr>
@@ -68,7 +68,7 @@ import { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit"
       </tbody>
     </table>
   `,
-    standalone: false
+  standalone: false,
 })
 export class ComputingUnitMetadataComponent {
   readonly unit: DashboardWorkflowComputingUnit = inject(NZ_MODAL_DATA);

@@ -27,10 +27,10 @@ import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
 
 @Component({
-    selector: "texera-hub",
-    templateUrl: "hub.component.html",
-    styleUrls: ["hub.component.scss"],
-    standalone: false
+  selector: "texera-hub",
+  templateUrl: "hub.component.html",
+  styleUrls: ["hub.component.scss"],
+  standalone: false,
 })
 export class HubComponent {
   @Input() isLogin: boolean = false;

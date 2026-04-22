@@ -31,9 +31,9 @@ export const NO_SORT = "NO_SORTING";
 
 @UntilDestroy()
 @Component({
-    templateUrl: "./admin-execution.component.html",
-    styleUrls: ["./admin-execution.component.scss"],
-    standalone: false
+  templateUrl: "./admin-execution.component.html",
+  styleUrls: ["./admin-execution.component.scss"],
+  standalone: false,
 })
 export class AdminExecutionComponent implements OnInit, OnDestroy {
   listOfExecutions: ReadonlyArray<Execution> = [];

@@ -45,10 +45,10 @@ import { PanelService } from "../../service/panel/panel.service";
  */
 @UntilDestroy()
 @Component({
-    selector: "texera-property-editor",
-    templateUrl: "property-editor.component.html",
-    styleUrls: ["property-editor.component.scss"],
-    standalone: false
+  selector: "texera-property-editor",
+  templateUrl: "property-editor.component.html",
+  styleUrls: ["property-editor.component.scss"],
+  standalone: false,
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
   @ViewChild("contentWrapper") contentWrapperRef!: ElementRef;

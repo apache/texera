@@ -27,11 +27,11 @@ export interface ConflictingFileModalData {
 }
 
 @Component({
-    selector: "texera-conflicting-file-modal-content",
-    templateUrl: "./conflicting-file-modal-content.component.html",
-    styleUrls: ["./conflicting-file-modal-content.component.scss"],
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: false
+  selector: "texera-conflicting-file-modal-content",
+  templateUrl: "./conflicting-file-modal-content.component.html",
+  styleUrls: ["./conflicting-file-modal-content.component.scss"],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class ConflictingFileModalContentComponent {
   readonly data: ConflictingFileModalData = inject(NZ_MODAL_DATA);

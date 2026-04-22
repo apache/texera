@@ -26,10 +26,10 @@ import { ActivatedRoute } from "@angular/router";
 
 @UntilDestroy()
 @Component({
-    selector: "texera-version-list",
-    templateUrl: "versions-list.component.html",
-    styleUrls: ["versions-list.component.scss"],
-    standalone: false
+  selector: "texera-version-list",
+  templateUrl: "versions-list.component.html",
+  styleUrls: ["versions-list.component.scss"],
+  standalone: false,
 })
 export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;

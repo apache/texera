@@ -42,10 +42,10 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
  */
 @UntilDestroy()
 @Component({
-    selector: "texera-result-table-frame",
-    templateUrl: "./result-table-frame.component.html",
-    styleUrls: ["./result-table-frame.component.scss"],
-    standalone: false
+  selector: "texera-result-table-frame",
+  templateUrl: "./result-table-frame.component.html",
+  styleUrls: ["./result-table-frame.component.scss"],
+  standalone: false,
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;

@@ -32,9 +32,9 @@ type UserServiceType = AdminUserService | UserQuotaService;
 
 @UntilDestroy()
 @Component({
-    templateUrl: "./user-quota.component.html",
-    styleUrls: ["./user-quota.component.scss"],
-    standalone: false
+  templateUrl: "./user-quota.component.html",
+  styleUrls: ["./user-quota.component.scss"],
+  standalone: false,
 })
 export class UserQuotaComponent implements OnInit {
   readonly userId: number;
