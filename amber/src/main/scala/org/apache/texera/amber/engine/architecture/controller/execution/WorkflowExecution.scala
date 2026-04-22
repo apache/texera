@@ -44,6 +44,7 @@ case class WorkflowExecution() {
     * @throws AssertionError if the `RegionExecution` has already been initialized.
     */
   def initRegionExecution(region: Region): RegionExecution = {
+    regionExecutions.remove(region.id)
     // ensure the region execution hasn't been initialized already.
     assert(
       !regionExecutions.contains(region.id),
