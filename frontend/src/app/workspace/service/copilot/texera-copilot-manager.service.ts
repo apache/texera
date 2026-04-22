@@ -38,7 +38,7 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { AppSettings } from "../../../common/app-setting";
 import { AuthService } from "../../../common/service/user/auth.service";
-import { CopilotState, ReActStep, ModelMessage, CopilotMessageStats, OperatorStepRef } from "./copilot-types";
+import { CopilotState, ReActStep, ModelMessage, OperatorStepRef } from "./copilot-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 
@@ -168,7 +168,6 @@ interface LiteLLMModelsResponse {
 interface AgentStateTracking {
   stateSubject: BehaviorSubject<CopilotState>;
   reActStepsSubject: BehaviorSubject<ReActStep[]>;
-  messageStatsSubject: BehaviorSubject<Map<string, CopilotMessageStats>>;
   hoveredMessageSubject: BehaviorSubject<{
     viewedOperatorIds: string[];
     addedOperatorIds: string[];
@@ -373,7 +372,6 @@ export class TexeraCopilotManagerService {
       tracking = {
         stateSubject: new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE),
         reActStepsSubject: new BehaviorSubject<ReActStep[]>([]),
-        messageStatsSubject: new BehaviorSubject<Map<string, CopilotMessageStats>>(new Map()),
         hoveredMessageSubject: new BehaviorSubject<{
           viewedOperatorIds: string[];
           addedOperatorIds: string[];
@@ -561,27 +559,6 @@ export class TexeraCopilotManagerService {
         // Message processing complete
         if (message.state) {
           tracking.stateSubject.next(this.mapStateToCopilotState(message.state));
-        }
-        // Update message stats if stats are included
-        if (message.stats) {
-          const s = message.stats;
-          const stat: CopilotMessageStats = {
-            messageId: s.messageId,
-            userMessage: s.userMessage || "",
-            startTime: new Date(s.startTime),
-            endTime: s.endTime ? new Date(s.endTime) : undefined,
-            totalInputTokens: s.totalInputTokens || 0,
-            totalOutputTokens: s.totalOutputTokens || 0,
-            totalTokens: s.totalTokens || 0,
-            cachedInputTokens: s.cachedInputTokens || 0,
-            stepCount: s.stepCount || 0,
-            status: s.status || "completed",
-            errorMessage: s.errorMessage,
-          };
-          const currentStats = tracking.messageStatsSubject.getValue();
-          const updatedStats = new Map(currentStats);
-          updatedStats.set(stat.messageId, stat);
-          tracking.messageStatsSubject.next(updatedStats);
         }
         // Update operator results on completion
         if (message.operatorResults) {
@@ -1007,41 +984,6 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Send a replay message to an agent via WebSocket.
-   * This initiates trace replay, where the agent executes tool calls step by step
-   * to reconstruct the workflow.
-   * @param agentId - The agent to send the replay message to
-   * @param trace - The trace content containing messages to replay
-   */
-  public sendReplayMessage(agentId: string, trace: { response: string; messages: any[] }): void {
-    const agent = this.agents.get(agentId);
-    if (!agent) {
-      this.notificationService.error(`Agent with ID ${agentId} not found`);
-      return;
-    }
-
-    const tracking = this.agentStateTracking.get(agentId);
-    if (!tracking || !tracking.websocket || tracking.websocket.readyState !== WebSocket.OPEN) {
-      this.notificationService.error("WebSocket connection not available for replay");
-      return;
-    }
-
-    // Send replay message via WebSocket
-    const wsMessage = {
-      type: "replay",
-      trace: trace,
-    };
-
-    try {
-      tracking.websocket.send(JSON.stringify(wsMessage));
-      console.log(`[CopilotManager] Sent replay message to agent ${agentId}: ${trace.messages.length} messages`);
-    } catch (error) {
-      console.error("[CopilotManager] Failed to send replay message:", error);
-      this.notificationService.error("Failed to send replay message");
-    }
-  }
-
-  /**
    * Get the ReActSteps observable stream.
    */
   public getReActStepsObservable(agentId: string): Observable<ReActStep[]> {
@@ -1068,7 +1010,6 @@ export class TexeraCopilotManagerService {
         const tracking = this.agentStateTracking.get(agentId);
         if (tracking) {
           tracking.reActStepsSubject.next([]);
-          tracking.messageStatsSubject.next(new Map());
         }
       },
       error: (error: unknown) => {
@@ -1191,14 +1132,6 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Get agent internal state for debugging.
-   * Fetches from agent-service API.
-   */
-  public getAgentInternalState(agentId: string): Observable<object> {
-    return this.http.get<object>(`${this.AGENT_API_BASE}/agents/${agentId}/state`, this.agentHeaders(agentId)).pipe(catchError(() => of({})));
-  }
-
-  /**
    * Set hovered message (local UI state).
    */
   public setHoveredMessage(agentId: string, step: ReActStep | null): void {
@@ -1238,29 +1171,6 @@ export class TexeraCopilotManagerService {
   ): Observable<{ viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }> {
     const tracking = this.getOrCreateStateTracking(agentId);
     return tracking.hoveredMessageSubject.asObservable();
-  }
-
-  /**
-   * Get message stats observable.
-   */
-  public getMessageStatsObservable(agentId: string): Observable<Map<string, CopilotMessageStats>> {
-    const tracking = this.getOrCreateStateTracking(agentId);
-    return tracking.messageStatsSubject.asObservable();
-  }
-
-  /**
-   * Get raw AI SDK messages for an agent (for export/replay).
-   * Returns the messages in Vercel AI SDK ModelMessage format.
-   */
-  public getMessages(agentId: string): Observable<{ messages: any[] }> {
-    return this.http.get<{ messages: any[] }>(`${this.AGENT_API_BASE}/agents/${agentId}/messages`, this.agentHeaders(agentId)).pipe(
-      catchError((error: unknown) => {
-        const err = error as { error?: { error?: string }; message?: string };
-        const errorMsg = err.error?.error || err.message || "Failed to get messages";
-        this.notificationService.error(errorMsg);
-        return throwError(() => new Error(errorMsg));
-      })
-    );
   }
 
   /**

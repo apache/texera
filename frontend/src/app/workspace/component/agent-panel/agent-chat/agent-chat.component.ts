@@ -32,7 +32,7 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subject } from "rxjs";
 import { distinctUntilChanged, filter, pairwise, startWith, takeUntil } from "rxjs/operators";
-import { CopilotState, ReActStep, CopilotMessageStats } from "../../../service/copilot/copilot-types";
+import { CopilotState, ReActStep } from "../../../service/copilot/copilot-types";
 import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -63,8 +63,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public systemPrompt: string = "";
   public availableTools: Array<{ name: string; description: string; inputSchema: any; enabled: boolean }> = [];
   public agentState: CopilotState = CopilotState.UNAVAILABLE;
-  public isStatsModalVisible = false;
-  public messageStats: CopilotMessageStats[] = [];
 
   // Current HEAD step ID in the version tree
   public currentHeadId: string | null = null;
@@ -82,11 +80,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public settingsAllowedOperatorTypes: string[] = []; // Allowed operator types for general mode
   public allAvailableOperatorTypes: Array<{ type: string; description: string }> = []; // All operator types from backend
   public operatorTypeSearchQuery = ""; // Search filter for operator types
-  public agentInternalState: object | null = null;
-  public isLoadingAgentState = false;
-
-  // Tool panel state
-  public expandedToolName: string | null = null;
 
   // Step badge toggle state (legacy - kept for compatibility)
   public showStepBadges = false;
@@ -175,15 +168,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe(headId => {
         this.currentHeadId = headId;
         this.updateVisibleSteps();
-        this.cdr.detectChanges();
-      });
-
-    // Subscribe to message stats changes
-    this.copilotManagerService
-      .getMessageStatsObservable(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(statsMap => {
-        this.messageStats = Array.from(statsMap.values());
         this.cdr.detectChanges();
       });
 
@@ -351,7 +335,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.availableTools = systemInfo.tools;
         this.isEditingSystemPrompt = false;
         this.editingSystemPrompt = "";
-        this.expandedToolName = null;
       });
 
     // Fetch settings from server
@@ -376,65 +359,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe(types => {
         this.allAvailableOperatorTypes = types.sort((a, b) => a.type.localeCompare(b.type));
       });
-
-    // Also load agent internal state
-    this.loadAgentInternalState();
-  }
-
-  /**
-   * Load agent internal state from the server.
-   */
-  public loadAgentInternalState(): void {
-    this.isLoadingAgentState = true;
-    this.copilotManagerService
-      .getAgentInternalState(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(state => {
-        this.agentInternalState = state;
-        this.isLoadingAgentState = false;
-      });
   }
 
   public closeSystemInfoModal(): void {
     this.isSystemInfoModalVisible = false;
     this.isEditingSystemPrompt = false;
-  }
-
-  public showStatsModal(): void {
-    this.isStatsModalVisible = true;
-  }
-
-  public closeStatsModal(): void {
-    this.isStatsModalVisible = false;
-  }
-
-  public formatJson(data: any): string {
-    return JSON.stringify(data, null, 2);
-  }
-
-  public getExecutionTime(stat: CopilotMessageStats): string {
-    if (!stat.endTime) {
-      return "Running...";
-    }
-    const duration = stat.endTime.getTime() - stat.startTime.getTime();
-    const seconds = Math.floor(duration / 1000);
-    const ms = duration % 1000;
-    return `${seconds}.${ms.toString().padStart(3, "0")}s`;
-  }
-
-  public getStatusColor(status: string): string {
-    switch (status) {
-      case "completed":
-        return "#52c41a";
-      case "running":
-        return "#1890ff";
-      case "error":
-        return "#ff4d4f";
-      case "stopped":
-        return "#faad14";
-      default:
-        return "#8c8c8c";
-    }
   }
 
   public getToolResult(response: ReActStep, toolCallIndex: number): any {
@@ -457,26 +386,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   public hasOperatorAccess(response: ReActStep): boolean {
     return !!response.operatorAccess && response.operatorAccess.size > 0;
-  }
-
-  public getTotalInputTokens(): number {
-    for (let i = this.visibleSteps.length - 1; i >= 0; i--) {
-      const response = this.visibleSteps[i];
-      if (response.usage?.inputTokens !== undefined) {
-        return response.usage.inputTokens;
-      }
-    }
-    return 0;
-  }
-
-  public getTotalOutputTokens(): number {
-    for (let i = this.visibleSteps.length - 1; i >= 0; i--) {
-      const response = this.visibleSteps[i];
-      if (response.usage?.outputTokens !== undefined) {
-        return response.usage.outputTokens;
-      }
-    }
-    return 0;
   }
 
   /**
@@ -571,71 +480,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   public clearMessages(): void {
     this.copilotManagerService.clearMessages(this.agentInfo.id);
-  }
-
-  /**
-   * Export the conversation history as a JSON file in TraceContent format.
-   * This format is compatible with the import/replay functionality.
-   */
-  public exportMessages(): void {
-    if (this.visibleSteps.length === 0) {
-      this.notificationService.warning("No messages to export");
-      return;
-    }
-
-    // Fetch raw AI SDK messages from the backend for proper export format
-    this.copilotManagerService
-      .getMessages(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (response: { messages: any[] }) => {
-          const messages = response.messages;
-          // Find the last assistant response text for the "response" field
-          let lastResponse = "";
-          for (let i = messages.length - 1; i >= 0; i--) {
-            const msg = messages[i];
-            if (msg.role === "assistant") {
-              if (typeof msg.content === "string") {
-                lastResponse = msg.content;
-                break;
-              } else if (Array.isArray(msg.content)) {
-                const textPart = msg.content.find((p: any) => p.type === "text");
-                if (textPart) {
-                  lastResponse = textPart.text;
-                  break;
-                }
-              }
-            }
-          }
-
-          // Export in TraceContent format (compatible with import/replay)
-          const exportData = {
-            response: lastResponse,
-            messages: messages,
-          };
-
-          const jsonString = JSON.stringify(exportData, null, 2);
-          const blob = new Blob([jsonString], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-
-          // Create a temporary link and trigger download
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = `${this.agentInfo.name}-trace-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-
-          // Clean up the URL object
-          URL.revokeObjectURL(url);
-
-          this.notificationService.success(`Exported ${messages.length} messages`);
-        },
-        error: (err: unknown) => {
-          console.error("Failed to export messages:", err);
-          this.notificationService.error("Failed to export messages");
-        },
-      });
   }
 
   /**
@@ -1000,102 +844,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         },
         error: () => {},
       });
-  }
-
-  /**
-   * Handle tool panel expand/collapse.
-   */
-  public onToolPanelChange(toolName: string, expanded: boolean): void {
-    this.expandedToolName = expanded ? toolName : null;
-  }
-
-  /**
-   * Format tool input schema for display.
-   * Handles Zod schemas by extracting their JSON schema representation.
-   */
-  public formatToolSchema(schema: any): string {
-    try {
-      // Check if it's a Zod schema (has _def property)
-      if (schema && schema._def) {
-        // Extract the shape from Zod object schema
-        if (schema._def.typeName === "ZodObject" && schema._def.shape) {
-          const shape = typeof schema._def.shape === "function" ? schema._def.shape() : schema._def.shape;
-          const properties: Record<string, any> = {};
-
-          for (const [key, value] of Object.entries(shape)) {
-            properties[key] = this.extractZodSchemaInfo(value);
-          }
-
-          return JSON.stringify({ type: "object", properties }, null, 2);
-        }
-        // For other Zod types, try to extract basic info
-        return JSON.stringify(this.extractZodSchemaInfo(schema), null, 2);
-      }
-
-      // If it's already a plain object (JSON schema), stringify directly
-      return JSON.stringify(schema, null, 2);
-    } catch (e) {
-      return "Unable to display schema";
-    }
-  }
-
-  /**
-   * Extract schema information from a Zod schema definition.
-   */
-  private extractZodSchemaInfo(zodSchema: any): any {
-    if (!zodSchema || !zodSchema._def) {
-      return { type: "unknown" };
-    }
-
-    const def = zodSchema._def;
-    const result: any = {};
-
-    // Add description if available
-    if (def.description) {
-      result.description = def.description;
-    }
-
-    switch (def.typeName) {
-      case "ZodString":
-        result.type = "string";
-        break;
-      case "ZodNumber":
-        result.type = "number";
-        break;
-      case "ZodBoolean":
-        result.type = "boolean";
-        break;
-      case "ZodArray":
-        result.type = "array";
-        if (def.type) {
-          result.items = this.extractZodSchemaInfo(def.type);
-        }
-        break;
-      case "ZodObject":
-        result.type = "object";
-        if (def.shape) {
-          const shape = typeof def.shape === "function" ? def.shape() : def.shape;
-          result.properties = {};
-          for (const [key, value] of Object.entries(shape)) {
-            result.properties[key] = this.extractZodSchemaInfo(value);
-          }
-        }
-        break;
-      case "ZodOptional":
-        const innerOptional = this.extractZodSchemaInfo(def.innerType);
-        return { ...innerOptional, optional: true };
-      case "ZodDefault":
-        const innerDefault = this.extractZodSchemaInfo(def.innerType);
-        return { ...innerDefault, default: def.defaultValue?.() };
-      case "ZodEnum":
-        result.type = "enum";
-        result.values = def.values;
-        break;
-      default:
-        result.type = def.typeName?.replace("Zod", "").toLowerCase() || "unknown";
-    }
-
-    return result;
   }
 
   // =====================

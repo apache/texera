@@ -83,23 +83,6 @@ export interface ReActStep {
 }
 
 /**
- * Statistics for a single message request.
- */
-export interface CopilotMessageStats {
-  messageId: string;
-  userMessage: string;
-  startTime: Date;
-  endTime?: Date;
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalTokens: number;
-  cachedInputTokens: number;
-  stepCount: number;
-  status: "running" | "completed" | "error" | "stopped";
-  errorMessage?: string;
-}
-
-/**
  * Reference to a step that affected an operator.
  * Used for step badge feature - shows which steps created/modified operators.
  */

@@ -136,7 +136,6 @@ export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
 const operatorWorkerCountClass = "operator-worker-count";
-const operatorStatusTextClass = "operator-status";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -155,7 +154,6 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorNameClass}"></text>
       <text class="${operatorPortMetricsClass}"></text>
       <text class="${operatorWorkerCountClass}"></text>
-      <text class="${operatorStatusTextClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -341,11 +339,6 @@ export class JointUIService {
     const workerCount = statistics.numWorkers ?? 1;
     element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
 
-    element.attr(
-      `.${operatorStatusTextClass}/text`,
-      "status: " + JointUIService.getStatusDisplayText(statistics.operatorState)
-    );
-
     inPorts.forEach(portDef => {
       const portId = portDef.id;
       if (portId != null) {
@@ -444,7 +437,6 @@ export class JointUIService {
       "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
       [`.${operatorWorkerCountClass}`]: { fill: fillColor },
-      [`.${operatorStatusTextClass}`]: { fill: fillColor },
     });
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -849,10 +841,6 @@ export class JointUIService {
         "ref-x": -5,
         "ref-y": -35,
       },
-      [`.${operatorStatusTextClass}`]: {
-        "ref-x": -10,
-        "ref-y": -35,
-      },
       ".delete-button": {
         x: 60,
         y: -20,
@@ -1024,13 +1012,6 @@ export class JointUIService {
       stroke: coeditor.color,
     });
     return userCursor;
-  }
-
-  private static getStatusDisplayText(state: OperatorState): string {
-    if (state === OperatorState.Uninitialized) {
-      return "Waiting";
-    }
-    return String(state);
   }
 
   public static getJointUserPointerName(coeditor: Coeditor) {
