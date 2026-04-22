@@ -54,7 +54,6 @@ import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.FilterHolder
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 
-
 import java.net.URI
 import java.time.Duration
 import scala.annotation.tailrec
