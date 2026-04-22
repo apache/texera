@@ -47,6 +47,9 @@ from pathlib import Path
 
 SCALA_SENTINEL = "\x01SCALADOT\x01"
 
+# Jars produced by Texera itself — not third-party deps, skip from drift checks.
+TEXERA_OWN_JAR_PREFIX = "org.apache.texera."
+
 ECO_HEADERS = {
     "jar":    "Scala/Java jars:",
     "python": "Python packages:",
@@ -137,7 +140,10 @@ def collect_jars(lib_dirs) -> set[str]:
             sys.stderr.write(f"error: {dp} is not a directory\n")
             sys.exit(2)
         for jar in dp.glob("*.jar"):
-            result.add(strip_version(jar.stem))
+            stem = strip_version(jar.stem)
+            if stem.startswith(TEXERA_OWN_JAR_PREFIX) or stem == TEXERA_OWN_JAR_PREFIX.rstrip("."):
+                continue
+            result.add(stem)
     return result
 
 
