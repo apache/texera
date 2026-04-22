@@ -39,6 +39,7 @@ import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { OperatorMetadataStore } from "./tools/metadata-tools";
+import { env } from "./config/env";
 import type {
   AgentInfo,
   AgentDelegateConfig,
@@ -46,19 +47,8 @@ import type {
   UpdateAgentSettingsRequest,
   AgentSettingsApi,
   ReActStep,
-  AgentMessageStats,
-  TraceContent,
 } from "./types/agent";
 import { OperatorResultSerializationMode } from "./types/agent";
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-const PORT = parseInt(process.env.PORT || "3001");
-const API_PREFIX = process.env.API_PREFIX || "/api";
-const LLM_API_KEY = process.env.LLM_API_KEY || "dummy";
-const MODEL = process.env.MODEL || "gpt-4-turbo";
 
 // ============================================================================
 // Agent Management
@@ -84,13 +74,13 @@ async function createAgentInstance(
   // Use models endpoint as baseURL with /api path
   const openai = createOpenAI({
     baseURL: `${config.modelsEndpoint}/api`,
-    apiKey: LLM_API_KEY,
+    apiKey: env.LLM_API_KEY,
   });
 
   // Send the full model name to LiteLLM (e.g., "gpt-5-mini-medium").
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
   // with extra_body to inject reasoning_effort, bypassing LiteLLM's param validation.
-  const effectiveModelType = modelType || MODEL;
+  const effectiveModelType = modelType || env.MODEL;
 
   const agent = new TexeraAgent({
     model: openai.chat(effectiveModelType),
@@ -295,38 +285,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     return { deleted: true };
   })
 
-  // Send message to agent (blocking REST API - returns full ModelMessage list)
-  .post(
-    "/:id/message",
-    async ({ params: { id }, body }) => {
-      const agent = getAgent(id);
-      const { message } = body;
-
-      if (!message || typeof message !== "string") {
-        throw new Error("Message is required");
-      }
-
-      console.log(`[Server] Agent ${id} received message: ${message.substring(0, 50)}...`);
-
-      const result = await agent.sendMessage(message);
-
-      console.log(`[Server] Agent ${id} completed with ${result.messages.length} messages`);
-
-      return {
-        response: result.response,
-        usage: result.usage,
-        stats: result.stats,
-        stopped: result.stopped,
-        error: result.error,
-      };
-    },
-    {
-      body: t.Object({
-        message: t.String(),
-      }),
-    }
-  )
-
   // Get all ReActSteps (for polling fallback or initial load)
   .get("/:id/react-steps", ({ params: { id } }) => {
     const agent = getAgent(id);
@@ -337,40 +295,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .get("/:id/operator-results", ({ params: { id } }) => {
     const agent = getAgent(id);
     return { results: getOperatorResultSummaries(agent) };
-  })
-
-  // Get workflow (returns workflow content directly, not wrapped)
-  .get("/:id/workflow", ({ params: { id } }) => {
-    const agent = getAgent(id);
-    return agent.getWorkflowState().getWorkflowContent();
-  })
-
-  // Get agent internal state (workflow state as JSON for debugging)
-  .get("/:id/state", ({ params: { id } }) => {
-    const agent = getAgent(id);
-    const workflowState = agent.getWorkflowState();
-    const delegateConfig = agent.getDelegateConfig();
-    return {
-      agentId: id,
-      agentName: agent.agentName,
-      agentState: agent.getState(),
-      workflow: workflowState.getWorkflowContent(),
-      stepCount: agent.getReActSteps().length,
-      reActStepsCount: agent.getReActSteps().length,
-      createdAt: agent.createdAt,
-      delegate: delegateConfig
-        ? {
-            workflowId: delegateConfig.workflowId,
-            workflowName: delegateConfig.workflowName,
-          }
-        : undefined,
-    };
-  })
-
-  // Get all ReActSteps
-  .get("/:id/messages", ({ params: { id } }) => {
-    const agent = getAgent(id);
-    return { steps: agent.getReActSteps() };
   })
 
   // Get ReActSteps filtered by operator IDs (for context preview)
@@ -399,13 +323,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     const agent = getAgent(id);
     agent.stop();
     return { status: "stopping" };
-  })
-
-  // Reset agent
-  .post("/:id/reset", ({ params: { id } }) => {
-    const agent = getAgent(id);
-    agent.reset();
-    return { status: "reset" };
   })
 
   // Clear messages
@@ -531,13 +448,12 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 // ============================================================================
 
 interface WsMessage {
-  type: "message" | "stop" | "replay";
+  type: "message" | "stop";
   content?: string;
   /** Optional operator IDs for context filtering - only messages that affected these operators will be included */
   contextOperatorIds?: string[];
   /** Source of the message: "chat" (agent panel) or "feedback" (operator feedback panel) */
   messageSource?: "chat" | "feedback";
-  trace?: TraceContent;
 }
 
 interface OperatorResultSummaryWs {
@@ -560,7 +476,6 @@ interface WsOutgoingMessage {
   state?: string;
   error?: string;
   steps?: ReActStep[];
-  stats?: AgentMessageStats;
   headId?: string;
   operatorResults?: Record<string, OperatorResultSummaryWs>;
   workflowContent?: any;
@@ -625,9 +540,9 @@ const app = new Elysia()
     timestamp: new Date().toISOString(),
   }))
   // Mount agents router under API prefix
-  .group(API_PREFIX, app => app.use(agentsRouter))
+  .group(env.API_PREFIX, app => app.use(agentsRouter))
   // WebSocket endpoint for real-time ReActSteps streaming
-  .ws(`${API_PREFIX}/agents/:id/react`, {
+  .ws(`${env.API_PREFIX}/agents/:id/react`, {
     open(ws) {
       const agentId = (ws.data as any).params?.id;
       console.log(`[WS] Client connected to agent ${agentId}`);
@@ -717,11 +632,10 @@ const app = new Elysia()
             broadcastToAgent(agentId, { type: "step", step: lastStep });
           }
 
-          // Broadcast completion with stats and latest operator results
+          // Broadcast completion with latest operator results
           broadcastToAgent(agentId, {
             type: "complete",
             state: agent.getState(),
-            stats: result.stats,
             operatorResults: getOperatorResultSummaries(agent),
           });
 
@@ -730,47 +644,6 @@ const app = new Elysia()
           agent.setStepCallback(null);
           broadcastToAgent(agentId, { type: "error", error: error.message });
         }
-      }
-
-      // Handle replay message - replay a trace by executing tool calls step by step
-      if (msg.type === "replay") {
-        if (!msg.trace || !msg.trace.messages || !Array.isArray(msg.trace.messages)) {
-          ws.send(JSON.stringify({ type: "error", error: "Invalid trace format: messages array is required" }));
-          return;
-        }
-
-        console.log(`[WS] Agent ${agentId} starting trace replay with ${msg.trace.messages.length} messages`);
-
-        // Broadcast GENERATING state
-        broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
-
-        // Replay the trace
-        await agent.replayTrace(
-          msg.trace,
-          // onStep callback - broadcast each step (include operatorResults when step has tool calls)
-          (step: ReActStep) => {
-            const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
-            broadcastToAgent(agentId, {
-              type: "step",
-              step,
-              ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
-            });
-          },
-          // onError callback - broadcast error and abort
-          (errorMessage: string) => {
-            console.error(`[WS] Agent ${agentId} replay error: ${errorMessage}`);
-            broadcastToAgent(agentId, { type: "error", error: errorMessage });
-          }
-        );
-
-        // Broadcast completion with final state and operator results
-        broadcastToAgent(agentId, {
-          type: "complete",
-          state: agent.getState(),
-          operatorResults: getOperatorResultSummaries(agent),
-        });
-
-        console.log(`[WS] Agent ${agentId} replay completed`);
       }
     },
 
@@ -808,7 +681,7 @@ const app = new Elysia()
     set.status = 500;
     return { error: errorMessage || "Internal server error" };
   })
-  .listen(PORT);
+  .listen(env.PORT);
 
 // ============================================================================
 // Startup Message - Using Elysia's routes property
@@ -819,7 +692,7 @@ function printStartupMessage() {
   console.log(LINE);
   console.log("Texera Agent Service (Elysia.js + RxJS)");
   console.log(LINE);
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${env.PORT}`);
   console.log("");
 
   // Print routes from Elysia's routes property
@@ -845,14 +718,13 @@ function printStartupMessage() {
     }
     console.log("         Send: { type: 'message', content: '...' }");
     console.log("         Send: { type: 'stop' }");
-    console.log("         Send: { type: 'replay', trace: { response: '...', messages: [...] } }");
     console.log("         Recv: { type: 'step' | 'state' | 'complete' | 'error' | 'init', ... }");
   }
 
   console.log("");
   console.log("Environment:");
-  console.log(`  LLM_API_KEY: ${LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
-  console.log(`  MODEL: ${MODEL}`);
+  console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
+  console.log(`  MODEL: ${env.MODEL}`);
   console.log(`  MODELS_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
   console.log(`  COMPILE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
   console.log("");

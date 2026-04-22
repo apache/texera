@@ -28,6 +28,7 @@ import { encode as toonEncode } from "@toon-format/toon";
 import { createErrorResult, formatExecuteOperatorResult } from "./tools-utility";
 import type { WorkflowState } from "../workflow/workflow-state";
 import { getBackendConfig } from "../api/backend-api";
+import { env } from "../config/env";
 import type { LogicalPlan, LogicalLink } from "../api/execution-api";
 import type { OperatorInfo, SyncExecutionResult } from "../types/execution";
 import { OperatorMetadataStore } from "./metadata-tools";
@@ -300,11 +301,10 @@ async function executeWorkflowHttp(
 
   // In k8s, each computing unit is a separate pod in the pool namespace.
   // Use EXECUTION_ENDPOINT_TEMPLATE if set (e.g. "http://computing-unit-{cuid}.texera-workflow-computing-unit-svc.texera-workflow-computing-unit-pool.svc.cluster.local:8085")
-  // Otherwise fall back to a static endpoint.
-  const endpointTemplate = process.env.EXECUTION_ENDPOINT_TEMPLATE;
-  const executionEndpoint = endpointTemplate
-    ? endpointTemplate.replace("{cuid}", String(computingUnitId))
-    : backendConfig.executionEndpoint || "http://localhost:8085";
+  // Otherwise fall back to the static executionEndpoint.
+  const executionEndpoint = env.EXECUTION_ENDPOINT_TEMPLATE
+    ? env.EXECUTION_ENDPOINT_TEMPLATE.replace("{cuid}", String(computingUnitId))
+    : backendConfig.executionEndpoint;
 
   const url = `${executionEndpoint}/api/execution/${workflowId}/${computingUnitId}/run`;
 
@@ -350,7 +350,7 @@ async function executeWorkflowHttp(
       throw new Error(`Execution request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    return await response.json();
+    return (await response.json()) as SyncExecutionResult;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw error;

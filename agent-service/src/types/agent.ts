@@ -93,23 +93,6 @@ export interface ReActStep {
   afterWorkflowContent?: WorkflowContent;
 }
 
-/**
- * Statistics for a single message request
- */
-export interface AgentMessageStats {
-  messageId: string;
-  userMessage: string;
-  startTime: number;
-  endTime?: number;
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalTokens: number;
-  cachedInputTokens?: number;
-  stepCount: number;
-  status: "running" | "completed" | "error" | "stopped";
-  errorMessage?: string;
-}
-
 // ============================================================================
 // Agent Settings
 // ============================================================================
@@ -287,27 +270,3 @@ export interface UpdateAgentSettingsRequest {
 }
 
 // ============================================================================
-// Trace Replay Types
-// ============================================================================
-
-/**
- * Content structure of a trace file (exported from agent conversation)
- */
-export interface TraceContent {
-  /** Final response text from the agent */
-  response: string;
-  /** Full conversation messages in Vercel AI SDK ModelMessage format */
-  messages: any[];
-}
-
-/**
- * Tools that should be skipped during replay (execution-related tools)
- */
-export const REPLAY_SKIP_TOOLS = new Set([
-  "executeOperator",
-  "getExecutionState",
-  "killWorkflow",
-  "getExecutionResult",
-  "getOperatorResult",
-]);
-

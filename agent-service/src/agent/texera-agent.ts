@@ -31,16 +31,13 @@ import { formatOperatorResult, type FormatOptions } from "../tools/result-format
 import type {
   AgentSettings,
   ReActStep,
-  AgentMessageStats,
   TokenUsage,
   UserInfo,
-  TraceContent,
 } from "../types/agent";
 import {
   AgentState as AgentStateEnum,
   DEFAULT_AGENT_SETTINGS,
   OperatorResultSerializationMode,
-  REPLAY_SKIP_TOOLS,
   INITIAL_STEP_ID,
 } from "../types/agent";
 import { buildSystemPrompt } from "./prompts";
@@ -100,8 +97,6 @@ export interface AgentMessageResult {
   messages: ModelMessage[];
   /** Token usage statistics */
   usage: TokenUsage;
-  /** Message statistics */
-  stats: AgentMessageStats;
   /** Whether the agent was stopped early */
   stopped: boolean;
   /** Error message if any */
@@ -138,8 +133,6 @@ export class TexeraAgent {
   private operatorResultStore: OperatorResultStore;
 
   // Server-managed state (for HTTP/WebSocket handling)
-  /** RxJS subscription for agent action streaming */
-  private agentActionSubscription: Subscription | null = null;
   /** Active WebSocket connections for this agent */
   private websockets: Set<any> = new Set();
 
@@ -390,24 +383,6 @@ export class TexeraAgent {
    */
   removeWebsocket(ws: any): void {
     this.websockets.delete(ws);
-  }
-
-  // ============================================================================
-  // Agent Action Subscription Management (for server use)
-  // ============================================================================
-
-  /**
-   * Set the agent action subscription for streaming.
-   */
-  setAgentActionSubscription(subscription: Subscription | null): void {
-    this.agentActionSubscription = subscription;
-  }
-
-  /**
-   * Get the agent action subscription.
-   */
-  getAgentActionSubscription(): Subscription | null {
-    return this.agentActionSubscription;
   }
 
   /**
@@ -702,7 +677,6 @@ export class TexeraAgent {
    */
   async sendMessage(userMessage: string, contextOperatorIds?: string[], messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
-    const startTime = Date.now();
     let stepIndex = 0;
 
     // Load latest workflow from backend
@@ -719,18 +693,6 @@ export class TexeraAgent {
         );
       }
     }
-
-    // Initialize stats
-    const stats: AgentMessageStats = {
-      messageId,
-      userMessage,
-      startTime,
-      totalInputTokens: 0,
-      totalOutputTokens: 0,
-      totalTokens: 0,
-      stepCount: 0,
-      status: "running",
-    };
 
     // Create new abort controller for this message
     this.abortController = new AbortController();
@@ -919,29 +881,18 @@ export class TexeraAgent {
         }
       }
 
-      // Update final stats - use totalUsage from result (aggregate across all steps)
-      // Note: result.usage is only the final step, result.totalUsage is the aggregate
-      stats.endTime = Date.now();
-      stats.stepCount = stepIndex;
-      stats.status = "completed";
-
-      // Prefer totalUsage (aggregate) over accumulated values
+      // Prefer totalUsage (aggregate) over the final step's usage
       const finalUsage = (result as any).totalUsage || result.usage;
-      if (finalUsage) {
-        stats.totalInputTokens = finalUsage.inputTokens || finalUsage.promptTokens || 0;
-        stats.totalOutputTokens = finalUsage.outputTokens || finalUsage.completionTokens || 0;
-        stats.totalTokens = finalUsage.totalTokens || 0;
-      }
+      const usage: TokenUsage = {
+        inputTokens: finalUsage?.inputTokens ?? finalUsage?.promptTokens ?? 0,
+        outputTokens: finalUsage?.outputTokens ?? finalUsage?.completionTokens ?? 0,
+        totalTokens: finalUsage?.totalTokens ?? 0,
+      };
 
       return {
         response: result.text,
         messages: result.response.messages,
-        usage: {
-          inputTokens: stats.totalInputTokens,
-          outputTokens: stats.totalOutputTokens,
-          totalTokens: stats.totalTokens,
-        },
-        stats,
+        usage,
         stopped: false,
       };
     } catch (error: any) {
@@ -966,19 +917,10 @@ export class TexeraAgent {
         this.addStep(stoppedStep);
         this.head = stoppedStepId;
 
-        stats.endTime = Date.now();
-        stats.stepCount = stepIndex;
-        stats.status = "stopped";
-
         return {
           response: "",
           messages: [],
-          usage: {
-            inputTokens: stats.totalInputTokens,
-            outputTokens: stats.totalOutputTokens,
-            totalTokens: stats.totalTokens,
-          },
-          stats,
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
           stopped: true,
         };
       }
@@ -1000,23 +942,12 @@ export class TexeraAgent {
       this.addStep(errorStep);
       this.head = errorStepId;
 
-      // Update stats
-      stats.endTime = Date.now();
-      stats.stepCount = stepIndex;
-      stats.status = "error";
-      stats.errorMessage = error.message || String(error);
-
       return {
         response: "",
         messages: [],
-        usage: {
-          inputTokens: stats.totalInputTokens,
-          outputTokens: stats.totalOutputTokens,
-          totalTokens: stats.totalTokens,
-        },
-        stats,
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         stopped: false,
-        error: stats.errorMessage,
+        error: error.message || String(error),
       };
     } finally {
       this.abortController = null;
@@ -1073,30 +1004,6 @@ export class TexeraAgent {
       isEnd: true,
     };
     this.stepsById.set(INITIAL_STEP_ID, initialStep);
-  }
-
-  /**
-   * Reset the agent (clear history, ReActSteps, step tree, and workflow).
-   */
-  reset(): void {
-    this.reActStepsByMessageId.clear();
-    this.stepsById.clear();
-    this.currentMessageId = undefined;
-    this.head = INITIAL_STEP_ID;
-    // Re-create initial step
-    const initialStep: ReActStep = {
-      id: INITIAL_STEP_ID,
-      messageId: "initial",
-      stepId: -1,
-      timestamp: Date.now(),
-      role: "user",
-      content: "",
-      isBegin: true,
-      isEnd: true,
-    };
-    this.stepsById.set(INITIAL_STEP_ID, initialStep);
-    this.workflowState.reset();
-    this.operatorResultStore.clear();
   }
 
   // ============================================================================
@@ -1254,12 +1161,6 @@ export class TexeraAgent {
    * This properly cleans up RxJS subscriptions via workflowState.destroy().
    */
   destroy(): void {
-    // Cleanup agent action subscription
-    if (this.agentActionSubscription) {
-      this.agentActionSubscription.unsubscribe();
-      this.agentActionSubscription = null;
-    }
-
     // Cleanup workflow change subscription
     if (this.workflowChangeSubscription) {
       this.workflowChangeSubscription.unsubscribe();
@@ -1276,246 +1177,5 @@ export class TexeraAgent {
     this.reActStepsByMessageId.clear();
     this.stepsById.clear();
     this.currentMessageId = undefined;
-  }
-
-  // ============================================================================
-  // Trace Replay Methods
-  // ============================================================================
-
-  /**
-   * Set the agent state (public method for replay).
-   */
-  setState(state: AgentStateEnum): void {
-    this.state = state;
-  }
-
-  /**
-   * Add a ReActStep publicly (for replay).
-   */
-  addReActStepPublic(step: ReActStep): void {
-    this.addStep(step);
-  }
-
-  /**
-   * Execute a single tool by name with the given input.
-   * Returns the tool result as a string.
-   * @throws Error if tool not found or execution fails
-   */
-  async executeTool(toolName: string, input: any): Promise<any> {
-    const toolDef = this.tools[toolName];
-    if (!toolDef) {
-      throw new Error(`Tool '${toolName}' not found`);
-    }
-    if (!toolDef.execute) {
-      throw new Error(`Tool '${toolName}' does not have an execute function`);
-    }
-    return await toolDef.execute(input);
-  }
-
-  /**
-   * Replay a trace in two phases:
-   *
-   * Phase 1: Parse all messages and emit ReActSteps
-   *   - Tool results are looked up from trace (not executed yet)
-   *   - Each assistant message becomes ONE ReActStep
-   *   - stepId resets for each user message
-   *
-   * Phase 2: Execute tool calls to build workflow
-   *   - Skip execution tools (executeOperator, getOperatorResult, etc.)
-   *   - Abort on any error (no rollback needed)
-   *
-   * @param trace - The trace content containing messages
-   * @param onStep - Callback for each ReActStep generated
-   * @param onError - Callback for errors
-   * @returns Promise that resolves when replay is complete
-   */
-  async replayTrace(
-    trace: TraceContent,
-    onStep: (step: ReActStep) => void,
-    onError: (error: string) => void
-  ): Promise<void> {
-    const messages = trace.messages;
-
-    // ========================================================================
-    // Phase 1: Build tool results map and emit ReActSteps
-    // ========================================================================
-
-    // Build a map of toolCallId -> tool result from all tool messages
-    const toolResultsMap = new Map<string, { output: any; isError: boolean }>();
-    for (const message of messages) {
-      if (message.role === "tool") {
-        const content = message.content;
-        if (Array.isArray(content)) {
-          for (const part of content) {
-            if (part.type === "tool-result" && part.toolCallId) {
-              // Handle both formats:
-              // 1. Direct output: { output: "string" } or { output: {...} }
-              // 2. Wrapped output: { output: { type: "text", value: "string" } }
-              let rawOutput = part.output || part.result || part.content;
-              if (rawOutput && typeof rawOutput === "object" && rawOutput.type === "text" && rawOutput.value !== undefined) {
-                rawOutput = rawOutput.value;
-              }
-              toolResultsMap.set(part.toolCallId, {
-                output: rawOutput,
-                isError: part.isError || false,
-              });
-            }
-          }
-        } else if (message.tool_call_id) {
-          // Alternative format: tool message with tool_call_id at message level
-          toolResultsMap.set(message.tool_call_id, {
-            output: content,
-            isError: false,
-          });
-        }
-      }
-    }
-
-    // Collect all tool calls for Phase 2 execution
-    const allToolCalls: Array<{ toolName: string; toolCallId: string; input: any }> = [];
-
-    let stepId = 0;
-    let currentMessageId = "";
-
-    this.state = AgentStateEnum.GENERATING;
-
-    // Emit all ReActSteps
-    for (const message of messages) {
-      if (message.role === "user") {
-        // Generate new message ID and reset stepId for this user message
-        currentMessageId = `replay-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-        stepId = 0; // Reset stepId for each user message
-
-        // Extract user content
-        const userContent =
-          typeof message.content === "string" ? message.content : JSON.stringify(message.content);
-
-        // Create user step (stepId 0)
-        const replayUserStepId = this.generateStepId();
-        const userStep: ReActStep = {
-          id: replayUserStepId,
-          parentId: this.head,
-          messageId: currentMessageId,
-          stepId: stepId++,
-          timestamp: Date.now(),
-          role: "user",
-          content: userContent,
-          isBegin: true,
-          isEnd: true,
-        };
-
-        this.addStep(userStep);
-        this.head = replayUserStepId;
-        onStep(userStep);
-      } else if (message.role === "assistant") {
-        // Parse assistant message content
-        const { textContent, toolCalls } = this.parseAssistantMessage(message);
-
-        // Look up tool results from the map and collect for execution
-        const toolCallsForStep: Array<{ toolName: string; toolCallId: string; input: any }> = [];
-        const toolResultsForStep: Array<{ toolCallId: string; output: any; isError?: boolean }> = [];
-
-        for (const toolCall of toolCalls) {
-          toolCallsForStep.push({
-            toolName: toolCall.toolName,
-            toolCallId: toolCall.toolCallId,
-            input: toolCall.input,
-          });
-
-          // Look up the result from the trace
-          const result = toolResultsMap.get(toolCall.toolCallId);
-          toolResultsForStep.push({
-            toolCallId: toolCall.toolCallId,
-            output: result?.output ?? "[Result not found in trace]",
-            isError: result?.isError ?? false,
-          });
-
-          // Collect for Phase 2 execution
-          allToolCalls.push(toolCall);
-        }
-
-        // Create ONE ReActStep for this assistant message
-        // stepId 0 = user, stepId 1 = first assistant step, etc.
-        const isFirstAssistantStep = stepId === 1;
-
-        const replayAssistantStepId = this.generateStepId();
-        const assistantStep: ReActStep = {
-          id: replayAssistantStepId,
-          parentId: this.head,
-          messageId: currentMessageId,
-          stepId: stepId++,
-          timestamp: Date.now(),
-          role: "agent",
-          content: textContent,
-          isBegin: isFirstAssistantStep,
-          isEnd: true,
-          toolCalls: toolCallsForStep.length > 0 ? toolCallsForStep : undefined,
-          toolResults: toolResultsForStep.length > 0 ? toolResultsForStep : undefined,
-        };
-
-        this.addStep(assistantStep);
-        this.head = replayAssistantStepId;
-        onStep(assistantStep);
-      } else if (message.role === "tool") {
-        // Tool messages are already processed into the map — no storage needed
-      }
-    }
-
-    // ========================================================================
-    // Phase 2: Execute tool calls to build workflow
-    // ========================================================================
-
-    for (const toolCall of allToolCalls) {
-      // Skip execution tools
-      if (REPLAY_SKIP_TOOLS.has(toolCall.toolName)) {
-        console.log(`[Replay] Skipping execution tool: ${toolCall.toolName}`);
-        continue;
-      }
-
-      try {
-        console.log(`[Replay] Executing tool: ${toolCall.toolName}`);
-        await this.executeTool(toolCall.toolName, toolCall.input);
-      } catch (error: any) {
-        const errorMsg = `Replay aborted: ${toolCall.toolName} failed - ${error.message || String(error)}`;
-        console.error(`[Replay] ${errorMsg}`);
-        onError(errorMsg);
-        this.state = AgentStateEnum.AVAILABLE;
-        return; // Abort without rollback
-      }
-    }
-
-    this.state = AgentStateEnum.AVAILABLE;
-    console.log(`[Replay] Completed successfully. Executed ${allToolCalls.length} tool calls.`);
-  }
-
-  /**
-   * Parse an assistant message to extract text content and tool calls.
-   */
-  private parseAssistantMessage(message: any): {
-    textContent: string;
-    toolCalls: Array<{ toolName: string; toolCallId: string; input: any }>;
-  } {
-    let textContent = "";
-    const toolCalls: Array<{ toolName: string; toolCallId: string; input: any }> = [];
-
-    const content = message.content;
-
-    if (typeof content === "string") {
-      textContent = content;
-    } else if (Array.isArray(content)) {
-      for (const part of content) {
-        if (part.type === "text") {
-          textContent += part.text || "";
-        } else if (part.type === "tool-call") {
-          toolCalls.push({
-            toolName: part.toolName,
-            toolCallId: part.toolCallId,
-            input: part.input || part.args || {},
-          });
-        }
-      }
-    }
-
-    return { textContent, toolCalls };
   }
 }

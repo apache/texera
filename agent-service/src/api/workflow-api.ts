@@ -68,7 +68,7 @@ export async function persistWorkflow(
     throw new Error(`Failed to persist workflow: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
-  const data: Workflow = await response.json();
+  const data = (await response.json()) as Workflow;
   if (typeof data.content === "string") {
     data.content = JSON.parse(data.content as unknown as string);
   }
@@ -89,7 +89,7 @@ export async function retrieveWorkflow(token: string, wid: number): Promise<Work
     throw new Error(`Failed to retrieve workflow: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
-  const data: Workflow = await response.json();
+  const data = (await response.json()) as Workflow;
   if (typeof data.content === "string") {
     data.content = JSON.parse(data.content as unknown as string);
   }
