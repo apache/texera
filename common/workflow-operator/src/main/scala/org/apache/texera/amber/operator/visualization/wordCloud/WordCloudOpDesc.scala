@@ -56,7 +56,7 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       "Word Cloud",
-      "Generate word cloud for   texts",
+      "Generate word cloud for texts",
       OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
 
