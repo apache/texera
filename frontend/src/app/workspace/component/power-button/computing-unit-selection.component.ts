@@ -713,7 +713,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (resp: PvePackageResponse[]) => {
-          this.pves = resp.map((pve, index) => ({
+          this.pves = resp.map(pve => ({
             id: this.nextPveId++,
             name: pve.pveName,
             expanded: false,
@@ -731,10 +731,36 @@ export class ComputingUnitSelectionComponent implements OnInit {
             newPackages: [],
             deletingPackages: [],
           }));
+
+          if (resp.length > 0) {
+            this.workflowPveService.setPveName(resp[0].pveName);
+
+            this.workflowPveService
+              .getInstalledPackages()
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                next: installedResp => {
+                  this.systemPackages = installedResp.system.map(pkgStr => {
+                    const [name, version] = pkgStr.split("==");
+                    return {
+                      name: name.trim(),
+                      version: (version ?? "").trim(),
+                    };
+                  });
+                },
+                error: (err: unknown) => {
+                  console.error("Failed to fetch system packages:", err);
+                  this.systemPackages = [];
+                },
+              });
+          } else {
+            this.systemPackages = [];
+          }
         },
         error: (err: unknown) => {
           console.error("Failed to fetch PVEs:", err);
           this.pves = [];
+          this.systemPackages = [];
         },
       });
   }
