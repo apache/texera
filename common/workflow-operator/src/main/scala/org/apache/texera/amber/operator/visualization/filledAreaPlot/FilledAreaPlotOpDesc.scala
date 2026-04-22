@@ -61,7 +61,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
   var color: EncodableString = ""
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Split Plot by  Line Group")
+  @JsonSchemaTitle("Split Plot by Line Group")
   @JsonPropertyDescription("Do you want to split the graph")
   var facetColumn: Boolean = false
 
@@ -83,7 +83,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       "Filled Area Plot",
-      "Visualize data in filled area plot",
+      "Visualize data in a filled area plot",
       OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
