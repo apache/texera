@@ -21,6 +21,11 @@
  * Context assembler — builds the model's context as a single structured
  * user message containing completed tasks, the ongoing task, and the
  * current workflow DAG with execution results.
+ *
+ * Output uses plain markdown structure (headings + bullets) rather than
+ * XML-like tags, to reduce format mimicry where the model echoes the
+ * context shape into its output instead of calling tools via the native
+ * protocol.
  */
 
 import type { ModelMessage } from "ai";
@@ -35,20 +40,24 @@ import { extractOperatorInputPortSchemaMap } from "../workflow/workflow-util";
  *
  * Layout:
  *   # Completed Tasks
- *   <task status="completed">...</task>
- *   ...
+ *   ## Task (completed)
+ *   ### User request / ### Turn N ...
  *   # Ongoing Task
- *   <task status="ongoing">...</task>
+ *   ## Task (ongoing)
+ *   ### User request / ### Turn N ...
  *   (instruction line)
- *   # Current Workflow
- *   <operator ...>...</operator>
- *   <links>...</links>
+ *   # Current Dataflow
+ *   ## Operators
+ *   ### Operator `id` (type, status)
+ *   ...
+ *   ## Links
+ *   - src → tgt
  *
  * @param visibleSteps  - ReActSteps on the HEAD ancestor path (ordered root→HEAD)
  * @param workflowState - Live workflow state
  * @param operatorExecutionResults - Map of operatorId → formatted result text
  * @param useRedact     - If true, strip operator properties (except for errored operators)
- * @param compilationResult - Optional compilation response with output schemas and errors (general mode only)
+ * @param compilationResult - Optional compilation response with output schemas and errors
  * @returns Single-element ModelMessage array with the assembled context
  */
 export function assembleContext(
@@ -86,6 +95,7 @@ export function assembleContext(
       if (completedCount === 0) {
         sections.push("# Completed Tasks");
       }
+      sections.push("");
       sections.push(serializeTask(steps, "completed"));
       completedCount++;
     } else {
@@ -98,11 +108,11 @@ export function assembleContext(
     }
   }
 
-  // --- Current Workflow ---
+  // --- Current Dataflow ---
   const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact, compilationResult);
   if (dagSection) {
     sections.push("");
-    sections.push("# Current Workflow");
+    sections.push("# Current Dataflow");
     sections.push(dagSection);
   }
 
@@ -121,44 +131,45 @@ export function assembleContext(
 // ============================================================================
 
 /**
- * Serialize a task (one user message + its assistant steps) into XML-like format.
+ * Serialize a task (one user message + its assistant steps) into a markdown
+ * block. The format deliberately avoids XML/tag-like structures to reduce
+ * format mimicry, where the model echoes the context shape into its output
+ * instead of calling tools via the native protocol.
  */
 function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): string {
   const lines: string[] = [];
-  lines.push(`<task status="${status}">`);
+  lines.push(`## Task (${status})`);
+  lines.push("");
 
   const userStep = steps.find(s => s.role === "user");
   const assistantSteps = steps.filter(s => s.role === "agent");
 
   // User request
   if (userStep) {
-    lines.push(`<user-request>`);
+    lines.push("### User request");
+    lines.push("");
     lines.push(userStep.content);
-    lines.push(`</user-request>`);
+    lines.push("");
   }
 
-  // Assistant steps
+  // Assistant steps, one block per turn.
   for (const step of assistantSteps) {
-    lines.push("");
-    lines.push(`<assistant-step${step.stepId}>`);
+    lines.push(`### Turn ${step.stepId}`);
     if (step.content) {
-      lines.push(`<thought>${step.content}</thought>`);
+      lines.push(`Thought: ${step.content}`);
     }
     if (step.toolCalls && step.toolCalls.length > 0) {
       for (let i = 0; i < step.toolCalls.length; i++) {
         const tc = step.toolCalls[i];
         const tr = step.toolResults?.[i];
-        const isError = tr?.isError;
-        const statusAttr = isError ? "failed" : "succeeded";
-        const outputStr = tr ? (typeof tr.output === "string" ? tr.output : String(tr.output ?? "")) : "";
-        lines.push(`<action tool="${tc.toolName}" status="${statusAttr}">${outputStr}</action>`);
+        const statusAttr = tr?.isError ? "failed" : "succeeded";
+        lines.push(`- ${tc.toolName} (${statusAttr})`);
       }
     }
-    lines.push(`</assistant-step${step.stepId}>`);
+    lines.push("");
   }
 
-  lines.push(`</task>`);
-  return lines.join("\n");
+  return lines.join("\n").trimEnd();
 }
 
 // ============================================================================
@@ -166,7 +177,7 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
 // ============================================================================
 
 /**
- * Serialize the workflow into XML-like operator entries with links.
+ * Serialize the workflow into markdown operator entries with links.
  */
 function serializeDag(
   workflowState: WorkflowState,
@@ -213,6 +224,9 @@ function serializeDag(
   const outputSchemas = compilationResult?.operatorOutputSchemas ?? {};
   const compilationErrors = compilationResult?.operatorErrors ?? {};
 
+  lines.push("## Operators");
+  lines.push("");
+
   for (const op of sortedOps) {
     const inputSchemaMap = extractOperatorInputPortSchemaMap(op.operatorID, op, outputSchemas, allLinks);
     const outputSchemaMap = outputSchemas[op.operatorID];
@@ -225,6 +239,7 @@ function serializeDag(
       outputSchemaMap,
       compilationError,
     ));
+    lines.push("");
   }
 
   // Links section
@@ -236,19 +251,18 @@ function serializeDag(
       return (topoOrder.get(a.target.operatorID) ?? 0) - (topoOrder.get(b.target.operatorID) ?? 0);
     });
 
-    lines.push("");
-    lines.push("<links>");
+    lines.push("## Links");
     for (const link of sortedLinks) {
-      lines.push(`${link.source.operatorID} --> ${link.target.operatorID}`);
+      lines.push(`- ${link.source.operatorID} → ${link.target.operatorID}`);
     }
-    lines.push("</links>");
   }
 
-  return lines.join("\n");
+  return lines.join("\n").trimEnd();
 }
 
 /**
- * Serialize a single operator entry.
+ * Serialize a single operator as a markdown block (heading + labelled fields).
+ * Avoids XML tags so the model doesn't mimic them in its output.
  */
 function serializeOperator(
   op: OperatorPredicate,
@@ -267,14 +281,14 @@ function serializeOperator(
   const showProperties = !useRedact || hasError;
 
   const lines: string[] = [];
-  lines.push(`<operator type="${op.operatorType}" id="${op.operatorID}" status="${status}">`);
-  lines.push(`  Summary: ${summary}`);
+  lines.push(`### Operator \`${op.operatorID}\` (${op.operatorType}, ${status})`);
+  lines.push(`Summary: ${summary}`);
 
   // Input schemas (derived from upstream operators' output schemas)
   if (inputSchemaMap) {
     for (const [portId, schema] of Object.entries(inputSchemaMap)) {
       if (schema) {
-        lines.push(`  Input Schema (port ${parsePortIndex(portId)}): ${formatSchema(schema)}`);
+        lines.push(`Input Schema (port ${parsePortIndex(portId)}): ${formatSchema(schema)}`);
       }
     }
   }
@@ -282,11 +296,11 @@ function serializeOperator(
   if (showProperties) {
     const props = op.operatorProperties;
     if (props && Object.keys(props).length > 0) {
-      lines.push(`  Properties:`);
+      lines.push("Properties:");
       for (const [key, value] of Object.entries(props)) {
         if (value !== undefined && value !== null && value !== "") {
           const valueStr = typeof value === "string" ? value : JSON.stringify(value);
-          lines.push(`    ${key}: ${valueStr}`);
+          lines.push(`  ${key}: ${valueStr}`);
         }
       }
     }
@@ -296,22 +310,21 @@ function serializeOperator(
   if (outputSchemaMap) {
     const firstSchema = Object.values(outputSchemaMap).find(s => s !== undefined);
     if (firstSchema) {
-      lines.push(`  Output Schema: ${formatSchema(firstSchema)}`);
+      lines.push(`Output Schema: ${formatSchema(firstSchema)}`);
     }
   }
 
   // Compilation error
   if (compilationError) {
-    lines.push(`  Compilation Error: ${compilationError.message}`);
+    lines.push(`Compilation Error: ${compilationError.message}`);
   }
 
   if (execResult) {
-    lines.push(`  Result:`);
+    lines.push("Result:");
     const indented = execResult.split("\n").map(l => "  " + l).join("\n");
     lines.push(indented);
   }
 
-  lines.push(`</operator>`);
   return lines.join("\n");
 }
 
