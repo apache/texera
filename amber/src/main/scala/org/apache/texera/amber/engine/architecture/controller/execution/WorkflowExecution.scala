@@ -36,20 +36,13 @@ case class WorkflowExecution() {
 
   /**
     * Initializes or retrieves a `RegionExecution` for a given `Region`. If not already
-    * initialized, it creates and returns a new `RegionExecution`; otherwise, an assertion
-    * error is thrown if re-initialization is attempted.
+    * initialized, it creates and returns a new `RegionExecution`。
     *
     * @param region The `Region` for which to initialize or retrieve the `RegionExecution`.
     * @return The `RegionExecution` associated with the given `Region`.
-    * @throws AssertionError if the `RegionExecution` has already been initialized.
     */
   def initRegionExecution(region: Region): RegionExecution = {
     regionExecutions.remove(region.id)
-    // ensure the region execution hasn't been initialized already.
-    assert(
-      !regionExecutions.contains(region.id),
-      s"RegionExecution of ${region.id} already initialized."
-    )
     regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
   }
 
