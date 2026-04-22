@@ -21,9 +21,7 @@ import scala.collection.Seq
 /////////////////////////////////////////////////////////////////////////////
 
 name := "pybuilder"
-version := "1.0.0"
 
-scalaVersion := "2.13.18"
 
 enablePlugins(JavaAppPackaging)
 
