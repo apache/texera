@@ -76,8 +76,8 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      userFriendlyName = "URL fetcher",
-      operatorDescription = "Fetch the content of a single url",
+      userFriendlyName = "URL Fetcher",
+      operatorDescription = "Fetch the content of a single URL",
       operatorGroupName = OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
