@@ -83,7 +83,7 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "showLegends", required = false)
   @JsonSchemaTitle("Show Legends?")
-  @JsonPropertyDescription("whether show legends in the graph")
+  @JsonPropertyDescription("whether to show legends in the graph")
   var showLegends: Boolean = false
 
   override def getOutputSchemas(
@@ -98,7 +98,7 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       "Dumbbell Plot",
-      "Visualize data in a Dumbbell Plots. A dumbbell plots (also known as a lollipop chart) is typically used to compare two distinct values or time points for the same entity.",
+      "Visualize data in a Dumbbell Plot. A dumbbell plot (also known as a lollipop chart) is typically used to compare two distinct values or time points for the same entity.",
       OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
