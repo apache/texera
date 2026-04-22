@@ -23,7 +23,7 @@ name := "workflow-compiling-service"
 organization := "org.apache"
 version := "1.0.0"
 
-scalaVersion := "2.13.12"
+scalaVersion := "2.13.18"
 
 enablePlugins(JavaAppPackaging)
 
@@ -77,5 +77,5 @@ libraryDependencies ++= Seq(
 // Core Dependencies
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6"
 )

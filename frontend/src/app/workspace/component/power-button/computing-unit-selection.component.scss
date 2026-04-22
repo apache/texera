@@ -125,7 +125,7 @@
 .create-computing-unit {
   display: flex;
   gap: 10px;
-  justify-content: start;
+  justify-content: flex-start;
   align-items: center;
 }
 
@@ -197,7 +197,7 @@
   flex-direction: column;
   gap: 10px;
   justify-content: center;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .select-unit.name-field {
@@ -306,7 +306,7 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(1, 1fr);
-  justify-content: start;
+  justify-content: flex-start;
   align-items: center;
   gap: 5px;
 }
