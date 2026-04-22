@@ -114,7 +114,7 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "14.0.1"
+val arrowVersion = "15.0.2"
 val nettyVersion = "4.1.96.Final"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
