@@ -840,6 +840,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     const trimmedName = env.name.trim().toLowerCase();
+
+    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
+      this.notificationService.error("Environment name must contain only letters and numbers.");
+      return;
+    }
+
     const duplicateExists = this.pves.some(
       (pve, i) => i !== index && (pve.name ?? "").trim().toLowerCase() === trimmedName
     );
