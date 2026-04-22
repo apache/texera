@@ -87,7 +87,9 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
   }
 
   def removeControlChannel(from: ActorVirtualIdentity): Unit = {
-    inputChannels.remove(ChannelIdentity(from, actorId, isControl = true))
+    synchronized {
+      inputChannels.remove(ChannelIdentity(from, actorId, isControl = true))
+    }
   }
 
 }
