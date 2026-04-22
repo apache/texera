@@ -16,10 +16,7 @@
 // under the License.
 
 name := "amber"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.18"
 
 enablePlugins(JavaAppPackaging)
 
@@ -212,9 +209,6 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.14.2"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
-
-// https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
