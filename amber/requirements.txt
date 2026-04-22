@@ -37,8 +37,6 @@ dataclasses==0.6
 Deprecated==1.2.14
 fs==2.4.16
 praw==7.6.1
-python-lsp-server[all]==1.12.0
-python-lsp-server[websockets]==1.12.0
 bidict==0.22.0
 cached_property==1.5.2
 psutil==5.9.0
