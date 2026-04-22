@@ -839,6 +839,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
       return;
     }
 
+    const trimmedName = env.name.trim().toLowerCase();
+    const duplicateExists = this.pves.some(
+      (pve, i) => i !== index && (pve.name ?? "").trim().toLowerCase() === trimmedName
+    );
+
+    if (duplicateExists) {
+      this.notificationService.error("An environment with this name already exists.");
+      return;
+    }
+
     env.isInstalling = true;
 
     this.workflowPveService.setCuid(cuId);
