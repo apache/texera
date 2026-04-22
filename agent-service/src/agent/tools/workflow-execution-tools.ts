@@ -26,13 +26,13 @@ import { z } from "zod";
 import { tool } from "ai";
 import { encode as toonEncode } from "@toon-format/toon";
 import { createErrorResult, formatExecuteOperatorResult } from "./tools-utility";
-import type { WorkflowState } from "../workflow/workflow-state";
-import { getBackendConfig } from "../api/backend-api";
-import { env } from "../config/env";
-import type { LogicalPlan, LogicalLink } from "../api/execution-api";
-import type { OperatorInfo, SyncExecutionResult } from "../types/execution";
-import { OperatorMetadataStore } from "./metadata-tools";
-import { OperatorResultSerializationMode, DEFAULT_AGENT_SETTINGS } from "../types/agent";
+import type { WorkflowState } from "../workflow-state";
+import { getBackendConfig } from "../../api/backend-api";
+import { env } from "../../config/env";
+import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
+import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
+import { OperatorMetadataStore } from "./workflow-metadata-tools";
+import { OperatorResultSerializationMode, DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 
 // ============================================================================
 // Tool Name Constants

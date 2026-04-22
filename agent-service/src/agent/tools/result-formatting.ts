@@ -25,12 +25,12 @@
  * vs. tool result vs. context optimization).
  */
 
-import type { OperatorInfo } from "../types/execution";
-import type { WorkflowState } from "../workflow/workflow-state";
+import type { OperatorInfo } from "../../types/execution";
+import type { WorkflowState } from "../workflow-state";
 import {
   OperatorResultSerializationMode,
   DEFAULT_AGENT_SETTINGS,
-} from "../types/agent";
+} from "../../types/agent";
 import { formatExecuteOperatorResult } from "./tools-utility";
 
 // ============================================================================

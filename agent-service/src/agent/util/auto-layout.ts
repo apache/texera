@@ -26,7 +26,7 @@
  */
 
 import dagre from "dagre";
-import type { WorkflowState } from "./workflow-state";
+import type { WorkflowState } from "../workflow-state";
 
 /**
  * Layout configuration matching frontend settings.

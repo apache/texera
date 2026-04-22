@@ -22,11 +22,11 @@
  */
 
 import Ajv from "ajv";
-import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../api/backend-api";
-import type { ValidationError, Validation } from "../types/workflow";
+import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../../api/backend-api";
+import type { ValidationError, Validation } from "../../types/workflow";
 
 // Re-export validation types for backwards compatibility
-export type { ValidationError, Validation } from "../types/workflow";
+export type { ValidationError, Validation } from "../../types/workflow";
 
 interface OperatorSchemaInfo {
   properties: any;

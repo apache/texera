@@ -23,7 +23,7 @@
  */
 
 export * from "./types";
-export { WorkflowState } from "./workflow/workflow-state";
-export * from "./tools";
+export { WorkflowState } from "./agent/workflow-state";
+export * from "./agent/tools";
 export { TexeraAgent, type TexeraAgentConfig, type AgentMessageResult } from "./agent/texera-agent";
 export { buildSystemPrompt } from "./agent/prompts";

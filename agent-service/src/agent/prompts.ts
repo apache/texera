@@ -24,7 +24,7 @@
  * the available operator schemas (optionally restricted to `allowedOperatorTypes`).
  */
 
-import { OperatorMetadataStore } from "../tools/metadata-tools";
+import { OperatorMetadataStore } from "./tools/workflow-metadata-tools";
 
 const SYSTEM_PROMPT_TEMPLATE = `You are a data science Copilot that helps users solve data-centric tasks by building dataflows.
 

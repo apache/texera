@@ -24,10 +24,10 @@
 import { generateText, type ModelMessage, type LanguageModel, stepCountIs } from "ai";
 import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
-import { WorkflowState } from "../workflow/workflow-state";
-import { OperatorMetadataStore } from "../tools/metadata-tools";
+import { WorkflowState } from "./workflow-state";
+import { OperatorMetadataStore } from "./tools/workflow-metadata-tools";
 import { OperatorResultStore } from "./operator-result-store";
-import { formatOperatorResult, type FormatOptions } from "../tools/result-formatting";
+import { formatOperatorResult, type FormatOptions } from "./tools/result-formatting";
 import type {
   AgentSettings,
   ReActStep,
@@ -42,24 +42,21 @@ import {
 } from "../types/agent";
 import { buildSystemPrompt } from "./prompts";
 import {
-  createDeleteOperatorTool,
-  TOOL_NAME_DELETE_OPERATOR,
-  type ToolContext,
-} from "../tools/workflow-tools";
-import { ParallelCallCoordinator } from "../tools/parallel-call-coordinator";
-import {
   createAddOperatorTool,
   createModifyOperatorTool,
+  createDeleteOperatorTool,
   TOOL_NAME_ADD_OPERATOR,
   TOOL_NAME_MODIFY_OPERATOR,
-} from "../tools/general-op-tools";
+  TOOL_NAME_DELETE_OPERATOR,
+  type ToolContext,
+} from "./tools/workflow-crud-tools";
 import {
   createExecuteOperatorTool,
   executeOperatorAndFormat,
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
-} from "../tools/execution-tools";
-import { assembleContext } from "./context-assembler";
+} from "./tools/workflow-execution-tools";
+import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 
 // ============================================================================
@@ -293,10 +290,6 @@ export class TexeraAgent {
         toolTimeoutMs: this.settings.toolTimeoutMs,
         executionTimeoutMs: this.settings.executionTimeoutMs,
       },
-      // Coordinate parallel tool calls with inter-operator dependencies
-      parallelCoordinator: this.settings.parallelToolCalls
-        ? new ParallelCallCoordinator(this.settings.toolTimeoutMs)
-        : undefined,
     };
 
     // General-mode tools: addOperator, modifyOperator, deleteOperator.
@@ -517,7 +510,6 @@ export class TexeraAgent {
     executionTimeoutMs?: number;
     disabledTools?: Set<string>;
     maxSteps?: number;
-    parallelToolCalls?: boolean;
     allowedOperatorTypes?: string[];
   }): void {
     let promptNeedsRebuild = false;
@@ -542,9 +534,6 @@ export class TexeraAgent {
     }
     if (updates.maxSteps !== undefined) {
       this.settings.maxSteps = updates.maxSteps;
-    }
-    if (updates.parallelToolCalls !== undefined) {
-      this.settings.parallelToolCalls = updates.parallelToolCalls;
     }
     if (updates.allowedOperatorTypes !== undefined) {
       this.settings.allowedOperatorTypes = updates.allowedOperatorTypes;
@@ -769,13 +758,11 @@ export class TexeraAgent {
         abortSignal: this.abortController?.signal,
         // Note: reasoning_effort is NOT passed here — it's configured per-model in
         // litellm-config.yaml via extra_body to bypass LiteLLM's param validation.
-        providerOptions: this.settings.parallelToolCalls
-          ? {}
-          : {
-              openai: { parallelToolCalls: false },
-              anthropic: { disableParallelToolUse: true },
-              mistral: { parallelToolCalls: false },
-            },
+        providerOptions: {
+          openai: { parallelToolCalls: false },
+          anthropic: { disableParallelToolUse: true },
+          mistral: { parallelToolCalls: false },
+        },
         onStepFinish: async ({ text, toolCalls, toolResults, usage }) => {
           stepIndex++; // Increment first since user message is step 0
 

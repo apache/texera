@@ -31,10 +31,10 @@ interface BackendConfig {
 }
 
 const currentConfig: BackendConfig = {
-  apiEndpoint: env.API_ENDPOINT,
-  modelsEndpoint: env.MODELS_ENDPOINT,
-  compileEndpoint: env.COMPILE_ENDPOINT,
-  executionEndpoint: env.EXECUTION_ENDPOINT,
+  apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
+  modelsEndpoint: env.LLM_ENDPOINT,
+  compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
+  executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,
 };
 
 export function getBackendConfig(): BackendConfig {

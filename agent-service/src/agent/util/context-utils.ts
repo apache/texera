@@ -29,11 +29,11 @@
  */
 
 import type { ModelMessage } from "ai";
-import type { WorkflowState } from "../workflow/workflow-state";
-import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../types/workflow";
-import type { ReActStep } from "../types/agent";
-import type { WorkflowCompilationResponse, WorkflowFatalError } from "../api/compile-api";
-import { extractOperatorInputPortSchemaMap } from "../workflow/workflow-util";
+import type { WorkflowState } from "../workflow-state";
+import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../../types/workflow";
+import type { ReActStep } from "../../types/agent";
+import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
+import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
 
 /**
  * Build the full model context as a single user message.

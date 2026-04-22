@@ -30,9 +30,9 @@ import type {
   OperatorLink,
   PortSchema,
   OperatorPortSchemaMap,
-} from "../types/workflow";
-import type { OperatorMetadataStore } from "../tools/metadata-tools";
-import type { WorkflowState } from "./workflow-state";
+} from "../../types/workflow";
+import type { OperatorMetadataStore } from "../tools/workflow-metadata-tools";
+import type { WorkflowState } from "../workflow-state";
 
 // ============================================================================
 // Port Identity Serialization Utilities

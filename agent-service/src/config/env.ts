@@ -23,12 +23,11 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
   API_PREFIX: z.string().default("/api"),
   LLM_API_KEY: z.string().default("dummy"),
-  MODEL: z.string().default("gpt-4-turbo"),
 
-  API_ENDPOINT: z.string().url().default("http://localhost:8080"),
-  MODELS_ENDPOINT: z.string().url().default("http://localhost:9096"),
-  COMPILE_ENDPOINT: z.string().url().default("http://localhost:9090"),
-  EXECUTION_ENDPOINT: z.string().url().default("http://localhost:8085"),
+  TEXERA_DASHBOARD_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8080"),
+  LLM_ENDPOINT: z.string().url().default("http://localhost:9096"),
+  WORKFLOW_COMPILING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9090"),
+  WORKFLOW_EXECUTION_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8085"),
   EXECUTION_ENDPOINT_TEMPLATE: z.string().optional(),
 });
 

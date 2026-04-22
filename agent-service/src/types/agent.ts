@@ -129,8 +129,6 @@ export interface AgentSettings {
   executionTimeoutMs: number;
   /** Maximum number of steps per message */
   maxSteps: number;
-  /** Allow the model to issue multiple tool calls in a single response */
-  parallelToolCalls: boolean;
   /** List of allowed operator types (when empty, all operators are allowed) */
   allowedOperatorTypes: string[];
 }
@@ -146,7 +144,6 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   toolTimeoutMs: 240000,
   executionTimeoutMs: 240000,
   maxSteps: 100,
-  parallelToolCalls: false,
   allowedOperatorTypes: [
     "CSVFileScan",
     "Sort",
@@ -208,8 +205,6 @@ export interface AgentSettingsApi {
   disabledTools?: string[];
   /** Maximum number of steps per message */
   maxSteps?: number;
-  /** Allow the model to issue multiple tool calls in a single response */
-  parallelToolCalls?: boolean;
   /** List of allowed operator types (empty = all operators allowed) */
   allowedOperatorTypes?: string[];
 }
@@ -263,8 +258,6 @@ export interface UpdateAgentSettingsRequest {
   disabledTools?: string[];
   /** Maximum number of steps per message */
   maxSteps?: number;
-  /** Allow the model to issue multiple tool calls in a single response */
-  parallelToolCalls?: boolean;
   /** List of allowed operator types (empty = all operators allowed) */
   allowedOperatorTypes?: string[];
 }

@@ -530,25 +530,6 @@
               <span class="settings-param-hint">Maximum reasoning/tool steps per message (1-50)</span>
             </div>
           </div>
-          <div class="settings-param-item">
-            <label class="settings-param-label">Parallel Tool Calls</label>
-            <div class="settings-param-input">
-              <nz-switch
-                [(ngModel)]="settingsParallelToolCalls"
-                nzSize="small"
-                style="margin-right: 12px"></nz-switch>
-              <button
-                nz-button
-                nzType="primary"
-                nzSize="small"
-                (click)="saveParallelToolCalls()">
-                Save
-              </button>
-              <span class="settings-param-hint"
-                >Allow the model to issue multiple tool calls in a single response for independent operations.</span
-              >
-            </div>
-          </div>
         </div>
       </nz-tab>
 

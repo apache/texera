@@ -60,8 +60,6 @@ export interface AgentSettingsApi {
   disabledTools?: string[];
   /** Maximum number of steps per message */
   maxSteps?: number;
-  /** Allow the model to issue multiple tool calls in a single response */
-  parallelToolCalls?: boolean;
   /** List of allowed operator types (empty = all operators allowed) */
   allowedOperatorTypes?: string[];
 }
@@ -1237,7 +1235,6 @@ export class TexeraCopilotManagerService {
           executionTimeoutMinutes: 10,
           disabledTools: [],
           maxSteps: 10,
-          parallelToolCalls: false,
           allowedOperatorTypes: [],
         })
       )

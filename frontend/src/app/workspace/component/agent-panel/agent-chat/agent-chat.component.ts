@@ -76,7 +76,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public settingsToolTimeoutSeconds = 120; // 2 minutes default
   public settingsExecutionTimeoutMinutes = 10; // 10 minutes default
   public settingsMaxSteps = 10; // Default max steps per message
-  public settingsParallelToolCalls = false; // Allow multiple tool calls per response
   public settingsAllowedOperatorTypes: string[] = []; // Allowed operator types for general mode
   public allAvailableOperatorTypes: Array<{ type: string; description: string }> = []; // All operator types from backend
   public operatorTypeSearchQuery = ""; // Search filter for operator types
@@ -348,7 +347,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.settingsToolTimeoutSeconds = settings.toolTimeoutSeconds ?? 120;
         this.settingsExecutionTimeoutMinutes = settings.executionTimeoutMinutes ?? 10;
         this.settingsMaxSteps = settings.maxSteps ?? 10;
-        this.settingsParallelToolCalls = settings.parallelToolCalls ?? false;
         this.settingsAllowedOperatorTypes = settings.allowedOperatorTypes ?? [];
       });
 
@@ -757,24 +755,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe({
         next: () => this.notificationService.success("Max steps saved"),
         error: () => {}, // Error already handled by service
-      });
-  }
-
-  /**
-   * Save the parallel tool calls setting.
-   */
-  public saveParallelToolCalls(): void {
-    this.copilotManagerService
-      .updateAgentSettings(this.agentInfo.id, {
-        parallelToolCalls: this.settingsParallelToolCalls,
-      })
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () =>
-          this.notificationService.success(
-            this.settingsParallelToolCalls ? "Parallel tool calls enabled" : "Parallel tool calls disabled"
-          ),
-        error: () => {},
       });
   }
 

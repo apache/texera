@@ -38,7 +38,7 @@ import { TexeraAgent } from "./agent/texera-agent";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
-import { OperatorMetadataStore } from "./tools/metadata-tools";
+import { OperatorMetadataStore } from "./agent/tools/workflow-metadata-tools";
 import { env } from "./config/env";
 import type {
   AgentInfo,
@@ -80,11 +80,9 @@ async function createAgentInstance(
   // Send the full model name to LiteLLM (e.g., "gpt-5-mini-medium").
   // Reasoning effort variants are configured as separate model entries in litellm-config.yaml
   // with extra_body to inject reasoning_effort, bypassing LiteLLM's param validation.
-  const effectiveModelType = modelType || env.MODEL;
-
   const agent = new TexeraAgent({
-    model: openai.chat(effectiveModelType),
-    modelType: effectiveModelType,
+    model: openai.chat(modelType),
+    modelType,
     agentId,
     agentName: customName || "Bob",
   });
@@ -137,7 +135,6 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
     executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
     disabledTools: Array.from(agentSettings.disabledTools),
     maxSteps: agentSettings.maxSteps,
-    parallelToolCalls: agentSettings.parallelToolCalls,
     allowedOperatorTypes: agentSettings.allowedOperatorTypes,
   };
 
@@ -228,7 +225,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           executionTimeoutMs: settings.executionTimeoutMinutes ? settings.executionTimeoutMinutes * 60000 : undefined,
           disabledTools: settings.disabledTools ? new Set(settings.disabledTools) : undefined,
           maxSteps: settings.maxSteps,
-          parallelToolCalls: settings.parallelToolCalls,
           allowedOperatorTypes: settings.allowedOperatorTypes,
         });
       }
@@ -253,7 +249,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             executionTimeoutMinutes: t.Optional(t.Number()),
             disabledTools: t.Optional(t.Array(t.String())),
             maxSteps: t.Optional(t.Number()),
-            parallelToolCalls: t.Optional(t.Boolean()),
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
@@ -379,7 +374,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
       disabledTools: Array.from(agentSettings.disabledTools),
       maxSteps: agentSettings.maxSteps,
-      parallelToolCalls: agentSettings.parallelToolCalls,
       allowedOperatorTypes: agentSettings.allowedOperatorTypes,
     };
   })
@@ -408,7 +402,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           settings.executionTimeoutMinutes !== undefined ? settings.executionTimeoutMinutes * 60000 : undefined,
         disabledTools: settings.disabledTools ? new Set(settings.disabledTools) : undefined,
         maxSteps: settings.maxSteps,
-        parallelToolCalls: settings.parallelToolCalls,
         allowedOperatorTypes: settings.allowedOperatorTypes,
       });
 
@@ -422,7 +415,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
         disabledTools: Array.from(agentSettings.disabledTools),
         maxSteps: agentSettings.maxSteps,
-        parallelToolCalls: agentSettings.parallelToolCalls,
         allowedOperatorTypes: agentSettings.allowedOperatorTypes,
       };
     },
@@ -437,7 +429,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         executionTimeoutMinutes: t.Optional(t.Number()),
         maxSteps: t.Optional(t.Number()),
         disabledTools: t.Optional(t.Array(t.String())),
-        parallelToolCalls: t.Optional(t.Boolean()),
         allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),
     }
@@ -724,9 +715,10 @@ function printStartupMessage() {
   console.log("");
   console.log("Environment:");
   console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
-  console.log(`  MODEL: ${env.MODEL}`);
-  console.log(`  MODELS_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
-  console.log(`  COMPILE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
+  console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
+  console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
+  console.log(`  WORKFLOW_EXECUTION_SERVICE_ENDPOINT: ${getBackendConfig().executionEndpoint}`);
+  console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
   console.log("");
   console.log("Features:");
   console.log("  - Auto-persistence with debounce (500ms)");

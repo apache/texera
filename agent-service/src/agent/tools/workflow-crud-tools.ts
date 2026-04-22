@@ -18,16 +18,16 @@
  */
 
 /**
- * General operator tools for Texera Agent Service (GENERAL mode).
- * These tools work with any operator type using operator schemas.
+ * Workflow CRUD tools for Texera Agent Service.
+ * Add, modify, and delete operators on the workflow state.
  */
 
 import { z } from "zod";
 import { tool } from "ai";
-import { WorkflowState } from "../workflow/workflow-state";
-import { autoLayoutWorkflow } from "../workflow/auto-layout";
-import { WorkflowUtilService } from "../workflow/workflow-util";
-import type { OperatorLink } from "../types/workflow";
+import { WorkflowState } from "../workflow-state";
+import { autoLayoutWorkflow } from "../util/auto-layout";
+import { WorkflowUtilService } from "../util/workflow-utils";
+import type { OperatorLink } from "../../types/workflow";
 import {
   createToolResult,
   createErrorResult,
@@ -35,9 +35,24 @@ import {
   formatModifyOperatorResult,
   formatOperatorError,
 } from "./tools-utility";
-import { formatValidationErrors, formatCompactSchemaForError } from "./metadata-tools";
+import {
+  type OperatorMetadataStore,
+  formatValidationErrors,
+  formatCompactSchemaForError,
+} from "./workflow-metadata-tools";
 
-import type { ToolContext } from "./workflow-tools";
+// ============================================================================
+// Tool Context
+// ============================================================================
+
+export interface ToolContext {
+  metadataStore?: OperatorMetadataStore;
+  settings?: {
+    maxOperatorResultCharLimit?: number;
+    toolTimeoutMs?: number;
+    executionTimeoutMs?: number;
+  };
+}
 
 // ============================================================================
 // Tool Name Constants
@@ -45,6 +60,7 @@ import type { ToolContext } from "./workflow-tools";
 
 export const TOOL_NAME_ADD_OPERATOR = "addOperator";
 export const TOOL_NAME_MODIFY_OPERATOR = "modifyOperator";
+export const TOOL_NAME_DELETE_OPERATOR = "deleteOperator";
 
 /**
  * Format tool input args as a compact string for inclusion in error messages.
@@ -333,6 +349,30 @@ Examples:
         return createToolResult(resultMsg);
       } catch (error: any) {
         return createErrorResult(formatOperatorError(args.operatorId, error.message || String(error)));
+      }
+    },
+  });
+}
+
+// ============================================================================
+// Delete Operator Tool
+// ============================================================================
+
+export function createDeleteOperatorTool(workflowState: WorkflowState, _context?: ToolContext) {
+  return tool({
+    description: "Delete an operator from the workflow. This also deletes all connected links.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to delete"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const deleted = workflowState.deleteOperator(args.operatorId);
+        if (!deleted) {
+          return createErrorResult(`Operator ${args.operatorId} not found`);
+        }
+        return createToolResult(`Deleted operator: ${args.operatorId}`);
+      } catch (error: any) {
+        return createErrorResult(error.message || String(error));
       }
     },
   });
