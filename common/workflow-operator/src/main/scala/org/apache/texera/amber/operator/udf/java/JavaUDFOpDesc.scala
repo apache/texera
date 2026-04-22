@@ -56,7 +56,7 @@ class JavaUDFOpDesc extends LogicalOp {
 
   @JsonProperty(required = true, defaultValue = "1")
   @JsonSchemaTitle("Worker count")
-  @JsonPropertyDescription("Specify how many parallel workers to lunch")
+  @JsonPropertyDescription("Specify how many parallel workers to launch")
   var workers: Int = Int.box(1)
 
   @JsonProperty(required = true, defaultValue = "true")
