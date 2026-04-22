@@ -20,7 +20,6 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "workflow-compiling-service"
-organization := "org.apache"
 version := "1.0.0"
 
 scalaVersion := "2.13.18"

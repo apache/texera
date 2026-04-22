@@ -18,7 +18,6 @@
 import scala.collection.Seq
 
 name := "computing-unit-managing-service"
-organization := "org.apache"
 version := "1.0.0"
 
 scalaVersion := "2.13.18"

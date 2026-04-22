@@ -21,7 +21,6 @@ import scala.collection.Seq
 /////////////////////////////////////////////////////////////////////////////
 
 name := "workflow-operator"
-organization := "org.apache"
 version := "1.0.0"
 
 scalaVersion := "2.13.18"
