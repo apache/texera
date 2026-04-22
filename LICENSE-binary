@@ -1,0 +1,939 @@
+================================================================================
+Apache Texera binary distribution
+================================================================================
+
+This file lists the licensing terms of Apache Texera and the third-party
+components bundled with its binary distributions. The Apache License,
+Version 2.0 text below applies to Apache Texera itself; third-party
+components are listed after the Apache License text and are governed by
+the terms of their own licenses.
+
+--------------------------------------------------------------------------------
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for describing the origin of the Work and
+      reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Support. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or support.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+   implied. See the License for the specific language governing
+   permissions and limitations under the License.
+
+================================================================================
+VENDORED SOURCE CODE
+================================================================================
+
+Apache Texera source tree includes code derived from the following projects.
+See licenses/ for the full text of the applicable licenses.
+
+mbknor-jackson-jsonschema (MIT License; see licenses/LICENSE-MIT.txt)
+  - common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/
+  Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
+  Source: https://github.com/mbknor/mbknor-jackson-jsonschema
+
+Google Angular formly examples (MIT License)
+  - frontend/src/app/common/formly/array.type.ts
+  - frontend/src/app/common/formly/object.type.ts
+  - frontend/src/app/common/formly/multischema.type.ts
+  - frontend/src/app/common/formly/null.type.ts
+  Copyright (c) 2018 Google Inc. All Rights Reserved.
+  Source: https://angular.io
+
+TypeFox monaco-languageclient (MIT License)
+  - pyright-language-service/src/main.ts
+  - pyright-language-service/src/language-server-runner.ts
+  - pyright-language-service/src/server-commons.ts
+  Copyright (c) 2024 TypeFox and others.
+  Source: https://github.com/TypeFox/monaco-languageclient
+
+SVGRepo icons (MIT License)
+  - frontend/src/assets/svg/operator-view-result.svg
+  - frontend/src/assets/svg/operator-reuse-cache-valid.svg
+  - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
+  Source: https://www.svgrepo.com
+
+================================================================================
+BUNDLED THIRD-PARTY DEPENDENCIES
+================================================================================
+
+This binary distribution bundles the following third-party dependencies,
+grouped by license. Dependencies bundled under the Apache License, Version
+2.0 are governed by the same license terms as Apache Texera itself and are
+listed for completeness. Dependencies under other licenses are listed in
+dedicated sections, each accompanied by the full license text under
+licenses/.
+
+--------------------------------------------------------------------------------
+Dependencies under the Apache License, Version 2.0
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following Apache-2.0 licensed dependencies.
+
+Scala/Java jars:
+  - ch.qos.reload4j (ch.qos.reload4j.reload4j)
+  - classworlds (classworlds.classworlds)
+  - com.fasterxml (com.fasterxml.classmate)
+  - com.fasterxml.jackson.core (com.fasterxml.jackson.core.*)
+  - com.fasterxml.jackson.dataformat (com.fasterxml.jackson.dataformat.jackson-dataformat-yaml)
+  - com.fasterxml.jackson.datatype (com.fasterxml.jackson.datatype.*)
+  - com.fasterxml.jackson.jakarta.rs (com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-base, com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider)
+  - com.fasterxml.jackson.jaxrs (com.fasterxml.jackson.jaxrs.jackson-jaxrs-base, com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider)
+  - com.fasterxml.jackson.module (com.fasterxml.jackson.module.*)
+  - com.fasterxml.woodstox (com.fasterxml.woodstox.woodstox-core)
+  - com.flipkart.zjsonpatch (com.flipkart.zjsonpatch.zjsonpatch)
+  - com.github.ben-manes.caffeine (com.github.ben-manes.caffeine.caffeine)
+  - com.github.dirkraft.dropwizard (com.github.dirkraft.dropwizard.dropwizard-file-assets)
+  - com.github.nscala-time (com.github.nscala-time.nscala-time_2.13)
+  - com.github.sisyphsu (com.github.sisyphsu.dateparser, com.github.sisyphsu.retree)
+  - com.github.stephenc.jcip (com.github.stephenc.jcip.jcip-annotations)
+  - com.github.toastshaman (com.github.toastshaman.dropwizard-auth-jwt)
+  - com.github.tototoshi (com.github.tototoshi.scala-csv_2.13)
+  - com.google.android (com.google.android.annotations)
+  - com.google.api-client (com.google.api-client.google-api-client)
+  - com.google.api.grpc (com.google.api.grpc.proto-google-common-protos)
+  - com.google.code.findbugs (com.google.code.findbugs.jsr305)
+  - com.google.code.gson (com.google.code.gson.gson)
+  - com.google.errorprone (com.google.errorprone.error_prone_annotations)
+  - com.google.flatbuffers (com.google.flatbuffers.flatbuffers-java)
+  - com.google.guava (com.google.guava.*)
+  - com.google.http-client (com.google.http-client.*)
+  - com.google.inject (com.google.inject.guice)
+  - com.google.inject.extensions (com.google.inject.extensions.guice-servlet)
+  - com.google.j2objc (com.google.j2objc.j2objc-annotations)
+  - com.google.oauth-client (com.google.oauth-client.*)
+  - com.googlecode.javaewah (com.googlecode.javaewah.JavaEWAH)
+  - com.helger (com.helger.profiler)
+  - com.hierynomus (com.hierynomus.asn-one)
+  - com.nimbusds (com.nimbusds.nimbus-jose-jwt)
+  - com.papertrail (com.papertrail.profiler)
+  - com.softwaremill.common (com.softwaremill.common.tagging_2.13)
+  - com.softwaremill.macwire (com.softwaremill.macwire.proxy_2.13, com.softwaremill.macwire.util_2.13)
+  - com.softwaremill.sttp.client4 (com.softwaremill.sttp.client4.core_2.13)
+  - com.softwaremill.sttp.model (com.softwaremill.sttp.model.core_2.13)
+  - com.softwaremill.sttp.shared (com.softwaremill.sttp.shared.core_2.13, com.softwaremill.sttp.shared.ws_2.13)
+  - com.squareup.okhttp (com.squareup.okhttp.okhttp)
+  - com.squareup.okhttp3 (com.squareup.okhttp3.logging-interceptor, com.squareup.okhttp3.okhttp)
+  - com.squareup.okio (com.squareup.okio.okio, com.squareup.okio.okio-jvm)
+  - com.thesamet.scalapb (com.thesamet.scalapb.*)
+  - com.twitter (com.twitter.util-core_2.13, com.twitter.util-function_2.13)
+  - com.typesafe (com.typesafe.config, com.typesafe.ssl-config-core_2.13)
+  - com.typesafe.play (com.typesafe.play.play-functional_2.13, com.typesafe.play.play-json_2.13)
+  - com.typesafe.scala-logging (com.typesafe.scala-logging.scala-logging_2.13)
+  - com.univocity (com.univocity.univocity-parsers)
+  - commons-beanutils (commons-beanutils.commons-beanutils)
+  - commons-cli (commons-cli.commons-cli)
+  - commons-codec (commons-codec.commons-codec)
+  - commons-collections (commons-collections.commons-collections)
+  - commons-io (commons-io.commons-io)
+  - commons-lang (commons-lang.commons-lang)
+  - commons-logging (commons-logging.commons-logging)
+  - commons-net (commons-net.commons-net)
+  - commons-pool (commons-pool.commons-pool)
+  - dev.failsafe (dev.failsafe.failsafe)
+  - io.airlift (io.airlift.aircompressor)
+  - io.altoo (io.altoo.pekko-kryo-serialization_2.13, io.altoo.scala-kryo-serialization_2.13)
+  - io.dropwizard (io.dropwizard.*)
+  - io.dropwizard-bundles (io.dropwizard-bundles.dropwizard-redirect-bundle)
+  - io.dropwizard.logback (io.dropwizard.logback.logback-throttling-appender)
+  - io.dropwizard.metrics (io.dropwizard.metrics.*)
+  - io.fabric8 (io.fabric8.*)
+  - io.github.kostaskougios (io.github.kostaskougios.cloning)
+  - io.github.redouane59.twitter (io.github.redouane59.twitter.twittered)
+  - io.grpc (io.grpc.*)
+  - io.gsonfire (io.gsonfire.gson-fire)
+  - io.kamon (io.kamon.sigar-loader)
+  - io.kubernetes (io.kubernetes.*)
+  - io.lakefs (io.lakefs.sdk)
+  - io.netty (io.netty.*)
+  - io.opencensus (io.opencensus.opencensus-api, io.opencensus.opencensus-contrib-http-util)
+  - io.perfmark (io.perfmark.perfmark-api)
+  - io.r2dbc (io.r2dbc.r2dbc-spi)
+  - io.reactivex.rxjava3 (io.reactivex.rxjava3.rxjava)
+  - io.swagger (io.swagger.swagger-annotations)
+  - jakarta.inject.jakarta (jakarta.inject.jakarta.inject-api)
+  - jakarta.validation.jakarta (jakarta.validation.jakarta.validation-api)
+  - javax.inject.javax (javax.inject.javax.inject)
+  - javax.validation (javax.validation.validation-api)
+  - joda-time (joda-time.joda-time)
+  - log4j (log4j.log4j)
+  - net.bytebuddy (net.bytebuddy.byte-buddy)
+  - net.minidev (net.minidev.accessors-smart, net.minidev.json-smart)
+  - org.agrona (org.agrona.agrona)
+  - org.apache.arrow (org.apache.arrow.*)
+  - org.apache.avro (org.apache.avro.avro)
+  - org.apache.commons (org.apache.commons.*)
+  - org.apache.curator (org.apache.curator.*)
+  - org.apache.hadoop (org.apache.hadoop.*)
+  - org.apache.hadoop.thirdparty (org.apache.hadoop.thirdparty.hadoop-shaded-guava, org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_7)
+  - org.apache.htrace (org.apache.htrace.htrace-core4)
+  - org.apache.httpcomponents (org.apache.httpcomponents.*)
+  - org.apache.httpcomponents.client5 (org.apache.httpcomponents.client5.httpclient5)
+  - org.apache.httpcomponents.core5 (org.apache.httpcomponents.core5.httpcore5, org.apache.httpcomponents.core5.httpcore5-h2)
+  - org.apache.iceberg (org.apache.iceberg.*)
+  - org.apache.kerby (org.apache.kerby.*)
+  - org.apache.lucene (org.apache.lucene.*)
+  - org.apache.maven (org.apache.maven.*)
+  - org.apache.maven.doxia (org.apache.maven.doxia.doxia-sink-api)
+  - org.apache.maven.reporting (org.apache.maven.reporting.maven-reporting-api)
+  - org.apache.maven.shared (org.apache.maven.shared.maven-dependency-tree)
+  - org.apache.maven.wagon (org.apache.maven.wagon.*)
+  - org.apache.orc (org.apache.orc.orc-core, org.apache.orc.orc-shims)
+  - org.apache.parquet (org.apache.parquet.*)
+  - org.apache.pekko (org.apache.pekko.*)
+  - org.apache.yetus (org.apache.yetus.audience-annotations)
+  - org.apache.zookeeper (org.apache.zookeeper.zookeeper, org.apache.zookeeper.zookeeper-jute)
+  - org.bitbucket.b_c (org.bitbucket.b_c.jose4j)
+  - org.codehaus.plexus (org.codehaus.plexus.*)
+  - org.codehaus.woodstox (org.codehaus.woodstox.stax2-api)
+  - org.eclipse.jetty (org.eclipse.jetty.*)
+  - org.eclipse.jetty.toolchain (org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api)
+  - org.eclipse.jetty.toolchain.setuid (org.eclipse.jetty.toolchain.setuid.jetty-setuid-java)
+  - org.ehcache (org.ehcache.sizeof)
+  - org.hibernate (org.hibernate.hibernate-validator)
+  - org.hibernate.validator (org.hibernate.validator.hibernate-validator)
+  - org.jasypt (org.jasypt.jasypt)
+  - org.javassist (org.javassist.javassist)
+  - org.jboss.logging (org.jboss.logging.jboss-logging)
+  - org.jetbrains (org.jetbrains.annotations)
+  - org.jetbrains.kotlin (org.jetbrains.kotlin.*)
+  - org.jheaps (org.jheaps.jheaps)
+  - org.joda (org.joda.joda-convert)
+  - org.jooq (org.jooq.jooq)
+  - org.json4s (org.json4s.json4s-ast_2.13, org.json4s.json4s-jackson-core_2.13)
+  - org.lz4 (org.lz4.lz4-java)
+  - org.objenesis (org.objenesis.objenesis)
+  - org.openapitools (org.openapitools.jackson-databind-nullable)
+  - org.playframework (org.playframework.play-functional_2.13, org.playframework.play-json_2.13)
+  - org.roaringbitmap (org.roaringbitmap.RoaringBitmap)
+  - org.scala-lang (org.scala-lang.scala-library, org.scala-lang.scala-reflect)
+  - org.scala-lang.modules (org.scala-lang.modules.*)
+  - org.scalactic (org.scalactic.scalactic_2.13)
+  - org.snakeyaml (org.snakeyaml.snakeyaml-engine)
+  - org.typelevel (org.typelevel.*)
+  - org.xerial.snappy (org.xerial.snappy.snappy-java)
+  - org.yaml (org.yaml.snakeyaml)
+  - plexus (plexus.plexus-utils)
+  - software.amazon.awssdk (software.amazon.awssdk.*)
+  - software.amazon.eventstream (software.amazon.eventstream.eventstream)
+  - xml-apis (xml-apis.xml-apis)
+
+Python packages:
+  - aiobotocore
+  - aiohttp
+  - aiosignal
+  - boto3
+  - botocore
+  - dataclasses
+  - frozenlist
+  - hf-xet
+  - huggingface_hub
+  - importlib_metadata
+  - multidict
+  - nvidia-nvtx-cu12
+  - overrides
+  - packaging
+  - propcache
+  - pyarrow
+  - pyiceberg
+  - pympler
+  - python-dateutil
+  - regex
+  - requests
+  - s3transfer
+  - safetensors
+  - tenacity
+  - tokenizers
+  - transformers
+  - tzdata
+  - websocket-client
+  - yapf
+  - yarl
+
+Angular / npm packages:
+  - @ai-sdk/gateway
+  - @ai-sdk/openai
+  - @ai-sdk/provider
+  - @ai-sdk/provider-utils
+  - @opentelemetry/api
+  - @vercel/oidc
+  - ai
+  - fuse.js
+  - rxjs
+
+--------------------------------------------------------------------------------
+Dependencies under the MIT License
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following MIT-licensed dependencies. See
+licenses/LICENSE-MIT.txt for the full text of the MIT License.
+
+Scala/Java jars:
+  - co.fs2 (co.fs2.fs2-core_2.13)
+  - com.github.scribejava (com.github.scribejava.*)
+  - com.konghq (com.konghq.unirest-java)
+  - com.liveperson (com.liveperson.dropwizard-websockets)
+  - io.github.classgraph (io.github.classgraph.classgraph)
+  - net.sourceforge.argparse4j (net.sourceforge.argparse4j.argparse4j)
+  - org.bouncycastle (org.bouncycastle.*)
+  - org.checkerframework (org.checkerframework.checker-qual)
+  - org.codehaus.mojo (org.codehaus.mojo.animal-sniffer-annotations)
+  - org.projectlombok (org.projectlombok.lombok)
+  - org.reactivestreams (org.reactivestreams.reactive-streams)
+  - org.slf4j (org.slf4j.*)
+
+Python packages:
+  - aioitertools
+  - annotated-types
+  - appdirs
+  - asn1crypto
+  - attrs
+  - autopep8
+  - betterproto
+  - cachetools
+  - charset-normalizer
+  - deprecated
+  - filelock
+  - flake8
+  - fonttools
+  - fs
+  - greenlet
+  - h2
+  - hpack
+  - hyperframe
+  - iniconfig
+  - isort
+  - jedi
+  - jmespath
+  - loguru
+  - markdown-it-py
+  - mccabe
+  - mdurl
+  - mmh3
+  - pampy
+  - parso
+  - platformdirs
+  - plotly
+  - pluggy
+  - pycodestyle
+  - pydantic
+  - pydantic_core
+  - pydocstyle
+  - pyflakes
+  - pyparsing
+  - pyroaring
+  - pytest
+  - pytest-reraise
+  - pytest-timeout
+  - python-lsp-jsonrpc
+  - python-lsp-server
+  - pytz
+  - pyyaml
+  - readerwriterlock
+  - rich
+  - ruff
+  - scramp
+  - six
+  - sqlalchemy
+  - strictyaml
+  - tomlkit
+  - triton
+  - typing-inspection
+  - tzlocal
+  - urllib3
+  - whatthepatch
+  - wordcloud
+  - zipp
+
+Angular / npm packages:
+  - @abacritt/angularx-social-login
+  - @ali-hm/angular-tree-component
+  - @angular/animations
+  - @angular/cdk
+  - @angular/common
+  - @angular/core
+  - @angular/forms
+  - @angular/platform-browser
+  - @angular/router
+  - @ant-design/colors
+  - @ant-design/icons-angular
+  - @auth0/angular-jwt
+  - @babel/runtime
+  - @codingame/monaco-vscode-api
+  - @codingame/monaco-vscode-base-service-override
+  - @codingame/monaco-vscode-configuration-service-override
+  - @codingame/monaco-vscode-editor-api
+  - @codingame/monaco-vscode-environment-service-override
+  - @codingame/monaco-vscode-extensions-service-override
+  - @codingame/monaco-vscode-files-service-override
+  - @codingame/monaco-vscode-host-service-override
+  - @codingame/monaco-vscode-java-default-extension
+  - @codingame/monaco-vscode-languages-service-override
+  - @codingame/monaco-vscode-layout-service-override
+  - @codingame/monaco-vscode-model-service-override
+  - @codingame/monaco-vscode-monarch-service-override
+  - @codingame/monaco-vscode-python-default-extension
+  - @codingame/monaco-vscode-quickaccess-service-override
+  - @codingame/monaco-vscode-r-default-extension
+  - @codingame/monaco-vscode-textmate-service-override
+  - @codingame/monaco-vscode-theme-defaults-default-extension
+  - @codingame/monaco-vscode-theme-service-override
+  - @ctrl/tinycolor
+  - @ngneat/until-destroy
+  - @ngx-formly/core
+  - @ngx-formly/ng-zorro-antd
+  - @vscode/iconv-lite-umd
+  - ajv
+  - backbone
+  - balanced-match
+  - base64-js
+  - brace-expansion
+  - buffer
+  - content-disposition
+  - css-loader
+  - dagre
+  - date-fns
+  - eventsource-parser
+  - fast-deep-equal
+  - fflate
+  - file-saver
+  - graphlib
+  - html2canvas
+  - java
+  - jquery
+  - json-schema-traverse
+  - jszip
+  - lib0
+  - lodash
+  - lodash-es
+  - marked
+  - mobx
+  - monaco-breakpoints
+  - monaco-editor-wrapper
+  - monaco-languageclient
+  - ng-zorro-antd
+  - ngx-color-picker
+  - ngx-file-drop
+  - ngx-json-viewer
+  - ngx-markdown
+  - papaparse
+  - path-browserify
+  - plotly.js-basic-dist-min
+  - point-in-polygon
+  - python
+  - quill-cursors
+  - rbush
+  - read-excel-file
+  - ring-buffer-ts
+  - safe-buffer
+  - style-loader
+  - theme-defaults
+  - underscore
+  - uuid
+  - vscode-jsonrpc
+  - vscode-languageclient
+  - vscode-languageserver-protocol
+  - vscode-languageserver-types
+  - vscode-oniguruma
+  - vscode-textmate
+  - vscode-ws-jsonrpc
+  - y-monaco
+  - y-protocols
+  - y-quill
+  - y-websocket
+  - yjs
+  - zod
+  - zone.js
+
+--------------------------------------------------------------------------------
+Dependencies under the BSD 3-Clause License
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following BSD-3-Clause-licensed dependencies. See
+licenses/LICENSE-BSD-3-Clause.txt for the full text of the BSD 3-Clause
+License.
+
+Scala/Java jars:
+  - com.esotericsoftware (com.esotericsoftware.*)
+  - com.esotericsoftware.kryo (com.esotericsoftware.kryo.kryo5)
+  - com.google.protobuf (com.google.protobuf.protobuf-java)
+  - com.google.re2j (com.google.re2j.re2j)
+  - com.jcraft (com.jcraft.jsch)
+  - com.thoughtworks.paranamer (com.thoughtworks.paranamer.paranamer)
+  - dnsjava (dnsjava.dnsjava)
+  - org.fusesource.leveldbjni (org.fusesource.leveldbjni.leveldbjni-all)
+  - org.jline (org.jline.jline)
+  - org.ow2.asm (org.ow2.asm.*)
+  - org.scodec (org.scodec.scodec-bits_2.13)
+  - org.threeten (org.threeten.threeten-extra)
+
+Python packages:
+  - cached-property
+  - click
+  - contourpy
+  - cycler
+  - dill
+  - fsspec
+  - grpclib
+  - idna
+  - jinja2
+  - joblib
+  - kiwisolver
+  - markupsafe
+  - mpmath
+  - networkx
+  - numpy
+  - nvidia-nccl-cu12
+  - pandas
+  - pg8000
+  - praw
+  - prawcore
+  - protobuf
+  - psutil
+  - s3fs
+  - scikit-learn
+  - scipy
+  - snowballstemmer
+  - sympy
+  - threadpoolctl
+  - torch
+  - ujson
+  - update-checker
+  - websockets
+  - zstandard
+
+Angular / npm packages:
+  - ieee754
+  - quill
+
+--------------------------------------------------------------------------------
+Dependencies under the BSD 2-Clause License
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following BSD-2-Clause-licensed dependencies. See
+licenses/LICENSE-BSD-2-Clause.txt for the full text of the BSD 2-Clause
+License.
+
+Scala/Java jars:
+  - com.github.luben (com.github.luben.zstd-jni)
+  - com.github.marianobarrios (com.github.marianobarrios.lbmq)
+  - org.postgresql (org.postgresql.postgresql)
+
+Python packages:
+  - pybase64
+  - pygments
+  - wrapt
+
+Angular / npm packages:
+  - uri-js
+
+--------------------------------------------------------------------------------
+Dependencies under the ISC License
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following ISC-licensed dependencies. See
+licenses/LICENSE-ISC.txt for the full text of the ISC License.
+
+Scala/Java jars:
+  - org.mindrot (org.mindrot.jbcrypt)
+
+Angular / npm packages:
+  - concaveman
+  - d3-path
+  - d3-shape
+  - quickselect
+  - tinyqueue
+
+--------------------------------------------------------------------------------
+Dependencies under the Mozilla Public License, Version 2.0
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following MPL-2.0-licensed dependencies. See
+licenses/LICENSE-MPL-2.0.txt for the full text.
+
+Python packages:
+  - bidict
+  - certifi
+  - tqdm
+
+Angular / npm packages:
+  - jointjs
+
+--------------------------------------------------------------------------------
+Dependencies under the Eclipse Public License, Version 2.0
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following EPL-2.0-licensed dependencies. Several
+are dual-licensed under GPL-2.0 with Classpath Exception; Texera
+redistributes them under the EPL-2.0 terms. See
+licenses/LICENSE-EPL-2.0.txt for the full text.
+
+Scala/Java jars:
+  - jakarta.annotation.jakarta (jakarta.annotation.jakarta.annotation-api)
+  - jakarta.el.jakarta (jakarta.el.jakarta.el-api)
+  - jakarta.servlet.jakarta (jakarta.servlet.jakarta.servlet-api)
+  - jakarta.ws.rs.jakarta.ws (jakarta.ws.rs.jakarta.ws.rs-api)
+  - javax.ws.rs.javax.ws (javax.ws.rs.javax.ws.rs-api)
+  - org.eclipse.jetty.websocket (org.eclipse.jetty.websocket.*)
+  - org.glassfish.hk2 (org.glassfish.hk2.*)
+  - org.glassfish.hk2.external (org.glassfish.hk2.external.aopalliance-repackaged)
+  - org.glassfish.jakarta (org.glassfish.jakarta.el)
+  - org.glassfish.jersey.connectors (org.glassfish.jersey.connectors.jersey-apache-connector)
+  - org.glassfish.jersey.containers (org.glassfish.jersey.containers.jersey-container-servlet, org.glassfish.jersey.containers.jersey-container-servlet-core)
+  - org.glassfish.jersey.core (org.glassfish.jersey.core.*)
+  - org.glassfish.jersey.ext (org.glassfish.jersey.ext.jersey-bean-validation, org.glassfish.jersey.ext.jersey-metainf-services)
+  - org.glassfish.jersey.ext.rx (org.glassfish.jersey.ext.rx.jersey-rx-client)
+  - org.glassfish.jersey.inject (org.glassfish.jersey.inject.jersey-hk2)
+  - org.glassfish.jersey.media (org.glassfish.jersey.media.jersey-media-jaxb)
+  - org.jgrapht (org.jgrapht.jgrapht-core)
+
+--------------------------------------------------------------------------------
+Dependencies under the Eclipse Public License, Version 1.0
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following EPL-1.0-licensed dependencies (Logback
+is dual-licensed EPL-1.0 / LGPL-2.1; Texera redistributes under the
+EPL-1.0 terms). See licenses/LICENSE-EPL-1.0.txt for the full text.
+
+Scala/Java jars:
+  - ch.qos.logback (ch.qos.logback.*)
+  - junit (junit.junit)
+  - org.eclipse.aether (org.eclipse.aether.aether-util)
+
+--------------------------------------------------------------------------------
+Dependencies under the Common Development and Distribution License (CDDL)
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following CDDL-licensed dependencies (versions
+1.0 and 1.1; the 1.1 text covers both). Several are dual-licensed under
+GPL-2.0 with Classpath Exception; Texera redistributes them under CDDL.
+See licenses/LICENSE-CDDL-1.1.txt for the full text.
+
+Scala/Java jars:
+  - com.sun.jersey.contribs (com.sun.jersey.contribs.jersey-guice)
+  - com.sun.mail.javax (com.sun.mail.javax.mail)
+  - javax.activation (javax.activation.activation)
+  - javax.annotation.javax (javax.annotation.javax.annotation-api)
+  - javax.servlet.javax (javax.servlet.javax.servlet-api)
+  - javax.websocket.javax (javax.websocket.javax.websocket-api, javax.websocket.javax.websocket-client-api)
+  - javax.ws.rs (javax.ws.rs.jsr311-api)
+  - javax.xml.bind (javax.xml.bind.jaxb-api)
+  - org.glassfish.hk2.external.javax (org.glassfish.hk2.external.javax.inject)
+  - org.glassfish.javax (org.glassfish.javax.el)
+  - org.glassfish.jersey.bundles.repackaged (org.glassfish.jersey.bundles.repackaged.jersey-guava)
+
+--------------------------------------------------------------------------------
+Dependencies under the Eclipse Distribution License, Version 1.0
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following EDL-1.0-licensed dependencies (a
+BSD-style license). See licenses/LICENSE-EDL-1.0.txt for the full text.
+
+Scala/Java jars:
+  - com.sun.activation.jakarta (com.sun.activation.jakarta.activation)
+  - jakarta.activation.jakarta (jakarta.activation.jakarta.activation-api)
+  - jakarta.xml.bind.jakarta.xml (jakarta.xml.bind.jakarta.xml.bind-api)
+  - org.eclipse.jgit.org.eclipse (org.eclipse.jgit.org.eclipse.jgit)
+
+--------------------------------------------------------------------------------
+Dependencies under the Python Software Foundation License
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following PSF-licensed Python packages. See
+licenses/LICENSE-PSF-2.0.txt for the full text.
+
+Python packages:
+  - aiohappyeyeballs
+  - matplotlib
+  - typing
+  - typing_extensions
+
+--------------------------------------------------------------------------------
+Dependencies under the Historical Permission Notice and Disclaimer (HPND)
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following HPND-licensed dependencies. See
+licenses/LICENSE-HPND.txt for the full text.
+
+Python packages:
+  - pillow
+
+--------------------------------------------------------------------------------
+Dependencies under the BSD Zero Clause License
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following 0BSD-licensed dependencies. See
+licenses/LICENSE-0BSD.txt for the full text.
+
+Scala/Java jars:
+  - org.tukaani (org.tukaani.xz)
+
+--------------------------------------------------------------------------------
+ASF Category X
+--------------------------------------------------------------------------------
+
+Components under ASF Category X licenses (GPL, LGPL, and similar copyleft
+terms) cannot be included in an Apache binary distribution. Entries
+listed here were flagged by the LICENSE-binary review as incompatible
+with redistribution under the Apache 2.0 terms and must be removed from
+or excluded at build time before the distribution is released. They are
+itemized below so the exclusion can be audited.
+
+Scala/Java jars:
+  - com.mysql (com.mysql.mysql-connector-j)
+  - org.codehaus.sonar (org.codehaus.sonar.sonar-packaging-maven-plugin, org.codehaus.sonar.sonar-update-center-common)
+
+Python packages:
+  - astroid
+  - docstring-to-markdown
+  - pylint
+  - pytoolconfig
+  - rope
+
+Angular / npm packages:
+  - jschardet
+
+--------------------------------------------------------------------------------
+Dependencies under the NVIDIA Software License Agreement (CUDA Toolkit)
+--------------------------------------------------------------------------------
+
+Python packages:
+  - nvidia-cublas-cu12
+  - nvidia-cuda-cupti-cu12
+  - nvidia-cuda-nvrtc-cu12
+  - nvidia-cuda-runtime-cu12
+  - nvidia-cudnn-cu12
+  - nvidia-cufft-cu12
+  - nvidia-cufile-cu12
+  - nvidia-curand-cu12
+  - nvidia-cusolver-cu12
+  - nvidia-cusparse-cu12
+  - nvidia-cusparselt-cu12
+  - nvidia-nvjitlink-cu12
+
+--------------------------------------------------------------------------------
+Dependencies in the Public Domain / under the Unlicense
+--------------------------------------------------------------------------------
+
+Scala/Java jars:
+  - aopalliance (aopalliance.aopalliance)
+  - backport-util-concurrent (backport-util-concurrent.backport-util-concurrent)
+
+Angular / npm packages:
+  - robust-predicates
+
+--------------------------------------------------------------------------------
+Dependencies under the Java HTML Tidy License
+--------------------------------------------------------------------------------
+
+jtidy is distributed under the "Java HTML Tidy License", an MIT-style
+permissive license. Its text is reproduced inside the jtidy jar at
+META-INF/LICENSE.txt.
+
+Scala/Java jars:
+  - jtidy (jtidy.jtidy)
+
+--------------------------------------------------------------------------------
+Dependencies under the Blue Oak Model License 1.0.0
+--------------------------------------------------------------------------------
+
+The following component is distributed under the Blue Oak Model License,
+Version 1.0.0 (SPDX: BlueOak-1.0.0).
+
+Angular / npm packages:
+  - minimatch
+
+Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
+files that apply to their specific contents; those files continue to govern
+the use of those components.

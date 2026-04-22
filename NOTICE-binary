@@ -1,0 +1,500 @@
+Apache Texera (Incubating)
+Copyright 2025-2026 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+================================================================================
+APACHE SOFTWARE FOUNDATION PROJECTS WITH SUBSTANTIVE UPSTREAM NOTICES
+================================================================================
+
+--------------------------------------------------------------------------------
+Apache Hadoop
+--------------------------------------------------------------------------------
+
+Apache Hadoop
+Copyright 2006 and onwards The Apache Software Foundation.
+
+Export Control Notice
+---------------------
+
+This distribution includes cryptographic software. The country in which
+you currently reside may have restrictions on the import, possession, use,
+and/or re-export to another country, of encryption software. BEFORE using
+any encryption software, please check your country's laws, regulations and
+policies concerning the import, possession, or use, and re-export of
+encryption software, to see if this is permitted. See
+<http://www.wassenaar.org/> for more information.
+
+The U.S. Government Department of Commerce, Bureau of Industry and
+Security (BIS), has classified this software as Export Commodity Control
+Number (ECCN) 5D002.C.1, which includes information security software
+using or performing cryptographic functions with asymmetric algorithms.
+The form and manner of this Apache Software Foundation distribution makes
+it eligible for export under the License Exception ENC Technology Software
+Unrestricted (TSU) exception (see the BIS Export Administration
+Regulations, Section 740.13) for both object code and source code.
+
+The following provides more details on the included cryptographic software:
+
+  This software uses the SSL libraries from the Jetty project written
+  by mortbay.org.
+
+  Hadoop Yarn Server Web Proxy uses the BouncyCastle Java cryptography
+  APIs written by the Legion of the Bouncy Castle Inc.
+
+--------------------------------------------------------------------------------
+Apache Lucene
+--------------------------------------------------------------------------------
+
+Apache Lucene
+Copyright 2001-2021 The Apache Software Foundation
+
+Includes software from other Apache Software Foundation projects,
+including, but not limited to Apache Ant, Apache Jakarta Regexp,
+Apache Commons, and Apache Xerces.
+
+ICU4J (under analysis/icu) is licensed under an MIT-style license and
+Copyright (c) 1995-2008 International Business Machines Corporation and
+others.
+
+Some data files (under analysis/icu/src/data) are derived from Unicode
+data such as the Unicode Character Database. See
+http://unicode.org/copyright.html for more details.
+
+Brics Automaton (under core/src/java/org/apache/lucene/util/automaton) is
+BSD-licensed, created by Anders Moller. See http://www.brics.dk/automaton/
+
+The levenshtein automata tables (under core/src/java/org/apache/lucene/util/automaton)
+were automatically generated with the moman/finenight FSA library, created
+by Jean-Philippe Barrette-LaPierre. This library is available under an
+MIT license.
+
+The class org.apache.lucene.util.WeakIdentityMap was derived from the
+Apache CXF project and is Apache License 2.0.
+
+The class org.apache.lucene.util.compress.LZ4 is a Java rewrite of the LZ4
+compression library (https://github.com/lz4/lz4/tree/dev/lib) that is
+licensed under the 2-clause BSD license.
+
+The Google Code Prettify is Apache License 2.0.
+
+This product includes code (JaspellTernarySearchTrie) from Java Spelling
+Checking Package (jaspell): http://jaspell.sourceforge.net/ (BSD License).
+
+The snowball stemmers (in analysis/common/src/java/net/sf/snowball) were
+developed by Martin Porter and Richard Boulton.
+
+The KStem stemmer in analysis/common/src/org/apache/lucene/analysis/en was
+developed by Bob Krovetz and Sergio Guzman-Lara (CIIR-UMass Amherst) under
+the BSD license.
+
+Arabic, Persian, Romanian, Bulgarian, Hindi and Bengali analyzer stopword
+lists are BSD-licensed and were created by Jacques Savoy.
+
+The German, Spanish, Finnish, French, Hungarian, Italian, Portuguese,
+Russian and Swedish light stemmers are based on BSD-licensed reference
+implementations created by Jacques Savoy and Ljiljana Dolamic.
+
+The Stempel analyzer includes BSD-licensed software developed by the
+Egothor project (http://egothor.sf.net/), created by Leo Galambos,
+Martin Kvapil, and Edmond Nolan.
+
+The Polish analyzer stopword list is BSD-licensed and was created by the
+Carrot2 project.
+
+The SmartChineseAnalyzer source code (smartcn) was provided by
+Xiaoping Gao and copyright 2009 by www.imdict.net.
+
+WordBreakTestUnicode_*.java is derived from Unicode data such as the
+Unicode Character Database.
+
+--------------------------------------------------------------------------------
+Apache Pekko
+--------------------------------------------------------------------------------
+
+Apache Pekko
+Copyright 2022-2025 The Apache Software Foundation
+
+This product contains significant parts that were originally based on
+software from Lightbend (Akka <https://akka.io/>).
+Copyright (C) 2009-2022 Lightbend Inc. <https://www.lightbend.com>
+
+Apache Pekko is derived from Akka 2.6.x, the last version that was
+distributed under the Apache License, Version 2.0.
+
+pekko-actor contains MurmurHash.scala, scala-collection-compat, and code
+from scala-library, each modified by the Scala-Lang team under an Apache
+2.0 license.
+
+  Scala
+  Copyright (c) 2002-2023 EPFL
+  Copyright (c) 2011-2023 Lightbend, Inc.
+
+  Scala includes software developed at LAMP/EPFL (https://lamp.epfl.ch/)
+  and Lightbend, Inc. (https://www.lightbend.com/).
+
+pekko-actor contains code from Netty, released under an Apache 2.0
+license. Copyright 2014 The Netty Project (https://netty.io/).
+
+pekko-actor contains code from java-uuid-generator
+(https://github.com/cowtowncoder/java-uuid-generator) in
+`org.apache.pekko.util.UUIDComparator.scala`, released under an Apache 2.0
+license. Java UUID generator library has been written by Tatu Saloranta
+(tatu.saloranta@iki.fi).
+
+--------------------------------------------------------------------------------
+Apache Parquet
+--------------------------------------------------------------------------------
+
+Apache Parquet MR
+Copyright 2014-2024 The Apache Software Foundation
+
+This product includes code from Apache Avro.
+
+  Apache Avro
+  Copyright 2010-2024 The Apache Software Foundation
+
+================================================================================
+APACHE SOFTWARE FOUNDATION PROJECTS WITH STANDARD NOTICES
+================================================================================
+
+  Apache Arrow (arrow-format, arrow-memory-core, arrow-memory-netty,
+    arrow-vector, flight-core, flight-grpc)
+    Copyright 2016-2023 The Apache Software Foundation
+
+  Apache Avro
+    Copyright 2009-2024 The Apache Software Foundation
+
+  Apache Commons BeanUtils
+    Copyright 2000-2019 The Apache Software Foundation
+
+  Apache Commons CLI
+    Copyright 2001-2022 The Apache Software Foundation
+
+  Apache Commons Codec
+    Copyright 2002-2024 The Apache Software Foundation
+
+  Apache Commons Collections (3.x and 4.x)
+    Copyright 2001-2024 The Apache Software Foundation
+
+  Apache Commons Compress
+    Copyright 2002-2024 The Apache Software Foundation
+
+  Apache Commons Configuration
+    Copyright 2001-2024 The Apache Software Foundation
+
+  Apache Commons IO
+    Copyright 2002-2024 The Apache Software Foundation
+
+  Apache Commons JCS
+    Copyright 2002-2024 The Apache Software Foundation
+
+  Apache Commons Lang (2.x and 3.x)
+    Copyright 2001-2024 The Apache Software Foundation
+
+  Apache Commons Logging
+    Copyright 2003-2014 The Apache Software Foundation
+
+  Apache Commons Math
+    Copyright 2001-2016 The Apache Software Foundation
+
+  Apache Commons Net
+    Copyright 2001-2023 The Apache Software Foundation
+
+  Apache Commons Pool
+    Copyright 2001-2024 The Apache Software Foundation
+
+  Apache Commons Text
+    Copyright 2014-2024 The Apache Software Foundation
+
+  Apache Commons VFS
+    Copyright 2002-2024 The Apache Software Foundation
+
+  Apache Curator
+    Copyright 2011-2024 The Apache Software Foundation
+
+  Apache HttpComponents (httpclient, httpcore, httpasyncclient,
+    httpclient5, httpcore5, httpcore5-h2, httpmime)
+    Copyright 1999-2024 The Apache Software Foundation
+
+  Apache Kerby (kerb-* and kerby-* subprojects)
+    Copyright 2014-2017 The Apache Software Foundation
+
+  Apache Maven (many subprojects including wagon-*)
+    Copyright 2001-2024 The Apache Software Foundation
+
+  Apache ORC
+    Copyright 2013-2024 The Apache Software Foundation
+
+  Apache Yetus
+    Copyright 2015-2023 The Apache Software Foundation
+
+  Apache ZooKeeper
+    Copyright 2008-2024 The Apache Software Foundation
+
+  Apache log4j 1.2 / reload4j
+    Copyright 2007 The Apache Software Foundation
+
+================================================================================
+THIRD-PARTY APACHE-LICENSED WORKS WITH THEIR OWN NOTICES
+================================================================================
+
+--------------------------------------------------------------------------------
+Netty
+--------------------------------------------------------------------------------
+
+The Netty Project
+Copyright 2011-2024 The Netty Project (https://netty.io/).
+
+This product contains the extensions to Java Collections Framework derived
+from the works by JSR-166 EG, Doug Lea, and Jason T. Greene (Public
+Domain).
+
+This product contains a modified version of Robert Harder's Public Domain
+Base64 Encoder and Decoder.
+
+This product contains a modified version of 'JZlib', a re-implementation
+of zlib in pure Java (BSD-style license,
+http://www.jcraft.com/jzlib/).
+
+This product contains a modified version of 'Webbit' (BSD License,
+https://github.com/joewalnes/webbit).
+
+This product optionally depends on 'Protocol Buffers' (New BSD License,
+http://code.google.com/p/protobuf/), 'Bouncy Castle Crypto APIs' (MIT
+License, http://www.bouncycastle.org/), 'SLF4J' (MIT License,
+http://www.slf4j.org/), 'Apache Commons Logging' (Apache License 2.0),
+'Apache Log4J' (Apache License 2.0), 'JBoss Logging' (GNU LGPL 2.1), and
+'Apache Felix' (Apache License 2.0).
+
+--------------------------------------------------------------------------------
+Eclipse Jetty
+--------------------------------------------------------------------------------
+
+Jetty Web Container
+Copyright 1995-2018 Mort Bay Consulting Pty Ltd.
+
+The Jetty Web Container is Copyright Mort Bay Consulting Pty Ltd unless
+otherwise noted. Jetty is dual licensed under both the Apache 2.0 License
+and the Eclipse Public 1.0 License; Texera redistributes it under the
+Apache 2.0 terms.
+
+Jetty bundles select artifacts under secondary licenses:
+  * Eclipse Public License: org.eclipse.jetty.orbit:org.eclipse.jdt.core,
+    javax.security.auth.message (EPL + ASL2),
+    javax.mail.glassfish (EPL + CDDL 1.0)
+  * CDDL + GPLv2 with classpath exception: javax.servlet:javax.servlet-api,
+    javax.annotation:javax.annotation-api,
+    javax.transaction:javax.transaction-api,
+    javax.websocket:javax.websocket-api
+  * OW2 license: org.ow2.asm:asm-commons, org.ow2.asm:asm
+  * MortBay ASL2: org.mortbay.jasper:apache-jsp, apache-el (based on
+    selected classes from Apache Tomcat)
+
+The UnixCrypt.java code implements one-way cryptography used by Unix
+systems for simple password protection. Copyright 1996 Aki Yoshida,
+modified April 2001 by Iris Van den Broeke, Daniel Deville.
+
+--------------------------------------------------------------------------------
+Jackson (FasterXML)
+--------------------------------------------------------------------------------
+
+Jackson JSON processor
+
+Jackson is a high-performance, Free/Open Source JSON processing library.
+It was originally written by Tatu Saloranta (tatu.saloranta@iki.fi), and
+has been in development since 2007. It is currently developed by a
+community of developers.
+
+Copyright 2007- Tatu Saloranta (tatu.saloranta@iki.fi)
+
+Jackson 2.x core and extension components are licensed under Apache
+License 2.0. This attribution applies to jackson-core, jackson-databind,
+jackson-annotations, and every jackson-datatype-*, jackson-module-*,
+jackson-dataformat-*, and jackson-jaxrs-* artifact bundled in this
+distribution.
+
+Java ClassMate library (com.fasterxml:classmate) was originally written
+by Tatu Saloranta (tatu.saloranta@iki.fi), with contributions from
+Brian Langel.
+
+--------------------------------------------------------------------------------
+Google Guice
+--------------------------------------------------------------------------------
+
+Google Guice - Core Library (and guice-servlet extension)
+Copyright 2006-2015 Google, Inc.
+
+--------------------------------------------------------------------------------
+AWS SDK for Java 2.0
+--------------------------------------------------------------------------------
+
+AWS SDK for Java 2.0
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+This product includes software developed by Amazon Technologies, Inc
+(http://www.amazon.com/).
+
+The AWS SDK bundles the following third-party works:
+  * XML parsing and utility functions from JetS3t
+    Copyright 2006-2009 James Murty.
+  * PKCS#1 PEM encoded private key parsing and utility functions from
+    oauth.googlecode.com - Copyright 1998-2010 AOL Inc.
+  * Apache Commons Lang (https://github.com/apache/commons-lang)
+  * Netty Reactive Streams
+    (https://github.com/playframework/netty-reactive-streams)
+  * Jackson-core (https://github.com/FasterXML/jackson-core), shaded as
+    software.amazon.awssdk:third-party-jackson-core
+  * Jackson-dataformat-cbor
+    (https://github.com/FasterXML/jackson-dataformats-binary)
+
+Required Apache Commons Lang attribution:
+  Apache Commons Lang
+  Copyright 2001-2020 The Apache Software Foundation
+
+--------------------------------------------------------------------------------
+Kryo
+--------------------------------------------------------------------------------
+
+Kryo bundles Objenesis (see below).
+
+--------------------------------------------------------------------------------
+Objenesis
+--------------------------------------------------------------------------------
+
+Objenesis
+Copyright 2006-2024 Joe Walnes, Henri Tremblay, Leonardo Mesquita
+
+(NOTICE file corresponding to section 4d of the Apache License, Version
+2.0, in this case for Objenesis.)
+
+--------------------------------------------------------------------------------
+Jasypt
+--------------------------------------------------------------------------------
+
+Copyright (c) 2007-2010, The JASYPT team (http://www.jasypt.org)
+
+This distribution includes cryptographic software. The country in which
+you currently reside may have restrictions on the import, possession, use,
+and/or re-export to another country, of encryption software. BEFORE using
+any encryption software, please check your country's laws, regulations and
+policies concerning the import, possession, use, or re-export of
+encryption software.
+
+The U.S. Government Department of Commerce, Bureau of Industry and
+Security (BIS), has classified this software as Export Commodity Control
+Number (ECCN) 5D002.C.1. The PBE Encryption facilities require the Java
+Cryptography Extensions.
+
+Jasypt includes the ICU License (ICU 1.8.1 and later):
+
+  Copyright (c) 1995-2006 International Business Machines Corporation and
+  others. All rights reserved.
+
+  Permission is hereby granted, free of charge, to any person obtaining a
+  copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, and/or sell copies of the Software, and to permit persons
+  to whom the Software is furnished to do so, provided that the above
+  copyright notice(s) and this permission notice appear in all copies of
+  the Software and that both the above copyright notice(s) and this
+  permission notice appear in supporting documentation.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+  OR IMPLIED.
+
+  Except as contained in this notice, the name of a copyright holder
+  shall not be used in advertising or otherwise to promote the sale, use
+  or other dealings in this Software without prior written authorization
+  of the copyright holder.
+
+--------------------------------------------------------------------------------
+Joda-Time
+--------------------------------------------------------------------------------
+
+This product includes software developed by Joda.org (https://www.joda.org/).
+
+================================================================================
+ECLIPSE PROJECTS
+================================================================================
+
+  Jakarta RESTful Web Services API (jakarta.ws.rs:jakarta.ws.rs-api)
+    - Eclipse Foundation project; EPL-2.0 OR GPL-2.0 WITH
+      Classpath-exception-2.0; Texera redistributes under EPL-2.0.
+
+  Jakarta Activation API (jakarta.activation:jakarta.activation-api)
+    - Eclipse Project for JAF; Eclipse Distribution License 1.0
+      (BSD-3-Clause).
+
+  Jakarta XML Binding API (jakarta.xml.bind:jakarta.xml.bind-api)
+    - Eclipse Project; EDL-1.0 (BSD-3-Clause).
+
+================================================================================
+ADDITIONAL NOTICES FOR NON-APACHE-LICENSED BUNDLED COMPONENTS
+================================================================================
+
+--------------------------------------------------------------------------------
+Bouncy Castle
+--------------------------------------------------------------------------------
+
+Bouncy Castle Cryptography (org.bouncycastle.*) is distributed under the
+Bouncy Castle License, whose text reproduces the MIT License with Bouncy
+Castle's copyright line:
+
+  Copyright (c) 2000-2024 The Legion of the Bouncy Castle Inc.
+  (https://www.bouncycastle.org)
+
+The full MIT-equivalent text is reproduced in
+licenses/LICENSE-MIT.txt; the Bouncy Castle copyright line above must be
+preserved alongside it.
+
+--------------------------------------------------------------------------------
+xml-apis (DOM interfaces under the W3C Software License)
+--------------------------------------------------------------------------------
+
+The xml-apis:xml-apis jar is primarily Apache-2.0, but the DOM interface
+class files (the `org.w3c.dom.*` packages) are contributed by the World
+Wide Web Consortium and are distributed under the W3C Software License.
+The following notice is required for redistribution of those files:
+
+  Copyright (c) World Wide Web Consortium (Massachusetts Institute of
+  Technology, European Research Consortium for Informatics and Mathematics,
+  Keio University, Beihang). All Rights Reserved.
+
+  This work is distributed under the W3C Software License, available at
+  https://www.w3.org/Consortium/Legal/copyright-software.
+
+Permission is granted to copy, modify, and distribute the `org.w3c.dom.*`
+interface source code, provided that every copy retains the copyright
+notice, a link to the W3C Software License, and a short notice that the
+code has been modified (if applicable).
+
+--------------------------------------------------------------------------------
+aiohttp (vendored MIT-licensed C parser code)
+--------------------------------------------------------------------------------
+
+The aiohttp wheel is primarily Apache-2.0 but bundles a small amount of
+MIT-licensed C code used for HTTP parsing. The MIT attribution required
+for redistribution of that code is:
+
+  Copyright (c) the aiohttp contributors and upstream authors of the
+  vendored parser source. Distributed under the MIT License.
+
+Consumers of the aiohttp wheel must preserve that MIT copyright notice in
+any downstream redistribution of the parser source or object code.
+
+--------------------------------------------------------------------------------
+Matplotlib
+--------------------------------------------------------------------------------
+
+Matplotlib is distributed under the "Matplotlib License", a modification of
+the PSF License. The attribution required for redistribution is:
+
+  Copyright (c) 2012- Matplotlib Development Team; All Rights Reserved.
+
+The full license text is covered by licenses/LICENSE-PSF-2.0.txt.
+
+Individual bundled jars continue to carry their own META-INF/NOTICE files;
+the contents of those files govern the specific components they describe.
