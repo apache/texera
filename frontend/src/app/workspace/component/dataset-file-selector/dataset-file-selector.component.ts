@@ -27,7 +27,8 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
-  templateUrl: "dataset-file-selector.component.html",
+    templateUrl: "dataset-file-selector.component.html",
+    standalone: false
 })
 export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
   constructor(

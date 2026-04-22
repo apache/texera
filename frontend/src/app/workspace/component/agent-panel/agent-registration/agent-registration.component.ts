@@ -23,9 +23,10 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { Subject, takeUntil } from "rxjs";
 
 @Component({
-  selector: "texera-agent-registration",
-  templateUrl: "agent-registration.component.html",
-  styleUrls: ["agent-registration.component.scss"],
+    selector: "texera-agent-registration",
+    templateUrl: "agent-registration.component.html",
+    styleUrls: ["agent-registration.component.scss"],
+    standalone: false
 })
 export class AgentRegistrationComponent implements OnInit, OnDestroy {
   @Output() agentCreated = new EventEmitter<string>();

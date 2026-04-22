@@ -31,9 +31,10 @@ import { map } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-search",
-  templateUrl: "./search.component.html",
-  styleUrls: ["./search.component.scss"],
+    selector: "texera-search",
+    templateUrl: "./search.component.html",
+    styleUrls: ["./search.component.scss"],
+    standalone: false
 })
 export class SearchComponent implements AfterViewInit {
   public searchParam: string = "";

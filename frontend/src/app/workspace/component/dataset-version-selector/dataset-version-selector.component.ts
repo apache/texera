@@ -25,7 +25,8 @@ import { DatasetSelectionModalComponent } from "../dataset-selection-modal/datas
 
 @UntilDestroy()
 @Component({
-  templateUrl: "dataset-version-selector.component.html",
+    templateUrl: "dataset-version-selector.component.html",
+    standalone: false
 })
 export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> {
   constructor(private modalService: NzModalService) {

@@ -42,9 +42,10 @@ import { ComputingUnitActionsService } from "../../../../common/service/computin
 
 @UntilDestroy()
 @Component({
-  selector: "texera-computing-unit-section",
-  templateUrl: "user-computing-unit.component.html",
-  styleUrls: ["user-computing-unit.component.scss"],
+    selector: "texera-computing-unit-section",
+    templateUrl: "user-computing-unit.component.html",
+    styleUrls: ["user-computing-unit.component.scss"],
+    standalone: false
 })
 export class UserComputingUnitComponent implements OnInit {
   public entries: DashboardEntry[] = [];

@@ -11,7 +11,7 @@ import { Component } from "@angular/core";
 import { FieldArrayType } from "@ngx-formly/core";
 
 @Component({
-  template: `
+    template: `
     <hr />
     <div
       *ngFor="let field of field.fieldGroup; let i = index"
@@ -47,5 +47,6 @@ import { FieldArrayType } from "@ngx-formly/core";
         nzType="plus"></span>
     </button>
   `,
+    standalone: false
 })
 export class ArrayTypeComponent extends FieldArrayType {}

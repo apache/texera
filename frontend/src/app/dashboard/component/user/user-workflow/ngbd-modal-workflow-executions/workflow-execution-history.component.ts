@@ -37,9 +37,10 @@ const MAX_USERNAME_SIZE = 5;
 
 @UntilDestroy()
 @Component({
-  selector: "texera-ngbd-modal-workflow-executions",
-  templateUrl: "./workflow-execution-history.component.html",
-  styleUrls: ["./workflow-execution-history.component.scss"],
+    selector: "texera-ngbd-modal-workflow-executions",
+    templateUrl: "./workflow-execution-history.component.html",
+    styleUrls: ["./workflow-execution-history.component.scss"],
+    standalone: false
 })
 export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit {
   wid: number = 0;

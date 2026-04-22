@@ -27,9 +27,10 @@ import { isDefined } from "../../../../../common/util/predicate";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-user-project-section",
-  templateUrl: "./user-project-section.component.html",
-  styleUrls: ["./user-project-section.component.scss"],
+    selector: "texera-user-project-section",
+    templateUrl: "./user-project-section.component.html",
+    styleUrls: ["./user-project-section.component.scss"],
+    standalone: false
 })
 export class UserProjectSectionComponent implements OnInit {
   // information from the database about this project

@@ -26,9 +26,10 @@ import { MonacoEditor } from "monaco-breakpoints/dist/types";
  * This component is a dialog that allows users to input a condition for a breakpoint.
  */
 @Component({
-  selector: "texera-breakpoint-condition-input",
-  templateUrl: "./breakpoint-condition-input.component.html",
-  styleUrls: ["./breakpoint-condition-input.component.scss"],
+    selector: "texera-breakpoint-condition-input",
+    templateUrl: "./breakpoint-condition-input.component.html",
+    styleUrls: ["./breakpoint-condition-input.component.scss"],
+    standalone: false
 })
 export class BreakpointConditionInputComponent implements OnChanges {
   constructor(private udfDebugService: UdfDebugService) {}

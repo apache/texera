@@ -28,9 +28,10 @@ import { ExecutionMode } from "../../../../common/type/workflow";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-settings",
-  templateUrl: "./settings.component.html",
-  styleUrls: ["./settings.component.scss"],
+    selector: "texera-settings",
+    templateUrl: "./settings.component.html",
+    styleUrls: ["./settings.component.scss"],
+    standalone: false
 })
 export class SettingsComponent implements OnInit {
   settingsForm: FormGroup;

@@ -25,9 +25,10 @@ import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-agent-panel",
-  templateUrl: "agent-panel.component.html",
-  styleUrls: ["agent-panel.component.scss"],
+    selector: "texera-agent-panel",
+    templateUrl: "agent-panel.component.html",
+    styleUrls: ["agent-panel.component.scss"],
+    standalone: false
 })
 export class AgentPanelComponent implements OnInit, OnDestroy {
   protected readonly window = window;

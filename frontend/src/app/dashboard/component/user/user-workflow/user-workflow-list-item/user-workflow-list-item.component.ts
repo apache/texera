@@ -37,9 +37,10 @@ import { GuiConfigService } from "../../../../../common/service/gui-config.servi
 
 @UntilDestroy()
 @Component({
-  selector: "texera-user-workflow-list-item",
-  templateUrl: "./user-workflow-list-item.component.html",
-  styleUrls: ["./user-workflow-list-item.component.scss"],
+    selector: "texera-user-workflow-list-item",
+    templateUrl: "./user-workflow-list-item.component.html",
+    styleUrls: ["./user-workflow-list-item.component.scss"],
+    standalone: false
 })
 export class UserWorkflowListItemComponent {
   protected readonly DASHBOARD_USER_WORKSPACE = DASHBOARD_USER_WORKSPACE;

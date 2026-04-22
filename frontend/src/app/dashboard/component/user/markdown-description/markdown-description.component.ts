@@ -59,9 +59,10 @@ const TOOLBAR = [
 ] as const;
 
 @Component({
-  selector: "texera-markdown-description",
-  templateUrl: "./markdown-description.component.html",
-  styleUrls: ["./markdown-description.component.scss"],
+    selector: "texera-markdown-description",
+    templateUrl: "./markdown-description.component.html",
+    styleUrls: ["./markdown-description.component.scss"],
+    standalone: false
 })
 export class MarkdownDescriptionComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   private modalData = inject(NZ_MODAL_DATA, { optional: true });

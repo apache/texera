@@ -32,9 +32,10 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-left-panel",
-  templateUrl: "left-panel.component.html",
-  styleUrls: ["left-panel.component.scss"],
+    selector: "texera-left-panel",
+    templateUrl: "left-panel.component.html",
+    styleUrls: ["left-panel.component.scss"],
+    standalone: false
 })
 export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   @ViewChild("content") content!: ElementRef<HTMLDivElement>;

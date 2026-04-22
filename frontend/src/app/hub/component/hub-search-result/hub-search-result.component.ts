@@ -31,9 +31,10 @@ import { map } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-hub-search",
-  templateUrl: "./hub-search-result.component.html",
-  styleUrls: ["./hub-search-result.component.scss"],
+    selector: "texera-hub-search",
+    templateUrl: "./hub-search-result.component.html",
+    styleUrls: ["./hub-search-result.component.scss"],
+    standalone: false
 })
 export class HubSearchResultComponent implements OnInit, AfterViewInit {
   public searchType: "dataset" | "workflow" = "workflow";

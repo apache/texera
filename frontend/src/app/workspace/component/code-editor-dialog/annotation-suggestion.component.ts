@@ -20,9 +20,10 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 
 @Component({
-  selector: "texera-annotation-suggestion",
-  templateUrl: "./annotation-suggestion.component.html",
-  styleUrls: ["./annotation-suggestion.component.scss"],
+    selector: "texera-annotation-suggestion",
+    templateUrl: "./annotation-suggestion.component.html",
+    styleUrls: ["./annotation-suggestion.component.scss"],
+    standalone: false
 })
 export class AnnotationSuggestionComponent {
   @Input() code: string = "";
