@@ -67,9 +67,15 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   override def sourceSchema(): Schema = null
 
   override def operatorInfo: OperatorInfo = {
+    val typeName = fileTypeName.getOrElse("Unknown")
+    val displayName = if (typeName.isEmpty) "File Scan" else s"$typeName File Scan"
+    val description =
+      if (typeName.isEmpty) "Scan data from a file"
+      else if ("AEIOUaeiou".contains(typeName.charAt(0))) s"Scan data from an $typeName file"
+      else s"Scan data from a $typeName file"
     OperatorInfo(
-      userFriendlyName = s"${fileTypeName.getOrElse("Unknown")} File Scan",
-      operatorDescription = s"Scan data from a ${fileTypeName.getOrElse("Unknown")} file",
+      userFriendlyName = displayName,
+      operatorDescription = description,
       OperatorGroupConstants.INPUT_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
