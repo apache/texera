@@ -24,3 +24,4 @@ torch==2.8.0
 scikit-learn==1.5.0
 transformers==4.57.3
 boto3==1.40.53
+scikit-image==0.25.2
