@@ -856,8 +856,9 @@ Angular / npm packages:
 Dependencies under the Blue Oak Model License 1.0.0
 --------------------------------------------------------------------------------
 
-The following component is distributed under the Blue Oak Model License,
-Version 1.0.0 (SPDX: BlueOak-1.0.0).
+Apache Texera bundles the following Blue Oak Model License 1.0.0-licensed
+dependency (SPDX: BlueOak-1.0.0). See licenses/LICENSE-BlueOak-1.0.0.txt
+for the full text.
 
 Angular / npm packages:
   - minimatch
