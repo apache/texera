@@ -818,6 +818,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     const trimmedName = env.name.trim().toLowerCase();
+    env.name = trimmedName;
 
     if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
       this.notificationService.error("Environment name must contain only letters and numbers.");
@@ -850,11 +851,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
         packageArray.push(formatted);
       }
     }
-
-    // if (packageArray.length === 0) {
-    //   env.isInstalling = false;
-    //   return;
-    // }
 
     const token = localStorage.getItem("access_token") ?? "";
     const tokenParam = token ? `&access-token=${encodeURIComponent(token)}` : "";

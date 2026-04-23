@@ -19,8 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import java.io.{File, RandomAccessFile}
-import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import java.util.concurrent.BlockingQueue
 import scala.collection.mutable.Map

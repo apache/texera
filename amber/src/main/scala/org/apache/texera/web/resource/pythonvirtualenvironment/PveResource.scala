@@ -127,8 +127,6 @@ class PveResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def fetchPVEs(@QueryParam("cuid") cuid: Int): util.List[util.Map[String, Object]] = {
     try {
-      println(s"[PVE] HIT getInstalledPackages cuid=$cuid")
-
       val result = PveManager.getAllPveUserPackages(cuid)
 
       val resp = result
@@ -142,7 +140,6 @@ class PveResource {
         .toList
         .asJava
 
-      println(s"[PVE] returning ${resp.size()} environments")
       resp
 
     } catch {
