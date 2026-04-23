@@ -843,15 +843,21 @@ Angular / npm packages:
 
 
 --------------------------------------------------------------------------------
-Dependencies in the Public Domain / under the Unlicense
+Dependencies in the Public Domain
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following components placed into the public
-domain by their authors (SPDX: Unlicense). See
-licenses/LICENSE-Unlicense.txt for the full text.
+The following component has been placed into the public domain by its
+authors. No license text accompanies a public-domain dedication.
 
 Scala/Java jars:
   - aopalliance (aopalliance.aopalliance)
+
+--------------------------------------------------------------------------------
+Dependencies under the Unlicense
+--------------------------------------------------------------------------------
+
+Apache Texera bundles the following Unlicense-licensed dependency
+(SPDX: Unlicense). See licenses/LICENSE-Unlicense.txt for the full text.
 
 Angular / npm packages:
   - robust-predicates
