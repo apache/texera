@@ -107,7 +107,7 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
        |            y=np.linspace(min(y), max(y), grid_size),
        |            z=grid_z,
        |            connectgaps=connGaps,
-       |            contours_coloring =${coloringMethod.getColoringMethod},
+       |            contours_coloring ='${coloringMethod.getColoringMethod}',
        |            colorbar_title=$z
        |        ))
        |        fig.update_layout(title='Contour Plot')
