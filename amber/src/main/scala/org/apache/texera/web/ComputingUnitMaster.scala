@@ -61,11 +61,11 @@ import scala.concurrent.duration.DurationInt
 object ComputingUnitMaster {
 
   def createAmberRuntime(
-                          workflowContext: WorkflowContext,
-                          physicalPlan: PhysicalPlan,
-                          conf: ControllerConfig,
-                          errorHandler: Throwable => Unit
-                        ): AmberClient = {
+      workflowContext: WorkflowContext,
+      physicalPlan: PhysicalPlan,
+      conf: ControllerConfig,
+      errorHandler: Throwable => Unit
+  ): AmberClient = {
     new AmberClient(
       AmberRuntime.actorSystem,
       workflowContext,
@@ -197,10 +197,10 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
       new FilterHolder(new javax.servlet.Filter {
         override def init(filterConfig: javax.servlet.FilterConfig): Unit = {}
         override def doFilter(
-                               request: javax.servlet.ServletRequest,
-                               response: javax.servlet.ServletResponse,
-                               chain: javax.servlet.FilterChain
-                             ): Unit = {
+            request: javax.servlet.ServletRequest,
+            response: javax.servlet.ServletResponse,
+            chain: javax.servlet.FilterChain
+        ): Unit = {
           chain.doFilter(request, response)
           if (requestLogger.isInfoEnabled) {
             val req = request.asInstanceOf[javax.servlet.http.HttpServletRequest]
@@ -218,14 +218,14 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   /**
-   * This function drops the collections.
-   * MongoDB doesn't have an API of drop collection where collection name in (from a subquery), so the implementation is to retrieve
-   * the entire list of those documents that have expired, then loop the list to drop them one by one
-   */
+    * This function drops the collections.
+    * MongoDB doesn't have an API of drop collection where collection name in (from a subquery), so the implementation is to retrieve
+    * the entire list of those documents that have expired, then loop the list to drop them one by one
+    */
   private def cleanExecutions(
-                               executions: List[WorkflowExecutions],
-                               statusChangeFunc: Short => Short
-                             ): Unit = {
+      executions: List[WorkflowExecutions],
+      statusChangeFunc: Short => Short
+  ): Unit = {
     // drop the collection and update the status to ABORTED
     executions.foreach(execEntry => {
       dropCollections(execEntry.getResult)
@@ -279,11 +279,11 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   /**
-   * This function is called periodically and checks all expired collections and deletes them
-   */
+    * This function is called periodically and checks all expired collections and deletes them
+    */
   private def recurringCheckExpiredResults(
-                                            timeToLive: Int
-                                          ): Unit = {
+      timeToLive: Int
+  ): Unit = {
     // retrieve all executions that are completed and their last update time goes beyond the ttl
     val expiredResults: List[WorkflowExecutions] =
       WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(timeToLive)
