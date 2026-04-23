@@ -556,8 +556,7 @@
               nzType="default"
               nzShape="circle"
               nzDanger
-              [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
-              >
+              [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }">
               <i
                 nz-icon
                 nzType="delete"></i>
@@ -573,15 +572,12 @@
                 <label>Package</label>
                 <input
                   nz-input
-                  placeholder="Package Name"
-                  />
+                  placeholder="Package Name" />
               </div>
 
               <div class="field operator operator-select">
                 <label style="visibility: hidden">Op</label>
-                <nz-select
-                  nzPlaceHolder="Select"
-                  >
+                <nz-select nzPlaceHolder="Select">
                   <nz-option
                     nzValue="=="
                     nzLabel="=="></nz-option>
@@ -598,8 +594,7 @@
                 <label>Version</label>
                 <input
                   nz-input
-                  placeholder="Package Version (optional)"
-                  />
+                  placeholder="Package Version (optional)" />
               </div>
             </div>
 
@@ -619,8 +614,7 @@
             <button
               nz-button
               nzType="primary"
-              nzShape="circle"
-              >
+              nzShape="circle">
               <i
                 nz-icon
                 nzType="plus"></i>
