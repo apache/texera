@@ -149,7 +149,6 @@ object PveManager {
       }
 
       Files.createDirectories(venvDirPath.getParent)
-      queue.put(s"[PVE] Creating fresh local venv at ${venvDirPath.toString}")
 
       val createCode = Process(Seq("python3", "-m", "venv", venvDirPath.toString)).!(
         ProcessLogger(

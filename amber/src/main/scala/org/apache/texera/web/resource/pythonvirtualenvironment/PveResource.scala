@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.glassfish.jersey.server.ChunkedOutput
 
 import java.util.concurrent.LinkedBlockingQueue
