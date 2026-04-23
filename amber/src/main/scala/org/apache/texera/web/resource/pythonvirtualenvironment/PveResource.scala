@@ -46,13 +46,6 @@ class PveResource {
       @QueryParam("cuid") cuid: Int,
       @QueryParam("pveName") pveName: String
   ): ChunkedOutput[String] = {
-    val mapper = new ObjectMapper()
-    val packages =
-      if (packagesJson == null || packagesJson.trim.isEmpty)
-        List.empty[String]
-      else
-        mapper.readValue(packagesJson, classOf[Array[String]]).toList
-
     val queue = new LinkedBlockingQueue[String]()
     val chunkedOutput = new ChunkedOutput[String](classOf[String])
 
@@ -61,10 +54,6 @@ class PveResource {
 
         if (!PveManager.pveExists(cuid, pveName)) {
           PveManager.createNewPve(cuid, queue, pveName)
-        }
-
-        if (packages.nonEmpty) {
-          PveManager.installPackages(packages, cuid, queue, pveName)
         }
 
       } catch {
@@ -161,38 +150,5 @@ class PveResource {
         e.printStackTrace()
         throw new InternalServerErrorException(s"Failed to get packages: ${e.getMessage}")
     }
-  }
-
-  // --------------------------------------------------
-  // Uninstall package
-  // --------------------------------------------------
-  @POST
-  @Path("/uninstall/{packageName}")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def uninstallPackage(
-      @PathParam("packageName") packageName: String,
-      @QueryParam("cuid") cuid: Int,
-      @QueryParam("pveName") pveName: String
-  ): java.util.List[String] = {
-    try {
-      val output = PveManager.deletePackages(cuid, packageName, pveName)
-      output.asJava
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-        List(
-          s"Error uninstalling package '$packageName': ${e.getMessage}"
-        ).asJava
-    }
-  }
-
-  // --------------------------------------------------
-  // Get list of existing environments
-  // --------------------------------------------------
-  @GET
-  @Path("/environments")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getEnvironments(@QueryParam("cuid") cuid: Int): java.util.List[String] = {
-    PveManager.getEnvironments(cuid).asJava
   }
 }

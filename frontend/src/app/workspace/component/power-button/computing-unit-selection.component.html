@@ -557,7 +557,7 @@
               nzShape="circle"
               nzDanger
               [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
-              (click)="togglePackageDelete(envIndex, pkg)">
+              >
               <i
                 nz-icon
                 nzType="delete"></i>
@@ -574,15 +574,14 @@
                 <input
                   nz-input
                   placeholder="Package Name"
-                  [(ngModel)]="pve.newPackages[i].name" />
+                  />
               </div>
 
               <div class="field operator operator-select">
                 <label style="visibility: hidden">Op</label>
                 <nz-select
                   nzPlaceHolder="Select"
-                  nzCentered
-                  [(ngModel)]="pve.newPackages[i].operator">
+                  >
                   <nz-option
                     nzValue="=="
                     nzLabel="=="></nz-option>
@@ -600,7 +599,7 @@
                 <input
                   nz-input
                   placeholder="Package Version (optional)"
-                  [(ngModel)]="pve.newPackages[i].version" />
+                  />
               </div>
             </div>
 
@@ -609,8 +608,7 @@
               nzType="default"
               nzShape="circle"
               nzDanger
-              [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
-              (click)="togglePackageDelete(envIndex, pkg)">
+              [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }">
               <i
                 nz-icon
                 nzType="delete"></i>
@@ -622,7 +620,7 @@
               nz-button
               nzType="primary"
               nzShape="circle"
-              (click)="addPackage(envIndex)">
+              >
               <i
                 nz-icon
                 nzType="plus"></i>

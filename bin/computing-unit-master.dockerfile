@@ -53,7 +53,6 @@ COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirem
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
-    python3-venv \
     libpq-dev \
     && apt-get clean
 
@@ -61,14 +60,6 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install -r /tmp/requirements.txt && \
     pip3 install -r /tmp/operator-requirements.txt
-
-ENV PVE_BASE=/opt/pve-base
-
-RUN python3 -m venv $PVE_BASE && \
-    $PVE_BASE/bin/pip install --upgrade pip setuptools wheel && \
-    $PVE_BASE/bin/pip install -r /tmp/requirements.txt && \
-    $PVE_BASE/bin/pip install -r /tmp/operator-requirements.txt && \
-    rm -rf /root/.cache/pip
 
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/.git /texera/amber/.git

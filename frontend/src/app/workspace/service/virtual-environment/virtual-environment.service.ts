@@ -32,8 +32,6 @@ export interface PvePackageResponse {
 
 @Injectable({ providedIn: "root" })
 export class WorkflowPveService {
-  // private pveSubject = new BehaviorSubject<string | null>(null);
-  // private workflowIdSubject = new BehaviorSubject<string | null>(null);
 
   private cuidSubject = new BehaviorSubject<number | null>(null);
 
@@ -99,21 +97,5 @@ export class WorkflowPveService {
   fetchPVEs(cuid: number): Observable<PvePackageResponse[]> {
     const params = this.buildBaseParams().set("cuid", cuid.toString());
     return this.http.get<PvePackageResponse[]>("/pve/pves", { params });
-  }
-
-  deletePackage(packageName: string): Observable<string[]> {
-    const params = this.buildAuthParams();
-    const url = `/pve/uninstall/${packageName}`;
-    return this.http.post<string[]>(url, {}, { params });
-  }
-
-  getEnvironments(): Observable<string[]> {
-    let params = new HttpParams().set("cuid", this.requireCuid().toString());
-    const token = this.getAccessToken();
-    if (token) {
-      params = params.set("access-token", token);
-    }
-
-    return this.http.get<string[]>("/pve/environments", { params });
   }
 }

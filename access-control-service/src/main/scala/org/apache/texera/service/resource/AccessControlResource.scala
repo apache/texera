@@ -43,26 +43,24 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
-  private val authPve: Regex = """auth/pve(?:/.*)?""".r
 
   /**
-    * Authorize the request based on the path and headers.
-    * @param uriInfo URI sent by Envoy or API Gateway
-    * @param headers HTTP headers sent by Envoy or API Gateway which include
-    *                headers sent by the client (browser)
-    * @return HTTP Response with appropriate status code and headers
-    */
+   * Authorize the request based on the path and headers.
+   * @param uriInfo URI sent by Envoy or API Gateway
+   * @param headers HTTP headers sent by Envoy or API Gateway which include
+   *                headers sent by the client (browser)
+   * @return HTTP Response with appropriate status code and headers
+   */
   def authorize(
-      uriInfo: UriInfo,
-      headers: HttpHeaders,
-      bodyOpt: Option[String] = None
-  ): Response = {
+                 uriInfo: UriInfo,
+                 headers: HttpHeaders,
+                 bodyOpt: Option[String] = None
+               ): Response = {
     val path = uriInfo.getPath
     logger.info(s"Authorizing request for path: $path")
 
     path match {
-      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
-          authPve() =>
+      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
@@ -71,10 +69,10 @@ object AccessControlResource extends LazyLogging {
   }
 
   private def checkComputingUnitAccess(
-      uriInfo: UriInfo,
-      headers: HttpHeaders,
-      bodyOpt: Option[String]
-  ): Response = {
+                                        uriInfo: UriInfo,
+                                        headers: HttpHeaders,
+                                        bodyOpt: Option[String]
+                                      ): Response = {
     val queryParams: Map[String, String] = uriInfo
       .getQueryParameters()
       .asScala
@@ -199,19 +197,19 @@ class AccessControlResource extends LazyLogging {
   @GET
   @Path("/{path:.*}")
   def authorizeGet(
-      @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders
-  ): Response = {
+                    @Context uriInfo: UriInfo,
+                    @Context headers: HttpHeaders
+                  ): Response = {
     AccessControlResource.authorize(uriInfo, headers)
   }
 
   @POST
   @Path("/{path:.*}")
   def authorizePost(
-      @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders,
-      body: String
-  ): Response = {
+                     @Context uriInfo: UriInfo,
+                     @Context headers: HttpHeaders,
+                     body: String
+                   ): Response = {
     logger.info("Request body: " + body)
     AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
   }
@@ -229,10 +227,10 @@ class LiteLLMProxyResource extends LazyLogging {
   @POST
   @Path("/{path:.*}")
   def proxyPost(
-      @Context uriInfo: UriInfo,
-      @Context headers: HttpHeaders,
-      body: String
-  ): Response = {
+                 @Context uriInfo: UriInfo,
+                 @Context headers: HttpHeaders,
+                 body: String
+               ): Response = {
     if (!GuiConfig.guiWorkflowWorkspaceCopilotEnabled) {
       return Response
         .status(Response.Status.FORBIDDEN)
@@ -256,9 +254,9 @@ class LiteLLMProxyResource extends LazyLogging {
       // Forward other relevant headers from the original request
       headers.getRequestHeaders.asScala.foreach {
         case (key, values)
-            if !key.equalsIgnoreCase("Authorization") &&
-              !key.equalsIgnoreCase("Host") &&
-              !key.equalsIgnoreCase("Content-Length") =>
+          if !key.equalsIgnoreCase("Authorization") &&
+            !key.equalsIgnoreCase("Host") &&
+            !key.equalsIgnoreCase("Content-Length") =>
           values.asScala.foreach(value => requestBuilder.header(key, value))
         case _ => // Skip Authorization, Host, and Content-Length headers
       }

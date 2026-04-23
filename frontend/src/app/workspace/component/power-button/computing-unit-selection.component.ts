@@ -765,28 +765,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
       });
   }
 
-  addPackage(index: number): void {
-    const env = this.pves[index];
-    env.newPackages.push({ name: "", version: "", operator: undefined, deleteToggle: false });
-  }
-
-  togglePackageDelete(index: number, pkg: PackageRow): void {
-    const env = this.pves[index];
-
-    pkg.deleteToggle = !pkg.deleteToggle;
-
-    const version = pkg.version ?? "";
-
-    if (pkg.deleteToggle) {
-      const exists = env.deletingPackages.some(p => p.name === pkg.name && (p.version ?? "") === version);
-      if (!exists) {
-        env.deletingPackages.push({ name: pkg.name, version });
-      }
-    } else {
-      env.deletingPackages = env.deletingPackages.filter(p => !(p.name === pkg.name && (p.version ?? "") === version));
-    }
-  }
-
   scrollToBottomOfPipModal(index: number) {
     setTimeout(() => {
       const pre = document.getElementById(`pip-log-${index}`) as HTMLElement | null;
@@ -860,45 +838,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.workflowPveService.setCuid(cuId);
     this.workflowPveService.setPveName(env.name);
 
-    for (const pkg of env.deletingPackages) {
-      this.workflowPveService
-        .deletePackage(pkg.name)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => {
-            env.pipOutput += `Starting ...\nSuccessfully uninstalled package ${pkg.name}`;
-            this.updatePrettyPipOutput(index);
-            this.scrollToBottomOfPipModal(index);
-
-            this.workflowPveService
-              .getInstalledPackages()
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                next: resp => {
-                  this.systemPackages = resp.system.map(pkgStr => {
-                    const [name, version] = pkgStr.split("==");
-                    return { name: name.trim(), version: (version ?? "").trim() };
-                  });
-
-                  env.userPackages = resp.user.map(pkgStr => {
-                    const [name, version] = pkgStr.split("==");
-                    return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
-                  });
-
-                  env.deletingPackages = [];
-                },
-                error: (e: unknown) => console.error("Failed to refresh packages after delete", e),
-              });
-          },
-          error: (err: unknown) => {
-            console.error("Error deleting package:", err);
-            env.pipOutput += `\nError uninstalling ${pkg.name}`;
-            this.updatePrettyPipOutput(index);
-            this.scrollToBottomOfPipModal(index);
-          },
-        });
-    }
-
     const packageArray: string[] = [];
 
     for (const p of env.newPackages) {
@@ -912,10 +851,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
       }
     }
 
-    if (packageArray.length === 0) {
-      env.isInstalling = false;
-      return;
-    }
+    // if (packageArray.length === 0) {
+    //   env.isInstalling = false;
+    //   return;
+    // }
 
     const token = localStorage.getItem("access_token") ?? "";
     const tokenParam = token ? `&access-token=${encodeURIComponent(token)}` : "";
