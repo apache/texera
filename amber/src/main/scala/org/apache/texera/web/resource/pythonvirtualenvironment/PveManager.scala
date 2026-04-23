@@ -213,7 +213,9 @@ object PveManager {
           err => queue.put(s"[pip][ERR] $err")
         )
       )
-      queue.put(s"[PVE] operator requirements install finished with exit code $installOperatorReqCode")
+      queue.put(
+        s"[PVE] operator requirements install finished with exit code $installOperatorReqCode"
+      )
 
       if (installOperatorReqCode != 0) {
         queue.put(
