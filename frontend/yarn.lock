@@ -14092,12 +14092,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jschardet@npm:3.1.3":
-  version: 3.1.3
-  resolution: "jschardet@npm:3.1.3"
-  checksum: 10c0/e6b9d61c313acd66531319116d176e3ca99b81b3a0e247cca47ce7817b99135c2c2c02787f449d557ba4ec98fab604f20a96402ebebab4bd1c8e992c5aad9c5a
+"jschardet@portal:./tools/jschardet-stub::locator=gui%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "jschardet@portal:./tools/jschardet-stub::locator=gui%40workspace%3A."
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "jsdoc-type-pratt-parser@npm:~4.0.0":
   version: 4.0.0
