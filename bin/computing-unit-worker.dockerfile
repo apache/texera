@@ -58,7 +58,6 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python packages
 RUN pip3 install --upgrade pip setuptools wheel && \
-    pip3 install python-lsp-server python-lsp-server[websockets] && \
     pip3 install -r /tmp/requirements.txt && \
     (pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
      pip3 install --no-cache-dir wordcloud==1.9.2)
