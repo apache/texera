@@ -168,6 +168,9 @@ class PythonWorkflowWorker(
   private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
+    // Set the Iceberg related arguments based on the catalog type.
+    val isPostgres = StorageConfig.icebergCatalogType == "postgres"
+    val isRest = StorageConfig.icebergCatalogType == "rest"
     pythonServerProcess = Process(
       Seq(
         if (pythonENVPath.isEmpty) "python3"
@@ -179,11 +182,11 @@ class PythonWorkflowWorker(
         UdfConfig.pythonLogStreamHandlerLevel,
         RENVPath,
         StorageConfig.icebergCatalogType,
-        StorageConfig.icebergPostgresCatalogUriWithoutScheme,
-        StorageConfig.icebergPostgresCatalogUsername,
-        StorageConfig.icebergPostgresCatalogPassword,
-        StorageConfig.icebergRESTCatalogUri,
-        StorageConfig.icebergRESTCatalogWarehouseName,
+        if (isPostgres) StorageConfig.icebergPostgresCatalogUriWithoutScheme else "",
+        if (isPostgres) StorageConfig.icebergPostgresCatalogUsername else "",
+        if (isPostgres) StorageConfig.icebergPostgresCatalogPassword else "",
+        if (isRest) StorageConfig.icebergRESTCatalogUri else "",
+        if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else "",
         StorageConfig.icebergTableResultNamespace,
         StorageConfig.fileStorageDirectoryPath.toString,
         StorageConfig.icebergTableCommitBatchSize.toString,
