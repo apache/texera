@@ -106,7 +106,7 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
         fig.add_trace(go.Scatter(
             x=table[${bandConf.xValue}],
             y=table[${bandConf.yValue}],
-            mode=${bandConf.mode.getModeInPlotly},
+            mode='${bandConf.mode.getModeInPlotly}',
             $colorPart
             $namePart
           ))"""
