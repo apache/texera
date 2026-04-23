@@ -101,7 +101,7 @@ export interface ReActStep {
  * Serialization mode for operator results
  */
 export enum OperatorResultSerializationMode {
-  /** Tab-separated values: header\nrow\nrow\n */
+  /** Tab-separated values: header\nrow1\trow2\nrow\n */
   TSV = "tsv",
 }
 
@@ -191,7 +191,7 @@ export interface AgentSettingsApi {
   maxOperatorResultCharLimit?: number;
   /** Maximum character limit per cell (truncates individual cell values beyond this limit) */
   maxOperatorResultCellCharLimit?: number;
-  /** Serialization mode for operator results: "json", "table", or "toon" */
+  /** Serialization mode for operator results */
   operatorResultSerializationMode?: "tsv";
   /** Tool execution timeout in seconds */
   toolTimeoutSeconds?: number;
@@ -244,7 +244,7 @@ export interface UpdateAgentSettingsRequest {
   maxOperatorResultCharLimit?: number;
   /** Maximum character limit per cell (truncates individual cell values beyond this limit) */
   maxOperatorResultCellCharLimit?: number;
-  /** Serialization mode for operator results: "json", "table", or "toon" */
+  /** Serialization mode for operator results */
   operatorResultSerializationMode?: "tsv";
   /** Tool execution timeout in seconds */
   toolTimeoutSeconds?: number;
@@ -254,8 +254,6 @@ export interface UpdateAgentSettingsRequest {
   disabledTools?: string[];
   /** Maximum number of steps per message */
   maxSteps?: number;
-  /** List of allowed operator types (empty = all operators allowed) */
+  /** List of allowed operator types */
   allowedOperatorTypes?: string[];
 }
-
-// ============================================================================

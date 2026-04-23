@@ -26,6 +26,138 @@
 
 import { OperatorMetadataStore } from "./tools/workflow-metadata-tools";
 
+const PYTHON_UDF_OPERATOR_TYPES = ["PythonUDFV2"];
+const R_UDF_OPERATOR_TYPES = ["RUDF"];
+
+const PYTHON_UDF_INSTRUCTIONS = `## Python UDF Guide
+
+Python UDF operators run user-defined Python code. There are 2 APIs to process data:
+
+### Tuple API
+Takes one input tuple from a port at a time. Returns an iterator of optional TupleLike instances.
+Use cases: Functional operations applied to tuples one by one (map, reduce, filter).
+
+Template:
+\`\`\`python
+from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+\`\`\`
+
+Example - Filter tuples by conditions:
+\`\`\`python
+from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        q = tuple_["QUANTITY"]
+        oq = tuple_["ORDERED_QUANTITY"]
+        p = tuple_["UNIT_PRICE"]
+        if q is not None and oq is not None and p is not None:
+            if q <= oq and p >= 0:
+                yield tuple_
+\`\`\`
+
+### Table API
+Consumes a whole Table (pandas DataFrame) from a port. Returns an iterator of optional TableLike instances.
+Use cases: Blocking operations that consume the whole table.
+
+Template:
+\`\`\`python
+from pytexera import *
+
+class ProcessTableOperator(UDFTableOperator):
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        yield table
+\`\`\`
+
+Example - Filter DataFrame rows:
+\`\`\`python
+from pytexera import *
+import pandas as pd
+
+class ProcessTableOperator(UDFTableOperator):
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        df: pd.DataFrame = table
+        m1 = (df["KWMENG"].notna()) & (df["KBMENG"].notna()) & (df["KWMENG"] <= df["KBMENG"])
+        m2 = (df["NET_VALUE"].notna()) & (df["NET_VALUE"] >= 0)
+        yield df[m1 & m2]
+\`\`\`
+
+### Important Rules
+
+- DO NOT change the class name (ProcessTupleOperator or ProcessTableOperator).
+- Import packages explicitly (pandas, numpy, etc.).
+- Tuple is a Python dict. Access fields with tuple_["field"] ONLY (no .get/.set/.values).
+- Table is a pandas DataFrame.
+- Use yield to return results.
+- Handle None values carefully.
+- Do not cast types.
+- Keep each UDF focused on one task.
+- Only change the python code property, not other properties.
+- If adding extra columns, specify them in the Extra Output Columns property.
+- Prefer native operators over Python UDF when possible.`;
+
+const R_UDF_INSTRUCTIONS = `## R UDF Guide
+
+R UDF operators run user-defined R code. Two modes: Table API and Tuple API.
+
+### Table API
+Passes the entire input as an R data frame to your function and expects a data frame in return.
+
+Template:
+\`\`\`r
+function(table, port) {
+  return(table)
+}
+\`\`\`
+
+Example - Keep rows where quantities align and net value is valid:
+\`\`\`r
+function(table, port) {
+  valid_qty <- !is.na(table$KWMENG) & !is.na(table$KBMENG) & table$KWMENG <= table$KBMENG
+  valid_value <- !is.na(table$NET_VALUE) & table$NET_VALUE >= 0
+  valid_rows <- valid_qty & valid_value
+  return(table[valid_rows, , drop = FALSE])
+}
+\`\`\`
+
+### Tuple API
+Uses coro::generator to yield tuples (lists) one by one.
+
+Template:
+\`\`\`r
+library(coro)
+
+coro::generator(function(tuple, port) {
+  yield(tuple)
+})
+\`\`\`
+
+Example - Emit tuples that flag problematic status values:
+\`\`\`r
+library(coro)
+
+coro::generator(function(tuple, port) {
+  status <- tuple$STATUS
+  if (!is.null(status) && status == "ERROR") {
+    yield(tuple)
+  }
+})
+\`\`\`
+
+### Important Rules
+
+- Return a function(table, port) for Table API; use coro::generator(function(tuple, port) { ... }) for Tuple API.
+- Load libraries explicitly with library().
+- Handle NA with is.na() before comparisons.
+- Use yield() inside generators for each tuple to emit.
+- Keep output schema consistent with Retain input columns and Extra output columns settings.
+- Keep scripts focused on one task.
+- Only modify the script code field unless necessary.`;
+
 const SYSTEM_PROMPT_TEMPLATE = `You are a data science Copilot that helps users solve data-centric tasks by building dataflows.
 
 ## What is Dataflow?
@@ -159,8 +291,21 @@ function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allow
 
 /**
  * Build the system prompt by plugging allowed operator schemas into the template.
+ *
+ * When Python or R UDF operators are available, their usage guides are appended
+ * so the agent knows how to author code for them. An empty `allowedOperatorTypes`
+ * means "all operators allowed", so both guides apply.
  */
 export function buildSystemPrompt(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
   const operatorSchemas = buildAllowedOperatorSchemas(metadataStore, allowedOperatorTypes);
-  return SYSTEM_PROMPT_TEMPLATE.replace("{{OPERATOR_SCHEMA}}", operatorSchemas);
+  const allowsAll = allowedOperatorTypes.length === 0;
+  const pythonAllowed = allowsAll || allowedOperatorTypes.some(t => PYTHON_UDF_OPERATOR_TYPES.includes(t));
+  const rAllowed = allowsAll || allowedOperatorTypes.some(t => R_UDF_OPERATOR_TYPES.includes(t));
+
+  const extraSections: string[] = [];
+  if (pythonAllowed) extraSections.push(PYTHON_UDF_INSTRUCTIONS);
+  if (rAllowed) extraSections.push(R_UDF_INSTRUCTIONS);
+
+  const base = SYSTEM_PROMPT_TEMPLATE.replace("{{OPERATOR_SCHEMA}}", operatorSchemas);
+  return extraSections.length > 0 ? `${base}\n${extraSections.join("\n\n")}\n` : base;
 }
