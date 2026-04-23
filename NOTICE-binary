@@ -451,27 +451,6 @@ licenses/LICENSE-MIT.txt; the Bouncy Castle copyright line above must be
 preserved alongside it.
 
 --------------------------------------------------------------------------------
-xml-apis (DOM interfaces under the W3C Software License)
---------------------------------------------------------------------------------
-
-The xml-apis:xml-apis jar is primarily Apache-2.0, but the DOM interface
-class files (the `org.w3c.dom.*` packages) are contributed by the World
-Wide Web Consortium and are distributed under the W3C Software License.
-The following notice is required for redistribution of those files:
-
-  Copyright (c) World Wide Web Consortium (Massachusetts Institute of
-  Technology, European Research Consortium for Informatics and Mathematics,
-  Keio University, Beihang). All Rights Reserved.
-
-  This work is distributed under the W3C Software License, available at
-  https://www.w3.org/Consortium/Legal/copyright-software.
-
-Permission is granted to copy, modify, and distribute the `org.w3c.dom.*`
-interface source code, provided that every copy retains the copyright
-notice, a link to the W3C Software License, and a short notice that the
-code has been modified (if applicable).
-
---------------------------------------------------------------------------------
 aiohttp (vendored MIT-licensed C parser code)
 --------------------------------------------------------------------------------
 

@@ -263,7 +263,6 @@ Apache Texera bundles the following Apache-2.0 licensed dependencies.
 
 Scala/Java jars:
   - ch.qos.reload4j (ch.qos.reload4j.reload4j)
-  - classworlds (classworlds.classworlds)
   - com.fasterxml (com.fasterxml.classmate)
   - com.fasterxml.jackson.core (com.fasterxml.jackson.core.*)
   - com.fasterxml.jackson.dataformat (com.fasterxml.jackson.dataformat.jackson-dataformat-yaml)
@@ -317,7 +316,6 @@ Scala/Java jars:
   - commons-codec (commons-codec.commons-codec)
   - commons-collections (commons-collections.commons-collections)
   - commons-io (commons-io.commons-io)
-  - commons-lang (commons-lang.commons-lang)
   - commons-logging (commons-logging.commons-logging)
   - commons-net (commons-net.commons-net)
   - commons-pool (commons-pool.commons-pool)
@@ -330,7 +328,6 @@ Scala/Java jars:
   - io.dropwizard.metrics (io.dropwizard.metrics.*)
   - io.fabric8 (io.fabric8.*)
   - io.github.kostaskougios (io.github.kostaskougios.cloning)
-  - io.github.redouane59.twitter (io.github.redouane59.twitter.twittered)
   - io.grpc (io.grpc.*)
   - io.gsonfire (io.gsonfire.gson-fire)
   - io.kamon (io.kamon.sigar-loader)
@@ -348,7 +345,6 @@ Scala/Java jars:
   - javax.validation (javax.validation.validation-api)
   - joda-time (joda-time.joda-time)
   - log4j (log4j.log4j)
-  - net.bytebuddy (net.bytebuddy.byte-buddy)
   - net.minidev (net.minidev.accessors-smart, net.minidev.json-smart)
   - org.agrona (org.agrona.agrona)
   - org.apache.arrow (org.apache.arrow.*)
@@ -364,18 +360,12 @@ Scala/Java jars:
   - org.apache.iceberg (org.apache.iceberg.*)
   - org.apache.kerby (org.apache.kerby.*)
   - org.apache.lucene (org.apache.lucene.*)
-  - org.apache.maven (org.apache.maven.*)
-  - org.apache.maven.doxia (org.apache.maven.doxia.doxia-sink-api)
-  - org.apache.maven.reporting (org.apache.maven.reporting.maven-reporting-api)
-  - org.apache.maven.shared (org.apache.maven.shared.maven-dependency-tree)
-  - org.apache.maven.wagon (org.apache.maven.wagon.*)
   - org.apache.orc (org.apache.orc.orc-core, org.apache.orc.orc-shims)
   - org.apache.parquet (org.apache.parquet.*)
   - org.apache.pekko (org.apache.pekko.*)
   - org.apache.yetus (org.apache.yetus.audience-annotations)
   - org.apache.zookeeper (org.apache.zookeeper.zookeeper, org.apache.zookeeper.zookeeper-jute)
   - org.bitbucket.b_c (org.bitbucket.b_c.jose4j)
-  - org.codehaus.plexus (org.codehaus.plexus.*)
   - org.codehaus.woodstox (org.codehaus.woodstox.stax2-api)
   - org.eclipse.jetty (org.eclipse.jetty.*)
   - org.eclipse.jetty.toolchain (org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api)
@@ -404,10 +394,8 @@ Scala/Java jars:
   - org.typelevel (org.typelevel.*)
   - org.xerial.snappy (org.xerial.snappy.snappy-java)
   - org.yaml (org.yaml.snakeyaml)
-  - plexus (plexus.plexus-utils)
   - software.amazon.awssdk (software.amazon.awssdk.*)
   - software.amazon.eventstream (software.amazon.eventstream.eventstream)
-  - xml-apis (xml-apis.xml-apis)
 
 Python packages:
   - aiobotocore
@@ -419,9 +407,7 @@ Python packages:
   - frozenlist
   - hf-xet
   - huggingface_hub
-  - importlib_metadata
   - multidict
-  - nvidia-nvtx-cu12
   - overrides
   - packaging
   - propcache
@@ -438,7 +424,6 @@ Python packages:
   - transformers
   - tzdata
   - websocket-client
-  - yapf
   - yarl
 
 Angular / npm packages:
@@ -461,7 +446,6 @@ licenses/LICENSE-MIT.txt for the full text of the MIT License.
 
 Scala/Java jars:
   - co.fs2 (co.fs2.fs2-core_2.13)
-  - com.github.scribejava (com.github.scribejava.*)
   - com.konghq (com.konghq.unirest-java)
   - com.liveperson (com.liveperson.dropwizard-websockets)
   - io.github.classgraph (io.github.classgraph.classgraph)
@@ -479,45 +463,32 @@ Python packages:
   - appdirs
   - asn1crypto
   - attrs
-  - autopep8
   - betterproto
   - cachetools
   - charset-normalizer
   - deprecated
   - filelock
-  - flake8
   - fonttools
   - fs
-  - greenlet
   - h2
   - hpack
   - hyperframe
   - iniconfig
-  - isort
-  - jedi
   - jmespath
   - loguru
   - markdown-it-py
-  - mccabe
   - mdurl
   - mmh3
   - pampy
-  - parso
-  - platformdirs
   - plotly
   - pluggy
-  - pycodestyle
   - pydantic
   - pydantic_core
-  - pydocstyle
-  - pyflakes
   - pyparsing
   - pyroaring
   - pytest
   - pytest-reraise
   - pytest-timeout
-  - python-lsp-jsonrpc
-  - python-lsp-server
   - pytz
   - pyyaml
   - readerwriterlock
@@ -527,14 +498,10 @@ Python packages:
   - six
   - sqlalchemy
   - strictyaml
-  - tomlkit
-  - triton
   - typing-inspection
   - tzlocal
   - urllib3
-  - whatthepatch
   - wordcloud
-  - zipp
 
 Angular / npm packages:
   - @abacritt/angularx-social-login
@@ -663,18 +630,17 @@ Python packages:
   - click
   - contourpy
   - cycler
-  - dill
   - fsspec
   - grpclib
   - idna
   - jinja2
   - joblib
   - kiwisolver
+  - lazy-loader
   - markupsafe
   - mpmath
   - networkx
   - numpy
-  - nvidia-nccl-cu12
   - pandas
   - pg8000
   - praw
@@ -682,15 +648,14 @@ Python packages:
   - protobuf
   - psutil
   - s3fs
+  - scikit-image
   - scikit-learn
   - scipy
-  - snowballstemmer
   - sympy
   - threadpoolctl
+  - tifffile
   - torch
-  - ujson
   - update-checker
-  - websockets
   - zstandard
 
 Angular / npm packages:
@@ -711,6 +676,7 @@ Scala/Java jars:
   - org.postgresql (org.postgresql.postgresql)
 
 Python packages:
+  - imageio
   - pybase64
   - pygments
   - wrapt
@@ -788,8 +754,6 @@ EPL-1.0 terms). See licenses/LICENSE-EPL-1.0.txt for the full text.
 
 Scala/Java jars:
   - ch.qos.logback (ch.qos.logback.*)
-  - junit (junit.junit)
-  - org.eclipse.aether (org.eclipse.aether.aether-util)
 
 --------------------------------------------------------------------------------
 Dependencies under the Common Development and Distribution License (CDDL)
@@ -824,6 +788,7 @@ Scala/Java jars:
   - com.sun.activation.jakarta (com.sun.activation.jakarta.activation)
   - jakarta.activation.jakarta (jakarta.activation.jakarta.activation-api)
   - jakarta.xml.bind.jakarta.xml (jakarta.xml.bind.jakarta.xml.bind-api)
+  - org.eclipse.collections (org.eclipse.collections.eclipse-collections, org.eclipse.collections.eclipse-collections-api)
   - org.eclipse.jgit.org.eclipse (org.eclipse.jgit.org.eclipse.jgit)
 
 --------------------------------------------------------------------------------
@@ -871,36 +836,12 @@ or excluded at build time before the distribution is released. They are
 itemized below so the exclusion can be audited.
 
 Scala/Java jars:
-  - com.mysql (com.mysql.mysql-connector-j)
-  - org.codehaus.sonar (org.codehaus.sonar.sonar-packaging-maven-plugin, org.codehaus.sonar.sonar-update-center-common)
 
 Python packages:
-  - astroid
-  - docstring-to-markdown
-  - pylint
-  - pytoolconfig
-  - rope
 
 Angular / npm packages:
   - jschardet
 
---------------------------------------------------------------------------------
-Dependencies under the NVIDIA Software License Agreement (CUDA Toolkit)
---------------------------------------------------------------------------------
-
-Python packages:
-  - nvidia-cublas-cu12
-  - nvidia-cuda-cupti-cu12
-  - nvidia-cuda-nvrtc-cu12
-  - nvidia-cuda-runtime-cu12
-  - nvidia-cudnn-cu12
-  - nvidia-cufft-cu12
-  - nvidia-cufile-cu12
-  - nvidia-curand-cu12
-  - nvidia-cusolver-cu12
-  - nvidia-cusparse-cu12
-  - nvidia-cusparselt-cu12
-  - nvidia-nvjitlink-cu12
 
 --------------------------------------------------------------------------------
 Dependencies in the Public Domain / under the Unlicense
@@ -908,21 +849,9 @@ Dependencies in the Public Domain / under the Unlicense
 
 Scala/Java jars:
   - aopalliance (aopalliance.aopalliance)
-  - backport-util-concurrent (backport-util-concurrent.backport-util-concurrent)
 
 Angular / npm packages:
   - robust-predicates
-
---------------------------------------------------------------------------------
-Dependencies under the Java HTML Tidy License
---------------------------------------------------------------------------------
-
-jtidy is distributed under the "Java HTML Tidy License", an MIT-style
-permissive license. Its text is reproduced inside the jtidy jar at
-META-INF/LICENSE.txt.
-
-Scala/Java jars:
-  - jtidy (jtidy.jtidy)
 
 --------------------------------------------------------------------------------
 Dependencies under the Blue Oak Model License 1.0.0
