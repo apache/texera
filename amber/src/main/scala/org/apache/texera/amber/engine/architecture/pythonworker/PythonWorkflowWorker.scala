@@ -168,9 +168,7 @@ class PythonWorkflowWorker(
   private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
-    // Only forward credentials for the active iceberg catalog backend; the
-    // inactive backend's slots are passed as empty strings to keep the
-    // positional arg layout stable for texera_run_python_worker.py.
+    // Set the Iceberg related arguments based on the catalog type.
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
     val isRest = StorageConfig.icebergCatalogType == "rest"
     pythonServerProcess = Process(
