@@ -78,7 +78,7 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
     assert(yBins > 0, s"Y Bins must be > 0, but got $yBins")
 
     val normArg =
-      pyb"histnorm=${normalize.getValue},"
+      pyb"histnorm='${normalize.getValue}',"
 
     pyb"""
        |from pytexera import *
