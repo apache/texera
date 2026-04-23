@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { OperatorMetadataStore } from "./tools/workflow-metadata-tools";
+import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 
 const PYTHON_UDF_OPERATOR_TYPES = ["PythonUDFV2"];
 const R_UDF_OPERATOR_TYPES = ["RUDF"];
@@ -256,7 +256,7 @@ You have the following operators available:
 {{OPERATOR_SCHEMA}}
 `;
 
-function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
+function buildAllowedOperatorSchemas(metadataStore: WorkflowSystemMetadata, allowedOperatorTypes: string[] = []): string {
   const schemas: string[] = [];
 
   const operatorTypes = allowedOperatorTypes.length > 0
@@ -279,7 +279,7 @@ function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allow
   return schemas.length > 0 ? schemas.join("\n\n") : "No operators available.";
 }
 
-export function buildSystemPrompt(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
+export function buildSystemPrompt(metadataStore: WorkflowSystemMetadata, allowedOperatorTypes: string[] = []): string {
   const operatorSchemas = buildAllowedOperatorSchemas(metadataStore, allowedOperatorTypes);
   const allowsAll = allowedOperatorTypes.length === 0;
   const pythonAllowed = allowsAll || allowedOperatorTypes.some(t => PYTHON_UDF_OPERATOR_TYPES.includes(t));

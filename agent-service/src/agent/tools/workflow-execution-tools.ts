@@ -25,7 +25,7 @@ import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
 import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
 import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
-import { OperatorMetadataStore } from "./workflow-metadata-tools";
+import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 
 export const TOOL_NAME_EXECUTE_OPERATOR = "executeOperator";
@@ -39,6 +39,13 @@ export interface ExecutionConfig {
   executionTimeoutMs?: number;
 }
 
+/**
+ * FIFO async lock used to serialize workflow executions per workflow id.
+ *
+ * `acquire()` resolves with a release function once prior holders have
+ * released. Callers must invoke the release in a `finally` to avoid
+ * deadlocking subsequent waiters.
+ */
 class AsyncMutex {
   private queue: Promise<void> = Promise.resolve();
 
@@ -78,7 +85,7 @@ interface OperatorValidation {
 }
 
 function validateOperatorSchema(operatorType: string, operatorProperties: Record<string, any>): OperatorValidation {
-  const metadataStore = OperatorMetadataStore.getInstance();
+  const metadataStore = WorkflowSystemMetadata.getInstance();
   const validation = metadataStore.validateOperatorProperties(operatorType, operatorProperties);
   return validation.isValid ? { isValid: true, messages: {} } : { isValid: false, messages: validation.messages };
 }

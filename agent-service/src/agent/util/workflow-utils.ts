@@ -25,7 +25,7 @@ import type {
   PortSchema,
   OperatorPortSchemaMap,
 } from "../../types/workflow";
-import type { OperatorMetadataStore } from "../tools/workflow-metadata-tools";
+import type { WorkflowSystemMetadata } from "./workflow-system-metadata";
 import type { WorkflowState } from "../workflow-state";
 
 // Format "{id}_{internal}" must align with the backend port-identity serializer.
@@ -128,12 +128,20 @@ function outputPortToPortDescription(portID: string, outputPortInfo: OutputPortI
   };
 }
 
+/**
+ * Builds new `OperatorPredicate` instances from operator metadata.
+ *
+ * Given an operator type, reads the JSON schema and additional metadata from
+ * `WorkflowSystemMetadata`, materializes default properties via Ajv, and
+ * synthesizes input/output port descriptions so the operator is ready to
+ * drop into a `WorkflowState`.
+ */
 export class WorkflowUtilService {
-  private metadataStore: OperatorMetadataStore;
+  private metadataStore: WorkflowSystemMetadata;
   private workflowState: WorkflowState;
   private ajv: Ajv;
 
-  constructor(metadataStore: OperatorMetadataStore, workflowState: WorkflowState) {
+  constructor(metadataStore: WorkflowSystemMetadata, workflowState: WorkflowState) {
     this.metadataStore = metadataStore;
     this.workflowState = workflowState;
     this.ajv = new Ajv({ useDefaults: true, strict: false });

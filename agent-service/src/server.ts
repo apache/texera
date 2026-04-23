@@ -24,7 +24,7 @@ import { TexeraAgent } from "./agent/texera-agent";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
-import { OperatorMetadataStore } from "./agent/tools/workflow-metadata-tools";
+import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import type {
   AgentInfo,
@@ -406,8 +406,8 @@ interface WsOutgoingMessage {
 }
 
 function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
-  const store = agent.getOperatorResultStore();
-  const visible = store.getAllVisible();
+  const resultState = agent.getWorkflowResultState();
+  const visible = resultState.getAllVisible();
   const results: Record<string, OperatorResultSummaryWs> = {};
   for (const [opId, entry] of visible) {
     const info = entry.operatorInfo;
@@ -625,11 +625,11 @@ function printStartupMessage() {
 
 async function initializeServices() {
   try {
-    console.log("[Server] Initializing global operator metadata store...");
-    const metadataStore = await OperatorMetadataStore.initializeGlobal();
-    console.log(`[Server] Loaded ${metadataStore.getOperatorCount()} operators into global metadata store`);
+    console.log("[Server] Initializing global workflow system metadata...");
+    const metadata = await WorkflowSystemMetadata.initializeGlobal();
+    console.log(`[Server] Loaded ${metadata.getOperatorCount()} operators into global metadata`);
   } catch (error) {
-    console.warn("[Server] Failed to initialize global metadata store:", error);
+    console.warn("[Server] Failed to initialize global metadata:", error);
     console.warn("[Server] Agents will initialize metadata individually on creation");
   }
 }

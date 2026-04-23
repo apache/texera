@@ -19,27 +19,35 @@
 
 import type { OperatorInfo } from "../types/execution";
 
-interface OperatorResultEntry {
+interface ResultEntry {
   operatorInfo: OperatorInfo;
   stepId: string;
 }
 
-export class OperatorResultStore {
-  private store = new Map<string, Map<string, OperatorResultEntry>>();
+/**
+ * Versioned per-operator execution results keyed by step id.
+ *
+ * Each operator can have multiple result snapshots (one per step that
+ * executed it). Lookups walk the current ancestor path from HEAD and return
+ * the most recent result visible on that branch, so checking out an earlier
+ * step exposes the results that were live at that point.
+ */
+export class WorkflowResultState {
+  private results = new Map<string, Map<string, ResultEntry>>();
 
   constructor(private getAncestorPath: () => string[]) {}
 
   set(operatorId: string, stepId: string, operatorInfo: OperatorInfo): void {
-    let versions = this.store.get(operatorId);
+    let versions = this.results.get(operatorId);
     if (!versions) {
       versions = new Map();
-      this.store.set(operatorId, versions);
+      this.results.set(operatorId, versions);
     }
     versions.set(stepId, { operatorInfo, stepId });
   }
 
-  get(operatorId: string): OperatorResultEntry | undefined {
-    const versions = this.store.get(operatorId);
+  get(operatorId: string): ResultEntry | undefined {
+    const versions = this.results.get(operatorId);
     if (!versions) return undefined;
 
     const path = this.getAncestorPath();
@@ -54,11 +62,11 @@ export class OperatorResultStore {
     return this.get(operatorId)?.operatorInfo;
   }
 
-  getAllVisible(): Map<string, OperatorResultEntry> {
-    const result = new Map<string, OperatorResultEntry>();
+  getAllVisible(): Map<string, ResultEntry> {
+    const result = new Map<string, ResultEntry>();
     const path = this.getAncestorPath();
 
-    for (const [operatorId, versions] of this.store) {
+    for (const [operatorId, versions] of this.results) {
       for (let i = path.length - 1; i >= 0; i--) {
         if (versions.has(path[i])) {
           result.set(operatorId, versions.get(path[i])!);
@@ -70,6 +78,6 @@ export class OperatorResultStore {
   }
 
   clear(): void {
-    this.store.clear();
+    this.results.clear();
   }
 }

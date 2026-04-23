@@ -115,22 +115,30 @@ function getCompactSchema(jsonSchema: any): CompactOperatorSchema | null {
 // Matches the frontend ValidationWorkflowService Ajv configuration.
 const ajv = new Ajv({ allErrors: true, strict: false });
 
-export class OperatorMetadataStore {
-  private static instance: OperatorMetadataStore | null = null;
+/**
+ * Process-wide singleton cache of operator metadata fetched from the backend.
+ *
+ * Holds each operator type's JSON schema, description, and additional
+ * metadata, plus a compact schema variant used in system prompts and error
+ * messages. Exposes Ajv-backed property validation that matches the
+ * frontend's `ValidationWorkflowService` configuration.
+ */
+export class WorkflowSystemMetadata {
+  private static instance: WorkflowSystemMetadata | null = null;
 
-  static getInstance(): OperatorMetadataStore {
-    if (!OperatorMetadataStore.instance) {
-      OperatorMetadataStore.instance = new OperatorMetadataStore();
+  static getInstance(): WorkflowSystemMetadata {
+    if (!WorkflowSystemMetadata.instance) {
+      WorkflowSystemMetadata.instance = new WorkflowSystemMetadata();
     }
-    return OperatorMetadataStore.instance;
+    return WorkflowSystemMetadata.instance;
   }
 
-  static async initializeGlobal(): Promise<OperatorMetadataStore> {
-    const store = OperatorMetadataStore.getInstance();
-    if (!store.isInitialized()) {
-      await store.initializeFromBackend();
+  static async initializeGlobal(): Promise<WorkflowSystemMetadata> {
+    const instance = WorkflowSystemMetadata.getInstance();
+    if (!instance.isInitialized()) {
+      await instance.initializeFromBackend();
     }
-    return store;
+    return instance;
   }
 
   private schemas: Map<string, any> = new Map();
@@ -143,9 +151,9 @@ export class OperatorMetadataStore {
       const metadata = await fetchOperatorMetadata();
       this.loadFromMetadata(metadata);
       this.initialized = true;
-      console.log(`[OperatorMetadataStore] Loaded ${this.schemas.size} operators from backend`);
+      console.log(`[WorkflowSystemMetadata] Loaded ${this.schemas.size} operators from backend`);
     } catch (error) {
-      console.warn("[OperatorMetadataStore] Failed to fetch from backend:", error);
+      console.warn("[WorkflowSystemMetadata] Failed to fetch from backend:", error);
       throw error;
     }
   }

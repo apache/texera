@@ -21,8 +21,8 @@ import { generateText, type ModelMessage, type LanguageModel, stepCountIs } from
 import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
-import { OperatorMetadataStore } from "./tools/workflow-metadata-tools";
-import { OperatorResultStore } from "./operator-result-store";
+import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
+import { WorkflowResultState } from "./workflow-result-state";
 import { formatOperatorResult } from "./tools/result-formatting";
 import type {
   AgentSettings,
@@ -75,6 +75,15 @@ export interface AgentMessageResult {
 
 type ReActStepCallback = (step: ReActStep) => void;
 
+/**
+ * A single Texera agent instance.
+ *
+ * Owns the conversation (ReAct step tree with HEAD/checkout semantics), the
+ * workflow being edited (`WorkflowState`), cached operator execution results
+ * (`WorkflowResultState`), and the tool surface exposed to the LLM. Each call
+ * to `sendMessage` drives one multi-step generation via the Vercel AI SDK,
+ * streaming step updates to subscribed websockets.
+ */
 export class TexeraAgent {
   readonly agentId: string;
   readonly agentName: string;
@@ -83,11 +92,11 @@ export class TexeraAgent {
 
   private state: AgentStateEnum = AgentStateEnum.AVAILABLE;
   private workflowState: WorkflowState;
-  private metadataStore: OperatorMetadataStore;
+  private metadataStore: WorkflowSystemMetadata;
   private head: string = INITIAL_STEP_ID;
   private stepsById: Map<string, ReActStep> = new Map();
   private stepCounter = 0;
-  private operatorResultStore: OperatorResultStore;
+  private workflowResultState: WorkflowResultState;
 
   private websockets: Set<any> = new Set();
 
@@ -126,8 +135,8 @@ export class TexeraAgent {
     this.systemPrompt = config.systemPrompt || "";
 
     this.workflowState = new WorkflowState();
-    this.metadataStore = OperatorMetadataStore.getInstance();
-    this.operatorResultStore = new OperatorResultStore(() => this.getAncestorPath());
+    this.metadataStore = WorkflowSystemMetadata.getInstance();
+    this.workflowResultState = new WorkflowResultState(() => this.getAncestorPath());
 
     const initialStep: ReActStep = {
       id: INITIAL_STEP_ID,
@@ -218,7 +227,7 @@ export class TexeraAgent {
         this.workflowState,
         getExecutionConfig,
         (opId, operatorInfo) => {
-          this.operatorResultStore.set(opId, this.head, operatorInfo);
+          this.workflowResultState.set(opId, this.head, operatorInfo);
         }
       );
     }
@@ -234,7 +243,7 @@ export class TexeraAgent {
     return this.workflowState;
   }
 
-  getMetadataStore(): OperatorMetadataStore {
+  getMetadataStore(): WorkflowSystemMetadata {
     return this.metadataStore;
   }
 
@@ -257,8 +266,8 @@ export class TexeraAgent {
     return this.stepsById;
   }
 
-  getOperatorResultStore(): OperatorResultStore {
-    return this.operatorResultStore;
+  getWorkflowResultState(): WorkflowResultState {
+    return this.workflowResultState;
   }
 
   getWebsockets(): Set<any> {
@@ -627,7 +636,7 @@ export class TexeraAgent {
                   {
                     abortSignal: this.abortController?.signal,
                     onResult: (opId, operatorInfo) => {
-                      this.operatorResultStore.set(opId, this.head, operatorInfo);
+                      this.workflowResultState.set(opId, this.head, operatorInfo);
                     },
                   }
                 );
@@ -723,7 +732,7 @@ export class TexeraAgent {
 
   private getFormattedResultsForDAG(): Map<string, string> {
     const result = new Map<string, string>();
-    const visible = this.operatorResultStore.getAllVisible();
+    const visible = this.workflowResultState.getAllVisible();
     for (const [operatorId, entry] of visible) {
       result.set(operatorId, formatOperatorResult(operatorId, entry.operatorInfo, this.workflowState));
     }

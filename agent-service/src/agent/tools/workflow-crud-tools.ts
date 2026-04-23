@@ -31,13 +31,13 @@ import {
   formatOperatorError,
 } from "./tools-utility";
 import {
-  type OperatorMetadataStore,
+  type WorkflowSystemMetadata,
   formatValidationErrors,
   formatCompactSchemaForError,
-} from "./workflow-metadata-tools";
+} from "../util/workflow-system-metadata";
 
 export interface ToolContext {
-  metadataStore?: OperatorMetadataStore;
+  metadataStore?: WorkflowSystemMetadata;
   settings?: {
     maxOperatorResultCharLimit?: number;
     toolTimeoutMs?: number;

@@ -42,6 +42,14 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
   dataTransferBatchSize: 400,
 };
 
+/**
+ * In-memory logical plan the agent edits across a conversation.
+ *
+ * Holds operators, links, positions, comment boxes, and workflow settings,
+ * and emits change events via RxJS so subscribers (auto-persist, websocket
+ * broadcast) can react. Converts to/from the backend `WorkflowContent` wire
+ * format and to the `LogicalPlan` shape used for compilation and execution.
+ */
 export class WorkflowState {
   private operators: Map<string, OperatorPredicate> = new Map();
   private links: Map<string, OperatorLink> = new Map();
