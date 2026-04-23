@@ -27,6 +27,9 @@ import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../..
 import type { ReActStep } from "../../types/agent";
 import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
+import { createLogger } from "../../logger";
+
+const log = createLogger("ContextAssembler");
 
 export function assembleContext(
   visibleSteps: ReActStep[],
@@ -83,9 +86,14 @@ export function assembleContext(
 
   const content = sections.join("\n");
 
-  console.log(
-    `[ContextAssembler] Built context: ${completedCount} completed tasks, ` +
-      `${hasOngoing ? 1 : 0} ongoing, ${operatorExecutionResults.size} operator results, useRedact: ${useRedact}`
+  log.debug(
+    {
+      completed: completedCount,
+      ongoing: hasOngoing ? 1 : 0,
+      operatorResults: operatorExecutionResults.size,
+      useRedact,
+    },
+    "built context"
   );
 
   return [{ role: "user", content }];

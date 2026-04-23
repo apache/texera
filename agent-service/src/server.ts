@@ -26,6 +26,10 @@ import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
+import { createLogger } from "./logger";
+
+const log = createLogger("Server");
+const wsLog = createLogger("WS");
 import type {
   AgentInfo,
   AgentDelegateConfig,
@@ -79,14 +83,14 @@ async function createAgentInstance(
         computingUnitId: delegateConfig.computingUnitId,
       });
 
-      console.log(`[Server] Loaded workflow ${delegateConfig.workflowId} for agent ${agentId}`);
+      log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
     } catch (error) {
-      console.warn(`[Server] Failed to load workflow ${delegateConfig.workflowId}:`, error);
+      log.warn({ agentId, workflowId: delegateConfig.workflowId, err: error }, "failed to load workflow");
     }
   }
 
   agentStore.set(agentId, agent);
-  console.log(`[Server] Created new agent: ${agentId} (delegate: ${!!delegateConfig})`);
+  log.info({ agentId, delegate: !!delegateConfig }, "created agent");
 
   return { agentId, agent };
 }
@@ -165,10 +169,13 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig);
 
       if (settings) {
-        console.log(
-          `[Server] Applying initial settings for agent ${agentId}: ` +
-            `maxOperatorResultCharLimit=${settings.maxOperatorResultCharLimit}, ` +
-            `maxOperatorResultCellCharLimit=${settings.maxOperatorResultCellCharLimit}`
+        log.info(
+          {
+            agentId,
+            maxOperatorResultCharLimit: settings.maxOperatorResultCharLimit,
+            maxOperatorResultCellCharLimit: settings.maxOperatorResultCellCharLimit,
+          },
+          "applying initial agent settings"
         );
         agent.updateSettings({
           maxOperatorResultCharLimit: settings.maxOperatorResultCharLimit,
@@ -326,10 +333,13 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       const agent = getAgent(id);
       const settings = body as UpdateAgentSettingsRequest;
 
-      console.log(
-        `[Server] Updating settings for agent ${id}: ` +
-          `maxOperatorResultCharLimit=${settings.maxOperatorResultCharLimit}, ` +
-          `maxOperatorResultCellCharLimit=${settings.maxOperatorResultCellCharLimit}`
+      log.info(
+        {
+          agentId: id,
+          maxOperatorResultCharLimit: settings.maxOperatorResultCharLimit,
+          maxOperatorResultCellCharLimit: settings.maxOperatorResultCellCharLimit,
+        },
+        "updating agent settings"
       );
 
       agent.updateSettings({
@@ -440,7 +450,7 @@ function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
     try {
       ws.send(jsonMessage);
     } catch (error) {
-      console.error(`[WS] Failed to send message to client:`, error);
+      wsLog.error({ agentId, err: error }, "failed to send message to client");
       agent.removeWebsocket(ws);
     }
   }
@@ -456,7 +466,7 @@ const app = new Elysia()
   .ws(`${env.API_PREFIX}/agents/:id/react`, {
     open(ws) {
       const agentId = (ws.data as any).params?.id;
-      console.log(`[WS] Client connected to agent ${agentId}`);
+      wsLog.info({ agentId }, "client connected");
 
       const agent = agentStore.get(agentId);
       if (!agent) {
@@ -506,7 +516,7 @@ const app = new Elysia()
           return;
         }
 
-        console.log(`[WS] Agent ${agentId} received message: ${msg.content.substring(0, 50)}...`);
+        wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
 
         agent.setStepCallback((step: ReActStep) => {
           const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
@@ -536,7 +546,7 @@ const app = new Elysia()
             operatorResults: getOperatorResultSummaries(agent),
           });
 
-          console.log(`[WS] Agent ${agentId} completed with ${result.messages.length} steps`);
+          wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
         } catch (error: any) {
           agent.setStepCallback(null);
           broadcastToAgent(agentId, { type: "error", error: error.message });
@@ -546,7 +556,7 @@ const app = new Elysia()
 
     close(ws) {
       const agentId = (ws.data as any).params?.id;
-      console.log(`[WS] Client disconnected from agent ${agentId}`);
+      wsLog.info({ agentId }, "client disconnected");
 
       const agent = agentStore.get(agentId);
       if (agent) {
@@ -555,7 +565,7 @@ const app = new Elysia()
     },
   })
   .onError(({ error, set }) => {
-    console.error("[Server] Error:", error);
+    log.error({ err: error }, "request error");
 
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -625,12 +635,11 @@ function printStartupMessage() {
 
 async function initializeServices() {
   try {
-    console.log("[Server] Initializing global workflow system metadata...");
+    log.info("initializing global workflow system metadata");
     const metadata = await WorkflowSystemMetadata.initializeGlobal();
-    console.log(`[Server] Loaded ${metadata.getOperatorCount()} operators into global metadata`);
+    log.info({ operatorCount: metadata.getOperatorCount() }, "loaded operators into global metadata");
   } catch (error) {
-    console.warn("[Server] Failed to initialize global metadata:", error);
-    console.warn("[Server] Agents will initialize metadata individually on creation");
+    log.warn({ err: error }, "failed to initialize global metadata; agents will initialize individually");
   }
 }
 

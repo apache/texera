@@ -54,6 +54,8 @@ import {
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
+import { createLogger } from "../logger";
+import type { Logger } from "pino";
 
 const PERSIST_DEBOUNCE_MS = 500;
 
@@ -126,6 +128,8 @@ export class TexeraAgent {
 
   private workflowChangeSubscription: Subscription | null = null;
 
+  private log: Logger;
+
   constructor(config: TexeraAgentConfig) {
     this.agentId = config.agentId;
     this.agentName = config.agentName || `Agent-${config.agentId}`;
@@ -133,6 +137,7 @@ export class TexeraAgent {
     this.createdAt = new Date();
     this.model = config.model;
     this.systemPrompt = config.systemPrompt || "";
+    this.log = createLogger("TexeraAgent", { agentId: this.agentId });
 
     this.workflowState = new WorkflowState();
     this.metadataStore = WorkflowSystemMetadata.getInstance();
@@ -168,11 +173,9 @@ export class TexeraAgent {
       this.rebuildSystemPrompt();
 
       this.tools = this.createTools();
-      console.log(
-        `[TexeraAgent ${this.agentId}] Initialized with ${this.metadataStore.getOperatorCount()} operators`
-      );
+      this.log.info({ operatorCount: this.metadataStore.getOperatorCount() }, "agent initialized");
     } catch (error) {
-      console.error(`[TexeraAgent ${this.agentId}] Failed to initialize metadata:`, error);
+      this.log.error({ err: error }, "failed to initialize metadata");
     }
   }
 
@@ -403,10 +406,12 @@ export class TexeraAgent {
     }
 
     this.tools = this.createTools();
-    console.log(
-      `[TexeraAgent ${this.agentId}] Settings updated: ` +
-        `maxOperatorResultCharLimit=${this.settings.maxOperatorResultCharLimit}, ` +
-        `maxOperatorResultCellCharLimit=${this.settings.maxOperatorResultCellCharLimit}`
+    this.log.info(
+      {
+        maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
+        maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
+      },
+      "settings updated"
     );
   }
 
@@ -425,9 +430,9 @@ export class TexeraAgent {
       const { retrieveWorkflow } = await import("../api/workflow-api");
       const workflow = await retrieveWorkflow(this.delegateConfig.userToken, this.delegateConfig.workflowId);
       this.workflowState.setWorkflowContent(workflow.content);
-      console.log(`[TexeraAgent ${this.agentId}] Refreshed workflow ${this.delegateConfig.workflowId} from backend`);
+      this.log.debug({ workflowId: this.delegateConfig.workflowId }, "refreshed workflow from backend");
     } catch (error) {
-      console.warn(`[TexeraAgent ${this.agentId}] Failed to refresh workflow from backend:`, error);
+      this.log.warn({ err: error }, "failed to refresh workflow from backend");
     }
   }
 
@@ -474,9 +479,9 @@ export class TexeraAgent {
             this.delegateConfig.workflowName || "Agent Workflow",
             workflowContent
           );
-          console.log(`[TexeraAgent ${this.agentId}] Auto-persisted workflow ${this.delegateConfig.workflowId}`);
+          this.log.debug({ workflowId: this.delegateConfig.workflowId }, "auto-persisted workflow");
         } catch (error) {
-          console.error(`[TexeraAgent ${this.agentId}] Failed to auto-persist workflow:`, error);
+          this.log.error({ err: error }, "failed to auto-persist workflow");
         }
       });
 
@@ -547,7 +552,7 @@ export class TexeraAgent {
                   const logicalPlan = this.workflowState.toLogicalPlan();
                   compilationResult = await compileWorkflowAsync(logicalPlan);
                 } catch (e: any) {
-                  console.warn(`[TexeraAgent ${this.agentId}] Compilation failed, proceeding without schemas:`, e?.message || e);
+                  this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
                 }
               }
 
@@ -641,7 +646,7 @@ export class TexeraAgent {
                   }
                 );
               } catch (e: any) {
-                console.warn(`[PostStepExecution] Failed to execute ${operatorId}:`, e?.message || e);
+                this.log.warn({ operatorId, err: e?.message || e }, "post-step execution failed");
               }
             }
           }

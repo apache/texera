@@ -20,6 +20,9 @@
 import Ajv from "ajv";
 import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../../api/backend-api";
 import type { ValidationError, Validation } from "../../types/workflow";
+import { createLogger } from "../../logger";
+
+const log = createLogger("WorkflowSystemMetadata");
 
 export type { ValidationError, Validation } from "../../types/workflow";
 
@@ -151,9 +154,9 @@ export class WorkflowSystemMetadata {
       const metadata = await fetchOperatorMetadata();
       this.loadFromMetadata(metadata);
       this.initialized = true;
-      console.log(`[WorkflowSystemMetadata] Loaded ${this.schemas.size} operators from backend`);
+      log.info({ operatorCount: this.schemas.size }, "loaded operators from backend");
     } catch (error) {
-      console.warn("[WorkflowSystemMetadata] Failed to fetch from backend:", error);
+      log.warn({ err: error }, "failed to fetch from backend");
       throw error;
     }
   }

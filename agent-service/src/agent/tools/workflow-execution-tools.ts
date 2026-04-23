@@ -27,6 +27,9 @@ import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
 import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
+import { createLogger } from "../../logger";
+
+const log = createLogger("ExecutionTools");
 
 export const TOOL_NAME_EXECUTE_OPERATOR = "executeOperator";
 
@@ -284,10 +287,13 @@ async function executeWorkflowHttp(
       config.maxOperatorResultCellCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCellCharLimit,
   };
 
-  console.log(
-    `[ExecutionTools] Executing workflow via HTTP: ${url} ` +
-      `(maxOperatorResultCharLimit: ${request.maxOperatorResultCharLimit}, ` +
-      `maxOperatorResultCellCharLimit: ${request.maxOperatorResultCellCharLimit})`
+  log.debug(
+    {
+      url,
+      maxOperatorResultCharLimit: request.maxOperatorResultCharLimit,
+      maxOperatorResultCellCharLimit: request.maxOperatorResultCellCharLimit,
+    },
+    "executing workflow"
   );
 
   try {
@@ -311,7 +317,7 @@ async function executeWorkflowHttp(
     if (error instanceof Error && error.name === "AbortError") {
       throw error;
     }
-    console.error("[ExecutionTools] Execution failed:", error);
+    log.error({ err: error }, "execution failed");
     return {
       success: false,
       state: "Error",

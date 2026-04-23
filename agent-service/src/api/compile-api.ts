@@ -19,6 +19,9 @@
 
 import { getBackendConfig } from "./backend-api";
 import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
+import { createLogger } from "../logger";
+
+const log = createLogger("CompileAPI");
 
 export interface SchemaAttribute {
   attributeName: string;
@@ -59,13 +62,13 @@ export async function compileWorkflowAsync(logicalPlan: LogicalPlan): Promise<Wo
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.warn(`[CompileAPI] Compilation failed: ${response.status} ${response.statusText} - ${errorText}`);
+      log.warn({ status: response.status, statusText: response.statusText, body: errorText }, "compilation failed");
       return null;
     }
 
     return (await response.json()) as WorkflowCompilationResponse;
   } catch (error) {
-    console.warn("[CompileAPI] Compile workflow API error:", error);
+    log.warn({ err: error }, "compile workflow API error");
     return null;
   }
 }
