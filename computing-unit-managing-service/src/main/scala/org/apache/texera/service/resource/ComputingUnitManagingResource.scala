@@ -65,15 +65,30 @@ object ComputingUnitManagingResource {
       .getInstance()
       .createDSLContext()
 
+  // Iceberg env vars are gated by catalog type so each CU only receives the
+  // credentials its active backend actually uses.
+  private def icebergEnvironmentVariables: Map[String, Any] = {
+    val base = Map[String, Any](
+      EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType
+    )
+    StorageConfig.icebergCatalogType match {
+      case "rest" =>
+        base ++ Map(
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_URI -> StorageConfig.icebergRESTCatalogUri,
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_WAREHOUSE_NAME -> StorageConfig.icebergRESTCatalogWarehouseName
+        )
+      case "postgres" =>
+        base ++ Map(
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_USERNAME -> StorageConfig.icebergPostgresCatalogUsername,
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD -> StorageConfig.icebergPostgresCatalogPassword
+        )
+      case _ => base
+    }
+  }
+
   // Environment variables passed to the created computing unit(pod)
-  private lazy val computingUnitEnvironmentVariables: Map[String, Any] = Map(
-    // Variables for saving results to Iceberg
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_URI -> StorageConfig.icebergRESTCatalogUri,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_WAREHOUSE_NAME -> StorageConfig.icebergRESTCatalogWarehouseName,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_USERNAME -> StorageConfig.icebergPostgresCatalogUsername,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD -> StorageConfig.icebergPostgresCatalogPassword,
+  private lazy val computingUnitEnvironmentVariables: Map[String, Any] = icebergEnvironmentVariables ++ Map(
     // Variables for saving the metadata of the results, i.e. URIs of results/stats
     EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
     EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
