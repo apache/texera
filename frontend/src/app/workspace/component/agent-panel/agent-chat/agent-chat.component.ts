@@ -259,7 +259,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe(workflow => {
         if (workflow) {
           console.log("[AgentChat] Reloading workflow from backend (active agent)");
-          this.workflowActionService.reloadWorkflow(workflow, false);
+          this.workflowActionService.reloadWorkflow(workflow, false, false);
         }
       });
 
