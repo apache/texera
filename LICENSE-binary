@@ -435,6 +435,7 @@ Angular / npm packages:
   - @vercel/oidc
   - ai
   - fuse.js
+  - jschardet
   - rxjs
 
 --------------------------------------------------------------------------------
