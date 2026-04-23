@@ -120,7 +120,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     const operatorName = this.operatorDisplayName || this.getOperatorName() || "this operator";
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.operatorId}): ${this.feedbackMessage.trim()}`;
 
-    this.copilotManagerService.sendMessage(agentId, contextMessage, [], "feedback");
+    this.copilotManagerService.sendMessage(agentId, contextMessage, "feedback");
     this.notificationService.success("Message sent to agent successfully");
     this.feedbackMessage = "";
     this.changeDetectorRef.detectChanges();

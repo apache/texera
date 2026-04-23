@@ -87,38 +87,6 @@
         </div>
       </div>
 
-      <!-- Actual Content Section (for user messages with prepended context) -->
-      <div
-        *ngIf="step.actualContent && step.actualContent !== step.content"
-        style="margin-bottom: 24px">
-        <h4 style="margin-bottom: 12px; color: #595959">
-          <i
-            nz-icon
-            nzType="message"
-            nzTheme="outline"
-            style="margin-right: 8px"></i>
-          Actual Message Sent (with context)
-        </h4>
-        <div
-          style="
-            background: #f6ffed;
-            padding: 16px;
-            border-radius: 4px;
-            border: 1px solid #b7eb8f;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;,
-              Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            color: #262626;
-            max-height: 300px;
-            overflow-y: auto;
-          ">
-          {{ step.actualContent }}
-        </div>
-      </div>
-
       <!-- Token Usage Section -->
       <div
         *ngIf="step.usage"
@@ -398,7 +366,6 @@
       <div
         *ngIf="
           (!step.content || step.content.trim().length === 0) &&
-          !step.actualContent &&
           !step.usage &&
           (!step.inputMessages || step.inputMessages.length === 0) &&
           (!step.toolCalls || step.toolCalls.length === 0) &&

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-// Re-export all tools and utilities
 export * from "./tools-utility";
 export * from "./workflow-crud-tools";
 export * from "./workflow-metadata-tools";

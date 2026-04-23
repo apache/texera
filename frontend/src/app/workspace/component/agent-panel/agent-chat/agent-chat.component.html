@@ -162,7 +162,7 @@
 
             <!-- Details button (shown on hover) - for any message with details -->
             <button
-              *ngIf="hoveredMessageIndex === i && (response.toolCalls?.length || response.usage || response.actualContent)"
+              *ngIf="hoveredMessageIndex === i && (response.toolCalls?.length || response.usage)"
               nz-button
               nzType="text"
               nzSize="small"

@@ -17,10 +17,6 @@
  * under the License.
  */
 
-/**
- * Execution API types matching the backend SyncExecutionResource request shape.
- */
-
 export interface LogicalLink {
   fromOpId: string;
   fromPortId: { id: number; internal: boolean };

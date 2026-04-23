@@ -17,16 +17,9 @@
  * under the License.
  */
 
-/**
- * Context assembler — builds the model's context as a single structured
- * user message containing completed tasks, the ongoing task, and the
- * current workflow DAG with execution results.
- *
- * Output uses plain markdown structure (headings + bullets) rather than
- * XML-like tags, to reduce format mimicry where the model echoes the
- * context shape into its output instead of calling tools via the native
- * protocol.
- */
+// Output uses plain markdown rather than XML-like tags to reduce format
+// mimicry, where the model echoes the context shape into its output instead
+// of calling tools via the native protocol.
 
 import type { ModelMessage } from "ai";
 import type { WorkflowState } from "../workflow-state";
@@ -35,31 +28,6 @@ import type { ReActStep } from "../../types/agent";
 import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
 
-/**
- * Build the full model context as a single user message.
- *
- * Layout:
- *   # Completed Tasks
- *   ## Task (completed)
- *   ### User request / ### Turn N ...
- *   # Ongoing Task
- *   ## Task (ongoing)
- *   ### User request / ### Turn N ...
- *   (instruction line)
- *   # Current Dataflow
- *   ## Operators
- *   ### Operator `id` (type, status)
- *   ...
- *   ## Links
- *   - src → tgt
- *
- * @param visibleSteps  - ReActSteps on the HEAD ancestor path (ordered root→HEAD)
- * @param workflowState - Live workflow state
- * @param operatorExecutionResults - Map of operatorId → formatted result text
- * @param useRedact     - If true, strip operator properties (except for errored operators)
- * @param compilationResult - Optional compilation response with output schemas and errors
- * @returns Single-element ModelMessage array with the assembled context
- */
 export function assembleContext(
   visibleSteps: ReActStep[],
   workflowState: WorkflowState,
@@ -67,7 +35,6 @@ export function assembleContext(
   useRedact: boolean = false,
   compilationResult?: WorkflowCompilationResponse | null
 ): ModelMessage[] {
-  // Group steps by messageId, preserving insertion order
   const messageIds: string[] = [];
   const stepsByMessage = new Map<string, ReActStep[]>();
   for (const step of visibleSteps) {
@@ -84,11 +51,10 @@ export function assembleContext(
   let completedCount = 0;
   let hasOngoing = false;
 
-  // Determine completed vs ongoing: a task is ongoing if none of its steps has isEnd=true
   for (const msgId of messageIds) {
     const steps = stepsByMessage.get(msgId)!;
-    // A task is completed when an agent step has isEnd=true (not user steps,
-    // which always have isEnd=true as they are single-step messages).
+    // A task is completed only when an *agent* step has isEnd=true; user steps
+    // always have isEnd=true because they are single-step messages.
     const isCompleted = steps.some(s => s.role === "agent" && s.isEnd);
 
     if (isCompleted) {
@@ -108,7 +74,6 @@ export function assembleContext(
     }
   }
 
-  // --- Current Dataflow ---
   const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact, compilationResult);
   if (dagSection) {
     sections.push("");
@@ -126,16 +91,6 @@ export function assembleContext(
   return [{ role: "user", content }];
 }
 
-// ============================================================================
-// Task Serialization
-// ============================================================================
-
-/**
- * Serialize a task (one user message + its assistant steps) into a markdown
- * block. The format deliberately avoids XML/tag-like structures to reduce
- * format mimicry, where the model echoes the context shape into its output
- * instead of calling tools via the native protocol.
- */
 function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): string {
   const lines: string[] = [];
   lines.push(`## Task (${status})`);
@@ -144,7 +99,6 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
   const userStep = steps.find(s => s.role === "user");
   const assistantSteps = steps.filter(s => s.role === "agent");
 
-  // User request
   if (userStep) {
     lines.push("### User request");
     lines.push("");
@@ -152,7 +106,6 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
     lines.push("");
   }
 
-  // Assistant steps, one block per turn.
   for (const step of assistantSteps) {
     lines.push(`### Turn ${step.stepId}`);
     if (step.content) {
@@ -172,13 +125,6 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
   return lines.join("\n").trimEnd();
 }
 
-// ============================================================================
-// DAG Serialization
-// ============================================================================
-
-/**
- * Serialize the workflow into markdown operator entries with links.
- */
 function serializeDag(
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
@@ -190,7 +136,6 @@ function serializeDag(
 
   const lines: string[] = [];
 
-  // Build topological ordering
   const allLinks = workflowState.getAllLinks();
   const opIds = new Set(allOperators.map(op => op.operatorID));
   const inDegree = new Map<string, number>();
@@ -220,7 +165,6 @@ function serializeDag(
     (a, b) => (topoOrder.get(a.operatorID) ?? 0) - (topoOrder.get(b.operatorID) ?? 0)
   );
 
-  // Pre-compute per-operator input schemas from compilation output schemas + links
   const outputSchemas = compilationResult?.operatorOutputSchemas ?? {};
   const compilationErrors = compilationResult?.operatorErrors ?? {};
 
@@ -242,7 +186,6 @@ function serializeDag(
     lines.push("");
   }
 
-  // Links section
   if (allLinks.length > 0) {
     const sortedLinks = [...allLinks].sort((a, b) => {
       const srcA = topoOrder.get(a.source.operatorID) ?? 0;
@@ -260,10 +203,6 @@ function serializeDag(
   return lines.join("\n").trimEnd();
 }
 
-/**
- * Serialize a single operator as a markdown block (heading + labelled fields).
- * Avoids XML tags so the model doesn't mimic them in its output.
- */
 function serializeOperator(
   op: OperatorPredicate,
   execResult: string | undefined,
@@ -284,7 +223,6 @@ function serializeOperator(
   lines.push(`### Operator \`${op.operatorID}\` (${op.operatorType}, ${status})`);
   lines.push(`Summary: ${summary}`);
 
-  // Input schemas (derived from upstream operators' output schemas)
   if (inputSchemaMap) {
     for (const [portId, schema] of Object.entries(inputSchemaMap)) {
       if (schema) {
@@ -306,7 +244,6 @@ function serializeOperator(
     }
   }
 
-  // Output schema (from compilation) — assume single output port
   if (outputSchemaMap) {
     const firstSchema = Object.values(outputSchemaMap).find(s => s !== undefined);
     if (firstSchema) {
@@ -314,7 +251,6 @@ function serializeOperator(
     }
   }
 
-  // Compilation error
   if (compilationError) {
     lines.push(`Compilation Error: ${compilationError.message}`);
   }
@@ -328,18 +264,11 @@ function serializeOperator(
   return lines.join("\n");
 }
 
-/**
- * Format a port schema as a compact bracket notation.
- * Example: [name: string, age: integer, city: string]
- */
 function formatSchema(schema: PortSchema): string {
   const attrs = schema.map(a => `${a.attributeName}: ${a.attributeType}`);
   return `[${attrs.join(", ")}]`;
 }
 
-/**
- * Extract the port index from a serialized port identity (e.g. "0_false" → "0").
- */
 function parsePortIndex(portId: string): string {
   const idx = portId.indexOf("_");
   return idx >= 0 ? portId.substring(0, idx) : portId;

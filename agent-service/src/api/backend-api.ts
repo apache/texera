@@ -17,10 +17,6 @@
  * under the License.
  */
 
-/**
- * Backend API client for Texera Agent Service.
- */
-
 import { env } from "../config/env";
 
 interface BackendConfig {

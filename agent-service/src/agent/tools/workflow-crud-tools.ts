@@ -17,11 +17,6 @@
  * under the License.
  */
 
-/**
- * Workflow CRUD tools for Texera Agent Service.
- * Add, modify, and delete operators on the workflow state.
- */
-
 import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowState } from "../workflow-state";
@@ -41,10 +36,6 @@ import {
   formatCompactSchemaForError,
 } from "./workflow-metadata-tools";
 
-// ============================================================================
-// Tool Context
-// ============================================================================
-
 export interface ToolContext {
   metadataStore?: OperatorMetadataStore;
   settings?: {
@@ -54,18 +45,10 @@ export interface ToolContext {
   };
 }
 
-// ============================================================================
-// Tool Name Constants
-// ============================================================================
-
 export const TOOL_NAME_ADD_OPERATOR = "addOperator";
 export const TOOL_NAME_MODIFY_OPERATOR = "modifyOperator";
 export const TOOL_NAME_DELETE_OPERATOR = "deleteOperator";
 
-/**
- * Format tool input args as a compact string for inclusion in error messages.
- * Omits undefined values to keep it concise.
- */
 function formatInputArgs(args: Record<string, any>): string {
   const compact: Record<string, any> = {};
   for (const [key, value] of Object.entries(args)) {
@@ -73,10 +56,6 @@ function formatInputArgs(args: Record<string, any>): string {
   }
   return `Input: ${JSON.stringify(compact)}`;
 }
-
-// ============================================================================
-// Add Operator Tool
-// ============================================================================
 
 export function createAddOperatorTool(
   workflowState: WorkflowState,
@@ -127,7 +106,6 @@ Examples:
           );
         }
 
-        // Validate properties
         if (context?.metadataStore && args.properties) {
           const validation = context.metadataStore.validateOperatorProperties(args.operatorType, args.properties);
           if (!validation.isValid) {
@@ -143,14 +121,12 @@ Examples:
           return createErrorResult(`Metadata store not available for operator creation. ${inputInfo}`);
         }
 
-        // Validate operatorId follows the "op{number}" naming convention
         if (!/^op\d+$/.test(args.operatorId)) {
           return createErrorResult(
             `Invalid operatorId: "${args.operatorId}". Must follow the format "op" followed by a number (e.g., op1, op2, op3). ${inputInfo}`
           );
         }
 
-        // Check for duplicate operatorId
         const existing = workflowState.getOperator(args.operatorId);
         if (existing) {
           return createErrorResult(
@@ -167,7 +143,6 @@ Examples:
 
         workflowState.addOperator(operator);
 
-        // Automatically create links from inputOperatorIds
         const createdLinkPairs: { source: string; target: string }[] = [];
         if (args.inputOperatorIds) {
           const addedOperator = workflowState.getOperator(operator.operatorID)!;
@@ -205,7 +180,6 @@ Examples:
           }
         }
 
-        // Auto-layout the workflow after adding the operator and links
         autoLayoutWorkflow(workflowState);
 
         const finalOperator = workflowState.getOperator(operator.operatorID) || operator;
@@ -224,10 +198,6 @@ Examples:
     },
   });
 }
-
-// ============================================================================
-// Modify Operator Tool
-// ============================================================================
 
 export function createModifyOperatorTool(workflowState: WorkflowState, context?: ToolContext) {
   return tool({
@@ -267,7 +237,6 @@ Examples:
         const operator = workflowState.getOperator(args.operatorId);
         if (!operator) return createErrorResult(`Operator ${args.operatorId} not found. ${inputInfo}`);
 
-        // Validate properties if provided
         if (args.properties && context?.metadataStore) {
           const mergedProperties = { ...operator.operatorProperties, ...args.properties };
           const validation = context.metadataStore.validateOperatorProperties(operator.operatorType, mergedProperties);
@@ -283,19 +252,15 @@ Examples:
         const createdLinkPairs: { source: string; target: string }[] = [];
         const deletedLinkPairs: { source: string; target: string }[] = [];
 
-        // Update properties if provided
         if (args.properties) {
           workflowState.updateOperatorProperties(args.operatorId, args.properties);
         }
 
-        // Update summary (customDisplayName) if provided
         if (args.summary) {
           workflowState.updateOperatorDisplayName(args.operatorId, args.summary);
         }
 
-        // Replace incoming links if inputOperatorIds is provided
         if (args.inputOperatorIds) {
-          // Delete all existing incoming links
           const currentLinks = workflowState.getLinksConnectedToOperator(args.operatorId)
             .filter(link => link.target.operatorID === args.operatorId);
           for (const link of currentLinks) {
@@ -303,7 +268,6 @@ Examples:
             workflowState.deleteLink(link.linkID);
           }
 
-          // Create new incoming links
           for (const [portIndexStr, sourceOpIds] of Object.entries(args.inputOperatorIds)) {
             const targetPortIdx = parseInt(portIndexStr, 10);
             if (isNaN(targetPortIdx) || targetPortIdx < 0) {
@@ -353,10 +317,6 @@ Examples:
     },
   });
 }
-
-// ============================================================================
-// Delete Operator Tool
-// ============================================================================
 
 export function createDeleteOperatorTool(workflowState: WorkflowState, _context?: ToolContext) {
   return tool({

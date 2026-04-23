@@ -938,13 +938,8 @@ export class TexeraCopilotManagerService {
   /**
    * Send a message to an agent via WebSocket.
    * The message is sent through the WebSocket connection for real-time streaming.
-   *
-   * @param agentId - The agent to send the message to
-   * @param message - The message content
-   * @param contextOperatorIds - Optional operator IDs for context filtering.
-   *                             If provided, only messages that affected these operators will be included as context.
    */
-  public sendMessage(agentId: string, message: string, contextOperatorIds: string[] = [], messageSource: "chat" | "feedback" = "chat"): void {
+  public sendMessage(agentId: string, message: string, messageSource: "chat" | "feedback" = "chat"): void {
     const agent = this.agents.get(agentId);
     if (!agent) {
       this.notificationService.error(`Agent with ID ${agentId} not found`);
@@ -957,24 +952,15 @@ export class TexeraCopilotManagerService {
       return;
     }
 
-    // Send message via WebSocket with optional context operator IDs and message source
-    const wsMessage: { type: string; content: string; contextOperatorIds?: string[]; messageSource?: string } = {
+    const wsMessage = {
       type: "message",
       content: message,
       messageSource,
     };
 
-    // Only include contextOperatorIds if it's a non-empty array
-    if (contextOperatorIds.length > 0) {
-      wsMessage.contextOperatorIds = contextOperatorIds;
-    }
-
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));
       console.log(`[CopilotManager] Sent message to agent ${agentId}: ${message.substring(0, 50)}...`);
-      if (contextOperatorIds.length > 0) {
-        console.log(`[CopilotManager] Context filter with operators: [${contextOperatorIds.join(", ")}]`);
-      }
     } catch (error) {
       console.error("[CopilotManager] Failed to send message:", error);
       this.notificationService.error("Failed to send message");

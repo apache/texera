@@ -17,11 +17,6 @@
  * under the License.
  */
 
-/**
- * Execution tools for Texera Agent Service.
- * These tools provide workflow execution capabilities via HTTP REST API.
- */
-
 import { z } from "zod";
 import { tool } from "ai";
 import { createErrorResult, formatExecuteOperatorResult } from "./tools-utility";
@@ -33,42 +28,17 @@ import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
 import { OperatorMetadataStore } from "./workflow-metadata-tools";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 
-// ============================================================================
-// Tool Name Constants
-// ============================================================================
-
 export const TOOL_NAME_EXECUTE_OPERATOR = "executeOperator";
-
-// Marker used by context-optimization.ts and latest-only-filter.ts to locate
-// the boundary between metadata lines and table data within execution results.
-// The marker is a tab-prefixed header line (the first line starting with \t).
-// Legacy section separators have been removed — metadata and table data are
-// now rendered contiguously without visible section headers.
-
-// ============================================================================
-// Execution Configuration
-// ============================================================================
 
 export interface ExecutionConfig {
   userToken: string;
   workflowId: number;
   computingUnitId?: number;
-  /** Maximum characters for operator results (uses symmetric truncation) */
   maxOperatorResultCharLimit?: number;
-  /** Maximum characters per cell */
   maxOperatorResultCellCharLimit?: number;
-  /** Execution timeout in milliseconds */
   executionTimeoutMs?: number;
 }
 
-// ============================================================================
-// Execution Mutex
-// ============================================================================
-
-/**
- * Simple async mutex for serializing execution requests per workflow.
- * Ensures concurrent requests wait in queue and execute one at a time.
- */
 class AsyncMutex {
   private queue: Promise<void> = Promise.resolve();
 
@@ -76,19 +46,16 @@ class AsyncMutex {
     let release: () => void;
     const currentQueue = this.queue;
 
-    // Chain a new promise that will resolve when the caller releases
     this.queue = new Promise<void>(resolve => {
       release = resolve;
     });
 
-    // Wait for all previous operations to complete
     await currentQueue;
 
     return release!;
   }
 }
 
-/** Map of workflow ID to its mutex */
 const workflowMutexes = new Map<number, AsyncMutex>();
 
 function getWorkflowMutex(workflowId: number): AsyncMutex {
@@ -99,10 +66,6 @@ function getWorkflowMutex(workflowId: number): AsyncMutex {
   }
   return mutex;
 }
-
-// ============================================================================
-// Workflow Validation
-// ============================================================================
 
 interface WorkflowValidationResult {
   isValid: boolean;
@@ -206,10 +169,6 @@ function formatWorkflowValidationErrors(validationResult: WorkflowValidationResu
   return lines.join("\n");
 }
 
-// ============================================================================
-// Logical Plan Builder
-// ============================================================================
-
 function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string[]): LogicalPlan {
   const useSubDAG = opsToViewResult && opsToViewResult.length === 1;
   const targetOperatorId = useSubDAG ? opsToViewResult[0] : undefined;
@@ -282,10 +241,6 @@ function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string
   };
 }
 
-// ============================================================================
-// HTTP Execution Function
-// ============================================================================
-
 async function executeWorkflowHttp(
   config: ExecutionConfig,
   logicalPlan: LogicalPlan,
@@ -296,9 +251,7 @@ async function executeWorkflowHttp(
   const workflowId = config.workflowId;
   const computingUnitId = config.computingUnitId ?? 0;
 
-  // In k8s, each computing unit is a separate pod in the pool namespace.
-  // Use EXECUTION_ENDPOINT_TEMPLATE if set (e.g. "http://computing-unit-{cuid}.texera-workflow-computing-unit-svc.texera-workflow-computing-unit-pool.svc.cluster.local:8085")
-  // Otherwise fall back to the static executionEndpoint.
+  // In k8s each computing unit is a separate pod, so the endpoint varies per cuid.
   const executionEndpoint = env.EXECUTION_ENDPOINT_TEMPLATE
     ? env.EXECUTION_ENDPOINT_TEMPLATE.replace("{cuid}", String(computingUnitId))
     : backendConfig.executionEndpoint;
@@ -309,7 +262,6 @@ async function executeWorkflowHttp(
     ? Math.ceil(config.executionTimeoutMs / 1000)
     : Math.ceil(DEFAULT_AGENT_SETTINGS.executionTimeoutMs / 1000);
 
-  // Backend returns JSON - agent-service handles serialization to table/toon format
   const request = {
     executionName: "agent-execution",
     logicalPlan: {
@@ -362,17 +314,6 @@ async function executeWorkflowHttp(
   }
 }
 
-// ============================================================================
-// Result Formatting (agent-service side)
-// ============================================================================
-
-/**
- * Format compact Input/Output metadata lines for an operator.
- * Uses upstream operator IDs from workflow links to label each input port.
- * - Source operator (no inputs): "Output table shape: (rows, cols)"
- * - Single input: "Input operator(table shape): upstream(rows, cols)\nOutput table shape: (rows, cols)"
- * - Multi input: "Input operator(table shape): up1(rows, cols), up2(rows, cols)\nOutput table shape: (rows, cols)"
- */
 function formatInputOutput(
   workflowState: WorkflowState,
   operatorId: string,
@@ -387,7 +328,6 @@ function formatInputOutput(
     return outputLine;
   }
 
-  // Build a map from portIndex to upstream operator ID using workflow links
   const inputLinks = workflowState.getAllLinks().filter(l => l.target.operatorID === operatorId);
   const portIndexToUpstream = new Map<number, string>();
   const op = workflowState.getOperator(operatorId);
@@ -410,9 +350,6 @@ function formatInputOutput(
 }
 
 
-/**
- * Formats execution error with structured sections.
- */
 function formatExecutionError(
   compilationErrors?: Record<string, string>,
   operatorErrors?: Array<{ operatorId: string; error: string }>,
@@ -444,19 +381,12 @@ function formatExecutionError(
   return lines.join("\n");
 }
 
-/**
- * Convert JSON result to pandas DataFrame-style table format (tab-separated).
- * Includes row indices (0, 1, 2, ...) and a leading tab on the header row
- * to align with the index column, matching pandas `__repr__` output.
- * Uses tab (\t) as column separator for readability.
- */
 function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
   if (!jsonResult || jsonResult.length === 0) return "";
 
-  // Use __row_index__ from backend if present, otherwise fall back to array index
   const hasRowIndex = jsonResult.length > 0 && "__row_index__" in jsonResult[0];
   const headers = Object.keys(jsonResult[0]).filter(h => h !== "__row_index__");
-  // Leading tab aligns headers with the index column (pandas style)
+  // Leading tab aligns headers with the index column (pandas __repr__ style).
   const headerLine = "\t" + headers.join("\t");
 
   const formattedRows: string[] = [];
@@ -466,7 +396,6 @@ function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
     const row = jsonResult[i];
     const rowIndex = hasRowIndex ? (row["__row_index__"] as number) : i;
 
-    // Detect gap in row indices — insert pandas-style "..." separator
     if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
       const dots = headers.map(() => "...").join("\t");
       formattedRows.push(`...\t${dots}`);
@@ -490,20 +419,6 @@ function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
   return [headerLine, ...formattedRows].join("\n");
 }
 
-// ============================================================================
-// Common Execution Function
-// ============================================================================
-
-/**
- * Execute a workflow for a specific operator and return the formatted result.
- * This is the core execution logic shared by the executeWorkflow tool and auto-execute feature.
- *
- * @param workflowState - The workflow state
- * @param config - Execution configuration
- * @param operatorId - The operator to execute and get results for
- * @param options - Optional abort signal
- * @returns Formatted result string or error message
- */
 export async function executeOperatorAndFormat(
   workflowState: WorkflowState,
   config: ExecutionConfig,
@@ -511,25 +426,21 @@ export async function executeOperatorAndFormat(
   options: {
     abortSignal?: AbortSignal;
     onResult?: (operatorId: string, operatorInfo: OperatorInfo) => void;
-    /** @deprecated Use onResult with OperatorInfo instead */
     onResultLegacy?: (operatorId: string, backendStats?: Record<string, string>) => void;
   } = {}
 ): Promise<string> {
-  // Acquire mutex to serialize executions for this workflow
-  // This prevents ConcurrentModificationException on the backend
+  // Serialize executions per workflow to avoid ConcurrentModificationException on the backend.
   const release = await getWorkflowMutex(config.workflowId).acquire();
 
   try {
-    // Build logical plan for the single operator (sub-DAG up to this operator)
     const logicalPlan = buildLogicalPlan(workflowState, [operatorId]);
 
     if (logicalPlan.operators.length === 0) {
       return createErrorResult("Cannot execute: workflow has no operators.");
     }
 
-    // Validate entire workflow but only block on the target operator's errors.
-    // Other operators' errors are irrelevant — if upstream has issues, execution
-    // will fail with a runtime error that correctly identifies the failing operator.
+    // Only block on the target operator's validation errors; upstream issues will
+    // surface as runtime errors that correctly identify the failing operator.
     const validationResult = validateWorkflow(workflowState);
     if (!validationResult.isValid) {
       const targetErrors = validationResult.errors[operatorId];
@@ -540,14 +451,12 @@ export async function executeOperatorAndFormat(
         }
         return createErrorResult(lines.join("\n"));
       }
-      // Target operator is valid — proceed with execution despite other operators' errors
     }
 
     const result: SyncExecutionResult = await executeWorkflowHttp(config, logicalPlan, {
       abortSignal: options.abortSignal,
     });
 
-    // Handle execution failure
     if (!result.success) {
       const compilationErrors =
         result.state === "CompilationFailed" || result.state === "ValidationFailed"
@@ -566,7 +475,6 @@ export async function executeOperatorAndFormat(
 
       const errorText = formatExecutionError(compilationErrors, operatorErrors, generalErrors);
 
-      // Store a synthetic OperatorInfo with the error so it appears in the DAG summary
       if (options.onResult) {
         const errorInfo: OperatorInfo = {
           state: result.state,
@@ -581,7 +489,6 @@ export async function executeOperatorAndFormat(
       return createErrorResult(errorText);
     }
 
-    // Check operator result
     const opInfo = result.operators[operatorId];
     if (!opInfo) {
       return createErrorResult(
@@ -590,27 +497,23 @@ export async function executeOperatorAndFormat(
     }
 
     if (opInfo.error) {
-      // Store the OperatorInfo with error so it appears in the DAG summary
       if (options.onResult) {
         options.onResult(operatorId, opInfo);
       }
       return createErrorResult(formatExecutionError(undefined, [{ operatorId, error: opInfo.error }]));
     }
 
-    // Backend always returns JSON array; agent-service serializes to TSV.
     if (!opInfo.result || !Array.isArray(opInfo.result)) {
       return "(no result data)";
     }
 
-    // Texera enforces per-cell truncation server-side.
     const jsonArray = opInfo.result as Record<string, any>[];
     const headers = jsonArray.length > 0
       ? Object.keys(jsonArray[0]).filter(k => k !== "__row_index__")
       : [];
     const columns = headers.length;
 
-    // Notify caller with OperatorInfo for all operators in the execution (not just the target)
-    // This ensures upstream operators (CSVFileScan, Join, etc.) also get their stats stored
+    // Notify for every operator in the execution so upstream stats are also stored.
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
         if (info && !info.error) {
@@ -621,8 +524,7 @@ export async function executeOperatorAndFormat(
 
     let dataString = jsonToTableFormat(jsonArray);
 
-    // Safety-net: backend truncates server-side, but TSV serialization may add
-    // padding beyond the raw record size estimate. Enforce the char limit here.
+    // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
 
     if (dataString.length > charLimit) {
@@ -630,10 +532,8 @@ export async function executeOperatorAndFormat(
       const headerLine = allLines[0];
       const dataRows = allLines.slice(1);
 
-      // Reserve space for header
       const reservedSize = headerLine.length + 1;
 
-      // Symmetric truncation: keep first half + last half of rows within budget
       const halfLimit = Math.floor((charLimit - reservedSize) / 2);
 
       let frontSize = 0;
@@ -658,10 +558,8 @@ export async function executeOperatorAndFormat(
       dataString = [headerLine, ...keptRows].join("\n");
     }
 
-    // Build compact Input/Output lines using upstream operator IDs from links
     const shapeLine = formatInputOutput(workflowState, operatorId, opInfo, columns);
 
-    // Surface warnings (e.g., duplicate column renames) so the agent can adjust its code
     const warningLines = opInfo.warnings?.map(w => w) ?? [];
 
     const metadataLines = [shapeLine, ...warningLines].filter(Boolean);
@@ -678,15 +576,6 @@ export async function executeOperatorAndFormat(
   }
 }
 
-// ============================================================================
-// Tool Creator
-// ============================================================================
-
-/**
- * Create the executeOperator tool.
- * @param workflowState - The workflow state
- * @param getConfig - Function that returns the current execution config (called at execution time)
- */
 export function createExecuteOperatorTool(
   workflowState: WorkflowState,
   getConfig: () => ExecutionConfig,

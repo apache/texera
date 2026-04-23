@@ -17,11 +17,6 @@
  * under the License.
  */
 
-/**
- * Texera Agent Service library entry point.
- * The runnable server lives in `server.ts`.
- */
-
 export * from "./types";
 export { WorkflowState } from "./agent/workflow-state";
 export * from "./agent/tools";

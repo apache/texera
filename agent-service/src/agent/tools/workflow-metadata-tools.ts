@@ -17,15 +17,10 @@
  * under the License.
  */
 
-/**
- * Operator metadata tools for Texera Agent Service.
- */
-
 import Ajv from "ajv";
 import { fetchOperatorMetadata, type OperatorSchema, type OperatorMetadata } from "../../api/backend-api";
 import type { ValidationError, Validation } from "../../types/workflow";
 
-// Re-export validation types for backwards compatibility
 export type { ValidationError, Validation } from "../../types/workflow";
 
 interface OperatorSchemaInfo {
@@ -39,10 +34,8 @@ interface CompactOperatorSchema {
   required: string[];
 }
 
-// Keys to filter out from properties
 const FILTERED_PROPERTY_KEYS = ["dummyPropertyList"];
 
-// Keys to filter out from definitions
 const FILTERED_DEFINITION_KEYS = [
   "DummyProperties",
   "PortDescription",
@@ -53,12 +46,8 @@ const FILTERED_DEFINITION_KEYS = [
   "UnknownPartition",
 ];
 
-// Keys to exclude from compact schema
 const COMPACT_SCHEMA_EXCLUDED_KEYS = ["propertyOrder", "autofill", "autofillAttributeOnPort", "attributeTypeRules"];
 
-/**
- * Filter an object by excluding specified keys.
- */
 function filterObjectKeys(obj: any, keysToExclude: string[]): any {
   if (!obj || typeof obj !== "object") {
     return obj;
@@ -72,9 +61,6 @@ function filterObjectKeys(obj: any, keysToExclude: string[]): any {
   return filtered;
 }
 
-/**
- * Recursively inline $ref references and clean up schema.
- */
 function inlineRefs(schema: any, definitions: Record<string, any>): any {
   if (!schema || typeof schema !== "object") {
     return schema;
@@ -107,9 +93,6 @@ function inlineRefs(schema: any, definitions: Record<string, any>): any {
   return result;
 }
 
-/**
- * Get compact schema with inlined definitions.
- */
 function getCompactSchema(jsonSchema: any): CompactOperatorSchema | null {
   try {
     const properties = filterObjectKeys(jsonSchema.properties, FILTERED_PROPERTY_KEYS);
@@ -129,25 +112,12 @@ function getCompactSchema(jsonSchema: any): CompactOperatorSchema | null {
   }
 }
 
-// ============================================================================
-// Operator Metadata Store (Singleton)
-// ============================================================================
-
-// Shared Ajv instance - same configuration as frontend ValidationWorkflowService
+// Matches the frontend ValidationWorkflowService Ajv configuration.
 const ajv = new Ajv({ allErrors: true, strict: false });
 
-/**
- * In-memory store for operator schemas.
- * Can be populated from backend API or manually registered.
- * Uses singleton pattern - initialized once at server startup.
- */
 export class OperatorMetadataStore {
-  /** Singleton instance */
   private static instance: OperatorMetadataStore | null = null;
 
-  /**
-   * Get the singleton instance.
-   */
   static getInstance(): OperatorMetadataStore {
     if (!OperatorMetadataStore.instance) {
       OperatorMetadataStore.instance = new OperatorMetadataStore();
@@ -155,10 +125,6 @@ export class OperatorMetadataStore {
     return OperatorMetadataStore.instance;
   }
 
-  /**
-   * Initialize the global singleton from backend.
-   * Should be called once at server startup.
-   */
   static async initializeGlobal(): Promise<OperatorMetadataStore> {
     const store = OperatorMetadataStore.getInstance();
     if (!store.isInitialized()) {
@@ -172,10 +138,6 @@ export class OperatorMetadataStore {
   private additionalMetadata: Map<string, any> = new Map();
   private initialized = false;
 
-  /**
-   * Initialize the store by fetching operator metadata from the backend.
-   * This is the preferred way to populate the store.
-   */
   async initializeFromBackend(): Promise<void> {
     try {
       const metadata = await fetchOperatorMetadata();
@@ -188,9 +150,6 @@ export class OperatorMetadataStore {
     }
   }
 
-  /**
-   * Load operator metadata from a pre-fetched metadata object.
-   */
   loadFromMetadata(metadata: OperatorMetadata): void {
     for (const op of metadata.operators) {
       this.schemas.set(op.operatorType, op.jsonSchema);
@@ -202,9 +161,6 @@ export class OperatorMetadataStore {
     }
   }
 
-  /**
-   * Check if the store is initialized.
-   */
   isInitialized(): boolean {
     return this.initialized;
   }
@@ -213,23 +169,14 @@ export class OperatorMetadataStore {
     return this.schemas.get(operatorType);
   }
 
-  /**
-   * Get description for an operator type.
-   */
   getDescription(operatorType: string): string {
     return this.descriptions.get(operatorType) || "";
   }
 
-  /**
-   * Get additional metadata for an operator type.
-   */
   getAdditionalMetadata(operatorType: string): any | undefined {
     return this.additionalMetadata.get(operatorType);
   }
 
-  /**
-   * Get all operator types with descriptions.
-   */
   getAllOperatorTypes(): Record<string, string> {
     const result: Record<string, string> = {};
     for (const [type, desc] of this.descriptions) {
@@ -238,18 +185,12 @@ export class OperatorMetadataStore {
     return result;
   }
 
-  /**
-   * Get compact schema for an operator type.
-   */
   getCompactSchema(operatorType: string): CompactOperatorSchema | null {
     const schema = this.schemas.get(operatorType);
     if (!schema) return null;
     return getCompactSchema(schema);
   }
 
-  /**
-   * Get all schemas as JSON (for system prompt embedding).
-   */
   getAllSchemasAsJson(): string {
     const result: Record<string, OperatorSchemaInfo> = {};
     for (const [type, schema] of this.schemas) {
@@ -262,24 +203,14 @@ export class OperatorMetadataStore {
     return JSON.stringify(result, null, 2);
   }
 
-  /**
-   * Get the number of registered operators.
-   */
   getOperatorCount(): number {
     return this.schemas.size;
   }
 
-  /**
-   * Check if an operator type exists.
-   */
   operatorTypeExists(operatorType: string): boolean {
     return this.schemas.has(operatorType);
   }
 
-  /**
-   * Validate operator properties against its schema using Ajv.
-   * Returns the same Validation type as frontend ValidationWorkflowService for consistency.
-   */
   validateOperatorProperties(operatorType: string, properties: Record<string, any>): Validation {
     const schema = this.schemas.get(operatorType);
     if (!schema) {
@@ -293,7 +224,6 @@ export class OperatorMetadataStore {
         return { isValid: true };
       }
 
-      // Convert Ajv errors to messages format (same as frontend ValidationWorkflowService)
       const messages: Record<string, string> = {};
       if (ajv.errors) {
         for (const error of ajv.errors) {
@@ -310,19 +240,12 @@ export class OperatorMetadataStore {
   }
 }
 
-/**
- * Format validation result into a readable message for the agent.
- */
 export function formatValidationErrors(validation: Validation): string {
   if (validation.isValid) return "";
   const errorMessages = Object.entries(validation.messages).map(([key, msg]) => `${key}: ${msg}`);
   return errorMessages.join("; ");
 }
 
-/**
- * Format a compact schema summary showing only required properties.
- * Returns a single-line string suitable for error messages.
- */
 export function formatCompactSchemaForError(compactSchema: CompactOperatorSchema): string {
   const requiredProps: Record<string, any> = {};
   for (const key of compactSchema.required) {

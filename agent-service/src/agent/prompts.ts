@@ -17,13 +17,6 @@
  * under the License.
  */
 
-/**
- * System prompt for Texera Agent Service.
- *
- * A single template with a {{OPERATOR_SCHEMA}} placeholder that is filled in with
- * the available operator schemas (optionally restricted to `allowedOperatorTypes`).
- */
-
 import { OperatorMetadataStore } from "./tools/workflow-metadata-tools";
 
 const PYTHON_UDF_OPERATOR_TYPES = ["PythonUDFV2"];
@@ -263,9 +256,6 @@ You have the following operators available:
 {{OPERATOR_SCHEMA}}
 `;
 
-/**
- * Build the operator schemas string for allowed operators.
- */
 function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
   const schemas: string[] = [];
 
@@ -289,13 +279,6 @@ function buildAllowedOperatorSchemas(metadataStore: OperatorMetadataStore, allow
   return schemas.length > 0 ? schemas.join("\n\n") : "No operators available.";
 }
 
-/**
- * Build the system prompt by plugging allowed operator schemas into the template.
- *
- * When Python or R UDF operators are available, their usage guides are appended
- * so the agent knows how to author code for them. An empty `allowedOperatorTypes`
- * means "all operators allowed", so both guides apply.
- */
 export function buildSystemPrompt(metadataStore: OperatorMetadataStore, allowedOperatorTypes: string[] = []): string {
   const operatorSchemas = buildAllowedOperatorSchemas(metadataStore, allowedOperatorTypes);
   const allowsAll = allowedOperatorTypes.length === 0;

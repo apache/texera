@@ -21,9 +21,6 @@ import type { UserInfo } from "../types/agent";
 
 export type { UserInfo } from "../types/agent";
 
-/**
- * Decode a JWT payload. Does not verify signature.
- */
 function decodeJWT(token: string): any {
   try {
     const parts = token.split(".");

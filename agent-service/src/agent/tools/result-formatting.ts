@@ -17,53 +17,18 @@
  * under the License.
  */
 
-/**
- * Reusable formatting functions for operator execution results.
- *
- * Extracted from execution-tools.ts so that the same OperatorInfo can be
- * formatted on demand with different settings (e.g., for DAG serialization
- * vs. tool result vs. context optimization).
- */
-
 import type { OperatorInfo } from "../../types/execution";
 import type { WorkflowState } from "../workflow-state";
-import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 import { formatExecuteOperatorResult } from "./tools-utility";
 
-// ============================================================================
-// Public API
-// ============================================================================
-
-export interface FormatOptions {
-  /** Max characters for the serialized data section. */
-  maxCharLimit?: number;
-}
-
-/**
- * Format an OperatorInfo into a human-readable result string.
- *
- * This is the single source of truth for serializing execution results.
- * Used by: tool results (addOperator auto-execute), DAG serialization,
- * and any future consumer that needs a text representation.
- *
- * @param operatorId   - The operator ID
- * @param opInfo       - Raw OperatorInfo from the backend
- * @param workflowState - Workflow state (for upstream operator names in shape line)
- * @param options      - Formatting options
- * @returns Formatted result string
- */
 export function formatOperatorResult(
   operatorId: string,
   opInfo: OperatorInfo,
-  workflowState: WorkflowState,
-  options: FormatOptions = {}
+  workflowState: WorkflowState
 ): string {
-  // If the operator has an error, surface it instead of result data
   if (opInfo.error) {
     return `[ERROR] ${opInfo.error}`;
   }
-
-  const charLimit = options.maxCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
 
   if (!opInfo.result || !Array.isArray(opInfo.result)) {
     return "(no result data)";
@@ -75,7 +40,6 @@ export function formatOperatorResult(
     : [];
   const columns = headers.length;
 
-  // For visualization results, replace large html/json cells with a placeholder
   const isViz = jsonArray.length > 0 && jsonArray[0]["__is_visualization__"] === true;
   const serializableArray = isViz
     ? jsonArray.map(row => {
@@ -92,16 +56,10 @@ export function formatOperatorResult(
       })
     : jsonArray;
 
-  // Serialize data (TSV: header row + tab-separated values)
-  let dataString = jsonToTableFormat(serializableArray);
-
-  // Truncate if needed
-  if (dataString.length > charLimit) {
-    dataString = truncateData(dataString, charLimit);
-  }
+  const dataString = jsonToTableFormat(serializableArray);
 
   const metadataLines = [
-    formatInputOutput(workflowState, operatorId, opInfo, columns),
+    formatInputOutputMetadata(workflowState, operatorId, opInfo, columns),
     ...(opInfo.warnings ?? []),
   ].filter(Boolean);
 
@@ -109,40 +67,7 @@ export function formatOperatorResult(
   return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
 }
 
-function truncateData(dataString: string, charLimit: number): string {
-  const allLines = dataString.split("\n");
-  const headerLine = allLines[0];
-  const dataRows = allLines.slice(1);
-
-  const reservedSize = headerLine.length + 1;
-  const halfLimit = Math.floor((charLimit - reservedSize) / 2);
-
-  let frontSize = 0;
-  const frontRows: string[] = [];
-  for (const row of dataRows) {
-    const rowLen = row.length + 1;
-    if (frontSize + rowLen > halfLimit && frontRows.length > 0) break;
-    frontRows.push(row);
-    frontSize += rowLen;
-  }
-
-  let backSize = 0;
-  const backRows: string[] = [];
-  for (let i = dataRows.length - 1; i >= frontRows.length; i--) {
-    const rowLen = dataRows[i].length + 1;
-    if (backSize + rowLen > halfLimit && backRows.length > 0) break;
-    backRows.unshift(dataRows[i]);
-    backSize += rowLen;
-  }
-
-  return [headerLine, ...frontRows, ...backRows].join("\n");
-}
-
-// ============================================================================
-// Metadata Formatting
-// ============================================================================
-
-function formatInputOutput(
+function formatInputOutputMetadata(
   workflowState: WorkflowState,
   operatorId: string,
   opInfo: OperatorInfo,
@@ -177,15 +102,6 @@ function formatInputOutput(
   return `Input operator(table shape): ${inputPart}\n${outputLine}`;
 }
 
-// ============================================================================
-// Table Format (pandas-style)
-// ============================================================================
-
-/**
- * Convert JSON result to pandas DataFrame-style table format (tab-separated).
- * Uses __row_index__ from the backend to preserve original row indices and
- * inserts "..." separator rows when there are gaps in indices.
- */
 function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
   if (!jsonResult || jsonResult.length === 0) return "";
 
@@ -201,7 +117,6 @@ function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
     const row = jsonResult[i];
     const rowIndex = hasRowIndex ? (row["__row_index__"] as number) : i;
 
-    // Detect gap in row indices — insert pandas-style "..." separator
     if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
       const dots = headers.map(() => "...").join("\t");
       formattedRows.push(`...\t${dots}`);
