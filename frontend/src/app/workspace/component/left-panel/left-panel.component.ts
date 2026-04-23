@@ -117,7 +117,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     setTimeout(() => {
       const topLevelCategories = this.content.nativeElement.querySelectorAll(
-        "nz-collapse-panel.operator-group[data-depth=\"0\"]"
+        'nz-collapse-panel.operator-group[data-depth="0"]'
       );
 
       if (topLevelCategories.length > 0) {
