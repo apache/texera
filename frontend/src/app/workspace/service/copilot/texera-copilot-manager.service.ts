@@ -50,8 +50,8 @@ export interface AgentSettingsApi {
   maxOperatorResultCharLimit?: number;
   /** Maximum character limit per cell (truncates individual cell values beyond this limit) */
   maxOperatorResultCellCharLimit?: number;
-  /** Serialization mode for operator results: "json", "table", or "toon" */
-  operatorResultSerializationMode?: "json" | "table" | "toon";
+  /** Serialization mode for operator results */
+  operatorResultSerializationMode?: "tsv";
   /** Tool execution timeout in seconds */
   toolTimeoutSeconds?: number;
   /** Workflow execution timeout in minutes */

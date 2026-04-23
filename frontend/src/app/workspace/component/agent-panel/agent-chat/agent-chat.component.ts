@@ -72,7 +72,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public editingSystemPrompt = "";
   public settingsMaxCharLimit = 20000; // Default max characters for operator results
   public settingsMaxCellCharLimit = 4000; // Default max characters per cell
-  public settingsSerializationMode: "json" | "table" | "toon" = "table"; // Serialization mode for results
   public settingsToolTimeoutSeconds = 120; // 2 minutes default
   public settingsExecutionTimeoutMinutes = 10; // 10 minutes default
   public settingsMaxSteps = 10; // Default max steps per message
@@ -343,7 +342,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe(settings => {
         this.settingsMaxCharLimit = settings.maxOperatorResultCharLimit ?? 20000;
         this.settingsMaxCellCharLimit = settings.maxOperatorResultCellCharLimit ?? 4000;
-        this.settingsSerializationMode = settings.operatorResultSerializationMode ?? "table";
         this.settingsToolTimeoutSeconds = settings.toolTimeoutSeconds ?? 120;
         this.settingsExecutionTimeoutMinutes = settings.executionTimeoutMinutes ?? 10;
         this.settingsMaxSteps = settings.maxSteps ?? 10;
@@ -691,24 +689,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => this.notificationService.success("Max cell character limit saved"),
-        error: () => {}, // Error already handled by service
-      });
-  }
-
-  /**
-   * Save the serialization mode.
-   */
-  public saveSerializationMode(): void {
-    this.copilotManagerService
-      .updateAgentSettings(this.agentInfo.id, {
-        operatorResultSerializationMode: this.settingsSerializationMode,
-      })
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () =>
-          this.notificationService.success(
-            `Result serialization mode set to ${this.settingsSerializationMode.toUpperCase()}`
-          ),
         error: () => {}, // Error already handled by service
       });
   }

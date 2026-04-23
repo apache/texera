@@ -101,12 +101,8 @@ export interface ReActStep {
  * Serialization mode for operator results
  */
 export enum OperatorResultSerializationMode {
-  /** JSON array of objects */
-  JSON = "json",
-  /** Table format: header\nrow\nrow\n (CSV-like) */
-  TABLE = "table",
-  /** TOON format: Token-Oriented Object Notation (most compact for LLMs) */
-  TOON = "toon",
+  /** Tab-separated values: header\nrow\nrow\n */
+  TSV = "tsv",
 }
 
 /**
@@ -121,7 +117,7 @@ export interface AgentSettings {
   maxOperatorResultCharLimit: number;
   /** Maximum character limit per cell (truncates individual cell values beyond this limit) */
   maxOperatorResultCellCharLimit: number;
-  /** Serialization mode for operator results (json, table, or toon) */
+  /** Serialization mode for operator results */
   operatorResultSerializationMode: OperatorResultSerializationMode;
   /** Tool execution timeout in milliseconds */
   toolTimeoutMs: number;
@@ -140,7 +136,7 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   disabledTools: new Set(),
   maxOperatorResultCharLimit: 2000,
   maxOperatorResultCellCharLimit: 2000,
-  operatorResultSerializationMode: OperatorResultSerializationMode.TABLE,
+  operatorResultSerializationMode: OperatorResultSerializationMode.TSV,
   toolTimeoutMs: 240000,
   executionTimeoutMs: 240000,
   maxSteps: 100,
@@ -196,7 +192,7 @@ export interface AgentSettingsApi {
   /** Maximum character limit per cell (truncates individual cell values beyond this limit) */
   maxOperatorResultCellCharLimit?: number;
   /** Serialization mode for operator results: "json", "table", or "toon" */
-  operatorResultSerializationMode?: "json" | "table" | "toon";
+  operatorResultSerializationMode?: "tsv";
   /** Tool execution timeout in seconds */
   toolTimeoutSeconds?: number;
   /** Workflow execution timeout in minutes */
@@ -249,7 +245,7 @@ export interface UpdateAgentSettingsRequest {
   /** Maximum character limit per cell (truncates individual cell values beyond this limit) */
   maxOperatorResultCellCharLimit?: number;
   /** Serialization mode for operator results: "json", "table", or "toon" */
-  operatorResultSerializationMode?: "json" | "table" | "toon";
+  operatorResultSerializationMode?: "tsv";
   /** Tool execution timeout in seconds */
   toolTimeoutSeconds?: number;
   /** Workflow execution timeout in minutes */

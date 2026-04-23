@@ -24,7 +24,6 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import { encode as toonEncode } from "@toon-format/toon";
 import { createErrorResult, formatExecuteOperatorResult } from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
@@ -32,7 +31,7 @@ import { env } from "../../config/env";
 import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
 import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
 import { OperatorMetadataStore } from "./workflow-metadata-tools";
-import { OperatorResultSerializationMode, DEFAULT_AGENT_SETTINGS } from "../../types/agent";
+import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 
 // ============================================================================
 // Tool Name Constants
@@ -54,8 +53,6 @@ export interface ExecutionConfig {
   userToken: string;
   workflowId: number;
   computingUnitId?: number;
-  /** Serialization mode for operator results: "json" or "table" */
-  serializationMode?: OperatorResultSerializationMode;
   /** Maximum characters for operator results (uses symmetric truncation) */
   maxOperatorResultCharLimit?: number;
   /** Maximum characters per cell */
@@ -493,25 +490,6 @@ function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
   return [headerLine, ...formattedRows].join("\n");
 }
 
-/**
- * Convert JSON result to TOON format (Token-Oriented Object Notation).
- * Uses the official @toon-format/toon library.
- * TOON is a compact format designed for LLMs that reduces token usage by 30-60%.
- *
- * Example output:
- *   data[3]{ID,card_scheme,account_type,aci}:
- *   1,TransactPlus,[],["C","B"]
- *   2,GlobalCard,["R"],["A"]
- *   3,NexPay,[],[]
- */
-function jsonToToonFormat(jsonResult: Record<string, any>[]): string {
-  if (!jsonResult || jsonResult.length === 0) return "";
-
-  // Wrap the array in an object with "data" key for TOON encoding
-  // This produces: data[n]{col1,col2,...}: followed by rows
-  return toonEncode({ data: jsonResult });
-}
-
 // ============================================================================
 // Common Execution Function
 // ============================================================================
@@ -619,9 +597,7 @@ export async function executeOperatorAndFormat(
       return createErrorResult(formatExecutionError(undefined, [{ operatorId, error: opInfo.error }]));
     }
 
-    // Get result info - backend always returns JSON array, agent-service serializes
-    const serializationMode = config.serializationMode ?? OperatorResultSerializationMode.TABLE;
-
+    // Backend always returns JSON array; agent-service serializes to TSV.
     if (!opInfo.result || !Array.isArray(opInfo.result)) {
       return "(no result data)";
     }
@@ -643,33 +619,14 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString: string;
-    let modeLabel: string;
+    let dataString = jsonToTableFormat(jsonArray);
 
-    switch (serializationMode) {
-      case OperatorResultSerializationMode.TABLE:
-        dataString = jsonToTableFormat(jsonArray);
-        modeLabel = "table";
-        break;
-      case OperatorResultSerializationMode.TOON:
-        dataString = jsonToToonFormat(jsonArray);
-        modeLabel = "toon";
-        break;
-      case OperatorResultSerializationMode.JSON:
-      default:
-        dataString = JSON.stringify(jsonArray);
-        modeLabel = "json";
-        break;
-    }
-
-    // Safety-net: both backends truncate server-side, but serialization to
-    // table/toon format may add padding beyond the raw record size estimate.
-    // This ensures the final serialized string respects the character limit.
+    // Safety-net: backend truncates server-side, but TSV serialization may add
+    // padding beyond the raw record size estimate. Enforce the char limit here.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
 
     if (dataString.length > charLimit) {
       const allLines = dataString.split("\n");
-      // First line is the header (for table/toon) or opening bracket (for json)
       const headerLine = allLines[0];
       const dataRows = allLines.slice(1);
 

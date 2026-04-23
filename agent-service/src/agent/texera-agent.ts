@@ -257,7 +257,6 @@ export class TexeraAgent {
       computingUnitId: this.delegateConfig.computingUnitId,
       maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
-      serializationMode: this.settings.operatorResultSerializationMode,
       executionTimeoutMs: this.settings.executionTimeoutMs,
     };
   }
@@ -951,7 +950,6 @@ export class TexeraAgent {
     const result = new Map<string, string>();
     const visible = this.operatorResultStore.getAllVisible();
     const formatOpts: FormatOptions = {
-      serializationMode: this.settings.operatorResultSerializationMode,
       maxCharLimit: this.settings.maxOperatorResultCharLimit,
     };
     for (const [operatorId, entry] of visible) {

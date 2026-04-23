@@ -27,10 +27,7 @@
 
 import type { OperatorInfo } from "../../types/execution";
 import type { WorkflowState } from "../workflow-state";
-import {
-  OperatorResultSerializationMode,
-  DEFAULT_AGENT_SETTINGS,
-} from "../../types/agent";
+import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 import { formatExecuteOperatorResult } from "./tools-utility";
 
 // ============================================================================
@@ -38,8 +35,6 @@ import { formatExecuteOperatorResult } from "./tools-utility";
 // ============================================================================
 
 export interface FormatOptions {
-  /** Serialization mode for result data (TABLE, TOON, JSON). Default: TABLE */
-  serializationMode?: OperatorResultSerializationMode;
   /** Max characters for the serialized data section. */
   maxCharLimit?: number;
 }
@@ -68,7 +63,6 @@ export function formatOperatorResult(
     return `[ERROR] ${opInfo.error}`;
   }
 
-  const serializationMode = options.serializationMode ?? OperatorResultSerializationMode.TABLE;
   const charLimit = options.maxCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
 
   if (!opInfo.result || !Array.isArray(opInfo.result)) {
@@ -98,8 +92,8 @@ export function formatOperatorResult(
       })
     : jsonArray;
 
-  // Serialize data
-  let dataString = serializeData(serializableArray, serializationMode);
+  // Serialize data (TSV: header row + tab-separated values)
+  let dataString = jsonToTableFormat(serializableArray);
 
   // Truncate if needed
   if (dataString.length > charLimit) {
@@ -113,29 +107,6 @@ export function formatOperatorResult(
 
   const briefSummary = formatExecuteOperatorResult(operatorId);
   return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
-}
-
-// ============================================================================
-// Data Serialization
-// ============================================================================
-
-function serializeData(jsonArray: Record<string, any>[], mode: OperatorResultSerializationMode): string {
-  switch (mode) {
-    case OperatorResultSerializationMode.TABLE:
-      return jsonToTableFormat(jsonArray);
-    case OperatorResultSerializationMode.TOON: {
-      // Dynamic import to avoid bundling toon if not used
-      try {
-        const { toToonFormat } = require("@toon-format/toon");
-        return toToonFormat(jsonArray);
-      } catch {
-        return jsonToTableFormat(jsonArray);
-      }
-    }
-    case OperatorResultSerializationMode.JSON:
-    default:
-      return JSON.stringify(jsonArray);
-  }
 }
 
 function truncateData(dataString: string, charLimit: number): string {

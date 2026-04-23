@@ -435,40 +435,6 @@
           </div>
 
           <div class="settings-param-item">
-            <label class="settings-param-label">Result Serialization Mode</label>
-            <div class="settings-param-input">
-              <nz-radio-group
-                [(ngModel)]="settingsSerializationMode"
-                nzSize="small"
-                style="display: inline-flex; gap: 16px; margin-right: 12px">
-                <label
-                  nz-radio
-                  nzValue="json"
-                  >JSON</label
-                >
-                <label
-                  nz-radio
-                  nzValue="table"
-                  >TABLE</label
-                >
-                <label
-                  nz-radio
-                  nzValue="toon"
-                  >TOON</label
-                >
-              </nz-radio-group>
-              <button
-                nz-button
-                nzType="primary"
-                nzSize="small"
-                (click)="saveSerializationMode()">
-                Save
-              </button>
-              <span class="settings-param-hint">JSON: array of objects, TABLE: CSV-like, TOON: Token-Oriented Object Notation (most compact for LLMs)</span>
-            </div>
-          </div>
-
-          <div class="settings-param-item">
             <label class="settings-param-label">Tool Execution Timeout (seconds)</label>
             <div class="settings-param-input">
               <nz-input-number
