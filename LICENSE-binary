@@ -826,24 +826,6 @@ Scala/Java jars:
   - org.tukaani (org.tukaani.xz)
 
 --------------------------------------------------------------------------------
-ASF Category X
---------------------------------------------------------------------------------
-
-Components under ASF Category X licenses (GPL, LGPL, and similar copyleft
-terms) cannot be included in an Apache binary distribution. Entries
-listed here were flagged by the LICENSE-binary review as incompatible
-with redistribution under the Apache 2.0 terms and must be removed from
-or excluded at build time before the distribution is released. They are
-itemized below so the exclusion can be audited.
-
-Scala/Java jars:
-
-Python packages:
-
-Angular / npm packages:
-
-
---------------------------------------------------------------------------------
 Dependencies in the Public Domain
 --------------------------------------------------------------------------------
 
