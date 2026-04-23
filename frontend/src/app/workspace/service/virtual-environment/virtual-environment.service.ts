@@ -19,6 +19,7 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable } from "rxjs";
 import { HttpClient, HttpParams } from "@angular/common/http";
+import { AuthService } from "../../../common/service/user/auth.service";
 
 export interface PackageResponse {
   system: string[];
@@ -34,9 +35,9 @@ export interface PvePackageResponse {
 export class WorkflowPveService {
   private cuidSubject = new BehaviorSubject<number | null>(null);
 
-  private pveNameSubject = new BehaviorSubject<string | null>(null);
-
   constructor(private http: HttpClient) {}
+
+  private pveNameSubject = new BehaviorSubject<string | null>(null);
 
   setCuid(cuid: number): void {
     this.cuidSubject.next(cuid);
@@ -64,7 +65,7 @@ export class WorkflowPveService {
   }
 
   private getAccessToken(): string | null {
-    const token = localStorage.getItem("access_token");
+    const token = AuthService.getAccessToken();
     return token && token.trim().length > 0 ? token : null;
   }
 

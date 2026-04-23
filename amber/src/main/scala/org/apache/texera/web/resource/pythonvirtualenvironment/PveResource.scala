@@ -89,32 +89,16 @@ class PveResource {
       @QueryParam("pveName") pveName: String
   ): util.Map[String, util.List[String]] = {
     try {
-
-      println(s"[PVE] HIT getInstalledPackages cuid=$cuid")
-
       val (systemPkgsRaw, userPkgsRaw) = PveManager.getSystemAndUserPackages(cuid, pveName)
-
-      println(s"[PVE] raw systemPkgsRaw isNull=${systemPkgsRaw == null} value=$systemPkgsRaw")
-      println(s"[PVE] raw userPkgsRaw   isNull=${userPkgsRaw == null} value=$userPkgsRaw")
 
       val systemPkgs = Option(systemPkgsRaw).getOrElse(Seq.empty[String]).toList.asJava
       val userPkgs = Option(userPkgsRaw).getOrElse(Seq.empty[String]).toList.asJava
 
-      val resp = Map("system" -> systemPkgs, "user" -> userPkgs).asJava
-
-      println(
-        s"[PVE] returning keys=${resp.keySet()} systemSize=${systemPkgs.size()} userSize=${userPkgs.size()}"
-      )
-
-      resp
-
+      Map("system" -> systemPkgs, "user" -> userPkgs).asJava
     } catch {
       case e: Exception =>
         e.printStackTrace()
-        Map(
-          "system" -> List(s"Error: ${e.getMessage}").asJava,
-          "user" -> List.empty[String].asJava
-        ).asJava
+        throw new InternalServerErrorException("Failed to get installed packages.")
     }
   }
 

@@ -442,14 +442,14 @@
   nzClassName="pve-modal"
   [nzVisible]="pveModalVisible"
   nzTitle="Python Environments"
-  (nzOnCancel)="pveModalVisible = false"
+  (nzOnCancel)="closePveModal()"
   [nzFooter]="customFooter">
   <ng-template #customFooter>
     <div class="footer-all">
       <button
         nz-button
         nzType="default"
-        (click)="pveModalVisible = false">
+        (click)="closePveModal()">
         Close
       </button>
       <button

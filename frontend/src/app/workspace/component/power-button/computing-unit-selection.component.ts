@@ -89,7 +89,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
   nextPveId = 1;
   pves: PveDraft[] = [this.makeEmptyPve(true)];
   systemPackages: { name: string; version: string }[] = [];
-  pipModalCloseHandler: (() => void) | null = null;
   pveModalVisible = false;
 
   // current workflow's Id, will change with wid in the workflowActionService.metadata
@@ -698,6 +697,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.getPVEs();
   }
 
+  closePveModal(): void {
+    this.pves.forEach(pve => {
+      pve.source?.close();
+      pve.source = undefined;
+      pve.isInstalling = false;
+    });
+
+    this.pveModalVisible = false;
+  }
+
   getPVEs(): void {
     const cuId: number | undefined = this.selectedComputingUnit?.computingUnit.cuid;
 
@@ -908,14 +917,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
       this.updatePrettyPipOutput(index);
       env.source?.close();
       env.source = undefined;
-      env.isInstalling = false;
-    };
-
-    this.pipModalCloseHandler = () => {
-      env.source?.close();
-      env.source = undefined;
-      env.pipOutput = "";
-      this.updatePrettyPipOutput(index);
       env.isInstalling = false;
     };
   }
