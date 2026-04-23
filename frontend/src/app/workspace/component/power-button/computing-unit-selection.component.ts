@@ -676,7 +676,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       id: this.nextPveId++,
       name: "",
       userPackages: [],
-      newPackages: [{ name: "", operator: "==", version: "" }],
+      newPackages: [],
       deletingPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
