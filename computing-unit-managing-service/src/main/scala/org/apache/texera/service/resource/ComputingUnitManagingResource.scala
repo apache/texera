@@ -65,8 +65,6 @@ object ComputingUnitManagingResource {
       .getInstance()
       .createDSLContext()
 
-  // Iceberg env vars are gated by catalog type so each CU only receives the
-  // credentials its active backend actually uses.
   private def icebergEnvironmentVariables: Map[String, Any] = {
     val base = Map[String, Any](
       EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType
