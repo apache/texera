@@ -17,32 +17,13 @@
  * under the License.
  */
 
-// No-op replacement for the jschardet npm package.
-//
-// The upstream `jschardet` package (LGPL-2.1) is declared as a direct
-// dependency of `@codingame/monaco-vscode-api` and is pulled in via a
-// dynamic `await import('jschardet')` inside the VS Code textfile
-// encoding-guessing service. Texera does not use that code path --
-// Monaco is only used as a Yjs-backed code editor and never opens
-// arbitrary binary files that require charset detection.
-//
-// To keep the LGPL code out of the Apache binary distribution we
-// redirect the `jschardet` module name to this stub via Yarn's
-// `resolutions`. The stub preserves the public API surface so the
-// dynamic import resolves successfully and any defensive caller
-// receives a safe "no guess" answer.
+// No-op replacement for the LGPL-2.1 `jschardet` package, which is
+// ASF Category X. Redirected here via `resolutions` in
+// frontend/package.json. The upstream call site lives in
+// @codingame/monaco-vscode-api's encoding service and is only reached
+// when opening binary files through Monaco, which Texera never does.
 
-function detect() {
-  return null;
-}
-
-function detectAll() {
-  return [];
-}
-
-function enableDebug() {
-  // no-op
-}
-
-module.exports = { detect: detect, detectAll: detectAll, enableDebug: enableDebug };
+module.exports = {
+  detect: () => null,
+};
 module.exports.default = module.exports;
