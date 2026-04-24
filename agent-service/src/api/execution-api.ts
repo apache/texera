@@ -17,6 +17,22 @@
  * under the License.
  */
 
-export * from "./tools-utility";
-export * from "./workflow-crud-tools";
-export * from "./workflow-execution-tools";
+export interface LogicalLink {
+  fromOpId: string;
+  fromPortId: { id: number; internal: boolean };
+  toOpId: string;
+  toPortId: { id: number; internal: boolean };
+}
+
+interface LogicalOperator {
+  operatorID: string;
+  operatorType: string;
+  [key: string]: any;
+}
+
+export interface LogicalPlan {
+  operators: LogicalOperator[];
+  links: LogicalLink[];
+  opsToViewResult?: string[];
+  opsToReuseResult?: string[];
+}
