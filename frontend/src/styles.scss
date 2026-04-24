@@ -108,7 +108,6 @@ hr {
   left: 0;
 }
 
-// pip modal
 .pve-modal {
   .ant-modal {
     max-width: 980px;
@@ -149,11 +148,11 @@ hr {
   }
 
   .system-section {
-    margin-bottom: 14px;
+    margin-top: 5px;
+    margin-bottom: 5px;
   }
 
   .system-section .ant-collapse-item {
-    //border-radius: 12px;
     overflow: hidden;
     background: #ffffff;
     border: 1px solid #eef0f3;
@@ -170,6 +169,7 @@ hr {
 
   .system-row {
     opacity: 0.9;
+    margin-bottom: 14px;
   }
 
   .system-input {
@@ -178,7 +178,6 @@ hr {
     color: #5a667a;
     cursor: not-allowed;
   }
-
   .env-header {
     width: 100%;
     display: flex;
@@ -207,7 +206,6 @@ hr {
   .ant-collapse-item {
     background: #ffffff;
     border: 1px solid #eef0f3;
-    //border-radius: 12px;
     overflow: hidden;
     margin-bottom: 12px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -253,16 +251,13 @@ hr {
     gap: 10px;
     padding: 10px 10px;
     border: 1px solid #eef0f3;
-    //border-radius: 12px;
     background: #ffffff;
   }
 
   .package-inputs {
-    display: grid;
-    grid-template-columns: 1fr 140px 1fr;
-    gap: 10px;
     flex: 1;
-    min-width: 0;
+    display: flex;
+    gap: 14px;
   }
 
   .field {
@@ -294,18 +289,6 @@ hr {
     color: #5a667a;
   }
 
-  .highlighted-btn {
-    background-color: #ff4d4f !important; /* Ant Design red */
-    border-color: #ff4d4f !important;
-    color: white !important;
-  }
-
-  .add-btn {
-    display: flex;
-    justify-content: flex-start;
-    margin-top: -6px;
-  }
-
   .env-footer {
     display: flex;
     justify-content: flex-end;
@@ -315,7 +298,6 @@ hr {
   .pip-panel {
     margin-top: 16px;
     border: 1px solid #d9d9d9;
-    //border-radius: 8px;
     background: #f2f2f2;
     overflow: hidden;
   }
@@ -354,5 +336,20 @@ hr {
     overflow-y: auto;
     max-height: 220px;
     background: transparent;
+  }
+
+  .system-header {
+    display: flex;
+    flex-direction: column;
+
+    .title {
+      font-weight: 500;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #8c8c8c;
+      margin-top: 2px;
+    }
   }
 }

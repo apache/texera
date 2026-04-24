@@ -465,7 +465,13 @@
     <!-- Shared system packages -->
     <div class="system-section">
       <nz-collapse>
-        <nz-collapse-panel nzHeader="System Packages (read-only)">
+        <ng-template #systemHeaderTpl>
+          <div class="system-header">
+            <div class="title">System Packages (read-only)</div>
+            <div class="subtitle">Packages will appear here after an environment is created.</div>
+          </div>
+        </ng-template>
+        <nz-collapse-panel [nzHeader]="systemHeaderTpl">
           <div class="system-panel-inner">
             <div
               *ngFor="let pkg of systemPackages"
@@ -497,7 +503,7 @@
     <!-- Environments -->
     <nz-collapse>
       <nz-collapse-panel
-        *ngFor="let pve of pves; let envIndex = index; trackBy: trackByPveId"
+        *ngFor="let pve of pves; let envIndex = index; trackBy: trackByIndex"
         [nzActive]="pve.expanded"
         (nzActiveChange)="pve.expanded = $event"
         [nzHeader]="headerTpl">
@@ -522,105 +528,6 @@
               placeholder="Environment Name"
               [(ngModel)]="pve.name" />
           </div>
-
-          <!-- USER PACKAGES -->
-          <div
-            class="section-title"
-            *ngIf="pve.userPackages.length > 0">
-            Installed User Packages
-          </div>
-
-          <div
-            *ngFor="let pkg of pve.userPackages; let i = index"
-            class="package-row">
-            <div class="package-inputs">
-              <div class="field">
-                <label>Package</label>
-                <input
-                  nz-input
-                  [ngModel]="pkg.name"
-                  [disabled]="true" />
-              </div>
-
-              <div class="field">
-                <label>Version</label>
-                <input
-                  nz-input
-                  [ngModel]="pkg.version"
-                  [disabled]="true" />
-              </div>
-            </div>
-
-            <button
-              nz-button
-              nzType="default"
-              nzShape="circle"
-              nzDanger
-              [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }">
-              <i
-                nz-icon
-                nzType="delete"></i>
-            </button>
-          </div>
-
-          <!-- NEW PACKAGES -->
-          <div
-            *ngFor="let pkg of pve.newPackages; let i = index"
-            class="package-row">
-            <div class="package-inputs">
-              <div class="field">
-                <label>Package</label>
-                <input
-                  nz-input
-                  placeholder="Package Name" />
-              </div>
-
-              <div class="field operator operator-select">
-                <label style="visibility: hidden">Op</label>
-                <nz-select nzPlaceHolder="Select">
-                  <nz-option
-                    nzValue="=="
-                    nzLabel="=="></nz-option>
-                  <nz-option
-                    nzValue=">="
-                    nzLabel=">="></nz-option>
-                  <nz-option
-                    nzValue="<="
-                    nzLabel="<="></nz-option>
-                </nz-select>
-              </div>
-
-              <div class="field">
-                <label>Version</label>
-                <input
-                  nz-input
-                  placeholder="Package Version (optional)" />
-              </div>
-            </div>
-
-            <button
-              nz-button
-              nzType="default"
-              nzShape="circle"
-              nzDanger
-              [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }">
-              <i
-                nz-icon
-                nzType="delete"></i>
-            </button>
-          </div>
-
-          <div class="add-btn">
-            <button
-              nz-button
-              nzType="primary"
-              nzShape="circle">
-              <i
-                nz-icon
-                nzType="plus"></i>
-            </button>
-          </div>
-
           <!-- Per-environment OK/Install button -->
           <div class="env-footer">
             <button

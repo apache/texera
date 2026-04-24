@@ -17,7 +17,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { Observable } from "rxjs";
 import { HttpClient, HttpParams } from "@angular/common/http";
 import { AuthService } from "../../../common/service/user/auth.service";
 
@@ -33,51 +33,11 @@ export interface PvePackageResponse {
 
 @Injectable({ providedIn: "root" })
 export class WorkflowPveService {
-  private cuidSubject = new BehaviorSubject<number | null>(null);
-
   constructor(private http: HttpClient) {}
 
-  private pveNameSubject = new BehaviorSubject<string | null>(null);
-
-  setCuid(cuid: number): void {
-    this.cuidSubject.next(cuid);
-  }
-
-  setPveName(pveName: string): void {
-    this.pveNameSubject.next(pveName);
-  }
-
-  private requireCuid(): number {
-    const cuid = this.cuidSubject.value;
-    if (cuid === null) {
-      throw new Error("cuid is not set");
-    }
-    return cuid;
-  }
-
-  private requirePveName(): string {
-    const pveName = this.pveNameSubject.value;
-    if (pveName === null) {
-      throw new Error("Environment Name is not set");
-    }
-
-    return pveName;
-  }
-
-  private getAccessToken(): string | null {
+  getAccessToken(): string | null {
     const token = AuthService.getAccessToken();
     return token && token.trim().length > 0 ? token : null;
-  }
-
-  private buildAuthParams(): HttpParams {
-    let params = new HttpParams().set("cuid", this.requireCuid().toString());
-    const token = this.getAccessToken();
-    if (token) {
-      params = params.set("access-token", token);
-    }
-    const pveName = this.requirePveName();
-    params = params.set("pveName", pveName);
-    return params;
   }
 
   private buildBaseParams(): HttpParams {
@@ -89,8 +49,8 @@ export class WorkflowPveService {
     return params;
   }
 
-  getInstalledPackages(): Observable<PackageResponse> {
-    const params = this.buildAuthParams();
+  getInstalledPackages(cuid: number, pveName: string): Observable<PackageResponse> {
+    const params = this.buildBaseParams().set("cuid", cuid.toString()).set("pveName", pveName);
     return this.http.get<PackageResponse>("/pve/packages", { params });
   }
 

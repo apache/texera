@@ -58,19 +58,8 @@ import {
 } from "../../../common/util/computing-unit.util";
 import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
 
-type PackageRow = {
-  name: string;
-  operator?: "==" | ">=" | "<=";
-  version?: string;
-  deleteToggle?: boolean;
-};
-
 type PveDraft = {
-  id: number;
   name: string;
-  userPackages: PackageRow[];
-  newPackages: PackageRow[];
-  deletingPackages: { name: string; version: string }[];
   pipOutput: string;
   prettyPipOutput: string;
   expanded: boolean;
@@ -86,8 +75,7 @@ type PveDraft = {
 })
 export class ComputingUnitSelectionComponent implements OnInit {
   // variables for creating a virtual environment
-  nextPveId = 1;
-  pves: PveDraft[] = [this.makeEmptyPve(true)];
+  pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
   pveModalVisible = false;
 
@@ -199,10 +187,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
         // update local caches **after** the comparison
         this.lastSelectedCuid = unit?.computingUnit.cuid;
         this.selectedComputingUnit = unit;
-
-        if (unit?.computingUnit.cuid != null) {
-          this.workflowPveService.setCuid(unit.computingUnit.cuid);
-        }
       });
 
     this.computingUnitStatusService
@@ -672,11 +656,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   private makeEmptyPve(expanded: boolean): PveDraft {
     return {
-      id: this.nextPveId++,
       name: "",
-      userPackages: [],
-      newPackages: [],
-      deletingPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
       expanded,
@@ -684,12 +664,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
     };
   }
 
-  addEnvironment(): void {
-    this.pves.push(this.makeEmptyPve(true));
+  trackByIndex(index: number): number {
+    return index;
   }
 
-  trackByPveId(_index: number, pve: PveDraft): number {
-    return pve.id;
+  addEnvironment(): void {
+    this.pves.push(this.makeEmptyPve(true));
   }
 
   showPVEmodalVisible(): void {
@@ -708,14 +688,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   getPVEs(): void {
-    const cuId: number | undefined = this.selectedComputingUnit?.computingUnit.cuid;
+    const cuId = this.selectedComputingUnit?.computingUnit.cuid;
 
     if (cuId == null) {
-      this.notificationService.error("No computing unit selected. Please select a CU first.");
+      this.notificationService.error("No computing unit selected.");
       return;
     }
-
-    this.workflowPveService.setCuid(cuId);
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -723,29 +701,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe({
         next: (resp: PvePackageResponse[]) => {
           this.pves = resp.map(pve => ({
-            id: this.nextPveId++,
             name: pve.pveName,
             expanded: false,
             isInstalling: false,
             pipOutput: "",
             prettyPipOutput: "",
-            userPackages: (pve.userPackages ?? []).map(pkg => {
-              const [name, version] = pkg.split("==");
-              return {
-                name: name.trim(),
-                version: (version ?? "").trim(),
-                deleteToggle: false,
-              };
-            }),
-            newPackages: [],
-            deletingPackages: [],
           }));
 
           if (resp.length > 0) {
-            this.workflowPveService.setPveName(resp[0].pveName);
-
             this.workflowPveService
-              .getInstalledPackages()
+              .getInstalledPackages(cuId, resp[0].pveName)
               .pipe(untilDestroyed(this))
               .subscribe({
                 next: installedResp => {
@@ -817,51 +782,30 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const env = this.pves[index];
 
     if (cuId == null) {
-      this.notificationService.error("No computing unit selected. Please select a CU first.");
+      this.notificationService.error("No computing unit selected.");
       return;
     }
 
-    if (!env.name?.trim()) {
-      this.notificationService.error("Environment name cannot be empty.");
-      return;
-    }
-
-    const trimmedName = env.name.trim().toLowerCase();
-    env.name = trimmedName;
+    const trimmedName = env.name.trim();
 
     if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
       this.notificationService.error("Environment name must contain only letters and numbers.");
       return;
     }
 
-    const duplicateExists = this.pves.some(
-      (pve, i) => i !== index && (pve.name ?? "").trim().toLowerCase() === trimmedName
-    );
+    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
 
     if (duplicateExists) {
       this.notificationService.error("An environment with this name already exists.");
       return;
     }
 
+    env.name = trimmedName;
     env.isInstalling = true;
-
-    this.workflowPveService.setCuid(cuId);
-    this.workflowPveService.setPveName(env.name);
 
     const packageArray: string[] = [];
 
-    for (const p of env.newPackages) {
-      const name = (p.name ?? "").trim();
-      const version = (p.version ?? "").trim();
-      const op = (p.operator ?? "==").trim() || "==";
-
-      if (name !== "") {
-        const formatted = version !== "" ? `${name}${op}${version}` : name;
-        packageArray.push(formatted);
-      }
-    }
-
-    const token = localStorage.getItem("access_token") ?? "";
+    const token = this.workflowPveService.getAccessToken();
     const tokenParam = token ? `&access-token=${encodeURIComponent(token)}` : "";
     const query = encodeURIComponent(JSON.stringify(packageArray));
 
@@ -880,7 +824,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     source.onmessage = event => {
       if (event.data === "__DONE__") {
         this.workflowPveService
-          .getInstalledPackages()
+          .getInstalledPackages(cuId, env.name)
           .pipe(untilDestroyed(this))
           .subscribe({
             next: resp => {
@@ -888,14 +832,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
                 const [name, version] = pkg.split("==");
                 return { name: name.trim(), version: (version ?? "").trim() };
               });
-
-              env.userPackages = resp.user.map(pkg => {
-                const [name, version] = pkg.split("==");
-                return { name: name.trim(), version: (version ?? "").trim(), deleteToggle: false };
-              });
-
-              env.newPackages = [];
-              env.deletingPackages = [];
             },
             error: (e: unknown) => console.error("Failed to refresh packages", e),
           });
