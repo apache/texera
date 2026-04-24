@@ -49,9 +49,7 @@ class PveResource {
     Future {
       try {
 
-        if (!PveManager.pveExists(cuid, pveName)) {
-          PveManager.createNewPve(cuid, queue, pveName)
-        }
+      PveManager.createNewPve(cuid, queue, pveName)
 
       } catch {
         case e: Exception =>
@@ -121,5 +119,14 @@ class PveResource {
         e.printStackTrace()
         throw new InternalServerErrorException(s"Failed to get PVEs: ${e.getMessage}")
     }
+  }
+
+  // --------------------------------------------------
+  // Delete PVEs
+  // --------------------------------------------------
+  @DELETE
+  @Path("/pves/{cuId}")
+  def deleteEnvironments(@PathParam("cuId") cuid: Int): Unit = {
+    PveManager.deleteEnvironments(cuid)
   }
 }

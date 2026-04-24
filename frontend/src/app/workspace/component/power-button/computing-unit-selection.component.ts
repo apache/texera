@@ -856,4 +856,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
       env.isInstalling = false;
     };
   }
+
+  deleteEnvironments(cuid: number){
+    this.workflowPveService.deleteEnvironments(cuid);
+  }
 }

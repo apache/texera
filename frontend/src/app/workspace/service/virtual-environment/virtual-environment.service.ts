@@ -58,4 +58,8 @@ export class WorkflowPveService {
     const params = this.buildBaseParams().set("cuid", cuid.toString());
     return this.http.get<PvePackageResponse[]>("/pve/pves", { params });
   }
+
+  deleteEnvironments(cuid: number) {
+      return this.http.delete(`/pve/pves/${cuid}`);
+  }
 }

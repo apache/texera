@@ -24,6 +24,7 @@ import java.util.concurrent.BlockingQueue
 import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
+import java.util.Comparator
 
 /**
   * PveManager is responsible for managing Python Virtual Environments (PVEs)
@@ -58,9 +59,6 @@ object PveManager {
 
   private def pythonBinPath(cuid: Int, pveName: String): Path =
     pveDir(cuid, pveName).resolve("bin").resolve("python")
-
-  private def pipBinPath(cuid: Int, pveName: String): Path =
-    pveDir(cuid, pveName).resolve("bin").resolve("pip")
 
   private def metadataDir(cuid: Int, pveName: String): Path =
     pveDir(cuid, pveName).resolve("metadata")
@@ -107,10 +105,9 @@ object PveManager {
     * - Otherwise, creates a fresh venv and installs dependencies
     *
     * Steps:
-    * 1. Remove existing environment (if present)
-    * 2. Create or copy base environment
-    * 3. Install system + operator dependencies
-    * 4. Record installed packages as system metadata
+    * 1. Create or copy base environment
+    * 2. Install system + operator dependencies
+    * 3. Record installed packages as system metadata
     *
     * Logs progress to the provided queue.
     */
@@ -134,16 +131,6 @@ object PveManager {
       else Paths.get("/tmp", "operator-requirements.txt")
 
     if (!hasBasePve) {
-      if (Files.exists(venvDirPath)) {
-        val rmCode = Process(Seq("bash", "-lc", s"rm -rf '${venvDirPath.toString}'")).!(
-          ProcessLogger(
-            out => queue.put(s"[pve] $out"),
-            err => queue.put(s"[pve][ERR] $err")
-          )
-        )
-        queue.put(s"[pve] removed existing venv with exit code $rmCode")
-      }
-
       Files.createDirectories(venvDirPath.getParent)
 
       val createCode = Process(Seq("python3", "-m", "venv", venvDirPath.toString)).!(
@@ -227,16 +214,6 @@ object PveManager {
       return
     }
 
-    if (Files.exists(venvDirPath)) {
-      val rmCode = Process(Seq("bash", "-lc", s"rm -rf '${venvDirPath.toString}'")).!(
-        ProcessLogger(
-          out => queue.put(s"[pve] $out"),
-          err => queue.put(s"[pve][ERR] $err")
-        )
-      )
-      queue.put(s"[pve] removed existing venv with exit code $rmCode")
-    }
-
     Files.createDirectories(venvDirPath.getParent)
     queue.put(s"[PVE] Copying base venv from $pveBase to ${venvDirPath.toString}")
 
@@ -289,9 +266,6 @@ object PveManager {
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
 
-  def pveExists(cuid: Int, pveName: String): Boolean =
-    Files.exists(pythonBinPath(cuid, pveName)) && Files.exists(pipBinPath(cuid, pveName))
-
   def getEnvironments(cuid: Int): List[String] = {
 
     val cuPath = Paths.get("/tmp/texera-pve/venvs").resolve(cuid.toString)
@@ -309,6 +283,27 @@ object PveManager {
         .filter(path => Files.isDirectory(path))
         .map(path => path.getFileName.toString)
         .toList
+    } finally {
+      stream.close()
+    }
+  }
+
+  // Deletes the entire tmp folder which contains all PVE files
+  def deleteEnvironments(cuid: Int): Unit = {
+    val cuPath = VenvRoot.resolve(cuid.toString)
+
+    if (!Files.exists(cuPath) || !Files.isDirectory(cuPath)) {
+      return
+    }
+
+    val stream = Files.walk(cuPath)
+
+    try {
+      stream
+        .sorted(Comparator.reverseOrder())
+        .iterator()
+        .asScala
+        .foreach(path => Files.deleteIfExists(path))
     } finally {
       stream.close()
     }
