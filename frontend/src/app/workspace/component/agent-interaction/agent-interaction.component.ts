@@ -20,7 +20,7 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
+import { AgentService } from "../../service/agent/agent.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 
@@ -50,7 +50,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   private cachedVisualizationRawHtml: string | null = null;
 
   constructor(
-    private copilotManagerService: TexeraCopilotManagerService,
+    private agentService: AgentService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
@@ -59,7 +59,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.loadAvailableAgents();
-    this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
+    this.agentService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
       this.loadAvailableAgents();
     });
   }
@@ -77,11 +77,11 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
   }
 
   private loadAvailableAgents(): void {
-    this.copilotManagerService
+    this.agentService
       .getAllAgents()
       .pipe(untilDestroyed(this))
       .subscribe(agents => {
-        const connectedAgentIds = new Set(this.copilotManagerService.getActivelyConnectedAgentIds());
+        const connectedAgentIds = new Set(this.agentService.getActivelyConnectedAgentIds());
 
         this.availableAgents = agents.map(agent => ({
           id: agent.id,
@@ -103,7 +103,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
 
   public isSelectedAgentConnected(): boolean {
     if (!this.selectedAgentId) return false;
-    return this.copilotManagerService.isAgentActivelyConnected(this.selectedAgentId);
+    return this.agentService.isAgentActivelyConnected(this.selectedAgentId);
   }
 
   public sendFeedbackToAgent(): void {
@@ -120,7 +120,7 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
     const operatorName = this.operatorDisplayName || this.getOperatorName() || "this operator";
     const contextMessage = `Regarding operator "${operatorName}" (ID: ${this.operatorId}): ${this.feedbackMessage.trim()}`;
 
-    this.copilotManagerService.sendMessage(agentId, contextMessage, "feedback");
+    this.agentService.sendMessage(agentId, contextMessage, "feedback");
     this.notificationService.success("Message sent to agent successfully");
     this.feedbackMessage = "";
     this.changeDetectorRef.detectChanges();

@@ -18,7 +18,7 @@
  */
 
 import { Component, Input, Output, EventEmitter } from "@angular/core";
-import { ReActStep } from "../../../service/copilot/copilot-types";
+import { ReActStep } from "../../../service/agent/agent-types";
 
 /**
  * Reusable modal component for displaying ReActStep details.

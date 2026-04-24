@@ -20,7 +20,7 @@
 import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
-import { TexeraCopilotManagerService, AgentInfo } from "../../service/copilot/texera-copilot-manager.service";
+import { AgentService, AgentInfo } from "../../service/agent/agent.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
@@ -59,7 +59,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   activeAgentId: string | null = null;
 
   constructor(
-    private copilotManagerService: TexeraCopilotManagerService,
+    private agentService: AgentService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService
   ) {}
@@ -68,8 +68,8 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     this.loadPanelSettings();
 
     // Subscribe to agent changes
-    this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
-      this.copilotManagerService
+    this.agentService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
+      this.agentService
         .getAllAgents()
         .pipe(untilDestroyed(this))
         .subscribe(agents => {
@@ -80,7 +80,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     // Load initial agents
-    this.copilotManagerService
+    this.agentService
       .getAllAgents()
       .pipe(untilDestroyed(this))
       .subscribe(agents => {
@@ -120,12 +120,12 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
 
     // Deactivate previous agent if any
     if (this.activeAgentId) {
-      this.copilotManagerService.deactivateAgent(this.activeAgentId);
+      this.agentService.deactivateAgent(this.activeAgentId);
     }
 
     // Activate the specified agent
     this.activeAgentId = agent.id;
-    this.copilotManagerService.activateAgent(agent.id);
+    this.agentService.activateAgent(agent.id);
     this.selectedTabIndex = agentIndex + 1; // +1 because tab 0 is registration
 
     // Clear the input so we don't re-activate on every change
@@ -159,15 +159,15 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   public onAgentCreated(agentId: string): void {
     // Deactivate previous agent if any
     if (this.activeAgentId) {
-      this.copilotManagerService.deactivateAgent(this.activeAgentId);
+      this.agentService.deactivateAgent(this.activeAgentId);
     }
 
     // Set the new agent as active immediately
     this.activeAgentId = agentId;
-    this.copilotManagerService.activateAgent(agentId);
+    this.agentService.activateAgent(agentId);
 
     // Fetch the latest agent list and switch to the new agent's tab
-    this.copilotManagerService
+    this.agentService
       .getAllAgents()
       .pipe(untilDestroyed(this))
       .subscribe(agents => {
@@ -232,7 +232,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
 
     // Activate new agent
     this.activeAgentId = agentId;
-    this.copilotManagerService.activateAgent(agentId);
+    this.agentService.activateAgent(agentId);
     this.selectedTabIndex = tabIndex;
   }
 
@@ -241,7 +241,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
    */
   private deactivateCurrentAgent(): void {
     if (this.activeAgentId) {
-      this.copilotManagerService.deactivateAgent(this.activeAgentId);
+      this.agentService.deactivateAgent(this.activeAgentId);
       this.activeAgentId = null;
     }
   }
@@ -273,7 +273,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
       }
 
       // Must subscribe to the observable for it to execute
-      this.copilotManagerService
+      this.agentService
         .deleteAgent(agentId)
         .pipe(untilDestroyed(this))
         .subscribe({

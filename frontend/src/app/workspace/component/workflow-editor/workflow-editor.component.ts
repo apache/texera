@@ -44,8 +44,8 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
 import { AgentActionService } from "../../service/agent-action/agent-action.service";
-import { OperatorResultSummary, TexeraCopilotManagerService } from "../../service/copilot/texera-copilot-manager.service";
-import { OperatorStepRef } from "../../service/copilot/copilot-types";
+import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
+import { OperatorStepRef } from "../../service/agent/agent-types";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -144,7 +144,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private elementRef: ElementRef,
     private config: GuiConfigService,
     private agentActionService: AgentActionService,
-    private copilotManagerService: TexeraCopilotManagerService
+    private agentService: AgentService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -156,7 +156,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.removeButton = WorkflowEditorComponent.getRemoveButton();
     this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
 
-    this.copilotManagerService.operatorResultSummaries$
+    this.agentService.operatorResultSummaries$
       .pipe(untilDestroyed(this))
       .subscribe(summaries => {
         this.operatorSummaries = summaries;
@@ -1475,13 +1475,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    */
   private handleAgentHoverHighlight(): void {
     const setupAgentHoverSubscription = () => {
-      this.copilotManagerService
+      this.agentService
         .getAllAgents()
         .pipe(untilDestroyed(this))
         .subscribe(agents => {
           agents.forEach(agent => {
             // Subscribe to each agent's hover operators stream
-            this.copilotManagerService
+            this.agentService
               .getHoveredMessageOperatorsObservable(agent.id)
               .pipe(untilDestroyed(this))
               .subscribe(({ viewedOperatorIds, addedOperatorIds, modifiedOperatorIds }) => {
@@ -1514,7 +1514,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     };
 
     // Subscribe to agent changes to set up hover subscriptions
-    this.copilotManagerService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
+    this.agentService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
       setupAgentHoverSubscription();
     });
 
@@ -1547,8 +1547,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // Subscribe to highlightedMessageId$ and operatorStepsMap$
     // Badges are shown only for the highlighted message
     combineLatest([
-      this.copilotManagerService.highlightedMessageId$,
-      this.copilotManagerService.operatorStepsMap$,
+      this.agentService.highlightedMessageId$,
+      this.agentService.operatorStepsMap$,
     ])
       .pipe(untilDestroyed(this))
       .subscribe(([messageId, operatorStepsMap]) => {
@@ -1567,7 +1567,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.showStepBadges) {
-          this.copilotManagerService.updateOperatorStepsMap();
+          this.agentService.updateOperatorStepsMap();
         }
       });
 
@@ -1644,7 +1644,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * Handle click on a step badge - scroll to the step in agent chat.
    */
   onStepBadgeClick(badge: (typeof this.stepBadges)[0]): void {
-    this.copilotManagerService.requestScrollToStep(badge.agentId, badge.messageId, badge.stepId);
+    this.agentService.requestScrollToStep(badge.agentId, badge.messageId, badge.stepId);
   }
 
   /**
@@ -1674,7 +1674,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     );
 
     // Subscribe to highlighted message changes
-    this.copilotManagerService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
+    this.agentService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
       this.highlightedMessageId = messageId;
       this.updateMessageRegion(MessageRegion, messageId);
     });
@@ -1717,7 +1717,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     // Get operators affected by this message
-    const operatorIds = this.copilotManagerService.getOperatorsForMessage(messageId);
+    const operatorIds = this.agentService.getOperatorsForMessage(messageId);
 
     if (operatorIds.length === 0) {
       this.changeDetectorRef.detectChanges();

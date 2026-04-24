@@ -33,9 +33,9 @@ export interface ToolOperatorAccess {
 }
 
 /**
- * Copilot state enum.
+ * Agent lifecycle state.
  */
-export enum CopilotState {
+export enum AgentState {
   UNAVAILABLE = "Unavailable",
   AVAILABLE = "Available",
   GENERATING = "Generating",

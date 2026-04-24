@@ -20,7 +20,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { AgentChatComponent } from "./agent-chat.component";
-import { TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
+import { AgentService } from "../../../service/agent/agent.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
@@ -28,11 +28,11 @@ import { NO_ERRORS_SCHEMA } from "@angular/core";
 describe("AgentChatComponent", () => {
   let component: AgentChatComponent;
   let fixture: ComponentFixture<AgentChatComponent>;
-  let mockCopilotManagerService: jasmine.SpyObj<TexeraCopilotManagerService>;
+  let mockAgentService: jasmine.SpyObj<AgentService>;
   let mockNotificationService: jasmine.SpyObj<NotificationService>;
 
   beforeEach(async () => {
-    mockCopilotManagerService = jasmine.createSpyObj("TexeraCopilotManagerService", [
+    mockAgentService = jasmine.createSpyObj("AgentService", [
       "getAgentResponsesObservable",
       "getAgentStateObservable",
       "sendMessage",
@@ -46,7 +46,7 @@ describe("AgentChatComponent", () => {
       declarations: [AgentChatComponent],
       imports: [HttpClientTestingModule],
       providers: [
-        { provide: TexeraCopilotManagerService, useValue: mockCopilotManagerService },
+        { provide: AgentService, useValue: mockAgentService },
         { provide: NotificationService, useValue: mockNotificationService },
         ...commonTestProviders,
       ],

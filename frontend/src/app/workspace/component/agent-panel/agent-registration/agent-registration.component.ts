@@ -18,7 +18,7 @@
  */
 
 import { Component, EventEmitter, OnDestroy, OnInit, Output } from "@angular/core";
-import { TexeraCopilotManagerService, ModelType } from "../../../service/copilot/texera-copilot-manager.service";
+import { AgentService, ModelType } from "../../../service/agent/agent.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -44,7 +44,7 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   constructor(
-    private copilotManagerService: TexeraCopilotManagerService,
+    private agentService: AgentService,
     private notificationService: NotificationService,
     private workflowActionService: WorkflowActionService,
     private computingUnitStatusService: ComputingUnitStatusService
@@ -61,7 +61,7 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
         this.computingUnitConnected = status === ComputingUnitState.Running;
       });
 
-    this.copilotManagerService
+    this.agentService
       .fetchModelTypes()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -101,7 +101,7 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
     const workflowMetadata = this.workflowActionService.getWorkflowMetadata();
     const workflowId = workflowMetadata?.wid;
 
-    this.copilotManagerService
+    this.agentService
       .createAgent(this.selectedModelType!, this.customAgentName || undefined, workflowId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({

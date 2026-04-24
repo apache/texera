@@ -19,22 +19,22 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { TexeraCopilotManagerService } from "./texera-copilot-manager.service";
-import { CopilotState } from "./copilot-types";
+import { AgentService } from "./agent.service";
+import { AgentState } from "./agent-types";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { AppSettings } from "../../../common/app-setting";
 
-describe("TexeraCopilotManagerService", () => {
-  let service: TexeraCopilotManagerService;
+describe("AgentService", () => {
+  let service: AgentService;
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [TexeraCopilotManagerService, ...commonTestProviders],
+      providers: [AgentService, ...commonTestProviders],
     });
 
-    service = TestBed.inject(TexeraCopilotManagerService);
+    service = TestBed.inject(AgentService);
     httpMock = TestBed.inject(HttpTestingController);
   });
 

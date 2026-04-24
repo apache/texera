@@ -32,8 +32,8 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subject } from "rxjs";
 import { distinctUntilChanged, filter, pairwise, startWith, takeUntil } from "rxjs/operators";
-import { CopilotState, ReActStep } from "../../../service/copilot/copilot-types";
-import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
+import { AgentState, ReActStep } from "../../../service/agent/agent-types";
+import { AgentInfo, AgentService } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -62,7 +62,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public isSystemInfoModalVisible = false;
   public systemPrompt: string = "";
   public availableTools: Array<{ name: string; description: string; inputSchema: any; enabled: boolean }> = [];
-  public agentState: CopilotState = CopilotState.UNAVAILABLE;
+  public agentState: AgentState = AgentState.UNAVAILABLE;
 
   // Current HEAD step ID in the version tree
   public currentHeadId: string | null = null;
@@ -89,7 +89,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   private stopWorkflowSubscription$ = new Subject<void>();
 
   constructor(
-    private copilotManagerService: TexeraCopilotManagerService,
+    private agentService: AgentService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
@@ -105,11 +105,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     // This handles agents created via API that weren't created through the UI
     const workflowId = this.agentInfo.delegate?.workflowId;
     if (workflowId) {
-      this.copilotManagerService.ensureWorkflowPolling(this.agentInfo.id, workflowId);
+      this.agentService.ensureWorkflowPolling(this.agentInfo.id, workflowId);
     }
 
     // Get the current state from manager service
-    this.copilotManagerService
+    this.agentService
       .getAgentState(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(state => {
@@ -119,7 +119,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       });
 
     // Then subscribe to agent state changes (BehaviorSubject will immediately emit current value)
-    this.copilotManagerService
+    this.agentService
       .getAgentStateObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(state => {
@@ -129,7 +129,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       });
 
     // Subscribe to ReActSteps
-    this.copilotManagerService
+    this.agentService
       .getReActStepsObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(steps => {
@@ -157,7 +157,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       });
 
     // Subscribe to HEAD changes
-    this.copilotManagerService
+    this.agentService
       .getHeadIdObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(headId => {
@@ -168,20 +168,20 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
     // Subscribe to agent state changes to manage auto-persist
     // Disable auto-persist when agent is GENERATING, re-enable when AVAILABLE
-    this.copilotManagerService
+    this.agentService
       .getAgentStateObservable(this.agentInfo.id)
-      .pipe(startWith(CopilotState.UNAVAILABLE), pairwise(), untilDestroyed(this))
+      .pipe(startWith(AgentState.UNAVAILABLE), pairwise(), untilDestroyed(this))
       .subscribe(([previousState, currentState]) => {
         // When agent starts generating, disable auto-persist
-        if (currentState === CopilotState.GENERATING && previousState !== CopilotState.GENERATING) {
+        if (currentState === AgentState.GENERATING && previousState !== AgentState.GENERATING) {
           this.workflowPersistService.setWorkflowPersistFlag(false);
           this.disabledAutoPersist = true;
         }
 
         // When agent finishes (becomes AVAILABLE from GENERATING/STOPPING), re-enable auto-persist
         if (
-          currentState === CopilotState.AVAILABLE &&
-          (previousState === CopilotState.GENERATING || previousState === CopilotState.STOPPING)
+          currentState === AgentState.AVAILABLE &&
+          (previousState === AgentState.GENERATING || previousState === AgentState.STOPPING)
         ) {
           this.workflowPersistService.setWorkflowPersistFlag(true);
           this.disabledAutoPersist = false;
@@ -197,14 +197,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     }
 
     // Subscribe to scroll-to-step requests
-    this.copilotManagerService.scrollToStep$.pipe(untilDestroyed(this)).subscribe(({ agentId, messageId, stepId }) => {
+    this.agentService.scrollToStep$.pipe(untilDestroyed(this)).subscribe(({ agentId, messageId, stepId }) => {
       if (agentId === this.agentInfo.id) {
         this.scrollToStep(messageId, stepId);
       }
     });
 
     // Subscribe to message highlighting state
-    this.copilotManagerService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
+    this.agentService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
       this.highlightedMessageId = messageId;
       this.cdr.detectChanges();
     });
@@ -233,7 +233,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     // Stop any existing subscription first
     this.stopWorkflowSubscription$.next();
 
-    this.copilotManagerService
+    this.agentService
       .getWorkflowObservable(this.agentInfo.id)
       .pipe(
         filter(workflow => workflow !== null),
@@ -285,9 +285,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     }
 
     this.hoveredMessageIndex = index;
-    // Notify the copilot service about the hovered message
     const hoveredStep = index !== null && index >= 0 ? this.visibleSteps[index] : null;
-    this.copilotManagerService.setHoveredMessage(this.agentInfo.id, hoveredStep);
+    this.agentService.setHoveredMessage(this.agentInfo.id, hoveredStep);
   }
 
   public showResponseDetails(response: ReActStep): void {
@@ -309,7 +308,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Refresh system info from the agent.
    */
   private refreshSystemInfo(): void {
-    this.copilotManagerService
+    this.agentService
       .getSystemInfo(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(systemInfo => {
@@ -320,7 +319,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       });
 
     // Fetch settings from server
-    this.copilotManagerService
+    this.agentService
       .getAgentSettings(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(settings => {
@@ -333,7 +332,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       });
 
     // Fetch all available operator types
-    this.copilotManagerService
+    this.agentService
       .getAvailableOperatorTypes(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(types => {
@@ -368,9 +367,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
-  /**
-   * Send a message to the agent via the copilot manager service.
-   */
   public sendMessage(): void {
     if (!this.currentMessage.trim() || !this.canSendMessage()) {
       return;
@@ -379,15 +375,15 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     const userMessage = this.currentMessage.trim();
     this.currentMessage = "";
 
-    // Send to copilot via manager service (fire-and-forget)
-    this.copilotManagerService.sendMessage(this.agentInfo.id, userMessage);
+    // Fire-and-forget; responses stream in via the WebSocket subscription.
+    this.agentService.sendMessage(this.agentInfo.id, userMessage);
   }
 
   /**
    * Check if messages can be sent (only when agent is available).
    */
   public canSendMessage(): boolean {
-    return this.agentState === CopilotState.AVAILABLE;
+    return this.agentState === AgentState.AVAILABLE;
   }
 
   /**
@@ -395,12 +391,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    */
   public getStateIcon(): string {
     switch (this.agentState) {
-      case CopilotState.AVAILABLE:
+      case AgentState.AVAILABLE:
         return "check-circle";
-      case CopilotState.GENERATING:
-      case CopilotState.STOPPING:
+      case AgentState.GENERATING:
+      case AgentState.STOPPING:
         return "sync";
-      case CopilotState.UNAVAILABLE:
+      case AgentState.UNAVAILABLE:
       default:
         return "close-circle";
     }
@@ -411,12 +407,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    */
   public getStateIconColor(): string {
     switch (this.agentState) {
-      case CopilotState.AVAILABLE:
+      case AgentState.AVAILABLE:
         return "#52c41a";
-      case CopilotState.GENERATING:
-      case CopilotState.STOPPING:
+      case AgentState.GENERATING:
+      case AgentState.STOPPING:
         return "#1890ff";
-      case CopilotState.UNAVAILABLE:
+      case AgentState.UNAVAILABLE:
       default:
         return "#ff4d4f";
     }
@@ -427,13 +423,13 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    */
   public getStateTooltip(): string {
     switch (this.agentState) {
-      case CopilotState.AVAILABLE:
+      case AgentState.AVAILABLE:
         return "Agent is ready";
-      case CopilotState.GENERATING:
+      case AgentState.GENERATING:
         return "Agent is generating response...";
-      case CopilotState.STOPPING:
+      case AgentState.STOPPING:
         return "Agent is stopping...";
-      case CopilotState.UNAVAILABLE:
+      case AgentState.UNAVAILABLE:
         return "Agent is unavailable";
       default:
         return "Agent status unknown";
@@ -455,11 +451,11 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   }
 
   public stopGeneration(): void {
-    this.copilotManagerService.stopGeneration(this.agentInfo.id);
+    this.agentService.stopGeneration(this.agentInfo.id);
   }
 
   public clearMessages(): void {
-    this.copilotManagerService.clearMessages(this.agentInfo.id);
+    this.agentService.clearMessages(this.agentInfo.id);
   }
 
   /**
@@ -472,7 +468,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       return;
     }
 
-    this.copilotManagerService
+    this.agentService
       .getReActSteps(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe({
@@ -522,19 +518,19 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   }
 
   public isGenerating(): boolean {
-    return this.agentState === CopilotState.GENERATING;
+    return this.agentState === AgentState.GENERATING;
   }
 
   public isAvailable(): boolean {
-    return this.agentState === CopilotState.AVAILABLE;
+    return this.agentState === AgentState.AVAILABLE;
   }
 
   public isConnected(): boolean {
-    return this.agentState !== CopilotState.UNAVAILABLE;
+    return this.agentState !== AgentState.UNAVAILABLE;
   }
 
   public isStopping(): boolean {
-    return this.agentState === CopilotState.STOPPING;
+    return this.agentState === AgentState.STOPPING;
   }
 
   /**
@@ -651,7 +647,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Save the max character limit.
    */
   public saveMaxCharLimit(): void {
-    this.copilotManagerService
+    this.agentService
       .updateAgentSettings(this.agentInfo.id, {
         maxOperatorResultCharLimit: this.settingsMaxCharLimit,
       })
@@ -666,7 +662,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Save the max cell character limit.
    */
   public saveMaxCellCharLimit(): void {
-    this.copilotManagerService
+    this.agentService
       .updateAgentSettings(this.agentInfo.id, {
         maxOperatorResultCellCharLimit: this.settingsMaxCellCharLimit,
       })
@@ -681,7 +677,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Save the tool execution timeout.
    */
   public saveToolTimeout(): void {
-    this.copilotManagerService
+    this.agentService
       .updateAgentSettings(this.agentInfo.id, {
         toolTimeoutSeconds: this.settingsToolTimeoutSeconds,
       })
@@ -696,7 +692,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Save the workflow execution timeout.
    */
   public saveExecutionTimeout(): void {
-    this.copilotManagerService
+    this.agentService
       .updateAgentSettings(this.agentInfo.id, {
         executionTimeoutMinutes: this.settingsExecutionTimeoutMinutes,
       })
@@ -711,7 +707,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Save the max steps per message setting.
    */
   public saveMaxSteps(): void {
-    this.copilotManagerService
+    this.agentService
       .updateAgentSettings(this.agentInfo.id, {
         maxSteps: this.settingsMaxSteps,
       })
@@ -776,7 +772,7 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    * Save allowed operator types to backend.
    */
   private saveAllowedOperatorTypes(): void {
-    this.copilotManagerService
+    this.agentService
       .updateAgentSettings(this.agentInfo.id, {
         allowedOperatorTypes: this.settingsAllowedOperatorTypes,
       })
@@ -823,10 +819,10 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public toggleMessageHighlight(messageId: string): void {
     if (this.highlightedMessageId === messageId) {
       // Toggle off
-      this.copilotManagerService.setHighlightedMessage(null);
+      this.agentService.setHighlightedMessage(null);
     } else {
       // Toggle on - highlight this message
-      this.copilotManagerService.setHighlightedMessage(messageId);
+      this.agentService.setHighlightedMessage(messageId);
     }
   }
 }

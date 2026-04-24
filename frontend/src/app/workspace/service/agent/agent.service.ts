@@ -38,7 +38,7 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { AppSettings } from "../../../common/app-setting";
 import { AuthService } from "../../../common/service/user/auth.service";
-import { CopilotState, ReActStep, ModelMessage, OperatorStepRef } from "./copilot-types";
+import { AgentState, ReActStep, ModelMessage, OperatorStepRef } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 
@@ -74,7 +74,7 @@ export interface AgentInfo {
   isBaselineMode: boolean;
   createdAt: Date;
   /** State is fetched from API */
-  state?: CopilotState;
+  state?: AgentState;
   delegate?: {
     userInfo: { uid: number; name: string; email: string; role: string };
     workflowId?: number;
@@ -164,7 +164,7 @@ interface LiteLLMModelsResponse {
  * Agent state tracking for observables
  */
 interface AgentStateTracking {
-  stateSubject: BehaviorSubject<CopilotState>;
+  stateSubject: BehaviorSubject<AgentState>;
   reActStepsSubject: BehaviorSubject<ReActStep[]>;
   hoveredMessageSubject: BehaviorSubject<{
     viewedOperatorIds: string[];
@@ -185,7 +185,7 @@ interface AgentStateTracking {
 }
 
 /**
- * Manages the workspace's copilot agents via the agent-service HTTP/WebSocket
+ * Manages the workspace's agents via the agent-service HTTP/WebSocket
  * API. Owns the local agent list, per-agent state tracking (ReAct steps, HEAD
  * pointer, workflow snapshot), and the canvas annotation toggles consumed by
  * workflow-editor.
@@ -193,7 +193,7 @@ interface AgentStateTracking {
 @Injectable({
   providedIn: "root",
 })
-export class TexeraCopilotManagerService {
+export class AgentService {
   /** Base URL for agent service API */
   private readonly AGENT_API_BASE = "/api";
 
@@ -283,7 +283,7 @@ export class TexeraCopilotManagerService {
           const existingAgent = this.agents.get(apiAgent.id);
           if (existingAgent) {
             // Update state from backend
-            existingAgent.state = this.mapStateToCopilotState(apiAgent.state);
+            existingAgent.state = this.mapStateToAgentState(apiAgent.state);
             const tracking = this.agentStateTracking.get(apiAgent.id);
             if (tracking) {
               tracking.stateSubject.next(existingAgent.state);
@@ -299,19 +299,19 @@ export class TexeraCopilotManagerService {
   }
 
   /**
-   * Convert API state string to CopilotState enum
+   * Convert API state string to AgentState enum
    */
-  private mapStateToCopilotState(state: string): CopilotState {
+  private mapStateToAgentState(state: string): AgentState {
     switch (state) {
       case "AVAILABLE":
-        return CopilotState.AVAILABLE;
+        return AgentState.AVAILABLE;
       case "GENERATING":
-        return CopilotState.GENERATING;
+        return AgentState.GENERATING;
       case "STOPPING":
-        return CopilotState.STOPPING;
+        return AgentState.STOPPING;
       case "UNAVAILABLE":
       default:
-        return CopilotState.UNAVAILABLE;
+        return AgentState.UNAVAILABLE;
     }
   }
 
@@ -365,7 +365,7 @@ export class TexeraCopilotManagerService {
     let tracking = this.agentStateTracking.get(agentId);
     if (!tracking) {
       tracking = {
-        stateSubject: new BehaviorSubject<CopilotState>(CopilotState.UNAVAILABLE),
+        stateSubject: new BehaviorSubject<AgentState>(AgentState.UNAVAILABLE),
         reActStepsSubject: new BehaviorSubject<ReActStep[]>([]),
         hoveredMessageSubject: new BehaviorSubject<{
           viewedOperatorIds: string[];
@@ -444,7 +444,7 @@ export class TexeraCopilotManagerService {
       if (tracking.websocket === ws) {
         tracking.websocket = undefined;
         if (event.code !== 1000) {
-          tracking.stateSubject.next(CopilotState.UNAVAILABLE);
+          tracking.stateSubject.next(AgentState.UNAVAILABLE);
         }
       }
     };
@@ -461,7 +461,7 @@ export class TexeraCopilotManagerService {
       case "init":
         // Initial state and steps
         if (message.state) {
-          tracking.stateSubject.next(this.mapStateToCopilotState(message.state));
+          tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         if (message.steps && Array.isArray(message.steps)) {
           const steps = message.steps.map((s: any) => this.convertApiReActStep(s));
@@ -532,14 +532,14 @@ export class TexeraCopilotManagerService {
       case "state":
         // State update
         if (message.state) {
-          tracking.stateSubject.next(this.mapStateToCopilotState(message.state));
+          tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         break;
 
       case "complete":
         // Message processing complete
         if (message.state) {
-          tracking.stateSubject.next(this.mapStateToCopilotState(message.state));
+          tracking.stateSubject.next(this.mapStateToAgentState(message.state));
         }
         // Update operator results on completion
         if (message.operatorResults) {
@@ -579,7 +579,7 @@ export class TexeraCopilotManagerService {
         // If agent not found on backend (e.g., backend restarted), clean up local state
         if (message.error === "Agent not found") {
           this.agents.delete(agentId);
-          tracking.stateSubject.next(CopilotState.UNAVAILABLE);
+          tracking.stateSubject.next(AgentState.UNAVAILABLE);
           this.stopStatePolling(agentId);
           this.agentChangeSubject.next();
           this.notificationService.warning("Agent was removed (backend may have restarted)");
@@ -733,7 +733,7 @@ export class TexeraCopilotManagerService {
             modelType: response.modelType,
             isBaselineMode: false,
             createdAt: new Date(response.createdAt),
-            state: this.mapStateToCopilotState(response.state),
+            state: this.mapStateToAgentState(response.state),
             delegate: response.delegate
               ? {
                   userInfo: response.delegate.userInfo,
@@ -748,7 +748,7 @@ export class TexeraCopilotManagerService {
           // Pass workflowId to enable workflow polling from backend database
           const tracking = this.getOrCreateStateTracking(response.id, workflowId);
           // Set the initial state from the API response (agent is AVAILABLE after creation)
-          tracking.stateSubject.next(agentInfo.state || CopilotState.AVAILABLE);
+          tracking.stateSubject.next(agentInfo.state || AgentState.AVAILABLE);
           this.agentChangeSubject.next();
 
           return agentInfo;
@@ -782,7 +782,7 @@ export class TexeraCopilotManagerService {
             modelType: response.modelType,
             isBaselineMode: false,
             createdAt: new Date(response.createdAt),
-            state: this.mapStateToCopilotState(response.state),
+            state: this.mapStateToAgentState(response.state),
             delegate: response.delegate
               ? {
                   userInfo: response.delegate.userInfo,
@@ -813,7 +813,7 @@ export class TexeraCopilotManagerService {
           modelType: a.modelType,
           isBaselineMode: false,
           createdAt: new Date(a.createdAt),
-          state: this.mapStateToCopilotState(a.state),
+          state: this.mapStateToAgentState(a.state),
           delegate: a.delegate
             ? {
                 userInfo: a.delegate.userInfo,
@@ -999,20 +999,20 @@ export class TexeraCopilotManagerService {
   /**
    * Get the current state of an agent.
    */
-  public getAgentState(agentId: string): Observable<CopilotState> {
+  public getAgentState(agentId: string): Observable<AgentState> {
     return defer(() => {
       const tracking = this.agentStateTracking.get(agentId);
       if (tracking) {
         return of(tracking.stateSubject.getValue());
       }
-      return of(CopilotState.UNAVAILABLE);
+      return of(AgentState.UNAVAILABLE);
     });
   }
 
   /**
    * Get the state observable stream for an agent.
    */
-  public getAgentStateObservable(agentId: string): Observable<CopilotState> {
+  public getAgentStateObservable(agentId: string): Observable<AgentState> {
     const tracking = this.getOrCreateStateTracking(agentId);
     return tracking.stateSubject.asObservable();
   }
@@ -1021,7 +1021,7 @@ export class TexeraCopilotManagerService {
    * Check if an agent is connected.
    */
   public isAgentConnected(agentId: string): Observable<boolean> {
-    return this.getAgentState(agentId).pipe(map(state => state !== CopilotState.UNAVAILABLE));
+    return this.getAgentState(agentId).pipe(map(state => state !== AgentState.UNAVAILABLE));
   }
 
   /**
