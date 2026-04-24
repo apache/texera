@@ -17,14 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.source.apis.twitter.v2
+// No-op replacement for the LGPL-2.1 `jschardet` package, which is
+// ASF Category X. Redirected here via `resolutions` in
+// frontend/package.json. The upstream call site lives in
+// @codingame/monaco-vscode-api's encoding service and is only reached
+// when opening binary files through Monaco, which Texera never does.
 
-import org.apache.texera.amber.core.tuple.TupleLike
-import org.apache.texera.amber.operator.source.apis.twitter.TwitterSourceOpExec
-
-@deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
-class TwitterFullArchiveSearchSourceOpExec(
-    descString: String
-) extends TwitterSourceOpExec(descString) {
-  override def produceTuple(): Iterator[TupleLike] = Iterator.empty
-}
+module.exports = {
+  detect: () => null,
+};
+module.exports.default = module.exports;

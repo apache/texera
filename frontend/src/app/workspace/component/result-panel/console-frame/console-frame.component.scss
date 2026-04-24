@@ -17,6 +17,14 @@
  * under the License.
  */
 
+:host {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
 .error-message {
   font-family: monaco, serif;
   font-size: 11px;
@@ -28,9 +36,9 @@
 }
 
 .console-list-container {
-  position: absolute;
-  height: calc(100% - 140px);
-  width: calc(100% - 160px);
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   border: 1px solid #e8e8e8;
   border-radius: 2px;
   overflow: auto;
@@ -38,10 +46,6 @@
   .console-message-entry {
     //border: purple solid;
     width: 100%;
-
-    .type-tag {
-      //border: solid darkblue;
-    }
 
     ::ng-deep .collapse-remove-padding .ant-collapse-header {
       padding: 0 !important;
@@ -105,7 +109,7 @@
 }
 
 .console-input-container {
-  position: absolute;
-  bottom: 22px;
-  left: 139px;
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: 8px;
 }

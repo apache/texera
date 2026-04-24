@@ -20,7 +20,12 @@ plotly==5.24.1
 praw==7.6.1
 pillow==12.1.1
 pybase64==1.3.2
-torch==2.8.0
+
+# Pin torch to the CPU wheel on Linux x86_64 to avoid the NVIDIA CUDA deps.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.8.0+cpu ; platform_system == "Linux" and platform_machine == "x86_64"
+torch==2.8.0 ; platform_system != "Linux" or platform_machine != "x86_64"
+
 scikit-learn==1.5.0
 transformers==4.57.3
 boto3==1.40.53

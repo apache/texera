@@ -65,49 +65,63 @@ object ComputingUnitManagingResource {
       .getInstance()
       .createDSLContext()
 
+  private def icebergEnvironmentVariables: Map[String, Any] = {
+    val base = Map[String, Any](
+      EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType
+    )
+    StorageConfig.icebergCatalogType match {
+      case "rest" =>
+        base ++ Map(
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_URI -> StorageConfig.icebergRESTCatalogUri,
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_WAREHOUSE_NAME -> StorageConfig.icebergRESTCatalogWarehouseName
+        )
+      case "postgres" =>
+        base ++ Map(
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_USERNAME -> StorageConfig.icebergPostgresCatalogUsername,
+          EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD -> StorageConfig.icebergPostgresCatalogPassword
+        )
+      case _ => base
+    }
+  }
+
   // Environment variables passed to the created computing unit(pod)
-  private lazy val computingUnitEnvironmentVariables: Map[String, Any] = Map(
-    // Variables for saving results to Iceberg
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_URI -> StorageConfig.icebergRESTCatalogUri,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_REST_WAREHOUSE_NAME -> StorageConfig.icebergRESTCatalogWarehouseName,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_USERNAME -> StorageConfig.icebergPostgresCatalogUsername,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD -> StorageConfig.icebergPostgresCatalogPassword,
-    // Variables for saving the metadata of the results, i.e. URIs of results/stats
-    EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
-    EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
-    EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
-    // Variables for reading files & exporting results
-    // LakeFS endpoint is passed to CU to make CU work in dev mode(using localhost & using default LakeFS credentials)
-    // LakeFS credentials should NOT be passed to CU
-    EnvironmentalVariable.ENV_LAKEFS_ENDPOINT -> StorageConfig.lakefsEndpoint,
-    // S3 variables are passed to CU for R UDF large binary support
-    EnvironmentalVariable.ENV_S3_ENDPOINT -> StorageConfig.s3Endpoint,
-    EnvironmentalVariable.ENV_S3_REGION -> StorageConfig.s3Region,
-    EnvironmentalVariable.ENV_S3_AUTH_USERNAME -> StorageConfig.s3Username,
-    EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password,
-    EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
-      .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
-      .get,
-    EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
-      .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
-      .get,
-    // Variables for amber setting
-    // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
-    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> EnvironmentalVariable
-      .get(EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR)
-      .get,
-    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> EnvironmentalVariable
-      .get(EnvironmentalVariable.ENV_USER_SYS_ENABLED)
-      .get,
-    EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
-      .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
-      .get,
-    EnvironmentalVariable.ENV_AUTH_JWT_SECRET -> EnvironmentalVariable
-      .get(EnvironmentalVariable.ENV_AUTH_JWT_SECRET)
-      .get
-  )
+  private lazy val computingUnitEnvironmentVariables: Map[String, Any] =
+    icebergEnvironmentVariables ++ Map(
+      // Variables for saving the metadata of the results, i.e. URIs of results/stats
+      EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
+      EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
+      EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
+      // Variables for reading files & exporting results
+      // LakeFS endpoint is passed to CU to make CU work in dev mode(using localhost & using default LakeFS credentials)
+      // LakeFS credentials should NOT be passed to CU
+      EnvironmentalVariable.ENV_LAKEFS_ENDPOINT -> StorageConfig.lakefsEndpoint,
+      // S3 variables are passed to CU for R UDF large binary support
+      EnvironmentalVariable.ENV_S3_ENDPOINT -> StorageConfig.s3Endpoint,
+      EnvironmentalVariable.ENV_S3_REGION -> StorageConfig.s3Region,
+      EnvironmentalVariable.ENV_S3_AUTH_USERNAME -> StorageConfig.s3Username,
+      EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password,
+      EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
+        .get,
+      EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
+        .get,
+      // Variables for amber setting
+      // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
+      EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR)
+        .get,
+      EnvironmentalVariable.ENV_USER_SYS_ENABLED -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_USER_SYS_ENABLED)
+        .get,
+      EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
+        .get,
+      EnvironmentalVariable.ENV_AUTH_JWT_SECRET -> EnvironmentalVariable
+        .get(EnvironmentalVariable.ENV_AUTH_JWT_SECRET)
+        .get
+    )
 
   case class WorkflowComputingUnitCreationParams(
       name: String,
