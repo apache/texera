@@ -68,9 +68,6 @@ object PveManager {
   private def systemPackagesPath(cuid: Int, pveName: String): Path =
     metadataDir(cuid, pveName).resolve("system-packages.txt")
 
-  private def userPackagesPath(cuid: Int, pveName: String): Path =
-    metadataDir(cuid, pveName).resolve("user-packages.txt")
-
   private def writeMetadata(path: Path, lines: Seq[String]): Unit = {
     if (path.getParent != null) {
       Files.createDirectories(path.getParent)
@@ -97,10 +94,9 @@ object PveManager {
       "PIP_NO_INPUT" -> "1"
     )
 
-  def getSystemAndUserPackages(cuid: Int, pveName: String): (Seq[String], Seq[String]) = {
+  def getSystemPackages(cuid: Int, pveName: String): (Seq[String]) = {
     val sys = readMetadataList(systemPackagesPath(cuid, pveName))
-    val usr = readMetadataList(userPackagesPath(cuid, pveName))
-    (sys, usr)
+    (sys)
   }
 
   /**
@@ -226,9 +222,8 @@ object PveManager {
       val installedLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
 
       writeMetadata(systemPackagesPath(cuid, pveName), installedLines)
-      writeMetadata(userPackagesPath(cuid, pveName), Seq.empty)
 
-      queue.put(s"[PVE] Created new local environment for cuid=$cuid")
+      queue.put(s"[PVE] Created new local environment for cuid = $cuid")
       return
     }
 
@@ -281,20 +276,17 @@ object PveManager {
         err => queue.put(s"[pve][ERR] $err")
       )
     )
-    queue.put(s"[pve] rewrite finished with exit code $fixCode")
 
     Files.createDirectories(metadataDir(cuid, pveName))
 
     queue.put("[PVE] Base environment copied; skipping system requirements install.")
 
-    queue.put("[PVE] Running pip freeze")
     val freezeOutput = Process(Seq(python, "-m", "pip", "freeze"), None, envVars.toSeq: _*).!!
     val systemFreezeLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
 
     writeMetadata(systemPackagesPath(cuid, pveName), systemFreezeLines)
-    writeMetadata(userPackagesPath(cuid, pveName), Seq.empty)
 
-    queue.put(s"[PVE] Created new environment for cuid=$cuid")
+    queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
 
   def pveExists(cuid: Int, pveName: String): Boolean =
@@ -319,15 +311,6 @@ object PveManager {
         .toList
     } finally {
       stream.close()
-    }
-  }
-
-  def getAllPveUserPackages(cuid: Int): Seq[(String, Seq[String])] = {
-    val pveNames = getEnvironments(cuid)
-
-    pveNames.map { pveName =>
-      val userPkgs = readMetadataList(userPackagesPath(cuid, pveName))
-      (pveName, Option(userPkgs).getOrElse(Seq.empty[String]))
     }
   }
 }

@@ -29,8 +29,6 @@ import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import java.util
 
-case class PackageResponse(system: java.util.List[String], user: java.util.List[String])
-
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class PveResource {
@@ -89,12 +87,11 @@ class PveResource {
       @QueryParam("pveName") pveName: String
   ): util.Map[String, util.List[String]] = {
     try {
-      val (systemPkgsRaw, userPkgsRaw) = PveManager.getSystemAndUserPackages(cuid, pveName)
+      val (systemPkgsRaw) = PveManager.getSystemPackages(cuid, pveName)
 
       val systemPkgs = Option(systemPkgsRaw).getOrElse(Seq.empty[String]).toList.asJava
-      val userPkgs = Option(userPkgsRaw).getOrElse(Seq.empty[String]).toList.asJava
 
-      Map("system" -> systemPkgs, "user" -> userPkgs).asJava
+      Map("system" -> systemPkgs).asJava
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -110,25 +107,19 @@ class PveResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def fetchPVEs(@QueryParam("cuid") cuid: Int): util.List[util.Map[String, Object]] = {
     try {
-      val result = PveManager.getAllPveUserPackages(cuid)
-
-      val resp = result
-        .map {
-          case (pveName, userPkgs) =>
-            Map(
-              "pveName" -> pveName,
-              "userPackages" -> userPkgs.toList.asJava
-            ).asJava
+      PveManager
+        .getEnvironments(cuid)
+        .map { pveName =>
+          Map(
+            "pveName" -> pveName.asInstanceOf[Object]
+          ).asJava
         }
-        .toList
         .asJava
-
-      resp
 
     } catch {
       case e: Exception =>
         e.printStackTrace()
-        throw new InternalServerErrorException(s"Failed to get packages: ${e.getMessage}")
+        throw new InternalServerErrorException(s"Failed to get PVEs: ${e.getMessage}")
     }
   }
 }
