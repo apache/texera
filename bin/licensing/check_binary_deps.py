@@ -87,7 +87,10 @@ def parse_prose(path: Path, ecosystem: str):
         else:
             m = re.match(r"\s*-\s+([@\w][\w@/.\-]*)", buffer)
             if m:
-                pkgs.add(m.group(1))
+                name = m.group(1)
+                if ecosystem == "python":
+                    name = canonicalize_python_name(name)
+                pkgs.add(name)
         buffer = ""
 
     for raw in lines:
@@ -171,15 +174,22 @@ def collect_npm(path: Path) -> set[str]:
     return result
 
 
+def canonicalize_python_name(name: str) -> str:
+    """PEP 503 canonical form: lowercase, [-_.]+ collapsed to '-'."""
+    return re.sub(r"[-_.]+", "-", name.lower())
+
+
 def collect_python(path: Path) -> set[str]:
-    """pip-licenses CSV: Name,Version,License (header row)."""
+    """pip-licenses CSV: Name,Version,License (header row). Names are
+    canonicalized per PEP 503 so the compare is indifferent to whether
+    a distribution uses hyphens, underscores, or dots."""
     result: set[str] = set()
     with path.open(newline="") as f:
         reader = csv.reader(f)
         header = next(reader, None)
         for row in reader:
             if row:
-                result.add(row[0].lower())
+                result.add(canonicalize_python_name(row[0]))
     return result
 
 
