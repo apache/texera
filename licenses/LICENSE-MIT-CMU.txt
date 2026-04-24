@@ -1,8 +1,7 @@
-Historical Permission Notice and Disclaimer (HPND)
+MIT-CMU License (SPDX: MIT-CMU, part of the HPND family)
 
-The only HPND-licensed dependency bundled in Apache Texera's binary
-distribution is Pillow, which ships under the MIT-CMU variant of the
-HPND family. The full text governing Pillow's redistribution,
+The only MIT-CMU-licensed dependency bundled in Apache Texera's binary
+distribution is Pillow. The full text governing Pillow's redistribution,
 reproduced verbatim from pillow-*.dist-info/LICENSE, follows:
 
 The Python Imaging Library (PIL) is

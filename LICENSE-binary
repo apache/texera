@@ -806,11 +806,12 @@ Python packages:
   - typing-extensions
 
 --------------------------------------------------------------------------------
-Dependencies under the Historical Permission Notice and Disclaimer (HPND)
+Dependencies under the MIT-CMU License
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following HPND-licensed dependencies. See
-licenses/LICENSE-HPND.txt for the full text.
+Apache Texera bundles the following MIT-CMU-licensed dependencies (a
+variant in the HPND family, SPDX: MIT-CMU). See
+licenses/LICENSE-MIT-CMU.txt for the full text.
 
 Python packages:
   - pillow
