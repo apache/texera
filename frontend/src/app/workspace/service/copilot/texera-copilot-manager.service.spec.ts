@@ -20,7 +20,7 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TexeraCopilotManagerService } from "./texera-copilot-manager.service";
-import { CopilotState } from "./texera-copilot";
+import { CopilotState } from "./copilot-types";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { AppSettings } from "../../../common/app-setting";
 

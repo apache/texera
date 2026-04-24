@@ -185,8 +185,10 @@ interface AgentStateTracking {
 }
 
 /**
- * Service to manage multiple copilot agents via API calls to agent-service.
- * This is a complete replacement of the direct TexeraCopilot implementation.
+ * Manages the workspace's copilot agents via the agent-service HTTP/WebSocket
+ * API. Owns the local agent list, per-agent state tracking (ReAct steps, HEAD
+ * pointer, workflow snapshot), and the canvas annotation toggles consumed by
+ * workflow-editor.
  */
 @Injectable({
   providedIn: "root",
@@ -209,16 +211,12 @@ export class TexeraCopilotManagerService {
   private modelTypes$: Observable<ModelType[]> | null = null;
 
   // ============================================================================
-  // Step Badge Feature State
+  // Canvas annotation state (port shapes, step badges, scroll-to-step)
   // ============================================================================
 
   /** Whether to show output port shapes (rows, columns) on operators */
   private showPortShapesSubject = new BehaviorSubject<boolean>(true);
   public showPortShapes$ = this.showPortShapesSubject.asObservable();
-
-  /** Whether to show step badges on operators */
-  private showStepBadgesSubject = new BehaviorSubject<boolean>(false);
-  public showStepBadges$ = this.showStepBadgesSubject.asObservable();
 
   /** Map from operatorId to array of steps that affected it */
   private operatorStepsMapSubject = new BehaviorSubject<Map<string, OperatorStepRef[]>>(new Map());
@@ -275,7 +273,6 @@ export class TexeraCopilotManagerService {
         const localAgentIds = Array.from(this.agents.keys());
         for (const localId of localAgentIds) {
           if (!backendAgentIds.has(localId)) {
-            console.log(`[CopilotManager] Removing stale agent ${localId} (not found on backend)`);
             this.agents.delete(localId);
             this.stopStatePolling(localId);
           }
@@ -423,14 +420,8 @@ export class TexeraCopilotManagerService {
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
 
-    console.log(`[CopilotManager] Connecting to WebSocket: ${wsUrl}`);
-
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
-
-    ws.onopen = () => {
-      console.log(`[CopilotManager] WebSocket connected for agent ${agentId}`);
-    };
 
     ws.onmessage = event => {
       try {
@@ -439,28 +430,20 @@ export class TexeraCopilotManagerService {
           this.handleWebSocketMessage(agentId, tracking, message);
         });
       } catch (error) {
-        console.error("[CopilotManager] Failed to parse WebSocket message:", error);
+        console.error("Failed to parse agent WebSocket message:", error);
       }
     };
 
     ws.onerror = error => {
-      console.error(`[CopilotManager] WebSocket error for agent ${agentId}:`, error);
+      console.error(`Agent ${agentId} WebSocket error:`, error);
     };
 
     ws.onclose = event => {
-      console.log(`[CopilotManager] WebSocket closed for agent ${agentId}, code: ${event.code}`);
-
-      // Only clean up if this is still the current websocket
-      // This prevents race conditions when rapidly deactivating/reactivating
+      // Only clean up if this is still the current websocket; otherwise a rapid
+      // deactivate/reactivate may have already swapped it.
       if (tracking.websocket === ws) {
         tracking.websocket = undefined;
-
-        // If the connection was closed abnormally (e.g., backend restarted),
-        // clean up the agent from local cache
         if (event.code !== 1000) {
-          // 1000 is normal closure
-          console.log(`[CopilotManager] Abnormal WebSocket close for agent ${agentId}, cleaning up local state`);
-          // Set state to unavailable
           tracking.stateSubject.next(CopilotState.UNAVAILABLE);
         }
       }
@@ -591,11 +574,10 @@ export class TexeraCopilotManagerService {
 
       case "error":
         // Error occurred
-        console.error(`[CopilotManager] Agent ${agentId} error:`, message.error);
+        console.error(`Agent ${agentId} error:`, message.error);
 
         // If agent not found on backend (e.g., backend restarted), clean up local state
         if (message.error === "Agent not found") {
-          console.log(`[CopilotManager] Agent ${agentId} not found on backend, removing from local cache`);
           this.agents.delete(agentId);
           tracking.stateSubject.next(CopilotState.UNAVAILABLE);
           this.stopStatePolling(agentId);
@@ -607,7 +589,7 @@ export class TexeraCopilotManagerService {
         break;
 
       default:
-        console.warn("[CopilotManager] Unknown message type:", message.type);
+        console.warn("Unknown agent WebSocket message type:", message.type);
     }
   }
 
@@ -637,26 +619,21 @@ export class TexeraCopilotManagerService {
   public activateAgent(agentId: string): boolean {
     const agent = this.agents.get(agentId);
     if (!agent) {
-      console.warn(`[CopilotManager] Cannot activate unknown agent: ${agentId}`);
       return false;
     }
 
     const tracking = this.getOrCreateStateTracking(agentId, agent.delegate?.workflowId);
 
-    // Already active - nothing to do
     if (tracking.isActive && tracking.websocket) {
-      console.log(`[CopilotManager] Agent ${agentId} already active`);
       return true;
     }
 
     tracking.isActive = true;
 
-    // Start WebSocket connection if not already connected
     if (!tracking.websocket || tracking.websocket.readyState !== WebSocket.OPEN) {
       this.startStatePolling(agentId, tracking);
     }
 
-    console.log(`[CopilotManager] Activated agent: ${agentId}`);
     return true;
   }
 
@@ -684,12 +661,9 @@ export class TexeraCopilotManagerService {
       tracking.websocket = undefined;
     }
 
-    // Stop workflow polling
+    // Stop workflow polling; recreate stopPolling$ for future activations.
     tracking.stopPolling$.next();
-    // Recreate stopPolling$ for future use
     tracking.stopPolling$ = new Subject<void>();
-
-    console.log(`[CopilotManager] Deactivated agent: ${agentId}`);
   }
 
   /**
@@ -858,7 +832,6 @@ export class TexeraCopilotManagerService {
         const localAgentIds = Array.from(this.agents.keys());
         for (const localId of localAgentIds) {
           if (!backendAgentIds.has(localId)) {
-            console.log(`[CopilotManager] Removing stale agent ${localId} (not found on backend)`);
             this.agents.delete(localId);
             this.stopStatePolling(localId);
           }
@@ -960,9 +933,8 @@ export class TexeraCopilotManagerService {
 
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));
-      console.log(`[CopilotManager] Sent message to agent ${agentId}: ${message.substring(0, 50)}...`);
     } catch (error) {
-      console.error("[CopilotManager] Failed to send message:", error);
+      console.error("Failed to send message to agent:", error);
       this.notificationService.error("Failed to send message");
     }
   }
@@ -1011,9 +983,8 @@ export class TexeraCopilotManagerService {
       // Send stop via WebSocket for immediate effect
       try {
         tracking.websocket.send(JSON.stringify({ type: "stop" }));
-        console.log(`[CopilotManager] Sent stop command to agent ${agentId}`);
       } catch (error) {
-        console.error("[CopilotManager] Failed to send stop command:", error);
+        console.error("Failed to send stop command:", error);
       }
     } else {
       // Fallback to HTTP if WebSocket not available
@@ -1075,13 +1046,6 @@ export class TexeraCopilotManagerService {
    */
   public checkoutStep(agentId: string, stepId: string): Observable<any> {
     return this.http.post(`${this.AGENT_API_BASE}/agents/${agentId}/checkout`, { stepId });
-  }
-
-  /**
-   * @deprecated Use checkoutStep instead. Kept for backward compatibility.
-   */
-  public checkoutAction(agentId: string, actionId: string): Observable<any> {
-    return this.checkoutStep(agentId, actionId);
   }
 
   /**
@@ -1290,12 +1254,11 @@ export class TexeraCopilotManagerService {
   }
 
   // ============================================================================
-  // Step Badge Feature Methods
+  // Canvas annotation toggles
   // ============================================================================
 
   /**
-   * Toggle whether step badges are shown on operators.
-   * When enabled, updates the operator steps map from current steps.
+   * Toggle whether output port shapes are shown on operators.
    */
   public togglePortShapes(show: boolean): void {
     this.showPortShapesSubject.next(show);
@@ -1303,20 +1266,6 @@ export class TexeraCopilotManagerService {
 
   public getShowPortShapes(): boolean {
     return this.showPortShapesSubject.getValue();
-  }
-
-  public toggleStepBadges(show: boolean): void {
-    this.showStepBadgesSubject.next(show);
-    if (show) {
-      this.updateOperatorStepsMap();
-    }
-  }
-
-  /**
-   * Get current step badges visibility state.
-   */
-  public getShowStepBadges(): boolean {
-    return this.showStepBadgesSubject.getValue();
   }
 
   /**

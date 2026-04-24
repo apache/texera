@@ -79,9 +79,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public allAvailableOperatorTypes: Array<{ type: string; description: string }> = []; // All operator types from backend
   public operatorTypeSearchQuery = ""; // Search filter for operator types
 
-  // Step badge toggle state (legacy - kept for compatibility)
-  public showStepBadges = false;
-
   // Message highlighting state
   public highlightedMessageId: string | null = null;
 
@@ -179,7 +176,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         if (currentState === CopilotState.GENERATING && previousState !== CopilotState.GENERATING) {
           this.workflowPersistService.setWorkflowPersistFlag(false);
           this.disabledAutoPersist = true;
-          console.log("[AgentChat] Disabled auto-persist during agent generation");
         }
 
         // When agent finishes (becomes AVAILABLE from GENERATING/STOPPING), re-enable auto-persist
@@ -189,7 +185,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         ) {
           this.workflowPersistService.setWorkflowPersistFlag(true);
           this.disabledAutoPersist = false;
-          console.log("[AgentChat] Re-enabled auto-persist after agent finished");
         }
       });
 
@@ -200,12 +195,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     if (this.isActive) {
       this.startWorkflowSubscription();
     }
-
-    // Subscribe to step badge toggle state (legacy - kept for compatibility)
-    this.copilotManagerService.showStepBadges$.pipe(untilDestroyed(this)).subscribe(show => {
-      this.showStepBadges = show;
-      this.cdr.detectChanges();
-    });
 
     // Subscribe to scroll-to-step requests
     this.copilotManagerService.scrollToStep$.pipe(untilDestroyed(this)).subscribe(({ agentId, messageId, stepId }) => {
@@ -258,12 +247,9 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       )
       .subscribe(workflow => {
         if (workflow) {
-          console.log("[AgentChat] Reloading workflow from backend (active agent)");
           this.workflowActionService.reloadWorkflow(workflow, false, false);
         }
       });
-
-    console.log(`[AgentChat] Started workflow subscription for agent ${this.agentInfo.id}`);
   }
 
   /**
@@ -272,7 +258,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
    */
   private stopWorkflowSubscription(): void {
     this.stopWorkflowSubscription$.next();
-    console.log(`[AgentChat] Stopped workflow subscription for agent ${this.agentInfo?.id}`);
   }
 
   ngOnDestroy(): void {
@@ -283,7 +268,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     // Re-enable auto-persist if we disabled it
     if (this.disabledAutoPersist) {
       this.workflowPersistService.setWorkflowPersistFlag(true);
-      console.log("[AgentChat] Re-enabled auto-persist on component destroy");
     }
   }
 
@@ -804,18 +788,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         },
         error: () => {},
       });
-  }
-
-  // =====================
-  // Step Badge Feature Methods
-  // =====================
-
-  /**
-   * Toggle step badges visibility on operators.
-   */
-  public toggleStepBadges(): void {
-    this.showStepBadges = !this.showStepBadges;
-    this.copilotManagerService.toggleStepBadges(this.showStepBadges);
   }
 
   /**
