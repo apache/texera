@@ -52,6 +52,7 @@ import org.apache.texera.web.service.ExecutionsMetadataPersistService
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.FilterHolder
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
+import org.apache.texera.web.resource.pythonvirtualenvironment.PveResource
 
 import java.net.URI
 import java.time.Duration
@@ -149,6 +150,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
+
+    environment.jersey.register(classOf[PveResource])
 
     setupJwtAuth(environment)
 

@@ -40,7 +40,6 @@ import org.apache.texera.web.resource.dashboard.admin.settings.AdminSettingsReso
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
 import org.apache.texera.web.resource.dashboard.user.UserResource
-import org.apache.texera.web.resource.pythonvirtualenvironment.PveResource
 import org.apache.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -161,7 +160,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[AdminSettingsResource])
     environment.jersey.register(classOf[AIAssistantResource])
-    environment.jersey.register(classOf[PveResource])
     AuthResource.createAdminUser()
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.

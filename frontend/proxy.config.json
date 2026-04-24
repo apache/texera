@@ -45,7 +45,7 @@
     "changeOrigin": false
   },
   "/pve": {
-    "target": "http://localhost:8080",
+    "target": "http://localhost:8085",
     "secure": false,
     "changeOrigin": false,
     "pathRewrite": {
