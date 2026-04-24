@@ -810,7 +810,7 @@ Dependencies under the Historical Permission Notice and Disclaimer (HPND)
 --------------------------------------------------------------------------------
 
 Apache Texera bundles the following HPND-licensed dependencies. See
-licenses/LICENSE-HPND.txt for license information.
+licenses/LICENSE-HPND.txt for the full text.
 
 Python packages:
   - pillow
