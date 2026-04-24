@@ -18,8 +18,11 @@
  */
 
 import { Component, EventEmitter, OnDestroy, OnInit, Output } from "@angular/core";
-import { TexeraCopilotManagerService, ModelType } from "../../../service/copilot/texera-copilot-manager.service";
+import { AgentService, ModelType } from "../../../service/agent/agent.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitState } from "../../../../common/type/computing-unit-connection.interface";
 import { Subject, takeUntil } from "rxjs";
 
 @Component({
@@ -32,22 +35,33 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
 
   public modelTypes: ModelType[] = [];
   public selectedModelType: string | null = null;
-  public customAgentName: string = "";
+  public customAgentName: string = "Bob";
   public isLoadingModels: boolean = false;
   public hasLoadingError: boolean = false;
+  public computingUnitConnected: boolean = false;
+  public isCreating: boolean = false;
 
   private destroy$ = new Subject<void>();
 
   constructor(
-    private copilotManagerService: TexeraCopilotManagerService,
-    private notificationService: NotificationService
+    private agentService: AgentService,
+    private notificationService: NotificationService,
+    private workflowActionService: WorkflowActionService,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {}
 
   ngOnInit(): void {
     this.isLoadingModels = true;
     this.hasLoadingError = false;
 
-    this.copilotManagerService
+    this.computingUnitStatusService
+      .getStatus()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(status => {
+        this.computingUnitConnected = status === ComputingUnitState.Running;
+      });
+
+    this.agentService
       .fetchModelTypes()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -77,11 +91,6 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
     this.selectedModelType = modelTypeId;
   }
 
-  public isCreating: boolean = false;
-
-  /**
-   * Create a new agent with the selected model type.
-   */
   public createAgent(): void {
     if (!this.selectedModelType || this.isCreating) {
       return;
@@ -89,15 +98,16 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
 
     this.isCreating = true;
 
-    this.copilotManagerService
-      .createAgent(this.selectedModelType, this.customAgentName || undefined)
+    const workflowMetadata = this.workflowActionService.getWorkflowMetadata();
+    const workflowId = workflowMetadata?.wid;
+
+    this.agentService
+      .createAgent(this.selectedModelType!, this.customAgentName || undefined, workflowId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: agentInfo => {
           this.agentCreated.emit(agentInfo.id);
-          this.selectedModelType = null;
-          this.customAgentName = "";
-          this.isCreating = false;
+          this.resetForm();
         },
         error: (error: unknown) => {
           this.notificationService.error(`Failed to create agent: ${error}`);
@@ -106,7 +116,13 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
       });
   }
 
+  private resetForm(): void {
+    this.selectedModelType = null;
+    this.customAgentName = "";
+    this.isCreating = false;
+  }
+
   public canCreate(): boolean {
-    return this.selectedModelType !== null && !this.isCreating;
+    return this.selectedModelType !== null && !this.isCreating && this.computingUnitConnected;
   }
 }

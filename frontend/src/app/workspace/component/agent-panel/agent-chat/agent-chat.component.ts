@@ -17,11 +17,26 @@
  * under the License.
  */
 
-import { Component, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
+import {
+  Component,
+  ViewChild,
+  ElementRef,
+  Input,
+  OnInit,
+  AfterViewChecked,
+  ChangeDetectorRef,
+  OnDestroy,
+  OnChanges,
+  SimpleChanges,
+} from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CopilotState, ReActStep } from "../../../service/copilot/texera-copilot";
-import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
+import { Subject } from "rxjs";
+import { distinctUntilChanged, filter, pairwise, startWith, takeUntil } from "rxjs/operators";
+import { AgentState, ReActStep } from "../../../service/agent/agent-types";
+import { AgentInfo, AgentService } from "../../../service/agent/agent.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 
 @UntilDestroy()
 @Component({
@@ -29,12 +44,16 @@ import { NotificationService } from "../../../../common/service/notification/not
   templateUrl: "agent-chat.component.html",
   styleUrls: ["agent-chat.component.scss"],
 })
-export class AgentChatComponent implements OnInit, AfterViewChecked {
+export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, OnChanges {
   @Input() agentInfo!: AgentInfo;
+  @Input() isActive: boolean = false;
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
-  public responses: ReActStep[] = [];
+  /** All steps (for timeline rendering) */
+  public agentResponses: ReActStep[] = [];
+  /** Steps on the HEAD path only (for chat rendering) */
+  public visibleSteps: ReActStep[] = [];
   public currentMessage = "";
   private shouldScrollToBottom = false;
   public isDetailsModalVisible = false;
@@ -42,12 +61,39 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   public hoveredMessageIndex: number | null = null;
   public isSystemInfoModalVisible = false;
   public systemPrompt: string = "";
-  public availableTools: Array<{ name: string; description: string; inputSchema: any }> = [];
-  public agentState: CopilotState = CopilotState.UNAVAILABLE;
+  public availableTools: Array<{ name: string; description: string; inputSchema: any; enabled: boolean }> = [];
+  public agentState: AgentState = AgentState.UNAVAILABLE;
+
+  // Current HEAD step ID in the version tree
+  public currentHeadId: string | null = null;
+
+  // System info modal state (with editing capabilities)
+  public isEditingSystemPrompt = false;
+  public editingSystemPrompt = "";
+  public settingsMaxCharLimit = 20000; // Default max characters for operator results
+  public settingsMaxCellCharLimit = 4000; // Default max characters per cell
+  public settingsToolTimeoutSeconds = 120; // 2 minutes default
+  public settingsExecutionTimeoutMinutes = 10; // 10 minutes default
+  public settingsMaxSteps = 10; // Default max steps per message
+  public settingsAllowedOperatorTypes: string[] = []; // Allowed operator types for general mode
+  public allAvailableOperatorTypes: Array<{ type: string; description: string }> = []; // All operator types from backend
+  public operatorTypeSearchQuery = ""; // Search filter for operator types
+
+  // Message highlighting state
+  public highlightedMessageId: string | null = null;
+
+  // Track if we disabled auto-persist so we can re-enable it on destroy
+  private disabledAutoPersist = false;
+
+  // Subject to control workflow subscription lifecycle
+  private stopWorkflowSubscription$ = new Subject<void>();
 
   constructor(
-    private copilotManagerService: TexeraCopilotManagerService,
-    private notificationService: NotificationService
+    private agentService: AgentService,
+    private workflowActionService: WorkflowActionService,
+    private notificationService: NotificationService,
+    private cdr: ChangeDetectorRef,
+    private workflowPersistService: WorkflowPersistService
   ) {}
 
   ngOnInit(): void {
@@ -55,22 +101,174 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
       return;
     }
 
-    // Subscribe to agent responses
-    this.copilotManagerService
-      .getReActStepsObservable(this.agentInfo.id)
+    // Ensure workflow polling is started if we have a workflowId
+    // This handles agents created via API that weren't created through the UI
+    const workflowId = this.agentInfo.delegate?.workflowId;
+    if (workflowId) {
+      this.agentService.ensureWorkflowPolling(this.agentInfo.id, workflowId);
+    }
+
+    // Get the current state from manager service
+    this.agentService
+      .getAgentState(this.agentInfo.id)
       .pipe(untilDestroyed(this))
-      .subscribe(responses => {
-        this.responses = responses;
-        this.shouldScrollToBottom = true;
+      .subscribe(state => {
+        this.agentState = state;
+        // Immediately trigger change detection to show the current state
+        this.cdr.detectChanges();
       });
 
-    // Subscribe to agent state changes
-    this.copilotManagerService
+    // Then subscribe to agent state changes (BehaviorSubject will immediately emit current value)
+    this.agentService
       .getAgentStateObservable(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(state => {
         this.agentState = state;
+        // Force immediate change detection
+        this.cdr.detectChanges();
       });
+
+    // Subscribe to ReActSteps
+    this.agentService
+      .getReActStepsObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(steps => {
+        const previousLength = this.visibleSteps.length;
+        this.agentResponses = steps;
+        this.updateVisibleSteps();
+        this.shouldScrollToBottom = true;
+
+        // Automatically highlight the latest visible step
+        if (this.visibleSteps.length > 0) {
+          const latestIndex = this.visibleSteps.length - 1;
+          const previousLatestIndex = previousLength - 1;
+
+          if (
+            this.hoveredMessageIndex === null ||
+            this.hoveredMessageIndex === previousLatestIndex ||
+            this.hoveredMessageIndex >= this.visibleSteps.length
+          ) {
+            this.setHoveredMessage(latestIndex);
+          }
+        }
+
+        // Trigger change detection
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to HEAD changes
+    this.agentService
+      .getHeadIdObservable(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(headId => {
+        this.currentHeadId = headId;
+        this.updateVisibleSteps();
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to agent state changes to manage auto-persist
+    // Disable auto-persist when agent is GENERATING, re-enable when AVAILABLE
+    this.agentService
+      .getAgentStateObservable(this.agentInfo.id)
+      .pipe(startWith(AgentState.UNAVAILABLE), pairwise(), untilDestroyed(this))
+      .subscribe(([previousState, currentState]) => {
+        // When agent starts generating, disable auto-persist
+        if (currentState === AgentState.GENERATING && previousState !== AgentState.GENERATING) {
+          this.workflowPersistService.setWorkflowPersistFlag(false);
+          this.disabledAutoPersist = true;
+        }
+
+        // When agent finishes (becomes AVAILABLE from GENERATING/STOPPING), re-enable auto-persist
+        if (
+          currentState === AgentState.AVAILABLE &&
+          (previousState === AgentState.GENERATING || previousState === AgentState.STOPPING)
+        ) {
+          this.workflowPersistService.setWorkflowPersistFlag(true);
+          this.disabledAutoPersist = false;
+        }
+      });
+
+    // Note: Workflow subscription is started/stopped via ngOnChanges based on isActive
+    // This prevents automatic workflow switching when multiple agents are running
+
+    // Start workflow subscription if already active
+    if (this.isActive) {
+      this.startWorkflowSubscription();
+    }
+
+    // Subscribe to scroll-to-step requests
+    this.agentService.scrollToStep$.pipe(untilDestroyed(this)).subscribe(({ agentId, messageId, stepId }) => {
+      if (agentId === this.agentInfo.id) {
+        this.scrollToStep(messageId, stepId);
+      }
+    });
+
+    // Subscribe to message highlighting state
+    this.agentService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
+      this.highlightedMessageId = messageId;
+      this.cdr.detectChanges();
+    });
+
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes["isActive"]) {
+      if (this.isActive) {
+        this.startWorkflowSubscription();
+      } else {
+        this.stopWorkflowSubscription();
+      }
+    }
+  }
+
+  /**
+   * Start subscribing to workflow changes from the agent.
+   * Only called when this agent tab is active.
+   */
+  private startWorkflowSubscription(): void {
+    if (!this.agentInfo) {
+      return;
+    }
+
+    // Stop any existing subscription first
+    this.stopWorkflowSubscription$.next();
+
+    this.agentService
+      .getWorkflowObservable(this.agentInfo.id)
+      .pipe(
+        filter(workflow => workflow !== null),
+        distinctUntilChanged((prev, curr) => {
+          // Compare workflow content to avoid unnecessary reloads
+          if (!prev || !curr) return false;
+          return JSON.stringify(prev.content) === JSON.stringify(curr.content);
+        }),
+        takeUntil(this.stopWorkflowSubscription$),
+        untilDestroyed(this)
+      )
+      .subscribe(workflow => {
+        if (workflow) {
+          this.workflowActionService.reloadWorkflow(workflow, false, false);
+        }
+      });
+  }
+
+  /**
+   * Stop subscribing to workflow changes.
+   * Called when switching away from this agent tab.
+   */
+  private stopWorkflowSubscription(): void {
+    this.stopWorkflowSubscription$.next();
+  }
+
+  ngOnDestroy(): void {
+    // Stop workflow subscription
+    this.stopWorkflowSubscription$.next();
+    this.stopWorkflowSubscription$.complete();
+
+    // Re-enable auto-persist if we disabled it
+    if (this.disabledAutoPersist) {
+      this.workflowPersistService.setWorkflowPersistFlag(true);
+    }
   }
 
   ngAfterViewChecked(): void {
@@ -81,7 +279,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public setHoveredMessage(index: number | null): void {
+    // When unhovered (null), automatically revert to latest step
+    if (index === null && this.visibleSteps.length > 0) {
+      index = this.visibleSteps.length - 1;
+    }
+
     this.hoveredMessageIndex = index;
+    const hoveredStep = index !== null && index >= 0 ? this.visibleSteps[index] : null;
+    this.agentService.setHoveredMessage(this.agentInfo.id, hoveredStep);
   }
 
   public showResponseDetails(response: ReActStep): void {
@@ -95,22 +300,49 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public showSystemInfo(): void {
-    this.copilotManagerService
+    this.refreshSystemInfo();
+    this.isSystemInfoModalVisible = true;
+  }
+
+  /**
+   * Refresh system info from the agent.
+   */
+  private refreshSystemInfo(): void {
+    this.agentService
       .getSystemInfo(this.agentInfo.id)
       .pipe(untilDestroyed(this))
       .subscribe(systemInfo => {
         this.systemPrompt = systemInfo.systemPrompt;
         this.availableTools = systemInfo.tools;
-        this.isSystemInfoModalVisible = true;
+        this.isEditingSystemPrompt = false;
+        this.editingSystemPrompt = "";
+      });
+
+    // Fetch settings from server
+    this.agentService
+      .getAgentSettings(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(settings => {
+        this.settingsMaxCharLimit = settings.maxOperatorResultCharLimit ?? 20000;
+        this.settingsMaxCellCharLimit = settings.maxOperatorResultCellCharLimit ?? 4000;
+        this.settingsToolTimeoutSeconds = settings.toolTimeoutSeconds ?? 120;
+        this.settingsExecutionTimeoutMinutes = settings.executionTimeoutMinutes ?? 10;
+        this.settingsMaxSteps = settings.maxSteps ?? 10;
+        this.settingsAllowedOperatorTypes = settings.allowedOperatorTypes ?? [];
+      });
+
+    // Fetch all available operator types
+    this.agentService
+      .getAvailableOperatorTypes(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe(types => {
+        this.allAvailableOperatorTypes = types.sort((a, b) => a.type.localeCompare(b.type));
       });
   }
 
   public closeSystemInfoModal(): void {
     this.isSystemInfoModalVisible = false;
-  }
-
-  public formatJson(data: any): string {
-    return JSON.stringify(data, null, 2);
+    this.isEditingSystemPrompt = false;
   }
 
   public getToolResult(response: ReActStep, toolCallIndex: number): any {
@@ -121,50 +353,20 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     return toolResult.output || toolResult.result || toolResult;
   }
 
-  public getReActStepOperatorAccess(
+  public getToolOperatorAccess(
     response: ReActStep,
     toolCallIndex: number
   ): { viewedOperatorIds: string[]; modifiedOperatorIds: string[] } | null {
-    if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
+    if (!response.operatorAccess) {
       return null;
     }
-    const toolResult = response.toolResults[toolCallIndex];
-    const result = toolResult.output || toolResult.result || toolResult;
-
-    // Check if the result has operator access information
-    if (result && (result.viewedOperatorIds || result.modifiedOperatorIds)) {
-      return {
-        viewedOperatorIds: result.viewedOperatorIds || [],
-        modifiedOperatorIds: result.modifiedOperatorIds || [],
-      };
-    }
-
-    return null;
+    return response.operatorAccess.get(toolCallIndex) || null;
   }
 
-  public getTotalInputTokens(): number {
-    // Iterate in reverse to find the most recent usage (already sorted by timestamp)
-    for (let i = this.responses.length - 1; i >= 0; i--) {
-      if (this.responses[i].usage?.inputTokens !== undefined) {
-        return this.responses[i].usage!.inputTokens!;
-      }
-    }
-    return 0;
+  public hasOperatorAccess(response: ReActStep): boolean {
+    return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
-  public getTotalOutputTokens(): number {
-    // Iterate in reverse to find the most recent usage (already sorted by timestamp)
-    for (let i = this.responses.length - 1; i >= 0; i--) {
-      if (this.responses[i].usage?.outputTokens !== undefined) {
-        return this.responses[i].usage!.outputTokens!;
-      }
-    }
-    return 0;
-  }
-
-  /**
-   * Send a message to the agent via the copilot manager service.
-   */
   public sendMessage(): void {
     if (!this.currentMessage.trim() || !this.canSendMessage()) {
       return;
@@ -173,22 +375,15 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
     const userMessage = this.currentMessage.trim();
     this.currentMessage = "";
 
-    // Send to copilot via manager service
-    this.copilotManagerService
-      .sendMessage(this.agentInfo.id, userMessage)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        error: (error: unknown) => {
-          this.notificationService.error(`Error sending message: ${error}`);
-        },
-      });
+    // Fire-and-forget; responses stream in via the WebSocket subscription.
+    this.agentService.sendMessage(this.agentInfo.id, userMessage);
   }
 
   /**
    * Check if messages can be sent (only when agent is available).
    */
   public canSendMessage(): boolean {
-    return this.agentState === CopilotState.AVAILABLE;
+    return this.agentState === AgentState.AVAILABLE;
   }
 
   /**
@@ -196,12 +391,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
    */
   public getStateIcon(): string {
     switch (this.agentState) {
-      case CopilotState.AVAILABLE:
+      case AgentState.AVAILABLE:
         return "check-circle";
-      case CopilotState.GENERATING:
-      case CopilotState.STOPPING:
+      case AgentState.GENERATING:
+      case AgentState.STOPPING:
         return "sync";
-      case CopilotState.UNAVAILABLE:
+      case AgentState.UNAVAILABLE:
       default:
         return "close-circle";
     }
@@ -212,12 +407,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
    */
   public getStateIconColor(): string {
     switch (this.agentState) {
-      case CopilotState.AVAILABLE:
+      case AgentState.AVAILABLE:
         return "#52c41a";
-      case CopilotState.GENERATING:
-      case CopilotState.STOPPING:
+      case AgentState.GENERATING:
+      case AgentState.STOPPING:
         return "#1890ff";
-      case CopilotState.UNAVAILABLE:
+      case AgentState.UNAVAILABLE:
       default:
         return "#ff4d4f";
     }
@@ -228,13 +423,13 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
    */
   public getStateTooltip(): string {
     switch (this.agentState) {
-      case CopilotState.AVAILABLE:
+      case AgentState.AVAILABLE:
         return "Agent is ready";
-      case CopilotState.GENERATING:
+      case AgentState.GENERATING:
         return "Agent is generating response...";
-      case CopilotState.STOPPING:
+      case AgentState.STOPPING:
         return "Agent is stopping...";
-      case CopilotState.UNAVAILABLE:
+      case AgentState.UNAVAILABLE:
         return "Agent is unavailable";
       default:
         return "Agent status unknown";
@@ -256,22 +451,378 @@ export class AgentChatComponent implements OnInit, AfterViewChecked {
   }
 
   public stopGeneration(): void {
-    this.copilotManagerService.stopGeneration(this.agentInfo.id).pipe(untilDestroyed(this)).subscribe();
+    this.agentService.stopGeneration(this.agentInfo.id);
   }
 
   public clearMessages(): void {
-    this.copilotManagerService.clearMessages(this.agentInfo.id).pipe(untilDestroyed(this)).subscribe();
+    this.agentService.clearMessages(this.agentInfo.id);
+  }
+
+  /**
+   * Export the ReAct steps as a JSON file.
+   * Fetches steps from the backend to get clean JSON (without Map objects).
+   */
+  public exportReActSteps(): void {
+    if (this.visibleSteps.length === 0) {
+      this.notificationService.warning("No ReAct steps to export");
+      return;
+    }
+
+    this.agentService
+      .getReActSteps(this.agentInfo.id)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (steps: ReActStep[]) => {
+          // Convert steps to plain objects (handle Map -> object for operatorAccess)
+          const exportSteps = steps.map(step => {
+            const plain: any = { ...step };
+            if (step.operatorAccess) {
+              const accessObj: Record<string, any> = {};
+              step.operatorAccess.forEach((value, key) => {
+                accessObj[key] = value;
+              });
+              plain.operatorAccess = accessObj;
+            }
+            return plain;
+          });
+
+          const exportData = {
+            agentId: this.agentInfo.id,
+            agentName: this.agentInfo.name,
+            modelType: this.agentInfo.modelType,
+            exportedAt: new Date().toISOString(),
+            stepCount: exportSteps.length,
+            steps: exportSteps,
+          };
+
+          const jsonString = JSON.stringify(exportData, null, 2);
+          const blob = new Blob([jsonString], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${this.agentInfo.name}-react-steps-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          URL.revokeObjectURL(url);
+
+          this.notificationService.success(`Exported ${exportSteps.length} ReAct steps`);
+        },
+        error: (err: unknown) => {
+          console.error("Failed to export ReAct steps:", err);
+          this.notificationService.error("Failed to export ReAct steps");
+        },
+      });
   }
 
   public isGenerating(): boolean {
-    return this.agentState === CopilotState.GENERATING;
+    return this.agentState === AgentState.GENERATING;
   }
 
   public isAvailable(): boolean {
-    return this.agentState === CopilotState.AVAILABLE;
+    return this.agentState === AgentState.AVAILABLE;
   }
 
   public isConnected(): boolean {
-    return this.agentState !== CopilotState.UNAVAILABLE;
+    return this.agentState !== AgentState.UNAVAILABLE;
+  }
+
+  public isStopping(): boolean {
+    return this.agentState === AgentState.STOPPING;
+  }
+
+  /**
+   * Recompute visibleSteps: only steps on the ancestor path from root to HEAD.
+   */
+  private updateVisibleSteps(): void {
+    if (!this.currentHeadId || this.agentResponses.length === 0) {
+      this.visibleSteps = this.agentResponses;
+      return;
+    }
+    const stepMap = new Map(this.agentResponses.map(s => [s.id, s]));
+    const ancestorIds = new Set<string>();
+    let current: string | undefined = this.currentHeadId;
+    while (current) {
+      ancestorIds.add(current);
+      current = stepMap.get(current)?.parentId;
+    }
+    this.visibleSteps = this.agentResponses.filter(s => ancestorIds.has(s.id));
+  }
+
+  /**
+   * Scroll chat messages to a specific step index.
+   */
+  private scrollToMessage(stepIndex: number): void {
+    if (!this.messageContainer) {
+      return;
+    }
+
+    const container = this.messageContainer.nativeElement;
+    const messages = container.querySelectorAll(".message");
+
+    if (stepIndex >= 0 && stepIndex < messages.length) {
+      messages[stepIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+
+  // =====================
+  // System Info Modal Editing Methods
+  // =====================
+
+  /**
+   * Start editing the system prompt.
+   */
+  public startEditingSystemPrompt(): void {
+    this.editingSystemPrompt = this.systemPrompt;
+    this.isEditingSystemPrompt = true;
+  }
+
+  /**
+   * Cancel editing the system prompt.
+   */
+  public cancelEditingSystemPrompt(): void {
+    this.isEditingSystemPrompt = false;
+    this.editingSystemPrompt = "";
+  }
+
+  /**
+   * Save the edited system prompt.
+   * Note: System prompt is managed server-side in API mode.
+   */
+  public saveSystemPrompt(): void {
+    // In API mode, system prompt is managed server-side
+    this.systemPrompt = this.editingSystemPrompt;
+    this.isEditingSystemPrompt = false;
+    this.notificationService.info("System prompt editing is managed server-side");
+  }
+
+  /**
+   * Reset system prompt to default.
+   * Note: System prompt is managed server-side in API mode.
+   */
+  public resetSystemPromptToDefault(): void {
+    // In API mode, system prompt is managed server-side
+    this.refreshSystemInfo();
+    this.notificationService.info("System prompt is managed server-side");
+  }
+
+  /**
+   * Toggle a specific tool's enabled state.
+   * Note: Tool settings are managed server-side in API mode.
+   */
+  public toggleToolEnabled(tool: { name: string; enabled: boolean }): void {
+    // In API mode, tool settings are managed server-side
+    this.notificationService.info("Tool settings are managed server-side");
+  }
+
+  /**
+   * Enable all tools.
+   * Note: Tool settings are managed server-side in API mode.
+   */
+  public enableAllTools(): void {
+    // In API mode, tool settings are managed server-side
+    this.notificationService.info("Tool settings are managed server-side");
+  }
+
+  /**
+   * Disable all tools.
+   * Note: Tool settings are managed server-side in API mode.
+   */
+  public disableAllTools(): void {
+    // In API mode, tool settings are managed server-side
+    this.notificationService.info("Tool settings are managed server-side");
+  }
+
+  /**
+   * Get count of enabled tools.
+   */
+  public getEnabledToolsCount(): number {
+    return this.availableTools.filter(t => t.enabled).length;
+  }
+
+  /**
+   * Save the max character limit.
+   */
+  public saveMaxCharLimit(): void {
+    this.agentService
+      .updateAgentSettings(this.agentInfo.id, {
+        maxOperatorResultCharLimit: this.settingsMaxCharLimit,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Max character limit saved"),
+        error: () => {}, // Error already handled by service
+      });
+  }
+
+  /**
+   * Save the max cell character limit.
+   */
+  public saveMaxCellCharLimit(): void {
+    this.agentService
+      .updateAgentSettings(this.agentInfo.id, {
+        maxOperatorResultCellCharLimit: this.settingsMaxCellCharLimit,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Max cell character limit saved"),
+        error: () => {}, // Error already handled by service
+      });
+  }
+
+  /**
+   * Save the tool execution timeout.
+   */
+  public saveToolTimeout(): void {
+    this.agentService
+      .updateAgentSettings(this.agentInfo.id, {
+        toolTimeoutSeconds: this.settingsToolTimeoutSeconds,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Tool timeout saved"),
+        error: () => {}, // Error already handled by service
+      });
+  }
+
+  /**
+   * Save the workflow execution timeout.
+   */
+  public saveExecutionTimeout(): void {
+    this.agentService
+      .updateAgentSettings(this.agentInfo.id, {
+        executionTimeoutMinutes: this.settingsExecutionTimeoutMinutes,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Execution timeout saved"),
+        error: () => {}, // Error already handled by service
+      });
+  }
+
+  /**
+   * Save the max steps per message setting.
+   */
+  public saveMaxSteps(): void {
+    this.agentService
+      .updateAgentSettings(this.agentInfo.id, {
+        maxSteps: this.settingsMaxSteps,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Max steps saved"),
+        error: () => {}, // Error already handled by service
+      });
+  }
+
+  /**
+   * Toggle an operator type in the allowed list and save.
+   */
+  public toggleOperatorType(operatorType: string, enabled: boolean): void {
+    if (enabled) {
+      if (!this.settingsAllowedOperatorTypes.includes(operatorType)) {
+        this.settingsAllowedOperatorTypes = [...this.settingsAllowedOperatorTypes, operatorType];
+      }
+    } else {
+      this.settingsAllowedOperatorTypes = this.settingsAllowedOperatorTypes.filter(t => t !== operatorType);
+    }
+    this.saveAllowedOperatorTypes();
+  }
+
+  /**
+   * Check if an operator type is enabled (in allowed list).
+   */
+  public isOperatorTypeEnabled(operatorType: string): boolean {
+    return this.settingsAllowedOperatorTypes.includes(operatorType);
+  }
+
+  /**
+   * Enable all operator types.
+   */
+  public enableAllOperatorTypes(): void {
+    this.settingsAllowedOperatorTypes = this.allAvailableOperatorTypes.map(op => op.type);
+    this.saveAllowedOperatorTypes();
+  }
+
+  /**
+   * Deselect all operator types.
+   */
+  public deselectAllOperatorTypes(): void {
+    this.settingsAllowedOperatorTypes = [];
+    this.saveAllowedOperatorTypes();
+  }
+
+  /**
+   * Get filtered operator types based on search query.
+   */
+  public getFilteredOperatorTypes(): Array<{ type: string; description: string }> {
+    if (!this.operatorTypeSearchQuery) {
+      return this.allAvailableOperatorTypes;
+    }
+    const query = this.operatorTypeSearchQuery.toLowerCase();
+    return this.allAvailableOperatorTypes.filter(
+      op => op.type.toLowerCase().includes(query) || op.description.toLowerCase().includes(query)
+    );
+  }
+
+  /**
+   * Save allowed operator types to backend.
+   */
+  private saveAllowedOperatorTypes(): void {
+    this.agentService
+      .updateAgentSettings(this.agentInfo.id, {
+        allowedOperatorTypes: this.settingsAllowedOperatorTypes,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          const count = this.settingsAllowedOperatorTypes.length;
+          this.notificationService.success(count === 0 ? "All operators enabled" : `${count} operators enabled`);
+        },
+        error: () => {},
+      });
+  }
+
+  /**
+   * Scroll to a specific step in the chat by messageId and stepId.
+   */
+  private scrollToStep(messageId: string, stepId: number): void {
+    // Find the step index in visibleSteps
+    const stepIndex = this.visibleSteps.findIndex(step => step.messageId === messageId && step.stepId === stepId);
+
+    if (stepIndex >= 0) {
+      this.scrollToMessage(stepIndex);
+      // Highlight the message briefly
+      this.setHoveredMessage(stepIndex);
+    }
+  }
+
+  // =====================
+  // Message Highlighting Methods
+  // =====================
+
+  /**
+   * Check if a message is currently highlighted for region display.
+   */
+  public isMessageHighlighted(messageId: string): boolean {
+    return this.highlightedMessageId === messageId;
+  }
+
+  /**
+   * Toggle highlighting for a message.
+   * When highlighted, all operators affected by this message's steps
+   * will be shown with a region highlight on the canvas.
+   */
+  public toggleMessageHighlight(messageId: string): void {
+    if (this.highlightedMessageId === messageId) {
+      // Toggle off
+      this.agentService.setHighlightedMessage(null);
+    } else {
+      // Toggle on - highlight this message
+      this.agentService.setHighlightedMessage(messageId);
+    }
   }
 }

@@ -127,6 +127,21 @@
   .agent-tab-name {
     flex: 1;
   }
+
+  // Visual feedback for agents on different workflows
+  &.workflow-mismatch {
+    opacity: 0.6;
+
+    .agent-tab-name {
+      color: #8c8c8c;
+    }
+  }
+
+  .workflow-lock-icon {
+    color: #faad14;
+    font-size: 12px;
+    margin-left: -4px;
+  }
 }
 
 .agent-tab-close {

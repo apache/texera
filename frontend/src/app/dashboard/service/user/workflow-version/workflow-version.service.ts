@@ -127,7 +127,7 @@ export class WorkflowVersionService {
     differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "0,255,0,0.5"));
 
     if (differentOpIDsList.deleted.length > 0) {
-      const tempWorkflow = this.workflowActionService.getTempWorkflow();
+      const tempWorkflow   = this.workflowActionService.getTempWorkflow();
       if (tempWorkflow != undefined) {
         for (const link of tempWorkflow.content.links) {
           if (differentOpIDsList.deleted.includes(link.source.operatorID) && link.target.operatorID != undefined) {
@@ -141,12 +141,57 @@ export class WorkflowVersionService {
     }
   }
 
+  /**
+   * Simplified version of highlightOpVersionDiff that accepts beforeWorkflowContent directly.
+   * Highlights added (green), modified (orange), and deleted (red brackets) operators.
+   *
+   * @param differentOpIDsList Diff between before and after workflows
+   * @param beforeWorkflowContent Before workflow content for rendering deleted operator brackets
+   */
+  public highlightOpVersionDiffSimple(differentOpIDsList: DifferentOpIDsList, beforeWorkflowContent: WorkflowContent) {
+    // Use dashed borderline instead of filled shading
+    // Red for modified, green for added
+    differentOpIDsList.modified.map(id => this.highlightOpBoundaryDashed(id, "255,0,0,0.7"));
+    differentOpIDsList.added.map(id => this.highlightOpBoundaryDashed(id, "0,200,0,0.7"));
+  }
+
   public highlightOpBoundary(id: string, color: string) {
-    this.workflowActionService
+    const element = this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()
-      ?.getModelById(id)
-      .attr("rect.boundary/fill", "rgba(" + color + ")");
+      ?.getModelById(id);
+    if (element) {
+      element.attr("rect.boundary/fill", "rgba(" + color + ")");
+    }
+  }
+
+  public highlightOpBoundaryDashed(id: string, color: string) {
+    const element = this.workflowActionService
+      .getJointGraphWrapper()
+      .getMainJointPaper()
+      ?.getModelById(id);
+    if (element) {
+      element.attr({
+        "rect.boundary": {
+          fill: "rgba(" + color.replace(/,[^,]*$/, ",0.08") + ")",
+          stroke: "rgba(" + color + ")",
+          "stroke-width": 3,
+          "stroke-dasharray": "none",
+          rx: 8,
+          ry: 8,
+        },
+      });
+      // Apply CSS filter for glow halo effect via DOM
+      const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+      if (paper) {
+        const view = paper.findViewByModel(element);
+        const boundaryRect = view?.el?.querySelector("rect.boundary") as SVGElement | null;
+        if (boundaryRect) {
+          boundaryRect.style.filter =
+            "drop-shadow(0 0 10px rgba(" + color + ")) drop-shadow(0 0 4px rgba(" + color + "))";
+        }
+      }
+    }
   }
 
   public highlightOpBracket(id: string, color: string, position: string) {
@@ -268,8 +313,30 @@ export class WorkflowVersionService {
   }
 
   public unhighlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
+    const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
     for (const id of differentOpIDsList.added.concat(differentOpIDsList.modified)) {
       this.highlightOpBoundary(id, "0,0,0,0");
+      const element = this.workflowActionService
+        .getJointGraphWrapper()
+        .getMainJointPaper()
+        ?.getModelById(id);
+      if (element) {
+        element.attr({
+          "rect.boundary": {
+            stroke: "none",
+            "stroke-width": 0,
+            "stroke-dasharray": "none",
+          },
+        });
+        // Clear CSS filter glow
+        if (paper) {
+          const view = paper.findViewByModel(element);
+          const boundaryRect = view?.el?.querySelector("rect.boundary") as SVGElement | null;
+          if (boundaryRect) {
+            boundaryRect.style.filter = "";
+          }
+        }
+      }
     }
     this.operatorPropertyDiff = {};
   }
@@ -295,13 +362,13 @@ export class WorkflowVersionService {
       );
   }
 
-  private saveModificationState(): void {
+  public saveModificationState(): void {
     if (this.modificationEnabledBeforeTempWorkflow === undefined) {
       this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
     }
   }
 
-  private restoreModificationState(): void {
+  public restoreModificationState(): void {
     if (this.modificationEnabledBeforeTempWorkflow !== undefined) {
       if (!this.modificationEnabledBeforeTempWorkflow) {
         this.workflowActionService.disableWorkflowModification();

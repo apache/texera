@@ -17,19 +17,10 @@
  * under the License.
  */
 
-/**
- * System prompts for Texera Copilot
- */
-
-export const COPILOT_SYSTEM_PROMPT = `# Texera Copilot
-
-You are Texera Copilot, an AI assistant for helping users do data science using Texera workflows.
-
-Your job is to leverage tools to help users understand Texera's functionalities, including what operators are available
-and how to use them.
-
-You also need to help users understand the workflow they are currently working on.
-
-During the process, leverage tool calls whenever needed. Current available tools are all READ-ONLY. Thus you cannot edit
-user's workflow.
-`;
+export * from "./types";
+export { WorkflowState } from "./agent/workflow-state";
+export { WorkflowResultState } from "./agent/workflow-result-state";
+export { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
+export * from "./agent/tools";
+export { TexeraAgent, type TexeraAgentConfig, type AgentMessageResult } from "./agent/texera-agent";
+export { buildSystemPrompt } from "./agent/prompts";

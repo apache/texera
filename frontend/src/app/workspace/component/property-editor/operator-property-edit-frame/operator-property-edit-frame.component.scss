@@ -73,3 +73,17 @@
     margin-bottom: 0;
   }
 }
+
+.agent-interaction-controls {
+  padding: 12px;
+  background-color: #fafafa;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+::ng-deep {
+  .property-editor-form {
+    // Add some padding for better spacing
+    padding-top: 8px;
+  }
+}

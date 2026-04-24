@@ -19,7 +19,7 @@
 
 //All times in test Workflows are in PST because our local machine's timezone is PST
 
-import { ExecutionMode, Workflow, WorkflowContent } from "../../common/type/workflow";
+import { Workflow, WorkflowContent } from "../../common/type/workflow";
 import { DashboardEntry } from "../type/dashboard-entry";
 import { DashboardProject } from "../type/dashboard-project.interface";
 
@@ -39,7 +39,7 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
   commentBoxes: [],
   links: [],
   operatorPositions: {},
-  settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
+  settings: { dataTransferBatchSize: 400 },
 });
 
 export const testWorkflow1: Workflow = {
