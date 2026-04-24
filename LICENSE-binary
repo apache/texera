@@ -406,7 +406,7 @@ Python packages:
   - dataclasses
   - frozenlist
   - hf-xet
-  - huggingface_hub
+  - huggingface-hub
   - multidict
   - overrides
   - packaging
@@ -484,7 +484,7 @@ Python packages:
   - plotly
   - pluggy
   - pydantic
-  - pydantic_core
+  - pydantic-core
   - pyparsing
   - pyroaring
   - pytest
@@ -803,7 +803,7 @@ Python packages:
   - aiohappyeyeballs
   - matplotlib
   - typing
-  - typing_extensions
+  - typing-extensions
 
 --------------------------------------------------------------------------------
 Dependencies under the Historical Permission Notice and Disclaimer (HPND)
