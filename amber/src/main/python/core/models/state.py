@@ -26,11 +26,8 @@ from .schema.attribute_type import FROM_PYOBJECT_MAPPING
 
 @dataclass
 class State:
-    def __init__(
-        self, table: Optional[Table] = None, pass_to_all_downstream: bool = False
-    ):
+    def __init__(self, table: Optional[Table] = None):
         self.schema = Schema()
-        self.passToAllDownstream = pass_to_all_downstream
         if table is not None:
             self.__dict__.update(table.to_pandas().iloc[0].to_dict())
             self.schema = Schema(table.schema)
