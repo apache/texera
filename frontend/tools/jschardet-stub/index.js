@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,36 +17,13 @@
  * under the License.
  */
 
-.file-display-padding {
-  width: 20px;
-}
+// No-op replacement for the LGPL-2.1 `jschardet` package, which is
+// ASF Category X. Redirected here via `resolutions` in
+// frontend/package.json. The upstream call site lives in
+// @codingame/monaco-vscode-api's encoding service and is only reached
+// when opening binary files through Monaco, which Texera never does.
 
-/* Styles for the delete button */
-.icon-button {
-  width: 15px;
-  margin-left: 5px;
-}
-
-/* Allow text selection so users can copy file/folder names */
-:host ::ng-deep tree-node-content span {
-  user-select: text;
-}
-
-/* Styles for the file tree container */
-.file-tree-container {
-  max-height: 200px; /* Adjust the max-height as needed */
-  overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
-  overflow-x: auto; /* Prevents horizontal scrolling */
-}
-
-//tree-root .fa-file {
-//  //padding-left: 4%; /* Adjust the value as needed */
-//}
-//
-//tree-root span {
-//  display: inline-block;
-//  max-width: 100%; /* Adjust the width as needed */
-//  text-overflow: ellipsis;
-//  white-space: nowrap;
-//  overflow: hidden;
-//}
+module.exports = {
+  detect: () => null,
+};
+module.exports.default = module.exports;
