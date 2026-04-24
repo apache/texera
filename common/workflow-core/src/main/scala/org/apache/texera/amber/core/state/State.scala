@@ -23,9 +23,8 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 
 import scala.collection.mutable
 
-final case class State(tuple: Option[Tuple] = None, passToAllDownstream: Boolean = false) {
+final case class State(tuple: Option[Tuple] = None) {
   val data: mutable.Map[String, (AttributeType, Any)] = mutable.LinkedHashMap()
-  add("passToAllDownstream", passToAllDownstream, AttributeType.BOOLEAN)
   if (tuple.isDefined) {
     tuple.get.getSchema.getAttributes.foreach { attribute =>
       add(attribute.getName, tuple.get.getField(attribute.getName), attribute.getType)
@@ -36,8 +35,6 @@ final case class State(tuple: Option[Tuple] = None, passToAllDownstream: Boolean
     data.put(key, (valueType, value))
 
   def get(key: String): Any = data(key)._2
-
-  def isPassToAllDownstream: Boolean = get("passToAllDownstream").asInstanceOf[Boolean]
 
   def apply(key: String): Any = get(key)
 
