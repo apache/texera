@@ -1,14 +1,3 @@
-================================================================================
-Apache Texera binary distribution
-================================================================================
-
-This file lists the licensing terms of Apache Texera and the third-party
-components bundled with its binary distributions. The Apache License,
-Version 2.0 text below applies to Apache Texera itself; third-party
-components are listed after the Apache License text and are governed by
-the terms of their own licenses.
-
---------------------------------------------------------------------------------
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -212,48 +201,14 @@ the terms of their own licenses.
    permissions and limitations under the License.
 
 ================================================================================
-VENDORED SOURCE CODE
+THIRD-PARTY COMPONENTS
 ================================================================================
 
-Apache Texera source tree includes code derived from the following projects.
-See licenses/ for the full text of the applicable licenses.
-
-mbknor-jackson-jsonschema (MIT License; see licenses/LICENSE-MIT.txt)
-  - common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/
-  Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
-  Source: https://github.com/mbknor/mbknor-jackson-jsonschema
-
-Google Angular formly examples (MIT License)
-  - frontend/src/app/common/formly/array.type.ts
-  - frontend/src/app/common/formly/object.type.ts
-  - frontend/src/app/common/formly/multischema.type.ts
-  - frontend/src/app/common/formly/null.type.ts
-  Copyright (c) 2018 Google Inc. All Rights Reserved.
-  Source: https://angular.io
-
-TypeFox monaco-languageclient (MIT License)
-  - pyright-language-service/src/main.ts
-  - pyright-language-service/src/language-server-runner.ts
-  - pyright-language-service/src/server-commons.ts
-  Copyright (c) 2024 TypeFox and others.
-  Source: https://github.com/TypeFox/monaco-languageclient
-
-SVGRepo icons (MIT License)
-  - frontend/src/assets/svg/operator-view-result.svg
-  - frontend/src/assets/svg/operator-reuse-cache-valid.svg
-  - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
-  Source: https://www.svgrepo.com
-
-================================================================================
-BUNDLED THIRD-PARTY DEPENDENCIES
-================================================================================
-
-This binary distribution bundles the following third-party dependencies,
-grouped by license. Dependencies bundled under the Apache License, Version
-2.0 are governed by the same license terms as Apache Texera itself and are
-listed for completeness. Dependencies under other licenses are listed in
-dedicated sections, each accompanied by the full license text under
-licenses/.
+Apache Texera's binary distributions and source tree include the following
+third-party components, grouped by license. Each section references
+licenses/ for the full text of the applicable license. Components under
+the Apache License, Version 2.0 are governed by the same license terms as
+Apache Texera itself and are listed for completeness.
 
 --------------------------------------------------------------------------------
 Dependencies under the Apache License, Version 2.0
@@ -442,8 +397,32 @@ Angular / npm packages:
 Dependencies under the MIT License
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following MIT-licensed dependencies. See
+Apache Texera bundles the following MIT-licensed components. See
 licenses/LICENSE-MIT.txt for the full text of the MIT License.
+
+Source files derived from third-party MIT-licensed projects:
+  - mbknor-jackson-jsonschema
+    common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/
+    Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
+    https://github.com/mbknor/mbknor-jackson-jsonschema
+  - Google Angular formly examples
+    frontend/src/app/common/formly/array.type.ts
+    frontend/src/app/common/formly/object.type.ts
+    frontend/src/app/common/formly/multischema.type.ts
+    frontend/src/app/common/formly/null.type.ts
+    Copyright (c) 2018 Google Inc.
+    https://angular.io
+  - TypeFox monaco-languageclient
+    pyright-language-service/src/main.ts
+    pyright-language-service/src/language-server-runner.ts
+    pyright-language-service/src/server-commons.ts
+    Copyright (c) 2024 TypeFox and others
+    https://github.com/TypeFox/monaco-languageclient
+  - SVGRepo icons
+    frontend/src/assets/svg/operator-view-result.svg
+    frontend/src/assets/svg/operator-reuse-cache-valid.svg
+    frontend/src/assets/svg/operator-reuse-cache-invalid.svg
+    https://www.svgrepo.com
 
 Scala/Java jars:
   - co.fs2 (co.fs2.fs2-core_2.13)
