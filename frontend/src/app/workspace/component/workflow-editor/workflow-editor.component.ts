@@ -43,7 +43,6 @@ import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
-import { AgentActionService } from "../../service/agent-action/agent-action.service";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -124,7 +123,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private agentActionService: AgentActionService,
     private agentService: AgentService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
