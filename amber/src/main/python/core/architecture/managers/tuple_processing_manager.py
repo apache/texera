@@ -33,8 +33,7 @@ class TupleProcessingManager:
         self.finished_current: Event = Event()
 
     def get_internal_marker(self) -> Optional[InternalMarker]:
-        ret, self.current_internal_marker = self.current_internal_marker, None
-        return ret
+        return self.current_internal_marker
 
     def get_input_tuple(self) -> Optional[Tuple]:
         ret, self.current_input_tuple = self.current_input_tuple, None
