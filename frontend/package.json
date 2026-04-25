@@ -89,7 +89,8 @@
   "resolutions": {
     "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
-    "webpack": "5.89.0"
+    "webpack": "5.89.0",
+    "jschardet": "portal:./tools/jschardet-stub"
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "18.0.0",
@@ -155,5 +156,5 @@
     "defaults",
     "not ie <= 11"
   ],
-  "packageManager": "yarn@4.5.1"
+  "packageManager": "yarn@4.14.1"
 }
