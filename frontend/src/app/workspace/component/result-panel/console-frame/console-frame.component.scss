@@ -23,6 +23,8 @@
   width: 100%;
   height: 100%;
   min-height: 0;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .error-message {
@@ -42,6 +44,8 @@
   border: 1px solid #e8e8e8;
   border-radius: 2px;
   overflow: auto;
+  -webkit-user-select: text;
+  user-select: text;
 
   .console-message-entry {
     //border: purple solid;
@@ -61,6 +65,8 @@
       line-height: 14px;
       white-space: pre-line;
       color: red;
+      -webkit-user-select: text;
+      user-select: text;
       //border: solid black;
     }
 
@@ -73,6 +79,9 @@
       font-weight: 200;
       line-height: 14px;
       white-space: pre-line;
+      -webkit-user-select: text;
+      user-select: text;
+      cursor: text;
       //border: solid black;
     }
 
