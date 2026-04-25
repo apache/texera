@@ -210,6 +210,23 @@ licenses/ for the full text of the applicable license. Components under
 the Apache License, Version 2.0 are governed by the same license terms as
 Apache Texera itself and are listed for completeness.
 
+Locations within the distribution:
+
+  - Scala/Java jars listed below ship under the lib/ directory of each
+    service's Universal zip (amber, access-control-service,
+    config-service, computing-unit-managing-service, file-service, and
+    workflow-compiling-service).
+
+  - Python packages are installed into the Python site-packages directory
+    of the computing-unit-master and computing-unit-worker Docker images.
+
+  - Angular / npm packages are sourced from frontend/node_modules at
+    build time and shipped compiled into the texera-web-application
+    Docker image's frontend assets.
+
+  - Source files derived from third-party projects live in the Apache
+    Texera source tree at the paths listed against each entry.
+
 --------------------------------------------------------------------------------
 Dependencies under the Apache License, Version 2.0
 --------------------------------------------------------------------------------
@@ -217,140 +234,452 @@ Dependencies under the Apache License, Version 2.0
 Apache Texera bundles the following Apache-2.0 licensed dependencies.
 
 Scala/Java jars:
-  - ch.qos.reload4j (ch.qos.reload4j.reload4j)
-  - com.fasterxml (com.fasterxml.classmate)
-  - com.fasterxml.jackson.core (com.fasterxml.jackson.core.*)
-  - com.fasterxml.jackson.dataformat (com.fasterxml.jackson.dataformat.jackson-dataformat-yaml)
-  - com.fasterxml.jackson.datatype (com.fasterxml.jackson.datatype.*)
-  - com.fasterxml.jackson.jakarta.rs (com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-base, com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider)
-  - com.fasterxml.jackson.jaxrs (com.fasterxml.jackson.jaxrs.jackson-jaxrs-base, com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider)
-  - com.fasterxml.jackson.module (com.fasterxml.jackson.module.*)
-  - com.fasterxml.woodstox (com.fasterxml.woodstox.woodstox-core)
-  - com.flipkart.zjsonpatch (com.flipkart.zjsonpatch.zjsonpatch)
-  - com.github.ben-manes.caffeine (com.github.ben-manes.caffeine.caffeine)
-  - com.github.dirkraft.dropwizard (com.github.dirkraft.dropwizard.dropwizard-file-assets)
-  - com.github.nscala-time (com.github.nscala-time.nscala-time_2.13)
-  - com.github.sisyphsu (com.github.sisyphsu.dateparser, com.github.sisyphsu.retree)
-  - com.github.stephenc.jcip (com.github.stephenc.jcip.jcip-annotations)
-  - com.github.toastshaman (com.github.toastshaman.dropwizard-auth-jwt)
-  - com.github.tototoshi (com.github.tototoshi.scala-csv_2.13)
-  - com.google.android (com.google.android.annotations)
-  - com.google.api-client (com.google.api-client.google-api-client)
-  - com.google.api.grpc (com.google.api.grpc.proto-google-common-protos)
-  - com.google.code.findbugs (com.google.code.findbugs.jsr305)
-  - com.google.code.gson (com.google.code.gson.gson)
-  - com.google.errorprone (com.google.errorprone.error_prone_annotations)
-  - com.google.flatbuffers (com.google.flatbuffers.flatbuffers-java)
-  - com.google.guava (com.google.guava.*)
-  - com.google.http-client (com.google.http-client.*)
-  - com.google.inject (com.google.inject.guice)
-  - com.google.inject.extensions (com.google.inject.extensions.guice-servlet)
-  - com.google.j2objc (com.google.j2objc.j2objc-annotations)
-  - com.google.oauth-client (com.google.oauth-client.*)
-  - com.googlecode.javaewah (com.googlecode.javaewah.JavaEWAH)
-  - com.helger (com.helger.profiler)
-  - com.hierynomus (com.hierynomus.asn-one)
-  - com.nimbusds (com.nimbusds.nimbus-jose-jwt)
-  - com.papertrail (com.papertrail.profiler)
-  - com.softwaremill.common (com.softwaremill.common.tagging_2.13)
-  - com.softwaremill.macwire (com.softwaremill.macwire.proxy_2.13, com.softwaremill.macwire.util_2.13)
-  - com.softwaremill.sttp.client4 (com.softwaremill.sttp.client4.core_2.13)
-  - com.softwaremill.sttp.model (com.softwaremill.sttp.model.core_2.13)
-  - com.softwaremill.sttp.shared (com.softwaremill.sttp.shared.core_2.13, com.softwaremill.sttp.shared.ws_2.13)
-  - com.squareup.okhttp (com.squareup.okhttp.okhttp)
-  - com.squareup.okhttp3 (com.squareup.okhttp3.logging-interceptor, com.squareup.okhttp3.okhttp)
-  - com.squareup.okio (com.squareup.okio.okio, com.squareup.okio.okio-jvm)
-  - com.thesamet.scalapb (com.thesamet.scalapb.*)
-  - com.twitter (com.twitter.util-core_2.13, com.twitter.util-function_2.13)
-  - com.typesafe (com.typesafe.config, com.typesafe.ssl-config-core_2.13)
-  - com.typesafe.play (com.typesafe.play.play-functional_2.13, com.typesafe.play.play-json_2.13)
-  - com.typesafe.scala-logging (com.typesafe.scala-logging.scala-logging_2.13)
-  - com.univocity (com.univocity.univocity-parsers)
-  - commons-beanutils (commons-beanutils.commons-beanutils)
-  - commons-cli (commons-cli.commons-cli)
-  - commons-codec (commons-codec.commons-codec)
-  - commons-collections (commons-collections.commons-collections)
-  - commons-io (commons-io.commons-io)
-  - commons-logging (commons-logging.commons-logging)
-  - commons-net (commons-net.commons-net)
-  - commons-pool (commons-pool.commons-pool)
-  - dev.failsafe (dev.failsafe.failsafe)
-  - io.airlift (io.airlift.aircompressor)
-  - io.altoo (io.altoo.pekko-kryo-serialization_2.13, io.altoo.scala-kryo-serialization_2.13)
-  - io.dropwizard (io.dropwizard.*)
-  - io.dropwizard-bundles (io.dropwizard-bundles.dropwizard-redirect-bundle)
-  - io.dropwizard.logback (io.dropwizard.logback.logback-throttling-appender)
-  - io.dropwizard.metrics (io.dropwizard.metrics.*)
-  - io.fabric8 (io.fabric8.*)
-  - io.github.kostaskougios (io.github.kostaskougios.cloning)
-  - io.grpc (io.grpc.*)
-  - io.gsonfire (io.gsonfire.gson-fire)
-  - io.kamon (io.kamon.sigar-loader)
-  - io.kubernetes (io.kubernetes.*)
-  - io.lakefs (io.lakefs.sdk)
-  - io.netty (io.netty.*)
-  - io.opencensus (io.opencensus.opencensus-api, io.opencensus.opencensus-contrib-http-util)
-  - io.perfmark (io.perfmark.perfmark-api)
-  - io.r2dbc (io.r2dbc.r2dbc-spi)
-  - io.reactivex.rxjava3 (io.reactivex.rxjava3.rxjava)
-  - io.swagger (io.swagger.swagger-annotations)
-  - jakarta.inject.jakarta (jakarta.inject.jakarta.inject-api)
-  - jakarta.validation.jakarta (jakarta.validation.jakarta.validation-api)
-  - javax.inject.javax (javax.inject.javax.inject)
-  - javax.validation (javax.validation.validation-api)
-  - joda-time (joda-time.joda-time)
-  - log4j (log4j.log4j)
-  - net.minidev (net.minidev.accessors-smart, net.minidev.json-smart)
-  - org.agrona (org.agrona.agrona)
-  - org.apache.arrow (org.apache.arrow.*)
-  - org.apache.avro (org.apache.avro.avro)
-  - org.apache.commons (org.apache.commons.*)
-  - org.apache.curator (org.apache.curator.*)
-  - org.apache.hadoop (org.apache.hadoop.*)
-  - org.apache.hadoop.thirdparty (org.apache.hadoop.thirdparty.hadoop-shaded-guava, org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_7)
-  - org.apache.htrace (org.apache.htrace.htrace-core4)
-  - org.apache.httpcomponents (org.apache.httpcomponents.*)
-  - org.apache.httpcomponents.client5 (org.apache.httpcomponents.client5.httpclient5)
-  - org.apache.httpcomponents.core5 (org.apache.httpcomponents.core5.httpcore5, org.apache.httpcomponents.core5.httpcore5-h2)
-  - org.apache.iceberg (org.apache.iceberg.*)
-  - org.apache.kerby (org.apache.kerby.*)
-  - org.apache.lucene (org.apache.lucene.*)
-  - org.apache.orc (org.apache.orc.orc-core, org.apache.orc.orc-shims)
-  - org.apache.parquet (org.apache.parquet.*)
-  - org.apache.pekko (org.apache.pekko.*)
-  - org.apache.yetus (org.apache.yetus.audience-annotations)
-  - org.apache.zookeeper (org.apache.zookeeper.zookeeper, org.apache.zookeeper.zookeeper-jute)
-  - org.bitbucket.b_c (org.bitbucket.b_c.jose4j)
-  - org.codehaus.woodstox (org.codehaus.woodstox.stax2-api)
-  - org.eclipse.jetty (org.eclipse.jetty.*)
-  - org.eclipse.jetty.toolchain (org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api)
-  - org.eclipse.jetty.toolchain.setuid (org.eclipse.jetty.toolchain.setuid.jetty-setuid-java)
-  - org.ehcache (org.ehcache.sizeof)
-  - org.hibernate (org.hibernate.hibernate-validator)
-  - org.hibernate.validator (org.hibernate.validator.hibernate-validator)
-  - org.jasypt (org.jasypt.jasypt)
-  - org.javassist (org.javassist.javassist)
-  - org.jboss.logging (org.jboss.logging.jboss-logging)
-  - org.jetbrains (org.jetbrains.annotations)
-  - org.jetbrains.kotlin (org.jetbrains.kotlin.*)
-  - org.jheaps (org.jheaps.jheaps)
-  - org.joda (org.joda.joda-convert)
-  - org.jooq (org.jooq.jooq)
-  - org.json4s (org.json4s.json4s-ast_2.13, org.json4s.json4s-jackson-core_2.13)
-  - org.lz4 (org.lz4.lz4-java)
-  - org.objenesis (org.objenesis.objenesis)
-  - org.openapitools (org.openapitools.jackson-databind-nullable)
-  - org.playframework (org.playframework.play-functional_2.13, org.playframework.play-json_2.13)
-  - org.roaringbitmap (org.roaringbitmap.RoaringBitmap)
-  - org.scala-lang (org.scala-lang.scala-library, org.scala-lang.scala-reflect)
-  - org.scala-lang.modules (org.scala-lang.modules.*)
-  - org.scalactic (org.scalactic.scalactic_2.13)
-  - org.snakeyaml (org.snakeyaml.snakeyaml-engine)
-  - org.typelevel (org.typelevel.*)
-  - org.xerial.snappy (org.xerial.snappy.snappy-java)
-  - org.yaml (org.yaml.snakeyaml)
-  - software.amazon.awssdk (software.amazon.awssdk.*)
-  - software.amazon.eventstream (software.amazon.eventstream.eventstream)
+  - lib/ch.qos.reload4j.reload4j-1.2.18.3.jar
+  - lib/com.fasterxml.classmate-1.3.1.jar
+  - lib/com.fasterxml.classmate-1.7.0.jar
+  - lib/com.fasterxml.jackson.core.jackson-annotations-2.18.6.jar
+  - lib/com.fasterxml.jackson.core.jackson-core-2.18.6.jar
+  - lib/com.fasterxml.jackson.core.jackson-databind-2.18.6.jar
+  - lib/com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1.jar
+  - lib/com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.17.0.jar
+  - lib/com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.9.10.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-guava-2.16.1.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-guava-2.9.10.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.11.4.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-joda-2.9.10.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.0.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.1.jar
+  - lib/com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.17.0.jar
+  - lib/com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-base-2.16.1.jar
+  - lib/com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar
+  - lib/com.fasterxml.jackson.jaxrs.jackson-jaxrs-base-2.10.5.jar
+  - lib/com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.10.5.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-afterburner-2.9.10.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-jakarta-xmlbind-annotations-2.16.1.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-jaxb-annotations-2.10.5.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-jsonSchema-2.18.6.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-no-ctor-deser-2.18.6.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-parameter-names-2.16.1.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-parameter-names-2.9.10.jar
+  - lib/com.fasterxml.jackson.module.jackson-module-scala_2.13-2.18.6.jar
+  - lib/com.fasterxml.woodstox.woodstox-core-5.3.0.jar
+  - lib/com.flipkart.zjsonpatch.zjsonpatch-0.4.13.jar
+  - lib/com.github.ben-manes.caffeine.caffeine-2.9.3.jar
+  - lib/com.github.ben-manes.caffeine.caffeine-3.1.8.jar
+  - lib/com.github.dirkraft.dropwizard.dropwizard-file-assets-0.0.2.jar
+  - lib/com.github.nscala-time.nscala-time_2.13-2.32.0.jar
+  - lib/com.github.sisyphsu.dateparser-1.0.11.jar
+  - lib/com.github.sisyphsu.retree-1.0.4.jar
+  - lib/com.github.stephenc.jcip.jcip-annotations-1.0-1.jar
+  - lib/com.github.toastshaman.dropwizard-auth-jwt-1.1.2-0.jar
+  - lib/com.github.tototoshi.scala-csv_2.13-1.3.10.jar
+  - lib/com.google.android.annotations-4.1.1.4.jar
+  - lib/com.google.api-client.google-api-client-2.2.0.jar
+  - lib/com.google.api.grpc.proto-google-common-protos-2.22.0.jar
+  - lib/com.google.api.grpc.proto-google-common-protos-2.29.0.jar
+  - lib/com.google.code.findbugs.jsr305-3.0.2.jar
+  - lib/com.google.code.gson.gson-2.10.1.jar
+  - lib/com.google.code.gson.gson-2.11.0.jar
+  - lib/com.google.errorprone.error_prone_annotations-2.23.0.jar
+  - lib/com.google.errorprone.error_prone_annotations-2.25.0.jar
+  - lib/com.google.errorprone.error_prone_annotations-2.27.0.jar
+  - lib/com.google.flatbuffers.flatbuffers-java-23.5.26.jar
+  - lib/com.google.guava.failureaccess-1.0.2.jar
+  - lib/com.google.guava.guava-33.0.0-jre.jar
+  - lib/com.google.guava.listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+  - lib/com.google.http-client.google-http-client-1.42.3.jar
+  - lib/com.google.http-client.google-http-client-apache-v2-1.42.3.jar
+  - lib/com.google.http-client.google-http-client-gson-1.42.3.jar
+  - lib/com.google.inject.extensions.guice-servlet-4.0.jar
+  - lib/com.google.inject.guice-4.0.jar
+  - lib/com.google.j2objc.j2objc-annotations-2.8.jar
+  - lib/com.google.oauth-client.google-oauth-client-1.34.1.jar
+  - lib/com.google.oauth-client.google-oauth-client-java6-1.34.1.jar
+  - lib/com.google.oauth-client.google-oauth-client-jetty-1.34.1.jar
+  - lib/com.googlecode.javaewah.JavaEWAH-1.1.12.jar
+  - lib/com.helger.profiler-1.1.1.jar
+  - lib/com.hierynomus.asn-one-0.6.0.jar
+  - lib/com.nimbusds.nimbus-jose-jwt-9.8.1.jar
+  - lib/com.papertrail.profiler-1.0.2.jar
+  - lib/com.softwaremill.common.tagging_2.13-2.3.5.jar
+  - lib/com.softwaremill.macwire.proxy_2.13-2.6.7.jar
+  - lib/com.softwaremill.macwire.util_2.13-2.6.7.jar
+  - lib/com.softwaremill.sttp.client4.core_2.13-4.0.0-M6.jar
+  - lib/com.softwaremill.sttp.model.core_2.13-1.7.2.jar
+  - lib/com.softwaremill.sttp.shared.core_2.13-1.3.16.jar
+  - lib/com.softwaremill.sttp.shared.ws_2.13-1.3.16.jar
+  - lib/com.squareup.okhttp.okhttp-2.7.5.jar
+  - lib/com.squareup.okhttp3.logging-interceptor-4.12.0.jar
+  - lib/com.squareup.okhttp3.okhttp-4.12.0.jar
+  - lib/com.squareup.okio.okio-3.6.0.jar
+  - lib/com.squareup.okio.okio-jvm-3.6.0.jar
+  - lib/com.thesamet.scalapb.lenses_2.13-0.11.20.jar
+  - lib/com.thesamet.scalapb.scalapb-json4s_2.13-0.12.0.jar
+  - lib/com.thesamet.scalapb.scalapb-runtime-grpc_2.13-0.11.20.jar
+  - lib/com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
+  - lib/com.twitter.util-core_2.13-22.12.0.jar
+  - lib/com.twitter.util-function_2.13-22.12.0.jar
+  - lib/com.typesafe.config-1.4.6.jar
+  - lib/com.typesafe.play.play-functional_2.13-2.10.6.jar
+  - lib/com.typesafe.play.play-functional_2.13-2.9.4.jar
+  - lib/com.typesafe.play.play-json_2.13-2.10.6.jar
+  - lib/com.typesafe.play.play-json_2.13-2.9.4.jar
+  - lib/com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar
+  - lib/com.typesafe.ssl-config-core_2.13-0.6.1.jar
+  - lib/com.univocity.univocity-parsers-2.9.1.jar
+  - lib/commons-beanutils.commons-beanutils-1.9.4.jar
+  - lib/commons-cli.commons-cli-1.2.jar
+  - lib/commons-codec.commons-codec-1.17.1.jar
+  - lib/commons-collections.commons-collections-3.2.2.jar
+  - lib/commons-io.commons-io-2.16.1.jar
+  - lib/commons-logging.commons-logging-1.2.jar
+  - lib/commons-net.commons-net-3.6.jar
+  - lib/commons-pool.commons-pool-1.6.jar
+  - lib/dev.failsafe.failsafe-3.3.2.jar
+  - lib/io.airlift.aircompressor-0.27.jar
+  - lib/io.altoo.pekko-kryo-serialization_2.13-1.3.0.jar
+  - lib/io.altoo.scala-kryo-serialization_2.13-1.3.0.jar
+  - lib/io.dropwizard-bundles.dropwizard-redirect-bundle-1.0.5.jar
+  - lib/io.dropwizard.dropwizard-auth-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-auth-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-client-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-configuration-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-configuration-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-core-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-core-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-health-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-jackson-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-jackson-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-jersey-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-jersey-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-jetty-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-jetty-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-lifecycle-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-lifecycle-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-logging-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-logging-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-metrics-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-metrics-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-request-logging-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-request-logging-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-servlets-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-servlets-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-util-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-util-4.0.7.jar
+  - lib/io.dropwizard.dropwizard-validation-1.3.23.jar
+  - lib/io.dropwizard.dropwizard-validation-4.0.7.jar
+  - lib/io.dropwizard.logback.logback-throttling-appender-1.4.2.jar
+  - lib/io.dropwizard.metrics.metrics-annotation-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-annotation-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-caffeine-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-core-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-core-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-healthchecks-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-healthchecks-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-httpclient-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-jakarta-servlets-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-jersey2-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-jersey3-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-jetty11-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-jetty9-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-jmx-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-jmx-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-json-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-json-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-jvm-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-jvm-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-logback-4.0.5.jar
+  - lib/io.dropwizard.metrics.metrics-logback-4.2.25.jar
+  - lib/io.dropwizard.metrics.metrics-servlets-4.0.5.jar
+  - lib/io.fabric8.kubernetes-client-6.12.1.jar
+  - lib/io.fabric8.kubernetes-client-api-6.12.1.jar
+  - lib/io.fabric8.kubernetes-httpclient-okhttp-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-admissionregistration-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-apiextensions-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-apps-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-autoscaling-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-batch-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-certificates-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-common-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-coordination-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-core-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-discovery-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-events-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-extensions-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-flowcontrol-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-gatewayapi-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-metrics-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-networking-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-node-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-policy-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-rbac-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-resource-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-scheduling-6.12.1.jar
+  - lib/io.fabric8.kubernetes-model-storageclass-6.12.1.jar
+  - lib/io.fabric8.zjsonpatch-0.3.0.jar
+  - lib/io.github.kostaskougios.cloning-1.10.3.jar
+  - lib/io.grpc.grpc-api-1.60.0.jar
+  - lib/io.grpc.grpc-api-1.62.2.jar
+  - lib/io.grpc.grpc-context-1.60.0.jar
+  - lib/io.grpc.grpc-context-1.62.2.jar
+  - lib/io.grpc.grpc-core-1.60.0.jar
+  - lib/io.grpc.grpc-core-1.62.2.jar
+  - lib/io.grpc.grpc-netty-1.60.0.jar
+  - lib/io.grpc.grpc-protobuf-1.60.0.jar
+  - lib/io.grpc.grpc-protobuf-1.62.2.jar
+  - lib/io.grpc.grpc-protobuf-lite-1.60.0.jar
+  - lib/io.grpc.grpc-protobuf-lite-1.62.2.jar
+  - lib/io.grpc.grpc-stub-1.60.0.jar
+  - lib/io.grpc.grpc-stub-1.62.2.jar
+  - lib/io.grpc.grpc-util-1.60.0.jar
+  - lib/io.gsonfire.gson-fire-1.8.5.jar
+  - lib/io.gsonfire.gson-fire-1.9.0.jar
+  - lib/io.kamon.sigar-loader-1.6.6-rev002.jar
+  - lib/io.kubernetes.client-java-21.0.0.jar
+  - lib/io.kubernetes.client-java-api-21.0.0.jar
+  - lib/io.kubernetes.client-java-proto-21.0.0.jar
+  - lib/io.lakefs.sdk-1.51.0.jar
+  - lib/io.netty.netty-3.10.6.Final.jar
+  - lib/io.netty.netty-buffer-4.1.104.Final.jar
+  - lib/io.netty.netty-buffer-4.1.96.Final.jar
+  - lib/io.netty.netty-codec-4.1.104.Final.jar
+  - lib/io.netty.netty-codec-4.1.96.Final.jar
+  - lib/io.netty.netty-codec-http-4.1.100.Final.jar
+  - lib/io.netty.netty-codec-http-4.1.96.Final.jar
+  - lib/io.netty.netty-codec-http2-4.1.100.Final.jar
+  - lib/io.netty.netty-codec-http2-4.1.96.Final.jar
+  - lib/io.netty.netty-codec-socks-4.1.100.Final.jar
+  - lib/io.netty.netty-common-4.1.104.Final.jar
+  - lib/io.netty.netty-common-4.1.96.Final.jar
+  - lib/io.netty.netty-handler-4.1.104.Final.jar
+  - lib/io.netty.netty-handler-4.1.96.Final.jar
+  - lib/io.netty.netty-handler-proxy-4.1.100.Final.jar
+  - lib/io.netty.netty-resolver-4.1.104.Final.jar
+  - lib/io.netty.netty-resolver-4.1.96.Final.jar
+  - lib/io.netty.netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
+  - lib/io.netty.netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
+  - lib/io.netty.netty-tcnative-boringssl-static-2.0.61.Final-osx-aarch_64.jar
+  - lib/io.netty.netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
+  - lib/io.netty.netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
+  - lib/io.netty.netty-tcnative-boringssl-static-2.0.61.Final.jar
+  - lib/io.netty.netty-tcnative-classes-2.0.61.Final.jar
+  - lib/io.netty.netty-transport-4.1.104.Final.jar
+  - lib/io.netty.netty-transport-4.1.96.Final.jar
+  - lib/io.netty.netty-transport-native-unix-common-4.1.104.Final.jar
+  - lib/io.netty.netty-transport-native-unix-common-4.1.96.Final.jar
+  - lib/io.opencensus.opencensus-api-0.31.1.jar
+  - lib/io.opencensus.opencensus-contrib-http-util-0.31.1.jar
+  - lib/io.perfmark.perfmark-api-0.26.0.jar
+  - lib/io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
+  - lib/io.reactivex.rxjava3.rxjava-3.1.6.jar
+  - lib/io.swagger.swagger-annotations-1.6.14.jar
+  - lib/jakarta.inject.jakarta.inject-api-2.0.1.jar
+  - lib/jakarta.validation.jakarta.validation-api-3.0.2.jar
+  - lib/javax.inject.javax.inject-1.jar
+  - lib/javax.validation.validation-api-2.0.1.Final.jar
+  - lib/joda-time.joda-time-2.11.0.jar
+  - lib/log4j.log4j-1.2.17.jar
+  - lib/net.minidev.accessors-smart-2.4.2.jar
+  - lib/net.minidev.accessors-smart-2.4.7.jar
+  - lib/net.minidev.json-smart-2.4.2.jar
+  - lib/net.minidev.json-smart-2.4.7.jar
+  - lib/org.agrona.agrona-1.22.0.jar
+  - lib/org.apache.arrow.arrow-format-15.0.2.jar
+  - lib/org.apache.arrow.arrow-memory-core-15.0.2.jar
+  - lib/org.apache.arrow.arrow-memory-netty-15.0.2.jar
+  - lib/org.apache.arrow.arrow-vector-15.0.2.jar
+  - lib/org.apache.arrow.flight-core-15.0.2.jar
+  - lib/org.apache.arrow.flight-grpc-15.0.2.jar
+  - lib/org.apache.avro.avro-1.12.0.jar
+  - lib/org.apache.commons.commons-collections4-4.2.jar
+  - lib/org.apache.commons.commons-collections4-4.4.jar
+  - lib/org.apache.commons.commons-compress-1.26.2.jar
+  - lib/org.apache.commons.commons-compress-1.27.1.jar
+  - lib/org.apache.commons.commons-configuration2-2.1.1.jar
+  - lib/org.apache.commons.commons-jcs3-core-3.2.jar
+  - lib/org.apache.commons.commons-lang3-3.13.0.jar
+  - lib/org.apache.commons.commons-lang3-3.14.0.jar
+  - lib/org.apache.commons.commons-lang3-3.16.0.jar
+  - lib/org.apache.commons.commons-math3-3.1.1.jar
+  - lib/org.apache.commons.commons-text-1.11.0.jar
+  - lib/org.apache.commons.commons-text-1.4.jar
+  - lib/org.apache.commons.commons-vfs2-2.9.0.jar
+  - lib/org.apache.curator.curator-client-4.2.0.jar
+  - lib/org.apache.curator.curator-framework-4.2.0.jar
+  - lib/org.apache.curator.curator-recipes-4.2.0.jar
+  - lib/org.apache.hadoop.hadoop-annotations-3.3.1.jar
+  - lib/org.apache.hadoop.hadoop-annotations-3.3.3.jar
+  - lib/org.apache.hadoop.hadoop-auth-3.3.1.jar
+  - lib/org.apache.hadoop.hadoop-auth-3.3.3.jar
+  - lib/org.apache.hadoop.hadoop-common-3.3.1.jar
+  - lib/org.apache.hadoop.hadoop-common-3.3.3.jar
+  - lib/org.apache.hadoop.hadoop-hdfs-client-3.3.1.jar
+  - lib/org.apache.hadoop.hadoop-mapreduce-client-core-3.3.1.jar
+  - lib/org.apache.hadoop.hadoop-yarn-api-3.3.1.jar
+  - lib/org.apache.hadoop.hadoop-yarn-client-3.3.1.jar
+  - lib/org.apache.hadoop.hadoop-yarn-common-3.3.1.jar
+  - lib/org.apache.hadoop.thirdparty.hadoop-shaded-guava-1.1.1.jar
+  - lib/org.apache.hadoop.thirdparty.hadoop-shaded-protobuf_3_7-1.1.1.jar
+  - lib/org.apache.htrace.htrace-core4-4.1.0-incubating.jar
+  - lib/org.apache.httpcomponents.client5.httpclient5-5.4.jar
+  - lib/org.apache.httpcomponents.core5.httpcore5-5.3.jar
+  - lib/org.apache.httpcomponents.core5.httpcore5-h2-5.3.jar
+  - lib/org.apache.httpcomponents.httpasyncclient-4.1.5.jar
+  - lib/org.apache.httpcomponents.httpclient-4.5.13.jar
+  - lib/org.apache.httpcomponents.httpclient-4.5.14.jar
+  - lib/org.apache.httpcomponents.httpcore-4.4.16.jar
+  - lib/org.apache.httpcomponents.httpcore-nio-4.4.13.jar
+  - lib/org.apache.httpcomponents.httpmime-4.5.13.jar
+  - lib/org.apache.iceberg.iceberg-api-1.7.1.jar
+  - lib/org.apache.iceberg.iceberg-aws-1.7.1.jar
+  - lib/org.apache.iceberg.iceberg-bundled-guava-1.7.1.jar
+  - lib/org.apache.iceberg.iceberg-common-1.7.1.jar
+  - lib/org.apache.iceberg.iceberg-core-1.7.1.jar
+  - lib/org.apache.iceberg.iceberg-data-1.7.1.jar
+  - lib/org.apache.iceberg.iceberg-parquet-1.7.1.jar
+  - lib/org.apache.kerby.kerb-admin-1.0.1.jar
+  - lib/org.apache.kerby.kerb-client-1.0.1.jar
+  - lib/org.apache.kerby.kerb-common-1.0.1.jar
+  - lib/org.apache.kerby.kerb-core-1.0.1.jar
+  - lib/org.apache.kerby.kerb-crypto-1.0.1.jar
+  - lib/org.apache.kerby.kerb-identity-1.0.1.jar
+  - lib/org.apache.kerby.kerb-server-1.0.1.jar
+  - lib/org.apache.kerby.kerb-simplekdc-1.0.1.jar
+  - lib/org.apache.kerby.kerb-util-1.0.1.jar
+  - lib/org.apache.kerby.kerby-asn1-1.0.1.jar
+  - lib/org.apache.kerby.kerby-config-1.0.1.jar
+  - lib/org.apache.kerby.kerby-pkix-1.0.1.jar
+  - lib/org.apache.kerby.kerby-util-1.0.1.jar
+  - lib/org.apache.kerby.kerby-xdr-1.0.1.jar
+  - lib/org.apache.kerby.token-provider-1.0.1.jar
+  - lib/org.apache.lucene.lucene-analyzers-common-8.11.4.jar
+  - lib/org.apache.lucene.lucene-core-8.11.4.jar
+  - lib/org.apache.lucene.lucene-memory-8.7.0.jar
+  - lib/org.apache.lucene.lucene-queries-8.7.0.jar
+  - lib/org.apache.lucene.lucene-queryparser-8.7.0.jar
+  - lib/org.apache.lucene.lucene-sandbox-8.7.0.jar
+  - lib/org.apache.orc.orc-core-1.9.4-nohive.jar
+  - lib/org.apache.orc.orc-shims-1.9.4.jar
+  - lib/org.apache.parquet.parquet-avro-1.13.1.jar
+  - lib/org.apache.parquet.parquet-column-1.13.1.jar
+  - lib/org.apache.parquet.parquet-common-1.13.1.jar
+  - lib/org.apache.parquet.parquet-encoding-1.13.1.jar
+  - lib/org.apache.parquet.parquet-format-structures-1.13.1.jar
+  - lib/org.apache.parquet.parquet-hadoop-1.13.1.jar
+  - lib/org.apache.parquet.parquet-jackson-1.13.1.jar
+  - lib/org.apache.pekko.pekko-actor_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-cluster-metrics_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-cluster-tools_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-cluster_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-coordination_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-persistence_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-pki_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-protobuf-v3_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-remote_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-slf4j_2.13-1.2.1.jar
+  - lib/org.apache.pekko.pekko-stream_2.13-1.2.1.jar
+  - lib/org.apache.yetus.audience-annotations-0.13.0.jar
+  - lib/org.apache.zookeeper.zookeeper-3.5.6.jar
+  - lib/org.apache.zookeeper.zookeeper-jute-3.5.6.jar
+  - lib/org.bitbucket.b_c.jose4j-0.9.6.jar
+  - lib/org.codehaus.woodstox.stax2-api-4.2.1.jar
+  - lib/org.eclipse.jetty.jetty-annotations-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.jetty-client-9.4.40.v20210413.jar
+  - lib/org.eclipse.jetty.jetty-continuation-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.jetty-http-11.0.20.jar
+  - lib/org.eclipse.jetty.jetty-http-9.4.20.v20190813.jar
+  - lib/org.eclipse.jetty.jetty-io-11.0.20.jar
+  - lib/org.eclipse.jetty.jetty-io-9.4.40.v20210413.jar
+  - lib/org.eclipse.jetty.jetty-jndi-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.jetty-plus-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.jetty-security-11.0.20.jar
+  - lib/org.eclipse.jetty.jetty-security-9.4.20.v20190813.jar
+  - lib/org.eclipse.jetty.jetty-server-11.0.20.jar
+  - lib/org.eclipse.jetty.jetty-server-9.4.20.v20190813.jar
+  - lib/org.eclipse.jetty.jetty-servlet-11.0.20.jar
+  - lib/org.eclipse.jetty.jetty-servlet-9.4.20.v20190813.jar
+  - lib/org.eclipse.jetty.jetty-servlets-11.0.20.jar
+  - lib/org.eclipse.jetty.jetty-servlets-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.jetty-util-11.0.20.jar
+  - lib/org.eclipse.jetty.jetty-util-9.4.40.v20210413.jar
+  - lib/org.eclipse.jetty.jetty-webapp-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.jetty-xml-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar
+  - lib/org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.3.jar
+  - lib/org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.4.jar
+  - lib/org.ehcache.sizeof-0.4.3.jar
+  - lib/org.hibernate.hibernate-validator-5.4.3.Final.jar
+  - lib/org.hibernate.validator.hibernate-validator-7.0.5.Final.jar
+  - lib/org.jasypt.jasypt-1.9.3.jar
+  - lib/org.javassist.javassist-3.30.2-GA.jar
+  - lib/org.jboss.logging.jboss-logging-3.3.0.Final.jar
+  - lib/org.jboss.logging.jboss-logging-3.5.3.Final.jar
+  - lib/org.jetbrains.annotations-17.0.0.jar
+  - lib/org.jetbrains.kotlin.kotlin-stdlib-1.9.10.jar
+  - lib/org.jetbrains.kotlin.kotlin-stdlib-common-1.9.10.jar
+  - lib/org.jetbrains.kotlin.kotlin-stdlib-jdk7-1.9.10.jar
+  - lib/org.jetbrains.kotlin.kotlin-stdlib-jdk8-1.9.10.jar
+  - lib/org.jheaps.jheaps-0.11.jar
+  - lib/org.joda.joda-convert-2.2.2.jar
+  - lib/org.jooq.jooq-3.16.23.jar
+  - lib/org.json4s.json4s-ast_2.13-4.0.1.jar
+  - lib/org.json4s.json4s-jackson-core_2.13-4.0.1.jar
+  - lib/org.lz4.lz4-java-1.8.0.jar
+  - lib/org.objenesis.objenesis-3.4.jar
+  - lib/org.openapitools.jackson-databind-nullable-0.2.6.jar
+  - lib/org.playframework.play-functional_2.13-3.1.0-M1.jar
+  - lib/org.playframework.play-json_2.13-3.1.0-M1.jar
+  - lib/org.roaringbitmap.RoaringBitmap-1.3.0.jar
+  - lib/org.scala-lang.modules.scala-collection-compat_2.13-2.13.0.jar
+  - lib/org.scala-lang.modules.scala-collection-contrib_2.13-0.3.0.jar
+  - lib/org.scala-lang.modules.scala-parser-combinators_2.13-1.1.2.jar
+  - lib/org.scala-lang.scala-library-2.13.18.jar
+  - lib/org.scala-lang.scala-reflect-2.13.18.jar
+  - lib/org.scalactic.scalactic_2.13-3.2.15.jar
+  - lib/org.snakeyaml.snakeyaml-engine-2.7.jar
+  - lib/org.typelevel.cats-core_2.13-2.11.0.jar
+  - lib/org.typelevel.cats-effect-kernel_2.13-3.6.3.jar
+  - lib/org.typelevel.cats-effect-std_2.13-3.6.3.jar
+  - lib/org.typelevel.cats-effect_2.13-3.6.3.jar
+  - lib/org.typelevel.cats-kernel_2.13-2.11.0.jar
+  - lib/org.typelevel.cats-mtl_2.13-1.3.1.jar
+  - lib/org.typelevel.fs2-grpc-runtime_2.13-2.11.0.jar
+  - lib/org.xerial.snappy.snappy-java-1.1.8.3.jar
+  - lib/org.yaml.snakeyaml-1.23.jar
+  - lib/org.yaml.snakeyaml-2.2.jar
+  - lib/software.amazon.awssdk.annotations-2.29.51.jar
+  - lib/software.amazon.awssdk.apache-client-2.29.51.jar
+  - lib/software.amazon.awssdk.arns-2.29.51.jar
+  - lib/software.amazon.awssdk.auth-2.29.51.jar
+  - lib/software.amazon.awssdk.aws-core-2.29.51.jar
+  - lib/software.amazon.awssdk.aws-query-protocol-2.29.51.jar
+  - lib/software.amazon.awssdk.aws-xml-protocol-2.29.51.jar
+  - lib/software.amazon.awssdk.checksums-2.29.51.jar
+  - lib/software.amazon.awssdk.checksums-spi-2.29.51.jar
+  - lib/software.amazon.awssdk.crt-core-2.29.51.jar
+  - lib/software.amazon.awssdk.endpoints-spi-2.29.51.jar
+  - lib/software.amazon.awssdk.http-auth-2.29.51.jar
+  - lib/software.amazon.awssdk.http-auth-aws-2.29.51.jar
+  - lib/software.amazon.awssdk.http-auth-aws-eventstream-2.29.51.jar
+  - lib/software.amazon.awssdk.http-auth-spi-2.29.51.jar
+  - lib/software.amazon.awssdk.http-client-spi-2.29.51.jar
+  - lib/software.amazon.awssdk.identity-spi-2.29.51.jar
+  - lib/software.amazon.awssdk.json-utils-2.29.51.jar
+  - lib/software.amazon.awssdk.metrics-spi-2.29.51.jar
+  - lib/software.amazon.awssdk.netty-nio-client-2.29.51.jar
+  - lib/software.amazon.awssdk.profiles-2.29.51.jar
+  - lib/software.amazon.awssdk.protocol-core-2.29.51.jar
+  - lib/software.amazon.awssdk.regions-2.29.51.jar
+  - lib/software.amazon.awssdk.retries-2.29.51.jar
+  - lib/software.amazon.awssdk.retries-spi-2.29.51.jar
+  - lib/software.amazon.awssdk.s3-2.29.51.jar
+  - lib/software.amazon.awssdk.sdk-core-2.29.51.jar
+  - lib/software.amazon.awssdk.sts-2.29.51.jar
+  - lib/software.amazon.awssdk.third-party-jackson-core-2.29.51.jar
+  - lib/software.amazon.awssdk.utils-2.29.51.jar
+  - lib/software.amazon.eventstream.eventstream-1.0.1.jar
 
 Python packages:
   - aiobotocore
@@ -425,17 +754,29 @@ Source files derived from third-party MIT-licensed projects:
     https://www.svgrepo.com
 
 Scala/Java jars:
-  - co.fs2 (co.fs2.fs2-core_2.13)
-  - com.konghq (com.konghq.unirest-java)
-  - com.liveperson (com.liveperson.dropwizard-websockets)
-  - io.github.classgraph (io.github.classgraph.classgraph)
-  - net.sourceforge.argparse4j (net.sourceforge.argparse4j.argparse4j)
-  - org.bouncycastle (org.bouncycastle.*)
-  - org.checkerframework (org.checkerframework.checker-qual)
-  - org.codehaus.mojo (org.codehaus.mojo.animal-sniffer-annotations)
-  - org.projectlombok (org.projectlombok.lombok)
-  - org.reactivestreams (org.reactivestreams.reactive-streams)
-  - org.slf4j (org.slf4j.*)
+  - lib/co.fs2.fs2-core_2.13-3.12.2.jar
+  - lib/com.konghq.unirest-java-3.14.2.jar
+  - lib/com.liveperson.dropwizard-websockets-1.3.14.jar
+  - lib/io.github.classgraph.classgraph-4.8.157.jar
+  - lib/net.sourceforge.argparse4j.argparse4j-0.8.1.jar
+  - lib/net.sourceforge.argparse4j.argparse4j-0.9.0.jar
+  - lib/org.bouncycastle.bcpkix-jdk18on-1.78.1.jar
+  - lib/org.bouncycastle.bcprov-jdk18on-1.78.1.jar
+  - lib/org.bouncycastle.bcutil-jdk18on-1.78.1.jar
+  - lib/org.checkerframework.checker-qual-3.42.0.jar
+  - lib/org.codehaus.mojo.animal-sniffer-annotations-1.23.jar
+  - lib/org.projectlombok.lombok-1.18.24.jar
+  - lib/org.reactivestreams.reactive-streams-1.0.3.jar
+  - lib/org.reactivestreams.reactive-streams-1.0.4.jar
+  - lib/org.slf4j.jcl-over-slf4j-1.7.26.jar
+  - lib/org.slf4j.jcl-over-slf4j-2.0.12.jar
+  - lib/org.slf4j.jul-to-slf4j-1.7.26.jar
+  - lib/org.slf4j.jul-to-slf4j-2.0.12.jar
+  - lib/org.slf4j.log4j-over-slf4j-2.0.12.jar
+  - lib/org.slf4j.log4j-over-slf4j-2.0.16.jar
+  - lib/org.slf4j.slf4j-api-1.7.26.jar
+  - lib/org.slf4j.slf4j-api-2.0.12.jar
+  - lib/org.slf4j.slf4j-api-2.0.16.jar
 
 Python packages:
   - aioitertools
@@ -592,18 +933,26 @@ licenses/LICENSE-BSD-3-Clause.txt for the full text of the BSD 3-Clause
 License.
 
 Scala/Java jars:
-  - com.esotericsoftware (com.esotericsoftware.*)
-  - com.esotericsoftware.kryo (com.esotericsoftware.kryo.kryo5)
-  - com.google.protobuf (com.google.protobuf.protobuf-java)
-  - com.google.re2j (com.google.re2j.re2j)
-  - com.jcraft (com.jcraft.jsch)
-  - com.thoughtworks.paranamer (com.thoughtworks.paranamer.paranamer)
-  - dnsjava (dnsjava.dnsjava)
-  - org.fusesource.leveldbjni (org.fusesource.leveldbjni.leveldbjni-all)
-  - org.jline (org.jline.jline)
-  - org.ow2.asm (org.ow2.asm.*)
-  - org.scodec (org.scodec.scodec-bits_2.13)
-  - org.threeten (org.threeten.threeten-extra)
+  - lib/com.esotericsoftware.kryo-5.6.2.jar
+  - lib/com.esotericsoftware.kryo.kryo5-5.6.2.jar
+  - lib/com.esotericsoftware.kryo5-5.6.0.jar
+  - lib/com.esotericsoftware.minlog-1.3.1.jar
+  - lib/com.esotericsoftware.reflectasm-1.11.9.jar
+  - lib/com.google.protobuf.protobuf-java-3.25.8.jar
+  - lib/com.google.protobuf.protobuf-java-4.27.1.jar
+  - lib/com.google.re2j.re2j-1.1.jar
+  - lib/com.jcraft.jsch-0.1.55.jar
+  - lib/com.thoughtworks.paranamer.paranamer-2.8.jar
+  - lib/dnsjava.dnsjava-2.1.7.jar
+  - lib/org.fusesource.leveldbjni.leveldbjni-all-1.8.jar
+  - lib/org.jline.jline-3.9.0.jar
+  - lib/org.ow2.asm.asm-8.0.1.jar
+  - lib/org.ow2.asm.asm-9.1.jar
+  - lib/org.ow2.asm.asm-analysis-7.0.jar
+  - lib/org.ow2.asm.asm-commons-7.0.jar
+  - lib/org.ow2.asm.asm-tree-7.0.jar
+  - lib/org.scodec.scodec-bits_2.13-1.1.38.jar
+  - lib/org.threeten.threeten-extra-1.7.1.jar
 
 Python packages:
   - cached-property
@@ -651,9 +1000,9 @@ licenses/LICENSE-BSD-2-Clause.txt for the full text of the BSD 2-Clause
 License.
 
 Scala/Java jars:
-  - com.github.luben (com.github.luben.zstd-jni)
-  - com.github.marianobarrios (com.github.marianobarrios.lbmq)
-  - org.postgresql (org.postgresql.postgresql)
+  - lib/com.github.luben.zstd-jni-1.5.0-1.jar
+  - lib/com.github.marianobarrios.lbmq-0.6.0.jar
+  - lib/org.postgresql.postgresql-42.7.4.jar
 
 Python packages:
   - imageio
@@ -672,7 +1021,7 @@ Apache Texera bundles the following ISC-licensed dependencies. See
 licenses/LICENSE-ISC.txt for the full text of the ISC License.
 
 Scala/Java jars:
-  - org.mindrot (org.mindrot.jbcrypt)
+  - lib/org.mindrot.jbcrypt-0.4.jar
 
 Angular / npm packages:
   - concaveman
@@ -706,23 +1055,50 @@ redistributes them under the EPL-2.0 terms. See
 licenses/LICENSE-EPL-2.0.txt for the full text.
 
 Scala/Java jars:
-  - jakarta.annotation.jakarta (jakarta.annotation.jakarta.annotation-api)
-  - jakarta.el.jakarta (jakarta.el.jakarta.el-api)
-  - jakarta.servlet.jakarta (jakarta.servlet.jakarta.servlet-api)
-  - jakarta.ws.rs.jakarta.ws (jakarta.ws.rs.jakarta.ws.rs-api)
-  - javax.ws.rs.javax.ws (javax.ws.rs.javax.ws.rs-api)
-  - org.eclipse.jetty.websocket (org.eclipse.jetty.websocket.*)
-  - org.glassfish.hk2 (org.glassfish.hk2.*)
-  - org.glassfish.hk2.external (org.glassfish.hk2.external.aopalliance-repackaged)
-  - org.glassfish.jakarta (org.glassfish.jakarta.el)
-  - org.glassfish.jersey.connectors (org.glassfish.jersey.connectors.jersey-apache-connector)
-  - org.glassfish.jersey.containers (org.glassfish.jersey.containers.jersey-container-servlet, org.glassfish.jersey.containers.jersey-container-servlet-core)
-  - org.glassfish.jersey.core (org.glassfish.jersey.core.*)
-  - org.glassfish.jersey.ext (org.glassfish.jersey.ext.jersey-bean-validation, org.glassfish.jersey.ext.jersey-metainf-services)
-  - org.glassfish.jersey.ext.rx (org.glassfish.jersey.ext.rx.jersey-rx-client)
-  - org.glassfish.jersey.inject (org.glassfish.jersey.inject.jersey-hk2)
-  - org.glassfish.jersey.media (org.glassfish.jersey.media.jersey-media-jaxb)
-  - org.jgrapht (org.jgrapht.jgrapht-core)
+  - lib/jakarta.annotation.jakarta.annotation-api-2.1.1.jar
+  - lib/jakarta.annotation.jakarta.annotation-api-3.0.0.jar
+  - lib/jakarta.el.jakarta.el-api-4.0.0.jar
+  - lib/jakarta.servlet.jakarta.servlet-api-5.0.0.jar
+  - lib/jakarta.ws.rs.jakarta.ws.rs-api-3.0.0.jar
+  - lib/jakarta.ws.rs.jakarta.ws.rs-api-3.1.0.jar
+  - lib/javax.ws.rs.javax.ws.rs-api-2.1.1.jar
+  - lib/org.eclipse.jetty.websocket.javax-websocket-client-impl-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.websocket.javax-websocket-server-impl-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.websocket.websocket-api-9.4.40.v20210413.jar
+  - lib/org.eclipse.jetty.websocket.websocket-client-9.4.40.v20210413.jar
+  - lib/org.eclipse.jetty.websocket.websocket-common-9.4.40.v20210413.jar
+  - lib/org.eclipse.jetty.websocket.websocket-server-9.4.18.v20190429.jar
+  - lib/org.eclipse.jetty.websocket.websocket-servlet-9.4.18.v20190429.jar
+  - lib/org.glassfish.hk2.external.aopalliance-repackaged-2.5.0-b32.jar
+  - lib/org.glassfish.hk2.external.aopalliance-repackaged-3.0.6.jar
+  - lib/org.glassfish.hk2.hk2-api-2.5.0-b32.jar
+  - lib/org.glassfish.hk2.hk2-api-3.0.6.jar
+  - lib/org.glassfish.hk2.hk2-locator-2.5.0-b32.jar
+  - lib/org.glassfish.hk2.hk2-locator-3.0.3.jar
+  - lib/org.glassfish.hk2.hk2-utils-2.5.0-b32.jar
+  - lib/org.glassfish.hk2.hk2-utils-3.0.6.jar
+  - lib/org.glassfish.hk2.osgi-resource-locator-1.0.1.jar
+  - lib/org.glassfish.hk2.osgi-resource-locator-1.0.3.jar
+  - lib/org.glassfish.jakarta.el-4.0.2.jar
+  - lib/org.glassfish.jersey.connectors.jersey-apache-connector-2.25.1.jar
+  - lib/org.glassfish.jersey.containers.jersey-container-servlet-2.25.1.jar
+  - lib/org.glassfish.jersey.containers.jersey-container-servlet-3.0.12.jar
+  - lib/org.glassfish.jersey.containers.jersey-container-servlet-core-2.25.1.jar
+  - lib/org.glassfish.jersey.containers.jersey-container-servlet-core-3.0.12.jar
+  - lib/org.glassfish.jersey.core.jersey-client-2.25.1.jar
+  - lib/org.glassfish.jersey.core.jersey-client-3.0.12.jar
+  - lib/org.glassfish.jersey.core.jersey-common-2.25.1.jar
+  - lib/org.glassfish.jersey.core.jersey-common-3.0.12.jar
+  - lib/org.glassfish.jersey.core.jersey-server-2.25.1.jar
+  - lib/org.glassfish.jersey.core.jersey-server-3.0.12.jar
+  - lib/org.glassfish.jersey.ext.jersey-bean-validation-2.25.1.jar
+  - lib/org.glassfish.jersey.ext.jersey-bean-validation-3.0.12.jar
+  - lib/org.glassfish.jersey.ext.jersey-metainf-services-2.25.1.jar
+  - lib/org.glassfish.jersey.ext.jersey-metainf-services-3.0.12.jar
+  - lib/org.glassfish.jersey.ext.rx.jersey-rx-client-2.25.1.jar
+  - lib/org.glassfish.jersey.inject.jersey-hk2-3.0.12.jar
+  - lib/org.glassfish.jersey.media.jersey-media-jaxb-2.25.1.jar
+  - lib/org.jgrapht.jgrapht-core-1.4.0.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Public License, Version 1.0
@@ -733,7 +1109,12 @@ is dual-licensed EPL-1.0 / LGPL-2.1; Texera redistributes under the
 EPL-1.0 terms). See licenses/LICENSE-EPL-1.0.txt for the full text.
 
 Scala/Java jars:
-  - ch.qos.logback (ch.qos.logback.*)
+  - lib/ch.qos.logback.logback-access-1.2.3.jar
+  - lib/ch.qos.logback.logback-access-1.4.14.jar
+  - lib/ch.qos.logback.logback-classic-1.2.3.jar
+  - lib/ch.qos.logback.logback-classic-1.4.14.jar
+  - lib/ch.qos.logback.logback-core-1.2.3.jar
+  - lib/ch.qos.logback.logback-core-1.4.14.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Common Development and Distribution License (CDDL)
@@ -745,17 +1126,18 @@ GPL-2.0 with Classpath Exception; Texera redistributes them under CDDL.
 See licenses/LICENSE-CDDL-1.1.txt for the full text.
 
 Scala/Java jars:
-  - com.sun.jersey.contribs (com.sun.jersey.contribs.jersey-guice)
-  - com.sun.mail.javax (com.sun.mail.javax.mail)
-  - javax.activation (javax.activation.activation)
-  - javax.annotation.javax (javax.annotation.javax.annotation-api)
-  - javax.servlet.javax (javax.servlet.javax.servlet-api)
-  - javax.websocket.javax (javax.websocket.javax.websocket-api, javax.websocket.javax.websocket-client-api)
-  - javax.ws.rs (javax.ws.rs.jsr311-api)
-  - javax.xml.bind (javax.xml.bind.jaxb-api)
-  - org.glassfish.hk2.external.javax (org.glassfish.hk2.external.javax.inject)
-  - org.glassfish.javax (org.glassfish.javax.el)
-  - org.glassfish.jersey.bundles.repackaged (org.glassfish.jersey.bundles.repackaged.jersey-guava)
+  - lib/com.sun.jersey.contribs.jersey-guice-1.19.jar
+  - lib/com.sun.mail.javax.mail-1.6.2.jar
+  - lib/javax.activation.activation-1.1.1.jar
+  - lib/javax.annotation.javax.annotation-api-1.3.2.jar
+  - lib/javax.servlet.javax.servlet-api-3.1.0.jar
+  - lib/javax.websocket.javax.websocket-api-1.0.jar
+  - lib/javax.websocket.javax.websocket-client-api-1.0.jar
+  - lib/javax.ws.rs.jsr311-api-1.1.1.jar
+  - lib/javax.xml.bind.jaxb-api-2.3.0.jar
+  - lib/org.glassfish.hk2.external.javax.inject-2.5.0-b32.jar
+  - lib/org.glassfish.javax.el-3.0.0.jar
+  - lib/org.glassfish.jersey.bundles.repackaged.jersey-guava-2.25.1.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Distribution License, Version 1.0
@@ -765,11 +1147,15 @@ Apache Texera bundles the following EDL-1.0-licensed dependencies (a
 BSD-style license). See licenses/LICENSE-EDL-1.0.txt for the full text.
 
 Scala/Java jars:
-  - com.sun.activation.jakarta (com.sun.activation.jakarta.activation)
-  - jakarta.activation.jakarta (jakarta.activation.jakarta.activation-api)
-  - jakarta.xml.bind.jakarta.xml (jakarta.xml.bind.jakarta.xml.bind-api)
-  - org.eclipse.collections (org.eclipse.collections.eclipse-collections, org.eclipse.collections.eclipse-collections-api)
-  - org.eclipse.jgit.org.eclipse (org.eclipse.jgit.org.eclipse.jgit)
+  - lib/com.sun.activation.jakarta.activation-2.0.0.jar
+  - lib/com.sun.activation.jakarta.activation-2.0.1.jar
+  - lib/jakarta.activation.jakarta.activation-api-1.2.1.jar
+  - lib/jakarta.activation.jakarta.activation-api-2.1.0.jar
+  - lib/jakarta.xml.bind.jakarta.xml.bind-api-3.0.0.jar
+  - lib/jakarta.xml.bind.jakarta.xml.bind-api-3.0.1.jar
+  - lib/org.eclipse.collections.eclipse-collections-11.1.0.jar
+  - lib/org.eclipse.collections.eclipse-collections-api-11.1.0.jar
+  - lib/org.eclipse.jgit.org.eclipse.jgit-5.13.0.202109080827-r.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Python Software Foundation License
@@ -803,7 +1189,7 @@ Apache Texera bundles the following 0BSD-licensed dependencies. See
 licenses/LICENSE-0BSD.txt for the full text.
 
 Scala/Java jars:
-  - org.tukaani (org.tukaani.xz)
+  - lib/org.tukaani.xz-1.9.jar
 
 --------------------------------------------------------------------------------
 Dependencies in the Public Domain
@@ -813,7 +1199,7 @@ The following component has been placed into the public domain by its
 authors. No license text accompanies a public-domain dedication.
 
 Scala/Java jars:
-  - aopalliance (aopalliance.aopalliance)
+  - lib/aopalliance.aopalliance-1.0.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Unlicense
