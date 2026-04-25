@@ -276,9 +276,7 @@ export class WorkflowState {
       sourceOperatorIds.add(link.source.operatorID);
     }
 
-    const leaves = allOperators
-      .filter(op => !sourceOperatorIds.has(op.operatorID))
-      .map(op => op.operatorID);
+    const leaves = allOperators.filter(op => !sourceOperatorIds.has(op.operatorID)).map(op => op.operatorID);
 
     if (leaves.length === 0) {
       return allOperators.map(op => op.operatorID);

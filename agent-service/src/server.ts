@@ -204,9 +204,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           t.Object({
             maxOperatorResultCharLimit: t.Optional(t.Number()),
             maxOperatorResultCellCharLimit: t.Optional(t.Number()),
-            operatorResultSerializationMode: t.Optional(
-              t.Literal("tsv")
-            ),
+            operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
             toolTimeoutSeconds: t.Optional(t.Number()),
             executionTimeoutMinutes: t.Optional(t.Number()),
             disabledTools: t.Optional(t.Array(t.String())),
@@ -372,9 +370,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       body: t.Object({
         maxOperatorResultCharLimit: t.Optional(t.Number()),
         maxOperatorResultCellCharLimit: t.Optional(t.Number()),
-        operatorResultSerializationMode: t.Optional(
-          t.Literal("tsv")
-        ),
+        operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
         toolTimeoutSeconds: t.Optional(t.Number()),
         executionTimeoutMinutes: t.Optional(t.Number()),
         maxSteps: t.Optional(t.Number()),

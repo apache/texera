@@ -33,9 +33,7 @@ function serializePortIdentity(id: number, internal: boolean = false): string {
   return `${id}_${internal}`;
 }
 
-function parseLogicalOperatorPortID(
-  portId: string
-): { portNumber: number; portType: "input" | "output" } | undefined {
+function parseLogicalOperatorPortID(portId: string): { portNumber: number; portType: "input" | "output" } | undefined {
   const match = portId.match(/^(input|output)-(\d+)$/);
   if (!match) {
     return undefined;

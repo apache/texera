@@ -256,12 +256,14 @@ You have the following operators available:
 {{OPERATOR_SCHEMA}}
 `;
 
-function buildAllowedOperatorSchemas(metadataStore: WorkflowSystemMetadata, allowedOperatorTypes: string[] = []): string {
+function buildAllowedOperatorSchemas(
+  metadataStore: WorkflowSystemMetadata,
+  allowedOperatorTypes: string[] = []
+): string {
   const schemas: string[] = [];
 
-  const operatorTypes = allowedOperatorTypes.length > 0
-    ? allowedOperatorTypes
-    : Object.keys(metadataStore.getAllOperatorTypes());
+  const operatorTypes =
+    allowedOperatorTypes.length > 0 ? allowedOperatorTypes : Object.keys(metadataStore.getAllOperatorTypes());
 
   for (const operatorType of operatorTypes) {
     const compactSchema = metadataStore.getCompactSchema(operatorType);

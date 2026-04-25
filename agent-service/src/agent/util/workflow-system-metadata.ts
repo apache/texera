@@ -266,4 +266,3 @@ export function formatCompactSchemaForError(compactSchema: CompactOperatorSchema
   }
   return `required: [${compactSchema.required.join(", ")}], properties: ${JSON.stringify(requiredProps)}`;
 }
-

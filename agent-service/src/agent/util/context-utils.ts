@@ -73,7 +73,9 @@ export function assembleContext(
       sections.push("# Ongoing Task");
       sections.push(serializeTask(steps, "ongoing"));
       sections.push("");
-      sections.push("Above is user's request and the steps you already took. You as an assistant please keep working on solving user's request based on the progress of current workflow.");
+      sections.push(
+        "Above is user's request and the steps you already took. You as an assistant please keep working on solving user's request based on the progress of current workflow."
+      );
     }
   }
 
@@ -183,14 +185,16 @@ function serializeDag(
     const inputSchemaMap = extractOperatorInputPortSchemaMap(op.operatorID, op, outputSchemas, allLinks);
     const outputSchemaMap = outputSchemas[op.operatorID];
     const compilationError = compilationErrors[op.operatorID];
-    lines.push(serializeOperator(
-      op,
-      operatorExecutionResults.get(op.operatorID),
-      useRedact,
-      inputSchemaMap,
-      outputSchemaMap,
-      compilationError,
-    ));
+    lines.push(
+      serializeOperator(
+        op,
+        operatorExecutionResults.get(op.operatorID),
+        useRedact,
+        inputSchemaMap,
+        outputSchemaMap,
+        compilationError
+      )
+    );
     lines.push("");
   }
 
@@ -217,12 +221,10 @@ function serializeOperator(
   useRedact: boolean,
   inputSchemaMap?: OperatorPortSchemaMap,
   outputSchemaMap?: OperatorPortSchemaMap,
-  compilationError?: WorkflowFatalError,
+  compilationError?: WorkflowFatalError
 ): string {
   const hasError = execResult !== undefined && execResult.includes("[ERROR]");
-  const status = execResult
-    ? (hasError ? "failed" : "executed")
-    : "not-executed";
+  const status = execResult ? (hasError ? "failed" : "executed") : "not-executed";
 
   const summary = op.customDisplayName || op.operatorID;
   const showProperties = !useRedact || hasError;
@@ -265,7 +267,10 @@ function serializeOperator(
 
   if (execResult) {
     lines.push("Result:");
-    const indented = execResult.split("\n").map(l => "  " + l).join("\n");
+    const indented = execResult
+      .split("\n")
+      .map(l => "  " + l)
+      .join("\n");
     lines.push(indented);
   }
 

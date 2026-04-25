@@ -23,12 +23,7 @@ import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 import { WorkflowResultState } from "./workflow-result-state";
-import type {
-  AgentSettings,
-  ReActStep,
-  TokenUsage,
-  UserInfo,
-} from "../types/agent";
+import type { AgentSettings, ReActStep, TokenUsage, UserInfo } from "../types/agent";
 import {
   AgentState as AgentStateEnum,
   DEFAULT_AGENT_SETTINGS,
@@ -432,7 +427,6 @@ export class TexeraAgent {
 
     await this.refreshWorkflowFromBackend();
 
-
     this.abortController = new AbortController();
 
     this.state = AgentStateEnum.GENERATING;
@@ -480,23 +474,27 @@ export class TexeraAgent {
         temperature: 0.2,
         stopWhen: stepCountIs(this.settings.maxSteps),
         prepareStep: async ({ stepNumber, messages: currentMessages }) => {
-              let compilationResult: WorkflowCompilationResponse | null = null;
-              if (this.workflowState.getAllOperators().length > 0) {
-                try {
-                  const logicalPlan = this.workflowState.toLogicalPlan();
-                  compilationResult = await compileWorkflowAsync(logicalPlan);
-                } catch (e: any) {
-                  this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
-                }
-              }
+          let compilationResult: WorkflowCompilationResponse | null = null;
+          if (this.workflowState.getAllOperators().length > 0) {
+            try {
+              const logicalPlan = this.workflowState.toLogicalPlan();
+              compilationResult = await compileWorkflowAsync(logicalPlan);
+            } catch (e: any) {
+              this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
+            }
+          }
 
-              const visibleSteps = this.getVisibleReActSteps();
-              const processed = assembleContext(
-                visibleSteps, this.workflowState, this.getFormattedResultsForDAG(), false, compilationResult
-              );
-              lastPreparedMessages = processed;
-              return { messages: processed };
-            },
+          const visibleSteps = this.getVisibleReActSteps();
+          const processed = assembleContext(
+            visibleSteps,
+            this.workflowState,
+            this.getFormattedResultsForDAG(),
+            false,
+            compilationResult
+          );
+          lastPreparedMessages = processed;
+          return { messages: processed };
+        },
         abortSignal: this.abortController?.signal,
         // reasoning_effort is configured per-model in litellm-config.yaml via extra_body
         // to bypass LiteLLM's param validation — do not pass it here.
@@ -700,8 +698,7 @@ export class TexeraAgent {
             modified.push(output.operatorId);
           }
         }
-      } catch {
-      }
+      } catch {}
     }
 
     return { added, modified };
