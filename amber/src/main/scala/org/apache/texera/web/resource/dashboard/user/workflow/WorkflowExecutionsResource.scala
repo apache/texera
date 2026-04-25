@@ -247,8 +247,6 @@ object WorkflowExecutionsResource {
         OPERATOR_PORT_EXECUTIONS.RESULT_URI
       )
       .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
-      .onConflict()
-      .doNothing()
       .execute()
   }
 

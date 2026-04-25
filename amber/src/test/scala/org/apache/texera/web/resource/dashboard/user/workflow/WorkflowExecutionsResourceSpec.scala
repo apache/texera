@@ -184,7 +184,7 @@ class WorkflowExecutionsResourceSpec
     )
   }
 
-  "WorkflowExecutionsResource.insertOperatorPortResultUri" should "ignore duplicate inserts" in {
+  "WorkflowExecutionsResource.insertOperatorPortResultUri" should "insert a result URI row" in {
     val execution = new WorkflowExecutions
     execution.setVid(testVersion.getVid)
     execution.setUid(testUser.getUid)
@@ -204,7 +204,6 @@ class WorkflowExecutionsResourceSpec
     )
     val uri = URI.create("vfs:///test-result")
 
-    WorkflowExecutionsResource.insertOperatorPortResultUri(executionId, globalPortId, uri)
     WorkflowExecutionsResource.insertOperatorPortResultUri(executionId, globalPortId, uri)
 
     val rows = getDSLContext

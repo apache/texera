@@ -35,15 +35,31 @@ case class WorkflowExecution() {
     mutable.LinkedHashMap()
 
   /**
-    * Initializes or retrieves a `RegionExecution` for a given `Region`. If not already
-    * initialized, it creates and returns a new `RegionExecution`。
+    * Initializes a `RegionExecution` for a region that has not run before.
     *
-    * @param region The `Region` for which to initialize or retrieve the `RegionExecution`.
-    * @return The `RegionExecution` associated with the given `Region`.
+    * @param region The `Region` for which to initialize the `RegionExecution`.
+    * @return The new `RegionExecution` associated with the given `Region`.
     */
   def initRegionExecution(region: Region): RegionExecution = {
-    regionExecutions.remove(region.id)
-    regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
+    assert(
+      !regionExecutions.contains(region.id),
+      s"RegionExecution of ${region.id} already initialized."
+    )
+    val regionExecution = RegionExecution(region)
+    regionExecutions.put(region.id, regionExecution)
+    regionExecution
+  }
+
+  def restartRegionExecution(region: Region): RegionExecution = {
+    regionExecutions.get(region.id).foreach { existingRegionExecution =>
+      assert(
+        existingRegionExecution.isCompleted,
+        s"Cannot restart running RegionExecution of ${region.id}."
+      )
+    }
+    val regionExecution = RegionExecution(region)
+    regionExecutions.put(region.id, regionExecution)
+    regionExecution
   }
 
   /**
@@ -53,6 +69,8 @@ case class WorkflowExecution() {
     * @return The `RegionExecution` associated with the specified `regionId`.
     */
   def getRegionExecution(regionId: RegionIdentity): RegionExecution = regionExecutions(regionId)
+
+  def hasRegionExecution(regionId: RegionIdentity): Boolean = regionExecutions.contains(regionId)
 
   /**
     * Retrieves all `RegionExecutions` that are currently in running state,
