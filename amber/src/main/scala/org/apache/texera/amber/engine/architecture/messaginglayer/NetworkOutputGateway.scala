@@ -47,10 +47,8 @@ class NetworkOutputGateway(
   private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
   def addOutputChannel(channelId: ChannelIdentity): Unit = {
-    synchronized {
-      if (!idToSequenceNums.contains(channelId)) {
-        idToSequenceNums(channelId) = new AtomicLong()
-      }
+    if (!idToSequenceNums.contains(channelId)) {
+      idToSequenceNums(channelId) = new AtomicLong()
     }
   }
 
@@ -88,15 +86,11 @@ class NetworkOutputGateway(
     handler(WorkflowFIFOMessage(destChannelId, seqNum, payload))
   }
 
-  def getFIFOState: Map[ChannelIdentity, Long] = synchronized {
-    idToSequenceNums.map(x => (x._1, x._2.get())).toMap
-  }
+  def getFIFOState: Map[ChannelIdentity, Long] = idToSequenceNums.map(x => (x._1, x._2.get())).toMap
 
-  def getActiveChannels: Iterable[ChannelIdentity] = synchronized {
-    idToSequenceNums.keys.toList
-  }
+  def getActiveChannels: Iterable[ChannelIdentity] = idToSequenceNums.keys
 
-  def getSequenceNumber(channelId: ChannelIdentity): Long = synchronized {
+  def getSequenceNumber(channelId: ChannelIdentity): Long = {
     idToSequenceNums.getOrElseUpdate(channelId, new AtomicLong()).getAndIncrement()
   }
 

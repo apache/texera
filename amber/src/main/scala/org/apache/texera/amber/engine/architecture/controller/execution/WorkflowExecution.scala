@@ -35,19 +35,21 @@ case class WorkflowExecution() {
     mutable.LinkedHashMap()
 
   /**
-    * Initializes a `RegionExecution` for a region that has not run before.
+    * Initializes or retrieves a `RegionExecution` for a given `Region`. If not already
+    * initialized, it creates and returns a new `RegionExecution`; otherwise, an assertion
+    * error is thrown if re-initialization is attempted.
     *
-    * @param region The `Region` for which to initialize the `RegionExecution`.
-    * @return The new `RegionExecution` associated with the given `Region`.
+    * @param region The `Region` for which to initialize or retrieve the `RegionExecution`.
+    * @return The `RegionExecution` associated with the given `Region`.
+    * @throws AssertionError if the `RegionExecution` has already been initialized.
     */
   def initRegionExecution(region: Region): RegionExecution = {
+    // ensure the region execution hasn't been initialized already.
     assert(
       !regionExecutions.contains(region.id),
       s"RegionExecution of ${region.id} already initialized."
     )
-    val regionExecution = RegionExecution(region)
-    regionExecutions.put(region.id, regionExecution)
-    regionExecution
+    regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
   }
 
   def restartRegionExecution(region: Region): RegionExecution = {
