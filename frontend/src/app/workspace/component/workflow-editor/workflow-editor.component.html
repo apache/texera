@@ -27,26 +27,6 @@
     <texera-context-menu></texera-context-menu>
   </nz-dropdown-menu>
 
-  <!-- Step Badge Overlay Container (for message highlighting) -->
-  <div
-    class="step-badges-container"
-    *ngIf="showStepBadges && stepBadges.length > 0">
-    <div
-      *ngFor="let badge of stepBadges"
-      class="step-badge"
-      [class.added]="badge.action === 'added'"
-      [class.modified]="badge.action === 'modified'"
-      [class.executed]="badge.action === 'executed'"
-      [style.left.px]="badge.position.x"
-      [style.top.px]="badge.position.y"
-      (click)="onStepBadgeClick(badge)"
-      nz-tooltip
-      [nzTooltipTitle]="'Step ' + badge.stepId + ' (' + badge.action + ')'"
-      nzTooltipPlacement="top">
-      {{ badge.stepId }}
-    </div>
-  </div>
-
   <!-- Chat Popover for Operator -->
   <div
     class="chat-popover-container"

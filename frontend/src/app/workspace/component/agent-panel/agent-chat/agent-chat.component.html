@@ -105,22 +105,6 @@
               [nzType]="response.role === 'user' ? 'user' : 'robot'"
               nzTheme="outline"></i>
             <span class="message-role">{{ response.role === 'user' ? 'You' : agentInfo.name }}</span>
-            <!-- Highlight operators toggle button (only for user messages) -->
-            <button
-              *ngIf="response.role === 'user'"
-              nz-button
-              nzType="text"
-              nzSize="small"
-              (click)="toggleMessageHighlight(response.messageId); $event.stopPropagation()"
-              nz-tooltip
-              [nzTooltipTitle]="isMessageHighlighted(response.messageId) ? 'Hide affected operators' : 'Highlight affected operators'"
-              class="message-highlight-btn">
-              <i
-                nz-icon
-                nzType="highlight"
-                nzTheme="outline"
-                [style.color]="isMessageHighlighted(response.messageId) ? '#1890ff' : 'inherit'"></i>
-            </button>
           </div>
 
           <!-- Message content with hover button -->
@@ -129,26 +113,6 @@
             (mouseenter)="setHoveredMessage(i)"
             (mouseleave)="setHoveredMessage(null)"
             style="position: relative">
-            <!-- Step ID badge at top-left corner -->
-            <div
-              style="
-                position: absolute;
-                top: -8px;
-                left: -8px;
-                background: #1890ff;
-                color: white;
-                font-size: 11px;
-                font-weight: 500;
-                padding: 2px 6px;
-                border-radius: 10px;
-                font-family: monospace;
-                z-index: 1;
-              "
-              nz-tooltip
-              [nzTooltipTitle]="'Message ID: ' + response.messageId + ' | Step ID: ' + response.stepId">
-              {{ response.stepId }}
-            </div>
-
             <div
               *ngIf="response.content"
               class="message-content">

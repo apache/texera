@@ -45,7 +45,6 @@ import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
 import { AgentActionService } from "../../service/agent-action/agent-action.service";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
-import { OperatorStepRef } from "../../service/agent/agent-types";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -98,17 +97,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private removeButton!: new () => joint.linkTools.Button;
   private breakpointButton!: new () => joint.linkTools.Button;
 
-  // Step badge overlay state (for message highlighting)
-  public showStepBadges = false;
-  public stepBadges: Array<{
-    operatorId: string;
-    stepId: number;
-    messageId: string;
-    agentId: string;
-    action: "added" | "modified" | "executed";
-    position: { x: number; y: number };
-  }> = [];
-
   // Chat popover state (operator chat button)
   public chatPopoverOperator: {
     operatorId: string;
@@ -117,13 +105,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   } | null = null;
 
   // Cached agent result summaries for port label display
-
-
-  // Message region highlighting state
-  private messageRegionElement: joint.dia.Element | null = null;
-  private highlightedMessageOperators: joint.dia.Cell[] = [];
-  private highlightedMessageId: string | null = null;
-  private currentOperatorStepsMap: Map<string, OperatorStepRef[]> = new Map();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -222,8 +203,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleURLFragment();
     this.invokeResize();
     this.handleCenterEvent();
-    this.handleStepBadges();
-    this.handleMessageRegion();
     this.handleOperatorChatButton();
   }
 
@@ -1532,242 +1511,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .forEach(op => {
         this.jointUIService.hideAgentActionLabel(this.paper, op.operatorID);
       });
-  }
-
-  // ============================================================================
-  // Step Badge Feature
-  // ============================================================================
-
-  /**
-   * Handle step badge overlay feature.
-   * Subscribes to highlightedMessageId$ and operatorStepsMap$ to render badges on operators.
-   * Only shows badges for the currently highlighted message.
-   */
-  private handleStepBadges(): void {
-    // Subscribe to highlightedMessageId$ and operatorStepsMap$
-    // Badges are shown only for the highlighted message
-    combineLatest([
-      this.agentService.highlightedMessageId$,
-      this.agentService.operatorStepsMap$,
-    ])
-      .pipe(untilDestroyed(this))
-      .subscribe(([messageId, operatorStepsMap]) => {
-        this.showStepBadges = messageId !== null;
-        this.currentOperatorStepsMap = operatorStepsMap;
-        if (messageId) {
-          this.updateStepBadgePositions(operatorStepsMap, messageId);
-        } else {
-          this.stepBadges = [];
-        }
-        this.changeDetectorRef.detectChanges();
-      });
-
-    // Update badge positions when operators move
-    fromJointPaperEvent(this.paper, "element:pointerup")
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.showStepBadges) {
-          this.agentService.updateOperatorStepsMap();
-        }
-      });
-
-    // Update positions on zoom changes
-    this.wrapper
-      .getWorkflowEditorZoomStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.showStepBadges && this.highlightedMessageId) {
-          this.updateStepBadgePositions(this.currentOperatorStepsMap, this.highlightedMessageId);
-        }
-      });
-
-    // Update positions on pan changes
-    fromJointPaperEvent(this.paper, "translate")
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.showStepBadges && this.highlightedMessageId) {
-          this.updateStepBadgePositions(this.currentOperatorStepsMap, this.highlightedMessageId);
-        }
-      });
-  }
-
-  /**
-   * Update step badge positions based on operator positions on the canvas.
-   * Only shows badges for steps that belong to the specified messageId.
-   */
-  private updateStepBadgePositions(
-    operatorStepsMap: Map<string, OperatorStepRef[]>,
-    filterMessageId: string
-  ): void {
-    const badges: typeof this.stepBadges = [];
-
-    for (const [operatorId, stepRefs] of operatorStepsMap) {
-      // Filter to only show badges for the highlighted message
-      const filteredRefs = stepRefs.filter(ref => ref.messageId === filterMessageId);
-      if (filteredRefs.length === 0) {
-        continue;
-      }
-
-      const jointCell = this.paper.getModelById(operatorId);
-      if (!jointCell) {
-        continue;
-      }
-
-      const bbox = jointCell.getBBox();
-      const scale = this.paper.scale();
-      const translate = this.paper.translate();
-
-      // Position badges at top-left corner of operator
-      // Each badge is offset horizontally to stack them
-      const BADGE_SIZE = 22;
-      const BADGE_GAP = 4;
-
-      filteredRefs.forEach((stepRef, index) => {
-        const screenX = bbox.x * scale.sx + translate.tx - 8 + index * (BADGE_SIZE + BADGE_GAP);
-        const screenY = bbox.y * scale.sy + translate.ty - 8;
-
-        badges.push({
-          operatorId,
-          stepId: stepRef.stepId,
-          messageId: stepRef.messageId,
-          agentId: stepRef.agentId,
-          action: stepRef.action,
-          position: { x: screenX, y: screenY },
-        });
-      });
-    }
-
-    this.stepBadges = badges;
-  }
-
-  /**
-   * Handle click on a step badge - scroll to the step in agent chat.
-   */
-  onStepBadgeClick(badge: (typeof this.stepBadges)[0]): void {
-    this.agentService.requestScrollToStep(badge.agentId, badge.messageId, badge.stepId);
-  }
-
-  /**
-   * Handle message region highlighting.
-   * When a user message is highlighted in the agent chat, this creates a region
-   * around all operators that were affected by that message's ReActSteps.
-   */
-  private handleMessageRegion(): void {
-    // Define the MessageRegion element type (transparent fill with blue stroke border)
-    const MessageRegion = joint.dia.Element.define(
-      "messageRegion",
-      {
-        attrs: {
-          body: {
-            fill: "transparent", // Transparent fill so step badges are visible
-            stroke: "#1890ff", // Blue border matching the message badge color
-            strokeWidth: 2,
-            strokeDasharray: "8,4", // Dashed line for distinction from execution regions
-            pointerEvents: "none",
-            class: "message-region",
-          },
-        },
-      },
-      {
-        markup: [{ tagName: "path", selector: "body" }],
-      }
-    );
-
-    // Subscribe to highlighted message changes
-    this.agentService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
-      this.highlightedMessageId = messageId;
-      this.updateMessageRegion(MessageRegion, messageId);
-    });
-
-    // Update region when operators move (while message is highlighted)
-    this.paper.model.on("change:position", (cell: joint.dia.Cell) => {
-      if (this.highlightedMessageId && this.highlightedMessageOperators.includes(cell)) {
-        this.updateMessageRegionPath();
-      }
-    });
-
-    // Update region on zoom/pan
-    fromJointPaperEvent(this.paper, "scale")
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.highlightedMessageId) {
-          this.updateMessageRegionPath();
-        }
-      });
-  }
-
-  /**
-   * Update the message region for the given message ID.
-   * Creates or removes the region based on whether a message is highlighted.
-   */
-  private updateMessageRegion(
-    MessageRegion: ReturnType<typeof joint.dia.Element.define>,
-    messageId: string | null
-  ): void {
-    // Remove existing region
-    if (this.messageRegionElement) {
-      this.messageRegionElement.remove();
-      this.messageRegionElement = null;
-      this.highlightedMessageOperators = [];
-    }
-
-    if (!messageId) {
-      this.changeDetectorRef.detectChanges();
-      return;
-    }
-
-    // Get operators affected by this message
-    const operatorIds = this.agentService.getOperatorsForMessage(messageId);
-
-    if (operatorIds.length === 0) {
-      this.changeDetectorRef.detectChanges();
-      return;
-    }
-
-    // Get JointJS cells for these operators
-    const operators = operatorIds.map(id => this.paper.getModelById(id)).filter(cell => cell != null);
-
-    if (operators.length === 0) {
-      this.changeDetectorRef.detectChanges();
-      return;
-    }
-
-    // Store operators for position change tracking
-    this.highlightedMessageOperators = operators;
-
-    // Create region element
-    const element = new MessageRegion({ id: "message-region-highlight" });
-    this.paper.model.addCell(element);
-    this.messageRegionElement = element;
-
-    // Set the path
-    this.updateMessageRegionPath();
-    this.changeDetectorRef.detectChanges();
-  }
-
-  /**
-   * Update the path of the message region based on current operator positions.
-   */
-  private updateMessageRegionPath(): void {
-    if (!this.messageRegionElement || this.highlightedMessageOperators.length === 0) {
-      return;
-    }
-
-    const points = this.highlightedMessageOperators.flatMap(op => {
-      const { x, y, width, height } = op.getBBox();
-      const padding = 15;
-      return [
-        [x - padding, y - padding],
-        [x + width + padding, y - padding],
-        [x - padding, y + height + padding + 10],
-        [x + width + padding, y + height + padding + 10],
-      ];
-    });
-
-    this.messageRegionElement.attr(
-      "body/d",
-      line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][])
-    );
   }
 
   /**

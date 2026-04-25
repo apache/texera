@@ -29,16 +29,6 @@
   display: none;
 }
 
-// Message region highlighting (for user message operator highlighting)
-// Uses transparent fill with dashed blue border so step badges remain visible
-::ng-deep .message-region {
-  pointer-events: none;
-  fill: transparent;
-  stroke: #1890ff;
-  stroke-width: 2;
-  stroke-dasharray: 8, 4;
-}
-
 ::ng-deep .agent-action {
   // Agent action highlights - temporary 5-second visual indicators
   // Styles are defined inline in JointJS element, but this provides a hook for customization
@@ -68,71 +58,6 @@
   height: 220px;
   pointer-events: auto;
   z-index: 10;
-}
-
-// Step badges overlay container
-.step-badges-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 15;
-}
-
-// Individual step badge - matches the message step ID badge style
-.step-badge {
-  position: absolute;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 500;
-  font-family: monospace;
-  color: white;
-  cursor: pointer;
-  pointer-events: auto;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-
-  // Default color - Execute group (Blue #1890ff)
-  background-color: #1890ff;
-
-  // Action-based colors
-  // Create - addOperator, addCodeOperator (Purple #722ed1)
-  &.added {
-    background-color: #722ed1;
-  }
-
-  // Modify - modifyOperator, modifyCodeOperator (Orange #fa8c16)
-  &.modified {
-    background-color: #fa8c16;
-  }
-
-  // Execute - executeWorkflow (Blue #1890ff)
-  &.executed {
-    background-color: #1890ff;
-  }
-
-  // Observe - viewed operators (Green #52c41a)
-  &.viewed {
-    background-color: #52c41a;
-  }
-
-  &:hover {
-    transform: scale(1.15);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  &:active {
-    transform: scale(1.05);
-  }
 }
 
 // Chat popover container for operator chat button

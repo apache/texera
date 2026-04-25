@@ -79,9 +79,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public allAvailableOperatorTypes: Array<{ type: string; description: string }> = []; // All operator types from backend
   public operatorTypeSearchQuery = ""; // Search filter for operator types
 
-  // Message highlighting state
-  public highlightedMessageId: string | null = null;
-
   // Track if we disabled auto-persist so we can re-enable it on destroy
   private disabledAutoPersist = false;
 
@@ -202,13 +199,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.scrollToStep(messageId, stepId);
       }
     });
-
-    // Subscribe to message highlighting state
-    this.agentService.highlightedMessageId$.pipe(untilDestroyed(this)).subscribe(messageId => {
-      this.highlightedMessageId = messageId;
-      this.cdr.detectChanges();
-    });
-
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -800,29 +790,4 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     }
   }
 
-  // =====================
-  // Message Highlighting Methods
-  // =====================
-
-  /**
-   * Check if a message is currently highlighted for region display.
-   */
-  public isMessageHighlighted(messageId: string): boolean {
-    return this.highlightedMessageId === messageId;
-  }
-
-  /**
-   * Toggle highlighting for a message.
-   * When highlighted, all operators affected by this message's steps
-   * will be shown with a region highlight on the canvas.
-   */
-  public toggleMessageHighlight(messageId: string): void {
-    if (this.highlightedMessageId === messageId) {
-      // Toggle off
-      this.agentService.setHighlightedMessage(null);
-    } else {
-      // Toggle on - highlight this message
-      this.agentService.setHighlightedMessage(messageId);
-    }
-  }
 }
