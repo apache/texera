@@ -43,6 +43,8 @@ import {
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
+import { User } from "../../common/type/user";
+import { Role } from "../../common/type/user";
 
 @Component({
   selector: "texera-dashboard",
@@ -116,7 +118,7 @@ export class DashboardComponent implements OnInit {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
+      .subscribe(user => {
         this.ngZone.run(() => {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
