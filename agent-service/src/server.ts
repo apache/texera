@@ -80,7 +80,6 @@ async function createAgentInstance(
         userInfo: delegateConfig.userInfo,
         workflowId: delegateConfig.workflowId,
         workflowName: delegateConfig.workflowName,
-        computingUnitId: delegateConfig.computingUnitId,
       });
 
       log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
@@ -137,6 +136,27 @@ function getAgent(agentId: string): TexeraAgent {
 }
 
 const agentsRouter = new Elysia({ prefix: "/agents" })
+  // Error handler must live on the same Elysia instance whose routes throw, or
+  // its scope will not see the errors. Elysia 1.x defaults to local scoping for
+  // .onError, so attach here rather than on the outer app.
+  .onError(({ error, set }) => {
+    log.error({ err: error }, "request error");
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage === "Agent not found") {
+      set.status = 404;
+      return { error: "Agent not found" };
+    }
+    if (errorMessage === "Invalid or expired token") {
+      set.status = 401;
+      return { error: "Invalid or expired token" };
+    }
+    if (errorMessage === "modelType is required") {
+      set.status = 400;
+      return { error: "modelType is required" };
+    }
+    set.status = 500;
+    return { error: errorMessage || "Internal server error" };
+  })
   .get("/", () => {
     const agentList = Array.from(agentStore.entries()).map(([id, agent]) => getAgentInfo(id, agent));
     return { agents: agentList };
@@ -145,7 +165,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .post(
     "/",
     async ({ body }) => {
-      const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
+      const { modelType, name, userToken, workflowId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
@@ -162,7 +182,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           userToken,
           userInfo,
           workflowId,
-          computingUnitId,
         };
       }
 
@@ -199,7 +218,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         name: t.Optional(t.String()),
         userToken: t.Optional(t.String()),
         workflowId: t.Optional(t.Number()),
-        computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(
           t.Object({
             maxOperatorResultCharLimit: t.Optional(t.Number()),
@@ -225,14 +243,14 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     };
   })
 
-  .delete("/:id", ({ params: { id } }) => {
+  .delete("/:id", ({ params: { id }, set }) => {
     const agent = agentStore.get(id);
     if (!agent) {
-      throw new Error("Agent not found");
+      set.status = 404;
+      return { error: "Agent not found" };
     }
 
     agent.destroy();
-
     agentStore.delete(id);
     return { deleted: true };
   })
@@ -411,30 +429,11 @@ interface WsOutgoingMessage {
   workflowContent?: any;
 }
 
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
-  const resultState = agent.getWorkflowResultState();
-  const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorResultSummaryWs> = {};
-  for (const [opId, entry] of visible) {
-    const info = entry.operatorInfo;
-    results[opId] = {
-      state: info.state,
-      inputTuples: info.inputTuples,
-      outputTuples: info.outputTuples,
-      inputPortShapes: info.inputPortShapes,
-      outputColumns:
-        info.result && info.result.length > 0
-          ? Object.keys(info.result[0]).filter(k => k !== "__row_index__").length
-          : undefined,
-      error: info.error,
-      warnings: info.warnings,
-      consoleLogCount: info.consoleLogs?.length,
-      totalRowCount: info.totalRowCount,
-      sampleRecords: info.result,
-      resultStatistics: info.resultStatistics,
-    };
-  }
-  return results;
+// Without execution tools, agents never produce operator results. The route
+// and the WS payload field stay so the frontend keeps working; they just
+// always carry an empty object on the framework-only build.
+function getOperatorResultSummaries(_agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
+  return {};
 }
 
 function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
@@ -452,140 +451,130 @@ function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
   }
 }
 
-const app = new Elysia()
-  .use(cors())
-  .get("/health", () => ({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-  }))
-  .group(env.API_PREFIX, app => app.use(agentsRouter))
-  .ws(`${env.API_PREFIX}/agents/:id/react`, {
-    open(ws) {
-      const agentId = (ws.data as any).params?.id;
-      wsLog.info({ agentId }, "client connected");
+export function buildApp() {
+  return new Elysia()
+    .use(cors())
+    .get("/health", () => ({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+    }))
+    .group(env.API_PREFIX, app => app.use(agentsRouter))
+    .ws(`${env.API_PREFIX}/agents/:id/react`, {
+      open(ws) {
+        const agentId = (ws.data as any).params?.id;
+        wsLog.info({ agentId }, "client connected");
 
-      const agent = agentStore.get(agentId);
-      if (!agent) {
-        ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
-        ws.close();
-        return;
-      }
-
-      agent.addWebsocket(ws);
-
-      const initMessage: WsOutgoingMessage = {
-        type: "init",
-        state: agent.getState(),
-        steps: agent.getAllSteps(),
-        headId: agent.getHead(),
-        operatorResults: getOperatorResultSummaries(agent),
-      };
-      ws.send(JSON.stringify(initMessage));
-    },
-
-    async message(ws, messageData) {
-      const agentId = (ws.data as any).params?.id;
-      const agent = agentStore.get(agentId);
-
-      if (!agent) {
-        ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
-        return;
-      }
-
-      let msg: WsMessage;
-      try {
-        msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsMessage);
-      } catch {
-        ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
-        return;
-      }
-
-      if (msg.type === "stop") {
-        agent.stop();
-        broadcastToAgent(agentId, { type: "state", state: "STOPPING" });
-        return;
-      }
-
-      if (msg.type === "message") {
-        if (!msg.content || typeof msg.content !== "string") {
-          ws.send(JSON.stringify({ type: "error", error: "Message content is required" }));
+        const agent = agentStore.get(agentId);
+        if (!agent) {
+          ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
+          ws.close();
           return;
         }
 
-        wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
+        agent.addWebsocket(ws);
 
-        agent.setStepCallback((step: ReActStep) => {
-          const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
-          broadcastToAgent(agentId, {
-            type: "step",
-            step,
-            ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
-          });
-        });
+        const initMessage: WsOutgoingMessage = {
+          type: "init",
+          state: agent.getState(),
+          steps: agent.getAllSteps(),
+          headId: agent.getHead(),
+          operatorResults: getOperatorResultSummaries(agent),
+        };
+        ws.send(JSON.stringify(initMessage));
+      },
 
-        broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
+      async message(ws, messageData) {
+        const agentId = (ws.data as any).params?.id;
+        const agent = agentStore.get(agentId);
 
+        if (!agent) {
+          ws.send(JSON.stringify({ type: "error", error: "Agent not found" }));
+          return;
+        }
+
+        let msg: WsMessage;
         try {
-          const result = await agent.sendMessage(msg.content, msg.messageSource);
+          msg = typeof messageData === "string" ? JSON.parse(messageData) : (messageData as WsMessage);
+        } catch {
+          ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
+          return;
+        }
 
-          agent.setStepCallback(null);
+        if (msg.type === "stop") {
+          agent.stop();
+          broadcastToAgent(agentId, { type: "state", state: "STOPPING" });
+          return;
+        }
 
-          const allSteps = agent.getReActSteps();
-          const lastStep = allSteps[allSteps.length - 1];
-          if (lastStep && lastStep.isEnd) {
-            broadcastToAgent(agentId, { type: "step", step: lastStep });
+        if (msg.type === "message") {
+          if (!msg.content || typeof msg.content !== "string") {
+            ws.send(JSON.stringify({ type: "error", error: "Message content is required" }));
+            return;
           }
 
-          broadcastToAgent(agentId, {
-            type: "complete",
-            state: agent.getState(),
-            operatorResults: getOperatorResultSummaries(agent),
+          wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
+
+          agent.setStepCallback((step: ReActStep) => {
+            const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
+            broadcastToAgent(agentId, {
+              type: "step",
+              step,
+              ...(hasToolCalls ? { operatorResults: getOperatorResultSummaries(agent) } : {}),
+            });
           });
 
-          wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
-        } catch (error: any) {
-          agent.setStepCallback(null);
-          broadcastToAgent(agentId, { type: "error", error: error.message });
+          broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
+
+          try {
+            const result = await agent.sendMessage(msg.content, msg.messageSource);
+
+            agent.setStepCallback(null);
+
+            const allSteps = agent.getReActSteps();
+            const lastStep = allSteps[allSteps.length - 1];
+            if (lastStep && lastStep.isEnd) {
+              broadcastToAgent(agentId, { type: "step", step: lastStep });
+            }
+
+            broadcastToAgent(agentId, {
+              type: "complete",
+              state: agent.getState(),
+              operatorResults: getOperatorResultSummaries(agent),
+            });
+
+            wsLog.info({ agentId, steps: result.messages.length }, "agent run complete");
+          } catch (error: any) {
+            agent.setStepCallback(null);
+            broadcastToAgent(agentId, { type: "error", error: error.message });
+          }
         }
-      }
-    },
+      },
 
-    close(ws) {
-      const agentId = (ws.data as any).params?.id;
-      wsLog.info({ agentId }, "client disconnected");
+      close(ws) {
+        const agentId = (ws.data as any).params?.id;
+        wsLog.info({ agentId }, "client disconnected");
 
-      const agent = agentStore.get(agentId);
-      if (agent) {
-        agent.removeWebsocket(ws);
-      }
-    },
-  })
-  .onError(({ error, set }) => {
-    log.error({ err: error }, "request error");
+        const agent = agentStore.get(agentId);
+        if (agent) {
+          agent.removeWebsocket(ws);
+        }
+      },
+    })
+    .onError(({ error, set }) => {
+      // Catch-all for non-router routes such as /health and the websocket route.
+      log.error({ err: error }, "request error");
+      set.status = 500;
+      return { error: error instanceof Error ? error.message : String(error) };
+    });
+}
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
+// Reset module-level state. Used by tests to start each case from a clean store.
+export function _resetAgentStoreForTests(): void {
+  agentStore.clear();
+  agentCounter = 0;
+}
 
-    if (errorMessage === "Agent not found") {
-      set.status = 404;
-      return { error: "Agent not found" };
-    }
-
-    if (errorMessage === "Invalid or expired token") {
-      set.status = 401;
-      return { error: "Invalid or expired token" };
-    }
-
-    if (errorMessage === "modelType is required") {
-      set.status = 400;
-      return { error: "modelType is required" };
-    }
-
-    set.status = 500;
-    return { error: errorMessage || "Internal server error" };
-  })
-  .listen(env.PORT);
-
-function printStartupMessage() {
+function printStartupMessage(app: ReturnType<typeof buildApp>) {
   const LINE = "=".repeat(60);
   console.log(LINE);
   console.log("Texera Agent Service (Elysia.js + RxJS)");
@@ -620,12 +609,10 @@ function printStartupMessage() {
   console.log(`  LLM_API_KEY: ${env.LLM_API_KEY === "dummy" ? "dummy (default)" : "set"}`);
   console.log(`  LLM_ENDPOINT: ${getBackendConfig().modelsEndpoint}`);
   console.log(`  WORKFLOW_COMPILING_SERVICE_ENDPOINT: ${getBackendConfig().compileEndpoint}`);
-  console.log(`  WORKFLOW_EXECUTION_SERVICE_ENDPOINT: ${getBackendConfig().executionEndpoint}`);
   console.log(`  TEXERA_DASHBOARD_SERVICE_ENDPOINT: ${getBackendConfig().apiEndpoint}`);
   console.log("");
   console.log("Features:");
   console.log("  - Auto-persistence with debounce (500ms)");
-  console.log("  - Tools compile workflow on-demand for fresh schemas");
   console.log(LINE);
 }
 
@@ -639,8 +626,15 @@ async function initializeServices() {
   }
 }
 
-initializeServices().then(() => {
-  printStartupMessage();
-});
+export async function start() {
+  await initializeServices();
+  const app = buildApp().listen(env.PORT);
+  printStartupMessage(app);
+  return app;
+}
 
-export default app;
+// Run the server only when this file is the entry point, not when it is
+// imported by tests or other modules.
+if (import.meta.main) {
+  start();
+}

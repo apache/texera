@@ -111,7 +111,6 @@ export interface AgentDelegateConfig {
   userInfo?: UserInfo;
   workflowId?: number;
   workflowName?: string;
-  computingUnitId?: number;
 }
 
 export interface AgentSettingsApi {
@@ -140,7 +139,6 @@ export interface CreateAgentRequest {
   name?: string;
   userToken?: string;
   workflowId?: number;
-  computingUnitId?: number;
   settings?: AgentSettingsApi;
 }
 

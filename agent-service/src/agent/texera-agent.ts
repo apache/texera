@@ -22,7 +22,6 @@ import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
-import { WorkflowResultState } from "./workflow-result-state";
 import type { AgentSettings, ReActStep, TokenUsage, UserInfo } from "../types/agent";
 import {
   AgentState as AgentStateEnum,
@@ -61,7 +60,7 @@ type ReActStepCallback = (step: ReActStep) => void;
  *
  * Owns the conversation (ReAct step tree with HEAD/checkout semantics), the
  * workflow being edited (`WorkflowState`), cached operator execution results
- * (`WorkflowResultState`), and the tool surface exposed to the LLM. Each call
+ * and the tool surface exposed to the LLM. Each call
  * to `sendMessage` drives one multi-step generation via the Vercel AI SDK,
  * streaming step updates to subscribed websockets.
  */
@@ -77,7 +76,6 @@ export class TexeraAgent {
   private head: string = INITIAL_STEP_ID;
   private stepsById: Map<string, ReActStep> = new Map();
   private stepCounter = 0;
-  private workflowResultState: WorkflowResultState;
 
   private websockets: Set<any> = new Set();
 
@@ -120,7 +118,6 @@ export class TexeraAgent {
 
     this.workflowState = new WorkflowState();
     this.metadataStore = WorkflowSystemMetadata.getInstance();
-    this.workflowResultState = new WorkflowResultState(() => this.getAncestorPath());
 
     const initialStep: ReActStep = {
       id: INITIAL_STEP_ID,
@@ -196,10 +193,6 @@ export class TexeraAgent {
 
   getStepsById(): Map<string, ReActStep> {
     return this.stepsById;
-  }
-
-  getWorkflowResultState(): WorkflowResultState {
-    return this.workflowResultState;
   }
 
   getWebsockets(): Set<any> {
