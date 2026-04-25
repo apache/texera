@@ -330,6 +330,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
             if ecm.ecm_type != EmbeddedControlMessageType.NO_ALIGNMENT:
                 self.context.pause_manager.resume(PauseType.ECM_PAUSE)
+
             if self.context.tuple_processing_manager.current_internal_marker:
                 {
                     StartChannel: self._process_start_channel,
