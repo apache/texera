@@ -56,8 +56,8 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 
-class ModifyLogicSpec
-    extends TestKit(ActorSystem("ModifyLogicSpec", AmberRuntime.akkaConfig))
+class ReconfigurationSpec
+    extends TestKit(ActorSystem("ReconfigurationSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -74,7 +74,7 @@ class ModifyLogicSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  val logger = Logger("ModifyLogicSpecLogger")
+  val logger = Logger("ReconfigurationSpecLogger")
   val ctx = new WorkflowContext()
 
   override protected def beforeEach(): Unit = {
@@ -162,7 +162,6 @@ class ModifyLogicSpec
       )
     )
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-    Thread.sleep(400)
     Await.result(completion, Duration.fromMinutes(1))
     result
   }
