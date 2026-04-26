@@ -682,45 +682,45 @@ Scala/Java jars:
   - lib/software.amazon.eventstream.eventstream-1.0.1.jar
 
 Python packages:
-  - aiobotocore
-  - aiohttp
-  - aiosignal
-  - boto3
-  - botocore
-  - dataclasses
-  - frozenlist
-  - hf-xet
-  - huggingface-hub
-  - multidict
-  - overrides
-  - packaging
-  - propcache
-  - pyarrow
-  - pyiceberg
-  - pympler
-  - python-dateutil
-  - regex
-  - requests
-  - s3transfer
-  - safetensors
-  - tenacity
-  - tokenizers
-  - transformers
-  - tzdata
-  - websocket-client
-  - yarl
+  - aiobotocore==2.25.1
+  - aiohttp==3.13.5
+  - aiosignal==1.4.0
+  - boto3==1.40.53
+  - botocore==1.40.53
+  - dataclasses==0.6
+  - frozenlist==1.8.0
+  - hf-xet==1.4.3
+  - huggingface-hub==0.36.2
+  - multidict==6.7.1
+  - overrides==7.4.0
+  - packaging==26.2
+  - propcache==0.4.1
+  - pyarrow==21.0.0
+  - pyiceberg==0.11.1
+  - pympler==1.1
+  - python-dateutil==2.8.2
+  - regex==2026.4.4
+  - requests==2.33.1
+  - s3transfer==0.14.0
+  - safetensors==0.7.0
+  - tenacity==8.5.0
+  - tokenizers==0.22.2
+  - transformers==4.57.3
+  - tzdata==2026.2
+  - websocket-client==1.9.0
+  - yarl==1.23.0
 
 Angular / npm packages:
-  - @ai-sdk/gateway
-  - @ai-sdk/openai
-  - @ai-sdk/provider
-  - @ai-sdk/provider-utils
-  - @opentelemetry/api
-  - @vercel/oidc
-  - ai
-  - fuse.js
-  - jschardet
-  - rxjs
+  - @ai-sdk/gateway@2.0.9
+  - @ai-sdk/openai@2.0.67
+  - @ai-sdk/provider@2.0.0
+  - @ai-sdk/provider-utils@3.0.17
+  - @opentelemetry/api@1.9.0
+  - @vercel/oidc@3.0.3
+  - ai@5.0.93
+  - fuse.js@6.5.3
+  - jschardet@3.1.3
+  - rxjs@7.8.1
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
@@ -779,150 +779,151 @@ Scala/Java jars:
   - lib/org.slf4j.slf4j-api-2.0.16.jar (see licenses/LICENSE-slf4j.txt)
 
 Python packages:
-  - aioitertools
-  - annotated-types
-  - appdirs
-  - asn1crypto
-  - attrs
-  - betterproto
-  - cachetools
-  - charset-normalizer
-  - deprecated
-  - filelock
-  - fonttools
-  - fs
-  - h2
-  - hpack
-  - hyperframe
-  - iniconfig
-  - jmespath
-  - loguru
-  - markdown-it-py
-  - mdurl
-  - mmh3
-  - pampy
-  - plotly
-  - pluggy
-  - pydantic
-  - pydantic-core
-  - pyparsing
-  - pyroaring
-  - pytest
-  - pytest-reraise
-  - pytest-timeout
-  - pytz
-  - pyyaml
-  - readerwriterlock
-  - rich
-  - ruff
-  - scramp
-  - six
-  - sqlalchemy
-  - strictyaml
-  - typing-inspection
-  - tzlocal
-  - urllib3
-  - wordcloud
+  - aioitertools==0.13.0
+  - annotated-types==0.7.0
+  - appdirs==1.4.4
+  - asn1crypto==1.5.1
+  - attrs==26.1.0
+  - betterproto==2.0.0b7
+  - cachetools==6.2.6
+  - charset-normalizer==3.4.7
+  - deprecated==1.2.14
+  - filelock==3.29.0
+  - fonttools==4.62.1
+  - fs==2.4.16
+  - h2==4.3.0
+  - hpack==4.1.0
+  - hyperframe==6.1.0
+  - iniconfig==1.1.1
+  - jmespath==1.1.0
+  - loguru==0.7.0
+  - markdown-it-py==4.0.0
+  - mdurl==0.1.2
+  - mmh3==5.2.1
+  - pampy==0.3.0
+  - plotly==5.24.1
+  - pluggy==1.6.0
+  - pydantic==2.13.3
+  - pydantic-core==2.46.3
+  - pyparsing==3.3.2
+  - pyroaring==1.1.0
+  - pytest==7.4.0
+  - pytest-reraise==2.1.2
+  - pytest-timeout==2.2.0
+  - pytz==2026.1.post1
+  - pyyaml==6.0.3
+  - readerwriterlock==1.0.9
+  - rich==14.3.4
+  - ruff==0.14.7
+  - scramp==1.4.8
+  - six==1.17.0
+  - sqlalchemy==2.0.37
+  - strictyaml==1.7.3
+  - typing-inspection==0.4.2
+  - tzlocal==2.1
+  - urllib3==2.6.3
+  - wordcloud==1.9.3
 
 Angular / npm packages:
-  - @abacritt/angularx-social-login
-  - @ali-hm/angular-tree-component
-  - @angular/animations
-  - @angular/cdk
-  - @angular/common
-  - @angular/core
-  - @angular/forms
-  - @angular/platform-browser
-  - @angular/router
-  - @ant-design/colors
-  - @ant-design/icons-angular
-  - @auth0/angular-jwt
-  - @babel/runtime
-  - @codingame/monaco-vscode-api
-  - @codingame/monaco-vscode-base-service-override
-  - @codingame/monaco-vscode-configuration-service-override
-  - @codingame/monaco-vscode-editor-api
-  - @codingame/monaco-vscode-environment-service-override
-  - @codingame/monaco-vscode-extensions-service-override
-  - @codingame/monaco-vscode-files-service-override
-  - @codingame/monaco-vscode-host-service-override
-  - @codingame/monaco-vscode-java-default-extension
-  - @codingame/monaco-vscode-languages-service-override
-  - @codingame/monaco-vscode-layout-service-override
-  - @codingame/monaco-vscode-model-service-override
-  - @codingame/monaco-vscode-monarch-service-override
-  - @codingame/monaco-vscode-python-default-extension
-  - @codingame/monaco-vscode-quickaccess-service-override
-  - @codingame/monaco-vscode-r-default-extension
-  - @codingame/monaco-vscode-textmate-service-override
-  - @codingame/monaco-vscode-theme-defaults-default-extension
-  - @codingame/monaco-vscode-theme-service-override
-  - @ctrl/tinycolor
-  - @ngneat/until-destroy
-  - @ngx-formly/core
-  - @ngx-formly/ng-zorro-antd
-  - @vscode/iconv-lite-umd
-  - ajv
-  - backbone
-  - balanced-match
-  - base64-js
-  - brace-expansion
-  - buffer
-  - content-disposition
-  - css-loader
-  - dagre
-  - date-fns
-  - eventsource-parser
-  - fast-deep-equal
-  - fflate
-  - file-saver
-  - graphlib
-  - html2canvas
-  - java
-  - jquery
-  - json-schema-traverse
-  - jszip
-  - lib0
-  - lodash
-  - lodash-es
-  - marked
-  - mobx
-  - monaco-breakpoints
-  - monaco-editor-wrapper
-  - monaco-languageclient
-  - ng-zorro-antd
-  - ngx-color-picker
-  - ngx-file-drop
-  - ngx-json-viewer
-  - ngx-markdown
-  - papaparse
-  - path-browserify
-  - plotly.js-basic-dist-min
-  - point-in-polygon
-  - python
-  - quill-cursors
-  - rbush
-  - read-excel-file
-  - ring-buffer-ts
-  - safe-buffer
-  - style-loader
-  - theme-defaults
-  - underscore
-  - uuid
-  - vscode-jsonrpc
-  - vscode-languageclient
-  - vscode-languageserver-protocol
-  - vscode-languageserver-types
-  - vscode-oniguruma
-  - vscode-textmate
-  - vscode-ws-jsonrpc
-  - y-monaco
-  - y-protocols
-  - y-quill
-  - y-websocket
-  - yjs
-  - zod
-  - zone.js
+  - @abacritt/angularx-social-login@2.3.0
+  - @ali-hm/angular-tree-component@12.0.5
+  - @angular/animations@18.2.14
+  - @angular/cdk@18.2.14
+  - @angular/common@18.2.14
+  - @angular/core@18.2.14
+  - @angular/forms@18.2.14
+  - @angular/platform-browser@18.2.14
+  - @angular/router@18.2.14
+  - @ant-design/colors@7.1.0
+  - @ant-design/icons-angular@18.0.0
+  - @auth0/angular-jwt@5.1.0
+  - @babel/runtime@7.26.10
+  - @codingame/monaco-vscode-api@8.0.4
+  - @codingame/monaco-vscode-base-service-override@8.0.4
+  - @codingame/monaco-vscode-configuration-service-override@8.0.4
+  - @codingame/monaco-vscode-editor-api@8.0.4
+  - @codingame/monaco-vscode-environment-service-override@8.0.4
+  - @codingame/monaco-vscode-extensions-service-override@8.0.4
+  - @codingame/monaco-vscode-files-service-override@8.0.4
+  - @codingame/monaco-vscode-host-service-override@8.0.4
+  - @codingame/monaco-vscode-java-default-extension@8.0.4
+  - @codingame/monaco-vscode-languages-service-override@8.0.4
+  - @codingame/monaco-vscode-layout-service-override@8.0.4
+  - @codingame/monaco-vscode-model-service-override@8.0.4
+  - @codingame/monaco-vscode-monarch-service-override@8.0.4
+  - @codingame/monaco-vscode-python-default-extension@8.0.4
+  - @codingame/monaco-vscode-quickaccess-service-override@8.0.4
+  - @codingame/monaco-vscode-r-default-extension@8.0.4
+  - @codingame/monaco-vscode-textmate-service-override@8.0.4
+  - @codingame/monaco-vscode-theme-defaults-default-extension@8.0.4
+  - @codingame/monaco-vscode-theme-service-override@8.0.4
+  - @ctrl/tinycolor@3.6.1
+  - @ngneat/until-destroy@8.1.4
+  - @ngx-formly/core@6.3.12
+  - @ngx-formly/ng-zorro-antd@6.3.12
+  - @vscode/iconv-lite-umd@0.7.0
+  - ajv@8.10.0
+  - backbone@1.4.1
+  - balanced-match@1.0.2
+  - base64-js@1.5.1
+  - brace-expansion@2.0.1
+  - buffer@5.7.1
+  - content-disposition@0.5.4
+  - css-loader@7.1.2
+  - dagre@0.8.5
+  - date-fns@2.30.0
+  - eventsource-parser@3.0.6
+  - fast-deep-equal@3.1.3
+  - fflate@0.7.4
+  - file-saver@2.0.5
+  - graphlib@2.1.8
+  - html2canvas@1.4.1
+  - java@1.0.0
+  - jquery@3.6.4
+  - json-schema-traverse@1.0.0
+  - jszip@3.10.1
+  - lib0@0.2.98
+  - lodash@4.17.21
+  - lodash-es@4.17.21
+  - marked@12.0.2
+  - mobx@4.14.1
+  - monaco-breakpoints@0.2.0
+  - monaco-editor-wrapper@5.5.3
+  - monaco-languageclient@8.8.3
+  - ng-zorro-antd@18.2.1
+  - ngx-color-picker@12.0.1
+  - ngx-file-drop@16.0.0
+  - ngx-json-viewer@3.2.1
+  - ngx-markdown@18.1.0
+  - papaparse@5.4.1
+  - path-browserify@1.0.1
+  - plotly.js-basic-dist-min@2.29.0
+  - point-in-polygon@1.1.0
+  - python@1.0.0
+  - quill-cursors@3.1.2
+  - r@1.0.0
+  - rbush@4.0.1
+  - read-excel-file@5.7.1
+  - ring-buffer-ts@1.0.3
+  - safe-buffer@5.2.1
+  - style-loader@3.3.4
+  - theme-defaults@1.0.0
+  - underscore@1.13.7
+  - uuid@8.3.2
+  - vscode-jsonrpc@8.2.0
+  - vscode-languageclient@9.0.1
+  - vscode-languageserver-protocol@3.17.5
+  - vscode-languageserver-types@3.17.5
+  - vscode-oniguruma@1.7.0
+  - vscode-textmate@9.0.0
+  - vscode-ws-jsonrpc@3.3.2
+  - y-monaco@0.1.5
+  - y-protocols@1.0.6
+  - y-quill@0.1.5
+  - y-websocket@1.4.0
+  - yjs@13.5.41
+  - zod@3.25.76
+  - zone.js@0.14.10
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD 3-Clause License
@@ -955,41 +956,41 @@ Scala/Java jars:
   - lib/org.threeten.threeten-extra-1.7.1.jar (see licenses/LICENSE-threeten-extra.txt)
 
 Python packages:
-  - cached-property
-  - click
-  - contourpy
-  - cycler
-  - fsspec
-  - grpclib
-  - idna
-  - jinja2
-  - joblib
-  - kiwisolver
-  - lazy-loader
-  - markupsafe
-  - mpmath
-  - networkx
-  - numpy
-  - pandas
-  - pg8000
-  - praw
-  - prawcore
-  - protobuf
-  - psutil
-  - s3fs
-  - scikit-image
-  - scikit-learn
-  - scipy
-  - sympy
-  - threadpoolctl
-  - tifffile
-  - torch
-  - update-checker
-  - zstandard
+  - cached-property==1.5.2
+  - click==8.3.3
+  - contourpy==1.3.3
+  - cycler==0.12.1
+  - fsspec==2025.9.0
+  - grpclib==0.4.9
+  - idna==3.13
+  - jinja2==3.1.6
+  - joblib==1.5.3
+  - kiwisolver==1.5.0
+  - lazy-loader==0.5
+  - markupsafe==3.0.3
+  - mpmath==1.3.0
+  - networkx==3.6.1
+  - numpy==2.1.0
+  - pandas==2.2.3
+  - pg8000==1.31.5
+  - praw==7.6.1
+  - prawcore==2.4.0
+  - protobuf==4.25.8
+  - psutil==5.9.0
+  - s3fs==2025.9.0
+  - scikit-image==0.25.2
+  - scikit-learn==1.5.0
+  - scipy==1.17.1
+  - sympy==1.14.0
+  - threadpoolctl==3.6.0
+  - tifffile==2026.4.11
+  - torch==2.8.0
+  - update-checker==0.18.0
+  - zstandard==0.25.0
 
 Angular / npm packages:
-  - ieee754
-  - quill
+  - ieee754@1.2.1
+  - quill@1.3.7
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD 2-Clause License
@@ -1005,13 +1006,13 @@ Scala/Java jars:
   - lib/org.postgresql.postgresql-42.7.4.jar (see licenses/LICENSE-postgresql.txt)
 
 Python packages:
-  - imageio
-  - pybase64
-  - pygments
-  - wrapt
+  - imageio==2.37.3
+  - pybase64==1.3.2
+  - pygments==2.20.0
+  - wrapt==1.17.3
 
 Angular / npm packages:
-  - uri-js
+  - uri-js@4.4.1
 
 --------------------------------------------------------------------------------
 Dependencies under the ISC License
@@ -1024,11 +1025,11 @@ Scala/Java jars:
   - lib/org.mindrot.jbcrypt-0.4.jar
 
 Angular / npm packages:
-  - concaveman
-  - d3-path
-  - d3-shape
-  - quickselect
-  - tinyqueue
+  - concaveman@2.0.0
+  - d3-path@2.0.0
+  - d3-shape@2.1.0
+  - quickselect@3.0.0
+  - tinyqueue@2.0.3
 
 --------------------------------------------------------------------------------
 Dependencies under the Mozilla Public License, Version 2.0
@@ -1038,12 +1039,12 @@ Apache Texera bundles the following MPL-2.0-licensed dependencies. See
 licenses/LICENSE-MPL-2.0.txt for the full text.
 
 Python packages:
-  - bidict
-  - certifi
-  - tqdm
+  - bidict==0.22.0
+  - certifi==2026.4.22
+  - tqdm==4.67.3
 
 Angular / npm packages:
-  - jointjs
+  - jointjs@3.5.4
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Public License, Version 2.0
@@ -1165,10 +1166,10 @@ Apache Texera bundles the following PSF-licensed Python packages. See
 licenses/LICENSE-PSF-2.0.txt for the full text.
 
 Python packages:
-  - aiohappyeyeballs
-  - matplotlib
-  - typing
-  - typing-extensions
+  - aiohappyeyeballs==2.6.1
+  - matplotlib==3.10.9
+  - typing==3.7.4.3
+  - typing-extensions==4.14.1
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT-CMU License
@@ -1179,7 +1180,7 @@ variant in the HPND family, SPDX: MIT-CMU). See
 licenses/LICENSE-MIT-CMU.txt for the full text.
 
 Python packages:
-  - pillow
+  - pillow==12.1.1
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD Zero Clause License
@@ -1209,7 +1210,7 @@ Apache Texera bundles the following Unlicense-licensed dependency
 (SPDX: Unlicense). See licenses/LICENSE-Unlicense.txt for the full text.
 
 Angular / npm packages:
-  - robust-predicates
+  - robust-predicates@3.0.2
 
 --------------------------------------------------------------------------------
 Dependencies under the Blue Oak Model License 1.0.0
@@ -1220,7 +1221,7 @@ dependency (SPDX: BlueOak-1.0.0). See licenses/LICENSE-BlueOak-1.0.0.txt
 for the full text.
 
 Angular / npm packages:
-  - minimatch
+  - minimatch@5.1.6
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern

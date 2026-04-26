@@ -17,6 +17,8 @@
  * under the License.
  */
 
+const { LicenseWebpackPlugin } = require("license-webpack-plugin");
+
 module.exports = {
   module: {
     rules: [
@@ -37,4 +39,31 @@ module.exports = {
       },
     },
   },
+  plugins: [
+    // Emit a machine-readable manifest of bundled npm packages with versions
+    // and SPDX license ids. Consumed by bin/licensing/check_binary_deps.py to
+    // diff against LICENSE-binary. Angular CLI's own LicenseWebpackPlugin
+    // instance (which writes 3rdpartylicenses.txt) is left untouched.
+    new LicenseWebpackPlugin({
+      perChunkOutput: false,
+      outputFilename: "3rdpartylicenses.json",
+      renderLicenses: (modules) =>
+        JSON.stringify(
+          modules
+            .map((m) => ({
+              name: m.packageJson && m.packageJson.name,
+              version: m.packageJson && m.packageJson.version,
+              license: m.licenseId,
+            }))
+            .filter((e) => e.name && e.version)
+            .sort((a, b) =>
+              a.name === b.name
+                ? a.version.localeCompare(b.version)
+                : a.name.localeCompare(b.name),
+            ),
+          null,
+          2,
+        ),
+    }),
+  ],
 };

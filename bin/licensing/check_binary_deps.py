@@ -21,25 +21,32 @@ dependencies for one ecosystem (jar | npm | python).
 
 Usage:
   check_binary_deps.py jar    <dist-lib-dir-1> [<dist-lib-dir-2> ...]
-  check_binary_deps.py npm    <path-to-3rdpartylicenses.txt>
+  check_binary_deps.py npm    <path-to-3rdpartylicenses.json>
   check_binary_deps.py python <path-to-pip-licenses.csv>
 
 Exits non-zero on drift; prints ADDED / STALE groups with remediation hints.
 
-JVM format: each bullet is a per-jar distribution path of the form
-`  - lib/<basename>.jar` and may carry an optional `(see licenses/...)`
-pointer at the end. The check compares those exact filenames against the
-basenames present in each dist's `lib/` directory — version drift is
-intentionally surfaced. The check is purely "is each bundled jar claimed
-somewhere in LICENSE-binary?" — it does not verify that a jar is in the
-right license section. Reviewers police categorization manually.
+All three ecosystems compare exact name+version, so version drift is
+surfaced as ADDED (new) / STALE (removed) entries.
 
-npm / python format: each bullet names one package as its first token.
+  - JVM bullets:    `  - lib/<basename>.jar` (optional `(see licenses/...)`)
+  - npm bullets:    `  - <name>@<version>`
+  - python bullets: `  - <name>==<version>` (PEP 503 canonical name)
+
+The check is purely "is each bundled dep claimed somewhere in
+LICENSE-binary?" — it does not verify that a dep is in the right license
+section. Reviewers police categorization manually.
+
+Sources of truth:
+  - npm:    license-webpack-plugin emits frontend/dist/3rdpartylicenses.json
+            during `yarn build` (configured in frontend/custom-webpack.config.js).
+  - python: `pip-licenses --format=csv` after `pip install -r ...`.
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import json
 import re
 import sys
 from pathlib import Path
@@ -56,13 +63,20 @@ ECO_HEADERS = {
 
 # `  - lib/<basename>.jar` optionally followed by ` (see licenses/...)`.
 JAR_BULLET = re.compile(r"^\s*-\s+lib/(\S+\.jar)\b")
-PKG_BULLET = re.compile(r"^\s*-\s+([@\w][\w@/.\-]*)")
+# `  - <name>@<version>` — npm form, name may start with @scope/.
+NPM_BULLET = re.compile(r"^\s*-\s+(@?[\w@/.\-]+)@([^\s@]+)\s*$")
+# `  - <name>==<version>` — pip form.
+PY_BULLET  = re.compile(r"^\s*-\s+([\w][\w.\-]*)==(\S+)\s*$")
 
 
 # --- extracting claims from LICENSE-binary ---------------------------------
 
 def parse_prose(path: Path, ecosystem: str) -> set[str]:
-    """Return the set of claimed jar basenames (jar) or package names (npm/python)."""
+    """Return the set of claimed entries:
+       - jar:    set of jar basenames (e.g. 'commons-cli-1.5.0.jar' qualified)
+       - npm:    set of '<name>@<version>'
+       - python: set of '<canonical_name>==<version>'
+    """
     lines = path.read_text().splitlines()
     current_eco: str | None = None
     claims: set[str] = set()
@@ -90,13 +104,14 @@ def parse_prose(path: Path, ecosystem: str) -> set[str]:
             m = JAR_BULLET.match(raw)
             if m:
                 claims.add(m.group(1))
-        else:
-            m = PKG_BULLET.match(raw)
+        elif ecosystem == "npm":
+            m = NPM_BULLET.match(raw)
             if m:
-                name = m.group(1)
-                if ecosystem == "python":
-                    name = canonicalize_python_name(name)
-                claims.add(name)
+                claims.add(f"{m.group(1)}@{m.group(2)}")
+        else:  # python
+            m = PY_BULLET.match(raw)
+            if m:
+                claims.add(f"{canonicalize_python_name(m.group(1))}=={m.group(2)}")
 
     return claims
 
@@ -118,16 +133,11 @@ def collect_jars(lib_dirs) -> set[str]:
 
 
 def collect_npm(path: Path) -> set[str]:
-    """Angular CLI 3rdpartylicenses.txt: each entry is <name>\n<license>\n<text>."""
-    result: set[str] = set()
-    lines = path.read_text().splitlines()
-    for i, line in enumerate(lines):
-        if i == 0 or lines[i - 1].strip() == "":
-            if (re.fullmatch(r"[@a-z][a-zA-Z0-9@/\._-]+", line)
-                    and i + 1 < len(lines)
-                    and re.match(r"^(MIT|BSD|Apache|ISC|[A-Z0-9.,()\- ]+)", lines[i + 1])):
-                result.add(line)
-    return result
+    """3rdpartylicenses.json emitted by license-webpack-plugin (configured in
+    frontend/custom-webpack.config.js): a JSON array of {name, version, license}
+    entries scoped to the actual webpack bundle."""
+    data = json.loads(path.read_text())
+    return {f"{e['name']}@{e['version']}" for e in data if e.get('name') and e.get('version')}
 
 
 def canonicalize_python_name(name: str) -> str:
@@ -142,10 +152,10 @@ def collect_python(path: Path) -> set[str]:
     result: set[str] = set()
     with path.open(newline="") as f:
         reader = csv.reader(f)
-        header = next(reader, None)
+        next(reader, None)  # header
         for row in reader:
-            if row:
-                result.add(canonicalize_python_name(row[0]))
+            if row and row[0] and row[1]:
+                result.add(f"{canonicalize_python_name(row[0])}=={row[1]}")
     return result
 
 

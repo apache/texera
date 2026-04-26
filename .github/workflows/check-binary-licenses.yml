@@ -25,6 +25,7 @@ on:
       - 'project/AddMetaInfLicenseFiles.scala'
       - 'frontend/package.json'
       - 'frontend/yarn.lock'
+      - 'frontend/custom-webpack.config.js'
       - 'amber/requirements.txt'
       - 'amber/operator-requirements.txt'
       - 'LICENSE-binary'
@@ -129,10 +130,13 @@ jobs:
         run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd frontend set version 4.5.1
       - name: Install frontend dependencies
         run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
-      - name: Production build (emits 3rdpartylicenses.txt)
+      - name: Production build (emits 3rdpartylicenses.json)
+        # The custom-webpack config registers a license-webpack-plugin instance
+        # that writes frontend/dist/3rdpartylicenses.json with {name, version,
+        # license} per bundled package — bundle-scoped, not node_modules-scoped.
         run: yarn --cwd frontend run build
       - name: Check bundled npm packages against LICENSE-binary
-        run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.txt
+        run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
 
   check-python-deps:
     name: Check Python dependencies
@@ -149,7 +153,8 @@ jobs:
           pip install -r amber/operator-requirements.txt
           pip install pip-licenses
       - name: Generate pip-licenses manifest
-        # Exclude pip-licenses itself — it's a CI-only helper, not a bundled dep.
-        run: pip-licenses --format=csv --ignore-packages pip-licenses > /tmp/pip-licenses.csv
+        # pip-licenses, prettytable, and wcwidth are CI-only helpers (the latter
+        # two are pip-licenses's own runtime deps) — not bundled with Texera.
+        run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
       - name: Check installed Python packages against LICENSE-binary
         run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
