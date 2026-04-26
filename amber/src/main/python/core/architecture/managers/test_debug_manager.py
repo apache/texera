@@ -83,3 +83,36 @@ class TestDebugManager:
         # We construct Pdb with nosigint=True to avoid touching signal handlers
         # in the worker thread. Guard against accidental flips.
         assert debug_manager.debugger.nosigint is True
+
+    # ----- edge cases / quirks -----
+
+    def test_put_empty_command_still_marks_command_present(self, debug_manager):
+        # SingleBlockingIO.flush always commits buf + "\n" to value, so even
+        # an empty command becomes a "\n" line and shows up as a pending
+        # command. Documents current behavior.
+        debug_manager.put_debug_command("")
+        assert debug_manager.has_debug_command()
+        assert debug_manager.debugger.stdin.readline() == "\n"
+
+    def test_put_overwrites_unconsumed_command(self, debug_manager):
+        # The command pipe holds at most one value. A second put without an
+        # intervening consume silently overwrites the first — known data-loss
+        # quirk of SingleBlockingIO. Pinning this so callers don't accidentally
+        # rely on queued semantics.
+        debug_manager.put_debug_command("first")
+        debug_manager.put_debug_command("second")
+        assert debug_manager.debugger.stdin.readline() == "second\n"
+
+    def test_put_command_with_embedded_newline_is_passed_verbatim(
+        self, debug_manager
+    ):
+        # An embedded newline is not sanitized; pdb would see the raw bytes.
+        debug_manager.put_debug_command("step\nlist")
+        assert debug_manager.debugger.stdin.readline() == "step\nlist\n"
+
+    def test_event_pipe_overwrites_unconsumed_event(self, debug_manager):
+        debug_manager.debugger.stdout.write("first")
+        debug_manager.debugger.stdout.flush()
+        debug_manager.debugger.stdout.write("second")
+        debug_manager.debugger.stdout.flush()
+        assert debug_manager.get_debug_event() == "second\n"

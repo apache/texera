@@ -100,6 +100,64 @@ class TestTranslateDebugCommand:
         assert result == "b my_udf:5"
         assert not result.endswith(" ")
 
+    # ----- edge cases / invalid input -----
+
+    def test_empty_command_raises_value_error(self, context):
+        # `command.strip().split()` on "" returns [], so the unpacking
+        #     debug_command, *debug_args = ...
+        # raises ValueError. The handler does not guard against this — the
+        # frontend is expected to never send empty commands. Pin the current
+        # behavior so any future guard is a deliberate change.
+        with pytest.raises(ValueError):
+            WorkerDebugCommandHandler.translate_debug_command("", context)
+
+    def test_whitespace_only_command_raises_value_error(self, context):
+        with pytest.raises(ValueError):
+            WorkerDebugCommandHandler.translate_debug_command("   \t  ", context)
+
+    def test_uppercase_break_is_not_recognized(self, context):
+        # The match list is case-sensitive: ["b", "break"]. "BREAK" / "B" fall
+        # through to the pass-through branch and won't get the module prefix.
+        assert (
+            WorkerDebugCommandHandler.translate_debug_command("BREAK 5", context)
+            == "BREAK 5"
+        )
+        assert (
+            WorkerDebugCommandHandler.translate_debug_command("B 5", context)
+            == "B 5"
+        )
+
+    def test_break_with_function_name_is_also_module_prefixed(self, context):
+        # pdb's `b` accepts either a lineno or a function name. The
+        # translation prefixes the module unconditionally; document that.
+        assert (
+            WorkerDebugCommandHandler.translate_debug_command(
+                "b my_func", context
+            )
+            == "b my_udf:my_func"
+        )
+
+    def test_break_with_explicit_filename_is_re_prefixed(self, context):
+        # If the user already typed `b foo.py:5`, the translator naively
+        # prepends the module again, yielding `b my_udf:foo.py:5`. Pin this.
+        assert (
+            WorkerDebugCommandHandler.translate_debug_command(
+                "b foo.py:5", context
+            )
+            == "b my_udf:foo.py:5"
+        )
+
+    def test_module_name_none_is_rendered_as_string_none(self, context):
+        # If the executor hasn't been initialized yet, operator_module_name is
+        # None; the f-string interpolates it as the literal "None". The
+        # frontend isn't expected to send debug commands in this state, but
+        # if it does, this is what comes out.
+        context.executor_manager.operator_module_name = None
+        assert (
+            WorkerDebugCommandHandler.translate_debug_command("b 5", context)
+            == "b None:5"
+        )
+
 
 class TestDebugCommandAsyncFlow:
     @pytest.fixture
@@ -143,3 +201,16 @@ class TestDebugCommandAsyncFlow:
         handler.context.debug_manager.put_debug_command.assert_called_once_with(
             "p x"
         )
+
+    def test_empty_cmd_propagates_value_error(self, handler):
+        # An empty cmd hits the ValueError in translate_debug_command. The
+        # handler does not catch it — the RPC layer will surface the failure
+        # back to the caller. Pin this so silent swallowing doesn't sneak in.
+        with pytest.raises(ValueError):
+            asyncio.run(handler.debug_command(DebugCommandRequest(cmd="")))
+
+    def test_translation_failure_skips_put_and_resume(self, handler):
+        with pytest.raises(ValueError):
+            asyncio.run(handler.debug_command(DebugCommandRequest(cmd="")))
+        handler.context.debug_manager.put_debug_command.assert_not_called()
+        handler.context.pause_manager.resume.assert_not_called()
