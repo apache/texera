@@ -19,6 +19,14 @@ ThisBuild / organization := "org.apache.texera"
 ThisBuild / version      := "1.1.0-incubating"
 ThisBuild / scalaVersion := "2.13.18"
 
+// Each subproject's test task runs in its own JVM. Without forking, sbt loads
+// every subproject's test classes through separate classloaders inside the
+// same JVM. Test utilities like MockTexeraDB and SerializedSuite that rely on
+// a Scala object as a singleton then get one instance per classloader rather
+// than one per JVM, so cross-module specs no longer share their lock or their
+// EmbeddedPostgres binary lock and collide on a shared /tmp resource.
+ThisBuild / Test / fork := true
+
 // Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
 // Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
 // See project/AddMetaInfLicenseFiles.scala.
