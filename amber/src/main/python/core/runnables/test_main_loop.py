@@ -1177,10 +1177,11 @@ class TestMainLoop:
         # The two outputs land on different channel sub-queues:
         #   - DataElement on the data channel to the downstream worker
         #   - DCMElement (NoOperation reply) on the control channel back to "sender"
-        # output_queue is a priority multi-queue, so cross-channel pop order
-        # depends on whether MainLoop has finished both productions by the time
-        # the test pops. Wait for both expected channels to have their item,
-        # then drain and verify per channel — see #4524.
+        # output_queue is a priority multi-queue. With both items present,
+        # the control sub-queue (priority 1) outranks the data sub-queue
+        # (priority 2), so the control reply must come out first. Wait for
+        # both channels to have their item before popping, so the priority
+        # guarantee is what we're actually testing — see #4524.
         control_reply_channel = ChannelIdentity(
             ActorVirtualIdentity("dummy_worker_id"),
             ActorVirtualIdentity("sender"),
@@ -1206,25 +1207,27 @@ class TestMainLoop:
                 )
             time.sleep(0.001)
 
-        items_by_tag: dict = {}
-        for _ in range(2):
-            item = output_queue.get()
-            items_by_tag[item.tag] = item
+        # Priority pulls control before data when both are queued.
+        output_control_element = output_queue.get()
+        assert isinstance(output_control_element, DCMElement), (
+            f"expected control reply first (priority), got {type(output_control_element).__name__}"
+        )
+        assert output_control_element.tag == control_reply_channel
+        assert output_control_element.payload.return_invocation.command_id == 98
+        assert (
+            output_control_element.payload.return_invocation.return_value
+            == ControlReturn(empty_return=EmptyReturn())
+        )
 
-        output_data_element: DataElement = items_by_tag[mock_data_output_channel]
-        assert isinstance(output_data_element, DataElement)
+        output_data_element = output_queue.get()
+        assert isinstance(output_data_element, DataElement), (
+            f"expected data element second, got {type(output_data_element).__name__}"
+        )
+        assert output_data_element.tag == mock_data_output_channel
         assert isinstance(output_data_element.payload, DataFrame)
         data_frame: DataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
         assert data_frame.frame.to_pylist()[0][
             "test-1"
         ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
-
-        output_control_element: DCMElement = items_by_tag[control_reply_channel]
-        assert isinstance(output_control_element, DCMElement)
-        assert output_control_element.payload.return_invocation.command_id == 98
-        assert (
-            output_control_element.payload.return_invocation.return_value
-            == ControlReturn(empty_return=EmptyReturn())
-        )
         reraise()
