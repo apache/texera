@@ -139,6 +139,25 @@ object MockTexeraDB {
       )
     )
 
+  /**
+    * Truncate every user-owned table in the singleton EmbeddedPostgres so the
+    * caller starts from a clean state. Specs sharing this singleton must call
+    * this in their setup (or rely on the helper trait that does it for them)
+    * to avoid colliding with rows left behind by previous specs.
+    */
+  def truncateAllTables(): Unit =
+    synchronized {
+      getDSLContext.execute(
+        """DO $$ DECLARE r RECORD;
+          |BEGIN
+          |  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='texera_db' LOOP
+          |    EXECUTE 'TRUNCATE TABLE texera_db.' || quote_ident(r.tablename) ||
+          |            ' RESTART IDENTITY CASCADE';
+          |  END LOOP;
+          |END $$;""".stripMargin
+      )
+    }
+
   private def executeScriptInJDBC(conn: Connection, script: String): Unit = {
     conn.prepareStatement(script).execute()
     conn.close()
@@ -156,7 +175,12 @@ trait MockTexeraDB {
 
   def getDBInstance: EmbeddedPostgres = MockTexeraDB.getDBInstance
 
-  def initializeDBAndReplaceDSLContext(): Unit = MockTexeraDB.ensureInitialized()
+  def initializeDBAndReplaceDSLContext(): Unit = {
+    MockTexeraDB.ensureInitialized()
+    // The singleton lives for the JVM, so rows from a previous spec would
+    // otherwise leak into this one. Truncate every table on each spec setup.
+    MockTexeraDB.truncateAllTables()
+  }
 
   /**
     * No-op. The singleton EmbeddedPostgres lives for the lifetime of the JVM,

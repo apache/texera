@@ -66,6 +66,21 @@ object TestUtils {
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )
+    // The CI Postgres service is shared across e2e specs, so rows from a
+    // previous spec would otherwise leak into this one. Truncate every table
+    // in the texera_db schema before each spec runs.
+    SqlServer
+      .getInstance()
+      .context
+      .execute(
+        """DO $$ DECLARE r RECORD;
+          |BEGIN
+          |  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='texera_db' LOOP
+          |    EXECUTE 'TRUNCATE TABLE texera_db.' || quote_ident(r.tablename) ||
+          |            ' RESTART IDENTITY CASCADE';
+          |  END LOOP;
+          |END $$;""".stripMargin
+      )
   }
 
   val testUser: User = {
