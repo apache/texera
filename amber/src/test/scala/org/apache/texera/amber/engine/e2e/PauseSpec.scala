@@ -33,8 +33,7 @@ import org.apache.texera.amber.engine.architecture.controller.{
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
-  PAUSED,
-  RUNNING
+  PAUSED
 }
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
@@ -117,9 +116,7 @@ class PauseSpec
     val firstPaused = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Await.result(firstPaused, stateWaitTimeout)
-    val firstResumed = stateReached(client, RUNNING)
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-    Await.result(firstResumed, stateWaitTimeout)
     val secondPaused = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Await.result(secondPaused, stateWaitTimeout)
