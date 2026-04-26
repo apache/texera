@@ -20,6 +20,7 @@ import pandas
 import pickle
 import pyarrow
 import pytest
+import time
 from threading import Thread
 
 from core.models import (
@@ -1173,20 +1174,45 @@ class TestMainLoop:
         input_queue.put(mock_binary_data_element)
         input_queue.put(ECMElement(tag=mock_data_input_channel, payload=test_ecm))
 
-        # output_queue is a priority multi-queue (control sub-queues outrank
-        # data sub-queues), so the relative order in which we see these two
-        # items depends on whether the NoOperation reply has been enqueued by
-        # the time we pop. Drain both and identify each by type — see #4524.
-        first = output_queue.get()
-        second = output_queue.get()
-        items_by_type = {type(first): first, type(second): second}
-        assert {DataElement, DCMElement} == set(items_by_type), (
-            f"expected one DataElement and one DCMElement, got {first} and {second}"
+        # The two outputs land on different channel sub-queues:
+        #   - DataElement on the data channel to the downstream worker
+        #   - DCMElement (NoOperation reply) on the control channel back to "sender"
+        # output_queue is a priority multi-queue, so cross-channel pop order
+        # depends on whether MainLoop has finished both productions by the time
+        # the test pops. Wait for both expected channels to have their item,
+        # then drain and verify per channel — see #4524.
+        control_reply_channel = ChannelIdentity(
+            ActorVirtualIdentity("dummy_worker_id"),
+            ActorVirtualIdentity("sender"),
+            is_control=True,
         )
-        output_data_element: DataElement = items_by_type[DataElement]
-        output_control_element: DCMElement = items_by_type[DCMElement]
 
-        assert output_data_element.tag == mock_data_output_channel
+        def channel_size(channel: ChannelIdentity) -> int:
+            # Sub-queues are added lazily on first put, so the channel may not
+            # exist in the LBMQ yet. Treat that as size zero.
+            if channel not in output_queue._queue.sub_queues:
+                return 0
+            return output_queue._queue.size(channel)
+
+        deadline = time.time() + 5.0
+        while channel_size(mock_data_output_channel) == 0 or (
+            channel_size(control_reply_channel) == 0
+        ):
+            if time.time() > deadline:
+                raise AssertionError(
+                    f"timed out waiting for outputs on both channels; "
+                    f"data={channel_size(mock_data_output_channel)}, "
+                    f"control={channel_size(control_reply_channel)}"
+                )
+            time.sleep(0.001)
+
+        items_by_tag: dict = {}
+        for _ in range(2):
+            item = output_queue.get()
+            items_by_tag[item.tag] = item
+
+        output_data_element: DataElement = items_by_tag[mock_data_output_channel]
+        assert isinstance(output_data_element, DataElement)
         assert isinstance(output_data_element.payload, DataFrame)
         data_frame: DataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
@@ -1194,6 +1220,8 @@ class TestMainLoop:
             "test-1"
         ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
 
+        output_control_element: DCMElement = items_by_tag[control_reply_channel]
+        assert isinstance(output_control_element, DCMElement)
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
             output_control_element.payload.return_invocation.return_value
