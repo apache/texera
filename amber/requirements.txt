@@ -28,12 +28,10 @@ python-dateutil==2.8.2
 pytest-timeout==2.2.0
 protobuf==4.25.8
 betterproto==2.0.0b7
-typing==3.7.4.3
 pampy==0.3.0
 overrides==7.4.0
 typing_extensions==4.14.1
 pytest-reraise==2.1.2
-dataclasses==0.6
 Deprecated==1.2.14
 fs==2.4.16
 praw==7.6.1
