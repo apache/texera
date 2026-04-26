@@ -86,7 +86,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   constructor(
     private userService: UserService,
-    // list additional services in constructor so they are initialized even if no one use them directly
+    // list additional 3 services in constructor so they are initialized even if no one use them directly
     // TODO: make their lifecycle better
     private workflowCompilingService: WorkflowCompilingService,
     private workflowConsoleService: WorkflowConsoleService,
@@ -186,8 +186,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             });
           // to sync up with the updated information, such as workflow.wid
-        } else {
-          console.log("Workflow not persisted");
         }
       });
   }
