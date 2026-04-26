@@ -19,31 +19,33 @@
 
 package org.apache.texera.dao
 
-import org.scalatest.{BeforeAndAfterAll, Suite}
+import org.scalatest.{Args, Status, Suite}
 
 import java.util.concurrent.Semaphore
 
 /**
-  * Mix into any test suite that touches a shared database (the singleton
+  * Mix into any test suite that touches a shared resource (the singleton
   * EmbeddedPostgres in `MockTexeraDB`, the CI's `texera_db_for_test_cases`
-  * service, or the shared Iceberg JDBC catalog). The trait acquires a
-  * JVM-wide semaphore in `beforeAll` and releases it in `afterAll`, so all
-  * suites mixing it in run one at a time relative to each other while
-  * non-DB suites in the build are free to run in parallel.
+  * service, or the shared Iceberg JDBC catalog). Suites mixing this in run
+  * one at a time relative to each other; suites that do not mix it in are
+  * free to run in parallel.
   *
-  * This is the alternative to setting `Global / concurrentRestrictions +=
-  * Tags.limit(Tags.Test, 1)`, which serialised every test in the build.
+  * The lock is held around the entire `Suite.run` invocation, so it works
+  * even for specs whose `beforeAll` overrides do not call `super.beforeAll`.
   */
-trait SerializedSuite extends BeforeAndAfterAll { this: Suite =>
+trait SerializedSuite extends Suite {
 
-  override protected def beforeAll(): Unit = {
+  abstract override def run(testName: Option[String], args: Args): Status = {
     SerializedSuite.lock.acquire()
-    super.beforeAll()
-  }
-
-  override protected def afterAll(): Unit = {
-    try super.afterAll()
-    finally SerializedSuite.lock.release()
+    val status =
+      try super.run(testName, args)
+      catch {
+        case t: Throwable =>
+          SerializedSuite.lock.release()
+          throw t
+      }
+    status.whenCompleted(_ => SerializedSuite.lock.release())
+    status
   }
 }
 
