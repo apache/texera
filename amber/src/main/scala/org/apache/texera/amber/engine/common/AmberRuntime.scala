@@ -51,6 +51,11 @@ object AmberRuntime {
     _actorSystem
   }
 
+  def actorSystem_=(system: ActorSystem): Unit = {
+    _actorSystem = system
+    _serde = SerializationExtension(system)
+  }
+
   def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {
     _actorSystem.scheduler.scheduleOnce(delay)(call)
   }

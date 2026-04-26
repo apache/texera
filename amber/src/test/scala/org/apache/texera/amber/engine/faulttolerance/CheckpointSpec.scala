@@ -60,7 +60,12 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 
   override def beforeAll(): Unit = {
     system = ActorSystem("CheckpointSpec", AmberRuntime.akkaConfig)
+    AmberRuntime.actorSystem = system
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
+  }
+
+  override def afterAll(): Unit = {
+    system.terminate()
   }
 
   "Default controller state" should "be serializable" in {
