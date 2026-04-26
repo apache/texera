@@ -127,8 +127,6 @@ jobs:
       - uses: coursier/cache-action@4e2615869d13561d626ed48655e1a39e5b192b3c # v6.4.9
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
-      - name: Lint with scalafmt
-        run: sbt scalafmtCheckAll
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -140,14 +138,12 @@ jobs:
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Compile with sbt
-        run: sbt clean package
-      - name: Lint with scalafix
-        run: sbt "scalafixAll --check"
       - name: Set docker-java API version
         run: |
           echo "api.version=1.52" >> ~/.docker-java.properties
           cat ~/.docker-java.properties
+      - name: Lint with scalafmt and scalafix
+        run: sbt 'scalafmtCheckAll; scalafixAll --check'
       - name: Run backend tests
         run: sbt test
 
