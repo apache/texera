@@ -36,9 +36,6 @@ scalacOptions += "-Ywarn-unused:imports"
 
 conflictManager := ConflictManager.latestRevision
 
-// ensuring no parallel execution of multiple tasks
-concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
-
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
 

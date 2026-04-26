@@ -31,10 +31,6 @@ ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 // Manage dependency conflicts by always using the latest revision
 ThisBuild / conflictManager := ConflictManager.latestRevision
 
-// Restrict parallel execution of tests to avoid conflicts
-Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
-
-
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
 /////////////////////////////////////////////////////////////////////////////
