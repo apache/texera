@@ -116,3 +116,24 @@ class TestRetryCurrentTupleHandler:
             handler.context.tuple_processing_manager.current_input_tuple_iter
         )
         assert chained == [{"col": "lone"}]
+
+    def test_paused_state_still_chains_and_resumes(self):
+        # The completion guard is `if not confirm_state(COMPLETED)`, so every
+        # other state — RUNNING, READY, PAUSED, UNINITIALIZED — must take the
+        # chain+resume path. PAUSED is the most likely real-world entry point
+        # (the user hits "retry" while the worker is paused on an exception).
+        handler = _build_handler(
+            WorkerState.PAUSED,
+            current_tuple={"col": "current"},
+            remaining_iter=[{"col": "next"}],
+        )
+        asyncio.run(handler.retry_current_tuple(EmptyRequest()))
+
+        chained = list(
+            handler.context.tuple_processing_manager.current_input_tuple_iter
+        )
+        assert chained == [{"col": "current"}, {"col": "next"}]
+        resumed = [
+            call.args[0] for call in handler.context.pause_manager.resume.call_args_list
+        ]
+        assert resumed == [PauseType.USER_PAUSE, PauseType.EXCEPTION_PAUSE]

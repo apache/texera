@@ -138,3 +138,19 @@ class TestEvaluateExpressionHandler:
         _expression, runtime_context = evaluate.call_args.args
         assert runtime_context["tuple_"] is None
         assert runtime_context["input_"] is None
+
+    def test_evaluator_exception_propagates(self, handler):
+        # If the evaluator raises (bad syntax, attribute error in the user's
+        # expression, etc.), the handler must not swallow it — the RPC layer
+        # is responsible for surfacing the failure to the frontend.
+        with patch(
+            "core.architecture.handlers.control.evaluate_expression_handler"
+            ".ExpressionEvaluator.evaluate",
+            side_effect=AttributeError("no such attribute"),
+        ):
+            with pytest.raises(AttributeError, match="no such attribute"):
+                asyncio.run(
+                    handler.evaluate_python_expression(
+                        EvaluatePythonExpressionRequest(expression="self.missing")
+                    )
+                )
