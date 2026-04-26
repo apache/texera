@@ -399,7 +399,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.computingUnitActionsService.confirmAndTerminate(cuid, unit);
 
     this.workflowPveService.deleteEnvironments(cuid).subscribe({
-      error: err => {
+      error: (err: unknown) => {
         console.error("Failed to delete PVE environments", err);
       },
     });
