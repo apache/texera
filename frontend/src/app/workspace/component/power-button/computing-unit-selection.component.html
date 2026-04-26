@@ -194,7 +194,7 @@
             nz-tooltip
             *ngIf="unit.isOwner"
             [nzTooltipTitle]="unitTypeMessageTemplate[unit.computingUnit.type].terminateTooltip"
-            (click)="deleteEnvironments(unit.computingUnit.cuid); terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
+            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
             role="button"
             aria-label="Terminate computing unit">
           </i>

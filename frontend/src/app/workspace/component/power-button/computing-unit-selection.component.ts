@@ -397,6 +397,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     this.computingUnitActionsService.confirmAndTerminate(cuid, unit);
+
+    this.workflowPveService.deleteEnvironments(cuid).subscribe({
+      error: err => {
+        console.error("Failed to delete PVE environments", err);
+      },
+    });
   }
 
   /**
@@ -890,9 +896,5 @@ export class ComputingUnitSelectionComponent implements OnInit {
         wasClean: event.wasClean,
       });
     };
-  }
-
-  deleteEnvironments(cuid: number) {
-    this.workflowPveService.deleteEnvironments(cuid);
   }
 }

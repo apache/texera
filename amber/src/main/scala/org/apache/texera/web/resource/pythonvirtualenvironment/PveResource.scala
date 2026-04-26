@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
