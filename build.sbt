@@ -26,6 +26,9 @@ ThisBuild / scalaVersion := "2.13.18"
 // than one per JVM, so cross-module specs no longer share their lock or their
 // EmbeddedPostgres binary lock and collide on a shared /tmp resource.
 ThisBuild / Test / fork := true
+// Forked JVMs default to the subproject's base directory; pin them to the
+// repo root so relative paths like `sql/texera_ddl.sql` keep resolving.
+ThisBuild / Test / baseDirectory := (ThisBuild / baseDirectory).value
 
 // Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
 // Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
