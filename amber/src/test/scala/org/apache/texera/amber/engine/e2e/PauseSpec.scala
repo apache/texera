@@ -31,13 +31,17 @@ import org.apache.texera.amber.engine.architecture.controller.{
   ExecutionStateUpdate
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  PAUSED
+}
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   cleanupWorkflowExecutionData,
   initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData
+  setUpWorkflowExecutionData,
+  stateReached
 }
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.workflow.LogicalLink
@@ -107,13 +111,15 @@ class PauseSpec
           completion.setDone()
         }
       })
+    val stateWaitTimeout = Duration.fromSeconds(10)
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    val firstPaused = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-    Thread.sleep(4000)
+    Await.result(firstPaused, stateWaitTimeout)
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-    Thread.sleep(400)
+    val secondPaused = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-    Thread.sleep(4000)
+    Await.result(secondPaused, stateWaitTimeout)
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
     Await.result(completion, Duration.fromMinutes(1))
   }
