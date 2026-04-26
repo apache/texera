@@ -1172,16 +1172,28 @@ class TestMainLoop:
         input_queue.put(ECMElement(tag=mock_control_input_channel, payload=test_ecm))
         input_queue.put(mock_binary_data_element)
         input_queue.put(ECMElement(tag=mock_data_input_channel, payload=test_ecm))
-        output_data_element: DataElement = output_queue.get()
+
+        # output_queue is a priority multi-queue (control sub-queues outrank
+        # data sub-queues), so the relative order in which we see these two
+        # items depends on whether the NoOperation reply has been enqueued by
+        # the time we pop. Drain both and identify each by type — see #4524.
+        first = output_queue.get()
+        second = output_queue.get()
+        items_by_type = {type(first): first, type(second): second}
+        assert {DataElement, DCMElement} == set(items_by_type), (
+            f"expected one DataElement and one DCMElement, got {first} and {second}"
+        )
+        output_data_element: DataElement = items_by_type[DataElement]
+        output_control_element: DCMElement = items_by_type[DCMElement]
+
         assert output_data_element.tag == mock_data_output_channel
         assert isinstance(output_data_element.payload, DataFrame)
         data_frame: DataFrame = output_data_element.payload
-
         assert len(data_frame.frame) == 1
         assert data_frame.frame.to_pylist()[0][
             "test-1"
         ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
-        output_control_element: DCMElement = output_queue.get()
+
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
             output_control_element.payload.return_invocation.return_value
