@@ -60,3 +60,26 @@ class TestDebugManager:
         # Putting a command must not consume an event, and vice versa.
         assert debug_manager.has_debug_command()
         assert debug_manager.has_debug_event()
+
+    def test_pdb_is_wired_to_debug_pipes(self, debug_manager):
+        # The Pdb instance must read from the same IO that put_debug_command
+        # writes to, and write to the same IO that get_debug_event reads from.
+        debug_manager.put_debug_command("c")
+        # Reading via the debugger's stdin must see the queued command.
+        assert debug_manager.debugger.stdin.readline() == "c\n"
+
+        debug_manager.debugger.stdout.write("paused")
+        debug_manager.debugger.stdout.flush()
+        assert debug_manager.get_debug_event() == "paused\n"
+
+    def test_event_pipe_supports_multiple_round_trips(self, debug_manager):
+        for line in ("first", "second", "third"):
+            debug_manager.debugger.stdout.write(line)
+            debug_manager.debugger.stdout.flush()
+            assert debug_manager.get_debug_event() == f"{line}\n"
+            assert not debug_manager.has_debug_event()
+
+    def test_debugger_uses_nosigint_to_avoid_signal_install(self, debug_manager):
+        # We construct Pdb with nosigint=True to avoid touching signal handlers
+        # in the worker thread. Guard against accidental flips.
+        assert debug_manager.debugger.nosigint is True
