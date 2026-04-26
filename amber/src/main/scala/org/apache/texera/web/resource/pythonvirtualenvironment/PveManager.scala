@@ -48,10 +48,8 @@ object PveManager {
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
-  private def cuidDir(cuid: Int, pvename: String): Path = {
-    val dir = VenvRoot.resolve(cuid.toString).resolve(pvename)
-    Files.createDirectories(dir)
-    dir
+  private def cuidDir(cuid: Int, pveName: String): Path = {
+    VenvRoot.resolve(cuid.toString).resolve(pveName)
   }
 
   private def pveDir(cuid: Int, pveName: String): Path =
@@ -163,7 +161,17 @@ object PveManager {
       queue.put(s"[PVE] Installing local base requirements from ${requirementsPath.toAbsolutePath}")
 
       val installReqCode = Process(
-        Seq(python, "-m", "pip", "install", "-r", requirementsPath.toString),
+        Seq(
+          python,
+          "-u",
+          "-m",
+          "pip",
+          "install",
+          "--progress-bar",
+          "off",
+          "-r",
+          requirementsPath.toString
+        ),
         None,
         envVars.toSeq: _*
       ).!(
@@ -184,7 +192,17 @@ object PveManager {
       )
 
       val installOperatorReqCode = Process(
-        Seq(python, "-m", "pip", "install", "-r", operatorRequirementsPath.toString),
+        Seq(
+          python,
+          "-u",
+          "-m",
+          "pip",
+          "install",
+          "--progress-bar",
+          "off",
+          "-r",
+          operatorRequirementsPath.toString
+        ),
         None,
         envVars.toSeq: _*
       ).!(
@@ -230,7 +248,7 @@ object PveManager {
       return
     }
 
-    val fixCode = Process(
+    Process(
       Seq(
         "bash",
         "-lc",
@@ -268,7 +286,7 @@ object PveManager {
 
   def getEnvironments(cuid: Int): List[String] = {
 
-    val cuPath = Paths.get("/tmp/texera-pve/venvs").resolve(cuid.toString)
+    val cuPath = VenvRoot.resolve(cuid.toString)
 
     if (!Files.exists(cuPath) || !Files.isDirectory(cuPath)) {
       return List()
@@ -288,7 +306,7 @@ object PveManager {
     }
   }
 
-  // Deletes the entire tmp folder which contains all PVE files
+  // Deletes all PVE environments for a given CU
   def deleteEnvironments(cuid: Int): Unit = {
     val cuPath = VenvRoot.resolve(cuid.toString)
 

@@ -32,48 +32,6 @@ import java.util
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class PveResource {
-
-  // --------------------------------------------------
-  // Create / Install packages (SSE)
-  // --------------------------------------------------
-  @GET
-  @Produces(Array("text/event-stream"))
-  def createPve(
-      @QueryParam("packages") packagesJson: String,
-      @QueryParam("cuid") cuid: Int,
-      @QueryParam("pveName") pveName: String
-  ): ChunkedOutput[String] = {
-    val queue = new LinkedBlockingQueue[String]()
-    val chunkedOutput = new ChunkedOutput[String](classOf[String])
-
-    Future {
-      try {
-
-      PveManager.createNewPve(cuid, queue, pveName)
-
-      } catch {
-        case e: Exception =>
-          queue.put(s"[ERR] ${e.getMessage}")
-      } finally {
-        queue.put("__DONE__")
-      }
-    }
-
-    Future {
-      var done = false
-      while (!done) {
-        val line = queue.take()
-        if (line == "__DONE__") {
-          chunkedOutput.write("data: __DONE__\n\n")
-          done = true
-        } else chunkedOutput.write(s"data: $line\n\n")
-      }
-      chunkedOutput.close()
-    }
-
-    chunkedOutput
-  }
-
   // --------------------------------------------------
   // Get installed packages
   // --------------------------------------------------

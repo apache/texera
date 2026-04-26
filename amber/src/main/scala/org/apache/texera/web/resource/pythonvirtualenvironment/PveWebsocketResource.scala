@@ -1,0 +1,79 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.web.resource.pythonvirtualenvironment
+
+import javax.websocket._
+import javax.websocket.server.ServerEndpoint
+import java.util.concurrent.LinkedBlockingQueue
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
+@ServerEndpoint("/wsapi/pve")
+class PveWebsocketResource {
+
+  @OnOpen
+  def onOpen(session: Session): Unit = {
+
+    val params = session.getRequestParameterMap
+
+    val cuid = params.get("cuid").get(0).toInt
+    val pveName = params.get("pveName").get(0)
+
+    val queue = new LinkedBlockingQueue[String]()
+
+    // Run PVE creation in background
+    Future {
+      try {
+        PveManager.createNewPve(cuid, queue, pveName)
+      } catch {
+        case e: Exception =>
+          queue.put(s"[ERR] ${e.getMessage}")
+      } finally {
+        queue.put("__DONE__")
+      }
+    }
+
+    // Stream logs to frontend
+    Future {
+      var done = false
+
+      while (!done && session.isOpen) {
+        val line = queue.take()
+
+        session.getBasicRemote.sendText(line)
+
+        if (line == "__DONE__") {
+          done = true
+          session.close()
+        }
+      }
+    }
+  }
+
+  @OnError
+  def onError(session: Session, throwable: Throwable): Unit = {
+    println(s"[PVE WS ERROR] ${throwable.getMessage}")
+  }
+
+  @OnClose
+  def onClose(session: Session): Unit = {
+    println("[PVE WS CLOSED]")
+  }
+}

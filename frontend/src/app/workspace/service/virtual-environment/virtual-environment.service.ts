@@ -62,4 +62,20 @@ export class WorkflowPveService {
   deleteEnvironments(cuid: number) {
       return this.http.delete(`/pve/pves/${cuid}`);
   }
+
+  createPveWebSocketUrl(cuid: number, pveName: string, packages: string[] = []): string {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const query = encodeURIComponent(JSON.stringify(packages));
+
+      const token = this.getAccessToken();
+      const tokenParam = token ? `&access-token=${encodeURIComponent(token)}` : "";
+
+      return (
+          `${protocol}//${window.location.host}/wsapi/pve` +
+          `?packages=${query}` +
+          `&cuid=${cuid}` +
+          `&pveName=${encodeURIComponent(pveName)}` +
+          tokenParam
+      );
+  }
 }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, NgZone} from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import {
@@ -63,7 +63,7 @@ type PveDraft = {
   pipOutput: string;
   prettyPipOutput: string;
   expanded: boolean;
-  source?: EventSource;
+  socket?: WebSocket;
   isInstalling: boolean;
 };
 
@@ -127,7 +127,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private modalService: NzModalService,
     private cdr: ChangeDetectorRef,
     private computingUnitActionsService: ComputingUnitActionsService,
-    private workflowPveService: WorkflowPveService
+    private workflowPveService: WorkflowPveService,
+    private ngZone: NgZone,
   ) {}
 
   ngOnInit(): void {
@@ -679,8 +680,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   closePveModal(): void {
     this.pves.forEach(pve => {
-      pve.source?.close();
-      pve.source = undefined;
+      pve.socket?.close();
+      pve.socket = undefined;
       pve.isInstalling = false;
     });
 
@@ -800,60 +801,94 @@ export class ComputingUnitSelectionComponent implements OnInit {
       return;
     }
 
-    env.name = trimmedName;
-    env.isInstalling = true;
-
     const packageArray: string[] = [];
 
-    const token = this.workflowPveService.getAccessToken();
-    const tokenParam = token ? `&access-token=${encodeURIComponent(token)}` : "";
-    const query = encodeURIComponent(JSON.stringify(packageArray));
+    env.socket?.close();
 
-    env.source?.close();
-    env.source = undefined;
+    const websocketUrl = this.workflowPveService.createPveWebSocketUrl(cuId, trimmedName, packageArray);
+    console.log("PVE websocketUrl", websocketUrl);
+    const socket = new WebSocket(websocketUrl);
 
-    const url = `/pve/?packages=${query}` + `&cuid=${cuId}` + `&pveName=${encodeURIComponent(env.name)}` + tokenParam;
+    this.pves[index] = {
+      ...env,
+      name: trimmedName,
+      socket,
+      pipOutput: "Starting ...\n",
+      isInstalling: true,
+    };
 
-    const source = new EventSource(url);
-    env.source = source;
-
-    env.pipOutput += "Starting ...";
     this.updatePrettyPipOutput(index);
     this.scrollToBottomOfPipModal(index);
 
-    source.onmessage = event => {
-      if (event.data === "__DONE__") {
-        this.workflowPveService
-          .getInstalledPackages(cuId, env.name)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: resp => {
-              this.systemPackages = resp.system.map(pkg => {
-                const [name, version] = pkg.split("==");
-                return { name: name.trim(), version: (version ?? "").trim() };
-              });
-            },
-            error: (e: unknown) => console.error("Failed to refresh packages", e),
-          });
+    socket.onmessage = event => {
+      console.log("PVE WS received:", event.data);
 
-        env.source?.close();
-        env.source = undefined;
-        env.isInstalling = false;
-        return;
-      }
+      this.ngZone.run(() => {
+        const currentEnv = this.pves[index];
 
-      env.pipOutput += `${event.data}\n`;
-      this.updatePrettyPipOutput(index);
-      this.scrollToBottomOfPipModal(index);
+        if (event.data === "__DONE__") {
+          this.pves[index] = {
+            ...currentEnv,
+            socket: undefined,
+            isInstalling: false,
+          };
+
+          socket.close();
+
+          this.workflowPveService
+            .getInstalledPackages(cuId, currentEnv.name)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: resp => {
+                this.systemPackages = resp.system.map(pkg => {
+                  const [name, version] = pkg.split("==");
+                  return { name: name.trim(), version: (version ?? "").trim() };
+                });
+                this.cdr.detectChanges();
+              },
+              error: (e: unknown) => console.error("Failed to refresh packages", e),
+            });
+
+          this.cdr.detectChanges();
+          return;
+        }
+
+        this.pves[index] = {
+          ...currentEnv,
+          pipOutput: `${currentEnv.pipOutput ?? ""}${event.data}\n`,
+        };
+
+        this.updatePrettyPipOutput(index);
+        this.scrollToBottomOfPipModal(index);
+        this.cdr.detectChanges();
+      });
     };
 
-    source.onerror = err => {
-      console.log("SSE error/closed", err);
-      env.pipOutput += "\n[Stream closed]\n";
-      this.updatePrettyPipOutput(index);
-      env.source?.close();
-      env.source = undefined;
-      env.isInstalling = false;
+    socket.onerror = err => {
+      console.log("PVE WS error", err);
+
+      this.ngZone.run(() => {
+        const currentEnv = this.pves[index];
+
+        this.pves[index] = {
+          ...currentEnv,
+          pipOutput: `${currentEnv.pipOutput ?? ""}\n[WebSocket error]\n`,
+          socket: undefined,
+          isInstalling: false,
+        };
+
+        socket.close();
+        this.updatePrettyPipOutput(index);
+        this.cdr.detectChanges();
+      });
+    };
+
+    socket.onclose = event => {
+      console.log("PVE WS closed", {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      });
     };
   }
 
