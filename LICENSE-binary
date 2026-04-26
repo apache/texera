@@ -687,7 +687,6 @@ Python packages:
   - aiosignal==1.4.0
   - boto3==1.40.53
   - botocore==1.40.53
-  - dataclasses==0.6
   - frozenlist==1.8.0
   - hf-xet==1.4.3
   - huggingface-hub==0.36.2
@@ -1169,7 +1168,6 @@ licenses/LICENSE-PSF-2.0.txt for the full text.
 Python packages:
   - aiohappyeyeballs==2.6.1
   - matplotlib==3.10.9
-  - typing==3.7.4.3
   - typing-extensions==4.14.1
 
 --------------------------------------------------------------------------------
