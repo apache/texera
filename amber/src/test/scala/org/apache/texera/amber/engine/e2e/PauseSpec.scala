@@ -111,7 +111,7 @@ class PauseSpec
           completion.setDone()
         }
       })
-    val stateWaitTimeout = Duration.fromSeconds(30)
+    val stateWaitTimeout = Duration.fromSeconds(10)
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     val firstPaused = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))

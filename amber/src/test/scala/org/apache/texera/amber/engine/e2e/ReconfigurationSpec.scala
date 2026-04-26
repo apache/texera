@@ -153,7 +153,7 @@ class ReconfigurationSpec
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     val pausedReached = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-    Await.result(pausedReached, Duration.fromSeconds(30))
+    Await.result(pausedReached, Duration.fromSeconds(10))
     val physicalOps = targetOps.flatMap(op =>
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
     )
