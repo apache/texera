@@ -45,4 +45,5 @@ service ControllerService {
   rpc LinkWorkers(LinkWorkersRequest) returns (EmptyReturn);
   rpc ControllerInitiateQueryStatistics(QueryStatisticsRequest) returns (EmptyReturn);
   rpc RetryWorkflow(RetryWorkflowRequest) returns (EmptyReturn);
+  rpc ReconfigureWorkflow(WorkflowReconfigureRequest) returns (EmptyReturn);
 }
