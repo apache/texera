@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from threading import Condition
+
+import pytest
+
+from core.architecture.managers.debug_manager import DebugManager
+
+
+class TestDebugManager:
+    @pytest.fixture
+    def debug_manager(self):
+        return DebugManager(Condition())
+
+    def test_it_can_init(self, debug_manager):
+        assert debug_manager.debugger is not None
+        assert debug_manager.debugger.prompt == ""
+
+    def test_it_has_no_command_initially(self, debug_manager):
+        assert not debug_manager.has_debug_command()
+
+    def test_it_has_no_event_initially(self, debug_manager):
+        assert not debug_manager.has_debug_event()
+
+    def test_put_command_sets_has_debug_command(self, debug_manager):
+        debug_manager.put_debug_command("n")
+        assert debug_manager.has_debug_command()
+
+    def test_get_debug_event_returns_flushed_output(self, debug_manager):
+        # Pdb writes to its stdout via the SingleBlockingIO; simulate that path
+        # directly so we don't have to spin up a real debugging session.
+        debug_manager.debugger.stdout.write("hit breakpoint")
+        debug_manager.debugger.stdout.flush()
+        assert debug_manager.has_debug_event()
+        assert debug_manager.get_debug_event() == "hit breakpoint\n"
+        assert not debug_manager.has_debug_event()
+
+    def test_command_pipe_and_event_pipe_are_independent(self, debug_manager):
+        debug_manager.put_debug_command("step")
+        assert debug_manager.has_debug_command()
+        assert not debug_manager.has_debug_event()
+
+        debug_manager.debugger.stdout.write("event")
+        debug_manager.debugger.stdout.flush()
+        # Putting a command must not consume an event, and vice versa.
+        assert debug_manager.has_debug_command()
+        assert debug_manager.has_debug_event()
