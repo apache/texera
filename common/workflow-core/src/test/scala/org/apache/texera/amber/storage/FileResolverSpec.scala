@@ -21,7 +21,7 @@ package org.apache.texera.amber.storage
 
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.commons.vfs2.FileNotFoundException
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.{MockTexeraDB, SerializedSuite}
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
@@ -34,7 +34,8 @@ class FileResolverSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with SerializedSuite {
 
   private val testUser: User = {
     val user = new User

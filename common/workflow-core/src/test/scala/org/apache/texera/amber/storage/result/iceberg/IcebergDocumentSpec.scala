@@ -32,6 +32,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.IcebergUtil
+import org.apache.texera.dao.SerializedSuite
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
@@ -43,7 +44,10 @@ import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfterAll {
+class IcebergDocumentSpec
+    extends VirtualDocumentSpec[Tuple]
+    with BeforeAndAfterAll
+    with SerializedSuite {
 
   var amberSchema: Schema = _
   var icebergSchema: IcebergSchema = _

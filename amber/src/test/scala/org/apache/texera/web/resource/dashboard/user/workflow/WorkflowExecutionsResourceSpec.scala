@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.{MockTexeraDB, SerializedSuite}
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
@@ -46,6 +46,7 @@ class WorkflowExecutionsResourceSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
     with MockTexeraDB
+    with SerializedSuite
     with PrivateMethodTester {
 
   private val testWorkflowWid = 3000 + scala.util.Random.nextInt(1000)

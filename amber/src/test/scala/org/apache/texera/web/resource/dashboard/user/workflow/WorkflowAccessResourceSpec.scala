@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.{MockTexeraDB, SerializedSuite}
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -45,7 +45,8 @@ class WorkflowAccessResourceSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with SerializedSuite {
 
   private val ownerUid = 1000 + scala.util.Random.nextInt(1000)
   private val userWithWriteUid = 2000 + scala.util.Random.nextInt(1000)

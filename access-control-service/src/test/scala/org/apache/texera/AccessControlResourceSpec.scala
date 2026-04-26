@@ -20,7 +20,7 @@ package org.apache.texera
 import jakarta.ws.rs.core.{HttpHeaders, MultivaluedHashMap, Response, UriInfo}
 import org.apache.texera.auth.JwtAuth
 import org.apache.texera.auth.util.HeaderField
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.{MockTexeraDB, SerializedSuite}
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
   UserRoleEnum,
@@ -50,7 +50,8 @@ class AccessControlResourceSpec
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with SerializedSuite {
 
   private val testURI: String = "http://localhost:8080/"
   private val testPath: String = "/api/executions/1/stats/1"

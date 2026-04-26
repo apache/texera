@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.dashboard.file
 
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.{MockTexeraDB, SerializedSuite}
 import org.apache.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
@@ -49,7 +49,8 @@ class WorkflowResourceSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with SerializedSuite {
 
   // An example creation time to test Account Creation Time attribute
   private val exampleCreationTime: OffsetDateTime =

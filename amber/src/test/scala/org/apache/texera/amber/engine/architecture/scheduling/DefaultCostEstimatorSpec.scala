@@ -35,7 +35,7 @@ import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction}
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.{MockTexeraDB, SerializedSuite}
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos._
 import org.apache.texera.dao.jooq.generated.tables.pojos._
@@ -51,7 +51,8 @@ class DefaultCostEstimatorSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with SerializedSuite {
 
   private val headerlessCsvOpDesc: CSVScanSourceOpDesc =
     TestOperators.headerlessSmallCsvScanOpDesc()

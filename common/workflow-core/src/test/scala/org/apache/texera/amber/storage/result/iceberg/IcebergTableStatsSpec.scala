@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.dao.SerializedSuite
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
@@ -42,7 +43,11 @@ import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, ZoneId}
 import java.util.UUID
 
-class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suite {
+class IcebergTableStatsSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with Suite
+    with SerializedSuite {
 
   var amberSchema: Schema = _
   var icebergSchema: IcebergSchema = _

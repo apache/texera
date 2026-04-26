@@ -22,6 +22,7 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables
+import org.apache.texera.dao.SerializedSuite
 import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import org.jooq.impl.DSL
@@ -37,7 +38,8 @@ class WorkflowVersionResourceSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with SerializedSuite {
 
   private val testWorkflowWid = 2000 + scala.util.Random.nextInt(1000)
 

@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.storage.model._
 import org.apache.texera.amber.core.storage.result.ResultSchema
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
+import org.apache.texera.dao.SerializedSuite
 import org.apache.texera.amber.core.virtualidentity._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -36,7 +37,8 @@ class IcebergDocumentConsoleMessagesSpec
     extends AnyFlatSpec
     with Matchers
     with VirtualDocumentSpec[Tuple]
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with SerializedSuite {
 
   private val amberSchema: Schema = ResultSchema.consoleMessagesSchema
   var uri: URI = _

@@ -49,6 +49,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
+import org.apache.texera.dao.SerializedSuite
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
@@ -62,7 +63,8 @@ class ReconfigurationSpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with Retries {
+    with Retries
+    with SerializedSuite {
 
   /**
     * This block retries each test once if it fails.

@@ -25,7 +25,7 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.{MockTexeraDB, SerializedSuite}
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSession.DATASET_UPLOAD_SESSION
 import org.apache.texera.dao.jooq.generated.tables.DatasetUploadSessionPart.DATASET_UPLOAD_SESSION_PART
@@ -61,7 +61,8 @@ class DatasetResourceSpec
     with MockTexeraDB
     with MockLakeFS
     with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with SerializedSuite {
 
   // ---------- Response entity helpers ----------
   private def entityAsScalaMap(resp: Response): Map[String, Any] = {
