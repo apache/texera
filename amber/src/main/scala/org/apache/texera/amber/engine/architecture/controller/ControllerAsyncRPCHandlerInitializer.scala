@@ -46,6 +46,7 @@ class ControllerAsyncRPCHandlerInitializer(
     with DebugCommandHandler
     with TakeGlobalCheckpointHandler
     with EmbeddedControlMessageHandler
-    with RetrieveWorkflowStateHandler {
+    with RetrieveWorkflowStateHandler
+    with ReconfigurationHandler {
   val actorId: ActorVirtualIdentity = cp.actorId
 }
