@@ -26,13 +26,13 @@ Usage:
 
 Exits non-zero on drift; prints ADDED / STALE groups with remediation hints.
 
-JVM format: each bullet contains one or more comma-separated tokens inside
-parentheses. A token is either:
-  - the full version-stripped jar basename, e.g. `org.apache.arrow.arrow-vector`
-  - a prefix wildcard ending in `.*`, e.g. `org.apache.pekko.*`
-The check is purely "is each bundled library claimed somewhere in
-LICENSE-binary?" — it does not verify that a library is in the right
-license section. Reviewers police categorization manually.
+JVM format: each bullet is a per-jar distribution path of the form
+`  - lib/<basename>.jar` and may carry an optional `(see licenses/...)`
+pointer at the end. The check compares those exact filenames against the
+basenames present in each dist's `lib/` directory — version drift is
+intentionally surfaced. The check is purely "is each bundled jar claimed
+somewhere in LICENSE-binary?" — it does not verify that a jar is in the
+right license section. Reviewers police categorization manually.
 
 npm / python format: each bullet names one package as its first token.
 """
@@ -45,8 +45,6 @@ import sys
 from pathlib import Path
 
 
-SCALA_SENTINEL = "\x01SCALADOT\x01"
-
 # Jars produced by Texera itself — not third-party deps, skip from drift checks.
 TEXERA_OWN_JAR_PREFIX = "org.apache.texera."
 
@@ -56,51 +54,25 @@ ECO_HEADERS = {
     "npm":    "Angular / npm packages",
 }
 
+# `  - lib/<basename>.jar` optionally followed by ` (see licenses/...)`.
+JAR_BULLET = re.compile(r"^\s*-\s+lib/(\S+\.jar)\b")
+PKG_BULLET = re.compile(r"^\s*-\s+([@\w][\w@/.\-]*)")
+
 
 # --- extracting claims from LICENSE-binary ---------------------------------
 
-def parse_prose(path: Path, ecosystem: str):
-    """Return (exact_set, wildcard_prefixes) for jars; a set of pkg names for npm/python."""
+def parse_prose(path: Path, ecosystem: str) -> set[str]:
+    """Return the set of claimed jar basenames (jar) or package names (npm/python)."""
     lines = path.read_text().splitlines()
     current_eco: str | None = None
-    buffer = ""
-    exact: set[str] = set()
-    wildcards: set[str] = set()
-    pkgs: set[str] = set()
-
-    def flush():
-        nonlocal buffer
-        if not buffer or current_eco != ecosystem:
-            buffer = ""
-            return
-        if ecosystem == "jar":
-            # Tokens inside parentheticals.
-            for m in re.finditer(r"\(([^)]+)\)", buffer):
-                for tok in m.group(1).split(","):
-                    tok = tok.strip()
-                    if not tok:
-                        continue
-                    if tok.endswith(".*"):
-                        wildcards.add(tok[:-2])
-                    else:
-                        exact.add(tok)
-        else:
-            m = re.match(r"\s*-\s+([@\w][\w@/.\-]*)", buffer)
-            if m:
-                name = m.group(1)
-                if ecosystem == "python":
-                    name = canonicalize_python_name(name)
-                pkgs.add(name)
-        buffer = ""
+    claims: set[str] = set()
 
     for raw in lines:
         stripped = raw.strip()
 
-        # Ecosystem sub-header?
         matched_header = False
         for eco, needle in ECO_HEADERS.items():
             if stripped.startswith(needle):
-                flush()
                 current_eco = eco
                 matched_header = True
                 break
@@ -108,32 +80,28 @@ def parse_prose(path: Path, ecosystem: str):
             continue
 
         if stripped.startswith("=====") or stripped.startswith("-----"):
-            flush()
             current_eco = None
             continue
 
-        if re.match(r"^  - ", raw):
-            flush()
-            buffer = raw
-        elif re.match(r"^    \S", raw) and buffer:
-            buffer += " " + stripped
+        if current_eco != ecosystem:
+            continue
+
+        if ecosystem == "jar":
+            m = JAR_BULLET.match(raw)
+            if m:
+                claims.add(m.group(1))
         else:
-            flush()
+            m = PKG_BULLET.match(raw)
+            if m:
+                name = m.group(1)
+                if ecosystem == "python":
+                    name = canonicalize_python_name(name)
+                claims.add(name)
 
-    flush()
-
-    if ecosystem == "jar":
-        return exact, wildcards
-    return pkgs
+    return claims
 
 
 # --- collecting reality ----------------------------------------------------
-
-def strip_version(stem: str) -> str:
-    protected = re.sub(r"_([23])\.([0-9]+)", rf"_\1{SCALA_SENTINEL}\2", stem)
-    protected = re.sub(r"-[0-9].*$", "", protected)
-    return protected.replace(SCALA_SENTINEL, ".")
-
 
 def collect_jars(lib_dirs) -> set[str]:
     result: set[str] = set()
@@ -143,10 +111,9 @@ def collect_jars(lib_dirs) -> set[str]:
             sys.stderr.write(f"error: {dp} is not a directory\n")
             sys.exit(2)
         for jar in dp.glob("*.jar"):
-            stem = strip_version(jar.stem)
-            if stem.startswith(TEXERA_OWN_JAR_PREFIX) or stem == TEXERA_OWN_JAR_PREFIX.rstrip("."):
+            if jar.name.startswith(TEXERA_OWN_JAR_PREFIX):
                 continue
-            result.add(stem)
+            result.add(jar.name)
     return result
 
 
@@ -154,17 +121,6 @@ def collect_npm(path: Path) -> set[str]:
     """Angular CLI 3rdpartylicenses.txt: each entry is <name>\n<license>\n<text>."""
     result: set[str] = set()
     lines = path.read_text().splitlines()
-    prev = ""
-    for line in lines:
-        if re.fullmatch(r"[@a-z][a-zA-Z0-9@/\._-]+", line) and prev == "":
-            # Peek at the next line — should be a license identifier.
-            idx = lines.index(line, lines.index(line))
-            # Simpler: check the following line via enumerate.
-            pass
-        prev = line
-
-    # Cleaner: iterate with index.
-    result.clear()
     for i, line in enumerate(lines):
         if i == 0 or lines[i - 1].strip() == "":
             if (re.fullmatch(r"[@a-z][a-zA-Z0-9@/\._-]+", line)
@@ -194,15 +150,6 @@ def collect_python(path: Path) -> set[str]:
 
 
 # --- matching & reporting --------------------------------------------------
-
-def match_jar(jar: str, exact: set[str], wildcards: set[str]) -> bool:
-    if jar in exact:
-        return True
-    for w in wildcards:
-        if jar == w or jar.startswith(w + "."):
-            return True
-    return False
-
 
 def report(added: list[str], stale: list[str], label: str, kind: str) -> int:
     rc = 0
@@ -251,41 +198,30 @@ def main() -> int:
         return 2
 
     if args.kind == "jar":
-        exact, wildcards = parse_prose(lb, "jar")
+        claimed = parse_prose(lb, "jar")
         reality = collect_jars(args.inputs)
-
-        added = [j for j in reality if not match_jar(j, exact, wildcards)]
-        claimed_exact_hit = {j for j in reality if j in exact}
-        claimed_wildcard_hit = {j for j in reality if any(
-            j == w or j.startswith(w + ".") for w in wildcards)}
-
-        stale_exact = [e for e in exact if e not in reality]
-        stale_wildcards = [w for w in wildcards
-                           if not any(j == w or j.startswith(w + ".") for j in reality)]
-
-        stale = stale_exact + [f"{w}:*" for w in stale_wildcards]
+        added = sorted(reality - claimed)
+        stale = sorted(claimed - reality)
         rc = report(added, stale, "JVM jars", "jar")
         if rc == 0:
-            print(f"OK: {len(reality)} JVM jars match LICENSE-binary "
-                  f"({len(claimed_exact_hit)} explicit + "
-                  f"{len(claimed_wildcard_hit) - len(claimed_exact_hit & claimed_wildcard_hit)} wildcard).")
+            print(f"OK: {len(reality)} JVM jars match LICENSE-binary.")
         return rc
 
     if args.kind == "npm":
-        pkgs = parse_prose(lb, "npm")
+        claimed = parse_prose(lb, "npm")
         reality = collect_npm(Path(args.inputs[0]))
-        added = sorted(reality - pkgs)
-        stale = sorted(pkgs - reality)
+        added = sorted(reality - claimed)
+        stale = sorted(claimed - reality)
         rc = report(added, stale, "npm packages", "npm")
         if rc == 0:
             print(f"OK: {len(reality)} npm packages match LICENSE-binary.")
         return rc
 
     if args.kind == "python":
-        pkgs = parse_prose(lb, "python")
+        claimed = parse_prose(lb, "python")
         reality = collect_python(Path(args.inputs[0]))
-        added = sorted(reality - pkgs)
-        stale = sorted(pkgs - reality)
+        added = sorted(reality - claimed)
+        stale = sorted(claimed - reality)
         rc = report(added, stale, "Python packages", "python")
         if rc == 0:
             print(f"OK: {len(reality)} Python packages match LICENSE-binary.")
