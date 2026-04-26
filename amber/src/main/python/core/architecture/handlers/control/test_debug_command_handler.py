@@ -52,44 +52,33 @@ class TestTranslateDebugCommand:
 
     def test_break_preserves_condition_arg(self, context):
         assert (
-            WorkerDebugCommandHandler.translate_debug_command(
-                "b 7 x > 0", context
-            )
+            WorkerDebugCommandHandler.translate_debug_command("b 7 x > 0", context)
             == "b my_udf:7 x > 0"
         )
 
     def test_break_with_no_args_passes_through(self, context):
         # No args → falls through to the else branch (no module rewriting).
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("b", context) == "b"
-        )
+        assert WorkerDebugCommandHandler.translate_debug_command("b", context) == "b"
 
     def test_non_break_command_passes_through(self, context):
-        assert (
-            WorkerDebugCommandHandler.translate_debug_command("n", context) == "n"
-        )
+        assert WorkerDebugCommandHandler.translate_debug_command("n", context) == "n"
 
     def test_non_break_command_with_args_is_rejoined(self, context):
         assert (
-            WorkerDebugCommandHandler.translate_debug_command(
-                "p some_var", context
-            )
+            WorkerDebugCommandHandler.translate_debug_command("p some_var", context)
             == "p some_var"
         )
 
     def test_leading_and_trailing_whitespace_is_stripped(self, context):
         assert (
-            WorkerDebugCommandHandler.translate_debug_command("  c  ", context)
-            == "c"
+            WorkerDebugCommandHandler.translate_debug_command("  c  ", context) == "c"
         )
 
     def test_internal_whitespace_is_collapsed_to_single_space(self, context):
         # split() with no args collapses any run of whitespace, so the rejoined
         # form has single spaces regardless of how many the user typed.
         assert (
-            WorkerDebugCommandHandler.translate_debug_command(
-                "p   foo    bar", context
-            )
+            WorkerDebugCommandHandler.translate_debug_command("p   foo    bar", context)
             == "p foo bar"
         )
 
@@ -123,17 +112,14 @@ class TestTranslateDebugCommand:
             == "BREAK 5"
         )
         assert (
-            WorkerDebugCommandHandler.translate_debug_command("B 5", context)
-            == "B 5"
+            WorkerDebugCommandHandler.translate_debug_command("B 5", context) == "B 5"
         )
 
     def test_break_with_function_name_is_also_module_prefixed(self, context):
         # pdb's `b` accepts either a lineno or a function name. The
         # translation prefixes the module unconditionally; document that.
         assert (
-            WorkerDebugCommandHandler.translate_debug_command(
-                "b my_func", context
-            )
+            WorkerDebugCommandHandler.translate_debug_command("b my_func", context)
             == "b my_udf:my_func"
         )
 
@@ -141,9 +127,7 @@ class TestTranslateDebugCommand:
         # If the user already typed `b foo.py:5`, the translator naively
         # prepends the module again, yielding `b my_udf:foo.py:5`. Pin this.
         assert (
-            WorkerDebugCommandHandler.translate_debug_command(
-                "b foo.py:5", context
-            )
+            WorkerDebugCommandHandler.translate_debug_command("b foo.py:5", context)
             == "b my_udf:foo.py:5"
         )
 
@@ -181,8 +165,7 @@ class TestDebugCommandAsyncFlow:
     def test_resumes_all_three_pause_types(self, handler):
         asyncio.run(handler.debug_command(DebugCommandRequest(cmd="c")))
         actual = [
-            call.args[0]
-            for call in handler.context.pause_manager.resume.call_args_list
+            call.args[0] for call in handler.context.pause_manager.resume.call_args_list
         ]
         assert actual == [
             PauseType.USER_PAUSE,
@@ -191,16 +174,12 @@ class TestDebugCommandAsyncFlow:
         ]
 
     def test_returns_empty_return(self, handler):
-        result = asyncio.run(
-            handler.debug_command(DebugCommandRequest(cmd="n"))
-        )
+        result = asyncio.run(handler.debug_command(DebugCommandRequest(cmd="n")))
         assert isinstance(result, EmptyReturn)
 
     def test_passes_through_non_break_command_unchanged(self, handler):
         asyncio.run(handler.debug_command(DebugCommandRequest(cmd="p x")))
-        handler.context.debug_manager.put_debug_command.assert_called_once_with(
-            "p x"
-        )
+        handler.context.debug_manager.put_debug_command.assert_called_once_with("p x")
 
     def test_empty_cmd_propagates_value_error(self, handler):
         # An empty cmd hits the ValueError in translate_debug_command. The

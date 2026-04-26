@@ -103,9 +103,7 @@ class TestDebugManager:
         debug_manager.put_debug_command("second")
         assert debug_manager.debugger.stdin.readline() == "second\n"
 
-    def test_put_command_with_embedded_newline_is_passed_verbatim(
-        self, debug_manager
-    ):
+    def test_put_command_with_embedded_newline_is_passed_verbatim(self, debug_manager):
         # An embedded newline is not sanitized; pdb would see the raw bytes.
         debug_manager.put_debug_command("step\nlist")
         assert debug_manager.debugger.stdin.readline() == "step\nlist\n"
