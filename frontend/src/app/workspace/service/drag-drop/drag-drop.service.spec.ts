@@ -55,7 +55,7 @@ describe("DragDropService", () => {
       ],
     });
 
-    dragDropService = TestBed.get(DragDropService);
+    dragDropService = TestBed.inject(DragDropService);
 
     // custom equality disregards link ID (since I use DragDropService.getNew)
     jasmine.addCustomEqualityTester((link1: OperatorLink, link2: OperatorLink) => {
@@ -80,8 +80,8 @@ describe("DragDropService", () => {
   });
 
   it("should find 3 input operatorPredicates and 3 output operatorPredicates for an operatorPredicate with 3 input / 3 output ports", () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const workflowUtilService: WorkflowUtilService = TestBed.get(WorkflowUtilService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+    const workflowUtilService: WorkflowUtilService = TestBed.inject(WorkflowUtilService);
 
     const input1 = workflowUtilService.getNewOperatorPredicate("ScanSource");
     const input2 = workflowUtilService.getNewOperatorPredicate("ScanSource");
@@ -106,7 +106,7 @@ describe("DragDropService", () => {
   });
 
   it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHighlights,newHighlights)"', async () => {
-    TestBed.get(WorkflowActionService);
+    TestBed.inject(WorkflowActionService);
     const highlights: string[] = [];
     const unhighlights: string[] = [];
     const expectedHighlights = [mockScanPredicate.operatorID, mockScanPredicate.operatorID];
@@ -134,7 +134,7 @@ describe("DragDropService", () => {
   });
 
   it("should not find any operator when the mouse coordinate is greater than the threshold defined", () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
 
     workflowActionService.addOperator(mockScanPredicate, { x: 0, y: 0 });
 
@@ -152,8 +152,8 @@ describe("DragDropService", () => {
   it(
     "should update highlighting, add operator, and add links when an operator is dropped",
     marbles(async () => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-      const workflowUtilService: WorkflowUtilService = TestBed.get(WorkflowUtilService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+      const workflowUtilService: WorkflowUtilService = TestBed.inject(WorkflowUtilService);
       workflowActionService.getJointGraphWrapper();
       const operatorType = "MultiInputOutput";
       const operator = mockMultiInputOutputPredicate;

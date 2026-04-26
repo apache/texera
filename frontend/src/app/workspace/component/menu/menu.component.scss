@@ -70,16 +70,27 @@
 }
 
 #button-groups {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: nowrap;
   margin: 3px 5px;
+  min-width: 0;
 }
 
 #user-buttons {
-  float: left;
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 #execution-buttons {
-  float: right;
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 #share-button {
@@ -152,16 +163,33 @@ i {
 }
 
 #expanded-utilities {
-  display: inline-block;
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
   @media screen and (max-width: 1250px) {
     display: none;
   }
 }
 
 #utilities-dropdown-button {
+  flex: 0 0 auto;
   @media screen and (min-width: 1251px) {
     display: none;
   }
+}
+
+nz-button-group {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+nz-upload,
+texera-computing-unit-selection {
+  display: inline-flex;
+  flex: 0 0 auto;
 }
 
 texera-user-icon {

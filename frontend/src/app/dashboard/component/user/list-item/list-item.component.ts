@@ -19,7 +19,6 @@
 
 import {
   ChangeDetectorRef,
-  Component,
   ElementRef,
   EventEmitter,
   Input,
@@ -28,6 +27,7 @@ import {
   SimpleChanges,
   ViewChild,
 } from "@angular/core";
+import { Component } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";

@@ -116,6 +116,7 @@ import { LocalLoginComponent } from "./hub/component/about/local-login/local-log
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
+import { ScrollingModule } from "@angular/cdk/scrolling";
 import { UserWorkflowListItemComponent } from "./dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectListItemComponent } from "./dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component";
 import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
@@ -134,7 +135,6 @@ import { ErrorFrameComponent } from "./workspace/component/result-panel/error-fr
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
-import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { NzDescriptionsModule } from "ng-zorro-antd/descriptions";
 import { OverlayModule } from "@angular/cdk/overlay";
@@ -182,6 +182,7 @@ import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
+import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { NzRadioModule } from "ng-zorro-antd/radio";
 import { RegistrationRequestModalComponent } from "./common/service/user/registration-request-modal/registration-request-modal.component";
@@ -235,8 +236,6 @@ registerLocaleData(en);
     ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
-    ResultTableFrameComponent,
-    OperatorPropertyEditFrameComponent,
     UserProjectComponent,
     UserProjectSectionComponent,
     NgbdModalAddProjectWorkflowComponent,
@@ -252,7 +251,6 @@ registerLocaleData(en);
     UserDatasetStagedObjectsListComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
-    LocalLoginComponent,
     ContextMenuComponent,
     CoeditorUserIconComponent,
     AgentPanelComponent,
@@ -269,13 +267,13 @@ registerLocaleData(en);
     FiltersComponent,
     FiltersInstructionsComponent,
     SearchComponent,
-    SearchResultsComponent,
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
     SearchBarComponent,
     ListItemComponent,
+    SearchResultsComponent,
     HubComponent,
     HubWorkflowDetailComponent,
     LandingPageComponent,
@@ -326,7 +324,6 @@ registerLocaleData(en);
     NzBadgeModule,
     NzUploadModule,
     NgxJsonViewerModule,
-    NzMessageModule,
     NzModalModule,
     NzDescriptionsModule,
     NzCardModule,
@@ -358,6 +355,8 @@ registerLocaleData(en);
     NzInputNumberModule,
     NzCheckboxModule,
     NzRadioModule,
+    NzGridModule,
+    ScrollingModule,
   ],
   providers: [
     provideNzI18n(en_US),

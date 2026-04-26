@@ -88,12 +88,8 @@ describe("OperatorPanelComponent", () => {
     component.searchInputValue = "scan";
     fixture.detectChanges();
 
-    const dragDropService = TestBed.get(DragDropService);
-    dragDropService.operatorDroppedSubject.next({
-      operatorType: "ScanSource",
-      offset: { x: 1, y: 1 },
-      dragElementID: "operator-label-ScanSource",
-    });
+    const dragDropService = TestBed.inject(DragDropService);
+    (dragDropService as any).operatorDroppedSubject.next();
 
     fixture.detectChanges();
 
