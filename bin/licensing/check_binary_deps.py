@@ -16,31 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Verify the prose in LICENSE-binary matches actually-bundled third-party
-dependencies for one ecosystem (jar | npm | python).
+"""Diff actually-bundled deps against LICENSE-binary for one ecosystem
+(jar | npm | python). Exits non-zero on drift.
 
 Usage:
   check_binary_deps.py jar    <dist-lib-dir-1> [<dist-lib-dir-2> ...]
   check_binary_deps.py npm    <path-to-3rdpartylicenses.json>
   check_binary_deps.py python <path-to-pip-licenses.csv>
-
-Exits non-zero on drift; prints ADDED / STALE groups with remediation hints.
-
-All three ecosystems compare exact name+version, so version drift is
-surfaced as ADDED (new) / STALE (removed) entries.
-
-  - JVM bullets:    `  - lib/<basename>.jar` (optional `(see licenses/...)`)
-  - npm bullets:    `  - <name>@<version>`
-  - python bullets: `  - <name>==<version>` (PEP 503 canonical name)
-
-The check is purely "is each bundled dep claimed somewhere in
-LICENSE-binary?" — it does not verify that a dep is in the right license
-section. Reviewers police categorization manually.
-
-Sources of truth:
-  - npm:    license-webpack-plugin emits frontend/dist/3rdpartylicenses.json
-            during `yarn build` (configured in frontend/custom-webpack.config.js).
-  - python: `pip-licenses --format=csv` after `pip install -r ...`.
 """
 from __future__ import annotations
 

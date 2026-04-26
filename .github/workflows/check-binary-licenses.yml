@@ -19,19 +19,6 @@ name: Check binary dependency licenses
 
 on:
   pull_request:
-    paths:
-      - '**/build.sbt'
-      - 'project/plugins.sbt'
-      - 'project/AddMetaInfLicenseFiles.scala'
-      - 'frontend/package.json'
-      - 'frontend/yarn.lock'
-      - 'frontend/custom-webpack.config.js'
-      - 'amber/requirements.txt'
-      - 'amber/operator-requirements.txt'
-      - 'LICENSE-binary'
-      - 'NOTICE-binary'
-      - 'bin/licensing/**'
-      - '.github/workflows/check-binary-licenses.yml'
   workflow_dispatch:
 
 permissions:
