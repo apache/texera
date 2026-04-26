@@ -33,7 +33,8 @@ import org.apache.texera.amber.engine.architecture.controller.{
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
-  PAUSED
+  PAUSED,
+  RUNNING
 }
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
@@ -116,11 +117,9 @@ class PauseSpec
     val firstPaused = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Await.result(firstPaused, stateWaitTimeout)
+    val firstResumed = stateReached(client, RUNNING)
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-    // Resume does not emit a RUNNING state update; sleep briefly so processing
-    // can advance before we issue the second pause, otherwise the engine pauses
-    // without making progress and the workflow never completes.
-    Thread.sleep(400)
+    Await.result(firstResumed, stateWaitTimeout)
     val secondPaused = stateReached(client, PAUSED)
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Await.result(secondPaused, stateWaitTimeout)
