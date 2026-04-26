@@ -20,6 +20,7 @@ import pandas
 import pickle
 import pyarrow
 import pytest
+import time
 from threading import Thread
 
 from core.models import (
@@ -1172,19 +1173,61 @@ class TestMainLoop:
         input_queue.put(ECMElement(tag=mock_control_input_channel, payload=test_ecm))
         input_queue.put(mock_binary_data_element)
         input_queue.put(ECMElement(tag=mock_data_input_channel, payload=test_ecm))
-        output_data_element: DataElement = output_queue.get()
-        assert output_data_element.tag == mock_data_output_channel
-        assert isinstance(output_data_element.payload, DataFrame)
-        data_frame: DataFrame = output_data_element.payload
 
-        assert len(data_frame.frame) == 1
-        assert data_frame.frame.to_pylist()[0][
-            "test-1"
-        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
-        output_control_element: DCMElement = output_queue.get()
+        # The two outputs land on different channel sub-queues:
+        #   - DataElement on the data channel to the downstream worker
+        #   - DCMElement (NoOperation reply) on the control channel back to "sender"
+        # output_queue is a priority multi-queue. With both items present,
+        # the control sub-queue (priority 1) outranks the data sub-queue
+        # (priority 2), so the control reply must come out first. Wait for
+        # both channels to have their item before popping, so the priority
+        # guarantee is what we're actually testing — see #4524.
+        control_reply_channel = ChannelIdentity(
+            ActorVirtualIdentity("dummy_worker_id"),
+            ActorVirtualIdentity("sender"),
+            is_control=True,
+        )
+
+        def channel_size(channel: ChannelIdentity) -> int:
+            # Sub-queues are added lazily on first put, so the channel may not
+            # exist in the LBMQ yet. Treat that as size zero.
+            if channel not in output_queue._queue.sub_queues:
+                return 0
+            return output_queue._queue.size(channel)
+
+        deadline = time.time() + 5.0
+        while channel_size(mock_data_output_channel) == 0 or (
+            channel_size(control_reply_channel) == 0
+        ):
+            if time.time() > deadline:
+                raise AssertionError(
+                    f"timed out waiting for outputs on both channels; "
+                    f"data={channel_size(mock_data_output_channel)}, "
+                    f"control={channel_size(control_reply_channel)}"
+                )
+            time.sleep(0.001)
+
+        # Priority pulls control before data when both are queued.
+        output_control_element = output_queue.get()
+        assert isinstance(output_control_element, DCMElement), (
+            f"expected control reply first (priority), got {type(output_control_element).__name__}"
+        )
+        assert output_control_element.tag == control_reply_channel
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
             output_control_element.payload.return_invocation.return_value
             == ControlReturn(empty_return=EmptyReturn())
         )
+
+        output_data_element = output_queue.get()
+        assert isinstance(output_data_element, DataElement), (
+            f"expected data element second, got {type(output_data_element).__name__}"
+        )
+        assert output_data_element.tag == mock_data_output_channel
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame.to_pylist()[0][
+            "test-1"
+        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
         reraise()
