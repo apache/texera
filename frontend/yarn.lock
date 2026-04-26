@@ -14843,7 +14843,7 @@ __metadata:
     y-monaco: "npm:0.1.5"
     y-protocols: "npm:1.0.5"
     y-quill: "npm:0.1.5"
-    y-websocket: "patch:y-websocket@npm%3A1.4.0#~/.yarn/patches/y-websocket-npm-1.4.0-27a986d9a4.patch"
+    y-websocket: "npm:1.5.4"
     yjs: "npm:13.5.41"
     zod: "npm:3.25.76"
     zone.js: "npm:0.15.1"
@@ -16702,6 +16702,19 @@ __metadata:
     0gentesthtml: bin/gentesthtml.js
     0serve: bin/0serve.js
   checksum: 10c0/074097bcb90a002449cfddaa11552f11d088e38233f0a20a3358b08d7d1952b2f5a491fb63e63ccf66a8ec037e16d82d40a27601bbacf5ded0d2ec810bdf550e
+  languageName: node
+  linkType: hard
+
+"lib0@npm:^0.2.52":
+  version: 0.2.117
+  resolution: "lib0@npm:0.2.117"
+  dependencies:
+    isomorphic.js: "npm:^0.2.4"
+  bin:
+    0ecdsa-generate-keypair: bin/0ecdsa-generate-keypair.js
+    0gentesthtml: bin/gentesthtml.js
+    0serve: bin/0serve.js
+  checksum: 10c0/d1b9205890d5d0cbd95ffdb0d6df6f9fd2c315b89e195fc9b015f3778046fb34bc12e94205ccf410a3073b836444045dcef6671fa2f6d5a7f70ebf8b6b0c0616
   languageName: node
   linkType: hard
 
@@ -23648,11 +23661,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"y-websocket@npm:1.4.0":
-  version: 1.4.0
-  resolution: "y-websocket@npm:1.4.0"
+"y-websocket@npm:1.5.4":
+  version: 1.5.4
+  resolution: "y-websocket@npm:1.5.4"
   dependencies:
-    lib0: "npm:^0.2.42"
+    lib0: "npm:^0.2.52"
     lodash.debounce: "npm:^4.0.8"
     ws: "npm:^6.2.1"
     y-leveldb: "npm:^0.1.0"
@@ -23667,30 +23680,7 @@ __metadata:
   bin:
     y-websocket: bin/server.js
     y-websocket-server: bin/server.js
-  checksum: 10c0/2e3a7f0ca45f9e172ab52294b0f72195cb7fb8d27821d7b47c6a38008a7c96e7d598aaef475583bc25b1650a9ee6118e2eaf70b2cdc918bfbbd7a8157d7b48f0
-  languageName: node
-  linkType: hard
-
-"y-websocket@patch:y-websocket@npm%3A1.4.0#~/.yarn/patches/y-websocket-npm-1.4.0-27a986d9a4.patch":
-  version: 1.4.0
-  resolution: "y-websocket@patch:y-websocket@npm%3A1.4.0#~/.yarn/patches/y-websocket-npm-1.4.0-27a986d9a4.patch::version=1.4.0&hash=2602ab"
-  dependencies:
-    lib0: "npm:^0.2.42"
-    lodash.debounce: "npm:^4.0.8"
-    ws: "npm:^6.2.1"
-    y-leveldb: "npm:^0.1.0"
-    y-protocols: "npm:^1.0.5"
-  peerDependencies:
-    yjs: ^13.5.6
-  dependenciesMeta:
-    ws:
-      optional: true
-    y-leveldb:
-      optional: true
-  bin:
-    y-websocket: bin/server.js
-    y-websocket-server: bin/server.js
-  checksum: 10c0/1c1331aec55c1247c87995d89c822d0ffe955c8b9d58ddd4018eda42ab20822837a36dee5ccc36568e99d9412383a5a932ed777274c93a10ac4dce5f976860af
+  checksum: 10c0/d642d28f4ab04536ac530644b49696a9a4b8ef1b31a9378e5ef6dd690c4e6bdadae2232b73526296e124474f6806ea6e17948310b5c2d86bd65506079cfe5581
   languageName: node
   linkType: hard
 
