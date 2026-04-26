@@ -118,7 +118,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
             or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
-            self._process_dcm(next_entry)
+            match(
+                next_entry,
+                DCMElement,
+                self._process_dcm,
+                ECMElement,
+                self._process_ecm,
+            )
 
     @overrides
     def pre_start(self) -> None:
