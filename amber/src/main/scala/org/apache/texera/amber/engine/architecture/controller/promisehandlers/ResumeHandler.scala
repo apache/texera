@@ -22,6 +22,7 @@ package org.apache.texera.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import org.apache.texera.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
+  ExecutionStateUpdate,
   ExecutionStatsUpdate,
   RuntimeStatisticsPersist
 }
@@ -62,6 +63,7 @@ trait ResumeHandler {
         val stats = cp.workflowExecution.getAllRegionExecutionsStats
         sendToClient(ExecutionStatsUpdate(stats))
         sendToClient(RuntimeStatisticsPersist(stats))
+        sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
         cp.controllerTimerService
           .enableStatusUpdate() //re-enabled it since it is disabled in pause
         cp.controllerTimerService
