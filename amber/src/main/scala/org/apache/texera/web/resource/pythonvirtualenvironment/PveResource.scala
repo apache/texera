@@ -19,13 +19,9 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import org.glassfish.jersey.server.ChunkedOutput
 
-import java.util.concurrent.LinkedBlockingQueue
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import java.util
 

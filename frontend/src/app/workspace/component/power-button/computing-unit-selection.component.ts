@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit, NgZone} from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, NgZone } from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import {
@@ -128,7 +128,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
-    private ngZone: NgZone,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -892,7 +892,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     };
   }
 
-  deleteEnvironments(cuid: number){
+  deleteEnvironments(cuid: number) {
     this.workflowPveService.deleteEnvironments(cuid);
   }
 }
