@@ -61,15 +61,13 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public hoveredMessageIndex: number | null = null;
   public isSystemInfoModalVisible = false;
   public systemPrompt: string = "";
-  public availableTools: Array<{ name: string; description: string; inputSchema: any; enabled: boolean }> = [];
+  public availableTools: Array<{ name: string; description: string; inputSchema: any }> = [];
   public agentState: AgentState = AgentState.UNAVAILABLE;
 
   // Current HEAD step ID in the version tree
   public currentHeadId: string | null = null;
 
-  // System info modal state (with editing capabilities)
-  public isEditingSystemPrompt = false;
-  public editingSystemPrompt = "";
+  // System info modal state
   public settingsMaxCharLimit = 20000; // Default max characters for operator results
   public settingsMaxCellCharLimit = 4000; // Default max characters per cell
   public settingsToolTimeoutSeconds = 120; // 2 minutes default
@@ -304,8 +302,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe(systemInfo => {
         this.systemPrompt = systemInfo.systemPrompt;
         this.availableTools = systemInfo.tools;
-        this.isEditingSystemPrompt = false;
-        this.editingSystemPrompt = "";
       });
 
     // Fetch settings from server
@@ -332,7 +328,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   public closeSystemInfoModal(): void {
     this.isSystemInfoModalVisible = false;
-    this.isEditingSystemPrompt = false;
   }
 
   public getToolResult(response: ReActStep, toolCallIndex: number): any {
@@ -557,81 +552,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     }
   }
 
-
-  // =====================
-  // System Info Modal Editing Methods
-  // =====================
-
-  /**
-   * Start editing the system prompt.
-   */
-  public startEditingSystemPrompt(): void {
-    this.editingSystemPrompt = this.systemPrompt;
-    this.isEditingSystemPrompt = true;
-  }
-
-  /**
-   * Cancel editing the system prompt.
-   */
-  public cancelEditingSystemPrompt(): void {
-    this.isEditingSystemPrompt = false;
-    this.editingSystemPrompt = "";
-  }
-
-  /**
-   * Save the edited system prompt.
-   * Note: System prompt is managed server-side in API mode.
-   */
-  public saveSystemPrompt(): void {
-    // In API mode, system prompt is managed server-side
-    this.systemPrompt = this.editingSystemPrompt;
-    this.isEditingSystemPrompt = false;
-    this.notificationService.info("System prompt editing is managed server-side");
-  }
-
-  /**
-   * Reset system prompt to default.
-   * Note: System prompt is managed server-side in API mode.
-   */
-  public resetSystemPromptToDefault(): void {
-    // In API mode, system prompt is managed server-side
-    this.refreshSystemInfo();
-    this.notificationService.info("System prompt is managed server-side");
-  }
-
-  /**
-   * Toggle a specific tool's enabled state.
-   * Note: Tool settings are managed server-side in API mode.
-   */
-  public toggleToolEnabled(tool: { name: string; enabled: boolean }): void {
-    // In API mode, tool settings are managed server-side
-    this.notificationService.info("Tool settings are managed server-side");
-  }
-
-  /**
-   * Enable all tools.
-   * Note: Tool settings are managed server-side in API mode.
-   */
-  public enableAllTools(): void {
-    // In API mode, tool settings are managed server-side
-    this.notificationService.info("Tool settings are managed server-side");
-  }
-
-  /**
-   * Disable all tools.
-   * Note: Tool settings are managed server-side in API mode.
-   */
-  public disableAllTools(): void {
-    // In API mode, tool settings are managed server-side
-    this.notificationService.info("Tool settings are managed server-side");
-  }
-
-  /**
-   * Get count of enabled tools.
-   */
-  public getEnabledToolsCount(): number {
-    return this.availableTools.filter(t => t.enabled).length;
-  }
 
   /**
    * Save the max character limit.

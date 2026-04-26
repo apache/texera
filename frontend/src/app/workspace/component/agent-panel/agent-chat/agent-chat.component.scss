@@ -243,19 +243,6 @@
   padding: 12px 0;
 }
 
-.settings-option {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.settings-prompt-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
 .settings-prompt-display {
   background: #fafafa;
   padding: 12px;
@@ -263,48 +250,6 @@
   border: 1px solid #d9d9d9;
   max-height: 500px;
   overflow-y: auto;
-}
-
-.settings-textarea {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.settings-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
-  border-radius: 4px;
-  color: #595959;
-  font-size: 13px;
-
-  i {
-    color: #52c41a;
-    font-size: 16px;
-  }
-}
-
-.settings-tools-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
-
-  .settings-tools-count {
-    color: #8c8c8c;
-    font-size: 13px;
-  }
-
-  .settings-tools-actions {
-    display: flex;
-    gap: 8px;
-  }
 }
 
 .settings-tools-list {
@@ -321,11 +266,6 @@
 
   &:last-child {
     border-bottom: none;
-  }
-
-  nz-switch {
-    flex-shrink: 0;
-    margin-top: 2px;
   }
 
   .settings-tool-info {

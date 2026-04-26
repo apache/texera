@@ -248,102 +248,19 @@
       <!-- System Prompt Tab -->
       <nz-tab nzTitle="System Prompt">
         <div class="settings-section">
-          <!-- View Mode -->
-          <div *ngIf="!isEditingSystemPrompt">
-            <div class="settings-prompt-actions">
-              <button
-                nz-button
-                nzType="link"
-                nzSize="small"
-                (click)="startEditingSystemPrompt()">
-                <i
-                  nz-icon
-                  nzType="edit"
-                  nzTheme="outline"></i>
-                Edit
-              </button>
-              <button
-                nz-button
-                nzType="link"
-                nzSize="small"
-                (click)="resetSystemPromptToDefault()">
-                <i
-                  nz-icon
-                  nzType="undo"
-                  nzTheme="outline"></i>
-                Reset to default
-              </button>
-            </div>
-            <div class="settings-prompt-display">
-              <markdown [data]="systemPrompt"></markdown>
-            </div>
-          </div>
-
-          <!-- Edit Mode -->
-          <div *ngIf="isEditingSystemPrompt">
-            <div class="settings-prompt-actions">
-              <button
-                nz-button
-                nzType="primary"
-                nzSize="small"
-                (click)="saveSystemPrompt()">
-                <i
-                  nz-icon
-                  nzType="save"
-                  nzTheme="outline"></i>
-                Save
-              </button>
-              <button
-                nz-button
-                nzType="default"
-                nzSize="small"
-                (click)="cancelEditingSystemPrompt()">
-                Cancel
-              </button>
-            </div>
-            <textarea
-              nz-input
-              [(ngModel)]="editingSystemPrompt"
-              [nzAutosize]="{ minRows: 20, maxRows: 30 }"
-              placeholder="Enter system prompt..."
-              class="settings-textarea"></textarea>
+          <div class="settings-prompt-display">
+            <markdown [data]="systemPrompt"></markdown>
           </div>
         </div>
       </nz-tab>
 
       <!-- Tools Tab -->
-      <nz-tab [nzTitle]="'Tools (' + getEnabledToolsCount() + '/' + availableTools.length + ')'">
+      <nz-tab [nzTitle]="'Tools (' + availableTools.length + ')'">
         <div class="settings-section">
-          <div class="settings-tools-header">
-            <span class="settings-tools-count"
-              >{{ getEnabledToolsCount() }} of {{ availableTools.length }} tools enabled</span
-            >
-            <div class="settings-tools-actions">
-              <button
-                nz-button
-                nzType="link"
-                nzSize="small"
-                (click)="enableAllTools()">
-                Enable all
-              </button>
-              <button
-                nz-button
-                nzType="link"
-                nzSize="small"
-                (click)="disableAllTools()">
-                Disable all
-              </button>
-            </div>
-          </div>
-
           <div class="settings-tools-list">
             <div
               *ngFor="let tool of availableTools"
               class="settings-tool-item">
-              <nz-switch
-                [ngModel]="tool.enabled"
-                (ngModelChange)="toggleToolEnabled(tool)"
-                nzSize="small"></nz-switch>
               <div class="settings-tool-info">
                 <span class="settings-tool-name">{{ tool.name }}</span>
                 <span class="settings-tool-description">{{ tool.description }}</span>
