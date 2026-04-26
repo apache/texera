@@ -126,8 +126,10 @@ jobs:
           key: ${{ runner.os }}-yarn-license-${{ hashFiles('frontend/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-license-
-      - name: Prepare Yarn 4.5.1
-        run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd frontend set version 4.5.1
+      - name: Prepare Yarn (version pinned by frontend/.yarnrc.yml)
+        # corepack picks up yarnPath from frontend/.yarnrc.yml, so this stays in
+        # lockstep with whatever yarn version the lockfile was written with.
+        run: corepack enable
       - name: Install frontend dependencies
         run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
       - name: Production build (emits 3rdpartylicenses.json)

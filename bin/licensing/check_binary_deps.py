@@ -111,7 +111,9 @@ def parse_prose(path: Path, ecosystem: str) -> set[str]:
         else:  # python
             m = PY_BULLET.match(raw)
             if m:
-                claims.add(f"{canonicalize_python_name(m.group(1))}=={m.group(2)}")
+                name = canonicalize_python_name(m.group(1))
+                ver  = canonicalize_python_version(m.group(2))
+                claims.add(f"{name}=={ver}")
 
     return claims
 
@@ -145,17 +147,27 @@ def canonicalize_python_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name.lower())
 
 
+def canonicalize_python_version(version: str) -> str:
+    """Drop PEP 440 local-version identifiers (everything after `+`).
+    Wheels for the same release ship as e.g. `2.8.0` on macOS but
+    `2.8.0+cpu` on Linux — same software, different platform tag."""
+    return version.split("+", 1)[0]
+
+
 def collect_python(path: Path) -> set[str]:
     """pip-licenses CSV: Name,Version,License (header row). Names are
     canonicalized per PEP 503 so the compare is indifferent to whether
-    a distribution uses hyphens, underscores, or dots."""
+    a distribution uses hyphens, underscores, or dots; versions are
+    canonicalized to the public release form (no PEP 440 +local suffix)."""
     result: set[str] = set()
     with path.open(newline="") as f:
         reader = csv.reader(f)
         next(reader, None)  # header
         for row in reader:
             if row and row[0] and row[1]:
-                result.add(f"{canonicalize_python_name(row[0])}=={row[1]}")
+                name = canonicalize_python_name(row[0])
+                ver  = canonicalize_python_version(row[1])
+                result.add(f"{name}=={ver}")
     return result
 
 
