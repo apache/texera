@@ -20,10 +20,10 @@
 import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
-import { AgentService, AgentInfo } from "../../service/agent/agent.service";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { NotificationService } from "../../../common/service/notification/notification.service";
-import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
 
 @UntilDestroy()
 @Component({

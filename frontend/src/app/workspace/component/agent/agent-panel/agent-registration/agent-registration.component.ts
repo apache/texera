@@ -18,11 +18,11 @@
  */
 
 import { Component, EventEmitter, OnDestroy, OnInit, Output } from "@angular/core";
-import { AgentService, ModelType } from "../../../service/agent/agent.service";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
-import { ComputingUnitState } from "../../../../common/type/computing-unit-connection.interface";
+import { AgentService, ModelType } from "../../../../service/agent/agent.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
+import { ComputingUnitStatusService } from "../../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitState } from "../../../../../common/type/computing-unit-connection.interface";
 import { Subject, takeUntil } from "rxjs";
 
 @Component({

@@ -32,11 +32,11 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subject } from "rxjs";
 import { distinctUntilChanged, filter, pairwise, startWith, takeUntil } from "rxjs/operators";
-import { AgentState, ReActStep } from "../../../service/agent/agent-types";
-import { AgentInfo, AgentService } from "../../../service/agent/agent.service";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { AgentState, ReActStep } from "../../../../service/agent/agent-types";
+import { AgentInfo, AgentService } from "../../../../service/agent/agent.service";
+import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
 
 @UntilDestroy()
 @Component({

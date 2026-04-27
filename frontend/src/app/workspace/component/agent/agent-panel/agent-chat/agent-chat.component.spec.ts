@@ -20,9 +20,9 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { AgentChatComponent } from "./agent-chat.component";
-import { AgentService } from "../../../service/agent/agent.service";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { AgentService } from "../../../../service/agent/agent.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
 
 describe("AgentChatComponent", () => {

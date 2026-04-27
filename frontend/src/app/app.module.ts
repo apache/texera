@@ -101,13 +101,13 @@ import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-user-icon/coeditor-user-icon.component";
-import { AgentPanelComponent } from "./workspace/component/agent-panel/agent-panel.component";
-import { AgentChatComponent } from "./workspace/component/agent-panel/agent-chat/agent-chat.component";
-import { AgentRegistrationComponent } from "./workspace/component/agent-panel/agent-registration/agent-registration.component";
+import { AgentPanelComponent } from "./workspace/component/agent/agent-panel/agent-panel.component";
+import { AgentChatComponent } from "./workspace/component/agent/agent-panel/agent-chat/agent-chat.component";
+import { AgentRegistrationComponent } from "./workspace/component/agent/agent-panel/agent-registration/agent-registration.component";
 import { DatasetFileSelectorComponent } from "./workspace/component/dataset-file-selector/dataset-file-selector.component";
 import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { DatasetSelectionModalComponent } from "./workspace/component/dataset-selection-modal/dataset-selection-modal.component";
-import { ReActStepDetailModalComponent } from "./workspace/component/agent-panel/react-step-detail-modal/react-step-detail-modal.component";
+import { ReActStepDetailModalComponent } from "./workspace/component/agent/agent-panel/react-step-detail-modal/react-step-detail-modal.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { NzRadioModule } from "ng-zorro-antd/radio";
@@ -165,7 +165,7 @@ import { LandingPageComponent } from "./hub/component/landing-page/landing-page.
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
-import { AgentInteractionComponent } from "./workspace/component/agent-interaction/agent-interaction.component";
+import { AgentInteractionComponent } from "./workspace/component/agent/agent-interaction/agent-interaction.component";
 import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import {
   GoogleLoginProvider,

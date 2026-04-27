@@ -20,9 +20,9 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { AgentService } from "../../service/agent/agent.service";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { NotificationService } from "../../../common/service/notification/notification.service";
+import { AgentService } from "../../../service/agent/agent.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
