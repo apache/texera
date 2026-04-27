@@ -25,12 +25,11 @@ import java.util.concurrent.LinkedBlockingQueue
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-
 /**
- * WebSocket endpoint for PVE creation that streams pip installation logs
- * to the frontend in real time. The environment setup runs asynchronously,
- * and output is pushed to the client until completion.
- */
+  * WebSocket endpoint for PVE creation that streams pip installation logs
+  * to the frontend in real time. The environment setup runs asynchronously,
+  * and output is pushed to the client until completion.
+  */
 
 @ServerEndpoint("/wsapi/pve")
 class PveWebsocketResource {
@@ -42,13 +41,13 @@ class PveWebsocketResource {
 
     val cuid = params.get("cuid").get(0).toInt
     val pveName = params.get("pveName").get(0)
+    val isLocal = params.get("isLocal").get(0).toBoolean
 
     val queue = new LinkedBlockingQueue[String]()
 
-    // Run PVE creation in background
     Future {
       try {
-        PveManager.createNewPve(cuid, queue, pveName)
+        PveManager.createNewPve(cuid, queue, pveName, isLocal)
       } catch {
         case e: Exception =>
           queue.put(s"[ERR] ${e.getMessage}")
@@ -57,7 +56,6 @@ class PveWebsocketResource {
       }
     }
 
-    // Stream logs to frontend
     Future {
       var done = false
 
