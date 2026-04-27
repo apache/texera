@@ -41,6 +41,7 @@ import { PanelResizeService } from "../../service/workflow-result/panel-resize/p
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
   styleUrls: ["./result-panel-model.component.scss"],
+  standalone: false,
 })
 export class RowModalComponent implements OnChanges {
   // Index of current displayed row in currentResult

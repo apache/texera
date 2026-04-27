@@ -52,6 +52,7 @@ export interface PresetKey {
 @Component({
   templateUrl: "./preset-wrapper.component.html",
   styleUrls: ["./preset-wrapper.component.scss"],
+  standalone: false,
 })
 export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDestroy {
   public searchResults: Preset[] = []; // the list of presets shown in the dropdown

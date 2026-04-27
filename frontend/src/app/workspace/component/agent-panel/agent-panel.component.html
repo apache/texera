@@ -84,11 +84,16 @@
     </h4>
 
     <!-- Tabs -->
-    <nz-tabset
+    <nz-tabs
       [(nzSelectedIndex)]="selectedTabIndex"
       class="agent-tabs"
-      nzType="card"
-      [nzTabBarExtraContent]="tabBarExtra">
+      nzType="card">
+      <ng-template nzTabBarExtraContent="end">
+        <div class="tab-bar-extra">
+          <span class="agent-count">{{ agents.length }} agent(s)</span>
+        </div>
+      </ng-template>
+
       <!-- Registration Tab -->
       <nz-tab nzTitle="+ Agent">
         <ng-template nz-tab>
@@ -124,15 +129,8 @@
           <texera-agent-chat [agentInfo]="agent"></texera-agent-chat>
         </ng-template>
       </nz-tab>
-    </nz-tabset>
+    </nz-tabs>
 
     <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
   </div>
 </div>
-
-<!-- Tab Bar Extra Content Template -->
-<ng-template #tabBarExtra>
-  <div class="tab-bar-extra">
-    <span class="agent-count">{{ agents.length }} agent(s)</span>
-  </div>
-</ng-template>

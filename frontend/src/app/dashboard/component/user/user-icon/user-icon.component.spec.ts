@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { UserIconComponent } from "./user-icon.component";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -40,6 +41,7 @@ describe("UserIconComponent", () => {
         HttpClientTestingModule,
         NzDropDownModule,
       ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   }));
 

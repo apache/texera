@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import { CommonModule } from "@angular/common";
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { PropertyEditorComponent } from "./property-editor.component";
 import {
@@ -39,8 +41,15 @@ describe("PropertyEditorComponent", () => {
   let workflowActionService: WorkflowActionService;
 
   beforeEach(waitForAsync(() => {
+    TestBed.overrideComponent(PropertyEditorComponent, {
+      set: {
+        template: '<div id="right-container"><div #contentWrapper></div></div>',
+      },
+    });
+
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+      declarations: [PropertyEditorComponent],
+      imports: [CommonModule, HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -49,6 +58,7 @@ describe("PropertyEditorComponent", () => {
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   }));
 

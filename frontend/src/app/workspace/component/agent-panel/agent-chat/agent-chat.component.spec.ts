@@ -24,6 +24,8 @@ import { TexeraCopilotManagerService } from "../../../service/copilot/texera-cop
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { CopilotState } from "../../../service/copilot/texera-copilot";
+import { of } from "rxjs";
 
 describe("AgentChatComponent", () => {
   let component: AgentChatComponent;
@@ -33,13 +35,16 @@ describe("AgentChatComponent", () => {
 
   beforeEach(async () => {
     mockCopilotManagerService = jasmine.createSpyObj("TexeraCopilotManagerService", [
-      "getAgentResponsesObservable",
+      "getReActStepsObservable",
       "getAgentStateObservable",
       "sendMessage",
       "stopGeneration",
       "clearMessages",
       "getSystemInfo",
     ]);
+    mockCopilotManagerService.getReActStepsObservable.and.returnValue(of([]));
+    mockCopilotManagerService.getAgentStateObservable.and.returnValue(of(CopilotState.AVAILABLE));
+    mockCopilotManagerService.getSystemInfo.and.returnValue(of({ systemPrompt: "", tools: [] }));
     mockNotificationService = jasmine.createSpyObj("NotificationService", ["info", "error", "success"]);
 
     await TestBed.configureTestingModule({
@@ -57,9 +62,15 @@ describe("AgentChatComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(AgentChatComponent);
     component = fixture.componentInstance;
+    component.agentInfo = {
+      id: "agent-1",
+      name: "Test Agent",
+      modelType: "gpt-4o-mini",
+    } as never;
   });
 
   it("should create", () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 });

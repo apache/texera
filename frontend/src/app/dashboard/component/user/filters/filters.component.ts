@@ -35,6 +35,7 @@ import { switchMap } from "rxjs/operators";
   selector: "texera-filters",
   templateUrl: "./filters.component.html",
   styleUrls: ["./filters.component.scss"],
+  standalone: false,
 })
 export class FiltersComponent implements OnInit {
   public isLogin = this.userService.isLogin();

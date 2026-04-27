@@ -68,6 +68,7 @@ import { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit"
       </tbody>
     </table>
   `,
+  standalone: false,
 })
 export class ComputingUnitMetadataComponent {
   readonly unit: DashboardWorkflowComputingUnit = inject(NZ_MODAL_DATA);

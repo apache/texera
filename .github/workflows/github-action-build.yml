@@ -46,7 +46,7 @@ jobs:
           - os: windows-latest
             arch: x64
         node-version:
-          - 18
+          - 20.19.0
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
@@ -57,10 +57,7 @@ jobs:
           architecture: ${{ matrix.arch }}
       - uses: actions/cache@v4
         with:
-          path: |
-            frontend/.yarn/cache
-            frontend/.yarn/unplugged
-            frontend/.yarn/install-state.gz
+          path: frontend/.yarn/cache
           key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-

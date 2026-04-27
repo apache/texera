@@ -98,7 +98,7 @@
       <div class="dataset-item-meta-description">
         <label
           *ngIf="!editingDescription; else customDatasetDescription "
-          (click)="editingDescription = editable && entry.accessPrivilege == 'WRITE'"
+          (click)="editingDescription = editable && entry.accessPrivilege === 'WRITE'"
           class="dataset-description-label">
           {{ dataset.description }}
         </label>
