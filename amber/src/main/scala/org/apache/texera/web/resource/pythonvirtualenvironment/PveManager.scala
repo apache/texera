@@ -25,6 +25,7 @@ import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import java.util.Comparator
+import org.apache.texera.amber.config.UdfConfig
 
 /**
   * PveManager is responsible for managing Python Virtual Environments (PVEs)
@@ -99,187 +100,139 @@ object PveManager {
     * Creates a new PVE for a CU.
     *
     * Behavior:
-    * - If a base PVE exists (PVE_BASE), it clones it for faster setup
-    * - Otherwise, creates a fresh venv and installs dependencies
+    * Creates a fresh venv and installs dependencies
     *
     * Steps:
-    * 1. Create or copy base environment
-    * 2. Install system + operator dependencies
+    * 2. Install system dependencies
     * 3. Record installed packages as system metadata
     *
     * Logs progress to the provided queue.
     */
-  def createNewPve(cuid: Int, queue: BlockingQueue[String], pveName: String): Unit = {
+  def createNewPve(
+      cuid: Int,
+      queue: BlockingQueue[String],
+      pveName: String,
+      isLocal: Boolean
+  ): Unit = {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
     val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val envVars = pipEnv
 
-    val pveBase = sys.env.getOrElse("PVE_BASE", "/opt/pve-base")
-    val basePython = Paths.get(pveBase).resolve("bin").resolve("python")
-    val hasBasePve = Files.exists(basePython)
+    val pythonPath = UdfConfig.pythonPath.trim
+    val createVenvPython = if (pythonPath.isEmpty) "python3" else pythonPath
 
     val requirementsPath =
-      if (!hasBasePve) Paths.get("amber", "requirements.txt")
+      if (isLocal) Paths.get("amber", "requirements.txt")
       else Paths.get("/tmp", "requirements.txt")
 
     val operatorRequirementsPath =
-      if (!hasBasePve) Paths.get("amber", "operator-requirements.txt")
+      if (isLocal) Paths.get("amber", "operator-requirements.txt")
       else Paths.get("/tmp", "operator-requirements.txt")
 
-    if (!hasBasePve) {
-      Files.createDirectories(venvDirPath.getParent)
-
-      val createCode = Process(Seq("python3", "-m", "venv", venvDirPath.toString)).!(
-        ProcessLogger(
-          out => queue.put(s"[pve] $out"),
-          err => queue.put(s"[pve][ERR] $err")
-        )
-      )
-      queue.put(s"[pve] local venv creation finished with exit code $createCode")
-
-      if (createCode != 0) {
-        queue.put(s"[PVE][ERR] Failed to create local venv (exit=$createCode)")
-        return
-      }
-
-      if (!Files.exists(requirementsPath)) {
-        queue.put(s"[PVE][ERR] requirements.txt not found at ${requirementsPath.toAbsolutePath}")
-        return
-      }
-
-      if (!Files.exists(operatorRequirementsPath)) {
-        queue.put(
-          s"[PVE][ERR] operator-requirements.txt not found at ${operatorRequirementsPath.toAbsolutePath}"
-        )
-        return
-      }
-
-      Files.createDirectories(metadataDir(cuid, pveName))
-
-      queue.put(s"[PVE] Installing local base requirements from ${requirementsPath.toAbsolutePath}")
-
-      val installReqCode = Process(
-        Seq(
-          python,
-          "-u",
-          "-m",
-          "pip",
-          "install",
-          "--progress-bar",
-          "off",
-          "-r",
-          requirementsPath.toString
-        ),
-        None,
-        envVars.toSeq: _*
-      ).!(
-        ProcessLogger(
-          out => queue.put(s"[pip] $out"),
-          err => queue.put(s"[pip][ERR] $err")
-        )
-      )
-      queue.put(s"[PVE] requirements install finished with exit code $installReqCode")
-
-      if (installReqCode != 0) {
-        queue.put(s"[PVE][ERR] Failed to install requirements.txt (exit=$installReqCode)")
-        return
-      }
-
-      queue.put(
-        s"[PVE] Installing local operator requirements from ${operatorRequirementsPath.toAbsolutePath}"
-      )
-
-      val installOperatorReqCode = Process(
-        Seq(
-          python,
-          "-u",
-          "-m",
-          "pip",
-          "install",
-          "--progress-bar",
-          "off",
-          "-r",
-          operatorRequirementsPath.toString
-        ),
-        None,
-        envVars.toSeq: _*
-      ).!(
-        ProcessLogger(
-          out => queue.put(s"[pip] $out"),
-          err => queue.put(s"[pip][ERR] $err")
-        )
-      )
-      queue.put(
-        s"[PVE] operator requirements install finished with exit code $installOperatorReqCode"
-      )
-
-      if (installOperatorReqCode != 0) {
-        queue.put(
-          s"[PVE][ERR] Failed to install operator-requirements.txt (exit=$installOperatorReqCode)"
-        )
-        return
-      }
-
-      queue.put("[PVE] Running pip freeze")
-      val freezeOutput = Process(Seq(python, "-m", "pip", "freeze"), None, envVars.toSeq: _*).!!
-      val installedLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
-
-      writeMetadata(systemPackagesPath(cuid, pveName), installedLines)
-
-      queue.put(s"[PVE] Created new local environment for cuid = $cuid")
-      return
-    }
-
     Files.createDirectories(venvDirPath.getParent)
-    queue.put(s"[PVE] Copying base venv from $pveBase to ${venvDirPath.toString}")
 
-    val copyCode = Process(Seq("bash", "-lc", s"cp -a '${pveBase}' '${venvDirPath.toString}'")).!(
+    val createCode = Process(Seq(createVenvPython, "-m", "venv", venvDirPath.toString)).!(
       ProcessLogger(
         out => queue.put(s"[pve] $out"),
         err => queue.put(s"[pve][ERR] $err")
       )
     )
-    queue.put(s"[pve] base copy finished with exit code $copyCode")
 
-    if (copyCode != 0) {
-      queue.put(s"[PVE][ERR] Failed to copy base venv (exit=$copyCode)")
+    queue.put(s"[pve] venv creation finished with exit code $createCode")
+
+    if (createCode != 0) {
+      queue.put(s"[PVE][ERR] Failed to create venv (exit=$createCode)")
       return
     }
 
-    Process(
-      Seq(
-        "bash",
-        "-lc",
-        s"""
-           |set -e
-           |PY='${python}'
-           |BIN='${venvDirPath.toString}/bin'
-           |for f in "$$BIN"/*; do
-           |  [ -f "$$f" ] || continue
-           |  head -n 1 "$$f" | grep -q '^#!' || continue
-           |  head -n 1 "$$f" | grep -qi 'python' || continue
-           |  sed -i.bak "1s|^#!.*python.*|#!$$PY|" "$$f" || true
-           |  rm -f "$$f.bak" || true
-           |done
-           |""".stripMargin
+    if (!Files.exists(requirementsPath)) {
+      queue.put(s"[PVE][ERR] requirements.txt not found at ${requirementsPath.toAbsolutePath}")
+      return
+    }
+
+    if (!Files.exists(operatorRequirementsPath)) {
+      queue.put(
+        s"[PVE][ERR] operator-requirements.txt not found at ${operatorRequirementsPath.toAbsolutePath}"
       )
-    ).!(
-      ProcessLogger(
-        out => queue.put(s"[pve] $out"),
-        err => queue.put(s"[pve][ERR] $err")
-      )
-    )
+      return
+    }
 
     Files.createDirectories(metadataDir(cuid, pveName))
 
-    queue.put("[PVE] Base environment copied; skipping system requirements install.")
+    queue.put(s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath}")
+
+    val installReqCode = Process(
+      Seq(
+        python,
+        "-u",
+        "-m",
+        "pip",
+        "install",
+        "--progress-bar",
+        "off",
+        "-r",
+        requirementsPath.toString
+      ),
+      None,
+      envVars.toSeq: _*
+    ).!(
+      ProcessLogger(
+        out => queue.put(s"[pip] $out"),
+        err => queue.put(s"[pip][ERR] $err")
+      )
+    )
+
+    queue.put(s"[PVE] requirements install finished with exit code $installReqCode")
+
+    if (installReqCode != 0) {
+      queue.put(s"[PVE][ERR] Failed to install requirements.txt (exit=$installReqCode)")
+      return
+    }
+
+    queue.put(
+      s"[PVE] Installing operator requirements from ${operatorRequirementsPath.toAbsolutePath}"
+    )
+
+    val installOperatorReqCode = Process(
+      Seq(
+        python,
+        "-u",
+        "-m",
+        "pip",
+        "install",
+        "--progress-bar",
+        "off",
+        "-r",
+        operatorRequirementsPath.toString
+      ),
+      None,
+      envVars.toSeq: _*
+    ).!(
+      ProcessLogger(
+        out => queue.put(s"[pip] $out"),
+        err => queue.put(s"[pip][ERR] $err")
+      )
+    )
+
+    queue.put(
+      s"[PVE] operator requirements install finished with exit code $installOperatorReqCode"
+    )
+
+    if (installOperatorReqCode != 0) {
+      queue.put(
+        s"[PVE][ERR] Failed to install operator-requirements.txt (exit=$installOperatorReqCode)"
+      )
+      return
+    }
+
+    queue.put("[PVE] Running pip freeze")
 
     val freezeOutput = Process(Seq(python, "-m", "pip", "freeze"), None, envVars.toSeq: _*).!!
-    val systemFreezeLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
+    val installedLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
 
-    writeMetadata(systemPackagesPath(cuid, pveName), systemFreezeLines)
+    writeMetadata(systemPackagesPath(cuid, pveName), installedLines)
 
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
@@ -288,7 +241,7 @@ object PveManager {
 
     val cuPath = VenvRoot.resolve(cuid.toString)
 
-    if (!Files.exists(cuPath) || !Files.isDirectory(cuPath)) {
+    if (!Files.isDirectory(cuPath)) {
       return List()
     }
 
@@ -306,11 +259,11 @@ object PveManager {
     }
   }
 
-  // Deletes all PVE environments for a given CU
+  // Deletes all PVE environments for a given CU (when running locally)
   def deleteEnvironments(cuid: Int): Unit = {
     val cuPath = VenvRoot.resolve(cuid.toString)
 
-    if (!Files.exists(cuPath) || !Files.isDirectory(cuPath)) {
+    if (!Files.isDirectory(cuPath)) {
       return
     }
 
