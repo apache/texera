@@ -110,7 +110,7 @@ object PveManager {
     * Logs progress to the provided queue.
     */
   def createNewPve(cuid: Int, queue: BlockingQueue[String], pveName: String): Unit = {
-    queue.put(s"[PVE] Creating new PVE for cuid=$cuid with name=$pveName")
+    queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
     val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
