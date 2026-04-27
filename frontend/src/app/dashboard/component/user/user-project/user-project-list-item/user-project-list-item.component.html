@@ -88,7 +88,7 @@
         </button>
         <button
           (click)="descriptionCollapsed = true"
-          *ngIf="entry.description && entry.description?.trim() && !descriptionCollapsed"
+          *ngIf="entry.description && entry.description.trim() && !descriptionCollapsed"
           nz-button
           nz-tooltip="Collapse Description"
           nzSize="small"
@@ -101,7 +101,7 @@
         </button>
         <button
           (click)="descriptionCollapsed = false"
-          *ngIf="entry.description && entry.description?.trim() && descriptionCollapsed"
+          *ngIf="entry.description && entry.description.trim() && descriptionCollapsed"
           nz-button
           nz-tooltip="Expand Description"
           nzSize="small"
@@ -128,7 +128,7 @@
     <nz-list-item-meta-description>
       <ng-container *ngIf="!editingDescription;else editDescriptionTemplate">
         <div
-          *ngIf="entry.description && entry.description?.trim() && !descriptionCollapsed"
+          *ngIf="entry.description && entry.description.trim() && !descriptionCollapsed"
           class="description-container">
           <markdown [data]="entry.description"></markdown>
         </div>

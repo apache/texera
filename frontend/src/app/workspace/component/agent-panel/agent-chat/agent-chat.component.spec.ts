@@ -20,11 +20,11 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { AgentChatComponent } from "./agent-chat.component";
-import { TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
+import { AgentInfo, TexeraCopilotManagerService } from "../../../service/copilot/texera-copilot-manager.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
-import { CopilotState } from "../../../service/copilot/texera-copilot";
+import { CopilotState, TexeraCopilot } from "../../../service/copilot/texera-copilot";
 import { of } from "rxjs";
 
 describe("AgentChatComponent", () => {
@@ -66,7 +66,9 @@ describe("AgentChatComponent", () => {
       id: "agent-1",
       name: "Test Agent",
       modelType: "gpt-4o-mini",
-    } as never;
+      instance: {} as TexeraCopilot,
+      createdAt: new Date(0),
+    } satisfies AgentInfo;
   });
 
   it("should create", () => {

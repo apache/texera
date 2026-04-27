@@ -35,7 +35,7 @@
             "customWebpackConfig": {
               "path": "./custom-webpack.config.js"
             },
-            "allowedCommonJsDependencies": ["deep-map", "js-abbreviation-number", "dagre", "graphlib"],
+            "allowedCommonJsDependencies": ["dagre", "graphlib"],
             "vendorChunk": true,
             "extractLicenses": false,
             "buildOptimizer": false,
