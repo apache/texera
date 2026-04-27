@@ -422,19 +422,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             except Exception as err:
                 logger.exception(err)
 
-    def _scheduler_time_slot_event(self, time_slot_expired: bool) -> None:
-        """
-        The time slot for scheduling this worker has expired.
-        """
-        if time_slot_expired:
-            self.context.pause_manager.pause(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
-            )
-        else:
-            self.context.pause_manager.resume(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
-            )
-
     def _send_console_message(self, console_message: ConsoleMessage):
         self._async_rpc_client.controller_stub().console_message_triggered(
             ConsoleMessageTriggeredRequest(console_message=console_message)
