@@ -41,25 +41,42 @@ class WorkerDebugCommandHandler(ControlHandler):
     @staticmethod
     def translate_debug_command(command: str, context: Context) -> str:
         """
-        This method cleans up, reformats, and then translates a debug command into
-        a command that can be understood by the debugger.
+        Cleans up and translates a debug command into one pdb can consume.
 
-        For example, it adds the UDF code context.
+        For `b`/`break` with a numeric line target, the operator's UDF module
+        name is prepended so the breakpoint lands inside the user's code:
+        ``b 5`` becomes ``b my_udf:5``.
 
-        :param command:
-        :param context:
-        :return:
+        Three forms are passed through unchanged because pdb already accepts
+        them and the module rewrite would corrupt them:
+
+        - bare ``b`` / ``break`` with no args
+        - ``b <function_name>`` (pdb resolves the symbol itself)
+        - ``b <filename>:<lineno>`` (the user already specified a file)
+
+        :raises ValueError: if the command is empty/whitespace-only, or if a
+            ``b``/``break`` with a numeric target is issued before the
+            operator module has been initialized.
         """
-        debug_command, *debug_args = command.strip().split()
-        module_name = context.executor_manager.operator_module_name
-        if debug_command in ["b", "break"] and len(debug_args) > 0:
-            # b(reak) ([filename:]lineno | function) [, condition]¶
-            translated_command = (
+        parts = command.strip().split()
+        if not parts:
+            raise ValueError("debug command cannot be empty")
+        debug_command, *debug_args = parts
+
+        is_break_with_lineno = (
+            debug_command in ("b", "break") and debug_args and debug_args[0].isdigit()
+        )
+        if is_break_with_lineno:
+            module_name = context.executor_manager.operator_module_name
+            if module_name is None:
+                raise ValueError(
+                    "executor module not initialized; cannot set breakpoint"
+                )
+            translated = (
                 f"{debug_command} {module_name}:{debug_args[0]} "
                 f"{' '.join(debug_args[1:])}"
             )
         else:
-            translated_command = f"{debug_command} {' '.join(debug_args)}"
+            translated = f"{debug_command} {' '.join(debug_args)}"
 
-        translated_command = translated_command.strip()
-        return translated_command
+        return translated.strip()

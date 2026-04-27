@@ -17,13 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.web.service
+package org.apache.texera.amber.engine.common
 
 import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.texera.amber.core.workflow.PhysicalPlan
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
-  ModifyLogicRequest,
-  PropagateEmbeddedControlMessageRequest
+  UpdateExecutorRequest,
+  WorkflowReconfigureRequest
 }
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
 import org.jgrapht.alg.connectivity.ConnectivityInspector
@@ -34,28 +34,33 @@ import scala.jdk.CollectionConverters.SetHasAsScala
 
 object FriesReconfigurationAlgorithm {
 
+  case class FriesComponent(
+      sources: Set[PhysicalOpIdentity],
+      scope: Set[PhysicalOpIdentity],
+      reconfigurations: Set[UpdateExecutorRequest]
+  )
+
   private def getOneToManyOperators(region: Region): Set[PhysicalOpIdentity] = {
     region.getOperators.filter(op => op.isOneToManyOp).map(op => op.id)
   }
 
-  def scheduleReconfigurations(
+  def getReconfigurations(
       workflowExecutionCoordinator: WorkflowExecutionCoordinator,
-      reconfiguration: ModifyLogicRequest,
-      epochMarkerId: String
-  ): Set[PropagateEmbeddedControlMessageRequest] = {
+      reconfiguration: WorkflowReconfigureRequest
+  ): Set[FriesComponent] = {
     // independently schedule reconfigurations for each region:
     workflowExecutionCoordinator.getExecutingRegions
-      .flatMap(region => computeMCS(region, reconfiguration, epochMarkerId))
+      .flatMap(region => computeMCS(region, reconfiguration, reconfiguration.reconfigurationId))
   }
 
   private def computeMCS(
       region: Region,
-      reconfiguration: ModifyLogicRequest,
+      reconfiguration: WorkflowReconfigureRequest,
       epochMarkerId: String
-  ): List[PropagateEmbeddedControlMessageRequest] = {
+  ): List[FriesComponent] = {
 
     // add all reconfiguration operators to M
-    val reconfigOps = reconfiguration.updateRequest.map(req => req.targetOpId).toSet
+    val reconfigOps = reconfiguration.reconfiguration.map(req => req.targetOpId).toSet
     val M = mutable.Set.empty ++ reconfigOps
 
     // for each one-to-many operator, add it to M if its downstream has a reconfiguration operator
@@ -101,30 +106,20 @@ object FriesReconfigurationAlgorithm {
 
     // find the MCS components,
     // for each component, send an epoch marker to each of its source operators
-    val epochMarkers = new ArrayBuffer[PropagateEmbeddedControlMessageRequest]()
+    val epochMarkers = new ArrayBuffer[FriesComponent]()
 
     val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
     connectedSets.forEach(component => {
       val componentSet = component.asScala.toSet
       val componentPlan = mcsPlan.getSubPlan(componentSet)
+      val reconfigCommands =
+        reconfiguration.reconfiguration
+          .filter(req => component.contains(req.targetOpId))
+          .toSet
 
-      // generate the reconfiguration command for this component
-      //      val reconfigCommands =
-      //        reconfiguration.updateRequest
-      //          .filter(req => component.contains(req.targetOpId))
-      //      val reconfigTargets = reconfigCommands.map(_.targetOpId)
-      //
-      //      // find the source operators of the component
-      //      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      //      epochMarkers += PropagateEmbeddedControlMessageRequest(
-      //        sources.toSeq,
-      //        EmbeddedControlMessageIdentity(epochMarkerId),
-      //        ALL_ALIGNMENT,
-      //        componentPlan.operators.map(_.id).toSeq,
-      //        reconfigTargets,
-      //        ModifyLogicRequest(reconfigCommands),
-      //        METHOD_MODIFY_LOGIC.getBareMethodName
-      //      )
+      // find the source operators of the component
+      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
+      epochMarkers += FriesComponent(sources, componentPlan.operators.map(_.id), reconfigCommands)
     })
     epochMarkers.toList
   }
