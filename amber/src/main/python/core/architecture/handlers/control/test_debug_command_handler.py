@@ -91,21 +91,16 @@ class TestTranslateDebugCommand:
 
     # ----- edge cases / invalid input -----
 
-    def test_empty_command_raises_value_error(self, context):
-        # `command.strip().split()` on "" returns [], so the unpacking
-        #     debug_command, *debug_args = ...
-        # raises ValueError. The handler does not guard against this — the
-        # frontend is expected to never send empty commands. Pin the current
-        # behavior so any future guard is a deliberate change.
-        with pytest.raises(ValueError):
+    def test_empty_command_raises_descriptive_error(self, context):
+        with pytest.raises(ValueError, match="cannot be empty"):
             WorkerDebugCommandHandler.translate_debug_command("", context)
 
-    def test_whitespace_only_command_raises_value_error(self, context):
-        with pytest.raises(ValueError):
+    def test_whitespace_only_command_raises_descriptive_error(self, context):
+        with pytest.raises(ValueError, match="cannot be empty"):
             WorkerDebugCommandHandler.translate_debug_command("   \t  ", context)
 
     def test_uppercase_break_is_not_recognized(self, context):
-        # The match list is case-sensitive: ["b", "break"]. "BREAK" / "B" fall
+        # The match list is case-sensitive: ("b", "break"). "BREAK" / "B" fall
         # through to the pass-through branch and won't get the module prefix.
         assert (
             WorkerDebugCommandHandler.translate_debug_command("BREAK 5", context)
@@ -115,31 +110,36 @@ class TestTranslateDebugCommand:
             WorkerDebugCommandHandler.translate_debug_command("B 5", context) == "B 5"
         )
 
-    def test_break_with_function_name_is_also_module_prefixed(self, context):
-        # pdb's `b` accepts either a lineno or a function name. The
-        # translation prefixes the module unconditionally; document that.
+    def test_break_with_function_name_passes_through(self, context):
+        # pdb's `b` accepts a bare function name and resolves it itself; the
+        # `module:funcname` form is invalid (pdb expects a lineno after a
+        # filename prefix). So we leave function-name args unchanged.
         assert (
             WorkerDebugCommandHandler.translate_debug_command("b my_func", context)
-            == "b my_udf:my_func"
+            == "b my_func"
         )
 
-    def test_break_with_explicit_filename_is_re_prefixed(self, context):
-        # If the user already typed `b foo.py:5`, the translator naively
-        # prepends the module again, yielding `b my_udf:foo.py:5`. Pin this.
+    def test_break_with_explicit_filename_passes_through(self, context):
+        # The user already typed `filename:lineno` — don't double-prefix.
         assert (
             WorkerDebugCommandHandler.translate_debug_command("b foo.py:5", context)
-            == "b my_udf:foo.py:5"
+            == "b foo.py:5"
         )
 
-    def test_module_name_none_is_rendered_as_string_none(self, context):
-        # If the executor hasn't been initialized yet, operator_module_name is
-        # None; the f-string interpolates it as the literal "None". The
-        # frontend isn't expected to send debug commands in this state, but
-        # if it does, this is what comes out.
+    def test_break_with_lineno_before_module_init_raises(self, context):
+        # Without an initialized executor module we cannot construct
+        # `module:lineno`, so refuse instead of emitting `b None:5`.
+        context.executor_manager.operator_module_name = None
+        with pytest.raises(ValueError, match="executor module not initialized"):
+            WorkerDebugCommandHandler.translate_debug_command("b 5", context)
+
+    def test_break_with_function_name_before_module_init_passes_through(self, context):
+        # Function-name and filename:lineno forms don't need the module name,
+        # so they should still work even before the executor is initialized.
         context.executor_manager.operator_module_name = None
         assert (
-            WorkerDebugCommandHandler.translate_debug_command("b 5", context)
-            == "b None:5"
+            WorkerDebugCommandHandler.translate_debug_command("b my_func", context)
+            == "b my_func"
         )
 
 
