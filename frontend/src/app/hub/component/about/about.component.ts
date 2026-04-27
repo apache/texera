@@ -28,6 +28,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
   selector: "texera-about",
   templateUrl: "./about.component.html",
   styleUrls: ["./about.component.scss"],
+  standalone: false,
 })
 export class AboutComponent implements OnInit {
   isLogin$ = new BehaviorSubject<boolean>(false); // control the visibility of the local login component

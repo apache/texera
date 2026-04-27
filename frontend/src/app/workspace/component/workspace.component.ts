@@ -54,6 +54,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ],
+  standalone: false,
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;

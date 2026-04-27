@@ -24,6 +24,7 @@ import { SortMethod } from "../../../type/sort-method";
   selector: "texera-sort-button",
   templateUrl: "./sort-button.component.html",
   styleUrls: ["./sort-button.component.scss"],
+  standalone: false,
 })
 export class SortButtonComponent {
   @Output()

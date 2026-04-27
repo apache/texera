@@ -62,6 +62,7 @@ import {
   selector: "texera-computing-unit-selection",
   templateUrl: "./computing-unit-selection.component.html",
   styleUrls: ["./computing-unit-selection.component.scss"],
+  standalone: false,
 })
 export class ComputingUnitSelectionComponent implements OnInit {
   // current workflow's Id, will change with wid in the workflowActionService.metadata

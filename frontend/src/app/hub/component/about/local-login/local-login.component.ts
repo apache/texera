@@ -33,6 +33,7 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
   selector: "texera-local-login",
   templateUrl: "./local-login.component.html",
   styleUrls: ["./local-login.component.scss"],
+  standalone: false,
 })
 export class LocalLoginComponent implements OnInit {
   public loginErrorMessage: string | undefined;

@@ -34,6 +34,7 @@ import { DASHBOARD_ABOUT } from "../../../../app-routing.constant";
   selector: "texera-user-icon",
   templateUrl: "./user-icon.component.html",
   styleUrls: ["./user-icon.component.scss"],
+  standalone: false,
 })
 export class UserIconComponent {
   public user: User | undefined;

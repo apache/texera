@@ -29,6 +29,7 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
 @Component({
   templateUrl: "dataset-selection-modal.component.html",
   styleUrls: ["dataset-selection-modal.component.scss"],
+  standalone: false,
 })
 export class DatasetSelectionModalComponent implements OnInit {
   private readonly data = inject(NZ_MODAL_DATA) as {

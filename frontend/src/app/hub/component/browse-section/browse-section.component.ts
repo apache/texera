@@ -35,6 +35,7 @@ import { AppSettings } from "../../../common/app-setting";
   selector: "texera-browse-section",
   templateUrl: "./browse-section.component.html",
   styleUrls: ["./browse-section.component.scss"],
+  standalone: false,
 })
 export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() entities: DashboardEntry[] = [];

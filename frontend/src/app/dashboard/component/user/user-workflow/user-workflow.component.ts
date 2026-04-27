@@ -77,6 +77,7 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
   selector: "texera-saved-workflow-section",
   templateUrl: "user-workflow.component.html",
   styleUrls: ["user-workflow.component.scss"],
+  standalone: false,
 })
 export class UserWorkflowComponent implements AfterViewInit {
   private _searchResultsComponent?: SearchResultsComponent;
