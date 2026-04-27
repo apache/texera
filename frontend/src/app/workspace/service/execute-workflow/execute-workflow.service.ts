@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Inject, Injectable } from "@angular/core";
+import { Inject, Injectable, DOCUMENT } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -46,7 +46,7 @@ import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
-import { DOCUMENT } from "@angular/common";
+
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 
 // TODO: change this declaration

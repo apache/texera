@@ -51,7 +51,7 @@ describe("WorkflowPersistService", () => {
       imports: [HttpClientTestingModule],
     });
     service = TestBed.inject(WorkflowPersistService);
-    httpTestingController = TestBed.get(HttpTestingController);
+    httpTestingController = TestBed.inject(HttpTestingController);
   });
 
   it("should be created", () => {

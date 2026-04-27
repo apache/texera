@@ -18,10 +18,10 @@
  */
 
 import { Component, OnInit } from "@angular/core";
-import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
+import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { catchError } from "rxjs/operators";
 import { throwError } from "rxjs";
