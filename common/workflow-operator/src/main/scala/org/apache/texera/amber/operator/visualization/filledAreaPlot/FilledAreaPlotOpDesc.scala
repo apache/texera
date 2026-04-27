@@ -22,10 +22,9 @@ package org.apache.texera.amber.operator.visualization.filledAreaPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -62,7 +61,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
   var color: EncodableString = ""
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Split Plot by  Line Group")
+  @JsonSchemaTitle("Split Plot by Line Group")
   @JsonPropertyDescription("Do you want to split the graph")
   var facetColumn: Boolean = false
 
@@ -82,12 +81,10 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Filled Area Plot",
-      "Visualize data in filled area plot",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      "Visualize data in a filled area plot",
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {

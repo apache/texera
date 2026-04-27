@@ -20,11 +20,14 @@ import pandas
 import pickle
 import pyarrow
 import pytest
+import time
 from threading import Thread
 
 from core.models import (
     DataFrame,
     InternalQueue,
+    State,
+    StateFrame,
     Tuple,
 )
 from core.models.internal_queue import (
@@ -1035,6 +1038,65 @@ class TestMainLoop:
 
         reraise()
 
+    @pytest.mark.timeout(2)
+    def test_process_state_can_emit_multiple_states(
+        self,
+        main_loop,
+        output_queue,
+        mock_data_output_channel,
+        monkeypatch,
+    ):
+        class DummyExecutor:
+            @staticmethod
+            def process_state(state: State, port: int) -> State:
+                output_state = State()
+                output_state["value"] = state["value"] + 1
+                output_state["port"] = port
+                return output_state
+
+        main_loop.context.executor_manager.executor = DummyExecutor()
+        monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "emit_state",
+            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+        )
+
+        switch_count = {"value": 0}
+
+        def fake_switch_context():
+            switch_count["value"] += 1
+            if switch_count["value"] % 3 == 2:
+                current_input_state = (
+                    main_loop.context.state_processing_manager.current_input_state
+                )
+                main_loop.context.state_processing_manager.current_output_state = (
+                    DummyExecutor.process_state(current_input_state, 0)
+                )
+
+        monkeypatch.setattr(main_loop, "_switch_context", fake_switch_context)
+
+        first_state = State()
+        first_state["value"] = 1
+        second_state = State()
+        second_state["value"] = 41
+
+        main_loop._process_state(first_state)
+        main_loop._process_state(second_state)
+
+        first_output: DataElement = output_queue.get()
+        second_output: DataElement = output_queue.get()
+
+        assert first_output.tag == mock_data_output_channel
+        assert isinstance(first_output.payload, StateFrame)
+        assert first_output.payload.frame["value"] == 2
+        assert first_output.payload.frame["port"] == 0
+
+        assert second_output.tag == mock_data_output_channel
+        assert isinstance(second_output.payload, StateFrame)
+        assert second_output.payload.frame["value"] == 42
+        assert second_output.payload.frame["port"] == 0
+
     @staticmethod
     def send_pause(
         command_sequence,
@@ -1172,19 +1234,61 @@ class TestMainLoop:
         input_queue.put(ECMElement(tag=mock_control_input_channel, payload=test_ecm))
         input_queue.put(mock_binary_data_element)
         input_queue.put(ECMElement(tag=mock_data_input_channel, payload=test_ecm))
-        output_data_element: DataElement = output_queue.get()
-        assert output_data_element.tag == mock_data_output_channel
-        assert isinstance(output_data_element.payload, DataFrame)
-        data_frame: DataFrame = output_data_element.payload
 
-        assert len(data_frame.frame) == 1
-        assert data_frame.frame.to_pylist()[0][
-            "test-1"
-        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
-        output_control_element: DCMElement = output_queue.get()
+        # The two outputs land on different channel sub-queues:
+        #   - DataElement on the data channel to the downstream worker
+        #   - DCMElement (NoOperation reply) on the control channel back to "sender"
+        # output_queue is a priority multi-queue. With both items present,
+        # the control sub-queue (priority 1) outranks the data sub-queue
+        # (priority 2), so the control reply must come out first. Wait for
+        # both channels to have their item before popping, so the priority
+        # guarantee is what we're actually testing — see #4524.
+        control_reply_channel = ChannelIdentity(
+            ActorVirtualIdentity("dummy_worker_id"),
+            ActorVirtualIdentity("sender"),
+            is_control=True,
+        )
+
+        def channel_size(channel: ChannelIdentity) -> int:
+            # Sub-queues are added lazily on first put, so the channel may not
+            # exist in the LBMQ yet. Treat that as size zero.
+            if channel not in output_queue._queue.sub_queues:
+                return 0
+            return output_queue._queue.size(channel)
+
+        deadline = time.time() + 5.0
+        while channel_size(mock_data_output_channel) == 0 or (
+            channel_size(control_reply_channel) == 0
+        ):
+            if time.time() > deadline:
+                raise AssertionError(
+                    f"timed out waiting for outputs on both channels; "
+                    f"data={channel_size(mock_data_output_channel)}, "
+                    f"control={channel_size(control_reply_channel)}"
+                )
+            time.sleep(0.001)
+
+        # Priority pulls control before data when both are queued.
+        output_control_element = output_queue.get()
+        assert isinstance(output_control_element, DCMElement), (
+            f"expected control reply first (priority), got {type(output_control_element).__name__}"
+        )
+        assert output_control_element.tag == control_reply_channel
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
             output_control_element.payload.return_invocation.return_value
             == ControlReturn(empty_return=EmptyReturn())
         )
+
+        output_data_element = output_queue.get()
+        assert isinstance(output_data_element, DataElement), (
+            f"expected data element second, got {type(output_data_element).__name__}"
+        )
+        assert output_data_element.tag == mock_data_output_channel
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame.to_pylist()[0][
+            "test-1"
+        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
         reraise()

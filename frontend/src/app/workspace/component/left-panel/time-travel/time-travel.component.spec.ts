@@ -25,8 +25,8 @@ import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { TimeTravelComponent } from "./time-travel.component";
-import { ComputingUnitStatusService } from "../../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("VersionsListDisplayComponent", () => {

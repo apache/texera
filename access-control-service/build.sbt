@@ -18,10 +18,7 @@
 import scala.collection.Seq
 
 name := "access-control-service"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -76,5 +73,5 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6"
 )

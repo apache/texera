@@ -56,8 +56,8 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 import * as jQuery from "jquery";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowEditorComponent", () => {
@@ -406,7 +406,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBeTrue();
 
       // should still allow a link from scan to view result
       expect(
@@ -439,7 +439,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBeTrue();
     });
 
     it("should validate operator connections with ports that allow multi-inputs correctly", () => {

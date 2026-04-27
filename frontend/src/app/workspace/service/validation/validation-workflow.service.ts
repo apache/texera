@@ -325,15 +325,15 @@ export class ValidationWorkflowService {
     for (let i = 0; i < operator.inputPorts.length; i++) {
       const port = operator.inputPorts[i];
       const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
-      if (port.allowMultiInputs) {
-        if (portNumInputs < 1) {
-          satisfyInput = false;
-          inputPortsViolationMessage += `${port.displayName ?? ""} requires at least 1 inputs, has ${portNumInputs}`;
-        }
-      } else {
+      if (port.disallowMultiInputs) {
         if (portNumInputs !== 1) {
           satisfyInput = false;
           inputPortsViolationMessage += `${port.displayName ?? ""} requires 1 input, has ${portNumInputs}`;
+        }
+      } else {
+        if (portNumInputs < 1) {
+          satisfyInput = false;
+          inputPortsViolationMessage += `${port.displayName ?? ""} requires at least 1 inputs, has ${portNumInputs}`;
         }
       }
     }

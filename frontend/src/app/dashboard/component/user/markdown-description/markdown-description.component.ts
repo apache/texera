@@ -65,6 +65,7 @@ const TOOLBAR = [
 })
 export class MarkdownDescriptionComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   private modalData = inject(NZ_MODAL_DATA, { optional: true });
+  private markdownRenderSequence = 0;
   private resizeObserver?: ResizeObserver;
 
   @Input() description = "";
@@ -140,8 +141,20 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges, AfterVie
   }
 
   renderMarkdown(text: string): void {
-    this.renderedDescription = text?.trim() ? this.markdownService.parse(text) : "";
-    this.scheduleOverflowCheck();
+    const currentRenderSequence = ++this.markdownRenderSequence;
+    if (!text?.trim()) {
+      this.renderedDescription = "";
+      this.scheduleOverflowCheck();
+      return;
+    }
+
+    Promise.resolve(this.markdownService.parse(text)).then(renderedDescription => {
+      if (currentRenderSequence !== this.markdownRenderSequence) {
+        return;
+      }
+      this.renderedDescription = renderedDescription;
+      this.scheduleOverflowCheck();
+    });
   }
 
   toggleViewMore(): void {
