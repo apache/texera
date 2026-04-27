@@ -31,13 +31,11 @@
               "node_modules/ng-zorro-antd/resizable/style/index.min.css",
               "src/styles.scss"
             ],
-            "scripts": [
-              "./node_modules/marked/marked.min.js"
-            ],
+            "scripts": ["./node_modules/marked/lib/marked.umd.js"],
             "customWebpackConfig": {
               "path": "./custom-webpack.config.js"
             },
-            "allowedCommonJsDependencies": ["deep-map", "js-abbreviation-number", "dagre", "graphlib"],
+            "allowedCommonJsDependencies": ["dagre", "graphlib"],
             "vendorChunk": true,
             "extractLicenses": false,
             "buildOptimizer": false,

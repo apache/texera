@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { Component, EventEmitter, Input, NgZone, Output } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 
@@ -47,7 +47,10 @@ export class SearchResultsComponent {
   @Output() notifyWorkflow = new EventEmitter<void>();
   @Output() refresh = new EventEmitter<void>();
 
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    private ngZone: NgZone
+  ) {}
 
   getUid(): number | undefined {
     return this.userService.getCurrentUser()?.uid;
@@ -70,10 +73,14 @@ export class SearchResultsComponent {
       if (this.resetCounter !== originalResetCounter) {
         return;
       }
-      this.entries = [...this.entries, ...results.entries];
-      this.more = results.more;
+      this.ngZone.run(() => {
+        this.entries = [...this.entries, ...results.entries];
+        this.more = results.more;
+      });
     } finally {
-      this.loading = false;
+      this.ngZone.run(() => {
+        this.loading = false;
+      });
     }
   }
 

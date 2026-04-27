@@ -17,12 +17,12 @@
  under the License.
 -->
 
-<nz-tabset (nzSelectChange)="onTabChanged($event)">
+<nz-tabs (nzSelectedIndexChange)="onTabChanged($event)">
   <nz-tab
     *ngFor="let metric of metrics"
     nzTitle="{{metric}}">
   </nz-tab>
-</nz-tabset>
+</nz-tabs>
 <div
   id="chart"
   class="chart-property"></div>

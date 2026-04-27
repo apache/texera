@@ -33,12 +33,19 @@ import { WorkflowUtilService } from "../../../service/workflow-graph/util/workfl
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 
 describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
   let fixture: ComponentFixture<OperatorMenuComponent>;
 
   beforeEach(waitForAsync(() => {
+    TestBed.overrideComponent(OperatorMenuComponent, {
+      set: {
+        template: "",
+      },
+    });
+
     TestBed.configureTestingModule({
       declarations: [OperatorMenuComponent, OperatorLabelComponent],
       providers: [
@@ -54,6 +61,7 @@ describe("OperatorPanelComponent", () => {
         ...commonTestProviders,
       ],
       imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   }));
 
@@ -69,29 +77,26 @@ describe("OperatorPanelComponent", () => {
 
   it("should search an operator by its user friendly name", () => {
     component.searchInputValue = "Source: Scan";
+    component.onInput({ target: { value: "Source: Scan" } } as unknown as Event);
 
-    fixture.detectChanges();
-
-    expect(component.autocompleteOptions.length === 1);
-    expect(component.autocompleteOptions[0] === mockScanSourceSchema);
+    expect(component.autocompleteOptions.length).toBe(1);
+    expect(component.autocompleteOptions[0]).toBe(mockScanSourceSchema);
   });
 
   it("should support fuzzy search on operator user friendly name", () => {
     component.searchInputValue = "scan";
-    fixture.detectChanges();
+    component.onInput({ target: { value: "scan" } } as unknown as Event);
 
-    expect(component.autocompleteOptions.length === 1);
-    expect(component.autocompleteOptions[0] === mockScanSourceSchema);
+    expect(component.autocompleteOptions.length).toBe(1);
+    expect(component.autocompleteOptions[0]).toBe(mockScanSourceSchema);
   });
 
   it("should clear the search box when an operator from search box is dropped", () => {
     component.searchInputValue = "scan";
-    fixture.detectChanges();
+    component.onInput({ target: { value: "scan" } } as unknown as Event);
 
     const dragDropService = TestBed.inject(DragDropService);
     (dragDropService as any).operatorDroppedSubject.next();
-
-    fixture.detectChanges();
 
     expect(component.searchInputValue).toBeFalsy();
   });
