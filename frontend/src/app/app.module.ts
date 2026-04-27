@@ -37,7 +37,7 @@ import { NzInputModule } from "ng-zorro-antd/input";
 import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzTableModule } from "ng-zorro-antd/table";
-import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
@@ -152,7 +152,7 @@ import { UserDatasetListItemComponent } from "./dashboard/component/user/user-da
 import { NgxFileDropModule } from "ngx-file-drop";
 import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
+import { NzNoAnimationModule } from "ng-zorro-antd/core/animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
@@ -317,7 +317,7 @@ registerLocaleData(en);
     NzInputModule,
     NzPopoverModule,
     NzCollapseModule,
-    NzToolTipModule,
+    NzTooltipModule,
     NzTableModule,
     NzSelectModule,
     NzSpaceModule,

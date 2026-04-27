@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserComputingUnitComponent } from "./user-computing-unit.component";
 import { NzCardModule } from "ng-zorro-antd/card";
@@ -28,6 +29,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
+import { of } from "rxjs";
 
 describe("UserComputingUnitComponent", () => {
   let component: UserComputingUnitComponent;
@@ -41,6 +43,10 @@ describe("UserComputingUnitComponent", () => {
       "createKubernetesBasedComputingUnit",
       "createLocalComputingUnit",
     ]);
+    mockComputingUnitService.getComputingUnitTypes.and.returnValue(of({ typeOptions: [] }));
+    mockComputingUnitService.getComputingUnitLimitOptions.and.returnValue(
+      of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: [] })
+    );
 
     await TestBed.configureTestingModule({
       declarations: [UserComputingUnitComponent],
@@ -53,6 +59,7 @@ describe("UserComputingUnitComponent", () => {
         ...commonTestProviders,
       ],
       imports: [NzCardModule],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(UserComputingUnitComponent);
@@ -60,6 +67,7 @@ describe("UserComputingUnitComponent", () => {
   });
 
   it("should create", () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 });

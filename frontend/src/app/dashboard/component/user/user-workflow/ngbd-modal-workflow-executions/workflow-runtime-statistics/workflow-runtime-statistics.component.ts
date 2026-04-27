@@ -21,7 +21,6 @@ import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "../../../../../type/workflow-runtime-statistics";
 import * as Plotly from "plotly.js-basic-dist-min";
-import { NzTabChangeEvent } from "ng-zorro-antd/tabs";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 const NANOSECONDS_TO_SECONDS = 1_000_000_000;
@@ -68,8 +67,8 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   /**
    * Create a new line chart corresponding to the change of a tab
    */
-  onTabChanged(event: NzTabChangeEvent): void {
-    this.createChart(event.index!);
+  onTabChanged(index: number): void {
+    this.createChart(index);
   }
 
   /**

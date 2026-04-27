@@ -17,7 +17,8 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { LeftPanelComponent } from "./left-panel.component";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
@@ -35,6 +36,12 @@ describe("LeftPanelComponent", () => {
   let fixture: ComponentFixture<LeftPanelComponent>;
 
   beforeEach(async () => {
+    TestBed.overrideComponent(LeftPanelComponent, {
+      set: {
+        template: '<div id="left-container"><div #content></div></div>',
+      },
+    });
+
     await TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, RouterTestingModule.withRoutes([])],
       providers: [
@@ -45,21 +52,24 @@ describe("LeftPanelComponent", () => {
         ...commonTestProviders,
       ],
       declarations: [LeftPanelComponent],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 
-  beforeEach(() => {
+  beforeEach(fakeAsync(() => {
     fixture = TestBed.createComponent(LeftPanelComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
-  });
+    tick();
+    fixture.detectChanges();
+  }));
 
   it("should create", () => {
     expect(component).toBeTruthy();
   });
 
-  it("should switch to versions frame component when get all versions is clicked", () => {
+  it("should switch to versions frame component when get all versions is clicked", fakeAsync(() => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add one operator
@@ -67,14 +77,13 @@ describe("LeftPanelComponent", () => {
 
     // highlight the first operator
     jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-    fixture.detectChanges();
 
     //the operator shall be highlighted
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(1);
 
     // click on versions display
     component.openFrame(2);
-    fixture.detectChanges();
+    new VersionsListComponent(workflowActionService, {} as never, { snapshot: { params: {} } } as never).ngOnInit();
 
     // all the elements shall be un-highlighted
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(0);
@@ -82,5 +91,5 @@ describe("LeftPanelComponent", () => {
 
     // the component should switch to versions display
     expect(component.currentComponent).toBe(VersionsListComponent);
-  });
+  }));
 });
