@@ -398,11 +398,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     this.computingUnitActionsService.confirmAndTerminate(cuid, unit);
 
-    this.workflowPveService.deleteEnvironments(cuid).subscribe({
-      error: (err: unknown) => {
-        console.error("Failed to delete PVE environments", err);
-      },
-    });
+    this.workflowPveService
+      .deleteEnvironments(cuid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: (err: unknown) => {
+          console.error("Failed to delete PVE environments", err);
+        },
+      });
   }
 
   /**
@@ -661,22 +664,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
-  private makeEmptyPve(expanded: boolean): PveDraft {
-    return {
-      name: "",
-      pipOutput: "",
-      prettyPipOutput: "",
-      expanded,
-      isInstalling: false,
-    };
-  }
-
   trackByIndex(index: number): number {
     return index;
   }
 
   addEnvironment(): void {
-    this.pves.push(this.makeEmptyPve(true));
+    this.pves.push({ name: "", pipOutput: "", prettyPipOutput: "", expanded: true, isInstalling: false });
   }
 
   showPVEmodalVisible(): void {
@@ -695,12 +688,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   getPVEs(): void {
-    const cuId = this.selectedComputingUnit?.computingUnit.cuid;
-
-    if (cuId == null) {
-      this.notificationService.error("No computing unit selected.");
-      return;
-    }
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -785,13 +773,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   createVirtualEnvironment(index: number): void {
-    const cuId = this.selectedComputingUnit?.computingUnit.cuid;
-    const env = this.pves[index];
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
 
-    if (cuId == null) {
-      this.notificationService.error("No computing unit selected.");
-      return;
-    }
+    const env = this.pves[index];
 
     const trimmedName = env.name.trim();
 
