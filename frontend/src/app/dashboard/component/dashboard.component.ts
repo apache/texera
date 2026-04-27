@@ -50,6 +50,7 @@ import { Role } from "../../common/type/user";
   selector: "texera-dashboard",
   templateUrl: "dashboard.component.html",
   styleUrls: ["dashboard.component.scss"],
+  standalone: false,
 })
 @UntilDestroy()
 export class DashboardComponent implements OnInit {

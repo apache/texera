@@ -25,6 +25,7 @@ import { Observable, of } from "rxjs";
   selector: "texera-user-avatar",
   templateUrl: "./user-avatar.component.html",
   styleUrls: ["./user-avatar.component.scss"],
+  standalone: false,
 })
 
 /**

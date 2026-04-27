@@ -73,12 +73,12 @@
         "serve": {
           "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
-            "browserTarget": "gui:build",
+            "buildTarget": "gui:build",
             "proxyConfig": "proxy.config.json"
           },
           "configurations": {
             "production": {
-              "browserTarget": "gui:build:production"
+              "buildTarget": "gui:build:production"
             }
           }
         },

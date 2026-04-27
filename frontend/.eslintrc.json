@@ -48,6 +48,7 @@
             "style": "camelCase"
           }
         ],
+        "@angular-eslint/prefer-standalone": "off",
         "@typescript-eslint/consistent-type-definitions": "off",
         "@typescript-eslint/dot-notation": "off",
         "@typescript-eslint/explicit-member-accessibility": [
@@ -65,7 +66,7 @@
         "no-shadow": "off",
         "no-underscore-dangle": "off",
         "no-unused-expressions": "error",
-        "quotes": "error",
+        "quotes": ["error", "double", { "avoidEscape": true }],
         "rxjs-angular/prefer-takeuntil": [
           "error",
           {

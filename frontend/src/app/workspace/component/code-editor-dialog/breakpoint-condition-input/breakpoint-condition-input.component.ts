@@ -29,6 +29,7 @@ import { MonacoEditor } from "monaco-breakpoints/dist/types";
   selector: "texera-breakpoint-condition-input",
   templateUrl: "./breakpoint-condition-input.component.html",
   styleUrls: ["./breakpoint-condition-input.component.scss"],
+  standalone: false,
 })
 export class BreakpointConditionInputComponent implements OnChanges {
   constructor(private udfDebugService: UdfDebugService) {}

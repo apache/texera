@@ -32,6 +32,7 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
   selector: "texera-user-dataset-version-creator",
   templateUrl: "./user-dataset-version-creator.component.html",
   styleUrls: ["./user-dataset-version-creator.component.scss"],
+  standalone: false,
 })
 export class UserDatasetVersionCreatorComponent implements OnInit {
   readonly isCreatingVersion: boolean = inject(NZ_MODAL_DATA).isCreatingVersion;
