@@ -160,6 +160,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[AdminSettingsResource])
     environment.jersey.register(classOf[AIAssistantResource])
+
     AuthResource.createAdminUser()
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.
