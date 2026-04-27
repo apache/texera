@@ -19,6 +19,13 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -36,6 +43,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
+import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -174,6 +182,38 @@ class WorkflowExecutionsResourceSpec
       executionIds.toSet.subsetOf(returnedIds),
       "All inserted execution IDs should be returned"
     )
+  }
+
+  "WorkflowExecutionsResource.insertOperatorPortResultUri" should "insert a result URI row" in {
+    val execution = new WorkflowExecutions
+    execution.setVid(testVersion.getVid)
+    execution.setUid(testUser.getUid)
+    execution.setStatus(0.toByte)
+    execution.setResult("")
+    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    execution.setBookmarked(false)
+    execution.setName("Execution with duplicate result URI insert")
+    execution.setEnvironmentVersion("test-env-1.0")
+    workflowExecutionsDao.insert(execution)
+
+    val executionId = ExecutionIdentity(execution.getEid.longValue())
+    val globalPortId = GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity("operator-1"), "main"),
+      PortIdentity(),
+      input = false
+    )
+    val uri = URI.create("vfs:///test-result")
+
+    WorkflowExecutionsResource.insertOperatorPortResultUri(executionId, globalPortId, uri)
+
+    val rows = getDSLContext
+      .selectFrom(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .fetch()
+
+    assert(rows.size() == 1)
+    assert(rows.get(0).getResultUri == uri.toString)
   }
 
 }
