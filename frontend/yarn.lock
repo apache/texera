@@ -242,22 +242,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular-builders/common@npm:4.0.0":
-  version: 4.0.0
-  resolution: "@angular-builders/common@npm:4.0.0"
+"@angular-builders/common@npm:4.0.1-beta.0":
+  version: 4.0.1-beta.0
+  resolution: "@angular-builders/common@npm:4.0.1-beta.0"
   dependencies:
     "@angular-devkit/core": "npm:^20.0.0"
     ts-node: "npm:^10.0.0"
     tsconfig-paths: "npm:^4.2.0"
-  checksum: 10c0/da17a778d14f634314b2127d62dba594afe714d1a202537b335a1674a20a3fff9736d838a08eb1468c7e2fab3f3b42db9372519a48e7c93cd343d0a3d51210d7
+  checksum: 10c0/6cee7a84f8e717becdd85ed7bd9551243438ac5b071326f5280ac888192eabf47761d019ad6ba238115aa97b1d1f1e97835516fbc190d564782458c570c7a492
   languageName: node
   linkType: hard
 
-"@angular-builders/custom-webpack@npm:20.0.0":
-  version: 20.0.0
-  resolution: "@angular-builders/custom-webpack@npm:20.0.0"
+"@angular-builders/custom-webpack@npm:20.0.1-beta.1":
+  version: 20.0.1-beta.1
+  resolution: "@angular-builders/custom-webpack@npm:20.0.1-beta.1"
   dependencies:
-    "@angular-builders/common": "npm:4.0.0"
+    "@angular-builders/common": "npm:4.0.1-beta.0"
     "@angular-devkit/architect": "npm:>=0.2000.0 < 0.2100.0"
     "@angular-devkit/build-angular": "npm:^20.0.0"
     "@angular-devkit/core": "npm:^20.0.0"
@@ -266,7 +266,7 @@ __metadata:
     webpack-merge: "npm:^6.0.0"
   peerDependencies:
     "@angular/compiler-cli": ^20.0.0
-  checksum: 10c0/26872272d8ac7762fc5c269e8b2f038690c33163c76f8a71596503d8afca9177108238fef68b0b819ba315a3944ef98df540a7491a5465e7d58295af8b3006ed
+  checksum: 10c0/94d0da54d473e4f17741d5705dd177d2bbc6b5fdb31b493f9d179d2801d5118d806c2ac2a59ac0ba365a64be704c149474c1116eb7be59313ca6dc8c0c721a33
   languageName: node
   linkType: hard
 
@@ -13196,7 +13196,7 @@ __metadata:
     "@abacritt/angularx-social-login": "npm:2.3.0"
     "@ai-sdk/openai": "npm:2.0.67"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
-    "@angular-builders/custom-webpack": "npm:20.0.0"
+    "@angular-builders/custom-webpack": "npm:20.0.1-beta.1"
     "@angular-devkit/build-angular": "npm:20.3.24"
     "@angular-devkit/core": "npm:20.3.24"
     "@angular-devkit/schematics": "npm:20.3.24"

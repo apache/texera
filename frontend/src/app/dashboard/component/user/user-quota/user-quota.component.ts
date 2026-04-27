@@ -179,15 +179,18 @@ export class UserQuotaComponent implements OnInit {
         text: title,
       },
       xaxis: {
-        title: x_label,
+        title: {
+          text: x_label,
+        },
       },
       yaxis: {
-        title: y_label,
+        title: {
+          text: y_label,
+        },
         rangemode: "tozero" as const,
         zeroline: true,
         zerolinewidth: 2,
         zerolinecolor: "#000",
-        range: [0, "auto"],
         tickmode: yRange <= 5 ? ("linear" as const) : undefined,
         dtick: yRange <= 5 ? 1 : undefined,
       },

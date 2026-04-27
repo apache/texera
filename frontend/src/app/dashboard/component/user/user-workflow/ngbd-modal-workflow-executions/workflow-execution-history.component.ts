@@ -236,12 +236,18 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     ];
 
     var layout = {
-      title: title,
+      title: {
+        text: title,
+      },
       xaxis: {
-        title: x_label,
+        title: {
+          text: x_label,
+        },
       },
       yaxis: {
-        title: y_label,
+        title: {
+          text: y_label,
+        },
       },
       autosize: false,
       width: WorkflowExecutionHistoryComponent.BARCHARTSIZE,

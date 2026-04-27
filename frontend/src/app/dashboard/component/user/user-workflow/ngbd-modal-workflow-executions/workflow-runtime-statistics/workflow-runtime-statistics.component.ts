@@ -167,9 +167,19 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
     }
 
     const layout = {
-      title: this.metrics[metricIndex],
-      xaxis: { title: "Time (s)" },
-      yaxis: { title: this.metrics[metricIndex] },
+      title: {
+        text: this.metrics[metricIndex],
+      },
+      xaxis: {
+        title: {
+          text: "Time (s)",
+        },
+      },
+      yaxis: {
+        title: {
+          text: this.metrics[metricIndex],
+        },
+      },
     };
 
     Plotly.newPlot("chart", dataset, layout);

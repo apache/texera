@@ -13,7 +13,7 @@
     "test": "ng test --watch=false",
     "test:ci": "node --max-old-space-size=8192 ./node_modules/nx/bin/nx test --watch=false --progress=false",
     "prettier:fix": "prettier --write ./src",
-    "lint": "ng lint",
+    "lint": "eslint ./src",
     "eslint:fix": "yarn eslint --fix ./src",
     "format:fix": "yarn prettier-eslint --write \"src/**/*.{ts,js,html,scss,less,json}\"",
     "format:ci": "yarn prettier-eslint --list-different \"src/**/*.{ts,js,html,scss,less,json}\" && yarn eslint ./src",
@@ -93,7 +93,7 @@
     "jschardet": "portal:./tools/jschardet-stub"
   },
   "devDependencies": {
-    "@angular-builders/custom-webpack": "20.0.0",
+    "@angular-builders/custom-webpack": "20.0.1-beta.1",
     "@angular-devkit/build-angular": "20.3.24",
     "@angular-devkit/core": "20.3.24",
     "@angular-devkit/schematics": "20.3.24",
