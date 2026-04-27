@@ -150,6 +150,7 @@ export class DashboardComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(dataUri => {
         this.logo = dataUri;
+        this.cdr.detectChanges();
       });
 
     this.adminSettingsService
@@ -157,6 +158,7 @@ export class DashboardComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(dataUri => {
         this.miniLogo = dataUri;
+        this.cdr.detectChanges();
       });
 
     this.adminSettingsService
@@ -172,7 +174,10 @@ export class DashboardComponent implements OnInit {
       this.adminSettingsService
         .getSetting(tab)
         .pipe(untilDestroyed(this))
-        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+        .subscribe(value => {
+          this.sidebarTabs[tab] = value === "true";
+          this.cdr.detectChanges();
+        });
     });
   }
 

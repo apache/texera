@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { ChangeDetectorRef, Component, DestroyRef, EventEmitter, Input, Output } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 
@@ -47,7 +47,11 @@ export class SearchResultsComponent {
   @Output() notifyWorkflow = new EventEmitter<void>();
   @Output() refresh = new EventEmitter<void>();
 
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    private destroyRef: DestroyRef,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   getUid(): number | undefined {
     return this.userService.getCurrentUser()?.uid;
@@ -57,6 +61,7 @@ export class SearchResultsComponent {
     this.entries = [];
     this.loadMoreFunction = loadMoreFunction;
     this.resetCounter++;
+    this.refreshView();
   }
 
   async loadMore(): Promise<void> {
@@ -72,8 +77,16 @@ export class SearchResultsComponent {
       }
       this.entries = [...this.entries, ...results.entries];
       this.more = results.more;
+      this.refreshView();
     } finally {
       this.loading = false;
+      this.refreshView();
+    }
+  }
+
+  private refreshView(): void {
+    if (!this.destroyRef.destroyed) {
+      this.cdr.detectChanges();
     }
   }
 
