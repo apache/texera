@@ -19,9 +19,12 @@
 
 package org.apache.texera.amber.engine.e2e
 
+import com.twitter.util.{Promise, Return}
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.core.workflow.WorkflowContext
-import org.apache.texera.amber.engine.architecture.controller.Workflow
+import org.apache.texera.amber.engine.architecture.controller.{ExecutionStateUpdate, Workflow}
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
@@ -115,6 +118,25 @@ object TestUtils {
     workflowDao.insert(testWorkflowEntry)
     workflowVersionDao.insert(testWorkflowVersionEntry)
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
+  }
+
+  /**
+    * Returns a Promise that completes the next time the client emits an
+    * ExecutionStateUpdate with the given target state. Must be called BEFORE
+    * the action that triggers the state change, since AmberClient observables
+    * do not replay past events.
+    */
+  def stateReached(
+      client: AmberClient,
+      target: WorkflowAggregatedState
+  ): Promise[Unit] = {
+    val p = Promise[Unit]()
+    client.registerCallback[ExecutionStateUpdate](evt => {
+      if (evt.state == target) {
+        p.updateIfEmpty(Return(()))
+      }
+    })
+    p
   }
 
   def cleanupWorkflowExecutionData(): Unit = {
