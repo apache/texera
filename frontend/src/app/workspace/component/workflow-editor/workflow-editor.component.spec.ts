@@ -60,6 +60,9 @@ import { ComputingUnitStatusService } from "../../../common/service/computing-un
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
+const createJQueryEvent = (event: string, properties?: object): JQuery.Event =>
+  (jQuery as unknown as JQueryStatic).Event(event, properties);
+
 describe("WorkflowEditorComponent", () => {
   /**
    * This sub test suite test if the JointJS paper is integrated with our Angular component well.
@@ -298,7 +301,7 @@ describe("WorkflowEditorComponent", () => {
 
       // trigger a click on the blank area using JointJS paper's jQuery element
       const point = component.paper.localToClientPoint(blankPoint);
-      const event = jQuery.Event("mousedown", {
+      const event = createJQueryEvent("mousedown", {
         clientX: point.x,
         clientY: point.y,
       });
@@ -843,7 +846,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = createJQueryEvent("mousedown", { shiftKey: true });
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();
@@ -866,7 +869,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = createJQueryEvent("mousedown", { shiftKey: true });
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();
