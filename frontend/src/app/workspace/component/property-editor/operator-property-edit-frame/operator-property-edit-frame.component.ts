@@ -305,7 +305,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
       )
       .pipe(untilDestroyed(this))
-      .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
+      .subscribe(operatorChanged => {
+        this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   /**
