@@ -25,6 +25,13 @@ import java.util.concurrent.LinkedBlockingQueue
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
+
+/**
+ * WebSocket endpoint for PVE creation that streams pip installation logs
+ * to the frontend in real time. The environment setup runs asynchronously,
+ * and output is pushed to the client until completion.
+ */
+
 @ServerEndpoint("/wsapi/pve")
 class PveWebsocketResource {
 
@@ -65,15 +72,5 @@ class PveWebsocketResource {
         }
       }
     }
-  }
-
-  @OnError
-  def onError(session: Session, throwable: Throwable): Unit = {
-    println(s"[PVE WS ERROR] ${throwable.getMessage}")
-  }
-
-  @OnClose
-  def onClose(session: Session): Unit = {
-    println("[PVE WS CLOSED]")
   }
 }
