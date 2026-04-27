@@ -398,14 +398,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     this.computingUnitActionsService.confirmAndTerminate(cuid, unit);
 
-    this.workflowPveService
-      .deleteEnvironments(cuid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        error: (err: unknown) => {
-          console.error("Failed to delete PVE environments", err);
-        },
-      });
+    if(this.selectedComputingUnit?.computingUnit.type === "local"){
+      this.workflowPveService
+        .deleteEnvironments(cuid)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          error: (err: unknown) => {
+            console.error("Failed to delete PVE environments", err);
+          },
+        });
+    }
   }
 
   /**
@@ -795,7 +797,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     env.socket?.close();
 
-    const websocketUrl = this.workflowPveService.createPveWebSocketUrl(cuId, trimmedName, packageArray);
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+
+    const websocketUrl = this.workflowPveService.createPveWebSocketUrl(cuId, trimmedName, isLocal, packageArray);
     console.log("PVE websocketUrl", websocketUrl);
     const socket = new WebSocket(websocketUrl);
 

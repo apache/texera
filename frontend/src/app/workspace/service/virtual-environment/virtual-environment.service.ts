@@ -63,7 +63,7 @@ export class WorkflowPveService {
     return this.http.delete(`/pve/pves/${cuid}`);
   }
 
-  createPveWebSocketUrl(cuid: number, pveName: string, packages: string[] = []): string {
+  createPveWebSocketUrl(cuid: number, pveName: string, isLocal:boolean, packages: string[] = []): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const query = encodeURIComponent(JSON.stringify(packages));
 
@@ -75,6 +75,7 @@ export class WorkflowPveService {
       `?packages=${query}` +
       `&cuid=${cuid}` +
       `&pveName=${encodeURIComponent(pveName)}` +
+      `&isLocal=${isLocal}` +
       tokenParam
     );
   }
