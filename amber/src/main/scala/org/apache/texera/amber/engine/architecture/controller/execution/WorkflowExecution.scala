@@ -52,6 +52,18 @@ case class WorkflowExecution() {
     regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
   }
 
+  def restartRegionExecution(region: Region): RegionExecution = {
+    regionExecutions.get(region.id).foreach { existingRegionExecution =>
+      assert(
+        existingRegionExecution.isCompleted,
+        s"Cannot restart running RegionExecution of ${region.id}."
+      )
+    }
+    val regionExecution = RegionExecution(region)
+    regionExecutions.put(region.id, regionExecution)
+    regionExecution
+  }
+
   /**
     * Retrieves a specific `RegionExecution` by its identifier.
     *
@@ -59,6 +71,8 @@ case class WorkflowExecution() {
     * @return The `RegionExecution` associated with the specified `regionId`.
     */
   def getRegionExecution(regionId: RegionIdentity): RegionExecution = regionExecutions(regionId)
+
+  def hasRegionExecution(regionId: RegionIdentity): Boolean = regionExecutions.contains(regionId)
 
   /**
     * Retrieves all `RegionExecutions` that are currently in running state,
