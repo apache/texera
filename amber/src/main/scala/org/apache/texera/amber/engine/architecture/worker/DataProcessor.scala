@@ -242,7 +242,16 @@ class DataProcessor(
       // invoke the control command carried with the ECM
       logger.info(s"process ECM from $channelId, id = ${ecm.id}, cmd = $command")
       if (command.isDefined) {
-        asyncRPCServer.receive(command.get, channelId.fromWorkerId)
+        // The reply must go back to the actor that originated the invocation
+        // (recorded in command.context.sender), not to channelId.fromWorkerId.
+        // For ECM-embedded commands those differ: channelId is the data
+        // channel between two workers, while the originator is typically the
+        // controller. Fall back to the channel sender when the context is
+        // unset (e.g. unit-test inputs).
+        val ctx = command.get.context
+        val replyTo =
+          if (ctx.sender.name.nonEmpty) ctx.sender else channelId.fromWorkerId
+        asyncRPCServer.receive(command.get, replyTo)
       }
       // if this worker is not the final destination of the ECM, pass it downstream
       val downstreamChannelsInScope = ecm.scope.filter(_.fromWorkerId == actorId).toSet
