@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, DestroyRef, EventEmitter, Input, Output } from "@angular/core";
+import { Component, EventEmitter, Input, NgZone, Output } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 
@@ -49,8 +49,7 @@ export class SearchResultsComponent {
 
   constructor(
     private userService: UserService,
-    private destroyRef: DestroyRef,
-    private cdr: ChangeDetectorRef
+    private ngZone: NgZone
   ) {}
 
   getUid(): number | undefined {
@@ -61,7 +60,6 @@ export class SearchResultsComponent {
     this.entries = [];
     this.loadMoreFunction = loadMoreFunction;
     this.resetCounter++;
-    this.refreshView();
   }
 
   async loadMore(): Promise<void> {
@@ -75,18 +73,14 @@ export class SearchResultsComponent {
       if (this.resetCounter !== originalResetCounter) {
         return;
       }
-      this.entries = [...this.entries, ...results.entries];
-      this.more = results.more;
-      this.refreshView();
+      this.ngZone.run(() => {
+        this.entries = [...this.entries, ...results.entries];
+        this.more = results.more;
+      });
     } finally {
-      this.loading = false;
-      this.refreshView();
-    }
-  }
-
-  private refreshView(): void {
-    if (!this.destroyRef.destroyed) {
-      this.cdr.detectChanges();
+      this.ngZone.run(() => {
+        this.loading = false;
+      });
     }
   }
 
