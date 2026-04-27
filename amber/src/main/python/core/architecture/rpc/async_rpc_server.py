@@ -121,10 +121,23 @@ class AsyncRPCServer:
         if self._no_reply_needed(control_invocation.command_id):
             return
 
-        # Reply to the sender.
-        target_channel_id = ChannelIdentity(
-            from_.to_worker_id, from_.from_worker_id, True
-        )
+        # Reply to the actor that originated this ControlInvocation, identified
+        # by control_invocation.context.sender. For a normal RPC over a
+        # control channel this matches `from_.from_worker_id`; for an
+        # invocation carried in-band by an ECM along a data channel, `from_`
+        # is the data channel between two workers and the original sender
+        # lives only in the invocation's context.
+        # When the context is unset (e.g. unit-test inputs that construct
+        # ControlInvocation directly), fall back to swapping `from_`.
+        ctx = control_invocation.context
+        if ctx.sender.name and ctx.receiver.name:
+            target_channel_id = ChannelIdentity(
+                ctx.receiver, ctx.sender, is_control=True
+            )
+        else:
+            target_channel_id = ChannelIdentity(
+                from_.to_worker_id, from_.from_worker_id, is_control=True
+            )
         logger.debug(
             f"PYTHON returns a ReturnInvocation {payload}, replying the command"
             f" {command}"

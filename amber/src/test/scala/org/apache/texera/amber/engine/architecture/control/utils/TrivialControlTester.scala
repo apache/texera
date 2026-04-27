@@ -24,7 +24,10 @@ import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, Chann
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import org.apache.texera.amber.engine.architecture.common.{AmberProcessor, WorkflowActor}
 import org.apache.texera.amber.engine.architecture.control.utils.TrivialControlTester.ControlTesterRPCClient
-import org.apache.texera.amber.engine.architecture.messaginglayer.NetworkOutputGateway
+import org.apache.texera.amber.engine.architecture.messaginglayer.{
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import org.apache.texera.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import org.apache.texera.amber.engine.common.CheckpointState
@@ -37,8 +40,11 @@ import org.apache.texera.amber.engine.common.ambermessage.{
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 
 object TrivialControlTester {
-  class ControlTesterRPCClient(outputGateway: NetworkOutputGateway, actorId: ActorVirtualIdentity)
-      extends AsyncRPCClient(outputGateway, actorId) {
+  class ControlTesterRPCClient(
+      inputGateway: NetworkInputGateway,
+      outputGateway: NetworkOutputGateway,
+      actorId: ActorVirtualIdentity
+  ) extends AsyncRPCClient(inputGateway, outputGateway, actorId) {
     val getProxy: RPCTesterFs2Grpc[Future, AsyncRPCContext] =
       AsyncRPCClient
         .createProxy[RPCTesterFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
@@ -55,7 +61,7 @@ class TrivialControlTester(
       case Right(value) => transferService.send(value)
     }
   ) {
-    override val asyncRPCClient = new ControlTesterRPCClient(outputGateway, id)
+    override val asyncRPCClient = new ControlTesterRPCClient(inputGateway, outputGateway, id)
   }
   val initializer =
     new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
