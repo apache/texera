@@ -103,7 +103,7 @@
     "@angular/cli": "20.3.24",
     "@angular/compiler-cli": "20.3.19",
     "@nx/angular": "21.6.11",
-    "@schematics/angular": "19.2.24",
+    "@schematics/angular": "20.3.24",
     "@types/backbone": "1.4.15",
     "@types/concaveman": "1.1.6",
     "@types/content-disposition": "0",

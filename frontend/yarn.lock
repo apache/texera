@@ -405,25 +405,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular-devkit/core@npm:19.2.24":
-  version: 19.2.24
-  resolution: "@angular-devkit/core@npm:19.2.24"
-  dependencies:
-    ajv: "npm:8.18.0"
-    ajv-formats: "npm:3.0.1"
-    jsonc-parser: "npm:3.3.1"
-    picomatch: "npm:4.0.4"
-    rxjs: "npm:7.8.1"
-    source-map: "npm:0.7.4"
-  peerDependencies:
-    chokidar: ^4.0.0
-  peerDependenciesMeta:
-    chokidar:
-      optional: true
-  checksum: 10c0/0386cf938cfc1ac2cc203087d61463b1424711befe058ec16f9774dfbfb6c81e2004a00e97a2056e9051ad50e1fc3675234e590760c11cdd40032fb5d86220c1
-  languageName: node
-  linkType: hard
-
 "@angular-devkit/core@npm:20.3.24, @angular-devkit/core@npm:^20.0.0":
   version: 20.3.24
   resolution: "@angular-devkit/core@npm:20.3.24"
@@ -440,19 +421,6 @@ __metadata:
     chokidar:
       optional: true
   checksum: 10c0/b790dedc61b7611ca238c820fae230734c4675fca1d3423825e3200b0c2b16103ca1e72dabc0502297ac9be2faa16a79f4113780ccf8063fad154eb3ad3a1114
-  languageName: node
-  linkType: hard
-
-"@angular-devkit/schematics@npm:19.2.24":
-  version: 19.2.24
-  resolution: "@angular-devkit/schematics@npm:19.2.24"
-  dependencies:
-    "@angular-devkit/core": "npm:19.2.24"
-    jsonc-parser: "npm:3.3.1"
-    magic-string: "npm:0.30.17"
-    ora: "npm:5.4.1"
-    rxjs: "npm:7.8.1"
-  checksum: 10c0/37308813e4f61f503f8518b9c01dfb34e58e48e8f638043b2315ed4930e0acfea060e793d3976f16b370bde2b51e84b929f09862050b7339d7278bfe293f13c3
   languageName: node
   linkType: hard
 
@@ -6315,17 +6283,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@schematics/angular@npm:19.2.24":
-  version: 19.2.24
-  resolution: "@schematics/angular@npm:19.2.24"
-  dependencies:
-    "@angular-devkit/core": "npm:19.2.24"
-    "@angular-devkit/schematics": "npm:19.2.24"
-    jsonc-parser: "npm:3.3.1"
-  checksum: 10c0/4882f1e3e8b920329c882bc3d452bf4ef9b024692f4ff077954e2c68bb50a62d62bcb9553098cc1045e2775eb13e9b693ecf5a742effa5e2a8cd5b7f86f83df8
-  languageName: node
-  linkType: hard
-
 "@schematics/angular@npm:20.3.24":
   version: 20.3.24
   resolution: "@schematics/angular@npm:20.3.24"
@@ -8780,7 +8737,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bl@npm:^4.0.3, bl@npm:^4.1.0":
+"bl@npm:^4.0.3":
   version: 4.1.0
   resolution: "bl@npm:4.1.0"
   dependencies:
@@ -13223,7 +13180,7 @@ __metadata:
     "@ngx-formly/core": "npm:6.3.12"
     "@ngx-formly/ng-zorro-antd": "npm:6.3.12"
     "@nx/angular": "npm:21.6.11"
-    "@schematics/angular": "npm:19.2.24"
+    "@schematics/angular": "npm:20.3.24"
     "@types/backbone": "npm:1.4.15"
     "@types/concaveman": "npm:1.1.6"
     "@types/content-disposition": "npm:0"
@@ -15364,7 +15321,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"log-symbols@npm:^4.0.0, log-symbols@npm:^4.1.0":
+"log-symbols@npm:^4.0.0":
   version: 4.1.0
   resolution: "log-symbols@npm:4.1.0"
   dependencies:
@@ -16856,23 +16813,6 @@ __metadata:
     strip-ansi: "npm:^6.0.0"
     wcwidth: "npm:^1.0.1"
   checksum: 10c0/30d5f3218eb75b0a2028c5fb9aa88e83e38a2f1745ab56839abb06c3ba31bae35f768f4e72c4f9e04e2a66be6a898e9312e8cf85c9333e1e3613eabb8c7cdf57
-  languageName: node
-  linkType: hard
-
-"ora@npm:5.4.1":
-  version: 5.4.1
-  resolution: "ora@npm:5.4.1"
-  dependencies:
-    bl: "npm:^4.1.0"
-    chalk: "npm:^4.1.0"
-    cli-cursor: "npm:^3.1.0"
-    cli-spinners: "npm:^2.5.0"
-    is-interactive: "npm:^1.0.0"
-    is-unicode-supported: "npm:^0.1.0"
-    log-symbols: "npm:^4.1.0"
-    strip-ansi: "npm:^6.0.0"
-    wcwidth: "npm:^1.0.1"
-  checksum: 10c0/10ff14aace236d0e2f044193362b22edce4784add08b779eccc8f8ef97195cae1248db8ec1ec5f5ff076f91acbe573f5f42a98c19b78dba8c54eefff983cae85
   languageName: node
   linkType: hard
 
@@ -19791,13 +19731,6 @@ __metadata:
   version: 0.6.1
   resolution: "source-map@npm:0.6.1"
   checksum: 10c0/ab55398007c5e5532957cb0beee2368529618ac0ab372d789806f5718123cc4367d57de3904b4e6a4170eb5a0b0f41373066d02ca0735a0c4d75c7d328d3e011
-  languageName: node
-  linkType: hard
-
-"source-map@npm:0.7.4":
-  version: 0.7.4
-  resolution: "source-map@npm:0.7.4"
-  checksum: 10c0/dc0cf3768fe23c345ea8760487f8c97ef6fca8a73c83cd7c9bf2fde8bc2c34adb9c0824d6feb14bc4f9e37fb522e18af621543f1289038a66ac7586da29aa7dc
   languageName: node
   linkType: hard
 
