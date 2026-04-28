@@ -47,7 +47,11 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import org.apache.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
+import org.apache.texera.web.resource.{
+  SyncExecutionResource,
+  WebsocketPayloadSizeTuner,
+  WorkflowWebsocketResource
+}
 import org.apache.texera.web.service.ExecutionsMetadataPersistService
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.FilterHolder
@@ -189,6 +193,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     }
 
     environment.jersey.register(classOf[WorkflowExecutionsResource])
+    environment.jersey.register(classOf[SyncExecutionResource])
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.
     // TODO: replace with RequestLoggingFilter.register() from common/auth once Dropwizard is upgraded to 4.x

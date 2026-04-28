@@ -17,10 +17,37 @@
  * under the License.
  */
 
-export * from "./types";
-export { WorkflowState } from "./agent/workflow-state";
-export { WorkflowResultState } from "./agent/workflow-result-state";
-export { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
-export * from "./agent/tools";
-export { TexeraAgent, type TexeraAgentConfig, type AgentMessageResult } from "./agent/texera-agent";
-export { buildSystemPrompt } from "./agent/prompts";
+interface ConsoleMessage {
+  msgType: string;
+  message: string;
+}
+
+interface PortShape {
+  portIndex: number;
+  rows: number;
+  columns: number;
+}
+
+export interface OperatorInfo {
+  state: string;
+  inputTuples: number;
+  outputTuples: number;
+  inputPortShapes?: PortShape[];
+  resultMode: string;
+  result?: Record<string, any>[];
+  totalRowCount?: number;
+  displayedRows?: number;
+  truncated?: boolean;
+  consoleLogs?: ConsoleMessage[];
+  error?: string;
+  warnings?: string[];
+  resultStatistics?: Record<string, string>;
+}
+
+export interface SyncExecutionResult {
+  success: boolean;
+  state: string;
+  operators: Record<string, OperatorInfo>;
+  compilationErrors?: Record<string, string>;
+  errors?: string[];
+}
