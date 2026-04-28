@@ -63,44 +63,32 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import com.fasterxml.jackson.databind.ObjectMapper
 
-/**
-  * Request body for synchronous workflow execution.
-  */
 case class SyncExecutionRequest(
     executionName: String,
     logicalPlan: LogicalPlanPojo,
     workflowSettings: Option[WorkflowSettings],
     targetOperatorIds: List[String],
-    timeoutSeconds: Int, // Execution timeout in seconds
-    maxOperatorResultCharLimit: Int, // Max characters for operator results (uses symmetric truncation)
-    maxOperatorResultCellCharLimit: Int // Max characters per cell
+    timeoutSeconds: Int,
+    maxOperatorResultCharLimit: Int,
+    maxOperatorResultCellCharLimit: Int
 )
 
-/**
-  * Console message in a simplified format - contains type, title, and details.
-  */
 case class ConsoleMessageInfo(
     msgType: String,
     title: String,
     message: String
 )
 
-/**
-  * Per-input-port shape info - reports rows and columns for each input port.
-  */
 case class PortShape(
     portIndex: Int,
     rows: Long
 )
 
-/**
-  * Per-operator result info - contains everything about one operator.
-  */
 case class OperatorInfo(
     state: String,
     inputTuples: Long,
     outputTuples: Long,
-    inputPortShapes: Option[List[PortShape]], // per-input-port (rows, columns)
+    inputPortShapes: Option[List[PortShape]],
     resultMode: String, // "table" or "visualization"
     result: Option[Any], // JSON array (List[ObjectNode])
     totalRowCount: Option[Int],
@@ -111,9 +99,6 @@ case class OperatorInfo(
     warnings: Option[List[String]]
 )
 
-/**
-  * Simplified execution result - just success, state, and per-operator info.
-  */
 case class SyncExecutionResult(
     success: Boolean,
     state: String,
@@ -122,26 +107,19 @@ case class SyncExecutionResult(
     errors: Option[List[String]]
 )
 
-/**
-  * Sealed trait representing the reason for execution termination.
-  */
 sealed trait TerminationReason
 case class TerminalStateReached(state: ExecutionMetadataStore) extends TerminationReason
 case class ConsoleErrorDetected(consoleState: ExecutionConsoleStore) extends TerminationReason
 case class TargetResultsReady(statsState: ExecutionStatsStore) extends TerminationReason
 
-/**
-  * REST API resource for synchronous (blocking) workflow execution.
-  * Uses Observable-based approach to wait for execution completion.
-  */
 @Path("/execution")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class SyncExecutionResource extends LazyLogging {
 
-  // Maximum caps - always applied for safety
-  private val MAX_OPERATOR_RESULT_CHARS = 100000 // 100,000 characters max
-  private val MAX_OPERATOR_RESULT_CELL_CHARS = 20000 // 20,000 characters per cell max
+  // Hard caps applied regardless of request — guard against runaway payloads.
+  private val MAX_OPERATOR_RESULT_CHARS = 100000
+  private val MAX_OPERATOR_RESULT_CELL_CHARS = 20000
 
   @POST
   @Path("/{wid}/{cuid}/run")
@@ -154,7 +132,6 @@ class SyncExecutionResource extends LazyLogging {
   ): SyncExecutionResult = {
     val timeoutSeconds = request.timeoutSeconds
 
-    // Apply maximum caps for safety
     val maxOperatorResultCharLimit =
       Math.min(request.maxOperatorResultCharLimit, MAX_OPERATOR_RESULT_CHARS)
     val maxOperatorResultCellCharLimit =
@@ -172,25 +149,11 @@ class SyncExecutionResource extends LazyLogging {
         computingUnitId
       )
 
-      // Shutdown any previous execution's client
       shutdownPreviousExecution(workflowService)
 
-      // Compute sub-DAG if there's exactly 1 target operator (Execute To behavior)
+      // "Execute To" semantics: when a single target is given, run only its upstream sub-DAG.
       val effectiveLogicalPlan =
         computeSubDAGIfNeeded(request.logicalPlan, request.targetOperatorIds)
-
-      // TODO: re-enable validation checks once all operators compile cleanly
-      // // Pre-compile the workflow to catch errors early
-      // val compilationErrors = validateWorkflow(workflowId, effectiveLogicalPlan)
-      // if (compilationErrors.nonEmpty) {
-      //   return SyncExecutionResult(
-      //     success = false,
-      //     state = "CompilationFailed",
-      //     operators = Map.empty,
-      //     compilationErrors = Some(compilationErrors),
-      //     errors = Some(compilationErrors.values.toList)
-      //   )
-      // }
 
       val executeRequest = WorkflowExecuteRequest(
         executionName = request.executionName,
@@ -205,7 +168,6 @@ class SyncExecutionResource extends LazyLogging {
         computingUnitId = computingUnitId
       )
 
-      // Initialize and start execution
       workflowService.initExecutionService(
         executeRequest,
         Some(user.getUser),
@@ -223,14 +185,14 @@ class SyncExecutionResource extends LazyLogging {
         )
       }
 
-      // Check if workflow already completed (for very fast executions)
-      // This handles the race condition where execution finishes before Observable subscription
+      // Snapshot before subscribing — handles the race where a fast execution finishes
+      // before the Observable below sees any state change.
       val currentState = executionService.executionStateStore.metadataStore.getState
       val currentConsoleState = executionService.executionStateStore.consoleStore.getState
       val currentStatsState = executionService.executionStateStore.statsStore.getState
 
-      // Helper to check if all target operators have completed (not just produced output).
-      // This ensures upstream operators have finished sending data before we terminate.
+      // Require COMPLETED, not just "has output", so upstream operators finish flushing
+      // their data downstream before we tear the execution down.
       def allTargetsCompleted(stats: ExecutionStatsStore): Boolean = {
         request.targetOperatorIds.nonEmpty && request.targetOperatorIds.forall { opId =>
           stats.operatorInfo.get(opId).exists { metrics =>
@@ -241,39 +203,27 @@ class SyncExecutionResource extends LazyLogging {
 
       val terminationReason: TerminationReason =
         if (isTerminalState(currentState.state)) {
-          // Already in terminal state
           TerminalStateReached(currentState)
         } else if (hasConsoleError(currentConsoleState)) {
-          // Already has console error
           ConsoleErrorDetected(currentConsoleState)
         } else if (allTargetsCompleted(currentStatsState)) {
-          // All target operators already completed
           TargetResultsReady(currentStatsState)
         } else {
-          // Create three termination conditions:
-          // 1. Terminal state (COMPLETED, FAILED, KILLED, TERMINATED)
-          // 2. Console ERROR message (any operator logs an error)
-          // 3. All target operators have produced results
-
-          // Observable for terminal state
           val terminalStateObservable: Observable[TerminationReason] =
             executionService.executionStateStore.metadataStore.getStateObservable
               .filter((state: ExecutionMetadataStore) => isTerminalState(state.state))
               .map[TerminationReason](state => TerminalStateReached(state))
 
-          // Observable for console ERROR messages
           val consoleErrorObservable: Observable[TerminationReason] =
             executionService.executionStateStore.consoleStore.getStateObservable
               .filter((consoleState: ExecutionConsoleStore) => hasConsoleError(consoleState))
               .map[TerminationReason](consoleState => ConsoleErrorDetected(consoleState))
 
-          // Observable for all target operators being completed
           val targetResultsObservable: Observable[TerminationReason] =
             executionService.executionStateStore.statsStore.getStateObservable
               .filter((stats: ExecutionStatsStore) => allTargetsCompleted(stats))
               .map[TerminationReason](stats => TargetResultsReady(stats))
 
-          // Race between all conditions - whichever fires first wins
           try {
             Observable
               .amb(
@@ -288,7 +238,6 @@ class SyncExecutionResource extends LazyLogging {
               .blockingGet()
           } catch {
             case _: java.util.concurrent.TimeoutException =>
-              // Timeout - kill the execution
               killExecution(executionService)
               return SyncExecutionResult(
                 success = false,
@@ -309,41 +258,37 @@ class SyncExecutionResource extends LazyLogging {
           }
         }
 
-      // Handle termination based on reason
       val (finalState, terminatedByConsoleError, terminatedByTargetResults) =
         terminationReason match {
           case TerminalStateReached(state) =>
             (state, false, false)
           case ConsoleErrorDetected(_) =>
-            // Console error detected - kill the workflow and get current state
             killExecution(executionService)
             (executionService.executionStateStore.metadataStore.getState, true, false)
           case TargetResultsReady(_) =>
-            // All target operators have results - kill the workflow and mark as completed
-            // Wait briefly to allow caching of upstream operator results to complete.
-            // The caching happens asynchronously in RegionExecutionCoordinator after operators complete,
-            // so we need to give it time before shutting down the client.
-            // TODO: A better solution would be to make caching synchronous or signal completion
-            // from the engine, avoiding this fixed delay.
+            // RegionExecutionCoordinator caches upstream results asynchronously after operators
+            // complete; sleep gives that caching a chance to finish before we shut down the client.
+            // TODO: replace with a synchronous signal from the engine.
             Thread.sleep(500)
             killExecution(executionService)
-            // Update state to COMPLETED since we got all the results we need
+            // Override to COMPLETED — we have everything we asked for, even though the engine
+            // sees this as a kill.
             executionService.executionStateStore.metadataStore.updateState(metadataStore =>
               updateWorkflowState(COMPLETED, metadataStore)
             )
             (executionService.executionStateStore.metadataStore.getState, false, true)
         }
 
-      // Small delay to ensure results are persisted
+      // Let the result writer flush before we read storage.
       Thread.sleep(500)
 
-      // Get in-memory console state for error extraction (may not be persisted to DB yet)
+      // Console DB writes lag the in-memory store; pass the latter so error extraction
+      // can fall back when the row hasn't landed yet.
       val inMemoryConsoleState = terminationReason match {
         case ConsoleErrorDetected(consoleState) => Some(consoleState)
         case _                                  => None
       }
 
-      // Collect results
       val executionId = executionService.workflowContext.executionId
       val operatorInfos = collectOperatorInfos(
         executionId,
@@ -354,21 +299,17 @@ class SyncExecutionResource extends LazyLogging {
         inMemoryConsoleState
       )
 
-      // Collect fatal errors
       val fatalErrors = finalState.fatalErrors
         .map(err => s"${err.`type`}: ${err.message}")
         .toList
 
-      // Check for console errors in operator results
       val hasOperatorConsoleError = operatorInfos.values.exists(_.error.isDefined)
 
-      // Determine state string based on termination reason
       val stateString =
         if (terminatedByConsoleError) "Failed"
         else if (terminatedByTargetResults) "Completed"
         else stateToString(finalState.state)
 
-      // Success if: completed normally OR all target results ready, with no errors
       val isSuccess = (finalState.state == COMPLETED || terminatedByTargetResults) &&
         !hasOperatorConsoleError && !terminatedByConsoleError
 
@@ -429,18 +370,17 @@ class SyncExecutionResource extends LazyLogging {
   ): Map[String, OperatorInfo] = {
     val operatorInfos = mutable.Map[String, OperatorInfo]()
 
-    // Get operator stats from the state store
     val statsState = executionService.executionStateStore.statsStore.getState
     val operatorStats = statsState.operatorInfo
 
-    // Determine which operators to collect - include both target operators and any with console errors
     val baseTargetOps = if (targetOperatorIds.nonEmpty) {
       targetOperatorIds
     } else {
       operatorStats.keys.toList
     }
 
-    // Also include operators from in-memory console state that have errors
+    // Pull in any operator that logged a console error even if it isn't a target —
+    // otherwise the caller can't see why an upstream op failed.
     val consoleErrorOps = inMemoryConsoleState
       .map { consoleState =>
         consoleState.operatorConsole.keys.toList
@@ -459,7 +399,6 @@ class SyncExecutionResource extends LazyLogging {
         case None => ("Unknown", 0L, 0L)
       }
 
-      // Extract per-input-port shapes from stats
       val inputPortShapes: Option[List[PortShape]] = stats
         .map { s =>
           s.operatorStatistics.inputMetrics.map { pm =>
@@ -468,7 +407,6 @@ class SyncExecutionResource extends LazyLogging {
         }
         .filter(_.nonEmpty)
 
-      // Get result
       val (resultMode, result, totalRowCount, displayedRows, truncated) =
         collectOperatorResult(
           executionId,
@@ -477,10 +415,10 @@ class SyncExecutionResource extends LazyLogging {
           maxOperatorResultCellCharLimit
         )
 
-      // Get console logs - first try database, then fallback to in-memory state
+      // DB is authoritative once written; fall back to in-memory state for in-flight runs
+      // where the console row hasn't been persisted yet.
       val dbConsoleLogs = collectConsoleLogs(executionId, opId)
       val consoleLogs = dbConsoleLogs.orElse {
-        // Fallback to in-memory console state if database logs not available
         inMemoryConsoleState.flatMap { consoleState =>
           consoleState.operatorConsole
             .get(opId)
@@ -497,10 +435,8 @@ class SyncExecutionResource extends LazyLogging {
         }
       }
 
-      // Check for error in console logs
-      // Prefer the longer of title/message to avoid truncation.
-      // Python errors store the full text in `message`; Scala errors
-      // store the full text in `title` (with stack trace in `message`).
+      // Python writes the full error text to `message`; Scala writes it to `title`
+      // (with a stack trace in `message`). Pick whichever is longer to avoid losing detail.
       val errorMsg = consoleLogs.flatMap(
         _.find(_.msgType == "ERROR").map { e =>
           if (e.message.nonEmpty && e.message.length > e.title.length) e.message
@@ -508,7 +444,7 @@ class SyncExecutionResource extends LazyLogging {
         }
       )
 
-      // Extract warnings (PRINT messages with "WARNING: " prefix)
+      // Convention: PRINT messages prefixed with "WARNING: " surface as warnings.
       val warningMsgs = consoleLogs
         .map(_.filter(_.title.startsWith("WARNING: ")).map(_.title))
         .filter(_.nonEmpty)
@@ -561,11 +497,9 @@ class SyncExecutionResource extends LazyLogging {
   }
 
   /**
-    * Collect result for a single operator with symmetric truncation.
-    * Uses incremental fetching with character-based limiting:
-    * - Collects tuples from the front until half the limit is reached
-    * - Keeps a sliding window buffer of recent tuples for the back
-    * - Returns JSON array (List[ObjectNode]) - serialization to table/toon format is done by agent-service
+    * Symmetric truncation: fill half the char budget from the front of the result, keep a
+    * sliding-window of the most recent tuples for the back half. Returns a JSON array;
+    * serialization to table/toon format happens in agent-service.
     */
   private def collectOperatorResult(
       executionId: ExecutionIdentity,
@@ -591,11 +525,8 @@ class SyncExecutionResource extends LazyLogging {
 
           val totalCount = document.getCount.toInt
           val mapper = new ObjectMapper()
-
-          // Use iterator to fetch tuples incrementally
           val tupleIterator = document.get()
 
-          // Handle empty result
           if (totalCount == 0 || !tupleIterator.hasNext) {
             return (
               "table",
@@ -606,12 +537,12 @@ class SyncExecutionResource extends LazyLogging {
             )
           }
 
-          // Check for visualization tuple (special case - single tuple with html/json content)
+          // A single tuple with html-content / json-content is a visualization payload —
+          // the frontend renders it as an iframe rather than a table.
           val firstTuple = tupleIterator.next()
           if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
             val jsonResults =
               ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
-            // Inject __is_visualization__ flag so frontend can render HTML instead of table
             jsonResults.foreach(
               _.asInstanceOf[ObjectNode].put("__is_visualization__", true)
             )
@@ -624,14 +555,14 @@ class SyncExecutionResource extends LazyLogging {
             )
           }
 
-          // Process first tuple — inject original row index for correct display after truncation
+          // __row_index__ preserves the original position so the frontend can show
+          // "row N" correctly after symmetric truncation drops the middle.
           var rowIndex = 0
           val firstJson = ExecutionResultService.convertTuplesToJson(List(firstTuple)).head
           val truncatedFirst = truncateSingleTuple(firstJson, maxOperatorResultCellCharLimit)
           truncatedFirst.put("__row_index__", rowIndex)
           val firstSize = estimateTupleSize(truncatedFirst, mapper)
 
-          // If even one tuple exceeds limit, return truncated version
           if (firstSize >= maxOperatorResultCharLimit) {
             return (
               "table",
@@ -642,16 +573,13 @@ class SyncExecutionResource extends LazyLogging {
             )
           }
 
-          // Allocate half the budget for front, half for back
           val halfLimit = maxOperatorResultCharLimit / 2
-          val truncationNoticeSize = 50 // Approximate size for truncation metadata
+          val truncationNoticeSize = 50 // reserved for the "...skipped..." marker
 
-          // Collect front tuples
           val frontTuples = mutable.ListBuffer[ObjectNode](truncatedFirst)
           var frontSize = firstSize
           var processedCount = 1
 
-          // Collect front tuples until we reach half the limit
           while (tupleIterator.hasNext && frontSize < halfLimit) {
             val tuple = tupleIterator.next()
             rowIndex += 1
@@ -665,13 +593,11 @@ class SyncExecutionResource extends LazyLogging {
               frontTuples += truncatedTuple
               frontSize += tupleSize
             } else {
-              // This tuple would exceed front limit, start collecting for back
-              // Put this tuple in the back buffer
+              // Front is full — switch to a sliding window for the back half.
               val backBuffer = mutable.ArrayBuffer[(ObjectNode, Int)]()
               backBuffer += ((truncatedTuple, tupleSize))
               var backSize = tupleSize
 
-              // Continue iterating, keeping a sliding window for the back
               while (tupleIterator.hasNext) {
                 val t = tupleIterator.next()
                 rowIndex += 1
@@ -684,14 +610,12 @@ class SyncExecutionResource extends LazyLogging {
                 backBuffer += ((tt, ts))
                 backSize += ts
 
-                // Remove from front of buffer if we exceed back limit
                 while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
                   val (_, removedSize) = backBuffer.remove(0)
                   backSize -= removedSize
                 }
               }
 
-              // Now we have front and back tuples
               val backTuples = backBuffer.map(_._1).toList
               val allTuples = frontTuples.toList ++ backTuples
               val skippedRows = totalCount - allTuples.size
@@ -706,10 +630,7 @@ class SyncExecutionResource extends LazyLogging {
             }
           }
 
-          // If we get here, all tuples fit in the front portion
-          // Check if there are more tuples
           if (tupleIterator.hasNext) {
-            // Still have tuples, need to collect back portion
             val backBuffer = mutable.ArrayBuffer[(ObjectNode, Int)]()
             var backSize = 0
 
@@ -725,7 +646,6 @@ class SyncExecutionResource extends LazyLogging {
               backBuffer += ((tt, ts))
               backSize += ts
 
-              // Remove from front of buffer if we exceed back limit
               while (backSize > halfLimit - truncationNoticeSize && backBuffer.size > 1) {
                 val (_, removedSize) = backBuffer.remove(0)
                 backSize -= removedSize
@@ -744,7 +664,6 @@ class SyncExecutionResource extends LazyLogging {
               Some(skippedRows > 0)
             )
           } else {
-            // All tuples fit within the limit
             (
               "table",
               Some(frontTuples.toList.asJava),
@@ -764,9 +683,6 @@ class SyncExecutionResource extends LazyLogging {
     }
   }
 
-  /**
-    * Truncate cell values in a single tuple that exceed the character limit.
-    */
   private def truncateSingleTuple(
       tuple: ObjectNode,
       maxCellChars: Int
@@ -796,19 +712,13 @@ class SyncExecutionResource extends LazyLogging {
     truncatedTuple
   }
 
-  /**
-    * Estimate the serialized size of a tuple as JSON.
-    */
   private def estimateTupleSize(
       tuple: ObjectNode,
       mapper: ObjectMapper
   ): Int = {
-    mapper.writeValueAsString(tuple).length + 1 // +1 for comma in array
+    mapper.writeValueAsString(tuple).length + 1 // +1 for the array separator
   }
 
-  /**
-    * Symmetric truncation for individual cell values.
-    */
   private def symmetricTruncateCellValue(text: String, maxChars: Int): String = {
     if (text.length <= maxChars) {
       text
@@ -893,9 +803,6 @@ class SyncExecutionResource extends LazyLogging {
     }
   }
 
-  /**
-    * Check if any operator has logged an ERROR console message.
-    */
   private def hasConsoleError(consoleState: ExecutionConsoleStore): Boolean = {
     consoleState.operatorConsole.values.exists { opConsole =>
       opConsole.consoleMessages.exists(_.msgType == ConsoleMessageType.ERROR)
@@ -965,11 +872,7 @@ class SyncExecutionResource extends LazyLogging {
     )
   }
 
-  /**
-    * Validate workflow by attempting to compile it.
-    * Returns a map of operator ID -> error message if there are compilation errors,
-    * or an empty map if compilation succeeds.
-    */
+  // Returns operator-id -> error message; empty map means compilation succeeded.
   private def validateWorkflow(
       workflowId: Long,
       logicalPlan: LogicalPlanPojo
@@ -978,12 +881,10 @@ class SyncExecutionResource extends LazyLogging {
       val tempContext = new WorkflowContext(WorkflowIdentity(workflowId))
       val compiler = new WorkflowCompiler(tempContext)
       compiler.compile(logicalPlan)
-      Map.empty // Compilation succeeded
+      Map.empty
     } catch {
       case e: Exception =>
-        // Extract operator ID from error message if possible
         val errorMsg = Option(e.getMessage).getOrElse("Compilation failed")
-        // Try to extract operator ID from the error
         val operatorIdPattern = """operator[- ]?(\S+)""".r
         val operatorId = operatorIdPattern
           .findFirstMatchIn(errorMsg.toLowerCase)
