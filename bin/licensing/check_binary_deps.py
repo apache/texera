@@ -17,12 +17,13 @@
 # under the License.
 
 """Diff actually-bundled deps against LICENSE-binary for one ecosystem
-(jar | npm | python). Exits non-zero on drift.
+(jar | npm | agent-npm | python). Exits non-zero on drift.
 
 Usage:
-  check_binary_deps.py jar    <dist-lib-dir-1> [<dist-lib-dir-2> ...]
-  check_binary_deps.py npm    <path-to-3rdpartylicenses.json>
-  check_binary_deps.py python <path-to-pip-licenses.csv>
+  check_binary_deps.py jar       <dist-lib-dir-1> [<dist-lib-dir-2> ...]
+  check_binary_deps.py npm       <path-to-frontend-3rdpartylicenses.json>
+  check_binary_deps.py agent-npm <path-to-agent-service-3rdpartylicenses.json>
+  check_binary_deps.py python    <path-to-pip-licenses.csv>
 """
 from __future__ import annotations
 
@@ -38,9 +39,10 @@ from pathlib import Path
 TEXERA_OWN_JAR_PREFIX = "org.apache.texera."
 
 ECO_HEADERS = {
-    "jar":    "Scala/Java jars:",
-    "python": "Python packages:",
-    "npm":    "Angular / npm packages",
+    "jar":       "Scala/Java jars:",
+    "python":    "Python packages:",
+    "npm":       "Angular / npm packages",
+    "agent-npm": "Agent service npm packages",
 }
 
 JAR_BULLET = re.compile(r"^\s*-\s+(\S+\.jar)\b")
@@ -85,7 +87,7 @@ def parse_prose(path: Path, ecosystem: str) -> set[str]:
             m = JAR_BULLET.match(raw)
             if m:
                 claims.add(m.group(1))
-        elif ecosystem == "npm":
+        elif ecosystem in ("npm", "agent-npm"):
             m = NPM_BULLET.match(raw)
             if m:
                 claims.add(f"{m.group(1)}@{m.group(2)}")
@@ -187,7 +189,7 @@ def report(added: list[str], stale: list[str], label: str, kind: str) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("kind", choices=["jar", "npm", "python"])
+    ap.add_argument("kind", choices=["jar", "npm", "agent-npm", "python"])
     ap.add_argument("inputs", nargs="+")
     ap.add_argument(
         "--license-binary",
@@ -218,6 +220,16 @@ def main() -> int:
         rc = report(added, stale, "npm packages", "npm")
         if rc == 0:
             print(f"OK: {len(reality)} npm packages match LICENSE-binary.")
+        return rc
+
+    if args.kind == "agent-npm":
+        claimed = parse_prose(lb, "agent-npm")
+        reality = collect_npm(Path(args.inputs[0]))
+        added = sorted(reality - claimed)
+        stale = sorted(claimed - reality)
+        rc = report(added, stale, "agent-service npm packages", "agent-npm")
+        if rc == 0:
+            print(f"OK: {len(reality)} agent-service npm packages match LICENSE-binary.")
         return rc
 
     if args.kind == "python":
