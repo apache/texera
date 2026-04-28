@@ -393,8 +393,15 @@ services:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
     restart: always
-    env_file:
-      - .env
+    # API keys are read from the shell first, then from .env. This lets
+    # users provide a key inline, e.g.
+    #   ANTHROPIC_API_KEY=sk-... docker compose up
+    # without editing any file.
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-}
     volumes:
       - ./litellm-config.yaml:/app/config.yaml:ro
     command:
