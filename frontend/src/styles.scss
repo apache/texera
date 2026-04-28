@@ -256,8 +256,10 @@ hr {
 
   .package-inputs {
     flex: 1;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 14px;
+    width: 100%;
   }
 
   .field {
@@ -265,6 +267,11 @@ hr {
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+    width: 100%;
+  }
+
+  .field input {
+    width: 100%;
   }
 
   .field label {
