@@ -29,6 +29,7 @@ import { WorkflowCompilingService } from "../../../service/compile-workflow/work
   selector: "texera-error-frame",
   templateUrl: "./error-frame.component.html",
   styleUrls: ["./error-frame.component.scss"],
+  standalone: false,
 })
 export class ErrorFrameComponent implements OnInit {
   @Input() operatorId?: string;

@@ -24,21 +24,20 @@ import "@codingame/monaco-vscode-python-default-extension";
 import "@codingame/monaco-vscode-r-default-extension";
 import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
-import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
-import {
-  EditorMouseEvent,
-  EditorMouseTarget,
-  ModelDecorationOptions,
-  MonacoEditor,
-  Range,
-} from "monaco-breakpoints/dist/types";
+import * as monaco from "monaco-editor";
 import { MonacoBreakpoint } from "monaco-breakpoints";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { distinctUntilChanged, map } from "rxjs/operators";
 import { OperatorState } from "../../types/execute-workflow.interface";
-import MouseTargetType = editor.MouseTargetType;
+
+type MonacoEditor = monaco.editor.IStandaloneCodeEditor;
+type EditorMouseEvent = monaco.editor.IEditorMouseEvent;
+type EditorMouseTarget = monaco.editor.IMouseTargetMargin;
+type ModelDecorationOptions = monaco.editor.IModelDecorationOptions;
+type Range = monaco.IRange;
+const MouseTargetType = monaco.editor.MouseTargetType;
 
 /**
  * This component is the main component for the code debugger.
@@ -47,6 +46,7 @@ import MouseTargetType = editor.MouseTargetType;
 @Component({
   selector: "texera-code-debugger",
   templateUrl: "code-debugger.component.html",
+  standalone: false,
 })
 export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   @Input() monacoEditor!: MonacoEditor;
@@ -204,7 +204,9 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   private createBreakpointDecoration(lineNum: number) {
     this.monacoBreakpoint!["createSpecifyDecoration"]({
       startLineNumber: Number(lineNum),
+      startColumn: 1,
       endLineNumber: Number(lineNum),
+      endColumn: 1,
     });
   }
 

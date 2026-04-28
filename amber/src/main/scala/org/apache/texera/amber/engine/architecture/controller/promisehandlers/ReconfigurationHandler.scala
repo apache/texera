@@ -21,16 +21,21 @@ package org.apache.texera.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
   ChannelIdentity,
   EmbeddedControlMessageIdentity
 }
-import org.apache.texera.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
+import org.apache.texera.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  UpdateExecutorCompleted
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.ALL_ALIGNMENT
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
+  ControlInvocation,
   WorkflowReconfigureRequest
 }
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{ControlReturn, EmptyReturn}
 import org.apache.texera.amber.engine.common.FriesReconfigurationAlgorithm
 import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.texera.amber.util.VirtualIdentityUtils
@@ -64,7 +69,12 @@ trait ReconfigurationHandler {
           .getLatestOperatorExecution(updateExecutorRequest.targetOpId)
           .getWorkerIds
         workerIds.foreach { worker =>
-          futures.append(workerInterface.updateExecutor(updateExecutorRequest, mkContext(worker)))
+          futures.append(
+            notifyOnComplete(
+              workerInterface.updateExecutor(updateExecutorRequest, mkContext(worker)),
+              worker
+            )
+          )
         }
       } else {
         val channelScope = cp.workflowExecution.getRunningRegionExecutions
@@ -88,20 +98,21 @@ trait ReconfigurationHandler {
           }
         }
         val finalScope = channelScope ++ controlChannels
-        val cmdMapping =
+        val workerCommands: Seq[(ActorVirtualIdentity, ControlInvocation, Future[ControlReturn])] =
           friesComponent.reconfigurations.flatMap { updateReq =>
             val workers =
               cp.workflowExecution.getLatestOperatorExecution(updateReq.targetOpId).getWorkerIds
-            workers.map(worker =>
-              worker.name -> createInvocation(
-                METHOD_UPDATE_EXECUTOR.getBareMethodName,
-                updateReq,
-                worker
-              )
-            )
-          }.toMap
-        futures += cmdMapping.map {
-          case (_, (_, singleWorkerUpdateFuture)) => singleWorkerUpdateFuture
+            workers.map { worker =>
+              val (invocation, future) =
+                createInvocation(METHOD_UPDATE_EXECUTOR.getBareMethodName, updateReq, worker)
+              (worker, invocation, future)
+            }
+          }.toSeq
+        val cmdMapping: Map[String, ControlInvocation] = workerCommands.map {
+          case (worker, invocation, _) => worker.name -> invocation
+        }.toMap
+        futures ++= workerCommands.map {
+          case (worker, _, future) => notifyOnComplete(future, worker)
         }
         friesComponent.sources.foreach { source =>
           cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.foreach { worker =>
@@ -109,7 +120,7 @@ trait ReconfigurationHandler {
               EmbeddedControlMessageIdentity(msg.reconfigurationId),
               ALL_ALIGNMENT,
               finalScope.toSet,
-              cmdMapping.map(x => (x._1, x._2._1)),
+              cmdMapping,
               ChannelIdentity(actorId, worker, isControl = true)
             )
           }
@@ -120,5 +131,11 @@ trait ReconfigurationHandler {
       EmptyReturn()
     }
   }
+
+  // After a worker's updateExecutor completes, notify the client so the
+  // ExecutionReconfigurationService can advance completedReconfigurations
+  // and emit ModifyLogicCompletedEvent on the websocket.
+  private def notifyOnComplete[T](future: Future[T], worker: ActorVirtualIdentity): Future[T] =
+    future.onSuccess(_ => sendToClient(UpdateExecutorCompleted(worker)))
 
 }

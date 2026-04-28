@@ -84,4 +84,16 @@ class NetworkInputGatewaySpec extends AnyFlatSpec with MockFactory {
 
   }
 
+  "network input port" should "remove control channel by sender" in {
+    val inputPort = new NetworkInputGateway(fakeReceiverID)
+    val controlChannelId = ChannelIdentity(fakeSenderID, fakeReceiverID, isControl = true)
+    inputPort.getChannel(controlChannelId)
+
+    assert(inputPort.getAllControlChannels.size == 1)
+
+    inputPort.removeControlChannel(fakeSenderID)
+
+    assert(inputPort.getAllControlChannels.isEmpty)
+  }
+
 }

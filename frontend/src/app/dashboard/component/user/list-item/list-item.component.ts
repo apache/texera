@@ -19,7 +19,6 @@
 
 import {
   ChangeDetectorRef,
-  Component,
   ElementRef,
   EventEmitter,
   Input,
@@ -28,6 +27,7 @@ import {
   SimpleChanges,
   ViewChild,
 } from "@angular/core";
+import { Component } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
@@ -58,6 +58,7 @@ import { isDefined } from "../../../../common/util/predicate";
   selector: "texera-list-item",
   templateUrl: "./list-item.component.html",
   styleUrls: ["./list-item.component.scss"],
+  standalone: false,
 })
 export class ListItemComponent implements OnChanges {
   private owners: number[] = [];

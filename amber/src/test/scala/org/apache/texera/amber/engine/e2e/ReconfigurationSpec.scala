@@ -150,9 +150,15 @@ class ReconfigurationSpec
           completion.setDone()
         }
       })
-    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    Await.result(
+      client.controllerInterface.startWorkflow(EmptyRequest(), ()),
+      Duration.fromSeconds(5)
+    )
     val pausedReached = stateReached(client, PAUSED)
-    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+    Await.result(
+      client.controllerInterface.pauseWorkflow(EmptyRequest(), ()),
+      Duration.fromSeconds(5)
+    )
     Await.result(pausedReached, Duration.fromSeconds(10))
     val physicalOps = targetOps.flatMap(op =>
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
@@ -164,9 +170,13 @@ class ReconfigurationSpec
           reconfigurationId = "test-reconfigure-1"
         ),
         ()
-      )
+      ),
+      Duration.fromSeconds(5)
     )
-    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+    Await.result(
+      client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
+      Duration.fromSeconds(5)
+    )
     Await.result(completion, Duration.fromMinutes(1))
     result
   }

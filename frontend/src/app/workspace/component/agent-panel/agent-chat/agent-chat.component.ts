@@ -28,6 +28,7 @@ import { NotificationService } from "../../../../common/service/notification/not
   selector: "texera-agent-chat",
   templateUrl: "agent-chat.component.html",
   styleUrls: ["agent-chat.component.scss"],
+  standalone: false,
 })
 export class AgentChatComponent implements OnInit, AfterViewChecked {
   @Input() agentInfo!: AgentInfo;

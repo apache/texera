@@ -47,5 +47,6 @@ import { FieldArrayType } from "@ngx-formly/core";
         nzType="plus"></span>
     </button>
   `,
+  standalone: false,
 })
 export class ArrayTypeComponent extends FieldArrayType {}

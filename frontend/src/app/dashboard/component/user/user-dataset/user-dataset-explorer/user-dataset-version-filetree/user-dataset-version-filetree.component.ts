@@ -32,6 +32,7 @@ const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"] as const;
   selector: "texera-user-dataset-version-filetree",
   templateUrl: "./user-dataset-version-filetree.component.html",
   styleUrls: ["./user-dataset-version-filetree.component.scss"],
+  standalone: false,
 })
 export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   @Input()
