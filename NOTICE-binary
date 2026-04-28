@@ -155,14 +155,6 @@ This product includes code from Apache Avro.
 Apache Iceberg
 --------------------------------------------------------------------------------
 
-From the following jars' META-INF/NOTICE (identical content):
-  - org.apache.iceberg.iceberg-api-1.7.1.jar
-  - org.apache.iceberg.iceberg-aws-1.7.1.jar
-  - org.apache.iceberg.iceberg-common-1.7.1.jar
-  - org.apache.iceberg.iceberg-core-1.7.1.jar
-  - org.apache.iceberg.iceberg-data-1.7.1.jar
-  - org.apache.iceberg.iceberg-parquet-1.7.1.jar
-
 
 Apache Iceberg
 Copyright 2017-2024 The Apache Software Foundation
@@ -451,8 +443,6 @@ This product includes software developed by Joda.org (https://www.joda.org/).
 Jackson core (verbatim upstream NOTICE)
 --------------------------------------------------------------------------------
 
-From com.fasterxml.jackson.core.jackson-core-2.18.6.jar META-INF/NOTICE:
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -530,10 +520,6 @@ https://github.com/wrandelshofer/FastDoubleParser/blob/39e123b15b71f29a38a087d16
 Jackson modules and datatypes
 --------------------------------------------------------------------------------
 
-From the following jars' META-INF/NOTICE (identical content):
-  - com.fasterxml.jackson.core.jackson-annotations-2.18.6.jar
-  - com.fasterxml.jackson.core.jackson-databind-2.18.6.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -557,10 +543,6 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-From the following jars' META-INF/NOTICE (identical content):
-  - com.fasterxml.jackson.module.jackson-module-afterburner-2.9.10.jar
-  - com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
 
 # Jackson JSON processor
 
@@ -586,11 +568,6 @@ from the source code management (SCM) system project uses.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-From the following jars' META-INF/NOTICE (identical content):
-  - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.9.10.jar
-  - com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar
-  - com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider-2.10.5.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -613,10 +590,6 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-From the following jars' META-INF/NOTICE (identical content):
-  - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1.jar
-  - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.17.0.jar
 
 # Jackson JSON processor
 
@@ -642,10 +615,6 @@ from the source code management (SCM) system project uses.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-From the following jars' META-INF/NOTICE (identical content):
-  - com.fasterxml.jackson.module.jackson-module-jaxb-annotations-2.10.5.jar
-  - com.fasterxml.jackson.module.jackson-module-no-ctor-deser-2.18.6.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -669,13 +638,6 @@ from the source code management (SCM) system project uses.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-From the following jars' META-INF/NOTICE (identical content):
-  - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar
-  - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.0.jar
-  - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.1.jar
-  - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.17.0.jar
-  - com.fasterxml.jackson.module.jackson-module-parameter-names-2.16.1.jar
-
 # Jackson JSON processor
 
 Jackson is a high-performance, Free/Open Source JSON processing library.
@@ -697,15 +659,6 @@ from the source code management (SCM) system project uses.
 --------------------------------------------------------------------------------
 Eclipse Jetty 11.0
 --------------------------------------------------------------------------------
-
-From the following jars' META-INF/NOTICE (identical content):
-  - org.eclipse.jetty.jetty-http-11.0.20.jar
-  - org.eclipse.jetty.jetty-io-11.0.20.jar
-  - org.eclipse.jetty.jetty-security-11.0.20.jar
-  - org.eclipse.jetty.jetty-server-11.0.20.jar
-  - org.eclipse.jetty.jetty-servlet-11.0.20.jar
-  - org.eclipse.jetty.jetty-servlets-11.0.20.jar
-  - org.eclipse.jetty.jetty-util-11.0.20.jar
 
 Notices for Eclipse Jetty
 =========================
@@ -805,8 +758,6 @@ granted provided that the copyright notice appears in all copies.
 Apache Parquet (per-component supplementary notices)
 --------------------------------------------------------------------------------
 
-From org.apache.parquet.parquet-avro-1.13.1.jar META-INF/NOTICE:
-
 
 Apache Parquet MR (Incubating)
 Copyright 2014-2015 The Apache Software Foundation
@@ -826,8 +777,6 @@ its NOTICE file:
   The Apache Software Foundation (http://www.apache.org/).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-From org.apache.parquet.parquet-jackson-1.13.1.jar META-INF/NOTICE:
 
 # Jackson JSON processor
 
@@ -851,8 +800,6 @@ from the source code management (SCM) system project uses.
 R2DBC SPI
 --------------------------------------------------------------------------------
 
-From io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar META-INF/NOTICE:
-
 Reactive Relational Database Connectivity
 
 Copyright 2017-2021 the original author or authors.
@@ -872,8 +819,6 @@ limitations under the License.
 --------------------------------------------------------------------------------
 Joda-Convert
 --------------------------------------------------------------------------------
-
-From org.joda.joda-convert-2.2.2.jar META-INF/NOTICE:
 
 Joda Convert
 Copyright 2010-present Stephen Colebourne
@@ -899,13 +844,6 @@ the License.
 --------------------------------------------------------------------------------
 Eclipse Jersey (jersey-container-servlet, jersey-container-servlet-core, jersey-client, jersey-hk2, jersey-media-jaxb)
 --------------------------------------------------------------------------------
-
-From the following jars' META-INF/NOTICE (identical content):
-  - org.glassfish.jersey.containers.jersey-container-servlet-3.0.12.jar
-  - org.glassfish.jersey.containers.jersey-container-servlet-core-3.0.12.jar
-  - org.glassfish.jersey.core.jersey-client-3.0.12.jar
-  - org.glassfish.jersey.ext.jersey-metainf-services-3.0.12.jar
-  - org.glassfish.jersey.inject.jersey-hk2-3.0.12.jar
 
 # Notice for Jersey 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -1024,8 +962,6 @@ W3.org documents
 --------------------------------------------------------------------------------
 Eclipse Jersey Core Server
 --------------------------------------------------------------------------------
-
-From org.glassfish.jersey.core.jersey-server-3.0.12.jar META-INF/NOTICE:
 
 # Notice for Jersey Core Server module 
 This content is produced and maintained by the Eclipse Jersey project.
@@ -1191,8 +1127,6 @@ W3.org documents
 Eclipse Jersey Core Common
 --------------------------------------------------------------------------------
 
-From org.glassfish.jersey.core.jersey-common-3.0.12.jar META-INF/NOTICE:
-
 # Notice for Jersey Core Common module 
 This content is produced and maintained by the Eclipse Jersey project.
 
@@ -1356,8 +1290,6 @@ W3.org documents
 Eclipse Jersey Bean Validation
 --------------------------------------------------------------------------------
 
-From org.glassfish.jersey.ext.jersey-bean-validation-3.0.12.jar META-INF/NOTICE:
-
 # Notice for Jersey Bean Validation module 
 This content is produced and maintained by the Eclipse Jersey project.
 
@@ -1513,12 +1445,6 @@ W3.org documents
 Eclipse GlassFish HK2 (aopalliance-repackaged, hk2-api, hk2-locator, hk2-utils)
 --------------------------------------------------------------------------------
 
-From the following jars' META-INF/NOTICE (identical content):
-  - org.glassfish.hk2.external.aopalliance-repackaged-3.0.6.jar
-  - org.glassfish.hk2.hk2-api-3.0.6.jar
-  - org.glassfish.hk2.hk2-locator-3.0.3.jar
-  - org.glassfish.hk2.hk2-utils-3.0.6.jar
-
 # Notices for Eclipse GlassFish
 
 This content is produced and maintained by the Eclipse GlassFish project.
@@ -1578,8 +1504,6 @@ permitted.
 --------------------------------------------------------------------------------
 Eclipse Jetty Servlet API (jakarta-servlet-api 5.0.2)
 --------------------------------------------------------------------------------
-
-From org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar META-INF/NOTICE:
 
 # Notices for Eclipse Project for Servlet
 
@@ -1642,10 +1566,6 @@ https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html
 --------------------------------------------------------------------------------
 Jakarta XML Binding API (jakarta.xml.bind-api 3.0.x)
 --------------------------------------------------------------------------------
-
-From the following jars' META-INF/NOTICE (identical content):
-  - jakarta.xml.bind.jakarta.xml.bind-api-3.0.0.jar
-  - jakarta.xml.bind.jakarta.xml.bind-api-3.0.1.jar
 
 [//]: # " Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved. "
 [//]: # "  "
@@ -1729,10 +1649,6 @@ permitted.
 Jakarta RESTful Web Services API (jakarta.ws.rs-api 3.0.x / 3.1.0)
 --------------------------------------------------------------------------------
 
-From the following jars' META-INF/NOTICE (identical content):
-  - jakarta.ws.rs.jakarta.ws.rs-api-3.0.0.jar
-  - jakarta.ws.rs.jakarta.ws.rs-api-3.1.0.jar
-
 # Notices for Jakarta RESTful Web Services
 
 This content is produced and maintained by the **Jakarta RESTful Web Services**
@@ -1798,10 +1714,6 @@ permitted.
 Jakarta Expression Language API (jakarta.el-api 4.0.0, glassfish jakarta.el 4.0.2)
 --------------------------------------------------------------------------------
 
-From the following jars' META-INF/NOTICE (identical content):
-  - jakarta.el.jakarta.el-api-4.0.0.jar
-  - org.glassfish.jakarta.el-4.0.2.jar
-
 # Notices for Jakarta Expression Language
 
 This content is produced and maintained by the Jakarta Expression Language project.
@@ -1852,8 +1764,6 @@ permitted.
 Jakarta Annotations API (jakarta.annotation-api 2.1.1 and 3.0.0)
 --------------------------------------------------------------------------------
 
-From jakarta.annotation.jakarta.annotation-api-2.1.1.jar META-INF/NOTICE:
-
 # Notices for Jakarta Annotations
 
 This content is produced and maintained by the Jakarta Annotations project.
@@ -1894,8 +1804,6 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-From jakarta.annotation.jakarta.annotation-api-3.0.0.jar META-INF/NOTICE:
 
 # Notices for Jakarta Annotations
 
@@ -1944,8 +1852,6 @@ permitted.
 Jakarta Inject API (jakarta.inject-api 2.0.1)
 --------------------------------------------------------------------------------
 
-From jakarta.inject.jakarta.inject-api-2.0.1.jar META-INF/NOTICE:
-
 # Notices for Eclipse Jakarta Dependency Injection
 
 This content is produced and maintained by the Eclipse Jakarta Dependency Injection project.
@@ -1992,8 +1898,6 @@ None
 Jakarta Activation (jakarta.activation 2.0.0, 2.0.1, jakarta.activation-api 1.2.1, 2.1.0)
 --------------------------------------------------------------------------------
 
-From jakarta.activation.jakarta.activation-api-1.2.1.jar META-INF/NOTICE:
-
 # Notices for Eclipse Project for JAF
 
 This content is produced and maintained by the Eclipse Project for JAF project.
@@ -2030,8 +1934,6 @@ JUnit (4.12)
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-From com.sun.activation.jakarta.activation-2.0.0.jar META-INF/NOTICE:
-
 # Notices for Jakarta Activation
 
 This content is produced and maintained by Jakarta Activation project.
@@ -2067,10 +1969,6 @@ JUnit (4.12)
 * License: Eclipse Public License
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-From the following jars' META-INF/NOTICE (identical content):
-  - com.sun.activation.jakarta.activation-2.0.1.jar
-  - jakarta.activation.jakarta.activation-api-2.1.0.jar
 
 # Notices for Jakarta Activation
 
