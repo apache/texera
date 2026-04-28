@@ -93,6 +93,20 @@ jobs:
             /tmp/dists/workflow-compiling-service-*/lib \
             /tmp/dists/amber-*/lib
 
+      - name: Audit per-dep license preservation (advisory)
+        # Surface jars whose upstream LICENSE preserves embedded third-party
+        # copyrights so reviewers can confirm a per-dep licenses/LICENSE-*.txt
+        # file is in place. Advisory: prints findings, does not fail the job.
+        if: always()
+        run: |
+          ./bin/licensing/audit_jar_licenses.py \
+            /tmp/dists/config-service-*/lib \
+            /tmp/dists/access-control-service-*/lib \
+            /tmp/dists/file-service-*/lib \
+            /tmp/dists/computing-unit-managing-service-*/lib \
+            /tmp/dists/workflow-compiling-service-*/lib \
+            /tmp/dists/amber-*/lib
+
   check-npm-deps:
     name: Check npm dependencies
     # Mirrors the frontend job in .github/workflows/github-action-build.yml.
