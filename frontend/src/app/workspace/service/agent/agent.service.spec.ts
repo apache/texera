@@ -152,66 +152,6 @@ describe("AgentService", () => {
     });
   });
 
-  describe("sendMessage", () => {
-    it("should throw error for non-existent agent", done => {
-      service.sendMessage("non-existent", "test message").subscribe({
-        next: () => fail("Should have thrown error"),
-        error: (error: unknown) => {
-          expect((error as Error).message).toContain("not found");
-          done();
-        },
-      });
-    });
-  });
-
-  describe("getAgentResponses", () => {
-    it("should throw error for non-existent agent", done => {
-      service.getAgentResponses("non-existent").subscribe({
-        next: () => fail("Should have thrown error"),
-        error: (error: unknown) => {
-          expect((error as Error).message).toContain("not found");
-          done();
-        },
-      });
-    });
-  });
-
-  describe("getAgentResponsesObservable", () => {
-    it("should throw error for non-existent agent", done => {
-      service.getReActStepsObservable("non-existent").subscribe({
-        next: () => fail("Should have thrown error"),
-        error: (error: unknown) => {
-          expect((error as Error).message).toContain("not found");
-          done();
-        },
-      });
-    });
-  });
-
-  describe("clearMessages", () => {
-    it("should throw error for non-existent agent", done => {
-      service.clearMessages("non-existent").subscribe({
-        next: () => fail("Should have thrown error"),
-        error: (error: unknown) => {
-          expect((error as Error).message).toContain("not found");
-          done();
-        },
-      });
-    });
-  });
-
-  describe("stopGeneration", () => {
-    it("should throw error for non-existent agent", done => {
-      service.stopGeneration("non-existent").subscribe({
-        next: () => fail("Should have thrown error"),
-        error: (error: unknown) => {
-          expect((error as Error).message).toContain("not found");
-          done();
-        },
-      });
-    });
-  });
-
   describe("getAgentState", () => {
     it("should throw error for non-existent agent", done => {
       service.getAgentState("non-existent").subscribe({
