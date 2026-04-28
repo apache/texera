@@ -762,15 +762,26 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const safe = escapeHtml(raw);
 
     env.prettyPipOutput = safe
-      .replace(/^(\[pip\].*finished with exit code\s+0.*)$/gm, "<span class=\"pip-exit ok\"><strong>$1</strong></span>")
-      .replace(/^(\[pip\].*finished with exit code\s+1.*)$/gm, "<span class=\"pip-exit err\"><strong>$1</strong></span>")
       .replace(
-        /^(\[pip\].*finished with exit code\s+([2-9]\d*).*)$/gm,
-        "<span class=\"pip-exit err\"><strong>$1</strong></span>"
+        /^(\[pip\] Successfully installed.*)$/gm,
+        '<span class="pip-exit ok"><strong>$1</strong></span>'
       )
-      .replace(/ERROR/g, "<span class=\"error\">ERROR</span>")
-      .replace(/WARNING/g, "<span class=\"warning\">WARNING</span>")
-      .replace(/already satisfied/g, "<span class=\"success\">already satisfied</span>")
+
+      .replace(
+        /^(\[(?:PVE|pip|pve)\].*finished with exit code\s+0.*)$/gm,
+        '<span class="pip-exit ok"><strong>$1</strong></span>'
+      )
+
+      .replace(
+        /^(\[PVE\] Running pip freeze.*)$/gm,
+        '<span class="pip-exit ok"><strong>$1</strong></span>'
+      )
+
+      .replace(
+        /^(\[(?:PVE|pip|pve)\]\[ERR\].*)$/gm,
+        '<span class="pip-exit err"><strong>$1</strong></span>'
+      )
+
       .replace(/\n/g, "<br/>");
   }
 
