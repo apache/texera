@@ -79,6 +79,7 @@ import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/
   selector: "texera-menu",
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
+  standalone: false,
 })
 export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started

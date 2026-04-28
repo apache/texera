@@ -35,6 +35,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
   selector: "texera-left-panel",
   templateUrl: "left-panel.component.html",
   styleUrls: ["left-panel.component.scss"],
+  standalone: false,
 })
 export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   @ViewChild("content") content!: ElementRef<HTMLDivElement>;
@@ -116,7 +117,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     setTimeout(() => {
       const topLevelCategories = this.content.nativeElement.querySelectorAll(
-        "nz-collapse-panel.operator-group[data-depth=\"0\"]"
+        'nz-collapse-panel.operator-group[data-depth="0"]'
       );
 
       if (topLevelCategories.length > 0) {

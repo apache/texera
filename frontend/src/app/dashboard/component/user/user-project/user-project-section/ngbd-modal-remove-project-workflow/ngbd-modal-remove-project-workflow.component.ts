@@ -29,6 +29,7 @@ import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
   selector: "texera-remove-project-workflow-modal",
   templateUrl: "./ngbd-modal-remove-project-workflow.component.html",
   styleUrls: ["./ngbd-modal-remove-project-workflow.component.scss"],
+  standalone: false,
 })
 export class NgbdModalRemoveProjectWorkflowComponent implements OnInit {
   readonly projectId: number = inject(NZ_MODAL_DATA).projectId;

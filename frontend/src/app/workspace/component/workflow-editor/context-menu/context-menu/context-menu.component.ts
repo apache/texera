@@ -33,6 +33,7 @@ import { GuiConfigService } from "../../../../../common/service/gui-config.servi
   selector: "texera-context-menu",
   templateUrl: "./context-menu.component.html",
   styleUrls: ["./context-menu.component.scss"],
+  standalone: false,
 })
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;

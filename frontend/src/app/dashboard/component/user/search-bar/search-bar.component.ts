@@ -35,6 +35,7 @@ import { DASHBOARD_SEARCH } from "../../../../app-routing.constant";
   selector: "texera-search-bar",
   templateUrl: "./search-bar.component.html",
   styleUrls: ["./search-bar.component.scss"],
+  standalone: false,
 })
 export class SearchBarComponent {
   private includePublic = true;

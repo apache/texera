@@ -1,0 +1,161 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="agent-interaction">
+  <!-- Visualization HTML rendering -->
+  <div
+    *ngIf="sampleRecords && sampleRecords.length > 0 && isVisualization()"
+    class="visualization-section">
+    <iframe
+      [srcdoc]="getVisualizationHtml()"
+      class="visualization-iframe"
+      sandbox="allow-scripts"></iframe>
+  </div>
+
+  <!-- Sample Records Table -->
+  <div
+    *ngIf="sampleRecords && sampleRecords.length > 0 && !isVisualization()"
+    class="sample-records-section">
+    <div class="sample-records-table-wrapper">
+      <table class="sample-records-table">
+        <thead>
+          <tr>
+            <th *ngFor="let col of getSampleColumns()">{{ getColumnDisplayName(col) }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let row of getDisplayRows()">
+            <tr
+              *ngIf="row.isEllipsis"
+              class="ellipsis-row">
+              <td [attr.colspan]="getSampleColumns().length">...</td>
+            </tr>
+            <tr *ngIf="!row.isEllipsis">
+              <td *ngFor="let col of getSampleColumns()">{{ row.record?.[col] }}</td>
+            </tr>
+          </ng-container>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Column Statistics -->
+  <div
+    *ngIf="hasColumnStats()"
+    class="column-stats-section">
+    <div class="column-stats-header">
+      <i
+        nz-icon
+        nzType="bar-chart"
+        nzTheme="outline"></i>
+      <span>Column Statistics</span>
+    </div>
+    <div class="column-stats-list">
+      <div
+        *ngFor="let col of getParsedColumnStats()"
+        class="column-stat-item">
+        <div class="column-stat-name">
+          <span class="col-name">{{ col.column }}</span>
+          <span class="col-type">{{ col.dataType }}</span>
+        </div>
+        <div class="column-stat-details">
+          <span
+            *ngFor="let s of col.stats"
+            class="stat-entry">
+            <span class="stat-key">{{ s.key }}:</span> {{ s.value }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent Selection -->
+  <div class="header-row">
+    <nz-select
+      [(ngModel)]="selectedAgentId"
+      nzPlaceHolder="Select agent"
+      class="agent-select"
+      nzSize="small"
+      [nzCustomTemplate]="selectedAgentTemplate">
+      <nz-option
+        *ngFor="let agent of availableAgents"
+        [nzValue]="agent.id"
+        [nzLabel]="agent.name"
+        nzCustomContent>
+        <span
+          class="agent-status-dot"
+          [class.connected]="agent.isConnected"
+          nz-tooltip
+          [nzTooltipTitle]="agent.isConnected ? 'Connected' : 'Not connected'">
+        </span>
+        {{ agent.name }}
+      </nz-option>
+    </nz-select>
+    <ng-template
+      #selectedAgentTemplate
+      let-selected>
+      <span
+        class="agent-status-dot"
+        [class.connected]="isSelectedAgentConnected()">
+      </span>
+      {{ selected.nzLabel }}
+    </ng-template>
+  </div>
+
+  <!-- Input Section -->
+  <div
+    *ngIf="selectedAgentId && isSelectedAgentConnected()"
+    class="input-section">
+    <textarea
+      nz-input
+      [(ngModel)]="feedbackMessage"
+      placeholder="Send feedback to agent about this operator..."
+      [nzAutosize]="{ minRows: 2, maxRows: 4 }"
+      class="feedback-input"
+      (keydown.control.enter)="sendFeedbackToAgent()"></textarea>
+
+    <div class="controls-row">
+      <span class="hint-text">Ctrl+Enter to send</span>
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        [disabled]="!canSend()"
+        (click)="sendFeedbackToAgent()"
+        class="send-btn">
+        <i
+          nz-icon
+          nzType="send"
+          nzTheme="outline"></i>
+        Send
+      </button>
+    </div>
+  </div>
+
+  <!-- Not connected message -->
+  <div
+    *ngIf="!selectedAgentId || !isSelectedAgentConnected()"
+    class="not-connected-message">
+    <i
+      nz-icon
+      nzType="disconnect"
+      nzTheme="outline"></i>
+    <span>Select a connected agent to chat</span>
+  </div>
+</div>

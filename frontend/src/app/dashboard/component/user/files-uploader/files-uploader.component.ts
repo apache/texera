@@ -39,6 +39,7 @@ import {
   selector: "texera-user-files-uploader",
   templateUrl: "./files-uploader.component.html",
   styleUrls: ["./files-uploader.component.scss"],
+  standalone: false,
 })
 export class FilesUploaderComponent {
   @Input() showUploadAlert: boolean = false;

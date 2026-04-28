@@ -31,6 +31,7 @@ export const TYPE_CASTING_OPERATOR_TYPE = "TypeCasting";
 @Component({
   selector: "texera-type-casting-display",
   templateUrl: "./type-casting-display.component.html",
+  standalone: false,
 })
 export class TypeCastingDisplayComponent implements OnInit, OnChanges {
   @Input() currentOperatorId: string | undefined;
