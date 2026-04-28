@@ -473,26 +473,26 @@
         </ng-template>
         <nz-collapse-panel [nzHeader]="systemHeaderTpl">
           <div class="system-panel-inner">
+            <div class="package-header-row">
+              <div class="package-column-label">Package</div>
+              <div class="package-column-label">Version</div>
+            </div>
+
             <div
               *ngFor="let pkg of systemPackages"
               class="package-row system-row">
               <div class="package-inputs">
-                <div class="field">
-                  <label>Package</label>
-                  <input
-                    nz-input
-                    class="system-input"
-                    [disabled]="true"
-                    [ngModel]="pkg.name" />
-                </div>
-                <div class="field">
-                  <label>Version</label>
-                  <input
-                    nz-input
-                    class="system-input"
-                    [disabled]="true"
-                    [ngModel]="pkg.version" />
-                </div>
+                <input
+                  nz-input
+                  class="system-input"
+                  [disabled]="true"
+                  [ngModel]="pkg.name" />
+
+                <input
+                  nz-input
+                  class="system-input"
+                  [disabled]="true"
+                  [ngModel]="pkg.version" />
               </div>
             </div>
           </div>
