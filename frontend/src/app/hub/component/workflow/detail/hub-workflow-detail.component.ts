@@ -39,6 +39,7 @@ export const THROTTLE_TIME_MS = 1000;
   selector: "texera-hub-workflow-detail",
   templateUrl: "hub-workflow-detail.component.html",
   styleUrls: ["hub-workflow-detail.component.scss"],
+  standalone: false,
 })
 export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnInit {
   isHub: boolean = false;
@@ -98,10 +99,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         this.viewCount = count;
       });
     this.workflowPersistService
-      .getOwnerUser(this.wid)
+      .getOwnerName(this.wid)
       .pipe(untilDestroyed(this))
-      .subscribe(owner => {
-        this.ownerName = owner.name;
+      .subscribe(ownerName => {
+        this.ownerName = ownerName;
       });
     this.workflowPersistService
       .getWorkflowName(this.wid)

@@ -38,4 +38,5 @@ export interface Dataset {
   storagePath: string | undefined;
   description: string;
   creationTime: number | undefined;
+  coverImage: string | undefined;
 }

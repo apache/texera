@@ -27,12 +27,8 @@
     "build": {
       "inputs": ["production", "^production"],
       "cache": true
-    },
-    "lint": {
-      "cache": true
     }
   },
-  "nxCloudAccessToken": "Njk2ODE5NjMtMmRjNy00NjNmLWEwMDAtZGVkZTMwMmMwM2M2fHJlYWQtd3JpdGU=",
   "parallel": 1,
   "useLegacyCache": true
 }

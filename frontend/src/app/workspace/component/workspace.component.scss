@@ -53,3 +53,7 @@ texera-workflow-editor {
   align-items: center;
   height: 100%;
 }
+
+:host {
+  user-select: none;
+}

@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
+COPY LICENSE NOTICE DISCLAIMER-WIP ./
 
 RUN sbt clean AccessControlService/dist
 
@@ -50,7 +51,6 @@ COPY --from=build /texera/.git /texera/.git
 COPY --from=build /texera/target/access-control-service* /texera/
 # Copy resources directories from build phase
 COPY --from=build /texera/access-control-service/src/main/resources /texera/access-control-service/src/main/resources
-
 CMD ["bin/access-control-service"]
 
 EXPOSE 9096

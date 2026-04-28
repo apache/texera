@@ -18,10 +18,7 @@
 import scala.collection.Seq
 
 name := "file-service"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -54,7 +51,7 @@ Compile / scalacOptions ++= Seq(
 val dropwizardVersion = "4.0.7"
 val mockitoVersion = "5.4.0"
 val assertjVersion = "3.24.2"
-val testcontainersVersion = "0.43.0"
+val testcontainersVersion = "0.44.1"
 
 /////////////////////////////////////////////////////////////////////////////
 // Test-related Dependencies
@@ -80,11 +77,8 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6",
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",
-  "software.amazon.awssdk" % "s3" % "2.29.51",
-  "software.amazon.awssdk" % "auth" % "2.29.51",
-  "software.amazon.awssdk" % "regions" % "2.29.51",
 )

@@ -19,14 +19,20 @@
 
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { AfterViewInit, Component, EventEmitter, Input, Output, ViewChild } from "@angular/core";
-import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
+import {
+  DatasetFileNode,
+  getRelativePathFromDatasetFileNode,
+} from "../../../../../../common/type/datasetVersionFileTree";
 import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
+
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"] as const;
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-dataset-version-filetree",
   templateUrl: "./user-dataset-version-filetree.component.html",
   styleUrls: ["./user-dataset-version-filetree.component.scss"],
+  standalone: false,
 })
 export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   @Input()
@@ -39,6 +45,9 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   public isExpandAllAfterViewInit = false;
 
   @ViewChild("tree") tree: any;
+
+  @Output()
+  setCoverImage = new EventEmitter<string>();
 
   public fileTreeDisplayOptions: ITreeOptions = {
     displayField: "name",
@@ -73,5 +82,13 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
     if (this.isExpandAllAfterViewInit) {
       this.tree.treeModel.expandAll();
     }
+  }
+
+  isImageFile(fileName: string): boolean {
+    return IMAGE_EXTENSIONS.some(ext => fileName.toLowerCase().endsWith(ext));
+  }
+
+  onSetCover(nodeData: DatasetFileNode): void {
+    this.setCoverImage.emit(getRelativePathFromDatasetFileNode(nodeData));
   }
 }

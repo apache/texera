@@ -57,18 +57,18 @@ Do not include any of the following in your PR:
 
 ### Final Steps Before Review
 #### Your PR should pass scalafix check (lint) and scalafmt check. 
-- To check lint, under `core` run command `sbt "scalafixAll --check"`; to fix lint issues, run `sbt scalafixAll`.
-- To check format, under `core` run command `sbt scalafmtCheckAll`; to fix format, run `sbt scalafmtAll`. 
+- To check lint, under the root directory run command `sbt "scalafixAll --check"`; to fix lint issues, run `sbt scalafixAll`.
+- To check format, under the root directory run command `sbt scalafmtCheckAll`; to fix format, run `sbt scalafmtAll`. 
 - When you need to execute both, scalafmt is supposed to be executed after scalafix.
 #### Testing the backend
-1. The test framework is `scalatest`, for the amber engine, tests are located under `amber/src/test`; for `WorkflowCompilingService`, tests are located under `core/workflow-compiling-service`. You can find unit tests and e2e tests.
-2. To execute it, navigate to `core` directory in the command line and execute `sbt test`.
+1. The test framework is `scalatest`, for the amber engine, tests are located under `amber/src/test`; for `WorkflowCompilingService`, tests are located under `workflow-compiling-service/src/test`. You can find unit tests and e2e tests.
+2. To execute it, navigate to the root directory in the command line and execute `sbt test`.
 3. If using IntelliJ to execute the test cases please make sure to be at the correct working directory.
 * For the amber engine's tests, the working directory should be `amber`
-* For the other services' tests, the working directory should be `core`
+* For the other services' tests, the working directory should be the root directory
 #### Testing the frontend 
 Before merging your code to the master branch, you need to pass the existing unit tests first.
-1. Open a command line. Navigate to the `core/gui` directory.
+1. Open a command line. Navigate to the `frontend` directory.
 2. Start the test:
 ```
 ng test --watch=false

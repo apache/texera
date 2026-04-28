@@ -23,11 +23,12 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.AuthValueFactoryProvider
+import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
-import org.apache.amber.config.StorageConfig
-import org.apache.amber.engine.common.Utils
-import org.apache.amber.util.ObjectMapperUtils
+import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.amber.engine.common.Utils
+import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
@@ -38,6 +39,7 @@ import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionRe
 import org.apache.texera.web.resource.dashboard.admin.settings.AdminSettingsResource
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
+import org.apache.texera.web.resource.dashboard.user.UserResource
 import org.apache.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -51,7 +53,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.{
   WorkflowVersionResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
-import org.eclipse.jetty.servlet.ErrorPageErrorHandler
+import org.eclipse.jetty.servlet.{ErrorPageErrorHandler, FilterHolder}
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
@@ -83,6 +85,13 @@ class TexeraWebApplication
     with LazyLogging {
 
   override def initialize(bootstrap: Bootstrap[TexeraWebConfiguration]): Unit = {
+    // enable environment variable substitution in YAML config
+    bootstrap.setConfigurationSourceProvider(
+      new SubstitutingSourceProvider(
+        bootstrap.getConfigurationSourceProvider,
+        new EnvironmentVariableSubstitutor(false)
+      )
+    )
     // serve static frontend GUI files
     bootstrap.addBundle(new FileAssetsBundle("../../frontend/dist", "/", "index.html"))
     // add websocket bundle
@@ -140,6 +149,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
     environment.jersey.register(classOf[HubResource])
+    environment.jersey.register(classOf[UserResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[ProjectAccessResource])
@@ -152,5 +162,31 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AIAssistantResource])
 
     AuthResource.createAdminUser()
+
+    // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL.
+    // TODO: replace with RequestLoggingFilter.register() from common/auth once Dropwizard is upgraded to 4.x
+    val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
+    environment.getApplicationContext.addFilter(
+      new FilterHolder(new javax.servlet.Filter {
+        override def init(filterConfig: javax.servlet.FilterConfig): Unit = {}
+        override def doFilter(
+            request: javax.servlet.ServletRequest,
+            response: javax.servlet.ServletResponse,
+            chain: javax.servlet.FilterChain
+        ): Unit = {
+          chain.doFilter(request, response)
+          if (requestLogger.isInfoEnabled) {
+            val req = request.asInstanceOf[javax.servlet.http.HttpServletRequest]
+            val resp = response.asInstanceOf[javax.servlet.http.HttpServletResponse]
+            requestLogger.info(
+              s"""${req.getRemoteAddr} - "${req.getMethod} ${req.getRequestURI} ${req.getProtocol}" ${resp.getStatus}"""
+            )
+          }
+        }
+        override def destroy(): Unit = {}
+      }),
+      "/*",
+      java.util.EnumSet.allOf(classOf[javax.servlet.DispatcherType])
+    )
   }
 }

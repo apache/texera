@@ -43,13 +43,13 @@ from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,
     EmbeddedControlMessageIdentity,
 )
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ControlInvocation,
     ConsoleMessageType,
@@ -62,7 +62,7 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ControlRequest,
 )
-from proto.org.apache.amber.engine.architecture.worker import (
+from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
 )
 
@@ -118,7 +118,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
             or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
-            self._process_dcm(next_entry)
+            match(
+                next_entry,
+                DCMElement,
+                self._process_dcm,
+                ECMElement,
+                self._process_ecm,
+            )
 
     @overrides
     def pre_start(self) -> None:
@@ -241,6 +247,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_state(self, state_: State) -> None:
         self.context.state_processing_manager.current_input_state = state_
+        self._switch_context()
         self.process_input_state()
         self._check_and_process_control()
 
@@ -296,7 +303,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         command = ecm.command_mapping.get(self.context.worker_id)
         channel_id = self.context.current_input_channel_id
         logger.info(
-            f"receive channel ECM from {channel_id}," f" id = {ecm.id}, cmd = {command}"
+            f"receive channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
         )
         if ecm.ecm_type != EmbeddedControlMessageType.NO_ALIGNMENT:
             self.context.pause_manager.pause_input_channel(
@@ -305,8 +312,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         if self.context.ecm_manager.is_ecm_aligned(channel_id, ecm):
             logger.info(
-                f"process channel ECM from {channel_id},"
-                f" id = {ecm.id}, cmd = {command}"
+                f"process channel ECM from {channel_id}, id = {ecm.id}, cmd = {command}"
             )
 
             if command is not None:
@@ -417,21 +423,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             except Exception as err:
                 logger.exception(err)
 
-    def _scheduler_time_slot_event(self, time_slot_expired: bool) -> None:
-        """
-        The time slot for scheduling this worker has expired.
-        """
-        if time_slot_expired:
-            self.context.pause_manager.pause(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
-            )
-        else:
-            self.context.pause_manager.resume(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
-            )
-
     def _send_console_message(self, console_message: ConsoleMessage):
-
         self._async_rpc_client.controller_stub().console_message_triggered(
             ConsoleMessageTriggeredRequest(console_message=console_message)
         )

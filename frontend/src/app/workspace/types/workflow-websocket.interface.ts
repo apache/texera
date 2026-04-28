@@ -94,6 +94,9 @@ export type PaginationRequest = Readonly<{
   operatorID: string;
   pageIndex: number;
   pageSize: number;
+  columnOffset?: number;
+  columnLimit?: number;
+  columnSearch?: string;
 }>;
 
 export type PaginatedResultEvent = Readonly<{
@@ -173,6 +176,15 @@ export type ClusterStatusUpdateEvent = Readonly<{
   numWorkers: number;
 }>;
 
+export type RegionUpdateEvent = Readonly<{
+  regions: readonly [number, string[]][];
+}>;
+
+export type RegionStateEvent = Readonly<{
+  id: number;
+  state: string;
+}>;
+
 export type ModifyLogicResponse = Readonly<{
   opId: string;
   isValid: boolean;
@@ -229,6 +241,8 @@ export type TexeraWebsocketEventTypeMap = {
   ModifyLogicCompletedEvent: ModifyLogicCompletedEvent;
   ExecutionDurationUpdateEvent: ExecutionDurationUpdateEvent;
   ClusterStatusUpdateEvent: ClusterStatusUpdateEvent;
+  RegionUpdateEvent: RegionUpdateEvent;
+  RegionStateEvent: RegionStateEvent;
 };
 
 // helper type definitions to generate the request and event types

@@ -15,9 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+texera:
+  # Container image registry and tag for all Texera services
+  # Override these to use a different registry or version
+  imageRegistry: ghcr.io/apache
+  imageTag: latest
+
 global:
+  # Required by Bitnami sub-charts (postgresql, minio) to allow custom images
   security:
-    allowInsecureImages: true # for custom postgres image
+    allowInsecureImages: true
 
 # Persistence Configuration
 # This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
@@ -33,12 +40,15 @@ persistence:
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
-    repository: texera/postgres17-pgroonga
+    repository: groonga/pgroonga
     tag: latest
     debug: true
   auth:
     postgresPassword: root_password  # for executing init script with superuser
   primary:
+    containerSecurityContext:
+      # Disabled because groonga/pgroonga needs to write a lock/socket file to /var/run/postgresql
+      readOnlyRootFilesystem: false
     livenessProbe:
       initialDelaySeconds: 30 # increase this if the launching of postgresql is slow on the cluster
     readinessProbe:
@@ -52,7 +62,6 @@ postgresql:
       size: 10Gi
       storageClass: local-path
       existingClaim: "postgresql-data-pvc"
-
     initdb:
       scriptsConfigMap: "postgresql-init-script"
 
@@ -61,12 +70,10 @@ minio:
   image:
     repository: bitnamilegacy/minio
     tag: 2025.3.12-debian-12-r0
-  customIngress:
+  gateway:
     enabled: false
-    ingressClassName: "" # e.g., "nginx"
-    texeraHostname: "" # the url for the texera WITH http or https, e.g., "https://texera.example.com"
-    minioHostname: "" # the url for the minio
-    issuer: "" # e.g., "letsencrypt-prod"
+    hostname: "" # the url for the minio, e.g. "minio.example.com"
+    tlsSecretName: "" # e.g. "minio-tls-secret"
   auth:
     rootUser: texera_minio
     rootPassword: password
@@ -113,7 +120,7 @@ texeraImages:
 # Example data loader configuration
 exampleDataLoader:
   enabled: true
-  image: texera/texera-example-data-loader:cluster
+  imageName: texera-example-data-loader
   username: texera
   password: texera
   datasetDir: datasets
@@ -122,7 +129,7 @@ exampleDataLoader:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:cluster # image name of the texera
+  imageName: texera-dashboard-service
   service:
     type: ClusterIP
     port: 8080
@@ -131,7 +138,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: texera/workflow-computing-unit-managing-service:cluster
+  imageName: texera-workflow-computing-unit-managing-service
   service:
     type: ClusterIP
     port: 8888
@@ -139,7 +146,7 @@ workflowComputingUnitManager:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: texera/workflow-compiling-service:cluster
+  imageName: texera-workflow-compiling-service
   service:
     type: ClusterIP
     port: 9090
@@ -147,7 +154,7 @@ workflowCompilingService:
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: texera/file-service:cluster
+  imageName: texera-file-service
   service:
     type: ClusterIP
     port: 9092
@@ -155,7 +162,7 @@ fileService:
 configService:
   name: config-service
   numOfPods: 1
-  imageName: texera/config-service:cluster
+  imageName: texera-config-service
   service:
     type: ClusterIP
     port: 9094
@@ -163,23 +170,10 @@ configService:
 accessControlService:
   name: access-control-service
   numOfPods: 1
-  imageName: texera/access-control-service:cluster
+  imageName: texera-access-control-service
   service:
     type: ClusterIP
     port: 9096
-
-# Configs of the envoy proxy, used to routerequests to the computing units
-envoy:
-  replicas: 1
-  image:
-    repository: envoyproxy/envoy
-    tag: v1.31-latest
-  port:
-    10000
-  debug: false
-  service:
-    type: ClusterIP
-    port: 10000
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
@@ -193,7 +187,7 @@ workflowComputingUnitPool:
     cpu: 100
     memory: 100Gi
     nvidiaGpu: 5
-  imageName: texera/computing-unit-master:cluster
+  imageName: texera-workflow-execution-coordinator
   service:
     port: 8085
     targetPort: 8085
@@ -253,29 +247,9 @@ texeraEnvVars:
     value: ""
   - name: USER_SYS_DOMAIN
     value: ""
-
-# Ingress dependency configs
-ingress-nginx:
-  enabled: true # set to true if nginx is not installed, should be false in production
-  controller:
-    replicaCount: 1
-    service:
-      type: NodePort
-      nodePorts:
-        http: 30080
-    ingressClassResource:
-      name: nginx
-      enabled: true
-    resources:
-      limits:
-        cpu: 100m
-        memory: 128Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  rbac:
-    create: true
-
+  - name: AUTH_JWT_SECRET
+    # Development-only default (256-bit HS256 secret). Production environments MUST override this with a different, securely generated secret.
+    value: "a7f3c8e9b14d2e6f5a0b9c3d8e1f4a6b2c5d7e9f0a3b6c8d1e4f7a9b2c5d8e1f"
 
 yWebsocketServer:
   name: y-websocket-server
@@ -310,54 +284,35 @@ metrics-server:
     create: true
   priorityClassName: system-cluster-critical
 
-# Custom Ingress resource configs
-ingressPaths:
-  enabled: true
-  ingressClassName: nginx  # Set to "alb" when deploying on AWS
+gatewayConfig:
+  # Routes are available at bin/k8s/templates/gateway-routes.yaml
+
+  # The hostname for the Gateway listener (HTTP/HTTPS).
+  # e.g., "texera.example.com"
   hostname: ""
-  # Optional TLS secret (manually created)
-  tlsSecretName: ""  # e.g., "texera-tls"
-  # Optional Issuer name for cert-manager
-  issuer: ""  # e.g., "letsencrypt-prod"
-  paths:
-    - path: /api/computing-unit
-      serviceName: workflow-computing-unit-manager-svc
-      servicePort: 8888
-    - path: /api/compile
-      serviceName: workflow-compiling-service-svc
-      servicePort: 9090
-    - path: /api/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
-    - path: /api/access/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
-    - path: /api/access/computing-unit
-      serviceName: workflow-computing-unit-manager-svc
-      servicePort: 8888
-    - path: /api/config
-      serviceName: config-service-svc
-      servicePort: 9094
-    - path: /wsapi/workflow-websocket
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api/executions/[0-9]+/stats/[0-9]+$
-      pathType: ImplementationSpecific
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api/executions/result/export/*
-      pathType: ImplementationSpecific
-      serviceName: envoy-svc
-      servicePort: 10000
-    - path: /api
-      serviceName: webserver-svc
-      servicePort: 8080
-    - path: /rtc
-      serviceName: y-websocket-server-svc
-      servicePort: 1234
-    - path: /python-language-server
-      serviceName: python-language-server-svc
-      servicePort: 3000
-    - path: /
-      serviceName: webserver-svc
-      servicePort: 8080
+
+  # The name of the cert-manager Issuer or ClusterIssuer to use for obtaining certificates.
+  # This requires cert-manager to be installed in the cluster.
+  # You can find available ClusterIssuers with: `kubectl get clusterissuers`
+  # You can find available Issuers with: `kubectl get issuers -A`
+  # e.g., "letsencrypt-prod"
+  issuer: ""
+
+  # The Kind of the issuer specified above. Can be "Issuer" or "ClusterIssuer".
+  # If you found it via `kubectl get clusterissuers`, use "ClusterIssuer".
+  # If you found it via `kubectl get issuers`, use "Issuer".
+  # defaults to "Issuer" if not specified.
+  issuerKind: "Issuer"
+
+  # The name of the Secret where the signed certificate should be stored.
+  # If empty, it defaults to "{{ .Release.Name }}-cert".
+  # e.g., "texera-tls"
+  tlsSecretName: ""
+
+# Envoy Gateway Configuration
+envoy-gateway:
+  config:
+    envoyGateway:
+      extensionApis:
+        enableBackend: true
+        enableEnvoyPatchPolicy: true

@@ -20,10 +20,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "workflow-core"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -83,11 +80,15 @@ Test / PB.protoSources += PB.externalSourcePath.value
 // Test-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
+val testcontainersVersion = "0.44.1"
+
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
   "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
-  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
+  "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
+  "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
+  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test        // MinIO Testcontainer Scala integration
 )
 
 
@@ -95,8 +96,9 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.18.6"
 libraryDependencies ++= Seq(
+  "javax.validation" % "validation-api" % "2.0.1.Final",
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,        // Jackson Databind
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % Test,   // Jackson Kotlin Module
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % Test, // Jackson JDK8 Datatypes
@@ -109,7 +111,8 @@ libraryDependencies ++= Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "14.0.1"
+val arrowVersion = "15.0.2"
+val nettyVersion = "4.1.96.Final"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -118,6 +121,26 @@ val arrowDependencies = Seq(
 )
 
 libraryDependencies ++= arrowDependencies
+
+// Netty dependency overrides to ensure compatibility with Arrow
+// Arrow 14.0.1 requires Netty 4.1.96.Final for proper memory allocation
+// The chunkSize field issue occurs when Netty versions are mismatched
+dependencyOverrides ++= Seq(
+  "io.netty" % "netty-all" % nettyVersion,
+  "io.netty" % "netty-buffer" % nettyVersion,
+  "io.netty" % "netty-codec" % nettyVersion,
+  "io.netty" % "netty-codec-http" % nettyVersion,
+  "io.netty" % "netty-codec-http2" % nettyVersion,
+  "io.netty" % "netty-codec-socks" % nettyVersion,
+  "io.netty" % "netty-common" % nettyVersion,
+  "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-handler-proxy" % nettyVersion,
+  "io.netty" % "netty-resolver" % nettyVersion,
+  "io.netty" % "netty-transport" % nettyVersion,
+  "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Iceberg-related Dependencies
@@ -142,6 +165,10 @@ libraryDependencies ++= Seq(
     excludeJacksonModule
   ),
   "org.apache.iceberg" % "iceberg-data" % "1.7.1" excludeAll(
+    excludeJackson,
+    excludeJacksonModule
+  ),
+  "org.apache.iceberg" % "iceberg-aws" % "1.7.1" excludeAll(
     excludeJackson,
     excludeJacksonModule
   ),
@@ -181,6 +208,18 @@ libraryDependencies ++= Seq(
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
   "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
-  "com.typesafe" % "config" % "1.4.3",                                 // config reader
-  "org.apache.commons" % "commons-jcs3-core" % "3.2"                  // Apache Commons JCS
+  "com.typesafe" % "config" % "1.4.6",                                 // config reader
+  "org.apache.commons" % "commons-jcs3-core" % "3.2",                 // Apache Commons JCS
+  "software.amazon.awssdk" % "s3" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "auth" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "regions" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
+  "software.amazon.awssdk" % "sts" % "2.29.51" excludeAll(
+    ExclusionRule(organization = "io.netty")
+  ),
 )

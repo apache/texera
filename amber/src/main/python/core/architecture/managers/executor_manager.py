@@ -132,33 +132,28 @@ class ExecutorManager:
         :param language: The language of the operator code.
         :return:
         """
-        if language == "r-tuple":
-            # Have to import it here and not at the top in case R_HOME from udf.conf
-            # is not defined, otherwise an error will occur
-            # If R_HOME is not defined and rpy2 cannot find the
-            # R_HOME environment variable, an error will occur here
-            from core.models.RTupleExecutor import RTupleSourceExecutor, RTupleExecutor
+        if language in ("r-tuple", "r-table"):
+            # R support is provided by an optional plugin (texera-rudf)
+            executor_type = "Tuple" if language == "r-tuple" else "Table"
+            try:
+                import texera_r
 
-            self.executor = (
-                RTupleSourceExecutor(code) if is_source else RTupleExecutor(code)
-            )
-        elif language == "r-table":
-            # Have to import it here and not at the top in case R_HOME from udf.conf
-            # is not defined, otherwise an error will occur
-            # If R_HOME is not defined and rpy2 cannot find the
-            # R_HOME environment variable, an error will occur here
-            from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
-
-            self.executor = (
-                RTableSourceExecutor(code) if is_source else RTableExecutor(code)
-            )
+                class_suffix = "SourceExecutor" if is_source else "Executor"
+                executor_class = getattr(texera_r, f"R{executor_type}{class_suffix}")
+            except ImportError as e:
+                raise ImportError(
+                    "R operators require the texera-rudf package.\n"
+                    "Install with: pip install git+https://github.com/Texera/texera-rudf.git\n"
+                    f"Import error: {e}"
+                )
+            self.executor = executor_class(code)
         else:
             executor: type(Operator) = self.load_executor_definition(code)
             self.executor = executor()
             self.executor.is_source = is_source
-        assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
-        ), "Please use SourceOperator API for source operators."
+        assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
+            "Please use SourceOperator API for source operators."
+        )
 
     def update_executor(self, code: str, is_source: bool) -> None:
         """
@@ -174,9 +169,9 @@ class ExecutorManager:
         executor: type(Operator) = self.load_executor_definition(code)
         self.executor = executor()
         self.executor.is_source = is_source
-        assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
-        ), "Please use SourceOperator API for source operators."
+        assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
+            "Please use SourceOperator API for source operators."
+        )
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
         # TODO:

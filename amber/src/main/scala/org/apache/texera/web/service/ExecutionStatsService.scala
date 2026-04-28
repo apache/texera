@@ -21,29 +21,39 @@ package org.apache.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.core.storage.model.BufferedItemWriter
-import org.apache.amber.core.storage.result.ResultSchema
-import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.core.workflow.WorkflowContext
-import org.apache.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.amber.engine.architecture.controller._
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+import org.apache.texera.amber.core.storage.model.BufferedItemWriter
+import org.apache.texera.amber.core.storage.result.ResultSchema
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.workflow.WorkflowContext
+import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.engine.architecture.controller.{
+  ExecutionStateUpdate,
+  ExecutionStatsUpdate,
+  FatalError,
+  RuntimeStatisticsPersist,
+  WorkerAssignmentUpdate,
+  WorkflowRecoveryStatus
+}
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   KILLED
 }
-import org.apache.amber.engine.common.Utils
-import org.apache.amber.engine.common.Utils.maptoStatusCode
-import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.common.executionruntimestate.{
+import org.apache.texera.amber.engine.common.Utils
+import org.apache.texera.amber.engine.common.Utils.maptoStatusCode
+import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.engine.common.executionruntimestate.{
   OperatorMetrics,
   OperatorStatistics,
   OperatorWorkerMapping
 }
-import org.apache.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
+import org.apache.texera.amber.error.ErrorUtils.{
+  getOperatorFromActorIdOpt,
+  getStackTraceWithAllCauses
+}
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.{
   ExecutionDurationUpdateEvent,
@@ -172,12 +182,20 @@ class ExecutionStatsService(
   }
 
   private[this] def registerCallbackOnWorkflowStatsUpdate(): Unit = {
+    // Register callback for UI updates (UI state store update only, no persistence)
     addSubscription(
       client
         .registerCallback[ExecutionStatsUpdate]((evt: ExecutionStatsUpdate) => {
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorMetrics)
           }
+        })
+    )
+
+    // Register callback for statistics persistence (persistence only, no UI update)
+    addSubscription(
+      client
+        .registerCallback[RuntimeStatisticsPersist]((evt: RuntimeStatisticsPersist) => {
           metricsPersistThread.execute(() => {
             storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
             lastPersistedMetrics = evt.operatorMetrics

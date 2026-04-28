@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Automatic email notification on DDL change
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  notify:
+    if: >-
+      github.event.pull_request.merged == true && 
+      contains(github.event.pull_request.labels.*.name, 'ddl-change')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          sparse-checkout: sql/updates/
+
+      - name: Get added file in sql/updates/
+        id: get_sql_file
+        run: |
+          FILE=$(git diff --name-only --diff-filter=A \
+            ${{ github.event.pull_request.base.sha }} \
+            ${{ github.event.pull_request.merge_commit_sha }} \
+            -- 'sql/updates/')
+          echo "sql_file=$FILE" >> $GITHUB_OUTPUT
+      - name: Send email
+        run: |
+          curl --ssl-reqd \
+            --url "smtps://smtp.gmail.com:465" \
+            --user "${{ secrets.NOREPLY_EMAIL_USERNAME }}:${{ secrets.NOREPLY_EMAIL_PASSWORD }}" \
+            --mail-from "${{ secrets.NOREPLY_EMAIL_USERNAME }}" \
+            --mail-rcpt "dev@texera.apache.org" \
+            --upload-file - <<EOF
+          From: ${{ secrets.NOREPLY_EMAIL_USERNAME }}
+          To: dev@texera.apache.org
+          Reply-To: dev@texera.apache.org
+          Subject: Actions Required After Pulling Latest Update
+          Content-Type: text/html
+
+          <p>Hi all,</p>
+          <p>We have merged PR #${{ github.event.pull_request.number }} (<a href="${{ github.event.pull_request.html_url }}">${{ github.event.pull_request.html_url }}</a>): ${{ github.event.pull_request.title }}. To incorporate the change, please apply ${{ steps.get_sql_file.outputs.sql_file }} to your local Postgres instance and run <code>sbt jooqGenerate</code> to generate jooq classes.</p>
+          <p>Best,<br>${{ github.event.pull_request.user.login }}</p>
+          EOF

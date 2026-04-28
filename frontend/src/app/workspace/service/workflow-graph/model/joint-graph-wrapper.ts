@@ -585,16 +585,19 @@ export class JointGraphWrapper {
   }
 
   public autoLayoutJoint(): void {
-    joint.layout.DirectedGraph.layout(this.jointGraph, {
-      dagre: dagre,
-      graphlib: graphlib,
-      nodeSep: 100,
-      edgeSep: 150,
-      rankSep: 80,
-      ranker: "tight-tree",
-      rankDir: "LR",
-      resizeClusters: true,
-    });
+    joint.layout.DirectedGraph.layout(
+      [...this.jointGraph.getElements().filter(el => el.attributes.type !== "region"), ...this.jointGraph.getLinks()],
+      {
+        dagre: dagre,
+        graphlib: graphlib,
+        nodeSep: 100,
+        edgeSep: 150,
+        rankSep: 80,
+        ranker: "tight-tree",
+        rankDir: "LR",
+        resizeClusters: true,
+      }
+    );
   }
 
   /**
@@ -932,7 +935,7 @@ export class JointGraphWrapper {
     }
   }
 
-  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): NodeJS.Timer {
+  public setCurrentEditing(coeditor: Coeditor, currentEditing: string): ReturnType<typeof setInterval> {
     // Calculate location
     const statusText = coeditor.name + " is viewing/editing...";
     const color = coeditor.color;
@@ -973,7 +976,7 @@ export class JointGraphWrapper {
     }, 300);
   }
 
-  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
+  public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: ReturnType<typeof setInterval>) {
     clearInterval(intervalId);
     this.getMainJointPaper()
       ?.getModelById(previousEditing)

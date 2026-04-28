@@ -26,6 +26,7 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 @UntilDestroy()
 @Component({
   templateUrl: "public-project.component.html",
+  standalone: false,
 })
 export class PublicProjectComponent implements OnInit {
   readonly modal = inject(NzModalRef);

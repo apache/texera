@@ -27,11 +27,13 @@ import { MilliSecond, Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { replaceOneImmutable } from "../../../../common/util/array-utils";
 
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-user.component.html",
   styleUrls: ["./admin-user.component.scss"],
+  standalone: false,
 })
 export class AdminUserComponent implements OnInit {
   userList: ReadonlyArray<User> = [];
@@ -126,12 +128,28 @@ export class AdminUserComponent implements OnInit {
     }
 
     const currentUid = this.editUid;
+    // Edited User
+    const updatedUser: User = {
+      ...originalUser,
+      name: this.editName,
+      email: this.editEmail,
+      comment: this.editComment,
+      role: this.editRole,
+    };
+
     this.stopEdit();
+
     this.adminUserService
       .updateUser(currentUid, this.editName, this.editEmail, this.editRole, this.editComment)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.ngOnInit(),
+        next: () => {
+          // Update userList and listOfDisplayUser with updatedUser
+          this.userList = [...replaceOneImmutable(this.userList, u => u.uid === currentUid, updatedUser)];
+          this.listOfDisplayUser = [
+            ...replaceOneImmutable(this.listOfDisplayUser, u => u.uid === currentUid, updatedUser),
+          ];
+        },
         error: (err: unknown) => {
           const errorMessage = (err as any).error?.message || (err as Error).message;
           this.messageService.error(errorMessage);
@@ -145,10 +163,40 @@ export class AdminUserComponent implements OnInit {
   }
 
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
-  public sortByName: NzTableSortFn<User> = (a: User, b: User) => (b.name || "").localeCompare(a.name);
-  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => (b.email || "").localeCompare(a.email);
-  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => (b.comment || "").localeCompare(a.comment);
-  public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
+  public sortByName: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.name || "").localeCompare(a.name || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.email || "").localeCompare(a.email || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.comment || "").localeCompare(a.comment || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByRole: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = b.role.localeCompare(a.role);
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByAccountCreation: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (a.accountCreation || 0) - (b.accountCreation || 0);
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByAffiliation: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.affiliation || "").localeCompare(a.affiliation || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
+
+  public sortByJoiningReason: NzTableSortFn<User> = (a: User, b: User) => {
+    const compare = (b.joiningReason || "").localeCompare(a.joiningReason || "");
+    return compare === 0 ? a.uid - b.uid : compare;
+  };
 
   reset(): void {
     this.nameSearchValue = "";
@@ -162,7 +210,8 @@ export class AdminUserComponent implements OnInit {
 
   searchByName(): void {
     this.nameSearchVisible = false;
-    this.listOfDisplayUser = this.userList.filter(user => (user.name || "").indexOf(this.nameSearchValue) !== -1);
+    const q = (this.nameSearchValue ?? "").trim().toLowerCase();
+    this.listOfDisplayUser = this.userList.filter(u => (u.name ?? "").toLowerCase().includes(q));
   }
 
   searchByEmail(): void {
@@ -202,6 +251,14 @@ export class AdminUserComponent implements OnInit {
     }
     return user.accountCreation * 1000;
   }
+
+  sortByActive: NzTableSortFn<User> = (a: User, b: User) => {
+    const aActive = this.isUserActive(a);
+    const bActive = this.isUserActive(b);
+
+    if (aActive === bActive) return a.uid - b.uid;
+    return aActive ? -1 : 1;
+  };
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);

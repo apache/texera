@@ -29,9 +29,9 @@ from core.models.internal_queue import (
 )
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
-from proto.org.apache.amber.core import ChannelIdentity
-from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.org.apache.amber.engine.common import (
+from proto.org.apache.texera.amber.core import ChannelIdentity
+from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.common import (
     DirectControlMessagePayloadV2,
     PythonControlMessage,
     PythonDataHeader,

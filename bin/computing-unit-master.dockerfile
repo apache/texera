@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
+COPY LICENSE NOTICE DISCLAIMER-WIP ./
 
 RUN sbt clean WorkflowExecutionService/dist
 
@@ -45,58 +46,20 @@ FROM eclipse-temurin:11-jdk-jammy AS runtime
 
 WORKDIR /texera/amber
 
-COPY --from=build /texera/amber/r-requirements.txt /tmp/r-requirements.txt
 COPY --from=build /texera/amber/requirements.txt /tmp/requirements.txt
 COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirements.txt
 
-# Install Python & R runtime dependencies
+# Install Python runtime dependencies
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     libpq-dev \
-    gfortran \
-    curl \
-    build-essential \
-    libreadline-dev \
-    libncurses-dev \
-    libssl-dev \
-    libxml2-dev \
-    xorg-dev \
-    libbz2-dev \
-    liblzma-dev \
-    libpcre++-dev \
-    libpango1.0-dev \
-     libcurl4-openssl-dev \
-    unzip \
     && apt-get clean
 
-# Install R and needed libraries
-ENV R_VERSION=4.3.3
-RUN curl -O https://cran.r-project.org/src/base/R-4/R-${R_VERSION}.tar.gz && \
-    tar -xf R-${R_VERSION}.tar.gz && \
-    cd R-${R_VERSION} && \
-    ./configure --prefix=/usr/local \
-                --enable-R-shlib \
-                --with-blas \
-                --with-lapack && \
-    make -j 4 && \
-    make install && \
-    cd .. && \
-    rm -rf R-${R_VERSION}* && R --version && pip3 install --upgrade pip setuptools wheel && \
+# Install Python packages
+RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install -r /tmp/requirements.txt && \
-    pip3 install -r /tmp/operator-requirements.txt && \
-    pip3 install -r /tmp/r-requirements.txt
-# Install R packages, pinning arrow to 14.0.2.1 explicitly
-RUN Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
-                install.packages(c('coro', 'dplyr'), \
-                                 Ncpus = parallel::detectCores())" && \
-    Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
-                if (!requireNamespace('remotes', quietly=TRUE)) \
-                  install.packages('remotes'); \
-                remotes::install_version('arrow', version='14.0.2.1', \
-                  repos='https://cran.r-project.org', upgrade='never'); \
-                cat('R arrow version: ', as.character(packageVersion('arrow')), '\n')"
-ENV LD_LIBRARY_PATH=/usr/local/lib/R/lib:$LD_LIBRARY_PATH
+    pip3 install -r /tmp/operator-requirements.txt
 
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/.git /texera/amber/.git
@@ -104,9 +67,8 @@ COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase
 COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/config/src/main/resources
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
-# Copy code for python & R UDF
+# Copy code for python UDF
 COPY --from=build /texera/amber/src/main/python /texera/amber/src/main/python
-
 CMD ["bin/computing-unit-master"]
 
 EXPOSE 8085

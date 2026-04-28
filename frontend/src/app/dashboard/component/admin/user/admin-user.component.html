@@ -31,7 +31,11 @@
   [nzData]="listOfDisplayUser">
   <thead>
     <tr>
-      <th>Avatar</th>
+      <th
+        [nzSortFn]="sortByActive"
+        [nzSortDirections]="['ascend', 'descend']">
+        Avatar
+      </th>
       <th
         [nzSortFn]="sortByID"
         [nzSortDirections]="['ascend', 'descend']">
@@ -66,6 +70,16 @@
         </nz-filter-trigger>
       </th>
       <th
+        [nzSortFn]="sortByAffiliation"
+        [nzSortDirections]="['ascend', 'descend']">
+        Affiliation
+      </th>
+      <th
+        [nzSortFn]="sortByJoiningReason"
+        [nzSortDirections]="['ascend', 'descend']">
+        Joining Reason
+      </th>
+      <th
         [nzSortFn]="sortByComment"
         [nzSortDirections]="['ascend', 'descend']"
         nzCustomFilter>
@@ -92,7 +106,11 @@
         User Role
       </th>
       <th>Quota</th>
-      <th>Account Creation Time</th>
+      <th
+        [nzSortFn]="sortByAccountCreation"
+        [nzSortDirections]="['ascend', 'descend']">
+        Account Creation Time
+      </th>
     </tr>
   </thead>
   <nz-dropdown-menu #nameMenu="nzDropdownMenu">
@@ -222,6 +240,8 @@
           </ng-template>
         </div>
       </td>
+      <td>{{ user.affiliation }}</td>
+      <td>{{ user.joiningReason }}</td>
       <td>
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">

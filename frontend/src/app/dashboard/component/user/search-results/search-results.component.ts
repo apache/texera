@@ -27,6 +27,7 @@ export type LoadMoreFunction = (start: number, count: number) => Promise<{ entri
   selector: "texera-search-results",
   templateUrl: "./search-results.component.html",
   styleUrls: ["./search-results.component.scss"],
+  standalone: false,
 })
 export class SearchResultsComponent {
   loadMoreFunction: LoadMoreFunction | null = null;

@@ -29,7 +29,7 @@ import {
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
-import { BehaviorSubject, map, Observable, of, pairwise, ReplaySubject, Subject } from "rxjs";
+import { map, Observable, of, pairwise, ReplaySubject, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
@@ -49,13 +49,11 @@ export class WorkflowResultService {
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
   private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
   private resultInitiateStream = new Subject<string>();
-  private sinkStorageModeSubject = new BehaviorSubject<string>("");
 
   constructor(private wsService: WorkflowWebsocketService) {
     this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => {
       this.handleResultUpdate(event.updates);
       this.handleTableStatsUpdate(event.tableStats);
-      this.handleSinkStorageModeUpdate(event.sinkStorageMode);
     });
     this.wsService
       .subscribeToEvent("WorkflowAvailableResultEvent")
@@ -163,14 +161,6 @@ export class WorkflowResultService {
       paginatedResultService.handleStatsUpdate(event[operatorID]);
     });
     this.resultTableStats.next(event);
-  }
-
-  private handleSinkStorageModeUpdate(sinkStorageMode: string): void {
-    this.sinkStorageModeSubject.next(sinkStorageMode);
-  }
-
-  public getSinkStorageMode(): BehaviorSubject<string> {
-    return this.sinkStorageModeSubject;
   }
 
   private getOrInitPaginatedResultService(operatorID: string): OperatorPaginationResultService {
@@ -312,11 +302,18 @@ export class OperatorPaginationResultService {
     );
   }
 
-  public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
+  public selectPage(
+    pageIndex: number,
+    pageSize: number,
+    columnOffset: number = 0,
+    columnLimit: number = Number.MAX_SAFE_INTEGER,
+    columnSearch: string = ""
+  ): Observable<PaginatedResultEvent> {
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
-    const pageCache = this.resultCache.get(pageIndex);
+    const useCache = columnOffset === 0 && columnLimit === Number.MAX_SAFE_INTEGER && columnSearch === "";
+    const pageCache = useCache ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
         requestID: "",
@@ -334,6 +331,9 @@ export class OperatorPaginationResultService {
         operatorID,
         pageIndex,
         pageSize,
+        columnOffset,
+        columnLimit,
+        columnSearch,
       });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);

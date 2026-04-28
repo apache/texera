@@ -52,7 +52,7 @@ import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 
 export const DEFAULT_WIDTH = 800;
-export const DEFAULT_HEIGHT = 300;
+export const DEFAULT_HEIGHT = 500;
 /**
  * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -62,6 +62,7 @@ export const DEFAULT_HEIGHT = 300;
   selector: "texera-result-panel",
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"],
+  standalone: false,
 })
 export class ResultPanelComponent implements OnInit, OnDestroy {
   @ViewChild("dynamicComponent")

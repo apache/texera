@@ -29,8 +29,8 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 /**
  * The Component will display the result in an excel table format,
@@ -45,6 +45,7 @@ import { WorkflowStatusService } from "../../../service/workflow-status/workflow
   selector: "texera-result-table-frame",
   templateUrl: "./result-table-frame.component.html",
   styleUrls: ["./result-table-frame.component.scss"],
+  standalone: false,
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
@@ -66,12 +67,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = 5;
+  currentColumnOffset = 0;
+  columnLimit = 25;
+  columnSearch = "";
   panelHeight = 0;
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
-  sinkStorageMode: string = "";
-  private schema: ReadonlyArray<SchemaAttribute> = [];
   isOperatorFinished: boolean = false;
 
   constructor(
@@ -81,7 +83,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private guiConfigService: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -96,7 +99,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
-        this.schema = paginatedResultService.getSchema();
       }
     }
   }
@@ -113,6 +115,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           this.isOperatorFinished = false;
         }
       });
+
+    this.columnLimit = this.guiConfigService.env.limitColumns;
 
     this.workflowResultService
       .getResultUpdateStream()
@@ -153,13 +157,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         }
       });
 
-    this.workflowResultService
-      .getSinkStorageMode()
-      .pipe(untilDestroyed(this))
-      .subscribe(sinkStorageMode => {
-        this.sinkStorageMode = sinkStorageMode;
-      });
-
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
       this.panelHeight = size.height;
       this.adjustPageSizeBasedOnPanelSize(size.height);
@@ -172,7 +169,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (this.operatorId) {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
-        this.schema = paginatedResultService.getSchema();
       }
     }
   }
@@ -200,8 +196,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   compare(field: string, stats: string): SafeHtml {
     let current = this.tableStats[field][stats];
     let previous = this.prevTableStats[field][stats];
-    let currentStr = "";
-    let previousStr = "";
+    let currentStr: string;
+    let previousStr: string;
 
     if (typeof current === "number" && typeof previous === "number") {
       currentStr = current.toFixed(2);
@@ -233,8 +229,37 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return this.sanitizer.bypassSecurityTrustHtml(styledValue);
   }
 
+  /**
+   * Adjusts the number of result rows displayed per page based on the
+   * available vertical space of the Texera results panel.
+   *
+   * The method accounts for fixed UI elements within the panel—such as
+   * headers, column navigation controls, pagination, and the search bar—
+   * to determine the remaining space available for rendering result rows.
+   * The page size is then recalculated using the height of a single table row.
+   *
+   * To maintain a stable user experience during panel resizes, the current
+   * page index is recomputed so that the previously visible results remain
+   * in view and the user does not experience an abrupt jump in the dataset.
+   *
+   * @param panelHeight - The total height (in pixels) of the results panel.
+   */
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
+    const TABLE_HEADER_HEIGHT = 38.62;
+    const PANEL_HEADER_HEIGHT = 64.27; // Includes panel title and tab bar
+    const COLUMN_NAVIGATION_HEIGHT = 56.6; // Previous/Next columns controls
+    const PAGINATION_HEIGHT = 32.63;
+    const SEARCH_BAR_HEIGHT_WITH_MARGIN = 77; // Approximate height for search bar and margins
+    const ROW_HEIGHT = 38.62;
+
+    const usedHeight =
+      TABLE_HEADER_HEIGHT +
+      PANEL_HEADER_HEIGHT +
+      COLUMN_NAVIGATION_HEIGHT +
+      PAGINATION_HEIGHT +
+      SEARCH_BAR_HEIGHT_WITH_MARGIN;
+
+    const newPageSize = Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT));
 
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
@@ -329,12 +354,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     this.isLoadingResult = true;
     paginatedResultService
-      .selectPage(this.currentPageIndex, this.pageSize)
+      .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
-          this.schema = pageData.schema;
           this.changeDetectorRef.detectChanges();
         }
       });
@@ -404,5 +428,26 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
+  }
+
+  onColumnShiftLeft(): void {
+    if (this.currentColumnOffset > 0) {
+      this.currentColumnOffset = Math.max(0, this.currentColumnOffset - this.columnLimit);
+      this.changePaginatedResultData();
+    }
+  }
+
+  onColumnShiftRight(): void {
+    if (this.currentColumns && this.currentColumns.length === this.columnLimit) {
+      this.currentColumnOffset += this.columnLimit;
+      this.changePaginatedResultData();
+    }
+  }
+
+  onColumnSearch(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.columnSearch = input.value;
+    this.currentColumnOffset = 0;
+    this.changePaginatedResultData();
   }
 }

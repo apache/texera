@@ -38,8 +38,8 @@ module.exports = function (config) {
         base: "ChromeHeadless",
         flags: [
           "--no-sandbox",
-          "--headless=new",
-          "--remote-debugging-port=9222", // Enable remote debugging for better error output
+          "--headless",
+          "--remote-debugging-port=0",
           "--disable-gpu",
           "--disable-translate",
           "--disable-extensions",

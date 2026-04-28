@@ -17,7 +17,7 @@
 
 import typing
 from loguru import logger
-from pyarrow.lib import Table
+from pyarrow import Table
 from typing import Union
 
 from core.architecture.sendsemantics.broad_cast_partitioner import (
@@ -40,12 +40,12 @@ from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
     EmbeddedControlMessageIdentity,
 )
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlInvocation,
     EmptyRequest,
     EmbeddedControlMessageType,
@@ -53,7 +53,7 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ControlRequest,
 )
-from proto.org.apache.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
     Partitioning,
@@ -146,6 +146,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                     break
                 # Each tuple is sent to the partitioner and converted to
                 # a batch-based iterator.
+                tup.cast_to_schema(self.tuple_schema)
                 for data_frame in self.tuple_to_batch_with_filter(tup):
                     self.emit_payload(data_frame)
             self.emit_ecm("EndChannel", EmbeddedControlMessageType.PORT_ALIGNMENT)

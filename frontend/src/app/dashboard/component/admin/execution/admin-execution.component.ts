@@ -33,6 +33,7 @@ export const NO_SORT = "NO_SORTING";
 @Component({
   templateUrl: "./admin-execution.component.html",
   styleUrls: ["./admin-execution.component.scss"],
+  standalone: false,
 })
 export class AdminExecutionComponent implements OnInit, OnDestroy {
   listOfExecutions: ReadonlyArray<Execution> = [];

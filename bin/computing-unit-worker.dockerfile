@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
+COPY LICENSE NOTICE DISCLAIMER-WIP ./
 
 RUN sbt clean WorkflowExecutionService/dist
 
@@ -48,27 +49,24 @@ WORKDIR /texera/amber
 COPY --from=build /texera/amber/requirements.txt /tmp/requirements.txt
 COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirements.txt
 
-# Install Python runtime and dependencies
+# Install Python runtime dependencies
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     libpq-dev \
     && apt-get clean
 
-RUN pip3 install --upgrade pip setuptools wheel
-RUN pip3 install python-lsp-server python-lsp-server[websockets]
-
-# Install requirements with a fallback for wordcloud
-RUN pip3 install -r /tmp/requirements.txt
-RUN pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
-    pip3 install --no-cache-dir wordcloud==1.9.2
+# Install Python packages
+RUN pip3 install --upgrade pip setuptools wheel && \
+    pip3 install -r /tmp/requirements.txt && \
+    (pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
+     pip3 install --no-cache-dir wordcloud==1.9.2)
 
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
 COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/config/src/main/resources
-
 CMD ["bin/computing-unit-worker"]
 
 EXPOSE 8085

@@ -30,7 +30,7 @@ from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.runnable.runnable import Runnable
-from proto.org.apache.amber.engine.architecture.rpc import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ConsoleMessageType,
 )
@@ -100,6 +100,7 @@ class DataProcessor(Runnable, Stoppable):
                 self._context.worker_id,
                 self._context.console_message_manager.print_buf,
             ):
+                self._switch_context()
                 self._set_output_state(executor.process_state(state, port_id))
 
         except Exception as err:

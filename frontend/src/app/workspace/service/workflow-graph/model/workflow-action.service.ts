@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
+import { ExecutionMode, Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
@@ -127,6 +127,7 @@ export class WorkflowActionService {
   private getDefaultSettings(): WorkflowSettings {
     return {
       dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+      executionMode: this.config.env.defaultExecutionMode,
     };
   }
 
@@ -235,7 +236,7 @@ export class WorkflowActionService {
     });
   }
 
-  public addPort(operatorID: string, isInput: boolean, allowMultiInputs?: boolean): void {
+  public addPort(operatorID: string, isInput: boolean, disallowMultiInputs?: boolean): void {
     const operator = this.texeraGraph.getOperator(operatorID);
     // TODO: use uniform serde to calculate the portID
     const prefix = isInput ? "input-" : "output-";
@@ -249,8 +250,8 @@ export class WorkflowActionService {
 
     const port: PortDescription = {
       portID,
-      displayName: portID,
-      allowMultiInputs,
+      displayName: "",
+      disallowMultiInputs,
       isDynamicPort: true,
       dependencies: [],
     };
@@ -261,8 +262,8 @@ export class WorkflowActionService {
     if (!operator.dynamicOutputPorts && !isInput) {
       throw new Error(`operator ${operatorID} does not have dynamic output ports`);
     }
-    if (!isInput && allowMultiInputs !== undefined) {
-      throw new Error("error: allowMultiInputs property of an output port should not be specified");
+    if (!isInput && disallowMultiInputs !== undefined) {
+      throw new Error("error: disallowMultiInputs property of an output port should not be specified");
     }
 
     this.texeraGraph.bundleActions(() => {
@@ -619,7 +620,8 @@ export class WorkflowActionService {
    */
   public reloadWorkflow(
     workflow: Readonly<Workflow> | undefined,
-    asyncRendering = this.config.env.asyncRenderingEnabled
+    asyncRendering = this.config.env.asyncRenderingEnabled,
+    restoreViewport = true
   ): void {
     this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
@@ -635,6 +637,8 @@ export class WorkflowActionService {
       this.getTexeraGraph()
         .getAllCommentBoxes()
         .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
+
+      this.jointGraphWrapper.jointGraph.clear();
 
       if (workflow === undefined) {
         this.setNewSharedModel();
@@ -662,7 +666,9 @@ export class WorkflowActionService {
       this.addOperatorsAndLinks(operatorsAndPositions, links, commentBoxes);
 
       // restore the view point
-      this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      if (restoreViewport) {
+        this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      }
     });
     this.jointGraphWrapper.setReloadingWorkflow(false);
 
@@ -803,6 +809,10 @@ export class WorkflowActionService {
     if (size > 0 && size != null) {
       this.setWorkflowSettings({ ...this.workflowSettings, dataTransferBatchSize: size });
     }
+  }
+
+  public updateExecutionMode(mode: ExecutionMode): void {
+    this.setWorkflowSettings({ ...this.workflowSettings, executionMode: mode });
   }
 
   public clearWorkflow(): void {

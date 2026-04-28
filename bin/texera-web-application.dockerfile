@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
+COPY LICENSE NOTICE DISCLAIMER-WIP ./
 
 RUN sbt clean WorkflowExecutionService/dist
 
@@ -66,7 +67,6 @@ COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
 COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/config/src/main/resources
-
 CMD ["bin/texera-web-application"]
 
 EXPOSE 8080

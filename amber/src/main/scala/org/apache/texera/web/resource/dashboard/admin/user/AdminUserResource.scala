@@ -45,14 +45,17 @@ case class UserInfo(
     googleAvatar: String,
     comment: String,
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
-    accountCreation: java.time.OffsetDateTime
+    accountCreation: java.time.OffsetDateTime,
+    affiliation: String,
+    joiningReason: String
 )
 
 object AdminUserResource {
-  final private lazy val context = SqlServer
-    .getInstance()
-    .createDSLContext()
-  final private lazy val userDao = new UserDao(context.configuration)
+  private def context =
+    SqlServer
+      .getInstance()
+      .createDSLContext()
+  private def userDao = new UserDao(context.configuration)
 }
 
 @Path("/admin/user")
@@ -78,7 +81,9 @@ class AdminUserResource {
         USER.GOOGLE_AVATAR,
         USER.COMMENT,
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
-        USER.ACCOUNT_CREATION_TIME
+        USER.ACCOUNT_CREATION_TIME,
+        USER.AFFILIATION,
+        USER.JOINING_REASON
       )
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)

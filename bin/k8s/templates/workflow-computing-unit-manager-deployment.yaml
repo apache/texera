@@ -35,7 +35,7 @@ spec:
       serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
       containers:
         - name: {{ .Values.workflowComputingUnitManager.name }}
-          image: {{ .Values.workflowComputingUnitManager.imageName }}
+          image: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitManager.imageName }}:{{ .Values.texera.imageTag }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           ports:
             - containerPort: {{ .Values.workflowComputingUnitManager.service.port }}
@@ -46,7 +46,7 @@ spec:
             - name: KUBERNETES_COMPUTE_UNIT_SERVICE_NAME
               value: {{ .Values.workflowComputingUnitPool.name }}-svc
             - name: KUBERNETES_IMAGE_NAME
-              value: {{ .Values.workflowComputingUnitPool.imageName }}
+              value: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
               value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
@@ -60,6 +60,19 @@ spec:
               value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
             - name: FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT
               value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/did/upload
+            # S3 Access (for R UDF large binary support)
+            - name: STORAGE_S3_ENDPOINT
+              value: http://{{ .Release.Name }}-minio:9000
+            - name: STORAGE_S3_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-minio
+                  key: root-user
+            - name: STORAGE_S3_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-minio
+                  key: root-password
             # LakeFS Access (should be removed in production environment)
             - name: STORAGE_LAKEFS_ENDPOINT
               value: http://{{ .Release.Name }}-lakefs.{{ .Release.Namespace }}:8000/api/v1

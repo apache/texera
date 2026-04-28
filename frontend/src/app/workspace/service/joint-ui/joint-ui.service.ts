@@ -61,32 +61,55 @@ c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,16
 c42.109,42.109,42.109,110.626,0,152.735C160.199,244.417,91.683,244.417,49.574,202.309z"/>
 <path d="M194.823,116.941H57.059c-4.971,0-9,4.029-9,9s4.029,9,9,9h137.764c4.971,0,9-4.029,9-9S199.794,116.941,194.823,116.941z"
 />`;
-
 export const addInputPortButtonSVG = `
   <svg class="add-input-port-button">
-    <g transform="scale(0.075)">${addPortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${addPortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>add port</title>
   </svg>
 `;
 
 export const removeInputPortButtonSVG = `
   <svg class="remove-input-port-button">
-  <g transform="scale(0.075)">${removePortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${removePortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>remove port</title>
   </svg>
 `;
 
 export const addOutputPortButtonSVG = `
   <svg class="add-output-port-button">
-    <g transform="scale(0.075)">${addPortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${addPortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>add port</title>
   </svg>
 `;
 
 export const removeOutputPortButtonSVG = `
   <svg class="remove-output-port-button">
-    <g transform="scale(0.075)">${removePortButtonPath}</g>
+    <g transform="scale(0.075)">
+      ${removePortButtonPath}
+      <rect x="0" y="0" width="252" height="252" fill="transparent" pointer-events="all"/>
+    </g>
     <title>remove port</title>
+  </svg>
+`;
+
+/**
+ * Defines the SVG for the chat button (message icon)
+ * This button allows users to send feedback to agents about this operator
+ */
+export const chatButtonSVG = `
+  <svg class="chat-button" height="20" width="20" viewBox="0 0 24 24">
+    <rect x="0" y="0" width="24" height="24" fill="transparent" pointer-events="visible" />
+    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+    <title>Chat with agent about this operator</title>
   </svg>
 `;
 
@@ -106,6 +129,7 @@ export const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
 export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
 export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
+export const operatorAgentActionProgressClass = "texera-operator-agent-action-progress";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
@@ -134,6 +158,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
       <text class="${operatorCoeditorChangedPropertyClass}"></text>
+      <text class="${operatorAgentActionProgressClass}"></text>
       <image class="${operatorViewResultIconClass}"></image>
       <image class="${operatorReuseCacheIconClass}"></image>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -143,6 +168,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <path class="left-boundary"></path>
       <path class="right-boundary"></path>
       ${deleteButtonSVG}
+      ${chatButtonSVG}
       ${dynamicInputPorts ? addInputPortButtonSVG : ""}
       ${dynamicInputPorts ? removeInputPortButtonSVG : ""}
       ${dynamicOutputPorts ? addOutputPortButtonSVG : ""}
@@ -328,7 +354,7 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${count}`;
+        const labelText = count.toLocaleString();
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
     });
@@ -348,7 +374,7 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${count}`;
+        const labelText = count.toLocaleString();
 
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
@@ -360,6 +386,7 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { visibility: "hidden" },
       [`.${operatorPortMetricsClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
+      ".chat-button": { visibility: "hidden" },
       ".add-input-port-button": { visibility: "hidden" },
       ".add-output-port-button": { visibility: "hidden" },
       ".remove-input-port-button": { visibility: "hidden" },
@@ -372,6 +399,7 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { visibility: "visible" },
       [`.${operatorPortMetricsClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
+      ".chat-button": { visibility: "visible" },
       ".add-input-port-button": { visibility: "visible" },
       ".add-output-port-button": { visibility: "visible" },
       ".remove-input-port-button": { visibility: "visible" },
@@ -405,8 +433,7 @@ export class JointUIService {
         break;
     }
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorStateClass}`]: { text: operatorState.toString() },
-      [`.${operatorStateClass}`]: { fill: fillColor },
+      [`.${operatorStateClass}`]: { text: operatorState.toString(), fill: fillColor },
       "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
       [`.${operatorWorkerCountClass}`]: { fill: fillColor },
@@ -689,6 +716,19 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
+      ".texera-operator-agent-action-progress": {
+        text: "",
+        "font-size": "11px",
+        "font-weight": "bold",
+        "font-family": "'Inter', 'SF Pro Display', -apple-system, sans-serif",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 95,
+        ref: "rect.body",
+        "text-anchor": "middle",
+        "x-alignment": "middle",
+        "y-alignment": "middle",
+      },
       ".texera-operator-state": {
         text: "",
         "font-size": "14px",
@@ -809,33 +849,41 @@ export class JointUIService {
         event: "element:delete",
         visibility: "hidden",
       },
+      ".chat-button": {
+        x: 85,
+        y: -20,
+        cursor: "pointer",
+        fill: "#1890ff",
+        event: "element:chat",
+        visibility: "hidden",
+      },
       ".add-input-port-button": {
-        x: -22,
-        y: 40,
+        x: -25,
+        y: 65,
         cursor: "pointer",
         fill: "#565656",
         event: "element:add-input-port",
         visibility: "hidden",
       },
       ".remove-input-port-button": {
-        x: -22,
-        y: 60,
+        x: -25,
+        y: 85,
         cursor: "pointer",
         fill: "#565656",
         event: "element:remove-input-port",
         visibility: "hidden",
       },
       ".add-output-port-button": {
-        x: 62,
-        y: 40,
+        x: 65,
+        y: 65,
         cursor: "pointer",
         fill: "#565656",
         event: "element:add-output-port",
         visibility: "hidden",
       },
       ".remove-output-port-button": {
-        x: 62,
-        y: 60,
+        x: 65,
+        y: 85,
         cursor: "pointer",
         fill: "#565656",
         event: "element:remove-output-port",
@@ -968,6 +1016,50 @@ export class JointUIService {
 
   public static getJointUserPointerName(coeditor: Coeditor) {
     return "pointer_" + coeditor.clientId;
+  }
+
+  /**
+   * Shows agent action labels (viewed/added/modified) on operators.
+   * Displays bold agent name and action type as text below the operator.
+   */
+  public showAgentActionLabel(
+    jointPaper: joint.dia.Paper,
+    operatorID: string,
+    actionType: "viewed" | "added" | "modified",
+    agentName: string = "Agent"
+  ): void {
+    const element = jointPaper.getModelById(operatorID);
+    if (!element) {
+      return;
+    }
+
+    const labelText = `${agentName}: ${actionType}`;
+
+    element.attr({
+      [`.${operatorAgentActionProgressClass}`]: {
+        text: labelText,
+        fill: "#52c41a",
+        "font-weight": "bold",
+        visibility: "visible",
+      },
+    });
+  }
+
+  /**
+   * Hides agent action labels on operators.
+   */
+  public hideAgentActionLabel(jointPaper: joint.dia.Paper, operatorID: string): void {
+    const element = jointPaper.getModelById(operatorID);
+    if (!element) {
+      return;
+    }
+
+    element.attr({
+      [`.${operatorAgentActionProgressClass}`]: {
+        text: "",
+        visibility: "hidden",
+      },
+    });
   }
 }
 

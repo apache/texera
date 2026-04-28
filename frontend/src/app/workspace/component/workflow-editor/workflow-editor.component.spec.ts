@@ -56,9 +56,12 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 import * as jQuery from "jquery";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+
+const createJQueryEvent = (event: string, properties?: object): JQuery.Event =>
+  (jQuery as unknown as JQueryStatic).Event(event, properties);
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -298,7 +301,7 @@ describe("WorkflowEditorComponent", () => {
 
       // trigger a click on the blank area using JointJS paper's jQuery element
       const point = component.paper.localToClientPoint(blankPoint);
-      const event = jQuery.Event("mousedown", {
+      const event = createJQueryEvent("mousedown", {
         clientX: point.x,
         clientY: point.y,
       });
@@ -406,7 +409,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBeTrue();
 
       // should still allow a link from scan to view result
       expect(
@@ -439,7 +442,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBeTrue();
     });
 
     it("should validate operator connections with ports that allow multi-inputs correctly", () => {
@@ -843,7 +846,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = createJQueryEvent("mousedown", { shiftKey: true });
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();
@@ -866,7 +869,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = createJQueryEvent("mousedown", { shiftKey: true });
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();

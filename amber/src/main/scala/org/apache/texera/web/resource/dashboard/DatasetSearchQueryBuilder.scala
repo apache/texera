@@ -20,7 +20,7 @@
 package org.apache.texera.web.resource.dashboard
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.core.storage.util.LakeFSStorageClient
+import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.dao.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.User.USER

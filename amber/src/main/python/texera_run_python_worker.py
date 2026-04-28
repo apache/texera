@@ -45,21 +45,35 @@ if __name__ == "__main__":
         output_port,
         logger_level,
         r_path,
+        iceberg_catalog_type,
         iceberg_postgres_catalog_uri_without_scheme,
         iceberg_postgres_catalog_username,
         iceberg_postgres_catalog_password,
+        iceberg_rest_catalog_uri,
+        iceberg_rest_catalog_warehouse_name,
         iceberg_table_namespace,
         iceberg_file_storage_directory_path,
         iceberg_table_commit_batch_size,
+        s3_endpoint,
+        s3_region,
+        s3_auth_username,
+        s3_auth_password,
     ) = sys.argv
     init_loguru_logger(logger_level)
     StorageConfig.initialize(
+        iceberg_catalog_type,
         iceberg_postgres_catalog_uri_without_scheme,
         iceberg_postgres_catalog_username,
         iceberg_postgres_catalog_password,
+        iceberg_rest_catalog_uri,
+        iceberg_rest_catalog_warehouse_name,
         iceberg_table_namespace,
         iceberg_file_storage_directory_path,
         iceberg_table_commit_batch_size,
+        s3_endpoint,
+        s3_region,
+        s3_auth_username,
+        s3_auth_password,
     )
 
     # Setting R_HOME environment variable for R-UDF usage

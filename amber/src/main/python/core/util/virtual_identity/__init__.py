@@ -16,7 +16,7 @@
 # under the License.
 
 import re
-from proto.org.apache.amber.core import (
+from proto.org.apache.texera.amber.core import (
     GlobalPortIdentity,
     PhysicalOpIdentity,
     OperatorIdentity,

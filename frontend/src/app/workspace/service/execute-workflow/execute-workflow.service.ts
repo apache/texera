@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Inject, Injectable } from "@angular/core";
+import { Inject, Injectable, DOCUMENT } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -31,6 +31,8 @@ import {
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import {
   OperatorCurrentTuples,
+  RegionStateEvent,
+  RegionUpdateEvent,
   ReplayExecutionInfo,
   TexeraWebsocketEvent,
   WorkflowFatalError,
@@ -44,8 +46,8 @@ import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
-import { DOCUMENT } from "@angular/common";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -85,6 +87,9 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }>();
 
+  private regionUpdateStream = new Subject<RegionUpdateEvent>();
+  private regionStateStream = new Subject<RegionStateEvent>();
+
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
@@ -99,6 +104,12 @@ export class ExecuteWorkflowService {
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
+        case "RegionUpdateEvent":
+          this.regionUpdateStream.next(event);
+          break;
+        case "RegionStateEvent":
+          this.regionStateStream.next(event);
+          break;
         case "WorkerAssignmentUpdateEvent":
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
           break;
@@ -327,6 +338,14 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }> {
     return this.executionStateStream.asObservable();
+  }
+
+  public getRegionUpdateStream(): Observable<RegionUpdateEvent> {
+    return this.regionUpdateStream.asObservable();
+  }
+
+  public getRegionStateStream(): Observable<RegionStateEvent> {
+    return this.regionStateStream.asObservable();
   }
 
   public resetExecutionState(): void {

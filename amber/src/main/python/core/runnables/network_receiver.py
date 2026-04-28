@@ -44,8 +44,8 @@ from core.models.state import State
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
-from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.org.apache.amber.engine.common import (
+from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.texera.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
     PythonActorMessage,
@@ -90,7 +90,7 @@ class NetworkReceiver(Runnable, Stoppable):
             # Explicitly set is_control to trigger lazy computation.
             # If not set, it may be computed at different times,
             # causing hash inconsistencies.
-            data_header.tag.is_control = False
+            data_header.tag.is_control = bool(data_header.tag.is_control)
             payload = match(
                 data_header.payload_type,
                 "Data",
@@ -102,8 +102,7 @@ class NetworkReceiver(Runnable, Stoppable):
             )
             if isinstance(payload, EmbeddedControlMessage):
                 for channel_id in payload.scope:
-                    if not channel_id.is_control:
-                        channel_id.is_control = False
+                    channel_id.is_control = bool(channel_id.is_control)
                 shared_queue.put(ECMElement(tag=data_header.tag, payload=payload))
             else:
                 shared_queue.put(DataElement(tag=data_header.tag, payload=payload))

@@ -16,10 +16,7 @@
 // under the License.
 
 name := "amber"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -49,23 +46,23 @@ Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "
 PB.generate / excludeFilter := "scalapb.proto"
 
 /////////////////////////////////////////////////////////////////////////////
-// Akka related
-val akkaVersion = "2.6.21"
-val akkaDependencies = Seq(
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-remote" % akkaVersion,
-  "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
-  "com.typesafe.akka" %% "akka-cluster-metrics" % akkaVersion,
-  "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-  "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion % Test,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-  "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
+// Pekko related
+val pekkoVersion = "1.2.1"
+val pekkoDependencies = Seq(
+  "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
+  "org.apache.pekko" %% "pekko-remote" % pekkoVersion,
+  "org.apache.pekko" %% "pekko-cluster" % pekkoVersion,
+  "org.apache.pekko" %% "pekko-cluster-metrics" % pekkoVersion,
+  "org.apache.pekko" %% "pekko-cluster-tools" % pekkoVersion,
+  "org.apache.pekko" %% "pekko-multi-node-testkit" % pekkoVersion % Test,
+  "org.apache.pekko" %% "pekko-testkit" % pekkoVersion % Test,
+  "org.apache.pekko" %% "pekko-persistence" % pekkoVersion,
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
-  "com.softwaremill.macwire" %% "macros" % "2.5.8" % Provided,
-  "com.softwaremill.macwire" %% "macrosakka" % "2.5.8" % Provided,
-  "com.softwaremill.macwire" %% "util" % "2.5.8",
-  "com.softwaremill.macwire" %% "proxy" % "2.5.8",
-  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+  "com.softwaremill.macwire" %% "macros" % "2.6.7" % Provided,
+  "com.softwaremill.macwire" %% "macrospekko" % "2.6.7" % Provided,
+  "com.softwaremill.macwire" %% "util" % "2.6.7",
+  "com.softwaremill.macwire" %% "proxy" % "2.6.7",
+  "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
   "ch.qos.logback" % "logback-classic" % "1.2.13" % Test
 )
 
@@ -89,7 +86,7 @@ val dropwizardDependencies = Seq(
 )
 
 
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.18.6"
 val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
@@ -137,7 +134,7 @@ val googleServiceDependencies = Seq(
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
-libraryDependencies ++= akkaDependencies
+libraryDependencies ++= pekkoDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
@@ -213,17 +210,21 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.14.2"
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 
-// https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
-
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
-// https://mvnrepository.com/artifact/io.altoo/akka-kryo-serialization
-libraryDependencies += "io.altoo" %% "akka-kryo-serialization" % "2.5.2"
+// https://mvnrepository.com/artifact/com.esotericsoftware/kryo
+libraryDependencies += "com.esotericsoftware" % "kryo" % "5.6.2"
+libraryDependencies += "com.esotericsoftware" % "kryo5" % "5.6.0"
+
+// https://mvnrepository.com/artifact/io.altoo/pekko-kryo-serialization
+libraryDependencies += "io.altoo" %% "pekko-kryo-serialization" % "1.3.0"
+
+// https://mvnrepository.com/artifact/io.altoo/scala-kryo-serialization
+libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.3.0"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"

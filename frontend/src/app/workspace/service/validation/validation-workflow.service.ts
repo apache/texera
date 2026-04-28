@@ -134,13 +134,15 @@ export class ValidationWorkflowService {
   }
 
   private updateValidationState(operatorID: string, validation: Validation) {
-    this.operatorValidationStream.next({ validation, operatorID });
     if (!validation.isValid) {
       this.workflowErrors[operatorID] = validation;
     } else {
       delete this.workflowErrors[operatorID];
-      this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
     }
+
+    // emit event to streams after updating workflowErrors to keep subscribers' view of the state consistent
+    this.operatorValidationStream.next({ validation, operatorID });
+    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
   private checkIfWorkflowEmpty() {
@@ -323,15 +325,15 @@ export class ValidationWorkflowService {
     for (let i = 0; i < operator.inputPorts.length; i++) {
       const port = operator.inputPorts[i];
       const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
-      if (port.allowMultiInputs) {
-        if (portNumInputs < 1) {
-          satisfyInput = false;
-          inputPortsViolationMessage += `${port.displayName ?? ""} requires at least 1 inputs, has ${portNumInputs}`;
-        }
-      } else {
+      if (port.disallowMultiInputs) {
         if (portNumInputs !== 1) {
           satisfyInput = false;
           inputPortsViolationMessage += `${port.displayName ?? ""} requires 1 input, has ${portNumInputs}`;
+        }
+      } else {
+        if (portNumInputs < 1) {
+          satisfyInput = false;
+          inputPortsViolationMessage += `${port.displayName ?? ""} requires at least 1 inputs, has ${portNumInputs}`;
         }
       }
     }
