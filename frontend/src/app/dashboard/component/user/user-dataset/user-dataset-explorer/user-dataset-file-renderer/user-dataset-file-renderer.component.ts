@@ -74,6 +74,7 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   selector: "texera-user-dataset-file-renderer",
   templateUrl: "./user-dataset-file-renderer.component.html",
   styleUrls: ["./user-dataset-file-renderer.component.scss"],
+  standalone: false,
 })
 export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDestroy {
   private DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB

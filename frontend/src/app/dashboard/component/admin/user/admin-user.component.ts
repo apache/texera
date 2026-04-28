@@ -33,6 +33,7 @@ import { replaceOneImmutable } from "../../../../common/util/array-utils";
 @Component({
   templateUrl: "./admin-user.component.html",
   styleUrls: ["./admin-user.component.scss"],
+  standalone: false,
 })
 export class AdminUserComponent implements OnInit {
   userList: ReadonlyArray<User> = [];

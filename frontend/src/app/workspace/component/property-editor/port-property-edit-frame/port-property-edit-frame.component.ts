@@ -44,6 +44,7 @@ Quill.register("modules/cursors", QuillCursors);
   selector: "texera-port-property-edit-frame",
   templateUrl: "./port-property-edit-frame.component.html",
   styleUrls: ["./port-property-edit-frame.component.scss"],
+  standalone: false,
 })
 export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentPortID: LogicalPort | undefined;

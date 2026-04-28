@@ -29,5 +29,6 @@ import { FieldType } from "@ngx-formly/core";
       </div>
     </div>
   `,
+  standalone: false,
 })
 export class MultiSchemaTypeComponent extends FieldType {}

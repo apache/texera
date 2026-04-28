@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { NzMessageDataOptions, NzMessageService } from "ng-zorro-antd/message";
-import { NzNotificationService } from "ng-zorro-antd/notification";
+import { NzNotificationDataOptions, NzNotificationService } from "ng-zorro-antd/notification";
 
 /**
  * NotificationService is an entry service for sending notifications
@@ -34,7 +34,7 @@ export class NotificationService {
   ) {}
 
   // Only blank can be removed manually
-  blank(title: string, content: string, options: NzMessageDataOptions = {}): void {
+  blank(title: string, content: string, options: NzNotificationDataOptions = {}): void {
     this.notification.blank(title, content, options);
   }
 

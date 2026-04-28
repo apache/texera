@@ -22,6 +22,7 @@ import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 
 @Component({
   templateUrl: "./flarum.component.html",
+  standalone: false,
 })
 export class FlarumComponent {
   flarumUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl("forum");

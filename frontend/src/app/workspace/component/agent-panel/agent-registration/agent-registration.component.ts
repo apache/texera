@@ -26,6 +26,7 @@ import { Subject, takeUntil } from "rxjs";
   selector: "texera-agent-registration",
   templateUrl: "agent-registration.component.html",
   styleUrls: ["agent-registration.component.scss"],
+  standalone: false,
 })
 export class AgentRegistrationComponent implements OnInit, OnDestroy {
   @Output() agentCreated = new EventEmitter<string>();

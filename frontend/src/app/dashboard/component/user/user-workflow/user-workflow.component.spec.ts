@@ -43,7 +43,7 @@ import { StubOperatorMetadataService } from "../../../../workspace/service/opera
 import { NzUploadModule } from "ng-zorro-antd/upload";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
-import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import {
   mockUserInfo,
   testWorkflowEntries,
@@ -108,7 +108,7 @@ describe("SavedWorkflowSectionComponent", () => {
         NzSelectModule,
         NzPopoverModule,
         NzAvatarModule,
-        NzToolTipModule,
+        NzTooltipModule,
         NzUploadModule,
         ScrollingModule,
         NoopAnimationsModule,

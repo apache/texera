@@ -39,7 +39,7 @@ describe("WorkflowUtilService", () => {
         ...commonTestProviders,
       ],
     });
-    workflowUtilService = TestBed.get(WorkflowUtilService);
+    workflowUtilService = TestBed.inject(WorkflowUtilService);
   });
 
   it("should be created", inject([WorkflowUtilService], (service: WorkflowUtilService) => {

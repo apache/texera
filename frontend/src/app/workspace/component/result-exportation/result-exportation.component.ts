@@ -37,6 +37,7 @@ import { UserDatasetVersionCreatorComponent } from "../../../dashboard/component
   selector: "texera-result-exportation-modal",
   templateUrl: "./result-exportation.component.html",
   styleUrls: ["./result-exportation.component.scss"],
+  standalone: false,
 })
 export class ResultExportationComponent implements OnInit {
   /* Two sources can trigger this dialog, one from context-menu

@@ -52,6 +52,7 @@ export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
 @Component({
   templateUrl: "./dataset-detail.component.html",
   styleUrls: ["./dataset-detail.component.scss"],
+  standalone: false,
 })
 export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
