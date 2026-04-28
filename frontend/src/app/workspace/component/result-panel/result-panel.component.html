@@ -92,6 +92,7 @@
       Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}
     </h4>
     <nz-tabs
+      class="result-content"
       [nzSize]="'small'"
       [nzTabPosition]="'left'">
       <div *ngIf="frameComponentConfigs.size === 0">
@@ -105,7 +106,7 @@
         <nz-tab nzTitle="{{config.key}}">
           <div
             #dynamicComponent
-            class="result-frame">
+            class="result-content">
             <ng-container
               *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
           </div>
