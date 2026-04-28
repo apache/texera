@@ -91,6 +91,7 @@ import scala.concurrent.duration.Duration
   */
 class RegionExecutionCoordinator(
     region: Region,
+    isRestart: Boolean,
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
     controllerConfig: ControllerConfig,
@@ -167,6 +168,10 @@ class RegionExecutionCoordinator(
                 val actorRef = actorRefService.getActorRef(workerId)
                 // Remove the actorRef so that no other actors can find the worker and send messages.
                 actorRefService.removeActorRef(workerId)
+                // Restarted regions reuse actorId. Remove stale control channels so the
+                // controller does not reuse old control-message sequence numbers for new workers.
+                asyncRPCClient.inputGateway.removeControlChannel(workerId)
+                asyncRPCClient.outputGateway.removeControlChannel(workerId)
                 gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS)).asTwitter()
               }
           }.toSeq
@@ -534,11 +539,13 @@ class RegionExecutionCoordinator(
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
         DocumentFactory.createDocument(storageUriToAdd, schema)
-        WorkflowExecutionsResource.insertOperatorPortResultUri(
-          eid = eid,
-          globalPortId = outputPortId,
-          uri = storageUriToAdd
-        )
+        if (!isRestart) {
+          WorkflowExecutionsResource.insertOperatorPortResultUri(
+            eid = eid,
+            globalPortId = outputPortId,
+            uri = storageUriToAdd
+          )
+        }
     }
   }
 

@@ -38,6 +38,7 @@ import { NotificationService } from "../../../../common/service/notification/not
   selector: "texera-time-travel",
   templateUrl: "time-travel.component.html",
   styleUrls: ["time-travel.component.scss"],
+  standalone: false,
 })
 export class TimeTravelComponent implements OnInit, OnDestroy {
   interactionHistories: { [eid: number]: string[] } = {};

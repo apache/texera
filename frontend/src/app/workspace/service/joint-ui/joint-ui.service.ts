@@ -102,6 +102,18 @@ export const removeOutputPortButtonSVG = `
 `;
 
 /**
+ * Defines the SVG for the chat button (message icon)
+ * This button allows users to send feedback to agents about this operator
+ */
+export const chatButtonSVG = `
+  <svg class="chat-button" height="20" width="20" viewBox="0 0 24 24">
+    <rect x="0" y="0" width="24" height="24" fill="transparent" pointer-events="visible" />
+    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+    <title>Chat with agent about this operator</title>
+  </svg>
+`;
+
+/**
  * Defines the handle (the square at the end) of the source operator for a link
  */
 export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
@@ -117,13 +129,13 @@ export const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
 export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
 export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
+export const operatorAgentActionProgressClass = "texera-operator-agent-action-progress";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
 const operatorWorkerCountClass = "operator-worker-count";
-const operatorStatusTextClass = "operator-status";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -142,11 +154,11 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorNameClass}"></text>
       <text class="${operatorPortMetricsClass}"></text>
       <text class="${operatorWorkerCountClass}"></text>
-      <text class="${operatorStatusTextClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
       <text class="${operatorCoeditorChangedPropertyClass}"></text>
+      <text class="${operatorAgentActionProgressClass}"></text>
       <image class="${operatorViewResultIconClass}"></image>
       <image class="${operatorReuseCacheIconClass}"></image>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -156,6 +168,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <path class="left-boundary"></path>
       <path class="right-boundary"></path>
       ${deleteButtonSVG}
+      ${chatButtonSVG}
       ${dynamicInputPorts ? addInputPortButtonSVG : ""}
       ${dynamicInputPorts ? removeInputPortButtonSVG : ""}
       ${dynamicOutputPorts ? addOutputPortButtonSVG : ""}
@@ -326,11 +339,6 @@ export class JointUIService {
     const workerCount = statistics.numWorkers ?? 1;
     element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
 
-    element.attr(
-      `.${operatorStatusTextClass}/text`,
-      "status: " + JointUIService.getStatusDisplayText(statistics.operatorState)
-    );
-
     inPorts.forEach(portDef => {
       const portId = portDef.id;
       if (portId != null) {
@@ -378,6 +386,7 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { visibility: "hidden" },
       [`.${operatorPortMetricsClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
+      ".chat-button": { visibility: "hidden" },
       ".add-input-port-button": { visibility: "hidden" },
       ".add-output-port-button": { visibility: "hidden" },
       ".remove-input-port-button": { visibility: "hidden" },
@@ -390,6 +399,7 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { visibility: "visible" },
       [`.${operatorPortMetricsClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
+      ".chat-button": { visibility: "visible" },
       ".add-input-port-button": { visibility: "visible" },
       ".add-output-port-button": { visibility: "visible" },
       ".remove-input-port-button": { visibility: "visible" },
@@ -427,7 +437,6 @@ export class JointUIService {
       "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
       [`.${operatorWorkerCountClass}`]: { fill: fillColor },
-      [`.${operatorStatusTextClass}`]: { fill: fillColor },
     });
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -707,6 +716,19 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
+      ".texera-operator-agent-action-progress": {
+        text: "",
+        "font-size": "11px",
+        "font-weight": "bold",
+        "font-family": "'Inter', 'SF Pro Display', -apple-system, sans-serif",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": 95,
+        ref: "rect.body",
+        "text-anchor": "middle",
+        "x-alignment": "middle",
+        "y-alignment": "middle",
+      },
       ".texera-operator-state": {
         text: "",
         "font-size": "14px",
@@ -819,16 +841,20 @@ export class JointUIService {
         "ref-x": -5,
         "ref-y": -35,
       },
-      [`.${operatorStatusTextClass}`]: {
-        "ref-x": -10,
-        "ref-y": -35,
-      },
       ".delete-button": {
         x: 60,
         y: -20,
         cursor: "pointer",
         fill: "#D8656A",
         event: "element:delete",
+        visibility: "hidden",
+      },
+      ".chat-button": {
+        x: 85,
+        y: -20,
+        cursor: "pointer",
+        fill: "#1890ff",
+        event: "element:chat",
         visibility: "hidden",
       },
       ".add-input-port-button": {
@@ -988,15 +1014,52 @@ export class JointUIService {
     return userCursor;
   }
 
-  private static getStatusDisplayText(state: OperatorState): string {
-    if (state === OperatorState.Uninitialized) {
-      return "Waiting";
-    }
-    return String(state);
-  }
-
   public static getJointUserPointerName(coeditor: Coeditor) {
     return "pointer_" + coeditor.clientId;
+  }
+
+  /**
+   * Shows agent action labels (viewed/added/modified) on operators.
+   * Displays bold agent name and action type as text below the operator.
+   */
+  public showAgentActionLabel(
+    jointPaper: joint.dia.Paper,
+    operatorID: string,
+    actionType: "viewed" | "added" | "modified",
+    agentName: string = "Agent"
+  ): void {
+    const element = jointPaper.getModelById(operatorID);
+    if (!element) {
+      return;
+    }
+
+    const labelText = `${agentName}: ${actionType}`;
+
+    element.attr({
+      [`.${operatorAgentActionProgressClass}`]: {
+        text: labelText,
+        fill: "#52c41a",
+        "font-weight": "bold",
+        visibility: "visible",
+      },
+    });
+  }
+
+  /**
+   * Hides agent action labels on operators.
+   */
+  public hideAgentActionLabel(jointPaper: joint.dia.Paper, operatorID: string): void {
+    const element = jointPaper.getModelById(operatorID);
+    if (!element) {
+      return;
+    }
+
+    element.attr({
+      [`.${operatorAgentActionProgressClass}`]: {
+        text: "",
+        visibility: "hidden",
+      },
+    });
   }
 }
 

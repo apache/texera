@@ -27,7 +27,10 @@ import org.apache.texera.amber.core.virtualidentity.{
   EmbeddedControlMessageIdentity
 }
 import org.apache.texera.amber.engine.architecture.controller.ClientEvent
-import org.apache.texera.amber.engine.architecture.messaginglayer.NetworkOutputGateway
+import org.apache.texera.amber.engine.architecture.messaginglayer.{
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands._
 import org.apache.texera.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
@@ -125,7 +128,8 @@ object AsyncRPCClient {
 }
 
 class AsyncRPCClient(
-    outputGateway: NetworkOutputGateway,
+    val inputGateway: NetworkInputGateway,
+    val outputGateway: NetworkOutputGateway,
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 

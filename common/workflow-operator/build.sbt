@@ -21,10 +21,7 @@ import scala.collection.Seq
 /////////////////////////////////////////////////////////////////////////////
 
 name := "workflow-operator"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.18"
 
 enablePlugins(JavaAppPackaging)
 
@@ -113,8 +110,7 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-compress" % "1.27.1",
   "org.tukaani" % "xz" % "1.9",
   "com.univocity" % "univocity-parsers" % "2.9.1",
-  "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4",
-  "io.github.redouane59.twitter" % "twittered" % "2.21"
+  "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4"
 )
 
 libraryDependencies += "io.github.classgraph" % "classgraph" % "4.8.184" % Test

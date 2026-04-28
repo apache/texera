@@ -18,10 +18,7 @@
 import scala.collection.Seq
 
 name := "access-control-service"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.18"
 
 enablePlugins(JavaAppPackaging)
 

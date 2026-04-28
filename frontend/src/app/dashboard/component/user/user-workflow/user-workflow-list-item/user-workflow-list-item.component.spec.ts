@@ -29,7 +29,7 @@ import { StubUserProjectService } from "../../../../service/user/project/stub-us
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
-import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 describe("UserWorkflowListItemComponent", () => {
@@ -38,7 +38,7 @@ describe("UserWorkflowListItemComponent", () => {
   const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [NzModalModule, HttpClientTestingModule, NzToolTipModule],
+      imports: [NzModalModule, HttpClientTestingModule, NzTooltipModule],
       declarations: [UserWorkflowListItemComponent, HighlightSearchTermsPipe],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
