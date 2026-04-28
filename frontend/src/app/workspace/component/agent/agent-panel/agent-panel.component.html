@@ -49,21 +49,12 @@
   (nzResize)="onResize($event)"
   (cdkDragStarted)="handleDragStart()"
   [cdkDragFreeDragPosition]="dragPosition">
-  <!-- Return and Minimize Buttons -->
+  <!-- Minimize Button -->
   <ul
     id="return-button"
     nz-menu
     [ngClass]="{'shadow': !width}"
     *ngIf="width">
-    <button
-      nz-button
-      nzType="text"
-      (click)="resetPanelPosition()"
-      *ngIf="!isDocked">
-      <span
-        nz-icon
-        nzType="enter"></span>
-    </button>
     <li
       nz-menu-item
       (click)="openPanel()">

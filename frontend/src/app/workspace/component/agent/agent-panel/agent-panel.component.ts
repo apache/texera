@@ -306,14 +306,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Reset panel to docked position
-   */
-  resetPanelPosition(): void {
-    this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
-    this.isDocked = true;
-  }
-
-  /**
    * Handle drag start
    */
   handleDragStart(): void {
