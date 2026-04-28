@@ -137,9 +137,7 @@ export class ReActStepDetailModalComponent {
    */
   public getToolCallStrings(msg: any): string[] {
     if (!msg?.content || !Array.isArray(msg.content)) return [];
-    return msg.content
-      .filter((p: any) => p.type === "tool-call")
-      .map((p: any) => this.formatAsFunction(p));
+    return msg.content.filter((p: any) => p.type === "tool-call").map((p: any) => this.formatAsFunction(p));
   }
 
   /**

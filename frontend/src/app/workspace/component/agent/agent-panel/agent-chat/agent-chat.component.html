@@ -183,35 +183,35 @@
 
       <!-- Input Area -->
       <div class="input-area">
-          <textarea
-            #messageInput
-            nz-input
-            [(ngModel)]="currentMessage"
-            placeholder="Ask me anything about your data science tasks..."
-            [nzAutosize]="{ minRows: 1, maxRows: 4 }"
-            (keydown.enter)="onEnterPress($any($event))"
-            [disabled]="!canSendMessage()"></textarea>
-          <button
-            nz-button
-            nzType="primary"
-            [disabled]="!currentMessage.trim() || !canSendMessage()"
-            (click)="sendMessage()">
-            <i
-              nz-icon
-              nzType="send"
-              nzTheme="outline"></i>
-          </button>
-          <button
-            *ngIf="isGenerating()"
-            nz-button
-            nzType="default"
-            nzDanger
-            (click)="stopGeneration()">
-            <i
-              nz-icon
-              nzType="stop"
-              nzTheme="outline"></i>
-          </button>
+        <textarea
+          #messageInput
+          nz-input
+          [(ngModel)]="currentMessage"
+          placeholder="Ask me anything about your data science tasks..."
+          [nzAutosize]="{ minRows: 1, maxRows: 4 }"
+          (keydown.enter)="onEnterPress($any($event))"
+          [disabled]="!canSendMessage()"></textarea>
+        <button
+          nz-button
+          nzType="primary"
+          [disabled]="!currentMessage.trim() || !canSendMessage()"
+          (click)="sendMessage()">
+          <i
+            nz-icon
+            nzType="send"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          *ngIf="isGenerating()"
+          nz-button
+          nzType="default"
+          nzDanger
+          (click)="stopGeneration()">
+          <i
+            nz-icon
+            nzType="stop"
+            nzTheme="outline"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -392,9 +392,11 @@
         </ng-template>
         <div class="settings-section">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-            <span class="settings-param-hint" style="margin: 0">
-              Toggle which operators are included in the agent's system prompt (general mode).
-              When none are selected, all operators are included.
+            <span
+              class="settings-param-hint"
+              style="margin: 0">
+              Toggle which operators are included in the agent's system prompt (general mode). When none are selected,
+              all operators are included.
             </span>
           </div>
           <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center">
@@ -448,8 +450,6 @@
           </div>
         </div>
       </nz-tab>
-
     </nz-tabs>
   </ng-container>
 </nz-modal>
-
