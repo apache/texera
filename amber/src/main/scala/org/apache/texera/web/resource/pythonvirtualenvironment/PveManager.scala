@@ -123,6 +123,10 @@ object PveManager {
     val pythonPath = UdfConfig.pythonPath.trim
     val createVenvPython = if (pythonPath.isEmpty) "python3" else pythonPath
 
+    // NOTE: This following paths are derived from the computing-unit-master.dockerfile. If
+    // the location of requirements.txt or operator-requirements.txt changes, this path
+    // must be updated accordingly.
+
     val requirementsPath =
       if (isLocal) Paths.get("amber", "requirements.txt")
       else Paths.get("/tmp", "requirements.txt")
