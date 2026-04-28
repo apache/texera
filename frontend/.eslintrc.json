@@ -48,6 +48,8 @@
             "style": "camelCase"
           }
         ],
+        "@angular-eslint/prefer-standalone": "off",
+        "@angular-eslint/prefer-inject": "off",
         "@typescript-eslint/consistent-type-definitions": "off",
         "@typescript-eslint/dot-notation": "off",
         "@typescript-eslint/explicit-member-accessibility": [
@@ -65,7 +67,7 @@
         "no-shadow": "off",
         "no-underscore-dangle": "off",
         "no-unused-expressions": "error",
-        "quotes": "error",
+        "quotes": ["error", "double", { "avoidEscape": true }],
         "rxjs-angular/prefer-takeuntil": [
           "error",
           {
@@ -93,13 +95,17 @@
     {
       "files": ["*.html"],
       "extends": ["plugin:@angular-eslint/template/recommended"],
-      "rules": {}
+      "rules": {
+        "@angular-eslint/template/prefer-control-flow": "off"
+      }
     },
     {
       "files": ["*.html"],
       "excludedFiles": ["*inline-template-*.component.html"],
       "extends": [],
-      "rules": {}
+      "rules": {
+        "@angular-eslint/template/prefer-control-flow": "off"
+      }
     }
   ]
 }

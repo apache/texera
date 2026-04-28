@@ -17,16 +17,7 @@
  * under the License.
  */
 
-import {
-  AfterViewChecked,
-  ChangeDetectorRef,
-  Component,
-  Input,
-  OnChanges,
-  OnDestroy,
-  OnInit,
-  SimpleChanges,
-} from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { Subject } from "rxjs";
@@ -91,8 +82,9 @@ Quill.register("modules/cursors", QuillCursors);
   selector: "texera-formly-form-frame",
   templateUrl: "./operator-property-edit-frame.component.html",
   styleUrls: ["./operator-property-edit-frame.component.scss"],
+  standalone: false,
 })
-export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
+export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
 
   currentOperatorSchema?: OperatorSchema;
@@ -166,10 +158,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.rerenderEditorForm();
   }
 
-  ngAfterViewChecked(): void {
-    this.changeDetectorRef.detectChanges();
-  }
-
   ngOnInit(): void {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.registerOperatorSchemaChangeHandler();
@@ -241,7 +229,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // 1. the operator might be added not directly from the UI, which violates the precondition
     // 2. the schema might change, which specifies a new default value
     // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
-    this.ajv.validate(this.currentOperatorSchema, this.formData);
+    this.ajv.validate(this.currentOperatorSchema.jsonSchema, this.formData);
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
@@ -317,7 +305,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
       )
       .pipe(untilDestroyed(this))
-      .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
+      .subscribe(operatorChanged => {
+        this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   /**

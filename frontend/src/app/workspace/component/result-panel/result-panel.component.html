@@ -91,7 +91,7 @@
       cdkDragHandle>
       Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}
     </h4>
-    <nz-tabset
+    <nz-tabs
       [nzSize]="'small'"
       [nzTabPosition]="'left'">
       <div *ngIf="frameComponentConfigs.size === 0">
@@ -109,7 +109,7 @@
           </div>
         </nz-tab>
       </div>
-    </nz-tabset>
+    </nz-tabs>
   </div>
   <nz-resize-handles
     *ngIf="width"

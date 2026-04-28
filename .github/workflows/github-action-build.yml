@@ -34,6 +34,7 @@ concurrency:
 
 jobs:
   frontend:
+    name: frontend (${{ matrix.os }}, 18)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -46,7 +47,7 @@ jobs:
           - os: windows-latest
             arch: x64
         node-version:
-          - 18
+          - 20.19.0
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
@@ -57,13 +58,10 @@ jobs:
           architecture: ${{ matrix.arch }}
       - uses: actions/cache@v4
         with:
-          path: |
-            frontend/.yarn/cache
-            frontend/.yarn/unplugged
-            frontend/.yarn/install-state.gz
-          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-${{ hashFiles('**/yarn.lock') }}
+          path: frontend/.yarn/cache
+          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v2-
+            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v4-
       - name: Prepare Yarn 4.14.1
         run: corepack enable && corepack prepare yarn@4.14.1 --activate
       - name: Setup Python
@@ -119,14 +117,16 @@ jobs:
         run: python --version || python3 --version
       - name: Install dependencies
         run: |
-          python -m pip install uv
-          if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
+          python -m pip install --upgrade pip
+          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
       - name: Setup sbt launcher
         uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
       - uses: coursier/cache-action@4e2615869d13561d626ed48655e1a39e5b192b3c # v6.4.9
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Lint with scalafmt
+        run: sbt scalafmtCheckAll
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -138,12 +138,14 @@ jobs:
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
+      - name: Compile with sbt
+        run: sbt clean package
+      - name: Lint with scalafix
+        run: sbt "scalafixAll --check"
       - name: Set docker-java API version
         run: |
           echo "api.version=1.52" >> ~/.docker-java.properties
           cat ~/.docker-java.properties
-      - name: Lint with scalafmt and scalafix
-        run: sbt 'scalafmtCheckAll; scalafixAll --check'
       - name: Run backend tests
         run: sbt test
 
@@ -162,9 +164,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install uv
-          if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
+          python -m pip install --upgrade pip
+          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
       - name: Install PostgreSQL
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Start PostgreSQL Service

@@ -17,11 +17,13 @@
  * under the License.
  */
 
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserQuotaComponent } from "./user-quota.component";
 import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { of } from "rxjs";
 
 describe("UserQuotaComponent", () => {
   let component: UserQuotaComponent;
@@ -30,19 +32,22 @@ describe("UserQuotaComponent", () => {
 
   beforeEach(() => {
     mockUserQuotaService = jasmine.createSpyObj("UserQuotaService", [
-      "getUploadedFiles",
       "getCreatedDatasets",
       "getCreatedWorkflows",
-      "getAccessFiles",
       "getAccessWorkflows",
       "getExecutionQuota",
       "deleteExecutionCollection",
     ]);
+    mockUserQuotaService.getCreatedDatasets.and.returnValue(of([]));
+    mockUserQuotaService.getCreatedWorkflows.and.returnValue(of([]));
+    mockUserQuotaService.getAccessWorkflows.and.returnValue(of([]));
+    mockUserQuotaService.getExecutionQuota.and.returnValue(of([]));
 
     TestBed.configureTestingModule({
       declarations: [UserQuotaComponent],
       providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }, ...commonTestProviders],
       imports: [HttpClientTestingModule],
+      schemas: [NO_ERRORS_SCHEMA],
     });
 
     fixture = TestBed.createComponent(UserQuotaComponent);
@@ -50,6 +55,7 @@ describe("UserQuotaComponent", () => {
   });
 
   it("should create", () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 });

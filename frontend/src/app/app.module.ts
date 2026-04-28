@@ -37,7 +37,7 @@ import { NzInputModule } from "ng-zorro-antd/input";
 import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzTableModule } from "ng-zorro-antd/table";
-import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
@@ -118,6 +118,7 @@ import { LocalLoginComponent } from "./hub/component/about/local-login/local-log
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
+import { ScrollingModule } from "@angular/cdk/scrolling";
 import { UserWorkflowListItemComponent } from "./dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectListItemComponent } from "./dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component";
 import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
@@ -136,13 +137,13 @@ import { ErrorFrameComponent } from "./workspace/component/result-panel/error-fr
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
-import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { NzDescriptionsModule } from "ng-zorro-antd/descriptions";
 import { OverlayModule } from "@angular/cdk/overlay";
 import { HighlightSearchTermsPipe } from "./dashboard/component/user/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
+import { ConflictingFileModalContentComponent } from "./dashboard/component/user/files-uploader/conflicting-file-modal-content/conflicting-file-modal-content.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
@@ -153,7 +154,7 @@ import { UserDatasetListItemComponent } from "./dashboard/component/user/user-da
 import { NgxFileDropModule } from "ngx-file-drop";
 import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
+import { NzNoAnimationModule } from "ng-zorro-antd/core/animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
@@ -184,6 +185,7 @@ import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
+import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { RegistrationRequestModalComponent } from "./common/service/user/registration-request-modal/registration-request-modal.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
@@ -235,13 +237,12 @@ registerLocaleData(en);
     ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
-    ResultTableFrameComponent,
-    OperatorPropertyEditFrameComponent,
     UserProjectComponent,
     UserProjectSectionComponent,
     NgbdModalAddProjectWorkflowComponent,
     NgbdModalRemoveProjectWorkflowComponent,
     FilesUploaderComponent,
+    ConflictingFileModalContentComponent,
     UserDatasetComponent,
     UserDatasetVersionCreatorComponent,
     DatasetDetailComponent,
@@ -251,7 +252,6 @@ registerLocaleData(en);
     UserDatasetStagedObjectsListComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
-    LocalLoginComponent,
     ContextMenuComponent,
     CoeditorUserIconComponent,
     AgentPanelComponent,
@@ -269,13 +269,13 @@ registerLocaleData(en);
     FiltersComponent,
     FiltersInstructionsComponent,
     SearchComponent,
-    SearchResultsComponent,
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
     SearchBarComponent,
     ListItemComponent,
+    SearchResultsComponent,
     HubComponent,
     HubWorkflowDetailComponent,
     LandingPageComponent,
@@ -289,7 +289,6 @@ registerLocaleData(en);
     MarkdownDescriptionComponent,
     UserComputingUnitComponent,
     UserComputingUnitListItemComponent,
-    MarkdownDescriptionComponent,
     AgentInteractionComponent,
   ],
   imports: [
@@ -321,14 +320,13 @@ registerLocaleData(en);
     NzInputModule,
     NzPopoverModule,
     NzCollapseModule,
-    NzToolTipModule,
+    NzTooltipModule,
     NzTableModule,
     NzSelectModule,
     NzSpaceModule,
     NzBadgeModule,
     NzUploadModule,
     NgxJsonViewerModule,
-    NzMessageModule,
     NzModalModule,
     NzDescriptionsModule,
     NzCardModule,
@@ -360,6 +358,8 @@ registerLocaleData(en);
     NzProgressModule,
     NzInputNumberModule,
     NzCheckboxModule,
+    NzGridModule,
+    ScrollingModule,
   ],
   providers: [
     provideNzI18n(en_US),

@@ -22,7 +22,6 @@ import { OperatorMetadataService } from "src/app/workspace/service/operator-meta
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, of } from "rxjs";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
-import { remove } from "lodash-es";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
@@ -35,6 +34,7 @@ import { switchMap } from "rxjs/operators";
   selector: "texera-filters",
   templateUrl: "./filters.component.html",
   styleUrls: ["./filters.component.scss"],
+  standalone: false,
 })
 export class FiltersComponent implements OnInit {
   public isLogin = this.userService.isLogin();
@@ -246,7 +246,7 @@ export class FiltersComponent implements OnInit {
           case "owner":
             const selectedOwnerIndex = this.owners.findIndex(owner => owner.userName === searchValue);
             if (selectedOwnerIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid owner name");
               break;
             }
@@ -256,7 +256,7 @@ export class FiltersComponent implements OnInit {
           case "id":
             const selectedIDIndex = this.wids.findIndex(wid => wid.id === searchValue);
             if (selectedIDIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid workflow id");
               break;
             }
@@ -266,7 +266,7 @@ export class FiltersComponent implements OnInit {
           case "operator":
             const selectedOperator = this.selectedOperators.find(operator => operator.userFriendlyName === searchValue);
             if (!selectedOperator) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid operator name");
               break;
             }
@@ -284,7 +284,7 @@ export class FiltersComponent implements OnInit {
           case "project":
             const selectedProjectIndex = this.userProjectsDropdown.findIndex(proj => proj.name === searchValue);
             if (selectedProjectIndex === -1) {
-              remove(this.masterFilterList, filterTag => filterTag === tag);
+              this.removeInvalidFilterTag(tag);
               this.notificationService.error("Invalid project name");
               break;
             }
@@ -339,6 +339,13 @@ export class FiltersComponent implements OnInit {
     });
     this.selectedOperators = newSelectedOperators;
     this.buildMasterFilterList();
+  }
+
+  private removeInvalidFilterTag(tag: string): void {
+    this.setMasterFilterList(
+      this.masterFilterList.filter(filterTag => filterTag !== tag),
+      false
+    );
   }
 
   /**
