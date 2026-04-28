@@ -839,22 +839,24 @@ export class AgentService {
    * Delete an agent by ID.
    */
   public deleteAgent(agentId: string): Observable<boolean> {
-    return this.http.delete<{ deleted: boolean }>(`${this.AGENT_API_BASE}/agents/${agentId}`, this.agentHeaders(agentId)).pipe(
-      map(response => {
-        if (response.deleted) {
+    return this.http
+      .delete<{ deleted: boolean }>(`${this.AGENT_API_BASE}/agents/${agentId}`, this.agentHeaders(agentId))
+      .pipe(
+        map(response => {
+          if (response.deleted) {
+            this.agents.delete(agentId);
+            this.stopStatePolling(agentId);
+            this.agentChangeSubject.next();
+          }
+          return response.deleted;
+        }),
+        catchError(() => {
           this.agents.delete(agentId);
           this.stopStatePolling(agentId);
           this.agentChangeSubject.next();
-        }
-        return response.deleted;
-      }),
-      catchError(() => {
-        this.agents.delete(agentId);
-        this.stopStatePolling(agentId);
-        this.agentChangeSubject.next();
-        return of(true);
-      })
-    );
+          return of(true);
+        })
+      );
   }
 
   /**
@@ -938,10 +940,12 @@ export class AgentService {
    * Get the current ReActSteps.
    */
   public getReActSteps(agentId: string): Observable<ReActStep[]> {
-    return this.http.get<ApiReActStepsResponse>(`${this.AGENT_API_BASE}/agents/${agentId}/react-steps`, this.agentHeaders(agentId)).pipe(
-      map(response => response.steps.map((s: any) => this.convertApiReActStep(s))),
-      catchError(() => of([]))
-    );
+    return this.http
+      .get<ApiReActStepsResponse>(`${this.AGENT_API_BASE}/agents/${agentId}/react-steps`, this.agentHeaders(agentId))
+      .pipe(
+        map(response => response.steps.map((s: any) => this.convertApiReActStep(s))),
+        catchError(() => of([]))
+      );
   }
 
   /**
@@ -1163,19 +1167,21 @@ export class AgentService {
    * Get agent settings.
    */
   public getAgentSettings(agentId: string): Observable<AgentSettingsApi> {
-    return this.http.get<AgentSettingsApi>(`${this.AGENT_API_BASE}/agents/${agentId}/settings`, this.agentHeaders(agentId)).pipe(
-      catchError(() =>
-        of({
-          maxOperatorResultCharLimit: 20000,
-          maxOperatorResultCellCharLimit: 4000,
-          toolTimeoutSeconds: 120,
-          executionTimeoutMinutes: 10,
-          disabledTools: [],
-          maxSteps: 10,
-          allowedOperatorTypes: [],
-        })
-      )
-    );
+    return this.http
+      .get<AgentSettingsApi>(`${this.AGENT_API_BASE}/agents/${agentId}/settings`, this.agentHeaders(agentId))
+      .pipe(
+        catchError(() =>
+          of({
+            maxOperatorResultCharLimit: 20000,
+            maxOperatorResultCellCharLimit: 4000,
+            toolTimeoutSeconds: 120,
+            executionTimeoutMinutes: 10,
+            disabledTools: [],
+            maxSteps: 10,
+            allowedOperatorTypes: [],
+          })
+        )
+      );
   }
 
   /**
@@ -1183,22 +1189,28 @@ export class AgentService {
    * Only provided values will be updated.
    */
   public updateAgentSettings(agentId: string, settings: Partial<AgentSettingsApi>): Observable<AgentSettingsApi> {
-    return this.http.patch<AgentSettingsApi>(`${this.AGENT_API_BASE}/agents/${agentId}/settings`, settings, this.agentHeaders(agentId)).pipe(
-      map(response => {
-        // Update local cache if we have this agent
-        const agent = this.agents.get(agentId);
-        if (agent) {
-          agent.settings = response;
-        }
-        return response;
-      }),
-      catchError((error: unknown) => {
-        const err = error as { error?: { error?: string }; message?: string };
-        const errorMsg = err.error?.error || err.message || "Failed to update agent settings";
-        this.notificationService.error(errorMsg);
-        return throwError(() => new Error(errorMsg));
-      })
-    );
+    return this.http
+      .patch<AgentSettingsApi>(
+        `${this.AGENT_API_BASE}/agents/${agentId}/settings`,
+        settings,
+        this.agentHeaders(agentId)
+      )
+      .pipe(
+        map(response => {
+          // Update local cache if we have this agent
+          const agent = this.agents.get(agentId);
+          if (agent) {
+            agent.settings = response;
+          }
+          return response;
+        }),
+        catchError((error: unknown) => {
+          const err = error as { error?: { error?: string }; message?: string };
+          const errorMsg = err.error?.error || err.message || "Failed to update agent settings";
+          this.notificationService.error(errorMsg);
+          return throwError(() => new Error(errorMsg));
+        })
+      );
   }
 
   /**
@@ -1206,10 +1218,9 @@ export class AgentService {
    */
   public getAvailableOperatorTypes(agentId: string): Observable<Array<{ type: string; description: string }>> {
     return this.http
-      .get<Array<{ type: string; description: string }>>(
-        `${this.AGENT_API_BASE}/agents/${agentId}/operator-types`,
-        this.agentHeaders(agentId)
-      )
+      .get<
+        Array<{ type: string; description: string }>
+      >(`${this.AGENT_API_BASE}/agents/${agentId}/operator-types`, this.agentHeaders(agentId))
       .pipe(catchError(() => of([])));
   }
 
@@ -1227,7 +1238,9 @@ export class AgentService {
    */
   public getStepsByOperatorIds(agentId: string, operatorIds: string[]): Observable<{ steps: ReActStep[] }> {
     return this.http
-      .post<{ steps: ReActStep[] }>(`${this.AGENT_API_BASE}/agents/${agentId}/steps-by-operators`, { operatorIds }, this.agentHeaders(agentId))
+      .post<{
+        steps: ReActStep[];
+      }>(`${this.AGENT_API_BASE}/agents/${agentId}/steps-by-operators`, { operatorIds }, this.agentHeaders(agentId))
       .pipe(
         map(response => ({
           steps: response.steps.map((s: any) => this.convertApiReActStep(s)),
@@ -1261,7 +1274,6 @@ export class AgentService {
   public requestScrollToStep(agentId: string, messageId: string, stepId: number): void {
     this.scrollToStepSubject.next({ agentId, messageId, stepId });
   }
-
 
   // ============================================================================
   // Operator Result Annotation Methods

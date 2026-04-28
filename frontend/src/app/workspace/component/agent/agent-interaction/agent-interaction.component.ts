@@ -178,7 +178,11 @@ export class AgentInteractionComponent implements OnInit, OnChanges {
    * Parse resultStatistics into displayable column stats.
    * Each entry in resultStatistics is a JSON string with { data_type, statistics: { ... } }.
    */
-  public getParsedColumnStats(): Array<{ column: string; dataType: string; stats: Array<{ key: string; value: string }> }> {
+  public getParsedColumnStats(): Array<{
+    column: string;
+    dataType: string;
+    stats: Array<{ key: string; value: string }>;
+  }> {
     if (!this.resultStatistics) return [];
     const sampleCols = this.getSampleColumns().filter(c => !c.startsWith("_") || !c.includes("row_index"));
     const columns = sampleCols.length > 0 ? sampleCols : Object.keys(this.resultStatistics);

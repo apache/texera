@@ -75,7 +75,8 @@
   border-collapse: collapse;
   font-size: 11px;
 
-  th, td {
+  th,
+  td {
     padding: 4px 8px;
     text-align: left;
     white-space: nowrap;
@@ -213,7 +214,6 @@
   max-width: 180px;
 }
 
-
 .agent-status-dot {
   display: inline-block;
   width: 8px;
@@ -227,7 +227,6 @@
     background-color: #52c41a;
   }
 }
-
 
 .input-section {
   display: flex;
@@ -265,8 +264,6 @@
     font-size: 12px;
   }
 }
-
-
 
 .not-connected-message {
   display: flex;

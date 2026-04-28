@@ -553,7 +553,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     }
   }
 
-
   /**
    * Save the max character limit.
    */
@@ -710,5 +709,4 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       this.setHoveredMessage(stepIndex);
     }
   }
-
 }

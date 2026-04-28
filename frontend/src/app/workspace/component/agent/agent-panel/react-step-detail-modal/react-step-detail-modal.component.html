@@ -132,62 +132,77 @@
             <!-- Header template -->
             <ng-template #msgHeader>
               <!-- User header -->
-              <span *ngIf="msg.role === 'user'" style="display: inline-flex; align-items: center; gap: 8px">
-                <nz-tag nzColor="blue" style="margin: 0">user</nz-tag>
+              <span
+                *ngIf="msg.role === 'user'"
+                style="display: inline-flex; align-items: center; gap: 8px">
+                <nz-tag
+                  nzColor="blue"
+                  style="margin: 0"
+                  >user</nz-tag
+                >
                 <span style="color: #262626; font-size: 13px">
-                  {{ getTextFromMessage(msg).length > 120 ? (getTextFromMessage(msg) | slice: 0:120) + '...' : getTextFromMessage(msg) }}
+                  {{ getTextFromMessage(msg).length > 120 ? (getTextFromMessage(msg) | slice: 0:120) + '...' :
+                  getTextFromMessage(msg) }}
                 </span>
               </span>
               <!-- Assistant header -->
-              <span *ngIf="msg.role === 'assistant'" style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap">
-                <nz-tag nzColor="orange" style="margin: 0">assistant</nz-tag>
-                <span *ngIf="getTextFromMessage(msg)" style="color: #595959; font-size: 13px">
-                  {{ getTextFromMessage(msg).length > 80 ? (getTextFromMessage(msg) | slice: 0:80) + '...' : getTextFromMessage(msg) }}
+              <span
+                *ngIf="msg.role === 'assistant'"
+                style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                <nz-tag
+                  nzColor="orange"
+                  style="margin: 0"
+                  >assistant</nz-tag
+                >
+                <span
+                  *ngIf="getTextFromMessage(msg)"
+                  style="color: #595959; font-size: 13px">
+                  {{ getTextFromMessage(msg).length > 80 ? (getTextFromMessage(msg) | slice: 0:80) + '...' :
+                  getTextFromMessage(msg) }}
                 </span>
-                <span *ngFor="let call of getToolCallSummaries(msg)" style="display: inline-flex; align-items: center; gap: 4px">
+                <span
+                  *ngFor="let call of getToolCallSummaries(msg)"
+                  style="display: inline-flex; align-items: center; gap: 4px">
                   <code style="font-size: 12px; color: #531dab">{{ call.toolName }}</code>
-                  <span *ngIf="call.operatorId" style="font-size: 12px; color: #8c8c8c">({{ call.operatorId }})</span>
+                  <span
+                    *ngIf="call.operatorId"
+                    style="font-size: 12px; color: #8c8c8c"
+                    >({{ call.operatorId }})</span
+                  >
                 </span>
               </span>
               <!-- Tool header -->
-              <span *ngIf="msg.role === 'tool'" style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap">
-                <nz-tag nzColor="green" style="margin: 0">tool-result</nz-tag>
+              <span
+                *ngIf="msg.role === 'tool'"
+                style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                <nz-tag
+                  nzColor="green"
+                  style="margin: 0"
+                  >tool-result</nz-tag
+                >
                 <span
                   *ngFor="let item of getToolResultItems(msg)"
                   style="display: inline-flex; align-items: center; gap: 4px; margin-right: 8px">
                   <code style="font-size: 12px">{{ item.toolName }}</code>
-                  <nz-tag nzColor="default" style="margin: 0; font-size: 11px">~{{ item.tokenCount }} tokens</nz-tag>
+                  <nz-tag
+                    nzColor="default"
+                    style="margin: 0; font-size: 11px"
+                    >~{{ item.tokenCount }} tokens</nz-tag
+                  >
                   <nz-tag
                     *ngIf="item.isTrimmed"
                     nzColor="volcano"
-                    style="margin: 0; font-size: 11px; font-weight: 600">TRIMMED</nz-tag>
+                    style="margin: 0; font-size: 11px; font-weight: 600"
+                    >TRIMMED</nz-tag
+                  >
                 </span>
               </span>
             </ng-template>
 
             <!-- Expanded content: User -->
             <div *ngIf="msg.role === 'user'">
-              <pre style="
-                background: #fafafa;
-                padding: 12px;
-                border-radius: 4px;
-                border: 1px solid #d9d9d9;
-                white-space: pre-wrap;
-                word-break: break-word;
-                margin: 0;
-                font-size: 13px;
-                max-height: 300px;
-                overflow-y: auto;
-              ">{{ getTextFromMessage(msg) }}</pre>
-            </div>
-
-            <!-- Expanded content: Assistant -->
-            <div *ngIf="msg.role === 'assistant'">
-              <div
-                *ngIf="getTextFromMessage(msg)"
-                style="margin-bottom: 12px">
-                <div style="margin-bottom: 4px; font-weight: 500; color: #595959">Text:</div>
-                <pre style="
+              <pre
+                style="
                   background: #fafafa;
                   padding: 12px;
                   border-radius: 4px;
@@ -196,54 +211,91 @@
                   word-break: break-word;
                   margin: 0;
                   font-size: 13px;
-                  max-height: 200px;
+                  max-height: 300px;
                   overflow-y: auto;
-                ">{{ getTextFromMessage(msg) }}</pre>
+                ">
+{{ getTextFromMessage(msg) }}</pre
+              >
+            </div>
+
+            <!-- Expanded content: Assistant -->
+            <div *ngIf="msg.role === 'assistant'">
+              <div
+                *ngIf="getTextFromMessage(msg)"
+                style="margin-bottom: 12px">
+                <div style="margin-bottom: 4px; font-weight: 500; color: #595959">Text:</div>
+                <pre
+                  style="
+                    background: #fafafa;
+                    padding: 12px;
+                    border-radius: 4px;
+                    border: 1px solid #d9d9d9;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    margin: 0;
+                    font-size: 13px;
+                    max-height: 200px;
+                    overflow-y: auto;
+                  ">
+{{ getTextFromMessage(msg) }}</pre
+                >
               </div>
-              <div *ngFor="let call of getToolCallSummaries(msg)" style="margin-bottom: 8px">
+              <div
+                *ngFor="let call of getToolCallSummaries(msg)"
+                style="margin-bottom: 8px">
                 <div style="margin-bottom: 4px; font-weight: 500; color: #595959">
                   <code style="color: #531dab">{{ call.toolName }}</code> arguments:
                 </div>
-                <pre style="
-                  background: #fafafa;
-                  padding: 12px;
-                  border-radius: 4px;
-                  border: 1px solid #d9d9d9;
-                  white-space: pre-wrap;
-                  word-break: break-word;
-                  margin: 0;
-                  font-size: 12px;
-                  max-height: 300px;
-                  overflow-y: auto;
-                "><code>{{ formatJson(call.fullArgs) }}</code></pre>
+                <pre
+                  style="
+                    background: #fafafa;
+                    padding: 12px;
+                    border-radius: 4px;
+                    border: 1px solid #d9d9d9;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    margin: 0;
+                    font-size: 12px;
+                    max-height: 300px;
+                    overflow-y: auto;
+                  "><code>{{ formatJson(call.fullArgs) }}</code></pre>
               </div>
             </div>
 
             <!-- Expanded content: Tool result -->
             <div *ngIf="msg.role === 'tool'">
-              <div *ngFor="let item of getToolResultFullItems(msg)" style="margin-bottom: 8px">
+              <div
+                *ngFor="let item of getToolResultFullItems(msg)"
+                style="margin-bottom: 8px">
                 <div style="margin-bottom: 4px; display: flex; align-items: center; gap: 8px">
-                  <span style="font-weight: 500; color: #595959">
-                    <code>{{ item.toolName }}</code> result:
-                  </span>
-                  <nz-tag nzColor="default" style="margin: 0; font-size: 11px">~{{ item.tokenCount }} tokens</nz-tag>
+                  <span style="font-weight: 500; color: #595959"> <code>{{ item.toolName }}</code> result: </span>
+                  <nz-tag
+                    nzColor="default"
+                    style="margin: 0; font-size: 11px"
+                    >~{{ item.tokenCount }} tokens</nz-tag
+                  >
                   <nz-tag
                     *ngIf="item.isTrimmed"
                     nzColor="volcano"
-                    style="margin: 0; font-size: 11px; font-weight: 600">TRIMMED</nz-tag>
+                    style="margin: 0; font-size: 11px; font-weight: 600"
+                    >TRIMMED</nz-tag
+                  >
                 </div>
-                <pre style="
-                  background: #fafafa;
-                  padding: 12px;
-                  border-radius: 4px;
-                  border: 1px solid #d9d9d9;
-                  white-space: pre-wrap;
-                  word-break: break-word;
-                  margin: 0;
-                  font-size: 12px;
-                  max-height: 300px;
-                  overflow-y: auto;
-                ">{{ item.resultContent }}</pre>
+                <pre
+                  style="
+                    background: #fafafa;
+                    padding: 12px;
+                    border-radius: 4px;
+                    border: 1px solid #d9d9d9;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    margin: 0;
+                    font-size: 12px;
+                    max-height: 300px;
+                    overflow-y: auto;
+                  ">
+{{ item.resultContent }}</pre
+                >
               </div>
             </div>
           </nz-collapse-panel>
@@ -295,7 +347,9 @@
                   margin: 0;
                   white-space: pre-wrap;
                   word-break: break-word;
-                ">{{ formatResult(getToolResult(step, idx)) }}</pre>
+                ">
+{{ formatResult(getToolResult(step, idx)) }}</pre
+              >
             </div>
             <div
               *ngIf="getToolOperatorAccess(step, idx)"
