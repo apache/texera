@@ -83,6 +83,7 @@ export const MAIN_CANVAS = {
   selector: "texera-workflow-editor",
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
+  standalone: false,
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;

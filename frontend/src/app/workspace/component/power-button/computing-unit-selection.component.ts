@@ -72,6 +72,7 @@ type PveDraft = {
   selector: "texera-computing-unit-selection",
   templateUrl: "./computing-unit-selection.component.html",
   styleUrls: ["./computing-unit-selection.component.scss"],
+  standalone: false,
 })
 export class ComputingUnitSelectionComponent implements OnInit {
   // variables for creating a virtual environment

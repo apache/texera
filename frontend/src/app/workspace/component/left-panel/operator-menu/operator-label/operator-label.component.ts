@@ -29,6 +29,7 @@ import { Point } from "../../../../types/workflow-common.interface";
   selector: "texera-operator-label",
   templateUrl: "operator-label.component.html",
   styleUrls: ["operator-label.component.scss"],
+  standalone: false,
 })
 export class OperatorLabelComponent implements AfterContentInit {
   @Input() operator?: OperatorSchema;
