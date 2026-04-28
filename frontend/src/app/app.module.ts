@@ -257,6 +257,7 @@ registerLocaleData(en);
     AgentPanelComponent,
     AgentChatComponent,
     AgentRegistrationComponent,
+    AgentInteractionComponent,
     DatasetFileSelectorComponent,
     DatasetVersionSelectorComponent,
     DatasetSelectionModalComponent,
@@ -289,7 +290,6 @@ registerLocaleData(en);
     MarkdownDescriptionComponent,
     UserComputingUnitComponent,
     UserComputingUnitListItemComponent,
-    AgentInteractionComponent,
   ],
   imports: [
     BrowserModule,

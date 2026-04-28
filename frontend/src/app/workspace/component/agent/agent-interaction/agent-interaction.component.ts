@@ -34,6 +34,7 @@ import { NotificationService } from "../../../../common/service/notification/not
   selector: "texera-agent-interaction",
   templateUrl: "./agent-interaction.component.html",
   styleUrls: ["./agent-interaction.component.scss"],
+  standalone: false,
 })
 export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;

@@ -28,6 +28,7 @@ import { ReActStep } from "../../../../service/agent/agent-types";
   selector: "texera-react-step-detail-modal",
   templateUrl: "./react-step-detail-modal.component.html",
   styleUrls: ["./react-step-detail-modal.component.scss"],
+  standalone: false,
 })
 export class ReActStepDetailModalComponent {
   @Input() visible: boolean = false;
