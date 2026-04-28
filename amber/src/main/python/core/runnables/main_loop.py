@@ -342,7 +342,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     StartChannel: self._process_start_channel,
                     EndChannel: self._process_end_channel,
                 }[type(self.context.tuple_processing_manager.current_internal_marker)]()
-                self.context.tuple_processing_manager.current_internal_marker = None
 
     def _send_ecm_to_data_channels(
         self, method_name: str, alignment: EmbeddedControlMessageType
