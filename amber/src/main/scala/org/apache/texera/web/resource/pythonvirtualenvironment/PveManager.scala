@@ -123,10 +123,8 @@ object PveManager {
     val pythonPath = UdfConfig.pythonPath.trim
     val createVenvPython = if (pythonPath.isEmpty) "python3" else pythonPath
 
-    // NOTE: This following paths are derived from the computing-unit-master.dockerfile. If
-    // the location of requirements.txt or operator-requirements.txt changes, this path
-    // must be updated accordingly.
-
+    // NOTE: These paths are derived from computing-unit-master.dockerfile.
+    // If requirements.txt or operator-requirements.txt locations change, update these paths.
     val requirementsPath =
       if (isLocal) Paths.get("amber", "requirements.txt")
       else Paths.get("/tmp", "requirements.txt")
@@ -165,7 +163,9 @@ object PveManager {
 
     Files.createDirectories(metadataDir(cuid, pveName))
 
-    queue.put(s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath}")
+    queue.put(
+      s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath} and ${operatorRequirementsPath.toAbsolutePath}"
+    )
 
     val installReqCode = Process(
       Seq(
@@ -177,7 +177,9 @@ object PveManager {
         "--progress-bar",
         "off",
         "-r",
-        requirementsPath.toString
+        requirementsPath.toString,
+        "-r",
+        operatorRequirementsPath.toString
       ),
       None,
       envVars.toSeq: _*
@@ -191,43 +193,7 @@ object PveManager {
     queue.put(s"[PVE] requirements install finished with exit code $installReqCode")
 
     if (installReqCode != 0) {
-      queue.put(s"[PVE][ERR] Failed to install requirements.txt (exit=$installReqCode)")
-      return
-    }
-
-    queue.put(
-      s"[PVE] Installing operator requirements from ${operatorRequirementsPath.toAbsolutePath}"
-    )
-
-    val installOperatorReqCode = Process(
-      Seq(
-        python,
-        "-u",
-        "-m",
-        "pip",
-        "install",
-        "--progress-bar",
-        "off",
-        "-r",
-        operatorRequirementsPath.toString
-      ),
-      None,
-      envVars.toSeq: _*
-    ).!(
-      ProcessLogger(
-        out => queue.put(s"[pip] $out"),
-        err => queue.put(s"[pip][ERR] $err")
-      )
-    )
-
-    queue.put(
-      s"[PVE] operator requirements install finished with exit code $installOperatorReqCode"
-    )
-
-    if (installOperatorReqCode != 0) {
-      queue.put(
-        s"[PVE][ERR] Failed to install operator-requirements.txt (exit=$installOperatorReqCode)"
-      )
+      queue.put(s"[PVE][ERR] Failed to install requirements files (exit=$installReqCode)")
       return
     }
 
