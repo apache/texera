@@ -43,8 +43,7 @@ ECO_HEADERS = {
     "npm":    "Angular / npm packages",
 }
 
-# `  - lib/<basename>.jar` optionally followed by ` (see licenses/...)`.
-JAR_BULLET = re.compile(r"^\s*-\s+lib/(\S+\.jar)\b")
+JAR_BULLET = re.compile(r"^\s*-\s+(\S+\.jar)\b")
 # `  - <name>@<version>` — npm form, name may start with @scope/.
 NPM_BULLET = re.compile(r"^\s*-\s+(@?[\w@/.\-]+)@([^\s@]+)\s*$")
 # `  - <name>==<version>` — pip form.
