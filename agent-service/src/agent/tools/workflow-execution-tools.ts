@@ -362,7 +362,6 @@ function formatInputOutput(
   return `Input operator(table shape): ${inputPart}\n${outputLine}`;
 }
 
-
 function formatExecutionError(
   compilationErrors?: Record<string, string>,
   operatorErrors?: Array<{ operatorId: string; error: string }>,
@@ -483,8 +482,7 @@ export async function executeOperatorAndFormat(
               .map(([opId, op]) => ({ operatorId: opId, error: op.error! }))
           : undefined;
 
-      const generalErrors =
-        result.state === "Killed" ? ["Workflow execution was killed (timeout)."] : result.errors;
+      const generalErrors = result.state === "Killed" ? ["Workflow execution was killed (timeout)."] : result.errors;
 
       const errorText = formatExecutionError(compilationErrors, operatorErrors, generalErrors);
 
@@ -521,9 +519,7 @@ export async function executeOperatorAndFormat(
     }
 
     const jsonArray = opInfo.result as Record<string, any>[];
-    const headers = jsonArray.length > 0
-      ? Object.keys(jsonArray[0]).filter(k => k !== "__row_index__")
-      : [];
+    const headers = jsonArray.length > 0 ? Object.keys(jsonArray[0]).filter(k => k !== "__row_index__") : [];
     const columns = headers.length;
 
     // Notify for every operator in the execution so upstream stats are also stored.
@@ -595,7 +591,8 @@ export function createExecuteOperatorTool(
   onResult?: (operatorId: string, operatorInfo: OperatorInfo) => void
 ) {
   return tool({
-    description: "Execute the workflow and get the specified operator's result. The execution result(if succeeded) includes the shape of the input tables(if any) and output table, and the records in the output table",
+    description:
+      "Execute the workflow and get the specified operator's result. The execution result(if succeeded) includes the shape of the input tables(if any) and output table, and the records in the output table",
     inputSchema: z.object({
       operatorId: z.string().describe("The operator ID to view result for."),
     }),

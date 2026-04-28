@@ -201,9 +201,7 @@ export class TexeraAgent {
       }
     }
 
-    const getExecutionConfig = this.delegateConfig
-      ? () => this.buildExecutionConfig()!
-      : undefined;
+    const getExecutionConfig = this.delegateConfig ? () => this.buildExecutionConfig()! : undefined;
 
     const context: ToolContext = {
       metadataStore: this.metadataStore,
@@ -616,9 +614,7 @@ export class TexeraAgent {
 
           const execConfig = this.buildExecutionConfig();
           if (execConfig && toolCalls && toolResults) {
-            const EXECUTE_AFTER_TOOLS = new Set([
-              TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR,
-            ]);
+            const EXECUTE_AFTER_TOOLS = new Set([TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR]);
 
             for (let i = 0; i < toolCalls.length; i++) {
               const tc = toolCalls[i];
@@ -632,17 +628,12 @@ export class TexeraAgent {
               if (!operatorId) continue;
 
               try {
-                await executeOperatorAndFormat(
-                  this.workflowState,
-                  execConfig,
-                  operatorId,
-                  {
-                    abortSignal: this.abortController?.signal,
-                    onResult: (opId, operatorInfo) => {
-                      this.workflowResultState.set(opId, this.head, operatorInfo);
-                    },
-                  }
-                );
+                await executeOperatorAndFormat(this.workflowState, execConfig, operatorId, {
+                  abortSignal: this.abortController?.signal,
+                  onResult: (opId, operatorInfo) => {
+                    this.workflowResultState.set(opId, this.head, operatorInfo);
+                  },
+                });
               } catch (e: any) {
                 this.log.warn({ operatorId, err: e?.message || e }, "post-step execution failed");
               }

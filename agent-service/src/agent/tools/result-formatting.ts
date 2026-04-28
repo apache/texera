@@ -21,11 +21,7 @@ import type { OperatorInfo } from "../../types/execution";
 import type { WorkflowState } from "../workflow-state";
 import { formatExecuteOperatorResult } from "./tools-utility";
 
-export function formatOperatorResult(
-  operatorId: string,
-  opInfo: OperatorInfo,
-  workflowState: WorkflowState
-): string {
+export function formatOperatorResult(operatorId: string, opInfo: OperatorInfo, workflowState: WorkflowState): string {
   if (opInfo.error) {
     return `[ERROR] ${opInfo.error}`;
   }
@@ -35,9 +31,10 @@ export function formatOperatorResult(
   }
 
   const jsonArray = opInfo.result as Record<string, any>[];
-  const headers = jsonArray.length > 0
-    ? Object.keys(jsonArray[0]).filter(k => k !== "__row_index__" && k !== "__is_visualization__")
-    : [];
+  const headers =
+    jsonArray.length > 0
+      ? Object.keys(jsonArray[0]).filter(k => k !== "__row_index__" && k !== "__is_visualization__")
+      : [];
   const columns = headers.length;
 
   const isViz = jsonArray.length > 0 && jsonArray[0]["__is_visualization__"] === true;

@@ -74,9 +74,11 @@ Examples:
 2. Add an operator with input connections:
    { "operatorId": "op2", "operatorType": "TableFilter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["op1"] }, "summary": "Filter rows by condition" }`,
     inputSchema: z.object({
-      operatorId: z.string().describe(
-        "Name of Operator. Use the format 'op' followed by an incrementing number starting from 1 (e.g., op1, op2, op3)."
-      ),
+      operatorId: z
+        .string()
+        .describe(
+          "Name of Operator. Use the format 'op' followed by an incrementing number starting from 1 (e.g., op1, op2, op3)."
+        ),
       operatorType: z.string().describe("The operator type (e.g., 'DataProcessing', 'Aggregate')"),
       properties: z.record(z.any()).describe("Properties to set on the operator"),
       inputOperatorIds: z
@@ -149,7 +151,9 @@ Examples:
           for (const [portIndexStr, sourceOpIds] of Object.entries(args.inputOperatorIds)) {
             const targetPortIdx = parseInt(portIndexStr, 10);
             if (isNaN(targetPortIdx) || targetPortIdx < 0) {
-              return createErrorResult(`Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`);
+              return createErrorResult(
+                `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`
+              );
             }
             if (targetPortIdx >= addedOperator.inputPorts.length) {
               return createErrorResult(
@@ -165,8 +169,7 @@ Examples:
                   `Source operator "${sourceOpId}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`
                 );
               }
-              const sourcePortId =
-                sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
+              const sourcePortId = sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
 
               const linkId = workflowState.generateLinkId();
               const link: OperatorLink = {
@@ -187,7 +190,9 @@ Examples:
         const numOutputPorts = finalOperator.outputPorts.length;
 
         let resultMsg = formatAddOperatorResult(
-          operator.operatorID, numInputPorts, numOutputPorts,
+          operator.operatorID,
+          numInputPorts,
+          numOutputPorts,
           createdLinkPairs.length > 0 ? createdLinkPairs : undefined
         );
 
@@ -261,7 +266,8 @@ Examples:
         }
 
         if (args.inputOperatorIds) {
-          const currentLinks = workflowState.getLinksConnectedToOperator(args.operatorId)
+          const currentLinks = workflowState
+            .getLinksConnectedToOperator(args.operatorId)
             .filter(link => link.target.operatorID === args.operatorId);
           for (const link of currentLinks) {
             deletedLinkPairs.push({ source: link.source.operatorID, target: link.target.operatorID });
@@ -271,7 +277,9 @@ Examples:
           for (const [portIndexStr, sourceOpIds] of Object.entries(args.inputOperatorIds)) {
             const targetPortIdx = parseInt(portIndexStr, 10);
             if (isNaN(targetPortIdx) || targetPortIdx < 0) {
-              return createErrorResult(`Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`);
+              return createErrorResult(
+                `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`
+              );
             }
             if (targetPortIdx >= operator.inputPorts.length) {
               return createErrorResult(
@@ -287,8 +295,7 @@ Examples:
                   `Source operator "${sourceOpId}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`
                 );
               }
-              const sourcePortId =
-                sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
+              const sourcePortId = sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
 
               const linkId = workflowState.generateLinkId();
               const link: OperatorLink = {
