@@ -4,10 +4,6 @@ Copyright 2025-2026 The Apache Software Foundation
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
-================================================================================
-APACHE SOFTWARE FOUNDATION PROJECTS WITH SUBSTANTIVE UPSTREAM NOTICES
-================================================================================
-
 --------------------------------------------------------------------------------
 Apache Hadoop
 --------------------------------------------------------------------------------
@@ -193,10 +189,6 @@ the following copyright notice:
 | See the License for the specific language governing permissions and
 | limitations under the License.
 
-================================================================================
-APACHE SOFTWARE FOUNDATION PROJECTS WITH STANDARD NOTICES
-================================================================================
-
   Apache Arrow (arrow-format, arrow-memory-core, arrow-memory-netty,
     arrow-vector, flight-core, flight-grpc)
     Copyright 2016-2023 The Apache Software Foundation
@@ -278,10 +270,6 @@ APACHE SOFTWARE FOUNDATION PROJECTS WITH STANDARD NOTICES
 
   Apache log4j 1.2 / reload4j
     Copyright 2007 The Apache Software Foundation
-
-================================================================================
-THIRD-PARTY APACHE-LICENSED WORKS WITH THEIR OWN NOTICES
-================================================================================
 
 --------------------------------------------------------------------------------
 Netty
@@ -907,14 +895,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 or implied. See the License for the specific language governing permissions and limitations under
 the License.
-
-================================================================================
-ECLIPSE PROJECTS
-================================================================================
-
-The artifacts in this group are licensed under EPL-2.0 (and where applicable,
-their secondary license: GPLv2 with Classpath Exception, or EDL-1.0 / BSD-3-
-Clause). Each upstream META-INF/NOTICE is reproduced verbatim below.
 
 --------------------------------------------------------------------------------
 Eclipse Jersey (jersey-container-servlet, jersey-container-servlet-core, jersey-client, jersey-hk2, jersey-media-jaxb)
@@ -2118,11 +2098,6 @@ The project maintains the following source code repositories:
 
 * https://github.com/eclipse-ee4j/jaf
 
-
-================================================================================
-ADDITIONAL NOTICES FOR NON-APACHE-LICENSED BUNDLED COMPONENTS
-================================================================================
-
 --------------------------------------------------------------------------------
 Bouncy Castle
 --------------------------------------------------------------------------------
@@ -2162,6 +2137,3 @@ the PSF License. The attribution required for redistribution is:
   Copyright (c) 2012- Matplotlib Development Team; All Rights Reserved.
 
 The full license text is covered by licenses/LICENSE-PSF-2.0.txt.
-
-Individual bundled jars continue to carry their own META-INF/NOTICE files;
-the contents of those files govern the specific components they describe.
