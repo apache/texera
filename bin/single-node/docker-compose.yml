@@ -386,6 +386,50 @@ services:
       timeout: 3s
       retries: 10
 
+  # LiteLLM is a proxy that exposes a unified OpenAI-compatible API in front
+  # of multiple LLM providers (Anthropic, OpenAI, Gemini, ...). The agent
+  # service and the frontend copilot both call it through nginx.
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: litellm
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+    command:
+      - --config
+      - /app/config.yaml
+      - --port
+      - "4000"
+      - --host
+      - "0.0.0.0"
+    healthcheck:
+      test: ["CMD", "litellm", "--health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # AgentService runs the AI agents that drive workflows on behalf of users.
+  # It reaches LiteLLM through nginx (LLM_ENDPOINT), and reaches the other
+  # Texera microservices directly on the docker network.
+  agent-service:
+    image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-agent-service:${IMAGE_TAG:-latest}
+    container_name: agent-service
+    restart: always
+    depends_on:
+      litellm:
+        condition: service_started
+      dashboard-service:
+        condition: service_started
+      workflow-compiling-service:
+        condition: service_started
+      workflow-runtime-coordinator-service:
+        condition: service_started
+    env_file:
+      - .env
+
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
     image: nginx:alpine
@@ -398,6 +442,8 @@ services:
       - config-service
       - access-control-service
       - workflow-computing-unit-managing-service
+      - agent-service
+      - litellm
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
