@@ -17,25 +17,9 @@
  * under the License.
  */
 
-import { enableProdMode, provideZoneChangeDetection } from "@angular/core";
-import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
-
-import { AppModule } from "./app/app.module";
-import { environment } from "./environments/environment";
-
-if (environment.production) {
-  enableProdMode();
-}
-
-platformBrowserDynamic()
-  .bootstrapModule(AppModule, {
-    applicationProviders: [provideZoneChangeDetection()],
-  })
-  .then(() => {
-    console.log("Texera application bootstrap completed successfully");
-  })
-  .catch(err => {
-    console.error("Texera application bootstrap failed:", err);
-    // Let the error propagate so index.html error handler can catch it
-    throw err;
-  });
+export * from "./types";
+export { WorkflowState } from "./agent/workflow-state";
+export { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
+export * from "./agent/tools";
+export { TexeraAgent, type TexeraAgentConfig, type AgentMessageResult } from "./agent/texera-agent";
+export { buildSystemPrompt } from "./agent/prompts";

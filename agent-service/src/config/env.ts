@@ -17,25 +17,20 @@
  * under the License.
  */
 
-import { enableProdMode, provideZoneChangeDetection } from "@angular/core";
-import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
+import { z } from "zod";
 
-import { AppModule } from "./app/app.module";
-import { environment } from "./environments/environment";
+const EnvSchema = z.object({
+  PORT: z.coerce.number().default(3001),
+  API_PREFIX: z.string().default("/api"),
+  LLM_API_KEY: z.string().default("dummy"),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  LOG_PRETTY: z.coerce.boolean().default(true),
 
-if (environment.production) {
-  enableProdMode();
-}
+  TEXERA_DASHBOARD_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8080"),
+  LLM_ENDPOINT: z.string().url().default("http://localhost:9096"),
+  WORKFLOW_COMPILING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9090"),
+  WORKFLOW_EXECUTION_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8085"),
+  EXECUTION_ENDPOINT_TEMPLATE: z.string().optional(),
+});
 
-platformBrowserDynamic()
-  .bootstrapModule(AppModule, {
-    applicationProviders: [provideZoneChangeDetection()],
-  })
-  .then(() => {
-    console.log("Texera application bootstrap completed successfully");
-  })
-  .catch(err => {
-    console.error("Texera application bootstrap failed:", err);
-    // Let the error propagate so index.html error handler can catch it
-    throw err;
-  });
+export const env = EnvSchema.parse(process.env);

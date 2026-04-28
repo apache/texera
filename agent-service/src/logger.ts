@@ -17,25 +17,31 @@
  * under the License.
  */
 
-import { enableProdMode, provideZoneChangeDetection } from "@angular/core";
-import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
+import pino, { type Logger } from "pino";
+import { env } from "./config/env";
 
-import { AppModule } from "./app/app.module";
-import { environment } from "./environments/environment";
+const rootLogger: Logger = pino({
+  level: env.LOG_LEVEL,
+  base: undefined,
+  ...(env.LOG_PRETTY
+    ? {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "HH:MM:ss.l",
+            ignore: "pid,hostname",
+          },
+        },
+      }
+    : {}),
+});
 
-if (environment.production) {
-  enableProdMode();
+// Prefer child loggers over manual `[Module agentId]` prefixes: `module` and
+// `agent` become structured fields in JSON output and render as a prefix in
+// pretty mode.
+export function createLogger(module: string, bindings: Record<string, unknown> = {}): Logger {
+  return rootLogger.child({ module, ...bindings });
 }
 
-platformBrowserDynamic()
-  .bootstrapModule(AppModule, {
-    applicationProviders: [provideZoneChangeDetection()],
-  })
-  .then(() => {
-    console.log("Texera application bootstrap completed successfully");
-  })
-  .catch(err => {
-    console.error("Texera application bootstrap failed:", err);
-    // Let the error propagate so index.html error handler can catch it
-    throw err;
-  });
+export const logger = rootLogger;
