@@ -754,20 +754,17 @@ Source files derived from third-party MIT-licensed projects:
     common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/annotations/JsonSchemaOptions.java
     common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/annotations/JsonSchemaString.java
     common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/annotations/JsonSchemaTitle.java
-    Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
     https://github.com/mbknor/mbknor-jackson-jsonschema
   - Google Angular formly examples
     frontend/src/app/common/formly/array.type.ts
     frontend/src/app/common/formly/object.type.ts
     frontend/src/app/common/formly/multischema.type.ts
     frontend/src/app/common/formly/null.type.ts
-    Copyright (c) 2018 Google Inc.
     https://angular.io
   - TypeFox monaco-languageclient
     pyright-language-service/src/main.ts
     pyright-language-service/src/language-server-runner.ts
     pyright-language-service/src/server-commons.ts
-    Copyright (c) 2024 TypeFox and others
     https://github.com/TypeFox/monaco-languageclient
   - SVGRepo icons
     frontend/src/assets/svg/operator-view-result.svg
