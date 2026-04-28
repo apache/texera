@@ -147,18 +147,14 @@ export class DashboardComponent implements OnInit {
       .getSetting("logo")
       .pipe(untilDestroyed(this))
       .subscribe(dataUri => {
-        this.ngZone.run(() => {
-          this.logo = dataUri;
-        });
+        this.logo = dataUri;
       });
 
     this.adminSettingsService
       .getSetting("mini_logo")
       .pipe(untilDestroyed(this))
       .subscribe(dataUri => {
-        this.ngZone.run(() => {
-          this.miniLogo = dataUri;
-        });
+        this.miniLogo = dataUri;
       });
 
     this.adminSettingsService
@@ -175,9 +171,7 @@ export class DashboardComponent implements OnInit {
         .getSetting(tab)
         .pipe(untilDestroyed(this))
         .subscribe(value => {
-          this.ngZone.run(() => {
-            this.sidebarTabs[tab] = value === "true";
-          });
+          this.sidebarTabs[tab] = value === "true";
         });
     });
   }
