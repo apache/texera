@@ -136,14 +136,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.removeButton = WorkflowEditorComponent.getRemoveButton();
     this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
 
-    this.agentService.operatorResultSummaries$
-      .pipe(untilDestroyed(this))
-      .subscribe(summaries => {
-        this.operatorSummaries = summaries;
-        if (this.chatPopoverOperator) {
-          this.changeDetectorRef.detectChanges();
-        }
-      });
+    this.agentService.operatorResultSummaries$.pipe(untilDestroyed(this)).subscribe(summaries => {
+      this.operatorSummaries = summaries;
+      if (this.chatPopoverOperator) {
+        this.changeDetectorRef.detectChanges();
+      }
+    });
   }
 
   /**
@@ -1631,7 +1629,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   isOperatorVisualization(operatorId: string): boolean {
     return this.operatorSummaries.get(operatorId)?.sampleRecords?.[0]?.["__is_visualization__"] === true;
   }
-
 
   /**
    * Info button on link between operator shown when user hovers over links

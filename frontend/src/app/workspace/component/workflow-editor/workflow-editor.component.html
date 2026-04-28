@@ -33,7 +33,9 @@
     *ngIf="chatPopoverOperator"
     [style.left.px]="chatPopoverOperator.position.x"
     [style.top.px]="chatPopoverOperator.position.y">
-    <div class="chat-popover" [class.chat-popover-visualization]="isOperatorVisualization(chatPopoverOperator.operatorId)">
+    <div
+      class="chat-popover"
+      [class.chat-popover-visualization]="isOperatorVisualization(chatPopoverOperator.operatorId)">
       <div class="chat-popover-content">
         <texera-agent-interaction
           [operatorId]="chatPopoverOperator.operatorId"
