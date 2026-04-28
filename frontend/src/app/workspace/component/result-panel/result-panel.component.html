@@ -103,7 +103,9 @@
       </div>
       <div *ngFor="let config of frameComponentConfigs | keyvalue">
         <nz-tab nzTitle="{{config.key}}">
-          <div #dynamicComponent>
+          <div
+            #dynamicComponent
+            class="result-frame">
             <ng-container
               *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
           </div>
