@@ -121,7 +121,7 @@ object RegionCoordinatorTestSupport {
         case invocation: ControlInvocation =>
           recordAndMaybeFulfill(invocation)
         case _ =>
-          // Client events and stats updates are irrelevant to the coordinator lifecycle assertions.
+        // Client events and stats updates are irrelevant to the coordinator lifecycle assertions.
       }
     }
 
@@ -222,8 +222,8 @@ trait RegionCoordinatorTestSupport { self: TestKit =>
 
   protected def createControllerHarness(): ControllerHarnessFixture = {
     val controllerRef = TestActorRef(new ControllerHarness)
-    controllerRef.underlyingActor.actorService.getAvailableNodeAddressesFunc =
-      () => Array(controllerRef.path.address)
+    controllerRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
+      Array(controllerRef.path.address)
     ControllerHarnessFixture(
       actorService = controllerRef.underlyingActor.actorService,
       actorRefService = controllerRef.underlyingActor.actorRefMappingService

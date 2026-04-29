@@ -57,8 +57,8 @@ class WorkflowExecutionCoordinatorSpec
     // First region's worker holds endWorker pending until we explicitly fulfill it; the second
     // region's worker terminates immediately. This lets us assert the second region cannot start
     // until termination of the first finishes.
-    val rpcProbe = new ControllerRpcProbe(endWorkerResponse =
-      call => if (call.receiver == firstWorkerId) None else Some(EmptyReturn())
+    val rpcProbe = new ControllerRpcProbe(
+      endWorkerResponse = call => if (call.receiver == firstWorkerId) None else Some(EmptyReturn())
     )
     val controller = createControllerHarness()
     registerLiveWorker(controller.actorRefService, firstWorkerId)

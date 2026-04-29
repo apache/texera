@@ -84,12 +84,13 @@ class RegionExecutionCoordinatorSpec
 
   it should "retry EndWorker failures and delay gracefulStop until a retry succeeds" in {
     val attempts = new atomic.AtomicInteger(0)
-    val fixture = createSingleRegionFixture(endWorkerResponse = _ =>
-      if (attempts.incrementAndGet() == 1) {
-        Some(transientEndWorkerFailure)
-      } else {
-        None
-      }
+    val fixture = createSingleRegionFixture(endWorkerResponse =
+      _ =>
+        if (attempts.incrementAndGet() == 1) {
+          Some(transientEndWorkerFailure)
+        } else {
+          None
+        }
     )
 
     launchRegion(fixture.coordinator)
