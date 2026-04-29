@@ -63,14 +63,6 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     (pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
      pip3 install --no-cache-dir wordcloud==1.9.2)
 
-# Generate an authoritative license manifest of the installed Python env.
-# Referenced by /texera/LICENSE (LICENSE-binary) as the source of truth for
-# the Python half of this image's bundled third-party dependencies.
-RUN pip3 install pip-licenses && \
-    mkdir -p /texera/licenses && \
-    pip-licenses --format=plain-vertical --with-urls --with-authors \
-      --output-file=/texera/licenses/python-3rdparty.txt
-
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase

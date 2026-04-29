@@ -62,14 +62,6 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install -r /tmp/requirements.txt && \
     pip3 install -r /tmp/operator-requirements.txt
 
-# Generate an authoritative license manifest of the installed Python env.
-# Referenced by /texera/LICENSE (LICENSE-binary) as the source of truth for
-# the Python half of this image's bundled third-party dependencies.
-RUN pip3 install pip-licenses && \
-    mkdir -p /texera/licenses && \
-    pip-licenses --format=plain-vertical --with-urls --with-authors \
-      --output-file=/texera/licenses/python-3rdparty.txt
-
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/.git /texera/amber/.git
 COPY --from=build /texera/amber/target/amber-* /texera/amber/
