@@ -419,9 +419,9 @@ services:
     restart: always
     depends_on:
       dashboard-service:
-        condition: service_started
+        condition: service_healthy
       workflow-compiling-service:
-        condition: service_started
+        condition: service_healthy
       workflow-runtime-coordinator-service:
         condition: service_started
     env_file:
