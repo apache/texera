@@ -283,7 +283,8 @@ services:
       timeout: 3s
       retries: 10
 
-  # ConfigService provides endpoints for configuration management
+  # ConfigService provides endpoints for configuration management; serves
+  # /api/config/gui which the dashboard GUI reads.
   config-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-config-service:${IMAGE_TAG:-latest}
     container_name: config-service
@@ -299,7 +300,8 @@ services:
       timeout: 3s
       retries: 10
 
-  # AccessControlService handles user permissions and access control
+  # AccessControlService handles user permissions and proxies copilot
+  # traffic to LiteLLM.
   access-control-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-access-control-service:${IMAGE_TAG:-latest}
     container_name: access-control-service
@@ -364,7 +366,8 @@ services:
     volumes:
       - workflow_result_data:/amber/user-resources
 
-  # DashboardService provides endpoints for hub resource management.
+  # DashboardService provides endpoints for hub resource management and
+  # serves the GUI bundle.
   dashboard-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-dashboard-service:${IMAGE_TAG:-latest}
     container_name: dashboard-service
@@ -386,17 +389,12 @@ services:
       timeout: 3s
       retries: 10
 
-  # LiteLLM is a proxy that exposes a unified OpenAI-compatible API in front
-  # of multiple LLM providers (Anthropic, OpenAI, Gemini, ...). The agent
-  # service and the frontend copilot both call it through nginx.
+  # OpenAI-compatible proxy in front of Anthropic / OpenAI / Gemini.
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
     restart: always
-    # API keys are read from the shell first, then from .env. This lets
-    # users provide a key inline, e.g.
-    #   ANTHROPIC_API_KEY=sk-... docker compose up
-    # without editing any file.
+    # Keys read from shell first, falling back to .env.
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -404,30 +402,22 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-}
     volumes:
       - ./litellm-config.yaml:/app/config.yaml:ro
-    command:
-      - --config
-      - /app/config.yaml
-      - --port
-      - "4000"
-      - --host
-      - "0.0.0.0"
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    # /health/liveliness is litellm's unauthenticated probe endpoint;
+    # /health requires LITELLM_MASTER_KEY and 401-spams the logs.
     healthcheck:
-      test: ["CMD", "litellm", "--health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness').read()"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 15s
 
-  # AgentService runs the AI agents that drive workflows on behalf of users.
-  # It reaches LiteLLM through nginx (LLM_ENDPOINT), and reaches the other
-  # Texera microservices directly on the docker network.
+  # AI agents that drive workflows on behalf of users.
   agent-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-agent-service:${IMAGE_TAG:-latest}
     container_name: agent-service
     restart: always
     depends_on:
-      litellm:
-        condition: service_started
       dashboard-service:
         condition: service_started
       workflow-compiling-service:
@@ -436,6 +426,11 @@ services:
         condition: service_started
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
@@ -450,7 +445,6 @@ services:
       - access-control-service
       - workflow-computing-unit-managing-service
       - agent-service
-      - litellm
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:

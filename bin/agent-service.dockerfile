@@ -22,11 +22,17 @@ WORKDIR /app
 # Copy dependency files first for layer caching
 COPY agent-service/package.json agent-service/bun.lock ./
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --production
 
 # Copy source code and TypeScript config
 COPY agent-service/src ./src
 COPY agent-service/tsconfig.json ./
+
+# ASF binary-distribution license files; *-binary covers all bundled npm deps.
+COPY LICENSE-binary ./LICENSE
+COPY NOTICE-binary ./NOTICE
+COPY DISCLAIMER-WIP ./DISCLAIMER-WIP
+COPY licenses ./licenses
 
 EXPOSE 3001
 
