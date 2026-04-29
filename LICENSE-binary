@@ -231,8 +231,6 @@ Locations within the distribution:
 Dependencies under the Apache License, Version 2.0
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following Apache-2.0 licensed dependencies.
-
 Scala/Java jars:
   - ch.qos.reload4j.reload4j-1.2.18.3.jar
   - com.fasterxml.classmate-1.3.1.jar
@@ -716,14 +714,8 @@ Python packages:
   - yarl==1.23.0
 
 Angular / npm packages:
-  - @ai-sdk/gateway@2.0.9
-  - @ai-sdk/openai@2.0.67
-  - @ai-sdk/provider@2.0.0
-  - @ai-sdk/provider-utils@3.0.17
-  - @opentelemetry/api@1.9.0
-  - @vercel/oidc@3.0.3
-  - ai@5.0.93
   - fuse.js@6.5.3
+  - jschardet@3.1.3
   - rxjs@7.8.1
 
 Agent service npm packages:
@@ -740,9 +732,6 @@ Agent service npm packages:
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
 --------------------------------------------------------------------------------
-
-Apache Texera bundles the following MIT-licensed components. See
-licenses/LICENSE-MIT.txt for the full text of the MIT License.
 
 Source files derived from third-party MIT-licensed projects:
   - mbknor-jackson-jsonschema
@@ -851,17 +840,18 @@ Python packages:
 Angular / npm packages:
   - @abacritt/angularx-social-login@2.3.0
   - @ali-hm/angular-tree-component@12.0.5
-  - @angular/animations@18.2.14
-  - @angular/cdk@18.2.14
-  - @angular/common@18.2.14
-  - @angular/core@18.2.14
-  - @angular/forms@18.2.14
-  - @angular/platform-browser@18.2.14
-  - @angular/router@18.2.14
-  - @ant-design/colors@7.1.0
-  - @ant-design/icons-angular@18.0.0
+  - @angular/animations@21.2.10
+  - @angular/cdk@21.2.8
+  - @angular/common@21.2.10
+  - @angular/core@21.2.10
+  - @angular/forms@21.2.10
+  - @angular/platform-browser@21.2.10
+  - @angular/router@21.2.10
+  - @ant-design/colors@7.2.1
+  - @ant-design/fast-color@2.0.6
+  - @ant-design/icons-angular@21.0.0
   - @auth0/angular-jwt@5.1.0
-  - @babel/runtime@7.26.10
+  - @babel/runtime@7.29.2
   - @codingame/monaco-vscode-api@8.0.4
   - @codingame/monaco-vscode-base-service-override@8.0.4
   - @codingame/monaco-vscode-configuration-service-override@8.0.4
@@ -890,13 +880,12 @@ Angular / npm packages:
   - backbone@1.4.1
   - balanced-match@1.0.2
   - base64-js@1.5.1
-  - brace-expansion@2.0.1
+  - brace-expansion@2.1.0
   - buffer@5.7.1
   - content-disposition@0.5.4
-  - css-loader@7.1.2
+  - css-loader@6.11.0
   - dagre@0.8.5
   - date-fns@2.30.0
-  - eventsource-parser@3.0.6
   - fast-deep-equal@3.1.3
   - fflate@0.7.4
   - file-saver@2.0.5
@@ -906,19 +895,19 @@ Angular / npm packages:
   - jquery@3.6.4
   - json-schema-traverse@1.0.0
   - jszip@3.10.1
-  - lib0@0.2.98
-  - lodash@4.17.21
+  - lib0@0.2.117
+  - lodash@4.17.23
   - lodash-es@4.17.21
-  - marked@12.0.2
+  - marked@17.0.1
   - mobx@4.14.1
   - monaco-breakpoints@0.2.0
   - monaco-editor-wrapper@5.5.3
   - monaco-languageclient@8.8.3
-  - ng-zorro-antd@18.2.1
+  - ng-zorro-antd@21.2.2
   - ngx-color-picker@12.0.1
   - ngx-file-drop@16.0.0
   - ngx-json-viewer@3.2.1
-  - ngx-markdown@18.1.0
+  - ngx-markdown@21.2.0
   - papaparse@5.4.1
   - path-browserify@1.0.1
   - plotly.js-basic-dist-min@2.29.0
@@ -932,7 +921,7 @@ Angular / npm packages:
   - safe-buffer@5.2.1
   - style-loader@3.3.4
   - theme-defaults@1.0.0
-  - underscore@1.13.7
+  - underscore@1.13.8
   - uuid@8.3.2
   - vscode-jsonrpc@8.2.0
   - vscode-languageclient@9.0.1
@@ -942,12 +931,11 @@ Angular / npm packages:
   - vscode-textmate@9.0.0
   - vscode-ws-jsonrpc@3.3.2
   - y-monaco@0.1.5
-  - y-protocols@1.0.6
+  - y-protocols@1.0.7
   - y-quill@0.1.5
-  - y-websocket@1.4.0
+  - y-websocket@1.5.4
   - yjs@13.5.41
-  - zod@3.25.76
-  - zone.js@0.14.10
+  - zone.js@0.15.1
 
 Agent service npm packages:
   - @borewit/text-codec@0.1.1
@@ -997,10 +985,6 @@ Agent service npm packages:
 --------------------------------------------------------------------------------
 Dependencies under the BSD 3-Clause License
 --------------------------------------------------------------------------------
-
-Apache Texera bundles the following BSD-3-Clause-licensed dependencies. See
-licenses/LICENSE-BSD-3-Clause.txt for the full text of the BSD 3-Clause
-License.
 
 Scala/Java jars:
   - com.esotericsoftware.kryo-5.6.2.jar
@@ -1067,10 +1051,6 @@ Agent service npm packages:
 Dependencies under the BSD 2-Clause License
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following BSD-2-Clause-licensed dependencies. See
-licenses/LICENSE-BSD-2-Clause.txt for the full text of the BSD 2-Clause
-License.
-
 Scala/Java jars:
   - com.github.luben.zstd-jni-1.5.0-1.jar
   - com.github.marianobarrios.lbmq-0.6.0.jar
@@ -1094,16 +1074,13 @@ Angular / npm packages:
 Dependencies under the ISC License
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following ISC-licensed dependencies. See
-licenses/LICENSE-ISC.txt for the full text of the ISC License.
-
 Scala/Java jars:
   - org.mindrot.jbcrypt-0.4.jar
 
 Angular / npm packages:
   - concaveman@2.0.0
   - d3-path@2.0.0
-  - minimatch@5.1.6
+  - minimatch@5.1.9
   - quickselect@3.0.0
   - tinyqueue@2.0.3
 
@@ -1114,9 +1091,6 @@ Agent service npm packages:
 Dependencies under the Mozilla Public License, Version 2.0
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following MPL-2.0-licensed dependencies. See
-licenses/LICENSE-MPL-2.0.txt for the full text.
-
 Python packages:
   - bidict==0.22.0
   - certifi==2026.4.22
@@ -1126,13 +1100,9 @@ Angular / npm packages:
   - jointjs@3.5.4
 
 --------------------------------------------------------------------------------
-Dependencies under the Eclipse Public License, Version 2.0
+Dependencies under the Eclipse Public License, Version 2.0 (some are dual
+licensed with GPL-2.0 with Classpath Exception)
 --------------------------------------------------------------------------------
-
-Apache Texera bundles the following EPL-2.0-licensed dependencies. Several
-are dual-licensed under GPL-2.0 with Classpath Exception; Texera
-redistributes them under the EPL-2.0 terms. See
-licenses/LICENSE-EPL-2.0.txt for the full text.
 
 Scala/Java jars:
   - jakarta.annotation.jakarta.annotation-api-2.1.1.jar
@@ -1159,12 +1129,9 @@ Scala/Java jars:
   - org.jgrapht.jgrapht-core-1.4.0.jar
 
 --------------------------------------------------------------------------------
-Dependencies under the Eclipse Public License, Version 1.0
+Dependencies under the Eclipse Public License, Version 1.0 (Logback is dual
+licensed with LGPL-2.1)
 --------------------------------------------------------------------------------
-
-Apache Texera bundles the following EPL-1.0-licensed dependencies (Logback
-is dual-licensed EPL-1.0 / LGPL-2.1; Texera redistributes under the
-EPL-1.0 terms). See licenses/LICENSE-EPL-1.0.txt for the full text.
 
 Scala/Java jars:
   - ch.qos.logback.logback-access-1.2.3.jar
@@ -1176,12 +1143,8 @@ Scala/Java jars:
 
 --------------------------------------------------------------------------------
 Dependencies under the Common Development and Distribution License (CDDL)
+(some are dual licensed with GPL-2.0 with Classpath Exception)
 --------------------------------------------------------------------------------
-
-Apache Texera bundles dependencies released under two versions of the CDDL:
-1.0 and 1.1. Several are dual-licensed under GPL-2.0 with Classpath Exception;
-Texera redistributes them under CDDL. See licenses/LICENSE-CDDL-1.0.txt and
-licenses/LICENSE-CDDL-1.1.txt for the full text of each version.
 
 CDDL 1.0
 ~~~~~~~~
@@ -1224,9 +1187,6 @@ Scala/Java jars:
 Dependencies under the Eclipse Distribution License, Version 1.0
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following EDL-1.0-licensed dependencies (a
-BSD-style license). See licenses/LICENSE-EDL-1.0.txt for the full text.
-
 Scala/Java jars:
   - com.sun.activation.jakarta.activation-2.0.0.jar
   - com.sun.activation.jakarta.activation-2.0.1.jar
@@ -1242,9 +1202,6 @@ Scala/Java jars:
 Dependencies under the Python Software Foundation License
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following PSF-licensed Python packages. See
-licenses/LICENSE-PSF-2.0.txt for the full text.
-
 Python packages:
   - aiohappyeyeballs==2.6.1
   - matplotlib==3.10.9
@@ -1254,19 +1211,12 @@ Python packages:
 Dependencies under the MIT-CMU License
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following MIT-CMU-licensed dependencies (a
-variant in the HPND family, SPDX: MIT-CMU). See
-licenses/LICENSE-MIT-CMU.txt for the full text.
-
 Python packages:
   - pillow==12.1.1
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD Zero Clause License
 --------------------------------------------------------------------------------
-
-Apache Texera bundles the following 0BSD-licensed dependencies. See
-licenses/LICENSE-0BSD.txt for the full text.
 
 Agent service npm packages:
   - tslib@2.8.1
@@ -1284,11 +1234,8 @@ Scala/Java jars:
 Dependencies under the Unlicense
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following Unlicense-licensed dependency
-(SPDX: Unlicense). See licenses/LICENSE-Unlicense.txt for the full text.
-
 Angular / npm packages:
-  - robust-predicates@3.0.2
+  - robust-predicates@3.0.3
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern
