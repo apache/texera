@@ -256,11 +256,7 @@ class ReconfigurationSpec
     )
   }
 
-  // Disabled: the workflow hangs after the UDF processes the EndChannel ECM in this
-  // multi-worker (Python source -> Python UDF) propagation case, causing a 1-minute
-  // Await timeout. The single-op reconfigure path and the CSV-source variants pass.
-  // Re-enable once the source-propagation completion path is fixed.
-  "Engine" should "propagate reconfiguration through a source operator in workflow" ignore {
+  "Engine" should "propagate reconfiguration through a source operator in workflow" in {
     val sourceOpDesc = TestOperators.pythonSourceOpDesc(10000)
     val udfOpDesc = TestOperators.pythonOpDesc()
     val code = """
