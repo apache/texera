@@ -790,7 +790,6 @@ Scala/Java jars:
   - org.checkerframework.checker-qual-3.42.0.jar
   - org.codehaus.mojo.animal-sniffer-annotations-1.23.jar
   - org.projectlombok.lombok-1.18.24.jar
-  - org.reactivestreams.reactive-streams-1.0.3.jar
   - org.reactivestreams.reactive-streams-1.0.4.jar
   - org.slf4j.jcl-over-slf4j-1.7.26.jar
   - org.slf4j.jul-to-slf4j-1.7.26.jar
@@ -1273,14 +1272,12 @@ Agent service npm packages:
   - tslib@2.8.1
 
 --------------------------------------------------------------------------------
-Dependencies in the Public Domain
+Dependencies in the Public Domain (CC0)
 --------------------------------------------------------------------------------
-
-The following component has been placed into the public domain by its
-authors. No license text accompanies a public-domain dedication.
 
 Scala/Java jars:
   - aopalliance.aopalliance-1.0.jar
+  - org.reactivestreams.reactive-streams-1.0.3.jar
   - org.tukaani.xz-1.9.jar
 
 --------------------------------------------------------------------------------
