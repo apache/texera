@@ -184,4 +184,59 @@ jobs:
             const creditedSet = new Set(credited);
             for (const issue of issueNodes) {
               if (issue.repository.nameWithOwner !== `${owner}/${repo}`) {
-             
+                core.info(
+                  `Issue ${issue.repository.nameWithOwner}#${issue.number} is cross-repo, skipping.`
+                );
+                continue;
+              }
+
+              const current = (issue.assignees && issue.assignees.nodes || []).map(
+                n => n.login
+              );
+              const currentSet = new Set(current);
+              const toRemove = current.filter(login => !creditedSet.has(login));
+              const toAdd = credited.filter(login => !currentSet.has(login));
+
+              if (toRemove.length === 0 && toAdd.length === 0) {
+                core.info(
+                  `Issue #${issue.number} already credited correctly, skipping.`
+                );
+                continue;
+              }
+
+              if (toRemove.length > 0) {
+                try {
+                  await github.rest.issues.removeAssignees({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    assignees: toRemove,
+                  });
+                  core.info(
+                    `Removed ${toRemove.map(l => '@' + l).join(', ')} from issue #${issue.number}.`
+                  );
+                } catch (e) {
+                  core.warning(
+                    `Failed to remove assignees from issue #${issue.number}: ${e.message}`
+                  );
+                }
+              }
+
+              if (toAdd.length > 0) {
+                try {
+                  await github.rest.issues.addAssignees({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    assignees: toAdd,
+                  });
+                  core.info(
+                    `Added ${toAdd.map(l => '@' + l).join(', ')} to issue #${issue.number}.`
+                  );
+                } catch (e) {
+                  core.warning(
+                    `Failed to add assignees to issue #${issue.number}: ${e.message}`
+                  );
+                }
+              }
+            }
