@@ -814,7 +814,7 @@ Python packages:
   - filelock==3.29.0
   - fonttools==4.62.1
   - fs==2.4.16
-  - greenlet==3.4.0
+  - greenlet==3.5.0
   - h2==4.3.0
   - hpack==4.1.0
   - hyperframe==6.1.0
