@@ -584,7 +584,6 @@ Scala/Java jars:
   - org.apache.zookeeper.zookeeper-3.5.6.jar
   - org.apache.zookeeper.zookeeper-jute-3.5.6.jar
   - org.bitbucket.b_c.jose4j-0.9.6.jar
-  - org.codehaus.woodstox.stax2-api-4.2.1.jar
   - org.eclipse.jetty.jetty-annotations-9.4.18.v20190429.jar
   - org.eclipse.jetty.jetty-client-9.4.40.v20210413.jar
   - org.eclipse.jetty.jetty-continuation-9.4.18.v20190429.jar
@@ -609,6 +608,13 @@ Scala/Java jars:
   - org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar
   - org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.3.jar
   - org.eclipse.jetty.toolchain.setuid.jetty-setuid-java-1.0.4.jar
+  - org.eclipse.jetty.websocket.javax-websocket-client-impl-9.4.18.v20190429.jar
+  - org.eclipse.jetty.websocket.javax-websocket-server-impl-9.4.18.v20190429.jar
+  - org.eclipse.jetty.websocket.websocket-api-9.4.40.v20210413.jar
+  - org.eclipse.jetty.websocket.websocket-client-9.4.40.v20210413.jar
+  - org.eclipse.jetty.websocket.websocket-common-9.4.40.v20210413.jar
+  - org.eclipse.jetty.websocket.websocket-server-9.4.18.v20190429.jar
+  - org.eclipse.jetty.websocket.websocket-servlet-9.4.18.v20190429.jar
   - org.ehcache.sizeof-0.4.3.jar
   - org.hibernate.hibernate-validator-5.4.3.Final.jar
   - org.hibernate.validator.hibernate-validator-7.0.5.Final.jar
@@ -638,14 +644,14 @@ Scala/Java jars:
   - org.scala-lang.scala-library-2.13.18.jar
   - org.scala-lang.scala-reflect-2.13.18.jar
   - org.scalactic.scalactic_2.13-3.2.15.jar
+  - org.slf4j.jcl-over-slf4j-2.0.12.jar
+  - org.slf4j.log4j-over-slf4j-2.0.12.jar
+  - org.slf4j.log4j-over-slf4j-2.0.16.jar
   - org.snakeyaml.snakeyaml-engine-2.7.jar
-  - org.typelevel.cats-core_2.13-2.11.0.jar
   - org.typelevel.cats-effect-kernel_2.13-3.6.3.jar
   - org.typelevel.cats-effect-std_2.13-3.6.3.jar
   - org.typelevel.cats-effect_2.13-3.6.3.jar
-  - org.typelevel.cats-kernel_2.13-2.11.0.jar
   - org.typelevel.cats-mtl_2.13-1.3.1.jar
-  - org.typelevel.fs2-grpc-runtime_2.13-2.11.0.jar
   - org.xerial.snappy.snappy-java-1.1.8.3.jar
   - org.yaml.snakeyaml-1.23.jar
   - org.yaml.snakeyaml-2.2.jar
@@ -718,7 +724,6 @@ Angular / npm packages:
   - @vercel/oidc@3.0.3
   - ai@5.0.93
   - fuse.js@6.5.3
-  - jschardet@3.1.3
   - rxjs@7.8.1
 
 Agent service npm packages:
@@ -788,14 +793,14 @@ Scala/Java jars:
   - org.reactivestreams.reactive-streams-1.0.3.jar
   - org.reactivestreams.reactive-streams-1.0.4.jar
   - org.slf4j.jcl-over-slf4j-1.7.26.jar
-  - org.slf4j.jcl-over-slf4j-2.0.12.jar
   - org.slf4j.jul-to-slf4j-1.7.26.jar
   - org.slf4j.jul-to-slf4j-2.0.12.jar
-  - org.slf4j.log4j-over-slf4j-2.0.12.jar
-  - org.slf4j.log4j-over-slf4j-2.0.16.jar
   - org.slf4j.slf4j-api-1.7.26.jar
   - org.slf4j.slf4j-api-2.0.12.jar
   - org.slf4j.slf4j-api-2.0.16.jar
+  - org.typelevel.cats-core_2.13-2.11.0.jar
+  - org.typelevel.cats-kernel_2.13-2.11.0.jar
+  - org.typelevel.fs2-grpc-runtime_2.13-2.11.0.jar
 
 Python packages:
   - aioitertools==0.13.0
@@ -1009,7 +1014,6 @@ Scala/Java jars:
   - com.google.re2j.re2j-1.1.jar
   - com.jcraft.jsch-0.1.55.jar
   - com.thoughtworks.paranamer.paranamer-2.8.jar
-  - dnsjava.dnsjava-2.1.7.jar
   - org.fusesource.leveldbjni.leveldbjni-all-1.8.jar
   - org.jline.jline-3.9.0.jar
   - org.ow2.asm.asm-8.0.1.jar
@@ -1038,8 +1042,6 @@ Python packages:
   - numpy==2.1.0
   - pandas==2.2.3
   - pg8000==1.31.5
-  - praw==7.6.1
-  - prawcore==2.4.0
   - protobuf==4.25.8
   - psutil==5.9.0
   - s3fs==2025.9.0
@@ -1050,10 +1052,10 @@ Python packages:
   - threadpoolctl==3.6.0
   - tifffile==2026.4.11
   - torch==2.8.0
-  - update-checker==0.18.0
   - zstandard==0.25.0
 
 Angular / npm packages:
+  - d3-shape@2.1.0
   - ieee754@1.2.1
   - quill@1.3.7
 
@@ -1073,12 +1075,17 @@ License.
 Scala/Java jars:
   - com.github.luben.zstd-jni-1.5.0-1.jar
   - com.github.marianobarrios.lbmq-0.6.0.jar
+  - dnsjava.dnsjava-2.1.7.jar
+  - org.codehaus.woodstox.stax2-api-4.2.1.jar
   - org.postgresql.postgresql-42.7.4.jar
 
 Python packages:
   - imageio==2.37.3
+  - praw==7.6.1
+  - prawcore==2.4.0
   - pybase64==1.3.2
   - pygments==2.20.0
+  - update-checker==0.18.0
   - wrapt==1.17.3
 
 Angular / npm packages:
@@ -1097,7 +1104,7 @@ Scala/Java jars:
 Angular / npm packages:
   - concaveman@2.0.0
   - d3-path@2.0.0
-  - d3-shape@2.1.0
+  - minimatch@5.1.6
   - quickselect@3.0.0
   - tinyqueue@2.0.3
 
@@ -1136,42 +1143,20 @@ Scala/Java jars:
   - jakarta.ws.rs.jakarta.ws.rs-api-3.0.0.jar
   - jakarta.ws.rs.jakarta.ws.rs-api-3.1.0.jar
   - javax.ws.rs.javax.ws.rs-api-2.1.1.jar
-  - org.eclipse.jetty.websocket.javax-websocket-client-impl-9.4.18.v20190429.jar
-  - org.eclipse.jetty.websocket.javax-websocket-server-impl-9.4.18.v20190429.jar
-  - org.eclipse.jetty.websocket.websocket-api-9.4.40.v20210413.jar
-  - org.eclipse.jetty.websocket.websocket-client-9.4.40.v20210413.jar
-  - org.eclipse.jetty.websocket.websocket-common-9.4.40.v20210413.jar
-  - org.eclipse.jetty.websocket.websocket-server-9.4.18.v20190429.jar
-  - org.eclipse.jetty.websocket.websocket-servlet-9.4.18.v20190429.jar
-  - org.glassfish.hk2.external.aopalliance-repackaged-2.5.0-b32.jar
   - org.glassfish.hk2.external.aopalliance-repackaged-3.0.6.jar
-  - org.glassfish.hk2.hk2-api-2.5.0-b32.jar
   - org.glassfish.hk2.hk2-api-3.0.6.jar
-  - org.glassfish.hk2.hk2-locator-2.5.0-b32.jar
   - org.glassfish.hk2.hk2-locator-3.0.3.jar
-  - org.glassfish.hk2.hk2-utils-2.5.0-b32.jar
   - org.glassfish.hk2.hk2-utils-3.0.6.jar
-  - org.glassfish.hk2.osgi-resource-locator-1.0.1.jar
   - org.glassfish.hk2.osgi-resource-locator-1.0.3.jar
   - org.glassfish.jakarta.el-4.0.2.jar
-  - org.glassfish.jersey.connectors.jersey-apache-connector-2.25.1.jar
-  - org.glassfish.jersey.containers.jersey-container-servlet-2.25.1.jar
   - org.glassfish.jersey.containers.jersey-container-servlet-3.0.12.jar
-  - org.glassfish.jersey.containers.jersey-container-servlet-core-2.25.1.jar
   - org.glassfish.jersey.containers.jersey-container-servlet-core-3.0.12.jar
-  - org.glassfish.jersey.core.jersey-client-2.25.1.jar
   - org.glassfish.jersey.core.jersey-client-3.0.12.jar
-  - org.glassfish.jersey.core.jersey-common-2.25.1.jar
   - org.glassfish.jersey.core.jersey-common-3.0.12.jar
-  - org.glassfish.jersey.core.jersey-server-2.25.1.jar
   - org.glassfish.jersey.core.jersey-server-3.0.12.jar
-  - org.glassfish.jersey.ext.jersey-bean-validation-2.25.1.jar
   - org.glassfish.jersey.ext.jersey-bean-validation-3.0.12.jar
-  - org.glassfish.jersey.ext.jersey-metainf-services-2.25.1.jar
   - org.glassfish.jersey.ext.jersey-metainf-services-3.0.12.jar
-  - org.glassfish.jersey.ext.rx.jersey-rx-client-2.25.1.jar
   - org.glassfish.jersey.inject.jersey-hk2-3.0.12.jar
-  - org.glassfish.jersey.media.jersey-media-jaxb-2.25.1.jar
   - org.jgrapht.jgrapht-core-1.4.0.jar
 
 --------------------------------------------------------------------------------
@@ -1194,24 +1179,47 @@ Scala/Java jars:
 Dependencies under the Common Development and Distribution License (CDDL)
 --------------------------------------------------------------------------------
 
-Apache Texera bundles the following CDDL-licensed dependencies (versions
-1.0 and 1.1; the 1.1 text covers both). Several are dual-licensed under
-GPL-2.0 with Classpath Exception; Texera redistributes them under CDDL.
-See licenses/LICENSE-CDDL-1.1.txt for the full text.
+Apache Texera bundles dependencies released under two versions of the CDDL:
+1.0 and 1.1. Several are dual-licensed under GPL-2.0 with Classpath Exception;
+Texera redistributes them under CDDL. See licenses/LICENSE-CDDL-1.0.txt and
+licenses/LICENSE-CDDL-1.1.txt for the full text of each version.
+
+CDDL 1.0
+~~~~~~~~
 
 Scala/Java jars:
-  - com.sun.jersey.contribs.jersey-guice-1.19.jar
   - com.sun.mail.javax.mail-1.6.2.jar
   - javax.activation.activation-1.1.1.jar
   - javax.annotation.javax.annotation-api-1.3.2.jar
   - javax.servlet.javax.servlet-api-3.1.0.jar
-  - javax.websocket.javax.websocket-api-1.0.jar
-  - javax.websocket.javax.websocket-client-api-1.0.jar
   - javax.ws.rs.jsr311-api-1.1.1.jar
-  - javax.xml.bind.jaxb-api-2.3.0.jar
   - org.glassfish.hk2.external.javax.inject-2.5.0-b32.jar
+  - org.glassfish.hk2.hk2-api-2.5.0-b32.jar
+  - org.glassfish.hk2.hk2-locator-2.5.0-b32.jar
+  - org.glassfish.hk2.hk2-utils-2.5.0-b32.jar
+  - org.glassfish.hk2.osgi-resource-locator-1.0.1.jar
   - org.glassfish.javax.el-3.0.0.jar
   - org.glassfish.jersey.bundles.repackaged.jersey-guava-2.25.1.jar
+  - org.glassfish.jersey.connectors.jersey-apache-connector-2.25.1.jar
+  - org.glassfish.jersey.containers.jersey-container-servlet-2.25.1.jar
+  - org.glassfish.jersey.containers.jersey-container-servlet-core-2.25.1.jar
+  - org.glassfish.jersey.core.jersey-client-2.25.1.jar
+  - org.glassfish.jersey.core.jersey-common-2.25.1.jar
+  - org.glassfish.jersey.core.jersey-server-2.25.1.jar
+  - org.glassfish.jersey.ext.jersey-bean-validation-2.25.1.jar
+  - org.glassfish.jersey.ext.jersey-metainf-services-2.25.1.jar
+  - org.glassfish.jersey.ext.rx.jersey-rx-client-2.25.1.jar
+  - org.glassfish.jersey.media.jersey-media-jaxb-2.25.1.jar
+
+CDDL 1.1
+~~~~~~~~
+
+Scala/Java jars:
+  - com.sun.jersey.contribs.jersey-guice-1.19.jar
+  - javax.websocket.javax.websocket-api-1.0.jar
+  - javax.websocket.javax.websocket-client-api-1.0.jar
+  - javax.xml.bind.jaxb-api-2.3.0.jar
+  - org.glassfish.hk2.external.aopalliance-repackaged-2.5.0-b32.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Distribution License, Version 1.0
@@ -1261,9 +1269,6 @@ Dependencies under the BSD Zero Clause License
 Apache Texera bundles the following 0BSD-licensed dependencies. See
 licenses/LICENSE-0BSD.txt for the full text.
 
-Scala/Java jars:
-  - org.tukaani.xz-1.9.jar
-
 Agent service npm packages:
   - tslib@2.8.1
 
@@ -1276,6 +1281,7 @@ authors. No license text accompanies a public-domain dedication.
 
 Scala/Java jars:
   - aopalliance.aopalliance-1.0.jar
+  - org.tukaani.xz-1.9.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Unlicense
@@ -1286,17 +1292,6 @@ Apache Texera bundles the following Unlicense-licensed dependency
 
 Angular / npm packages:
   - robust-predicates@3.0.2
-
---------------------------------------------------------------------------------
-Dependencies under the Blue Oak Model License 1.0.0
---------------------------------------------------------------------------------
-
-Apache Texera bundles the following Blue Oak Model License 1.0.0-licensed
-dependency (SPDX: BlueOak-1.0.0). See licenses/LICENSE-BlueOak-1.0.0.txt
-for the full text.
-
-Angular / npm packages:
-  - minimatch@5.1.6
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern
