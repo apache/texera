@@ -100,7 +100,6 @@ class DataProcessor(Runnable, Stoppable):
                 self._context.worker_id,
                 self._context.console_message_manager.print_buf,
             ):
-                self._switch_context()
                 self._set_output_state(executor.process_state(state, port_id))
 
         except Exception as err:
