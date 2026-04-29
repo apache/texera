@@ -24,86 +24,36 @@ permissions:
   pull-requests: write
 
 jobs:
-  # --------------------------------------------------------
-  # Assign the PR author as the assignee on newly opened PRs.
-  # New issues are intentionally left unassigned so they go
-  # through triage (see issue-triage.yml).
-  # --------------------------------------------------------
   assign-pr-author:
-    if: github.event.action == 'opened'
+    if: >-
+      github.event.action == 'opened'
+      && github.event.pull_request.user.type != 'Bot'
+      && github.event.pull_request.assignees[0] == null
     runs-on: ubuntu-latest
     steps:
-      - name: Assign PR author
-        uses: actions/github-script@v7
+      - uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
-            const issue_number = pr.number;
-            const author = pr.user && pr.user.login;
+            await github.rest.issues.addAssignees({
+              ...context.repo,
+              issue_number: pr.number,
+              assignees: [pr.user.login],
+            });
 
-            if (!author) {
-              core.info(`PR #${issue_number} has no author login, skipping.`);
-              return;
-            }
-
-            // PR authors that are bots (e.g. dependabot[bot]) cannot be assigned.
-            if (pr.user.type === 'Bot' || author.endsWith('[bot]')) {
-              core.info(`PR #${issue_number} authored by bot @${author}, skipping.`);
-              return;
-            }
-
-            const existing = pr.assignees || [];
-            if (existing.length > 0) {
-              core.info(
-                `PR #${issue_number} already has ${existing.length} assignee(s), skipping.`
-              );
-              return;
-            }
-
-            try {
-              // PR assignees use the issues API (PRs are issues under the hood).
-              await github.rest.issues.addAssignees({
-                owner,
-                repo,
-                issue_number,
-                assignees: [author],
-              });
-              core.info(`Assigned @${author} to PR #${issue_number}.`);
-            } catch (e) {
-              core.warning(
-                `Failed to assign @${author} to PR #${issue_number}: ${e.message}`
-              );
-              throw e;
-            }
-
-  # --------------------------------------------------------
-  # When a PR is merged, find the issues it closes (via the
-  # "Linked issues" relationship — closingIssuesReferences)
-  # and replace their assignees with everyone who actually
-  # authored a commit in the PR (PR opener + commit authors,
-  # including Co-authored-by trailers). Merge commits are
-  # ignored so a "merge main into branch" doesn't credit
-  # the merger.
-  # --------------------------------------------------------
   credit-issue-on-pr-merge:
-    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    if: github.event.action == 'closed' && github.event.pull_request.merged
     runs-on: ubuntu-latest
     steps:
-      - name: Credit PR authors on linked issues
-        uses: actions/github-script@v7
+      - uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const pr = context.payload.pull_request;
+            const opener = context.payload.pull_request.user;
+            const isHuman = (l) => l && !l.endsWith('[bot]');
 
-            // Fetch linked issues + every commit's authors (including
-            // Co-authored-by trailers). Cap commits at 250 — anything
-            // larger than that almost certainly isn't a normal feature PR.
-            const data = await github.graphql(
-              `query($owner: String!, $repo: String!, $pr: Int!) {
+            const { repository: { pullRequest: prq } } = await github.graphql(`
+              query($owner: String!, $repo: String!, $pr: Int!) {
                 repository(owner: $owner, name: $repo) {
                   pullRequest(number: $pr) {
                     closingIssuesReferences(first: 50) {
@@ -114,129 +64,33 @@ jobs:
                       }
                     }
                     commits(first: 250) {
-                      nodes {
-                        commit {
-                          parents { totalCount }
-                          authors(first: 10) {
-                            nodes { user { login } }
-                          }
-                        }
-                      }
+                      nodes { commit {
+                        parents { totalCount }
+                        authors(first: 10) { nodes { user { login } } }
+                      } }
                     }
                   }
                 }
-              }`,
-              { owner, repo, pr: pr.number }
-            );
+              }`, { owner, repo, pr: context.payload.pull_request.number });
 
-            const prq =
-              data.repository && data.repository.pullRequest;
-            if (!prq) {
-              core.info(`Could not load PR #${pr.number} via GraphQL, skipping.`);
-              return;
-            }
-
-            // Collect every distinct author. Always seed with the PR
-            // opener (covers cases where the PR has no commits, e.g.
-            // a force-push edge case). Then add authors of every
-            // non-merge commit. Skip:
-            //   - merge commits (parents > 1) — credits the merger,
-            //     not a real contributor
-            //   - bot accounts
-            //   - email addresses with no linked GitHub user
-            const authorSet = new Set();
-            const prOpener = pr.user && pr.user.login;
-            if (prOpener && pr.user.type !== 'Bot' && !prOpener.endsWith('[bot]')) {
-              authorSet.add(prOpener);
-            }
-            for (const node of prq.commits.nodes || []) {
-              const c = node.commit;
-              if (c.parents && c.parents.totalCount > 1) continue;
-              for (const a of (c.authors && c.authors.nodes) || []) {
-                const login = a.user && a.user.login;
-                if (!login) continue;
-                if (login.endsWith('[bot]')) continue;
-                authorSet.add(login);
+            const authors = new Set();
+            if (opener.type !== 'Bot' && isHuman(opener.login)) authors.add(opener.login);
+            for (const { commit } of prq.commits.nodes) {
+              if (commit.parents.totalCount > 1) continue;
+              for (const a of commit.authors.nodes) {
+                if (isHuman(a.user?.login)) authors.add(a.user.login);
               }
             }
-
-            const authors = [...authorSet];
-            if (authors.length === 0) {
-              core.info(`PR #${pr.number} has no human authors to credit, skipping.`);
-              return;
-            }
-            // GitHub caps assignees at 10 per issue.
-            const credited = authors.slice(0, 10);
-            if (authors.length > credited.length) {
-              core.warning(
-                `PR #${pr.number} has ${authors.length} authors; capping credit at the first ${credited.length}.`
-              );
-            }
-            core.info(`Crediting ${credited.map(l => '@' + l).join(', ')}.`);
-
-            const issueNodes =
-              (prq.closingIssuesReferences && prq.closingIssuesReferences.nodes) || [];
-            if (issueNodes.length === 0) {
-              core.info(`PR #${pr.number} closes no linked issues, nothing to credit.`);
-              return;
-            }
-
+            const credited = [...authors].slice(0, 10);
+            if (!credited.length) return;
             const creditedSet = new Set(credited);
-            for (const issue of issueNodes) {
-              if (issue.repository.nameWithOwner !== `${owner}/${repo}`) {
-                core.info(
-                  `Issue ${issue.repository.nameWithOwner}#${issue.number} is cross-repo, skipping.`
-                );
-                continue;
-              }
 
-              const current = (issue.assignees && issue.assignees.nodes || []).map(
-                n => n.login
-              );
-              const currentSet = new Set(current);
-              const toRemove = current.filter(login => !creditedSet.has(login));
-              const toAdd = credited.filter(login => !currentSet.has(login));
-
-              if (toRemove.length === 0 && toAdd.length === 0) {
-                core.info(
-                  `Issue #${issue.number} already credited correctly, skipping.`
-                );
-                continue;
-              }
-
-              if (toRemove.length > 0) {
-                try {
-                  await github.rest.issues.removeAssignees({
-                    owner,
-                    repo,
-                    issue_number: issue.number,
-                    assignees: toRemove,
-                  });
-                  core.info(
-                    `Removed ${toRemove.map(l => '@' + l).join(', ')} from issue #${issue.number}.`
-                  );
-                } catch (e) {
-                  core.warning(
-                    `Failed to remove assignees from issue #${issue.number}: ${e.message}`
-                  );
-                }
-              }
-
-              if (toAdd.length > 0) {
-                try {
-                  await github.rest.issues.addAssignees({
-                    owner,
-                    repo,
-                    issue_number: issue.number,
-                    assignees: toAdd,
-                  });
-                  core.info(
-                    `Added ${toAdd.map(l => '@' + l).join(', ')} to issue #${issue.number}.`
-                  );
-                } catch (e) {
-                  core.warning(
-                    `Failed to add assignees to issue #${issue.number}: ${e.message}`
-                  );
-                }
-              }
+            for (const issue of prq.closingIssuesReferences.nodes) {
+              if (issue.repository.nameWithOwner !== `${owner}/${repo}`) continue;
+              const current = issue.assignees.nodes.map(n => n.login);
+              const toRemove = current.filter(l => !creditedSet.has(l));
+              const toAdd = credited.filter(l => !current.includes(l));
+              const args = { owner, repo, issue_number: issue.number };
+              if (toRemove.length) await github.rest.issues.removeAssignees({ ...args, assignees: toRemove });
+              if (toAdd.length) await github.rest.issues.addAssignees({ ...args, assignees: toAdd });
             }
