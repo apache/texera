@@ -31,22 +31,16 @@ class PveResource {
   // Get installed packages
   // --------------------------------------------------
   @GET
-  @Path("/packages")
+  @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getInstalledPackages(
-      @QueryParam("cuid") cuid: Int,
-      @QueryParam("pveName") pveName: String
-  ): util.Map[String, util.List[String]] = {
+  def getSystemPackages: util.Map[String, util.List[String]] = {
     try {
-      val (systemPkgsRaw) = PveManager.getSystemPackages(cuid, pveName)
-
-      val systemPkgs = Option(systemPkgsRaw).getOrElse(Seq.empty[String]).toList.asJava
-
+      val systemPkgs = PveManager.getSystemPackages().toList.asJava
       Map("system" -> systemPkgs).asJava
     } catch {
       case e: Exception =>
         e.printStackTrace()
-        throw new InternalServerErrorException("Failed to get installed packages.")
+        throw new InternalServerErrorException("Failed to get system packages.")
     }
   }
 

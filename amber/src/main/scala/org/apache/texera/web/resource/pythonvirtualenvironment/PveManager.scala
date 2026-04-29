@@ -19,7 +19,7 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
-import java.nio.file.{Files, Path, Paths, StandardOpenOption}
+import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.BlockingQueue
 import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
@@ -62,27 +62,6 @@ object PveManager {
   private def metadataDir(cuid: Int, pveName: String): Path =
     pveDir(cuid, pveName).resolve("metadata")
 
-  private def systemPackagesPath(cuid: Int, pveName: String): Path =
-    metadataDir(cuid, pveName).resolve("system-packages.txt")
-
-  private def writeMetadata(path: Path, lines: Seq[String]): Unit = {
-    if (path.getParent != null) {
-      Files.createDirectories(path.getParent)
-    }
-    Files.write(
-      path,
-      lines.asJava,
-      StandardOpenOption.CREATE,
-      StandardOpenOption.TRUNCATE_EXISTING,
-      StandardOpenOption.WRITE
-    )
-  }
-
-  private def readMetadataList(path: Path): List[String] = {
-    if (!Files.exists(path)) return Nil
-    Files.readAllLines(path).asScala.map(_.trim).filter(_.nonEmpty).toList
-  }
-
   private def pipEnv: Map[String, String] =
     Map(
       "PYTHONUNBUFFERED" -> "1",
@@ -91,9 +70,11 @@ object PveManager {
       "PIP_NO_INPUT" -> "1"
     )
 
-  def getSystemPackages(cuid: Int, pveName: String): (Seq[String]) = {
-    val sys = readMetadataList(systemPackagesPath(cuid, pveName))
-    (sys)
+  def getSystemPackages(): Seq[String] = {
+    val pythonPath = UdfConfig.pythonPath.trim
+    val python = if (pythonPath.isEmpty) "python3" else pythonPath
+
+    Process(Seq(python, "-m", "pip", "freeze")).!!.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
   }
 
   /**
@@ -201,8 +182,6 @@ object PveManager {
 
     val freezeOutput = Process(Seq(python, "-m", "pip", "freeze"), None, envVars.toSeq: _*).!!
     val installedLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
-
-    writeMetadata(systemPackagesPath(cuid, pveName), installedLines)
 
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }

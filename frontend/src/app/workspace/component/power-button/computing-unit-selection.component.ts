@@ -706,28 +706,24 @@ export class ComputingUnitSelectionComponent implements OnInit {
             prettyPipOutput: "",
           }));
 
-          if (resp.length > 0) {
-            this.workflowPveService
-              .getInstalledPackages(cuId, resp[0].pveName)
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                next: installedResp => {
-                  this.systemPackages = installedResp.system.map(pkgStr => {
-                    const [name, version] = pkgStr.split("==");
-                    return {
-                      name: name.trim(),
-                      version: (version ?? "").trim(),
-                    };
-                  });
-                },
-                error: (err: unknown) => {
-                  console.error("Failed to fetch system packages:", err);
-                  this.systemPackages = [];
-                },
-              });
-          } else {
-            this.systemPackages = [];
-          }
+          this.workflowPveService
+            .getSystemPackages()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: installedResp => {
+                this.systemPackages = installedResp.system.map(pkgStr => {
+                  const [name, version] = pkgStr.split("==");
+                  return {
+                    name: name.trim(),
+                    version: (version ?? "").trim(),
+                  };
+                });
+              },
+              error: (err: unknown) => {
+                console.error("Failed to fetch system packages:", err);
+                this.systemPackages = [];
+              },
+            });
         },
         error: (err: unknown) => {
           console.error("Failed to fetch PVEs:", err);
@@ -831,9 +827,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
           };
 
           socket.close();
-
           this.workflowPveService
-            .getInstalledPackages(cuId, currentEnv.name)
+            .getSystemPackages()
             .pipe(untilDestroyed(this))
             .subscribe({
               next: resp => {

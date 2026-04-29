@@ -49,9 +49,9 @@ export class WorkflowPveService {
     return params;
   }
 
-  getInstalledPackages(cuid: number, pveName: string): Observable<PackageResponse> {
-    const params = this.buildBaseParams().set("cuid", cuid.toString()).set("pveName", pveName);
-    return this.http.get<PackageResponse>("/pve/packages", { params });
+  getSystemPackages(): Observable<PackageResponse> {
+    const params = this.buildBaseParams();
+    return this.http.get<PackageResponse>("/pve/system", { params });
   }
 
   fetchPVEs(cuid: number): Observable<PvePackageResponse[]> {
