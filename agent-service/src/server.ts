@@ -80,6 +80,7 @@ async function createAgentInstance(
         userInfo: delegateConfig.userInfo,
         workflowId: delegateConfig.workflowId,
         workflowName: delegateConfig.workflowName,
+        computingUnitId: delegateConfig.computingUnitId,
       });
 
       log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
@@ -121,6 +122,7 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
           userInfo: delegateConfig.userInfo,
           workflowId: delegateConfig.workflowId,
           workflowName: delegateConfig.workflowName,
+          computingUnitId: delegateConfig.computingUnitId,
         }
       : undefined,
     settings: settingsApi,
@@ -165,7 +167,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .post(
     "/",
     async ({ body }) => {
-      const { modelType, name, userToken, workflowId, settings } = body as CreateAgentRequest;
+      const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
@@ -182,6 +184,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           userToken,
           userInfo,
           workflowId,
+          computingUnitId,
         };
       }
 
@@ -218,6 +221,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         name: t.Optional(t.String()),
         userToken: t.Optional(t.String()),
         workflowId: t.Optional(t.Number()),
+        computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(
           t.Object({
             maxOperatorResultCharLimit: t.Optional(t.Number()),
@@ -429,11 +433,30 @@ interface WsOutgoingMessage {
   workflowContent?: any;
 }
 
-// Without execution tools, agents never produce operator results. The route
-// and the WS payload field stay so the frontend keeps working; they just
-// always carry an empty object on the framework-only build.
-function getOperatorResultSummaries(_agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
-  return {};
+function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
+  const resultState = agent.getWorkflowResultState();
+  const visible = resultState.getAllVisible();
+  const results: Record<string, OperatorResultSummaryWs> = {};
+  for (const [opId, entry] of visible) {
+    const info = entry.operatorInfo;
+    results[opId] = {
+      state: info.state,
+      inputTuples: info.inputTuples,
+      outputTuples: info.outputTuples,
+      inputPortShapes: info.inputPortShapes,
+      outputColumns:
+        info.result && info.result.length > 0
+          ? Object.keys(info.result[0]).filter(k => k !== "__row_index__").length
+          : undefined,
+      error: info.error,
+      warnings: info.warnings,
+      consoleLogCount: info.consoleLogs?.length,
+      totalRowCount: info.totalRowCount,
+      sampleRecords: info.result,
+      resultStatistics: info.resultStatistics,
+    };
+  }
+  return results;
 }
 
 function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {

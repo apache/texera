@@ -22,6 +22,8 @@ import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
+import { WorkflowResultState } from "./workflow-result-state";
+import { formatOperatorResult } from "./tools/result-formatting";
 import type { AgentSettings, ReActStep, TokenUsage, UserInfo } from "../types/agent";
 import {
   AgentState as AgentStateEnum,
@@ -30,6 +32,21 @@ import {
   INITIAL_STEP_ID,
 } from "../types/agent";
 import { buildSystemPrompt } from "./prompts";
+import {
+  createAddOperatorTool,
+  createModifyOperatorTool,
+  createDeleteOperatorTool,
+  TOOL_NAME_ADD_OPERATOR,
+  TOOL_NAME_MODIFY_OPERATOR,
+  TOOL_NAME_DELETE_OPERATOR,
+  type ToolContext,
+} from "./tools/workflow-crud-tools";
+import {
+  createExecuteOperatorTool,
+  executeOperatorAndFormat,
+  TOOL_NAME_EXECUTE_OPERATOR,
+  type ExecutionConfig,
+} from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -60,7 +77,7 @@ type ReActStepCallback = (step: ReActStep) => void;
  *
  * Owns the conversation (ReAct step tree with HEAD/checkout semantics), the
  * workflow being edited (`WorkflowState`), cached operator execution results
- * and the tool surface exposed to the LLM. Each call
+ * (`WorkflowResultState`), and the tool surface exposed to the LLM. Each call
  * to `sendMessage` drives one multi-step generation via the Vercel AI SDK,
  * streaming step updates to subscribed websockets.
  */
@@ -76,6 +93,7 @@ export class TexeraAgent {
   private head: string = INITIAL_STEP_ID;
   private stepsById: Map<string, ReActStep> = new Map();
   private stepCounter = 0;
+  private workflowResultState: WorkflowResultState;
 
   private websockets: Set<any> = new Set();
 
@@ -118,6 +136,7 @@ export class TexeraAgent {
 
     this.workflowState = new WorkflowState();
     this.metadataStore = WorkflowSystemMetadata.getInstance();
+    this.workflowResultState = new WorkflowResultState(() => this.getAncestorPath());
 
     const initialStep: ReActStep = {
       id: INITIAL_STEP_ID,
@@ -160,8 +179,56 @@ export class TexeraAgent {
     this.settings.systemPrompt = this.systemPrompt;
   }
 
+  private buildExecutionConfig(): ExecutionConfig | undefined {
+    if (!this.delegateConfig) return undefined;
+    return {
+      userToken: this.delegateConfig.userToken,
+      workflowId: this.delegateConfig.workflowId,
+      computingUnitId: this.delegateConfig.computingUnitId,
+      maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
+      maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
+      executionTimeoutMs: this.settings.executionTimeoutMs,
+    };
+  }
+
   private createTools(): Record<string, any> {
-    return {};
+    const operatorSchemas = new Map<string, any>();
+    for (const type of Object.keys(this.metadataStore.getAllOperatorTypes())) {
+      const jsonSchema = this.metadataStore.getSchema(type);
+      const additionalMetadata = this.metadataStore.getAdditionalMetadata(type);
+      if (jsonSchema) {
+        operatorSchemas.set(type, { jsonSchema, additionalMetadata });
+      }
+    }
+
+    const getExecutionConfig = this.delegateConfig ? () => this.buildExecutionConfig()! : undefined;
+
+    const context: ToolContext = {
+      metadataStore: this.metadataStore,
+      settings: {
+        maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
+        toolTimeoutMs: this.settings.toolTimeoutMs,
+        executionTimeoutMs: this.settings.executionTimeoutMs,
+      },
+    };
+
+    const tools: Record<string, any> = {
+      [TOOL_NAME_DELETE_OPERATOR]: createDeleteOperatorTool(this.workflowState, context),
+      [TOOL_NAME_ADD_OPERATOR]: createAddOperatorTool(this.workflowState, operatorSchemas, context),
+      [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
+    };
+
+    if (getExecutionConfig) {
+      tools[TOOL_NAME_EXECUTE_OPERATOR] = createExecuteOperatorTool(
+        this.workflowState,
+        getExecutionConfig,
+        (opId, operatorInfo) => {
+          this.workflowResultState.set(opId, this.head, operatorInfo);
+        }
+      );
+    }
+
+    return tools;
   }
 
   getState(): AgentStateEnum {
@@ -193,6 +260,10 @@ export class TexeraAgent {
 
   getStepsById(): Map<string, ReActStep> {
     return this.stepsById;
+  }
+
+  getWorkflowResultState(): WorkflowResultState {
+    return this.workflowResultState;
   }
 
   getWebsockets(): Set<any> {
@@ -541,6 +612,34 @@ export class TexeraAgent {
           this.addStep(agentStep);
           this.head = agentStepId;
 
+          const execConfig = this.buildExecutionConfig();
+          if (execConfig && toolCalls && toolResults) {
+            const EXECUTE_AFTER_TOOLS = new Set([TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR]);
+
+            for (let i = 0; i < toolCalls.length; i++) {
+              const tc = toolCalls[i];
+              const tr = toolResults[i];
+              if (!EXECUTE_AFTER_TOOLS.has(tc.toolName)) continue;
+
+              const resultText = typeof tr?.output === "string" ? tr.output : String(tr?.output ?? "");
+              if (resultText.startsWith("[ERROR]")) continue;
+
+              const operatorId = (tc.input as any)?.operatorId;
+              if (!operatorId) continue;
+
+              try {
+                await executeOperatorAndFormat(this.workflowState, execConfig, operatorId, {
+                  abortSignal: this.abortController?.signal,
+                  onResult: (opId, operatorInfo) => {
+                    this.workflowResultState.set(opId, this.head, operatorInfo);
+                  },
+                });
+              } catch (e: any) {
+                this.log.warn({ operatorId, err: e?.message || e }, "post-step execution failed");
+              }
+            }
+          }
+
           beforeStepContent = afterStepContent;
           isFirstStep = false;
         },
@@ -626,7 +725,12 @@ export class TexeraAgent {
   }
 
   private getFormattedResultsForDAG(): Map<string, string> {
-    return new Map();
+    const result = new Map<string, string>();
+    const visible = this.workflowResultState.getAllVisible();
+    for (const [operatorId, entry] of visible) {
+      result.set(operatorId, formatOperatorResult(operatorId, entry.operatorInfo, this.workflowState));
+    }
+    return result;
   }
 
   stop(): void {
