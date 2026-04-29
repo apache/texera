@@ -120,23 +120,35 @@ object AddMetaInfLicenseFiles {
     }.taskValue
   )
 
-  /** Additional settings for dist-producing modules: places the same files
-   *  at the top level of the sbt-native-packager Universal zip so they
-   *  appear alongside lib/ and bin/ in the distribution. */
-  lazy val distSettings: Seq[Setting[_]] = Seq(
-    Universal / mappings := {
-      val existing = (Universal / mappings).value
-      val root = rootDir.value
-      val licenseFile = root / "LICENSE"
-      val noticeFile = root / "NOTICE"
-      val disclaimerFile = root / "DISCLAIMER-WIP"
-      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER-WIP")
-      val filtered = existing.filterNot { case (_, path) => reserved.contains(path) }
-      val extras = Seq(
-        licenseFile -> "LICENSE",
-        noticeFile -> "NOTICE"
-      ) ++ (if (disclaimerFile.exists()) Seq(disclaimerFile -> "DISCLAIMER-WIP") else Seq.empty)
-      filtered ++ extras
+  /** Ships LICENSE-binary, NOTICE-binary, DISCLAIMER-WIP (if present), and
+   *  licenses/ at the Universal zip's top level. LICENSE-binary and
+   *  NOTICE-binary are required; DISCLAIMER-WIP is optional (it will be
+   *  removed at graduation). */
+  def distMappings(existing: Seq[(File, String)], rootDir: File): Seq[(File, String)] = {
+    val licenseBinary = rootDir / "LICENSE-binary"
+    val noticeBinary = rootDir / "NOTICE-binary"
+    val disclaimerFile = rootDir / "DISCLAIMER-WIP"
+    val licensesDir = rootDir / "licenses"
+
+    require(licenseBinary.isFile,
+      s"LICENSE-binary not found at $licenseBinary; required for binary-distribution packaging.")
+    require(noticeBinary.isFile,
+      s"NOTICE-binary not found at $noticeBinary; required for binary-distribution packaging.")
+    require(licensesDir.isDirectory,
+      s"licenses/ directory not found at $licensesDir; required for binary-distribution packaging.")
+
+    val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER-WIP")
+    val filtered = existing.filterNot {
+      case (_, path) => reserved.contains(path) || path.startsWith("licenses/")
     }
-  )
+
+    val licenseTexts = (licensesDir ** "*.txt").get.map(f => f -> s"licenses/${f.getName}")
+
+    val base = Seq(licenseBinary -> "LICENSE", noticeBinary -> "NOTICE")
+    val disclaimer =
+      if (disclaimerFile.isFile) Seq(disclaimerFile -> "DISCLAIMER-WIP")
+      else Seq.empty
+
+    filtered ++ base ++ disclaimer ++ licenseTexts
+  }
 }
