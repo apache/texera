@@ -49,16 +49,14 @@ class DataProcessor(Runnable, Stoppable):
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.wait()
         self._running.set()
-        self._switch_context()
         while self._running.is_set():
-            marker = self._context.tuple_processing_manager.get_internal_marker()
-            state = self._context.state_processing_manager.get_input_state()
-            tuple_ = self._context.tuple_processing_manager.current_input_tuple
-            if marker is not None:
-                self.process_internal_marker(marker)
-            elif state is not None:
-                self.process_state(state)
-            elif tuple_ is not None:
+            tpm = self._context.tuple_processing_manager
+            spm = self._context.state_processing_manager
+            if tpm.current_internal_marker is not None:
+                self.process_internal_marker(tpm.get_internal_marker())
+            elif spm.current_input_state is not None:
+                self.process_state(spm.get_input_state())
+            elif tpm.current_input_tuple is not None:
                 self.process_tuple()
             else:
                 raise RuntimeError("No marker or tuple to process.")
@@ -85,9 +83,6 @@ class DataProcessor(Runnable, Stoppable):
             self._context.exception_manager.set_exception_info(exc_info)
             self._report_exception(exc_info)
 
-        finally:
-            self._switch_context()
-
     def process_state(self, state: State) -> None:
         """
         Process an input marker by invoking appropriate state
@@ -100,7 +95,6 @@ class DataProcessor(Runnable, Stoppable):
                 self._context.worker_id,
                 self._context.console_message_manager.print_buf,
             ):
-                self._switch_context()
                 self._set_output_state(executor.process_state(state, port_id))
 
         except Exception as err:
@@ -108,9 +102,6 @@ class DataProcessor(Runnable, Stoppable):
             exc_info = sys.exc_info()
             self._context.exception_manager.set_exception_info(exc_info)
             self._report_exception(exc_info)
-
-        finally:
-            self._switch_context()
 
     def process_tuple(self) -> None:
         """
@@ -133,9 +124,6 @@ class DataProcessor(Runnable, Stoppable):
                 exc_info = sys.exc_info()
                 self._context.exception_manager.set_exception_info(exc_info)
                 self._report_exception(exc_info)
-
-            finally:
-                self._switch_context()
 
     def _set_output_tuple(self, output_iterator: Iterator[Optional[TupleLike]]) -> None:
         """

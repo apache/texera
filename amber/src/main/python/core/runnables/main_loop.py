@@ -225,9 +225,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
 
     def process_input_state(self) -> None:
+        # Single switch handshake: DataProc parks at the run-loop's
+        # end-of-body switch (line 65) between tasks, so one switch from
+        # MainLoop drives a full pick-up -> executor -> output -> park-back
+        # cycle. By the time the switch returns, current_output_state holds
+        # the freshly produced output.
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
-        self._switch_context()
         if output_state is not None:
             if isinstance(self.context.executor_manager.executor, LoopEndOperator):
                 self.context.output_manager.reset_output_storage()
@@ -287,7 +291,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_state(self, state_: State) -> None:
         self.context.state_processing_manager.current_input_state = state_
-        self._switch_context()
         self.process_input_state()
         self._check_and_process_control()
 
@@ -376,7 +379,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
             if ecm.ecm_type != EmbeddedControlMessageType.NO_ALIGNMENT:
                 self.context.pause_manager.resume(PauseType.ECM_PAUSE)
-            self._switch_context()
             if self.context.tuple_processing_manager.current_internal_marker:
                 {
                     StartChannel: self._process_start_channel,
