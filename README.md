@@ -7,7 +7,7 @@
   <br>
   
   <h4 align="center">
-    <a href="https://texera.io/">Official Site</a>
+    <a href="https://texera.apache.org/">Official Site</a>
     |
     <a href="https://texera.io/category/video/">Video</a>
     |
