@@ -192,7 +192,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def process_input_state(self) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
-        self._switch_context()
         if output_state is not None:
             for to, batch in self.context.output_manager.emit_state(output_state):
                 self._output_queue.put(
