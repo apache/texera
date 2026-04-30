@@ -32,6 +32,8 @@ import org.apache.texera.amber.engine.architecture.controller.{
   ExecutionStateUpdate,
   WorkflowScheduler
 }
+import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
+import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 
@@ -87,7 +89,7 @@ class WorkflowExecutionCoordinator(
     }
 
     // All existing regions are completed. Start the next region (if any).
-    val nextRegions = workflowScheduler.getNextRegions
+    val nextRegions = getNextRegions()
     if (nextRegions.isEmpty) {
       if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
         asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
