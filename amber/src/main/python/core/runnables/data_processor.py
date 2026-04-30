@@ -60,7 +60,6 @@ class DataProcessor(Runnable, Stoppable):
                 self.process_tuple()
             else:
                 raise RuntimeError("No marker or tuple to process.")
-            self._switch_context()
 
     def process_internal_marker(self, internal_marker: InternalMarker) -> None:
         try:
@@ -83,6 +82,9 @@ class DataProcessor(Runnable, Stoppable):
             self._context.exception_manager.set_exception_info(exc_info)
             self._report_exception(exc_info)
 
+        finally:
+            self._switch_context()
+
     def process_state(self, state: State) -> None:
         """
         Process an input marker by invoking appropriate state
@@ -102,6 +104,9 @@ class DataProcessor(Runnable, Stoppable):
             exc_info = sys.exc_info()
             self._context.exception_manager.set_exception_info(exc_info)
             self._report_exception(exc_info)
+
+        finally:
+            self._switch_context()
 
     def process_tuple(self) -> None:
         """
@@ -124,6 +129,9 @@ class DataProcessor(Runnable, Stoppable):
                 exc_info = sys.exc_info()
                 self._context.exception_manager.set_exception_info(exc_info)
                 self._report_exception(exc_info)
+
+            finally:
+                self._switch_context()
 
     def _set_output_tuple(self, output_iterator: Iterator[Optional[TupleLike]]) -> None:
         """
