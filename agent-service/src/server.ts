@@ -477,14 +477,11 @@ function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
 export function buildApp() {
   return new Elysia()
     .use(cors())
-    .group(env.API_PREFIX, app =>
-      app
-        .get("/healthcheck", () => ({
-          status: "ok",
-          timestamp: new Date().toISOString(),
-        }))
-        .use(agentsRouter)
-    )
+    .get("/health", () => ({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+    }))
+    .group(env.API_PREFIX, app => app.use(agentsRouter))
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {
         const agentId = (ws.data as any).params?.id;
@@ -587,7 +584,7 @@ export function buildApp() {
       },
     })
     .onError(({ error, set }) => {
-      // Catch-all for non-router routes such as /api/healthcheck and the websocket route.
+      // Catch-all for non-router routes such as /health and the websocket route.
       log.error({ err: error }, "request error");
       set.status = 500;
       return { error: error instanceof Error ? error.message : String(error) };
