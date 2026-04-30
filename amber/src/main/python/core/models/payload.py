@@ -34,3 +34,7 @@ class DataFrame(DataPayload):
 @dataclass
 class StateFrame(DataPayload):
     frame: State
+
+    def __post_init__(self):
+        if not isinstance(self.frame, State):
+            self.frame = State(self.frame)

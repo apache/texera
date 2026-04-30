@@ -248,7 +248,7 @@ class OutputManager:
                         receiver,
                         (
                             StateFrame(payload)
-                            if isinstance(payload, dict)
+                            if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),
                     )
