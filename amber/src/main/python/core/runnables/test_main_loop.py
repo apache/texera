@@ -26,6 +26,7 @@ from threading import Thread
 from core.models import (
     DataFrame,
     InternalQueue,
+    StateFrame,
     Tuple,
 )
 from core.models.internal_queue import (
@@ -1079,7 +1080,7 @@ class TestMainLoop:
         )
 
     @pytest.mark.timeout(2)
-    def test_process_state_can_emit_multiple_states(
+    def test_process_state_can_emit_consecutive_states(
         self,
         main_loop,
         output_queue,
@@ -1088,7 +1089,7 @@ class TestMainLoop:
     ):
         class DummyExecutor:
             @staticmethod
-            def process_state(state: State, port: int) -> State:
+            def process_state(state, port: int):
                 return {"value": state["value"] + 1, "port": port}
 
         main_loop.context.executor_manager.executor = DummyExecutor()
@@ -1103,7 +1104,7 @@ class TestMainLoop:
 
         def fake_switch_context():
             switch_count["value"] += 1
-            # xinyuan-state-only still uses the original two-switch state handshake:
+            # The current state-processing handshake uses two context switches:
             # the DataProcessor produces output during the first switch of each
             # process_input_state() call, before MainLoop reads current_output_state.
             if switch_count["value"] % 2 == 1:

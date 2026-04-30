@@ -26,7 +26,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import java.util.Base64
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-object State {
+object StateJson {
   private val StateContent = "content"
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
@@ -56,7 +56,7 @@ object State {
       case null => null
       case bytes: Array[Byte] =>
         Map(BytesTypeMarker -> BytesValue, PayloadMarker -> Base64.getEncoder.encodeToString(bytes))
-      case map: State =>
+      case map: Map[?, ?] =>
         map.iterator.map { case (k, v) => k -> toJsonValue(v) }.toMap
       case iterable: Iterable[_] =>
         iterable.map(toJsonValue).toList

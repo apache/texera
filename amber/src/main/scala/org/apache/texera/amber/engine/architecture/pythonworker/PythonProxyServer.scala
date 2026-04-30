@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 
 import com.google.common.primitives.Longs
 import com.twitter.util.Promise
-import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.state.StateJson
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.messaginglayer.NetworkOutputGateway
@@ -128,7 +128,7 @@ private class AmberProducer(
     dataHeader.payloadType match {
       case "State" =>
         assert(root.getRowCount == 1)
-        outputPort.sendTo(to, StateFrame(State.deserialize(ArrowUtils.getTexeraTuple(0, root))))
+        outputPort.sendTo(to, StateFrame(StateJson.deserialize(ArrowUtils.getTexeraTuple(0, root))))
       case "ECM" =>
         assert(root.getRowCount == 1)
         outputPort.sendTo(
