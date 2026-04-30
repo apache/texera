@@ -84,6 +84,8 @@ yarn format:fix
 ### 4. PR Review
 - [ ] Ask a Texera Committer (by commenting on the PR) to triage your PR, i.e., request a reviewer, and assign the PR to you.
 - [ ] Add appropriate labels such as `fix`, `enhancement`, `docs`, etc.
+- [ ] If the change should also land in a release branch, add the release branch label directly, such as `release/1.1`.
+- [ ] When a `release/*` label is present, GitHub Actions will run the PR changes against that target release branch and, after the PR is squash-merged into `main`, automatically push the same change to the labeled release branch if the backport CI passed.
 - [ ] Ensure that all CI checks pass (see [GitHub Actions](https://github.com/Texera/texera/actions)).
 - [ ] Fully test your changes locally.
 

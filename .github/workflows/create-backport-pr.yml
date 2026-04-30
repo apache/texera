@@ -1,0 +1,139 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Direct Backport Push
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  checks: read
+  contents: write
+  pull-requests: read
+
+jobs:
+  discover:
+    name: Discover direct backport targets
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.discover.outputs.pr_number }}
+      targets: ${{ steps.discover.outputs.targets }}
+      has_targets: ${{ steps.discover.outputs.has_targets }}
+    steps:
+      - name: Resolve merged PR and green targets
+        id: discover
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const sha = context.sha;
+            const { owner, repo } = context.repo;
+
+            const response = await github.request(
+              "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls",
+              {
+                owner,
+                repo,
+                commit_sha: sha,
+              }
+            );
+
+            const pullRequest = response.data.find((pr) => pr.merge_commit_sha === sha) ?? response.data[0];
+            if (!pullRequest) {
+              core.info(`No merged pull request is associated with ${sha}.`);
+              core.setOutput("pr_number", "");
+              core.setOutput("targets", "[]");
+              core.setOutput("has_targets", "false");
+              return;
+            }
+
+            const requestedTargets = [...new Set(
+              pullRequest.labels
+                .map((label) => label.name)
+                .filter((name) => /^release\/.+$/.test(name))
+            )].sort();
+
+            if (requestedTargets.length === 0) {
+              core.info(`PR #${pullRequest.number} does not request any backports.`);
+              core.setOutput("pr_number", String(pullRequest.number));
+              core.setOutput("targets", "[]");
+              core.setOutput("has_targets", "false");
+              return;
+            }
+
+            const checks = await github.request(
+              "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
+              {
+                owner,
+                repo,
+                ref: pullRequest.head.sha,
+                per_page: 100,
+              }
+            );
+
+            const greenTargets = requestedTargets.filter((target) =>
+              checks.data.check_runs.some(
+                (run) =>
+                  run.name === `Backport CI (${target})` &&
+                  run.status === "completed" &&
+                  run.conclusion === "success"
+              )
+            );
+
+            const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
+            if (skippedTargets.length > 0) {
+              core.warning(`Skipping targets without a successful Backport CI run: ${skippedTargets.join(", ")}`);
+            }
+
+            core.setOutput("pr_number", String(pullRequest.number));
+            core.setOutput("targets", JSON.stringify(greenTargets));
+            core.setOutput("has_targets", greenTargets.length > 0 ? "true" : "false");
+
+  push-backports:
+    name: Push backport to ${{ matrix.target }}
+    needs: discover
+    if: ${{ needs.discover.outputs.has_targets == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.discover.outputs.targets) }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Cherry-pick merge commit onto target branch
+        env:
+          MERGE_SHA: ${{ github.sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          parent_count=$(git rev-list --parents -n 1 "${MERGE_SHA}" | awk '{print NF-1}')
+          if [[ "${parent_count}" -ne 1 ]]; then
+            echo "Direct backport expects a squash-merged commit on main. ${MERGE_SHA} has ${parent_count} parents." >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch --no-tags origin "${TARGET_BRANCH}"
+          git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
+          git cherry-pick -x "${MERGE_SHA}"
+          git push origin "HEAD:${TARGET_BRANCH}"

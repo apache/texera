@@ -1,0 +1,75 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Backport Compatibility
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  detect-targets:
+    name: Detect release backport targets
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+      has_targets: ${{ steps.targets.outputs.has_targets }}
+    steps:
+      - name: Collect release labels
+        id: targets
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map((label) => label.name);
+            const targets = [...new Set(labels.filter((name) => /^release\/.+$/.test(name)))].sort();
+
+            core.info(`Backport targets: ${targets.join(", ") || "(none)"}`);
+            core.setOutput("targets", JSON.stringify(targets));
+            core.setOutput("has_targets", targets.length > 0 ? "true" : "false");
+
+  backport-ci:
+    name: Backport CI (${{ matrix.target }})
+    needs: detect-targets
+    if: ${{ needs.detect-targets.outputs.has_targets == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.detect-targets.outputs.targets) }}
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
+      backport_target_branch: ${{ matrix.target }}
+      backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+      job_name_suffix: ${{ format(' [backport {0}]', matrix.target) }}
+      summary_job_name: ${{ format('Backport CI ({0})', matrix.target) }}
+      run_frontend: true
+      run_scala: true
+      run_python: true
+      run_agent_service: true
+    secrets: inherit
