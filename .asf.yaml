@@ -103,6 +103,7 @@ github:
           - python (ubuntu-latest, 3.10)
           - python (ubuntu-latest, 3.11)
           - python (ubuntu-latest, 3.12)
+          - python (ubuntu-latest, 3.13)
           - Check License Headers
           - Validate PR title
       required_pull_request_reviews:
@@ -115,5 +116,5 @@ notifications:
   commits:              commits@texera.apache.org
   issues:               notifications@texera.apache.org
   pullrequests:         notifications@texera.apache.org
-  discussions:          notifications@texera.apache.org
+  discussions:          dev@texera.apache.org
   jobs:                 commits@texera.apache.org
