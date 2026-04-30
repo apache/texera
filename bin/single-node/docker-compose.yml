@@ -410,7 +410,7 @@ services:
       retries: 10
       start_period: 15s
 
-  # AI agent Management Service
+  # Texera agent Management Service
   agent-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-agent-service:${IMAGE_TAG:-latest}
     container_name: agent-service

@@ -103,21 +103,26 @@ docker compose --profile examples down -v
 > ⚠️ Warning: This will permanently delete all the data used by Texera.
 
 
-## Enable the AI Agent
+## Enable the Texera Agent
 
-By default, Texera ships with Claude Haiku 4.5 as the AI agent model and queries it through [LiteLLM](https://docs.litellm.ai/). Without an API key, the agent panel still appears but model calls will fail with a provider auth error.
+The Texera agent is powered by a large language model (LLM). By default, Texera uses [Claude Haiku 4.5](https://www.anthropic.com/claude/haiku) as the LLM and queries it through [LiteLLM](https://docs.litellm.ai/). Without an API key, the Texera agent panel still appears but model calls will fail with a provider auth error.
 
 To enable it:
 
 1. [Stop Texera](#stop) if it is already running.
-2. Get an API key from the provider. This docker compose enables the `Claude Haiku 4.5` by default. Therefore, you need to get an [Anthropic API key](https://console.anthropic.com/settings/keys).
+2. Get an API key for the LLM. Since Claude Haiku 4.5 is enabled by default, you need an [Anthropic API key](https://console.anthropic.com/settings/keys).
 3. Export the key and restart Texera:
    ```bash
    export ANTHROPIC_API_KEY=sk-ant-...
    docker compose --profile examples up
    ```
 
-To switch providers or add more models, see [Add more AI models or providers](#add-more-ai-models-or-providers).
+Once Texera is up, create a new workflow and open the Texera agent panel at the bottom right. Type a task like:
+
+> For /texera/popular-movies-of-imdb/v1/TMDb_updated.csv, visualize the top 10 most-voted movies.
+
+To switch providers or add more LLMs, see [Add more LLMs or providers](#add-more-llms-or-providers).
+
 
 
 ## Advanced Settings
@@ -163,8 +168,8 @@ $ docker compose up
 y // answer y to this prompt
 ```
 
-### Add more AI models or providers
-Only Claude Haiku 4.5 is enabled by default. To add more models, open `litellm-config.yaml` in the installation folder and append entries under `model_list`. Each entry follows this shape:
+### Add more LLMs or providers
+Only Claude Haiku 4.5 is enabled by default. To add more LLMs, open `litellm-config.yaml` in the installation folder and append entries under `model_list`. Each entry follows this shape:
 ```diff
   model_list:
     ...
@@ -187,7 +192,7 @@ For example, to add OpenAI's GPT-5.2 and Google's Gemini 2.5 Pro:
 +       model: gemini/gemini-2.5-pro
 +       api_key: "os.environ/GEMINI_API_KEY"
 ```
-Make sure to set the corresponding API key environment variable when you launch Texera (see [Enable the AI Agent](#enable-the-ai-agent)). Get keys from each provider's console — for example, [OpenAI](https://platform.openai.com/api-keys) or [Google](https://aistudio.google.com/apikey).
+Make sure to set the corresponding API key environment variable when you launch Texera (see [Enable the Texera Agent](#enable-the-texera-agent)). Get keys from each provider's console — for example, [OpenAI](https://platform.openai.com/api-keys) or [Google](https://aistudio.google.com/apikey).
 
 If your provider is not Anthropic, OpenAI, or Google, also pass its key into the LiteLLM container by editing `docker-compose.yml`:
 ```diff
