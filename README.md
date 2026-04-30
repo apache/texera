@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://texera.io"> <img src="frontend/src/assets/logos/full_logo_small.png" alt="texera-logo" height="150px"/> </a>
   <br>
-  <i>Apache Texera (Incubating) is an open-source system for human-AI collaborative data science using visual workflows.</i>
+  <i>Apache Texera (Incubating) is an open-source platform for human-AI collaborative data science using visual workflows.</i>
   <br>
   
   <h4 align="center">
