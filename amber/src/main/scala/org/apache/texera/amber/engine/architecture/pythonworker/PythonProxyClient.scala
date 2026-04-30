@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import org.apache.texera.amber.core.WorkflowRuntimeException
-import org.apache.texera.amber.core.state.StateJson
+import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
@@ -126,7 +126,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
       case StateFrame(state) =>
-        writeArrowStream(mutable.Queue(StateJson.serialize(state)), from, "State")
+        writeArrowStream(mutable.Queue(State.serialize(state)), from, "State")
     }
   }
 
