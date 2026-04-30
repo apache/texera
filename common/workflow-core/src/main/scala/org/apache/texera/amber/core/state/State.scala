@@ -26,6 +26,14 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import java.util.Base64
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
+final case class State(data: Map[String, Any]) {
+  def apply(key: String): Any = data(key)
+
+  def get(key: String): Option[Any] = data.get(key)
+
+  def updated(key: String, value: Any): State = State(data.updated(key, value))
+}
+
 object StateJson {
   private val StateContent = "content"
   private val BytesTypeMarker = "__texera_type__"
@@ -37,18 +45,20 @@ object StateJson {
   )
 
   def serialize(state: State): Tuple = {
-    val payloadJson = objectMapper.writeValueAsString(toJsonValue(state))
+    val payloadJson = objectMapper.writeValueAsString(toJsonValue(state.data))
     Tuple.builder(schema).addSequentially(Array(payloadJson)).build()
   }
 
   def deserialize(tuple: Tuple): State = {
     val payload = tuple.getField[String](StateContent)
-    objectMapper
-      .readTree(payload)
-      .fields()
-      .asScala
-      .map(entry => entry.getKey -> fromJsonValue(entry.getValue))
-      .toMap
+    State(
+      objectMapper
+        .readTree(payload)
+        .fields()
+        .asScala
+        .map(entry => entry.getKey -> fromJsonValue(entry.getValue))
+        .toMap
+    )
   }
 
   private def toJsonValue(value: Any): Any =
