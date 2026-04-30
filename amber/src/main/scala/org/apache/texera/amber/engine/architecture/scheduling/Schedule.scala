@@ -25,6 +25,11 @@ case class Schedule(
     private val levelSets: Map[Int, Set[Region]],
     executionLevels: Vector[Int] = Vector.empty
 ) extends Iterator[Set[Region]] {
+  require(
+    levelSets.keys.toSet == (0 until levelSets.size).toSet,
+    s"Schedule level keys must be contiguous starting at 0, got: ${levelSets.keys.toSeq.sorted}"
+  )
+
   private val baseLevels = levelSets.keys.toVector.sorted
   private val normalizedExecutionLevels =
     if (executionLevels.nonEmpty || baseLevels.isEmpty) executionLevels else baseLevels
