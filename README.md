@@ -7,13 +7,13 @@
   <br>
   
   <h4 align="center">
-    <a href="https://texera.apache.org/">Official Site</a>
+    <a href="https://texera.io/">Official Site</a>
     |
     <a href="https://texera.io/category/video/">Video</a>
+    |
+    <a href="https://texera.io/publications/">Publications</a>
     | 
     <a href="https://texera.io/category/blog/">Blog</a>
-    |
-    <a href="https://github.com/Texera/texera/wiki/Getting-Started">Getting Started</a>
     <br>
   </h4>
   
@@ -29,20 +29,17 @@
   <img alt="Static Badge" src="https://img.shields.io/badge/Largest_Deployment-100_nodes,_400_cores-green">
 </p>
 
-Apache Texera (Incubating) is an open-source system for human-AI collaborative data science using visual workflows. It enables analysts to construct, execute, and refine data analysis tasks through an intuitive GUI, assisted by AI agents that understand natural-language instructions. Texera is well suited for a wide range of applications, including “AI for Science,” by making advanced AI and data science capabilities accessible to a broader community. It can run on a laptop for local use or be deployed in the cloud to support scalable processing of large datasets.
+Apache Texera (Incubating) is an open-source platform for human-AI collaborative data science using visual workflows. It enables human analysts to construct, execute, and refine data analysis tasks through an intuitive GUI, assisted by AI agents that understand natural-language instructions. Texera is well suited for a wide range of applications, including “AI for Science,” by making advanced AI and data science capabilities accessible to a broader community. It can run on a laptop for local use or be deployed in the cloud to support scalable processing of large datasets.
 
-The system has the following key features:
+The platform has the following key features:
 
-* Natural-language data science through AI chatbots
-* Intuitive GUI-based workflows for data analysis
-* Parallel backend engine for scalable big-data processing
+* Natural-language data science through AI agents 
+* Intuitive GUI-based workflows for data science
 * Real-time collaboration for workflow editing and execution
-* User-defined functions in Python and Java
-* Separation of compute and storage for flexible cloud deployment
 * Runtime debugging and interactive workflow execution
-* Cloud-native deployment support
-* Multi-tenant support with workload isolation
-* Extensible architecture for integrating external web services
+* Language-agnostic workflow runtime, native support for Python and Java
+* Parallel backend engine for scalable big-data processing
+* Separation of compute and storage for flexible cloud deployment
 
 
 ![texera-screenshot](https://github.com/user-attachments/assets/4384b8f5-3a9a-4bbc-a804-1dadd156ebb3)
