@@ -42,7 +42,7 @@ The platform has the following key features:
 * Separation of compute and storage for flexible cloud deployment
 
 
-![texera-screenshot](https://github.com/user-attachments/assets/4384b8f5-3a9a-4bbc-a804-1dadd156ebb3)
+![texera-screenshot](docs/system-screenshot.png)
 
 
 # Citation
