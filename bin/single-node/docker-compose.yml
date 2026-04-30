@@ -283,8 +283,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # ConfigService provides endpoints for configuration management; serves
-  # /api/config/gui which the dashboard GUI reads.
+  # ConfigService provides endpoints for configuration management
   config-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-config-service:${IMAGE_TAG:-latest}
     container_name: config-service
@@ -300,8 +299,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # AccessControlService handles user permissions and proxies copilot
-  # traffic to LiteLLM.
+  # AccessControlService handles user permissions and proxies LLM API traffic
   access-control-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-access-control-service:${IMAGE_TAG:-latest}
     container_name: access-control-service
@@ -367,7 +365,6 @@ services:
       - workflow_result_data:/amber/user-resources
 
   # DashboardService provides endpoints for hub resource management and
-  # serves the GUI bundle.
   dashboard-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-dashboard-service:${IMAGE_TAG:-latest}
     container_name: dashboard-service
@@ -391,7 +388,7 @@ services:
 
   # LLM API proxy for different providers
   litellm:
-    image: ghcr.io/berriai/litellm:main-stable
+    image: ghcr.io/berriai/litellm:1.83
     container_name: litellm
     restart: always
     # Keys read from shell first, falling back to .env.
