@@ -389,7 +389,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # OpenAI-compatible proxy in front of Anthropic / OpenAI / Gemini.
+  # LLM API proxy for different providers
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
@@ -403,8 +403,6 @@ services:
     volumes:
       - ./litellm-config.yaml:/app/config.yaml:ro
     command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
-    # /health/liveliness is litellm's unauthenticated probe endpoint;
-    # /health requires LITELLM_MASTER_KEY and 401-spams the logs.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness').read()"]
       interval: 10s
@@ -412,7 +410,7 @@ services:
       retries: 10
       start_period: 15s
 
-  # AI agents that drive workflows on behalf of users.
+  # AI agent Management Service
   agent-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-agent-service:${IMAGE_TAG:-latest}
     container_name: agent-service

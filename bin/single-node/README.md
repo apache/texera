@@ -60,12 +60,6 @@ If you don't want to have these examples pre-created, run the following command 
 docker compose up
 ```
 
-To enable the AI copilot panel, also pass your LLM provider key inline. For example, with Anthropic:
-```bash
-ANTHROPIC_API_KEY=sk-ant-... docker compose --profile examples up
-```
-`OPENAI_API_KEY` and `GEMINI_API_KEY` are also supported. Without a key, the copilot panel still appears but model calls will fail with a provider auth error.
-
 > If you see the error message like `unable to get image 'nginx:alpine': Cannot connect to the Docker daemon at unix:///Users/kunwoopark/.docker/run/docker.sock. Is the docker daemon running?`, please make sure Docker Desktop is installed and running
 
 > When you start Texera for the first time, it will take around 5 minutes to download needed images.
@@ -94,7 +88,7 @@ Press `Ctrl+C` in the terminal to stop Texera.
 
 If you already closed the terminal, you can go to the installation folder and run:
 ```bash
-docker compose stop
+docker compose --profile examples stop
 ```
 to stop Texera.
 
@@ -107,6 +101,23 @@ To remove Texera and all its data, go to the installation folder and run:
 docker compose --profile examples down -v
 ```
 > ⚠️ Warning: This will permanently delete all the data used by Texera.
+
+
+## Enable the AI Agent
+
+By default, Texera ships with Claude Haiku 4.5 as the AI agent model and queries it through [LiteLLM](https://docs.litellm.ai/). Without an API key, the agent panel still appears but model calls will fail with a provider auth error.
+
+To enable it:
+
+1. [Stop Texera](#stop) if it is already running.
+2. Get an API key from the provider. This docker compose enables the `Claude Haiku 4.5` by default. Therefore, you need to get an [Anthropic API key](https://console.anthropic.com/settings/keys).
+3. Export the key and restart Texera:
+   ```bash
+   export ANTHROPIC_API_KEY=sk-ant-...
+   docker compose --profile examples up
+   ```
+
+To switch providers or add more models, see [Add more AI models or providers](#add-more-ai-models-or-providers).
 
 
 ## Advanced Settings
@@ -151,6 +162,45 @@ $ docker compose up
 ? Volume "texera-single-node-release-1-1-0_workflow_result_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)? (y/N)
 y // answer y to this prompt
 ```
+
+### Add more AI models or providers
+Only Claude Haiku 4.5 is enabled by default. To add more models, open `litellm-config.yaml` in the installation folder and append entries under `model_list`. Each entry follows this shape:
+```diff
+  model_list:
+    ...
++   - model_name: <name shown in Texera>
++     litellm_params:
++       model: <provider model id>
++       api_key: "os.environ/<API_KEY_ENV_VAR>"
+```
+For example, to add OpenAI's GPT-5.2 and Google's Gemini 2.5 Pro:
+```diff
+  model_list:
+    ...
++   - model_name: gpt-5.2
++     litellm_params:
++       model: gpt-5.2
++       api_key: "os.environ/OPENAI_API_KEY"
++
++   - model_name: gemini-2.5-pro
++     litellm_params:
++       model: gemini/gemini-2.5-pro
++       api_key: "os.environ/GEMINI_API_KEY"
+```
+Make sure to set the corresponding API key environment variable when you launch Texera (see [Enable the AI Agent](#enable-the-ai-agent)). Get keys from each provider's console — for example, [OpenAI](https://platform.openai.com/api-keys) or [Google](https://aistudio.google.com/apikey).
+
+If your provider is not Anthropic, OpenAI, or Google, also pass its key into the LiteLLM container by editing `docker-compose.yml`:
+```diff
+  litellm:
+    ...
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
++     <NEW_API_KEY>: ${<NEW_API_KEY>:-}
+```
+
+For the full list of supported providers and model IDs, see the [LiteLLM proxy config docs](https://docs.litellm.ai/docs/proxy/configs).
 
 ## Troubleshooting
 
