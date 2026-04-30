@@ -319,9 +319,7 @@
               *ngIf="queuedCount > 0"
               [nzHeader]="'Pending: ' + queuedCount + ' file(s)'">
               <div class="upload-progress-wrapper-pending">
-                <div
-                  *ngFor="let fileName of queuedFileNames"
-                  class="upload-progress-container">
+                <div *ngFor="let fileName of queuedFileNames">
                   <span>{{ fileName }}</span>
                   <button
                     nz-button
@@ -347,9 +345,7 @@
               *ngIf="activeCount > 0"
               [nzHeader]="'Uploading: ' + activeCount + ' file(s)'">
               <div class="upload-progress-wrapper">
-                <div
-                  *ngFor="let task of uploadTasks; trackBy: trackByTask"
-                  class="upload-progress-container">
+                <div *ngFor="let task of uploadTasks; trackBy: trackByTask">
                   <div class="progress-header">
                     <span><b>{{ task.status }}</b>: {{ task.filePath }}</span>
                     <button
