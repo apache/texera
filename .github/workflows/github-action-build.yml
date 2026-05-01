@@ -74,10 +74,13 @@ jobs:
         run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
       - name: Lint with Prettier & ESLint
         run: yarn --cwd frontend format:ci
-      - name: Run frontend unit tests
-        run: yarn --cwd frontend run test:ci
       - name: Prod build
         run: yarn --cwd frontend run build:ci
+      - name: Check bundled npm packages against LICENSE-binary
+        if: matrix.os == 'ubuntu-latest'
+        run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
+      - name: Run frontend unit tests
+        run: yarn --cwd frontend run test:ci
 
   scala:
     strategy:
@@ -135,6 +138,41 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
+      - name: Build distributable bundles for license check
+        # Build every dist-producing module so the union of bundled jars can
+        # be diffed against LICENSE-binary.
+        run: sbt 'clean; ConfigService/dist; AccessControlService/dist; FileService/dist; ComputingUnitManagingService/dist; WorkflowCompilingService/dist; WorkflowExecutionService/dist'
+      - name: Unzip JVM distributable bundles
+        run: |
+          mkdir -p /tmp/dists
+          for zip in \
+            config-service/target/universal/config-service-*.zip \
+            access-control-service/target/universal/access-control-service-*.zip \
+            file-service/target/universal/file-service-*.zip \
+            computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip \
+            workflow-compiling-service/target/universal/workflow-compiling-service-*.zip \
+            amber/target/universal/amber-*.zip; do
+              unzip -q "$zip" -d /tmp/dists/
+          done
+      - name: Check bundled jars against LICENSE-binary
+        run: |
+          ./bin/licensing/check_binary_deps.py jar \
+            /tmp/dists/config-service-*/lib \
+            /tmp/dists/access-control-service-*/lib \
+            /tmp/dists/file-service-*/lib \
+            /tmp/dists/computing-unit-managing-service-*/lib \
+            /tmp/dists/workflow-compiling-service-*/lib \
+            /tmp/dists/amber-*/lib
+      - name: Audit per-dep license preservation (advisory)
+        if: always()
+        run: |
+          ./bin/licensing/audit_jar_licenses.py \
+            /tmp/dists/config-service-*/lib \
+            /tmp/dists/access-control-service-*/lib \
+            /tmp/dists/file-service-*/lib \
+            /tmp/dists/computing-unit-managing-service-*/lib \
+            /tmp/dists/workflow-compiling-service-*/lib \
+            /tmp/dists/amber-*/lib
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
@@ -168,6 +206,13 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then pip install pip-licenses; fi
+      - name: Generate pip-licenses manifest
+        if: matrix.python-version == '3.12'
+        run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
+      - name: Check installed Python packages against LICENSE-binary
+        if: matrix.python-version == '3.12'
+        run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
       - name: Install PostgreSQL
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Start PostgreSQL Service
@@ -199,7 +244,17 @@ jobs:
         run: |
           curl -fsSL https://bun.sh/install | bash -s -- bun-v${{ matrix.bun-version }}
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
-      - name: Install dependencies
+      - name: Install production dependencies
+        run: bun install --production --frozen-lockfile
+      - name: Generate agent-service license manifest
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p dist
+          bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
+      - name: Check bundled agent-service packages against LICENSE-binary
+        if: matrix.os == 'ubuntu-latest'
+        run: ../bin/licensing/check_binary_deps.py agent-npm dist/3rdpartylicenses.json
+      - name: Install development dependencies
         run: bun install --frozen-lockfile
       - name: Lint with Prettier
         run: bun run format:check
