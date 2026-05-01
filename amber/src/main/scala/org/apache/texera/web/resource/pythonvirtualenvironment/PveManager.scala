@@ -33,16 +33,10 @@ import org.apache.texera.amber.config.UdfConfig
   *
   * It supports:
   * - Creating and initializing isolated Python environments
-  * - Installing and uninstalling Python packages
-  * - Tracking system vs user-installed packages via metadata files
   * - Streaming pip output logs back to the caller
   *
   * Each PVE is stored under:
   *   /tmp/texera-pve/venvs/{cuid}/{pveName}/
-  *
-  * The structure includes:
-  * - pve/              -> actual virtual environment
-  * - metadata/         -> package tracking (system + user)
   */
 
 object PveManager {
@@ -59,9 +53,6 @@ object PveManager {
   private def pythonBinPath(cuid: Int, pveName: String): Path =
     pveDir(cuid, pveName).resolve("bin").resolve("python")
 
-  private def metadataDir(cuid: Int, pveName: String): Path =
-    pveDir(cuid, pveName).resolve("metadata")
-
   private def pipEnv: Map[String, String] =
     Map(
       "PYTHONUNBUFFERED" -> "1",
@@ -70,10 +61,13 @@ object PveManager {
       "PIP_NO_INPUT" -> "1"
     )
 
-  def getSystemPackages(): Seq[String] = {
+  def getPythonExecutable: String = {
     val pythonPath = UdfConfig.pythonPath.trim
-    val python = if (pythonPath.isEmpty) "python3" else pythonPath
+    if (pythonPath.isEmpty) "python3" else pythonPath
+  }
 
+  def getSystemPackages(): Seq[String] = {
+    val python = getPythonExecutable
     Process(Seq(python, "-m", "pip", "freeze")).!!.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
   }
 
@@ -84,10 +78,8 @@ object PveManager {
     * Creates a fresh venv and installs dependencies
     *
     * Steps:
-    * 2. Install system dependencies
-    * 3. Record installed packages as system metadata
-    *
-    * Logs progress to the provided queue.
+    * 1. Install system dependencies
+    * 2. Logs progress to the provided queue.
     */
   def createNewPve(
       cuid: Int,
@@ -96,13 +88,6 @@ object PveManager {
       isLocal: Boolean
   ): Unit = {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
-
-    val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
-    val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
-    val envVars = pipEnv
-
-    val pythonPath = UdfConfig.pythonPath.trim
-    val createVenvPython = if (pythonPath.isEmpty) "python3" else pythonPath
 
     // NOTE: These paths are derived from computing-unit-master.dockerfile.
     // If requirements.txt or operator-requirements.txt locations change, update these paths.
@@ -113,6 +98,17 @@ object PveManager {
     val operatorRequirementsPath =
       if (isLocal) Paths.get("amber", "operator-requirements.txt")
       else Paths.get("/tmp", "operator-requirements.txt")
+
+    if (!Files.exists(requirementsPath) || !Files.exists(operatorRequirementsPath)) {
+      queue.put(s"[PVE][ERR] System requirements not found")
+      return
+    }
+
+    val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
+    val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
+    val envVars = pipEnv
+
+    val createVenvPython = getPythonExecutable
 
     Files.createDirectories(venvDirPath.getParent)
 
@@ -141,8 +137,6 @@ object PveManager {
       )
       return
     }
-
-    Files.createDirectories(metadataDir(cuid, pveName))
 
     queue.put(
       s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath} and ${operatorRequirementsPath.toAbsolutePath}"
@@ -177,11 +171,6 @@ object PveManager {
       queue.put(s"[PVE][ERR] Failed to install requirements files (exit=$installReqCode)")
       return
     }
-
-    queue.put("[PVE] Running pip freeze")
-
-    val freezeOutput = Process(Seq(python, "-m", "pip", "freeze"), None, envVars.toSeq: _*).!!
-    val installedLines = freezeOutput.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
 
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
