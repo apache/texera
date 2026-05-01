@@ -58,8 +58,17 @@ import {
 } from "../../../common/util/computing-unit.util";
 import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
 
+type PackageRow = {
+  name: string;
+  operator?: "==" | ">=" | "<=";
+  version?: string;
+  deleteToggle?: boolean;
+};
+
 type PveDraft = {
   name: string;
+  userPackages: PackageRow[];
+  newPackages: PackageRow[];
   pipOutput: string;
   prettyPipOutput: string;
   expanded: boolean;
@@ -672,9 +681,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return index;
   }
 
+  addPackage(index: number): void {
+    const env = this.pves[index];
+    env.newPackages.push({ name: "", version: "", operator: undefined, deleteToggle: false });
+  }
+
   addEnvironment(): void {
     this.pves.push({
       name: "",
+      userPackages: [],
+      newPackages: [{ name: "", operator: "==", version: "" }],
       pipOutput: "",
       prettyPipOutput: "",
       expanded: true,
@@ -708,6 +724,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (resp: PvePackageResponse[]) => {
           this.pves = resp.map(pve => ({
             name: pve.pveName,
+            userPackages: [],
+            newPackages: [],
             expanded: false,
             isInstalling: false,
             pipOutput: "",
