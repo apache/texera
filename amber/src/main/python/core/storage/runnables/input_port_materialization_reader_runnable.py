@@ -130,7 +130,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             if receiver == self.worker_actor_id:
                 yield (
                     StateFrame(payload)
-                    if isinstance(payload, dict)
+                    if isinstance(payload, State)
                     else self.tuples_to_data_frame(payload)
                 )
 
