@@ -25,7 +25,7 @@ import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import java.util.Comparator
-import org.apache.texera.amber.config.UdfConfig
+import org.apache.texera.amber.config.PythonUtils
 
 /**
   * PveManager is responsible for managing Python Virtual Environments (PVEs)
@@ -61,13 +61,8 @@ object PveManager {
       "PIP_NO_INPUT" -> "1"
     )
 
-  def getPythonExecutable: String = {
-    val pythonPath = UdfConfig.pythonPath.trim
-    if (pythonPath.isEmpty) "python3" else pythonPath
-  }
-
   def getSystemPackages(): Seq[String] = {
-    val python = getPythonExecutable
+    val python = PythonUtils.getPythonExecutable
     Process(Seq(python, "-m", "pip", "freeze")).!!.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
   }
 
@@ -108,7 +103,7 @@ object PveManager {
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val envVars = pipEnv
 
-    val createVenvPython = getPythonExecutable
+    val createVenvPython = PythonUtils.getPythonExecutable
 
     Files.createDirectories(venvDirPath.getParent)
 
