@@ -53,7 +53,6 @@ jobs:
       run_python: ${{ steps.decide.outputs.run_python }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
       backport_targets: ${{ steps.decide.outputs.backport_targets }}
-      has_backport_targets: ${{ steps.decide.outputs.has_backport_targets }}
     steps:
       - name: Decide which jobs to run
         id: decide
@@ -98,7 +97,6 @@ jobs:
               core.info(`Backport targets: ${targets.join(", ")}`);
             }
             core.setOutput("backport_targets", JSON.stringify(targets));
-            core.setOutput("has_backport_targets", targets.length > 0 ? "true" : "false");
 
   frontend:
     needs: precheck
@@ -282,7 +280,7 @@ jobs:
 
   backport:
     needs: precheck
-    if: ${{ needs.precheck.outputs.has_backport_targets == 'true' }}
+    if: ${{ needs.precheck.outputs.backport_targets != '[]' }}
     strategy:
       fail-fast: false
       matrix:
