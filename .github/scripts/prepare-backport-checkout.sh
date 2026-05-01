@@ -26,15 +26,25 @@ git fetch --no-tags origin "${target_branch}"
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-commits=()
-while IFS= read -r commit; do
-  commits+=("${commit}")
-done < <(git rev-list --reverse "${commit_range}")
+if [[ "${commit_range}" != *..* ]]; then
+  echo "Invalid commit range: ${commit_range}" >&2
+  exit 1
+fi
+start_sha="${commit_range%..*}"
+end_sha="${commit_range##*..}"
 
-if [[ "${#commits[@]}" -eq 0 ]]; then
+if [[ -z "$(git rev-list -n 1 "${commit_range}")" ]]; then
   echo "No commits found in range ${commit_range}" >&2
   exit 1
 fi
 
+# Build a single squash commit whose parent is the range start and whose tree
+# matches the range end. Cherry-picking this squash onto the release branch
+# applies the cumulative diff in one 3-way merge, which avoids spurious
+# conflicts when intermediate commits in the range happen to overlap with
+# changes already present (under different SHAs) on the release branch.
+end_tree="$(git rev-parse "${end_sha}^{tree}")"
+squash_sha="$(git commit-tree -p "${start_sha}" -m "ci: squashed backport of ${commit_range}" "${end_tree}")"
+
 git checkout -B "${workspace_branch}" "origin/${target_branch}"
-git cherry-pick -x "${commits[@]}"
+git cherry-pick -x "${squash_sha}"
