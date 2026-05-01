@@ -65,6 +65,7 @@ type PveDraft = {
   expanded: boolean;
   socket?: WebSocket;
   isInstalling: boolean;
+  isLocked: boolean;
 };
 
 @UntilDestroy()
@@ -672,7 +673,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   addEnvironment(): void {
-    this.pves.push({ name: "", pipOutput: "", prettyPipOutput: "", expanded: true, isInstalling: false });
+    this.pves.push({
+      name: "",
+      pipOutput: "",
+      prettyPipOutput: "",
+      expanded: true,
+      isInstalling: false,
+      isLocked: false,
+    });
   }
 
   showPVEmodalVisible(): void {
@@ -704,6 +712,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
             isInstalling: false,
             pipOutput: "",
             prettyPipOutput: "",
+            isLocked: true,
           }));
 
           this.workflowPveService
@@ -867,6 +876,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           pipOutput: `${currentEnv.pipOutput ?? ""}\n[WebSocket error]\n`,
           socket: undefined,
           isInstalling: false,
+          isLocked: true,
         };
 
         socket.close();

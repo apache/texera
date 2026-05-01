@@ -525,7 +525,8 @@
               nz-input
               class="fieldInput"
               placeholder="Environment Name"
-              [(ngModel)]="pve.name" />
+              [(ngModel)]="pve.name"
+              [disabled]="pve.isLocked || pve.isInstalling" />
           </div>
           <!-- Per-environment OK/Install button -->
           <div class="env-footer">
