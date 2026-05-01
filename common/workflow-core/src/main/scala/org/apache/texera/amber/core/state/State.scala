@@ -41,7 +41,7 @@ final case class State(values: Map[String, Any]) {
 }
 
 object State {
-  val Content = "content"
+  private val Content = "content"
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
   private val PayloadMarker = "payload"
