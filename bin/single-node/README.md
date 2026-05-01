@@ -205,7 +205,7 @@ If your provider is not Anthropic, OpenAI, or Google, also pass its key into the
 +     <NEW_API_KEY>: ${<NEW_API_KEY>:-}
 ```
 
-For the full list of supported providers and model IDs, see the [LiteLLM proxy config docs](https://docs.litellm.ai/docs/proxy/configs).
+For the full list of supported providers and model IDs, see the [LiteLLM proxy config docs](https://docs.litellm.ai/docs/providers).
 
 ## Troubleshooting
 
