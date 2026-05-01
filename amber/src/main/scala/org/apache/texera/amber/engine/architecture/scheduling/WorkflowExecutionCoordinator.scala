@@ -153,7 +153,10 @@ class WorkflowExecutionCoordinator(
       val rewrittenLevels =
         schedule.effectiveExecutionLevels.take(schedule.currentLevelIndex) ++
           schedule.baseLevels.drop(levelIndex)
-      schedule = Schedule(schedule.levelSets, rewrittenLevels, schedule.currentLevelIndex)
+      schedule = schedule.copy(
+        executionLevels = rewrittenLevels,
+        initialLevelIndex = schedule.currentLevelIndex
+      )
     }
   }
 
