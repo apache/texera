@@ -150,13 +150,7 @@ class WorkflowExecutionCoordinator(
 
   def jumpToRegionContainingOperator(opId: OperatorIdentity): Unit = {
     schedule.getLevelIndexOfOperator(opId).foreach { levelIndex =>
-      val rewrittenLevels =
-        schedule.effectiveExecutionLevels.take(schedule.currentLevelIndex) ++
-          schedule.baseLevels.drop(levelIndex)
-      schedule = schedule.copy(
-        executionLevels = rewrittenLevels,
-        initialLevelIndex = schedule.currentLevelIndex
-      )
+      schedule = schedule.copy(initialLevelIndex = levelIndex)
     }
   }
 
