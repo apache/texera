@@ -18,6 +18,7 @@
 
 package org.apache.texera.amber.config
 
+// Util function used by PveManager and PythonWorkflowWorker
 object PythonUtils {
   def getPythonExecutable: String = {
     val pythonPath = UdfConfig.pythonPath.trim
