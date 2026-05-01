@@ -59,35 +59,6 @@ github:
     squash_commit_message: PR_TITLE_AND_DESC
     merge:   false
     rebase:  false
-
-  rulesets:
-    - name: Release Branch Protection
-      type: branch
-      branches:
-        includes:
-          - release/*
-        excludes: []
-      restrict_deletion: true
-      restrict_force_push: true
-      required_linear_history: true
-      required_status_checks:
-        strict: true
-        contexts:
-          - frontend (ubuntu-latest, 18)
-          - frontend (windows-latest, 18)
-          - frontend (macos-latest, 18)
-          - scala (ubuntu-22.04, 11)
-          - python (ubuntu-latest, 3.10)
-          - python (ubuntu-latest, 3.11)
-          - python (ubuntu-latest, 3.12)
-          - python (ubuntu-latest, 3.13)
-          - Check License Headers
-          - Validate PR title
-      required_pull_request_reviews:
-        dismiss_stale_reviews: false
-        require_last_push_approval: false
-        require_code_owner_reviews: false
-        required_approving_review_count: 1
     
   protected_branches:
     main:
