@@ -32,7 +32,6 @@ on:
       - reopened
       - synchronize
       - labeled
-      - unlabeled
   workflow_dispatch:
 
 permissions:
@@ -62,7 +61,7 @@ jobs:
             const eventName = context.eventName;
             const action = context.payload.action || "";
             const isLabelOnlyEvent =
-              eventName === "pull_request" && (action === "labeled" || action === "unlabeled");
+              eventName === "pull_request" && action === "labeled";
 
             // Main build stacks. Default: run all. Skip on label-only PR
             // events because the code did not change.
@@ -85,7 +84,7 @@ jobs:
                 if (newLabel && /^release\/.+$/.test(newLabel)) {
                   targets = [newLabel];
                 }
-              } else if (action !== "unlabeled") {
+              } else {
                 const labels = context.payload.pull_request.labels.map((l) => l.name);
                 targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
               }

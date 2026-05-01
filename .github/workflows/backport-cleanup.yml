@@ -1,0 +1,110 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Backport Cleanup
+run-name: Backport cleanup ${{ github.event.label.name }} (PR #${{ github.event.pull_request.number }})
+
+on:
+  pull_request:
+    types:
+      - unlabeled
+
+permissions:
+  actions: write
+  checks: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  cleanup:
+    if: ${{ startsWith(github.event.label.name, 'release/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel and clear backport checks for the removed target
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const target = context.payload.label.name;
+            const headSha = context.payload.pull_request.head.sha;
+            const prefix = `backport (${target}) `;
+
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRuns,
+              {
+                owner,
+                repo,
+                workflow_id: "github-action-build.yml",
+                head_sha: headSha,
+                per_page: 100,
+              }
+            );
+
+            let patchedChecks = false;
+
+            for (const run of runs) {
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                { owner, repo, run_id: run.id, per_page: 100 }
+              );
+
+              const hasTargetBackport = jobs.some((j) => j.name.startsWith(prefix));
+              if (!hasTargetBackport) continue;
+
+              const mainBuildJobs = jobs.filter(
+                (j) => !j.name.startsWith("backport") && j.name !== "Precheck"
+              );
+              const mainAllSkipped =
+                mainBuildJobs.length === 0 ||
+                mainBuildJobs.every((j) => j.conclusion === "skipped");
+
+              if (mainAllSkipped) {
+                core.info(`Run ${run.id} only had backport for ${target}; deleting.`);
+                if (run.status !== "completed") {
+                  try {
+                    await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+                  } catch (e) {
+                    core.warning(`Failed to cancel run ${run.id}: ${e.message}`);
+                  }
+                }
+                try {
+                  await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
+                } catch (e) {
+                  core.warning(`Failed to delete run ${run.id}: ${e.message}`);
+                }
+              } else if (!patchedChecks) {
+                core.info(`Run ${run.id} has main build results; patching backport check_runs for ${target} to cancelled.`);
+                const checks = await github.paginate(
+                  github.rest.checks.listForRef,
+                  { owner, repo, ref: headSha, per_page: 100 }
+                );
+                for (const check of checks) {
+                  if (!check.name.startsWith(prefix)) continue;
+                  try {
+                    await github.rest.checks.update({
+                      owner,
+                      repo,
+                      check_run_id: check.id,
+                      status: "completed",
+                      conclusion: "cancelled",
+                    });
+                  } catch (e) {
+                    core.warning(`Failed to update check ${check.id} (${check.name}): ${e.message}`);
+                  }
+                }
+                patchedChecks = true;
+              }
+            }
