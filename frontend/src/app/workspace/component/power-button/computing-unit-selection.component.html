@@ -162,6 +162,14 @@
           </i>
           <i
             nz-icon
+            nzType="plus"
+            nz-tooltip
+            *ngIf="unit.isOwner"
+            [nzTooltipTitle]="'Python Environment'"
+            (click)="selectedComputingUnit = unit; showPVEmodalVisible(); $event.stopPropagation()">
+          </i>
+          <i
+            nz-icon
             nzType="share-alt"
             nz-tooltip
             *ngIf="this.config.env.sharingComputingUnitEnabled"
@@ -427,3 +435,127 @@
     </div>
   </div>
 </ng-template>
+
+<!-- Modal for adding packages -->
+<nz-modal
+  nzWrapClassName="pve-modal"
+  nzClassName="pve-modal"
+  [nzVisible]="pveModalVisible"
+  nzTitle="Python Environments"
+  (nzOnCancel)="closePveModal()"
+  [nzFooter]="customFooter">
+  <ng-template #customFooter>
+    <div class="footer-all">
+      <button
+        nz-button
+        nzType="default"
+        (click)="closePveModal()">
+        Close
+      </button>
+      <button
+        nz-button
+        nzType="primary"
+        (click)="addEnvironment()">
+        Add Environment
+      </button>
+    </div>
+  </ng-template>
+
+  <ng-container *nzModalContent>
+    <!-- Shared system packages -->
+    <div class="system-section">
+      <nz-collapse>
+        <ng-template #systemHeaderTpl>
+          <div class="system-header">
+            <div class="title">System Packages (read-only)</div>
+          </div>
+        </ng-template>
+        <nz-collapse-panel [nzHeader]="systemHeaderTpl">
+          <div class="system-panel-inner">
+            <div class="package-header-row">
+              <div class="package-column-label">Package</div>
+              <div class="package-column-label">Version</div>
+            </div>
+
+            <div
+              *ngFor="let pkg of systemPackages"
+              class="package-row system-row">
+              <div class="package-inputs">
+                <input
+                  nz-input
+                  class="system-input"
+                  [disabled]="true"
+                  [ngModel]="pkg.name" />
+
+                <input
+                  nz-input
+                  class="system-input"
+                  [disabled]="true"
+                  [ngModel]="pkg.version" />
+              </div>
+            </div>
+          </div>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </div>
+
+    <!-- Environments -->
+    <nz-collapse>
+      <nz-collapse-panel
+        *ngFor="let pve of pves; let envIndex = index; trackBy: trackByIndex"
+        [nzActive]="pve.expanded"
+        (nzActiveChange)="pve.expanded = $event"
+        [nzHeader]="headerTpl">
+        <!-- Custom header -->
+        <ng-template #headerTpl>
+          <div class="env-header">
+            <span class="env-title"> {{ pve.name }} </span>
+            <span
+              class="env-actions"
+              (click)="$event.stopPropagation()">
+            </span>
+          </div>
+        </ng-template>
+
+        <!-- Panel body -->
+        <div class="ve-form">
+          <div class="fieldRow">
+            <label class="fieldLabel">Virtual Environment Name</label>
+            <input
+              nz-input
+              class="fieldInput"
+              placeholder="Environment Name"
+              [(ngModel)]="pve.name"
+              [disabled]="pve.isLocked || pve.isInstalling" />
+          </div>
+          <!-- Per-environment OK/Install button -->
+          <div class="env-footer">
+            <button
+              nz-button
+              nzType="primary"
+              (click)="createVirtualEnvironment(envIndex)"
+              [disabled]="!pve.name?.trim()"
+              [nzLoading]="pve.isInstalling">
+              OK
+            </button>
+          </div>
+
+          <!-- Pip Output (per env) -->
+          <div class="pip-panel">
+            <div class="pip-panel-header">
+              <span class="pip-panel-title">Pip Installation Output</span>
+              <span class="pip-panel-subtitle"> (Output will appear here after you click OK.) </span>
+            </div>
+
+            <div class="pip-panel-body">
+              <pre
+                class="pip-fullscreen-log"
+                [attr.id]="'pip-log-' + envIndex"
+                [innerHTML]="pve.prettyPipOutput || ' '"></pre>
+            </div>
+          </div>
+        </div>
+      </nz-collapse-panel>
+    </nz-collapse>
+  </ng-container>
+</nz-modal>

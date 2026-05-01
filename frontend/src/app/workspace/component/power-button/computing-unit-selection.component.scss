@@ -358,3 +358,28 @@
     outline: none;
   }
 }
+
+::ng-deep .error {
+  color: red;
+  font-weight: bold;
+}
+
+::ng-deep .warning {
+  color: #d4a000;
+  font-weight: bold;
+}
+
+::ng-deep .success {
+  color: green;
+  font-weight: bold;
+}
+
+::ng-deep .pip-exit.ok {
+  color: green;
+  font-weight: bold;
+}
+
+::ng-deep .pip-exit.err {
+  color: red;
+  font-weight: bold;
+}
