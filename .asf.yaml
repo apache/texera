@@ -35,7 +35,6 @@ github:
     - artificial-intelligence
     - machine-learning
     - cloud-native
-    - texera
 
   protected_tags:
     - "v*.*.*"
