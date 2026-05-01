@@ -577,11 +577,6 @@ class RegionExecutionCoordinator(
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
         DocumentFactory.createDocument(storageUriToAdd, schema)
         DocumentFactory.createDocument(stateUriToAdd, State.schema)
-        WorkflowExecutionsResource.insertOperatorPortResultUri(
-          eid = eid,
-          globalPortId = outputPortId,
-          uri = storageUriToAdd
-        )
         if (!isRestart) {
           WorkflowExecutionsResource.insertOperatorPortResultUri(
             eid = eid,

@@ -45,6 +45,7 @@ StorageConfig.initialize(
     rest_catalog_uri="http://localhost:8181/catalog/",
     rest_catalog_warehouse_name="texera",
     table_result_namespace="operator-port-result",
+    table_state_namespace="operator-port-state",
     directory_path="../../../../../../amber/user-resources/workflow-results",
     commit_batch_size=4096,
     s3_endpoint="http://localhost:9000",
