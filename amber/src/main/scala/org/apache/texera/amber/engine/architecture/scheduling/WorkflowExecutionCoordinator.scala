@@ -154,6 +154,4 @@ class WorkflowExecutionCoordinator(
     }
   }
 
-  def jumpToOperator(opId: OperatorIdentity): Unit = jumpToRegionContainingOperator(opId)
-
 }

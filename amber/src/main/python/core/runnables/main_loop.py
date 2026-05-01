@@ -64,7 +64,7 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmbeddedControlMessage,
     AsyncRpcContext,
     ControlRequest,
-    JumpToOperatorRequest,
+    JumpToOperatorRegionRequest,
 )
 from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
@@ -104,8 +104,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, controller_interface
     ) -> None:
-        controller_interface.jump_to_operator(
-            JumpToOperatorRequest(OperatorIdentity(executor.loop_start_id()))
+        controller_interface.jump_to_operator_region(
+            JumpToOperatorRegionRequest(OperatorIdentity(executor.loop_start_id()))
         )
         uri = executor.state["LoopStartStateURI"]
         del executor.state["LoopStartStateURI"]
