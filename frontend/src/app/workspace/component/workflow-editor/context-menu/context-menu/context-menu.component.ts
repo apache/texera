@@ -37,6 +37,8 @@ import { GuiConfigService } from "../../../../../common/service/gui-config.servi
 })
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
+  public highlightedOperatorIds: readonly string[] = [];
+  public highlightedCommentBoxIds: readonly string[] = [];
 
   constructor(
     public workflowActionService: WorkflowActionService,
@@ -48,6 +50,12 @@ export class ContextMenuComponent {
     private validationWorkflowService: ValidationWorkflowService
   ) {
     this.registerWorkflowModifiableChangedHandler();
+    this.operatorMenuService.highlightedOperators$
+      .pipe(untilDestroyed(this))
+      .subscribe(ids => (this.highlightedOperatorIds = ids));
+    this.operatorMenuService.highlightedCommentBoxes$
+      .pipe(untilDestroyed(this))
+      .subscribe(ids => (this.highlightedCommentBoxIds = ids));
   }
 
   public canExecuteOperator(): boolean {
