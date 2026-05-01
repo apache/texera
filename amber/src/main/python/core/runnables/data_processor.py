@@ -168,6 +168,8 @@ class DataProcessor(Runnable, Stoppable):
         """
         Set the output state after processing by the executor.
         """
+        if output_state is not None and not isinstance(output_state, State):
+            output_state = State(output_state)
         self._context.state_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:

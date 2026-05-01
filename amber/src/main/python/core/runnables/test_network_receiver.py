@@ -25,7 +25,8 @@ from core.models.internal_queue import (
     DataElement,
     ECMElement,
 )
-from core.models.payload import DataFrame
+from core.models.payload import DataFrame, StateFrame
+from core.models.state import State
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
@@ -138,6 +139,42 @@ class TestNetworkReceiver:
         element: DataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
         assert element.tag == channel_id
+
+    @pytest.mark.timeout(10)
+    def test_network_receiver_can_receive_consecutive_state_messages(
+        self,
+        output_queue,
+        input_queue,
+        network_receiver,
+        network_sender_thread,
+    ):
+        network_sender_thread.start()
+        worker_id = ActorVirtualIdentity(name="test")
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+
+        input_queue.put(
+            DataElement(
+                tag=channel_id,
+                payload=StateFrame(State({"loop_counter": 0, "i": 1})),
+            )
+        )
+        input_queue.put(
+            DataElement(
+                tag=channel_id,
+                payload=StateFrame(State({"loop_counter": 1, "i": 2})),
+            )
+        )
+
+        first_element: DataElement = output_queue.get()
+        second_element: DataElement = output_queue.get()
+
+        assert isinstance(first_element.payload, StateFrame)
+        assert first_element.payload.frame == {"loop_counter": 0, "i": 1}
+        assert first_element.tag == channel_id
+
+        assert isinstance(second_element.payload, StateFrame)
+        assert second_element.payload.frame == {"loop_counter": 1, "i": 2}
+        assert second_element.tag == channel_id
 
     @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_control_messages(
