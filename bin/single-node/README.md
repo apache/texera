@@ -88,7 +88,7 @@ Press `Ctrl+C` in the terminal to stop Texera.
 
 If you already closed the terminal, you can go to the installation folder and run:
 ```bash
-docker compose stop
+docker compose --profile examples stop
 ```
 to stop Texera.
 
@@ -98,9 +98,31 @@ Same as the way you [launch Texera](#launch-texera).
 ### Uninstall
 To remove Texera and all its data, go to the installation folder and run:
 ```bash
-docker compose down -v
+docker compose --profile examples down -v
 ```
 > ⚠️ Warning: This will permanently delete all the data used by Texera.
+
+
+## Enable the Texera Agent
+
+The Texera agent is powered by a large language model (LLM). By default, Texera uses [Claude Haiku 4.5](https://www.anthropic.com/claude/haiku) as the LLM and queries it through [LiteLLM](https://docs.litellm.ai/). Without an API key, the Texera agent panel still appears but model calls will fail with a provider auth error.
+
+To enable it:
+
+1. [Stop Texera](#stop) if it is already running.
+2. Get an API key for the LLM. Since Claude Haiku 4.5 is enabled by default, you need an [Anthropic API key](https://console.anthropic.com/settings/keys).
+3. Export the key and restart Texera:
+   ```bash
+   export ANTHROPIC_API_KEY=sk-ant-...
+   docker compose --profile examples up
+   ```
+
+Once Texera is up, create a new workflow and open the Texera agent panel at the bottom right. Type a task like:
+
+> For /texera/popular-movies-of-imdb/v1/TMDb_updated.csv, visualize the top 10 most-voted movies.
+
+To switch providers or add more LLMs, see [Add more LLMs or providers](#add-more-llms-or-providers).
+
 
 
 ## Advanced Settings
@@ -146,6 +168,45 @@ $ docker compose up
 y // answer y to this prompt
 ```
 
+### Add more LLMs or providers
+Only Claude Haiku 4.5 is enabled by default. To add more LLMs, open `litellm-config.yaml` in the installation folder and append entries under `model_list`. Each entry follows this shape:
+```diff
+  model_list:
+    ...
++   - model_name: <name shown in Texera>
++     litellm_params:
++       model: <provider model id>
++       api_key: "os.environ/<API_KEY_ENV_VAR>"
+```
+For example, to add OpenAI's GPT-5.2 and Google's Gemini 2.5 Pro:
+```diff
+  model_list:
+    ...
++   - model_name: gpt-5.2
++     litellm_params:
++       model: gpt-5.2
++       api_key: "os.environ/OPENAI_API_KEY"
++
++   - model_name: gemini-2.5-pro
++     litellm_params:
++       model: gemini/gemini-2.5-pro
++       api_key: "os.environ/GEMINI_API_KEY"
+```
+Make sure to set the corresponding API key environment variable when you launch Texera (see [Enable the Texera Agent](#enable-the-texera-agent)). Get keys from each provider's console — for example, [OpenAI](https://platform.openai.com/api-keys) or [Google](https://aistudio.google.com/apikey).
+
+If your provider is not Anthropic, OpenAI, or Google, also pass its key into the LiteLLM container by editing `docker-compose.yml`:
+```diff
+  litellm:
+    ...
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
++     <NEW_API_KEY>: ${<NEW_API_KEY>:-}
+```
+
+For the full list of supported providers and model IDs, see the [LiteLLM proxy config docs](https://docs.litellm.ai/docs/providers).
+
 ## Troubleshooting
 
 ### Port conflicts
@@ -166,8 +227,8 @@ PostgreSQL only runs the database initialization scripts on first startup (when 
 To resolve this, remove all existing volumes and start fresh:
 
 ```
-docker compose down -v
-docker compose up
+docker compose --profile examples down -v
+docker compose --profile examples up
 ```
 
-> ⚠️ Warning: `docker compose down -v` permanently deletes all Texera data.
+> ⚠️ Warning: `docker compose --profile examples down -v` permanently deletes all Texera data.
