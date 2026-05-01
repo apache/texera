@@ -224,7 +224,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_state = self.context.state_processing_manager.get_output_state()
         if output_state is not None:
             if isinstance(self.context.executor_manager.executor, LoopEndOperator):
-                self.context.output_manager.reset_output_storage()
+                self.context.output_manager.reset_loopend_storage()
             if isinstance(self.context.executor_manager.executor, LoopStartOperator):
                 self._attach_loop_start_id(output_state)
             for to, batch in self.context.output_manager.emit_state(output_state):

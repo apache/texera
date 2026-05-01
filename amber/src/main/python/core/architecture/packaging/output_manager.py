@@ -193,6 +193,13 @@ class OutputManager:
             writer.put_one(state.to_tuple())
             writer.close()
 
+    def reset_loopend_storage(self) -> None:
+        port_id = self.get_port_ids()[0]
+        storage_uri = self._storage_uris[port_id]
+        self.close_port_storage_writers()
+        DocumentFactory.create_document(storage_uri, self._ports[port_id].get_schema())
+        self.set_up_port_storage_writer(port_id, storage_uri)
+
     def close_port_storage_writers(self) -> None:
         """
         Flush the buffers of port storage writers and wait for all the
