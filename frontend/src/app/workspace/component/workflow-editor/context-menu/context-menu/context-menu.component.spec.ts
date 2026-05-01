@@ -27,7 +27,7 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
-import { BehaviorSubject, of } from "rxjs";
+import { of } from "rxjs";
 import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
@@ -94,8 +94,8 @@ describe("ContextMenuComponent", () => {
 
     // Create a mock for OperatorMenuService with necessary properties and methods
     operatorMenuService = {
-      highlightedOperators: new BehaviorSubject<any[]>([]),
-      highlightedCommentBoxes: new BehaviorSubject<any[]>([]),
+      highlightedOperators$: of([] as readonly string[]),
+      highlightedCommentBoxes$: of([] as readonly string[]),
       isDisableOperator: false,
       isDisableOperatorClickable: false,
       isToViewResult: false,
