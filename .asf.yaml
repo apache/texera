@@ -17,12 +17,6 @@
 
 # https://cwiki.apache.org/confluence/display/INFRA/Git+-+.asf.yaml+features
 
-meta:
-  # Opt in to the staged rollout of the asfyaml `rulesets:` directive.
-  # See apache/infrastructure-asfyaml asfyaml/feature/github/rulesets.py — the
-  # directive is gated on the `github_rulesets` environment flag.
-  environment: github_rulesets
-
 github:
   description: "Collaborative Machine-Learning-Centric Data Analytics Using Workflows"
   homepage: https://texera.io/
