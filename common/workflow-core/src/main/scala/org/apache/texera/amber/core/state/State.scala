@@ -29,10 +29,6 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final case class State(values: Map[String, Any]) {
 
-  def apply(key: String): Any = values(key)
-
-  def get(key: String): Option[Any] = values.get(key)
-
   def toJson: String =
     objectMapper.writeValueAsString(State.toJsonValue(values))
 
