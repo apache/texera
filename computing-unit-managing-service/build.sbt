@@ -22,6 +22,14 @@ name := "computing-unit-managing-service"
 
 enablePlugins(JavaAppPackaging)
 
+// Ship LICENSE-binary, NOTICE-binary, DISCLAIMER-WIP, and the licenses/
+// directory at the top of the Universal dist zip.
+// See project/AddMetaInfLicenseFiles.scala.
+Universal / mappings := AddMetaInfLicenseFiles.distMappings(
+  (Universal / mappings).value,
+  (ThisBuild / baseDirectory).value
+)
+
 // Dependency Versions
 val dropwizardVersion = "4.0.7"
 

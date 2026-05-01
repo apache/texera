@@ -276,6 +276,9 @@ jobs:
                 "workflow-computing-unit-managing-service")
                   image_name="texera-workflow-computing-unit-managing-service"
                   ;;
+                "agent-service")
+                  image_name="texera-agent-service"
+                  ;;
                 *)
                   # Default: use service name as-is
                   image_name="$service"
