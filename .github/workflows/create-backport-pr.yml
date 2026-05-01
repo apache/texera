@@ -88,7 +88,7 @@ jobs:
             const greenTargets = requestedTargets.filter((target) =>
               checks.data.check_runs.some(
                 (run) =>
-                  run.name === `Backport CI (${target})` &&
+                  run.name === `Backport (${target})` &&
                   run.status === "completed" &&
                   run.conclusion === "success"
               )
@@ -96,7 +96,7 @@ jobs:
 
             const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
             if (skippedTargets.length > 0) {
-              core.warning(`Skipping targets without a successful Backport CI run: ${skippedTargets.join(", ")}`);
+              core.warning(`Skipping targets without a successful Backport run: ${skippedTargets.join(", ")}`);
             }
 
             core.setOutput("pr_number", String(pullRequest.number));
