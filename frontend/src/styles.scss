@@ -107,3 +107,272 @@ hr {
   position: relative;
   left: 0;
 }
+
+.pve-modal {
+  .ant-modal {
+    max-width: 980px;
+    width: 92vw !important;
+  }
+
+  .ant-modal-body {
+    padding: 16px 20px 18px;
+    background: #fafafa;
+  }
+
+  .ant-modal-header {
+    padding: 14px 20px;
+  }
+
+  .ant-modal-title {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .footer-all {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+    padding: 8px 0;
+  }
+
+  nz-collapse {
+    display: block;
+  }
+
+  .ant-collapse {
+    border-radius: 12px;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .system-section {
+    margin-top: 5px;
+    margin-bottom: 5px;
+  }
+
+  .system-section .ant-collapse-item {
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #eef0f3;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .system-section .ant-collapse-header {
+    font-weight: 600;
+  }
+
+  .system-panel-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .package-header-row,
+  .package-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .package-column-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+  }
+
+  .system-row {
+    opacity: 0.9;
+    margin-bottom: 0px;
+  }
+
+  .system-input {
+    background: #f5f6f8 !important;
+    border-color: #e6e8ec !important;
+    color: #5a667a;
+    cursor: not-allowed;
+  }
+  .env-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .env-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1f2a37;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .env-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .ant-collapse-item {
+    background: #ffffff;
+    border: 1px solid #eef0f3;
+    overflow: hidden;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .ant-collapse-header {
+    padding: 12px 14px !important;
+    align-items: center !important;
+  }
+
+  .ant-collapse-content-box {
+    padding: 14px !important;
+  }
+
+  .ve-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .fieldRow {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .fieldLabel {
+    width: 220px;
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .fieldInput {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .package-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    bottom: 0px;
+    border: 1px solid #eef0f3;
+    background: #ffffff;
+  }
+
+  .package-inputs {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    width: 100%;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .field input {
+    width: 100%;
+  }
+
+  .field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    line-height: 1;
+  }
+
+  .operator-select .ant-select {
+    width: 100%;
+  }
+
+  .ant-input,
+  .ant-select-selector {
+    //border-radius: 10px !important;
+  }
+
+  .ant-input[disabled] {
+    background: #f5f6f8 !important;
+    border-color: #e6e8ec !important;
+    color: #5a667a;
+  }
+
+  .env-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 6px;
+  }
+
+  .pip-panel {
+    margin-top: 16px;
+    border: 1px solid #d9d9d9;
+    background: #f2f2f2;
+    overflow: hidden;
+  }
+
+  .pip-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 14px;
+    background: #e9e9e9;
+    border-bottom: 1px solid #d9d9d9;
+  }
+
+  .pip-panel-title {
+    font-weight: 600;
+    color: #222;
+  }
+
+  .pip-panel-subtitle {
+    font-size: 12px;
+    color: #666;
+  }
+
+  .pip-panel-body {
+    padding: 0;
+  }
+
+  .pip-fullscreen-log {
+    color: #333;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 14px;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    max-height: 220px;
+    background: transparent;
+  }
+
+  .system-header {
+    display: flex;
+    flex-direction: column;
+
+    .title {
+      font-weight: 500;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #8c8c8c;
+      margin-top: 2px;
+    }
+  }
+}
