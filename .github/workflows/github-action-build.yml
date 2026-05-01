@@ -19,7 +19,7 @@ name: Build
 
 env:
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
-
+  
 on:
   push:
     branches:
@@ -45,6 +45,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Precheck decides which downstream jobs run for this event:
+  #   - run_frontend / run_scala / run_python / run_agent_service: gate the
+  #     main build stacks. All true today; placeholder for future path- or
+  #     label-based selection.
+  #   - backport_targets: JSON array of release/* labels currently on the PR.
+  #     Drives the backport matrix; empty array means no backport runs.
   precheck:
     name: Precheck
     runs-on: ubuntu-latest
