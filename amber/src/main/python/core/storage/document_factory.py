@@ -65,7 +65,7 @@ class DocumentFactory:
                 case VFSResourceType.RESULT:
                     namespace = StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE
                 case VFSResourceType.STATE:
-                    namespace = "state"
+                    namespace = StorageConfig.ICEBERG_TABLE_STATE_NAMESPACE
                 case _:
                     raise ValueError(f"Resource type {resource_type} is not supported")
 
@@ -105,7 +105,7 @@ class DocumentFactory:
                 case VFSResourceType.RESULT:
                     namespace = StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE
                 case VFSResourceType.STATE:
-                    namespace = "state"
+                    namespace = StorageConfig.ICEBERG_TABLE_STATE_NAMESPACE
                 case _:
                     raise ValueError(f"Resource type {resource_type} is not supported")
 

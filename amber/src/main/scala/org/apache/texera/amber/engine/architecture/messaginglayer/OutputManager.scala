@@ -124,7 +124,7 @@ class OutputManager(
       : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
     mutable.HashMap()
 
-  private val storageUris: mutable.HashMap[Int, URI] = mutable.HashMap()
+  private val storageUris: mutable.ArrayBuffer[URI] = mutable.ArrayBuffer()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
@@ -236,15 +236,14 @@ class OutputManager(
 
   def saveStateToStorageIfNeeded(state: State): Unit = {
     try {
-      storageUris.foreach {
-        case (_, uri) =>
-          val writer = DocumentFactory
-            .openDocument(State.uriFromResultUri(uri))
-            ._1
-            .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
-            .asInstanceOf[BufferedItemWriter[Tuple]]
-          writer.putOne(state.toTuple)
-          writer.close()
+      storageUris.foreach { uri =>
+        val writer = DocumentFactory
+          .openDocument(State.uriFromResultUri(uri))
+          ._1
+          .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
+          .asInstanceOf[BufferedItemWriter[Tuple]]
+        writer.putOne(state.toTuple)
+        writer.close()
       }
     } catch {
       case _: Exception => ()
@@ -299,7 +298,7 @@ class OutputManager(
   }
 
   private def setupOutputStorageWriterThread(portId: PortIdentity, storageUri: URI): Unit = {
-    this.storageUris(portId.id) = storageUri
+    this.storageUris += storageUri
     val bufferedItemWriter = DocumentFactory
       .openDocument(storageUri)
       ._1
