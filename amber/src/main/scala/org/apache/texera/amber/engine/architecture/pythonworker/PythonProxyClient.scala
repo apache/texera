@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import org.apache.texera.amber.core.WorkflowRuntimeException
-import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
