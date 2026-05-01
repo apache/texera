@@ -36,6 +36,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  checks: write
   contents: read
   pull-requests: read
 
@@ -80,6 +81,41 @@ jobs:
               core.info(`Backport targets: ${targets.join(", ")}`);
             }
             core.setOutput("backport_targets", JSON.stringify(targets));
+
+  cleanup-stale-backport:
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'unlabeled' && startsWith(github.event.label.name, 'release/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel obsolete backport check_runs for the removed target
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const target = context.payload.label.name;
+            const headSha = context.payload.pull_request.head.sha;
+            const prefix = `backport (${target}) `;
+
+            const checks = await github.paginate(
+              github.rest.checks.listForRef,
+              { owner, repo, ref: headSha, per_page: 100 }
+            );
+
+            for (const check of checks) {
+              if (!check.name.startsWith(prefix)) continue;
+              if (check.status === "completed" && check.conclusion === "cancelled") continue;
+              try {
+                await github.rest.checks.update({
+                  owner,
+                  repo,
+                  check_run_id: check.id,
+                  status: "completed",
+                  conclusion: "cancelled",
+                });
+                core.info(`Cancelled check ${check.name}`);
+              } catch (e) {
+                core.warning(`Failed to update check ${check.id} (${check.name}): ${e.message}`);
+              }
+            }
 
   frontend:
     needs: precheck
