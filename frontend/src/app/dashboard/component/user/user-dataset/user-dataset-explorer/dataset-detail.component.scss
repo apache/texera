@@ -34,15 +34,13 @@
 }
 
 .version-storage {
-  padding-left: 20px;
-  width: 90%;
-  margin-left: auto;
-  margin-right: auto;
+  padding: 0 15px;
   margin-bottom: 25px;
 }
 
 .version-storage nz-select {
-  width: 100%; /* Make the select element take the full width of its parent */
+  width: 100%;
+  margin: 0;
 }
 
 nz-layout {
@@ -96,7 +94,7 @@ body {
 
 .select-and-button-container {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
 }
 
@@ -145,14 +143,9 @@ nz-select {
 
 .upload-progress-wrapper,
 .upload-progress-wrapper-pending {
-  margin-top: 5px;
   max-height: 25vh;
   overflow-y: auto;
   padding-right: 4px;
-}
-
-.upload-progress-container {
-  margin-left: 20px;
 }
 
 .upload-progress-wrapper-pending {
@@ -163,7 +156,7 @@ nz-select {
 
 .version-creator {
   margin-top: 20px;
-  padding: 40px;
+  padding: 20px;
 }
 
 .version-input-container label {
@@ -217,7 +210,7 @@ nz-select {
 }
 
 .status-tag {
-  padding: 3px 10px 3px 2px;
+  padding: 3px 10px 3px 3px;
   font-size: 13px;
   display: inline-flex;
   align-items: center;
@@ -228,8 +221,9 @@ nz-select {
   i {
     width: 22px;
     height: 22px;
-    line-height: 22px;
-    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 4px;
     background: #f0f0f0;
   }
