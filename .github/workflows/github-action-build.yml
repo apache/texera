@@ -40,34 +40,52 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  detect-backport-targets:
-    name: Detect release backport targets
-    if: ${{ github.event_name == 'pull_request' }}
+  precheck:
+    name: Pre-flight routing
     runs-on: ubuntu-latest
     outputs:
-      targets: ${{ steps.targets.outputs.targets }}
-      has_targets: ${{ steps.targets.outputs.has_targets }}
+      should_run_main_build: ${{ steps.route.outputs.should_run_main_build }}
+      backport_targets: ${{ steps.route.outputs.backport_targets }}
+      has_backport_targets: ${{ steps.route.outputs.has_backport_targets }}
     steps:
-      - name: Collect release labels
-        id: targets
+      - name: Decide routing
+        id: route
         uses: actions/github-script@v8
         with:
           script: |
-            const labels = context.payload.pull_request.labels.map((label) => label.name);
-            const targets = [...new Set(labels.filter((name) => /^release\/.+$/.test(name)))].sort();
+            const eventName = context.eventName;
+            const action = context.payload.action || "";
+            let shouldRunMainBuild = false;
+            let backportTargets = [];
 
-            core.info(`Backport targets: ${targets.join(", ") || "(none)"}`);
-            core.setOutput("targets", JSON.stringify(targets));
-            core.setOutput("has_targets", targets.length > 0 ? "true" : "false");
+            if (eventName !== "pull_request") {
+              shouldRunMainBuild = true;
+            } else if (action === "labeled") {
+              const newLabel = context.payload.label && context.payload.label.name;
+              if (newLabel && /^release\/.+$/.test(newLabel)) {
+                backportTargets = [newLabel];
+              }
+            } else if (action === "unlabeled") {
+              // Removing a label cancels nothing and triggers no extra build.
+            } else {
+              shouldRunMainBuild = true;
+            }
+
+            core.info(`event=${eventName} action=${action || "(none)"}`);
+            core.info(`should_run_main_build=${shouldRunMainBuild}`);
+            core.info(`backport_targets=${JSON.stringify(backportTargets)}`);
+
+            core.setOutput("should_run_main_build", shouldRunMainBuild ? "true" : "false");
+            core.setOutput("backport_targets", JSON.stringify(backportTargets));
+            core.setOutput("has_backport_targets", backportTargets.length > 0 ? "true" : "false");
 
   backport-ci:
-    name: Backport CI (${{ matrix.target }})
-    needs: detect-backport-targets
-    if: ${{ needs.detect-backport-targets.outputs.has_targets == 'true' }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.has_backport_targets == 'true' }}
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJson(needs.detect-backport-targets.outputs.targets) }}
+        target: ${{ fromJson(needs.precheck.outputs.backport_targets) }}
     uses: ./.github/workflows/reusable-build.yml
     with:
       checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
@@ -82,7 +100,8 @@ jobs:
     secrets: inherit
 
   frontend:
-    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     name: frontend (${{ matrix.os }}, 18)
     runs-on: ${{ matrix.os }}
     strategy:
@@ -128,7 +147,8 @@ jobs:
         run: yarn --cwd frontend run build:ci
 
   scala:
-    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -198,7 +218,8 @@ jobs:
         run: sbt test
 
   python:
-    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -231,7 +252,8 @@ jobs:
           cd amber/src/main/python && pytest -sv
 
   agent-service:
-    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
