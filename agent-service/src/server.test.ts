@@ -64,9 +64,9 @@ beforeEach(() => {
   _resetAgentStoreForTests();
 });
 
-describe("GET /health", () => {
+describe(`GET ${API}/healthcheck`, () => {
   test("returns 200 with status ok", async () => {
-    const res = await getJson("/health");
+    const res = await getJson(`${API}/healthcheck`);
     expect(res.status).toBe(200);
     const body = await readJson<{ status: string; timestamp: string }>(res);
     expect(body.status).toBe("ok");
