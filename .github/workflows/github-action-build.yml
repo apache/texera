@@ -243,14 +243,8 @@ jobs:
         run: |
           curl -fsSL https://bun.sh/install | bash -s -- bun-v${{ matrix.bun-version }}
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Lint with Prettier
-        run: bun run format:check
-      - name: Typecheck
-        run: bun run typecheck
-      - name: Run unit tests
-        run: bun test
+      - name: Install production dependencies
+        run: bun install --production --frozen-lockfile
       - name: Generate agent-service license manifest
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -259,3 +253,11 @@ jobs:
       - name: Check bundled agent-service packages against LICENSE-binary
         if: matrix.os == 'ubuntu-latest'
         run: ../bin/licensing/check_binary_deps.py agent-npm dist/3rdpartylicenses.json
+      - name: Install development dependencies
+        run: bun install --frozen-lockfile
+      - name: Lint with Prettier
+        run: bun run format:check
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Run unit tests
+        run: bun test
