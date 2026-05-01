@@ -27,6 +27,12 @@ on:
       - 'main'
       - 'release/**'
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
   workflow_dispatch:
 
 concurrency:
@@ -34,7 +40,49 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  detect-backport-targets:
+    name: Detect release backport targets
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+      has_targets: ${{ steps.targets.outputs.has_targets }}
+    steps:
+      - name: Collect release labels
+        id: targets
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map((label) => label.name);
+            const targets = [...new Set(labels.filter((name) => /^release\/.+$/.test(name)))].sort();
+
+            core.info(`Backport targets: ${targets.join(", ") || "(none)"}`);
+            core.setOutput("targets", JSON.stringify(targets));
+            core.setOutput("has_targets", targets.length > 0 ? "true" : "false");
+
+  backport-ci:
+    name: Backport CI (${{ matrix.target }})
+    needs: detect-backport-targets
+    if: ${{ needs.detect-backport-targets.outputs.has_targets == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.detect-backport-targets.outputs.targets) }}
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
+      backport_target_branch: ${{ matrix.target }}
+      backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+      job_name_suffix: ${{ format(' [backport {0}]', matrix.target) }}
+      summary_job_name: ${{ format('Backport CI ({0})', matrix.target) }}
+      run_frontend: true
+      run_scala: true
+      run_python: true
+      run_agent_service: true
+    secrets: inherit
+
   frontend:
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
     name: frontend (${{ matrix.os }}, 18)
     runs-on: ${{ matrix.os }}
     strategy:
@@ -80,6 +128,7 @@ jobs:
         run: yarn --cwd frontend run build:ci
 
   scala:
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -149,6 +198,7 @@ jobs:
         run: sbt test
 
   python:
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -181,6 +231,7 @@ jobs:
           cd amber/src/main/python && pytest -sv
 
   agent-service:
+    if: ${{ github.event_name != 'pull_request' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
