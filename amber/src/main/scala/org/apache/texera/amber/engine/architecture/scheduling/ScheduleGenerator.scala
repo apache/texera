@@ -25,42 +25,9 @@ import org.apache.texera.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-
-object ScheduleGenerator {
-  def replaceVertex(
-      graph: DirectedAcyclicGraph[Region, RegionLink],
-      oldVertex: Region,
-      newVertex: Region
-  ): Unit = {
-    if (oldVertex.equals(newVertex)) {
-      return
-    }
-    graph.addVertex(newVertex)
-    graph
-      .outgoingEdgesOf(oldVertex)
-      .asScala
-      .toList
-      .foreach(oldEdge => {
-        val dest = graph.getEdgeTarget(oldEdge)
-        graph.removeEdge(oldEdge)
-        graph.addEdge(newVertex, dest, RegionLink(newVertex.id, dest.id))
-      })
-    graph
-      .incomingEdgesOf(oldVertex)
-      .asScala
-      .toList
-      .foreach(oldEdge => {
-        val source = graph.getEdgeSource(oldEdge)
-        graph.removeEdge(oldEdge)
-        graph.addEdge(source, newVertex, RegionLink(source.id, newVertex.id))
-      })
-    graph.removeVertex(oldVertex)
-  }
-}
 
 abstract class ScheduleGenerator(
     workflowContext: WorkflowContext,
