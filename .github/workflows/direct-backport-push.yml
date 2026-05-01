@@ -137,8 +137,6 @@ jobs:
         env:
           MERGE_SHA: ${{ github.sha }}
           TARGET_BRANCH: ${{ matrix.target }}
-          PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -151,19 +149,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          pr_title=$(gh pr view "${PR_NUMBER}" --json title --jq .title)
-          pr_body=$(gh pr view "${PR_NUMBER}" --json body --jq .body)
+          # Reuse the squash commit's full message so the PR title, description,
+          # and any Co-Authored-By trailers GitHub injected stay attached to
+          # the backport commit. The author is the squash commit's author
+          # (the original PR author for squash merges).
+          original_author=$(git log -1 --format='%an <%ae>' "${MERGE_SHA}")
+          merge_message=$(git log -1 --format=%B "${MERGE_SHA}")
 
           git fetch --no-tags origin "${TARGET_BRANCH}"
           git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
           git cherry-pick --no-commit "${MERGE_SHA}"
 
           {
-            printf '%s (#%s)\n\n' "${pr_title}" "${PR_NUMBER}"
-            if [[ -n "${pr_body}" ]]; then
-              printf '%s\n\n' "${pr_body}"
-            fi
-            printf '(cherry picked from commit %s)\n' "${MERGE_SHA}"
-          } | git commit -F -
+            printf '%s\n\n(backported from commit %s)\n' "${merge_message}" "${MERGE_SHA}"
+          } | git commit -F - --author="${original_author}"
 
           git push origin "HEAD:${TARGET_BRANCH}"
