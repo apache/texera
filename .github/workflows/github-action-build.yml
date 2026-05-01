@@ -378,3 +378,34 @@ jobs:
       run_python: true
       run_agent_service: true
     secrets: inherit
+
+  required-checks:
+    # Do not rename this job — its display name is referenced in .asf.yaml.
+    name: Required Checks
+    needs: [precheck, frontend, scala, python, agent-service, backport]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required checks succeeded or were skipped
+        run: |
+          declare -A results=(
+            [precheck]="${{ needs.precheck.result }}"
+            [frontend]="${{ needs.frontend.result }}"
+            [scala]="${{ needs.scala.result }}"
+            [python]="${{ needs.python.result }}"
+            [agent-service]="${{ needs.agent-service.result }}"
+            [backport]="${{ needs.backport.result }}"
+          )
+          failed=0
+          for job in "${!results[@]}"; do
+            r="${results[$job]}"
+            echo "${job}: ${r}"
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              failed=1
+            fi
+          done
+          if (( failed )); then
+            echo "::error::One or more required checks did not succeed."
+            exit 1
+          fi
+          echo "All required checks succeeded or were skipped."
