@@ -47,6 +47,7 @@ export class WorkflowWebsocketService {
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
+  private statusUpdateSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
   private readonly connectionStatusSubject = new BehaviorSubject<boolean>(false);
 
@@ -90,6 +91,7 @@ export class WorkflowWebsocketService {
 
   public closeWebsocket() {
     this.wsWithReconnectSubscription?.unsubscribe();
+    this.statusUpdateSubscription?.unsubscribe();
     this.websocket?.complete();
     this.updateConnectionStatus(false);
   }
@@ -132,7 +134,7 @@ export class WorkflowWebsocketService {
     );
 
     // refresh connection status
-    this.websocketEvent().subscribe(evt => {
+    this.statusUpdateSubscription = this.websocketEvent().subscribe(evt => {
       if (evt.type === "ClusterStatusUpdateEvent") {
         this.numWorkers = evt.numWorkers;
       }

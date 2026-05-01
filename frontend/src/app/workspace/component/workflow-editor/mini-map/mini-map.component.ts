@@ -31,6 +31,7 @@ import { CdkDrag } from "@angular/cdk/drag-drop";
   selector: "texera-mini-map",
   templateUrl: "mini-map.component.html",
   styleUrls: ["mini-map.component.scss"],
+  standalone: false,
 })
 export class MiniMapComponent implements AfterViewInit, OnDestroy {
   @ViewChild("navigatorDrag", { static: false }) navigatorDrag!: CdkDrag;

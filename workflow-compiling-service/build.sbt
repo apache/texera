@@ -20,12 +20,17 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "workflow-compiling-service"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
+
+// Ship LICENSE-binary, NOTICE-binary, DISCLAIMER-WIP, and the licenses/
+// directory at the top of the Universal dist zip.
+// See project/AddMetaInfLicenseFiles.scala.
+Universal / mappings := AddMetaInfLicenseFiles.distMappings(
+  (Universal / mappings).value,
+  (ThisBuild / baseDirectory).value
+)
 
 // Enable semanticdb for Scalafix
 ThisBuild / semanticdbEnabled := true
@@ -77,5 +82,5 @@ libraryDependencies ++= Seq(
 // Core Dependencies
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6"
 )

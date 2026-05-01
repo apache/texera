@@ -33,6 +33,7 @@ import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.apis.twitter.TwitterSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+@deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 
   @JsonIgnore

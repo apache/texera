@@ -15,23 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Copy LICENSE, NOTICE, and DISCLAIMER-WIP from the repo root into META-INF of every JAR.
-// This ensures ASF licensing files are present in all binary artifacts.
-lazy val asfLicensingSettings = Seq(
-  Compile / resourceGenerators += Def.task {
-    val rootDir = (ThisBuild / baseDirectory).value
-    val metaInfDir = (Compile / resourceManaged).value / "META-INF"
-    val filesToCopy = Seq("LICENSE", "NOTICE", "DISCLAIMER-WIP")
-    filesToCopy.flatMap { fileName =>
-      val src = rootDir / fileName
-      if (src.exists()) {
-        val dest = metaInfDir / fileName
-        IO.copyFile(src, dest)
-        Seq(dest)
-      } else Seq.empty
-    }
-  }.taskValue
-)
+ThisBuild / organization := "org.apache.texera"
+ThisBuild / version      := "1.1.0-incubating"
+ThisBuild / scalaVersion := "2.13.18"
+
+// Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
+// Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
+// See project/AddMetaInfLicenseFiles.scala.
+// Dist-producing modules additionally override Universal / mappings in their own
+// build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
+lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings
+
+val jacksonVersion = "2.18.6"
 
 lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
 lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
@@ -44,7 +40,7 @@ lazy val ConfigService = (project in file("config-service"))
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
@@ -53,7 +49,7 @@ lazy val AccessControlService = (project in file("access-control-service"))
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
   .configs(Test)
@@ -77,7 +73,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
 lazy val FileService = (project in file("file-service"))
@@ -88,21 +84,21 @@ lazy val FileService = (project in file("file-service"))
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.16.1",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     )
   )
 
-lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettings).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.16.1",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     )
   )
@@ -112,9 +108,9 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core" % "jackson-core" % "2.15.1",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.1",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.1",
+      "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "org.slf4j" % "slf4j-api" % "1.7.26",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
@@ -156,8 +152,5 @@ lazy val TexeraProject = (project in file("."))
   )
   .settings(
     name := "texera",
-    version := "1.1.0-incubating",
-    organization := "org.apache",
-    scalaVersion := "2.13.12",
     publishMavenStyle := true
   )

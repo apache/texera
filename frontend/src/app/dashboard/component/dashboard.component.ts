@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, NgZone, OnInit, ViewChild } from "@angular/core";
+import { Component, NgZone, OnInit, ViewChild } from "@angular/core";
 import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
@@ -34,6 +34,7 @@ import {
   DASHBOARD_ADMIN_GMAIL,
   DASHBOARD_ADMIN_SETTINGS,
   DASHBOARD_ADMIN_USER,
+  DASHBOARD_USER_COMPUTING_UNIT,
   DASHBOARD_USER_DATASET,
   DASHBOARD_USER_DISCUSSION,
   DASHBOARD_USER_PROJECT,
@@ -49,6 +50,7 @@ import { Role } from "../../common/type/user";
   selector: "texera-dashboard",
   templateUrl: "dashboard.component.html",
   styleUrls: ["dashboard.component.scss"],
+  standalone: false,
 })
 @UntilDestroy()
 export class DashboardComponent implements OnInit {
@@ -80,6 +82,7 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
+  protected readonly DASHBOARD_USER_COMPUTING_UNIT = DASHBOARD_USER_COMPUTING_UNIT;
   protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
   protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
@@ -91,7 +94,6 @@ export class DashboardComponent implements OnInit {
     private userService: UserService,
     private router: Router,
     private flarumService: FlarumService,
-    private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
@@ -121,7 +123,6 @@ export class DashboardComponent implements OnInit {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
           this.forumLogin();
-          this.cdr.detectChanges();
         });
       });
 
@@ -169,7 +170,9 @@ export class DashboardComponent implements OnInit {
       this.adminSettingsService
         .getSetting(tab)
         .pipe(untilDestroyed(this))
-        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+        .subscribe(value => {
+          this.sidebarTabs[tab] = value === "true";
+        });
     });
   }
 

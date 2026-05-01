@@ -33,6 +33,7 @@ import { YType } from "../../../types/shared-editing.interface";
   selector: "texera-nz-modal-comment-box",
   templateUrl: "./nz-modal-comment-box.component.html",
   styleUrls: ["./nz-modal-comment-box.component.scss"],
+  standalone: false,
 })
 export class NzModalCommentBoxComponent {
   readonly commentBox: YType<CommentBox> = inject(NZ_MODAL_DATA).commentBox;
@@ -131,7 +132,7 @@ export class NzModalCommentBoxComponent {
     btn.setAttribute("hidden", "hidden");
   }
   public replyToComment(creatorName: string, content: string) {
-    this.inputValue += "@" + creatorName + ":\"" + content + "\"\n";
+    this.inputValue += "@" + creatorName + ':"' + content + '"\n';
   }
   toRelative(datetime: string): string {
     return formatDate(new Date(datetime), "MM/dd/yyyy, hh:mm:ss a z", this.locale);

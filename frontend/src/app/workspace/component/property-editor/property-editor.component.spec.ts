@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import { CommonModule } from "@angular/common";
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { PropertyEditorComponent } from "./property-editor.component";
 import {
@@ -29,8 +31,8 @@ import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-fra
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("PropertyEditorComponent", () => {
@@ -39,8 +41,15 @@ describe("PropertyEditorComponent", () => {
   let workflowActionService: WorkflowActionService;
 
   beforeEach(waitForAsync(() => {
+    TestBed.overrideComponent(PropertyEditorComponent, {
+      set: {
+        template: '<div id="right-container"><div #contentWrapper></div></div>',
+      },
+    });
+
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+      declarations: [PropertyEditorComponent],
+      imports: [CommonModule, HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -49,6 +58,7 @@ describe("PropertyEditorComponent", () => {
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   }));
 

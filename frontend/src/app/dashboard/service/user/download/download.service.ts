@@ -28,7 +28,7 @@ import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
-import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { TOKEN_KEY } from "../../../../common/service/user/auth.service";
 
 var contentDisposition = require("content-disposition");

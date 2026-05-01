@@ -51,7 +51,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
 
   - name: lakefs
-    version: 1.4.5
+    version: 1.8.1
     repository: https://charts.lakefs.io
 
   - name: gateway-helm

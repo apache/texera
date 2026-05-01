@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { DOCUMENT } from "@angular/core";
 import { ExecutionState, LogicalPlan } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 
@@ -33,14 +34,14 @@ import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./moc
 import { HttpClient } from "@angular/common/http";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
-import { DOCUMENT } from "@angular/common";
+
 import { WorkflowSettings } from "src/app/common/type/workflow";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { AuthService } from "src/app/common/service/user/auth.service";
 import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
-import { MockComputingUnitStatusService } from "../computing-unit-status/mock-computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 class StubHttpClient {
