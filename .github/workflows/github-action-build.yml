@@ -71,15 +71,15 @@ jobs:
       - name: Install dependency
         timeout-minutes: 20
         run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
-      - name: Lint with Prettier & ESLint
-        run: yarn --cwd frontend format:ci
-      - name: Run frontend unit tests
-        run: yarn --cwd frontend run test:ci
       - name: Prod build
         run: yarn --cwd frontend run build:ci
       - name: Check bundled npm packages against LICENSE-binary
         if: matrix.os == 'ubuntu-latest'
         run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
+      - name: Lint with Prettier & ESLint
+        run: yarn --cwd frontend format:ci
+      - name: Run frontend unit tests
+        run: yarn --cwd frontend run test:ci
 
   scala:
     strategy:
@@ -137,20 +137,6 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
-      - name: Create texera_db_for_test_cases
-        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
-        env:
-          PGPASSWORD: postgres
-      - name: Compile with sbt
-        run: sbt clean package
-      - name: Lint with scalafix
-        run: sbt "scalafixAll --check"
-      - name: Set docker-java API version
-        run: |
-          echo "api.version=1.52" >> ~/.docker-java.properties
-          cat ~/.docker-java.properties
-      - name: Run backend tests
-        run: sbt test
       - name: Build distributable bundles for license check
         # Build every dist-producing module so the union of bundled jars can
         # be diffed against LICENSE-binary.
@@ -186,6 +172,20 @@ jobs:
             /tmp/dists/computing-unit-managing-service-*/lib \
             /tmp/dists/workflow-compiling-service-*/lib \
             /tmp/dists/amber-*/lib
+      - name: Create texera_db_for_test_cases
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Compile with sbt
+        run: sbt clean package
+      - name: Lint with scalafix
+        run: sbt "scalafixAll --check"
+      - name: Set docker-java API version
+        run: |
+          echo "api.version=1.52" >> ~/.docker-java.properties
+          cat ~/.docker-java.properties
+      - name: Run backend tests
+        run: sbt test
 
   python:
     strategy:
@@ -206,6 +206,12 @@ jobs:
           if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
           if [ "${{ matrix.python-version }}" = "3.12" ]; then pip install pip-licenses; fi
+      - name: Generate pip-licenses manifest
+        if: matrix.python-version == '3.12'
+        run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
+      - name: Check installed Python packages against LICENSE-binary
+        if: matrix.python-version == '3.12'
+        run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
       - name: Install PostgreSQL
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Start PostgreSQL Service
@@ -219,12 +225,6 @@ jobs:
       - name: Test with pytest
         run: |
           cd amber/src/main/python && pytest -sv
-      - name: Generate pip-licenses manifest
-        if: matrix.python-version == '3.12'
-        run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
-      - name: Check installed Python packages against LICENSE-binary
-        if: matrix.python-version == '3.12'
-        run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
 
   agent-service:
     runs-on: ${{ matrix.os }}
