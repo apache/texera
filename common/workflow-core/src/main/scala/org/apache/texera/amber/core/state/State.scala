@@ -27,6 +27,8 @@ import java.net.URI
 import java.util.Base64
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
+final case class State(values: Map[String, Any])
+
 object State {
   private val StateContent = "content"
   private val BytesTypeMarker = "__texera_type__"
@@ -41,18 +43,20 @@ object State {
     new URI(resultUri.toString.replace("/result", "/state"))
 
   def serialize(state: State): Tuple = {
-    val payloadJson = objectMapper.writeValueAsString(toJsonValue(state))
+    val payloadJson = objectMapper.writeValueAsString(toJsonValue(state.values))
     Tuple.builder(schema).addSequentially(Array(payloadJson)).build()
   }
 
   def deserialize(tuple: Tuple): State = {
     val payload = tuple.getField[String](StateContent)
-    objectMapper
-      .readTree(payload)
-      .fields()
-      .asScala
-      .map(entry => entry.getKey -> fromJsonValue(entry.getValue))
-      .toMap
+    State(
+      objectMapper
+        .readTree(payload)
+        .fields()
+        .asScala
+        .map(entry => entry.getKey -> fromJsonValue(entry.getValue))
+        .toMap
+    )
   }
 
   private def toJsonValue(value: Any): Any =
@@ -60,7 +64,7 @@ object State {
       case null => null
       case bytes: Array[Byte] =>
         Map(BytesTypeMarker -> BytesValue, PayloadMarker -> Base64.getEncoder.encodeToString(bytes))
-      case map: State =>
+      case map: Map[?, ?] =>
         map.iterator.map { case (k, v) => k -> toJsonValue(v) }.toMap
       case iterable: Iterable[_] =>
         iterable.map(toJsonValue).toList

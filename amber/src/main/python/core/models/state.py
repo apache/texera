@@ -17,12 +17,14 @@
 
 import base64
 import json
-from typing import Any, Dict, TypeAlias
+from typing import Any
 
 from .schema import Schema
 from .tuple import Tuple
 
-State: TypeAlias = Dict[str, Any]
+
+class State(dict):
+    pass
 
 STATE_CONTENT = "content"
 _TYPE_MARKER = "__texera_type__"
@@ -44,7 +46,7 @@ def serialize_state(state: State) -> Tuple:
 
 
 def deserialize_state(row: Tuple) -> State:
-    return _from_json_value(json.loads(row[STATE_CONTENT]))
+    return State(_from_json_value(json.loads(row[STATE_CONTENT])))
 
 
 def _to_json_value(value: Any) -> Any:

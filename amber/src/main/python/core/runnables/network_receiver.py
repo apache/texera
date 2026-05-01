@@ -97,17 +97,7 @@ class NetworkReceiver(Runnable, Stoppable):
                 "Data",
                 lambda _: DataFrame(table),
                 "State",
-                lambda _: StateFrame(
-                    deserialize_state(
-                        Tuple(
-                            {
-                                name: table[name][0].as_py()
-                                for name in STATE_SCHEMA.get_attr_names()
-                            },
-                            schema=STATE_SCHEMA,
-                        )
-                    )
-                ),
+                lambda _: StateFrame(self._deserialize_state_payload(table)),
                 "ECM",
                 lambda _: EmbeddedControlMessage().parse(table["payload"][0].as_py()),
             )
@@ -154,6 +144,22 @@ class NetworkReceiver(Runnable, Stoppable):
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_actor_message_handler(actor_message_handler)
+
+    @staticmethod
+    def _deserialize_state_payload(table: Table) -> dict:
+        # Each network State message carries exactly one serialized state row.
+        # Multiple states are sent as multiple State messages, not as multiple
+        # rows inside one network payload.
+        assert len(table) == 1
+        return deserialize_state(
+            Tuple(
+                {
+                    name: table[name][0].as_py()
+                    for name in STATE_SCHEMA.get_attr_names()
+                },
+                schema=STATE_SCHEMA,
+            )
+        )
 
     def register_shutdown(self, shutdown: callable) -> None:
         self._proxy_server.register(

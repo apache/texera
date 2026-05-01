@@ -192,7 +192,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def process_input_state(self) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
-        self._switch_context()
         if output_state is not None:
             for to, batch in self.context.output_manager.emit_state(output_state):
                 self._output_queue.put(
@@ -247,7 +246,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_state(self, state_: State) -> None:
         self.context.state_processing_manager.current_input_state = state_
-        self._switch_context()
         self.process_input_state()
         self._check_and_process_control()
 
@@ -342,7 +340,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     StartChannel: self._process_start_channel,
                     EndChannel: self._process_end_channel,
                 }[type(self.context.tuple_processing_manager.current_internal_marker)]()
-                self.context.tuple_processing_manager.current_internal_marker = None
 
     def _send_ecm_to_data_channels(
         self, method_name: str, alignment: EmbeddedControlMessageType
