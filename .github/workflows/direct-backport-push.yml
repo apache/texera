@@ -153,6 +153,7 @@ jobs:
 
           pr_title=$(gh pr view "${PR_NUMBER}" --json title --jq .title)
           pr_body=$(gh pr view "${PR_NUMBER}" --json body --jq .body)
+          original_author=$(git log -1 --format='%an <%ae>' "${MERGE_SHA}")
 
           git fetch --no-tags origin "${TARGET_BRANCH}"
           git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
@@ -164,6 +165,6 @@ jobs:
               printf '%s\n\n' "${pr_body}"
             fi
             printf '(cherry picked from commit %s)\n' "${MERGE_SHA}"
-          } | git commit -F -
+          } | git commit -F - --author="${original_author}"
 
           git push origin "HEAD:${TARGET_BRANCH}"
