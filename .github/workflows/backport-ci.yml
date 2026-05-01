@@ -1,0 +1,47 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Backport Compatibility
+
+on:
+  pull_request:
+    types:
+      - labeled
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  cancel-in-progress: true
+
+jobs:
+  backport-ci:
+    if: ${{ startsWith(github.event.label.name, 'release/') }}
+    name: Backport CI (${{ github.event.label.name }})
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
+      backport_target_branch: ${{ github.event.label.name }}
+      backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+      job_name_suffix: ${{ format(' [backport {0}]', github.event.label.name) }}
+      summary_job_name: ${{ format('Backport CI ({0})', github.event.label.name) }}
+      run_frontend: true
+      run_scala: true
+      run_python: true
+      run_agent_service: true
+    secrets: inherit

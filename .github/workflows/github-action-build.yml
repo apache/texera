@@ -27,12 +27,6 @@ on:
       - 'main'
       - 'release/**'
   pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - labeled
-      - unlabeled
   workflow_dispatch:
 
 concurrency:
@@ -40,68 +34,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  precheck:
-    name: Pre-flight routing
-    runs-on: ubuntu-latest
-    outputs:
-      should_run_main_build: ${{ steps.route.outputs.should_run_main_build }}
-      backport_targets: ${{ steps.route.outputs.backport_targets }}
-      has_backport_targets: ${{ steps.route.outputs.has_backport_targets }}
-    steps:
-      - name: Decide routing
-        id: route
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const eventName = context.eventName;
-            const action = context.payload.action || "";
-            let shouldRunMainBuild = false;
-            let backportTargets = [];
-
-            if (eventName !== "pull_request") {
-              shouldRunMainBuild = true;
-            } else if (action === "labeled") {
-              const newLabel = context.payload.label && context.payload.label.name;
-              if (newLabel && /^release\/.+$/.test(newLabel)) {
-                backportTargets = [newLabel];
-              }
-            } else if (action === "unlabeled") {
-              // Removing a label cancels nothing and triggers no extra build.
-            } else {
-              shouldRunMainBuild = true;
-            }
-
-            core.info(`event=${eventName} action=${action || "(none)"}`);
-            core.info(`should_run_main_build=${shouldRunMainBuild}`);
-            core.info(`backport_targets=${JSON.stringify(backportTargets)}`);
-
-            core.setOutput("should_run_main_build", shouldRunMainBuild ? "true" : "false");
-            core.setOutput("backport_targets", JSON.stringify(backportTargets));
-            core.setOutput("has_backport_targets", backportTargets.length > 0 ? "true" : "false");
-
-  backport-ci:
-    needs: precheck
-    if: ${{ needs.precheck.outputs.has_backport_targets == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJson(needs.precheck.outputs.backport_targets) }}
-    uses: ./.github/workflows/reusable-build.yml
-    with:
-      checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
-      backport_target_branch: ${{ matrix.target }}
-      backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
-      job_name_suffix: ${{ format(' [backport {0}]', matrix.target) }}
-      summary_job_name: ${{ format('Backport CI ({0})', matrix.target) }}
-      run_frontend: true
-      run_scala: true
-      run_python: true
-      run_agent_service: true
-    secrets: inherit
-
   frontend:
-    needs: precheck
-    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     name: frontend (${{ matrix.os }}, 18)
     runs-on: ${{ matrix.os }}
     strategy:
@@ -147,8 +80,6 @@ jobs:
         run: yarn --cwd frontend run build:ci
 
   scala:
-    needs: precheck
-    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -218,8 +149,6 @@ jobs:
         run: sbt test
 
   python:
-    needs: precheck
-    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -252,8 +181,6 @@ jobs:
           cd amber/src/main/python && pytest -sv
 
   agent-service:
-    needs: precheck
-    if: ${{ needs.precheck.outputs.should_run_main_build == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
