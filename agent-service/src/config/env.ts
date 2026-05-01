@@ -23,8 +23,11 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
   API_PREFIX: z.string().default("/api"),
   LLM_API_KEY: z.string().default("dummy"),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
-  LOG_PRETTY: z.coerce.boolean().default(true),
+  TEXERA_SERVICE_LOG_LEVEL: z
+    .enum(["ERROR", "WARN", "INFO", "DEBUG"])
+    .transform(v => v.toLowerCase() as "error" | "warn" | "info" | "debug")
+    .default("INFO"),
+  LOG_PRETTY: z.coerce.boolean().default(false),
 
   TEXERA_DASHBOARD_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8080"),
   LLM_ENDPOINT: z.string().url().default("http://localhost:9096"),
