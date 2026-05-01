@@ -817,6 +817,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       socket,
       pipOutput: "Starting ...\n",
       isInstalling: true,
+      isLocked: true,
     };
 
     this.updatePrettyPipOutput(index);
@@ -833,6 +834,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
             ...currentEnv,
             socket: undefined,
             isInstalling: false,
+            isLocked: true,
           };
 
           socket.close();
