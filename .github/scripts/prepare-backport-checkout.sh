@@ -23,8 +23,13 @@ commit_range="${2:?commit range is required}"
 workspace_branch="ci-backport-${target_branch//\//-}"
 
 git fetch --no-tags origin "${target_branch}"
+git config user.name "github-actions[bot]"
+git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-mapfile -t commits < <(git rev-list --reverse "${commit_range}")
+commits=()
+while IFS= read -r commit; do
+  commits+=("${commit}")
+done < <(git rev-list --reverse "${commit_range}")
 
 if [[ "${#commits[@]}" -eq 0 ]]; then
   echo "No commits found in range ${commit_range}" >&2
