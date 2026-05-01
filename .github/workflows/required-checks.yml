@@ -43,9 +43,14 @@ concurrency:
 
 jobs:
   # Precheck decides which downstream jobs run for this event:
+  #   - On PR events, wait for the Pull Request Labeler workflow to finish so
+  #     the labels it applies (frontend, docs, dev, ...) are available, then
+  #     gate run_* outputs on those labels.
   #   - run_frontend / run_scala / run_python / run_agent_service: gate the
-  #     main build stacks. All true today; placeholder for future path- or
-  #     label-based selection.
+  #     main build stacks. PRs labelled exclusively with docs and/or dev skip
+  #     every stack; otherwise frontend skips when no `frontend` label is
+  #     present (the other stacks always run when at least one non-docs/dev
+  #     label exists). Push and dispatch events run every stack.
   #   - backport_targets: JSON array of release/* labels currently on the PR.
   #     Drives the backport matrix; empty array means no backport runs.
   precheck:
@@ -58,28 +63,77 @@ jobs:
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
       backport_targets: ${{ steps.decide.outputs.backport_targets }}
     steps:
+      - name: Wait for Pull Request Labeler
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const ref = context.payload.pull_request.head.sha;
+            const maxAttempts = 30;
+            for (let i = 0; i < maxAttempts; i++) {
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                check_name: "labeler",
+              });
+              const check = data.check_runs[0];
+              if (check && check.status === "completed") {
+                core.info(`labeler ${check.conclusion}`);
+                return;
+              }
+              core.info(`labeler not ready (attempt ${i + 1}/${maxAttempts})`);
+              await new Promise((r) => setTimeout(r, 10000));
+            }
+            core.warning("labeler did not complete within 5 minutes; proceeding with current labels.");
+
       - name: Decide which jobs to run
         id: decide
         uses: actions/github-script@v8
         with:
           script: |
             const eventName = context.eventName;
+            let labels = [];
 
-            // Main build stacks: always run.
-            const stacks = ["run_frontend", "run_scala", "run_python", "run_agent_service"];
-            for (const key of stacks) {
-              core.setOutput(key, "true");
+            if (eventName === "pull_request") {
+              // Re-fetch labels: the labeler may have just added some.
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+              });
+              labels = pr.labels.map((l) => l.name);
+              core.info(`PR labels: ${labels.join(", ") || "(none)"}`);
             }
+
+            const SKIP_ONLY = new Set(["docs", "dev"]);
+            const onlySkippable =
+              eventName === "pull_request" &&
+              labels.length > 0 &&
+              labels.every((l) => SKIP_ONLY.has(l));
+
+            let runFrontend = true;
+            let runScala = true;
+            let runPython = true;
+            let runAgentService = true;
+
+            if (onlySkippable) {
+              runFrontend = runScala = runPython = runAgentService = false;
+              core.info("Labels are docs/dev only; skipping all build stacks.");
+            } else if (eventName === "pull_request" && !labels.includes("frontend")) {
+              runFrontend = false;
+              core.info("No frontend label; skipping frontend stack.");
+            }
+
+            core.setOutput("run_frontend", runFrontend ? "true" : "false");
+            core.setOutput("run_scala", runScala ? "true" : "false");
+            core.setOutput("run_python", runPython ? "true" : "false");
+            core.setOutput("run_agent_service", runAgentService ? "true" : "false");
 
             // Backport targets: all current release/* labels on the PR.
-            let targets = [];
-            if (eventName === "pull_request") {
-              const labels = context.payload.pull_request.labels.map((l) => l.name);
-              targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
-            }
-
+            const targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
             if (targets.length === 0) {
-              core.info(`No backport targets on PR.`);
+              core.info("No backport targets on PR.");
             } else {
               core.info(`Backport targets: ${targets.join(", ")}`);
             }
