@@ -166,8 +166,7 @@ class TestMainLoop:
     def mock_state_data_elements(self, mock_data_input_channel):
         elements = []
         for value in (1, 2, 3, 4):
-            state = State()
-            state.add("value", value)
+            state = State({"value": value})
             elements.append(
                 DataElement(
                     tag=mock_data_input_channel,
@@ -189,19 +188,16 @@ class TestMainLoop:
 
             @staticmethod
             def process_state(state: State, port: int) -> State:
-                new_state = State()
-                for key, value in state.__dict__.items():
-                    if key != "schema":
-                        new_state.add(key, value)
-                new_state.add("processed_marker", "executed")
-                new_state.add("port", port)
+                new_state = State(
+                    {key: value for key, value in state.items() if key != "schema"}
+                )
+                new_state["processed_marker"] = "executed"
+                new_state["port"] = port
                 return new_state
 
             @staticmethod
             def produce_state_on_finish(port: int) -> State:
-                finish_state = State()
-                finish_state.add("finish_marker", "produce_state_on_finish_ran")
-                return finish_state
+                return State({"finish_marker": "produce_state_on_finish_ran"})
 
             @staticmethod
             def on_finish(port):
@@ -1131,6 +1127,57 @@ class TestMainLoop:
             ),
         )
 
+    @pytest.mark.timeout(2)
+    def test_process_state_can_emit_consecutive_states(
+        self,
+        main_loop,
+        output_queue,
+        mock_data_output_channel,
+        monkeypatch,
+    ):
+        class DummyExecutor:
+            @staticmethod
+            def process_state(state, port: int):
+                return State({"value": state["value"] + 1, "port": port})
+
+        main_loop.context.executor_manager.executor = DummyExecutor()
+        monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
+        monkeypatch.setattr(
+            main_loop.context.output_manager,
+            "emit_state",
+            lambda state: [(mock_data_output_channel.to_worker_id, StateFrame(state))],
+        )
+
+        def fake_switch_context():
+            current_input_state = (
+                main_loop.context.state_processing_manager.current_input_state
+            )
+            if current_input_state is not None:
+                main_loop.context.state_processing_manager.current_output_state = (
+                    DummyExecutor.process_state(current_input_state, 0)
+                )
+
+        monkeypatch.setattr(main_loop, "_switch_context", fake_switch_context)
+
+        first_state = State({"value": 1})
+        second_state = State({"value": 41})
+
+        main_loop._process_state(first_state)
+        main_loop._process_state(second_state)
+
+        first_output: DataElement = output_queue.get()
+        second_output: DataElement = output_queue.get()
+
+        assert first_output.tag == mock_data_output_channel
+        assert isinstance(first_output.payload, StateFrame)
+        assert first_output.payload.frame["value"] == 2
+        assert first_output.payload.frame["port"] == 0
+
+        assert second_output.tag == mock_data_output_channel
+        assert isinstance(second_output.payload, StateFrame)
+        assert second_output.payload.frame["value"] == 42
+        assert second_output.payload.frame["port"] == 0
+
     @pytest.mark.timeout(5)
     def test_main_loop_thread_can_align_ecm(
         self,
@@ -1301,10 +1348,7 @@ class TestMainLoop:
         class DummyExecutor:
             @staticmethod
             def process_state(state: State, port: int) -> State:
-                output_state = State()
-                output_state.add("value", state["value"] + 1)
-                output_state.add("port", port)
-                return output_state
+                return State({"value": state["value"] + 1, "port": port})
 
         main_loop.context.executor_manager.executor = DummyExecutor()
         monkeypatch.setattr(main_loop, "_check_and_process_control", lambda: None)
@@ -1325,10 +1369,8 @@ class TestMainLoop:
 
         monkeypatch.setattr(main_loop, "_switch_context", fake_switch_context)
 
-        first_state = State()
-        first_state.add("value", 1)
-        second_state = State()
-        second_state.add("value", 41)
+        first_state = State({"value": 1})
+        second_state = State({"value": 41})
 
         main_loop._process_state(first_state)
         main_loop._process_state(second_state)
@@ -1443,7 +1485,7 @@ class TestMainLoop:
             f"{type(end_channel_state_output.payload).__name__}"
         )
         end_channel_state = end_channel_state_output.payload.frame
-        assert "finish_marker" in end_channel_state.__dict__, (
+        assert "finish_marker" in end_channel_state, (
             f"EndChannel emission should be the finish-marker state from "
             f"produce_state_on_finish, got {end_channel_state!r}"
         )
