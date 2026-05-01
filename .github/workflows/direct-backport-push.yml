@@ -161,7 +161,7 @@ jobs:
           git cherry-pick --no-commit "${MERGE_SHA}"
 
           {
-            printf '%s\n\n(cherry picked from commit %s)\n' "${merge_message}" "${MERGE_SHA}"
+            printf '%s\n\n(backported from commit %s)\n' "${merge_message}" "${MERGE_SHA}"
           } | git commit -F - --author="${original_author}"
 
           git push origin "HEAD:${TARGET_BRANCH}"
