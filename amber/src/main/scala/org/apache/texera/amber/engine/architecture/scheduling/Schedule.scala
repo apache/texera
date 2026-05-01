@@ -21,25 +21,46 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 
-case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterator[Set[Region]] {
-  private var currentLevel = levelSets.keys.minOption.getOrElse(0)
+case class Schedule(
+    private val levelSets: Map[Int, Set[Region]],
+    executionLevels: Vector[Int] = Vector.empty
+) extends Iterator[Set[Region]] {
+  require(
+    levelSets.keys.toSet == (0 until levelSets.size).toSet,
+    s"Schedule level keys must be contiguous starting at 0, got: ${levelSets.keys.toSeq.sorted}"
+  )
+
+  private val baseLevels = levelSets.keys.toVector.sorted
+  private val normalizedExecutionLevels =
+    if (executionLevels.nonEmpty || baseLevels.isEmpty) executionLevels else baseLevels
+  private val operatorLevelIndices = levelSets.iterator.flatMap {
+    case (level, regions) =>
+      val levelIndex = baseLevels.indexOf(level)
+      regions.iterator.flatMap(region => region.getOperators.map(_.id.logicalOpId -> levelIndex))
+  }.toMap
+  private var currentLevelIndex = 0
 
   def getRegions: List[Region] = levelSets.values.flatten.toList
 
-  override def hasNext: Boolean = levelSets.isDefinedAt(currentLevel)
+  def getLevelIndexOfOperator(opId: OperatorIdentity): Option[Int] = operatorLevelIndices.get(opId)
 
-  override def next(): Set[Region] = {
-    val regions = levelSets(currentLevel)
-    currentLevel += 1
-    regions
+  def rewriteExecutionFrom(levelIndex: Int): Schedule = {
+    val rewrittenSchedule = copy(
+      executionLevels =
+        normalizedExecutionLevels.take(currentLevelIndex) ++ baseLevels.drop(levelIndex)
+    )
+    rewrittenSchedule.currentLevelIndex = currentLevelIndex
+    rewrittenSchedule
   }
 
-  def jumpToOperator(opId: OperatorIdentity): Unit =
-    levelSets
-      .collectFirst {
-        case (level, regions)
-            if regions.exists(_.getOperators.exists(_.id.logicalOpId == opId)) =>
-          level
-      }
-      .foreach(currentLevel = _)
+  override def hasNext: Boolean = currentLevelIndex < normalizedExecutionLevels.length
+
+  override def next(): Set[Region] = {
+    val regions = normalizedExecutionLevels
+      .lift(currentLevelIndex)
+      .flatMap(levelSets.get)
+      .getOrElse(Set.empty)
+    currentLevelIndex += 1
+    regions
+  }
 }

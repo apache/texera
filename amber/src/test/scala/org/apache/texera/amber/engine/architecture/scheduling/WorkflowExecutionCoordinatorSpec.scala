@@ -21,6 +21,14 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
+import org.apache.texera.amber.core.executor.OpExecInitInfo
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
@@ -28,8 +36,6 @@ import org.apache.texera.amber.engine.architecture.scheduling.RegionCoordinatorT
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
-
-import scala.collection.mutable
 
 class WorkflowExecutionCoordinatorSpec
     extends TestKit(ActorSystem("WorkflowExecutionCoordinatorSpec", AmberRuntime.akkaConfig))
@@ -41,7 +47,37 @@ class WorkflowExecutionCoordinatorSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  "WorkflowExecutionCoordinator" should "start the next region only after previous region termination succeeds" in {
+  // -- Helpers used only by the jump-to-operator-region tests --
+
+  private def jumpRegion(regionId: Long, opId: String): Region = {
+    val physicalOp = PhysicalOp(
+      PhysicalOpIdentity(OperatorIdentity(opId), "main"),
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      OpExecInitInfo.Empty
+    )
+    Region(RegionIdentity(regionId), Set(physicalOp), Set.empty)
+  }
+
+  private def threeLevelSchedule(): (Region, Region, Region, Schedule) = {
+    val first = jumpRegion(1, "first")
+    val second = jumpRegion(2, "second")
+    val third = jumpRegion(3, "third")
+    val schedule = Schedule(
+      Map(
+        0 -> Set(first),
+        1 -> Set(second),
+        2 -> Set(third)
+      )
+    )
+    (first, second, third, schedule)
+  }
+
+  private def newJumpCoordinator(schedule: Schedule): WorkflowExecutionCoordinator =
+    new WorkflowExecutionCoordinator(schedule, WorkflowExecution(), null, null)
+
+  "WorkflowExecutionCoordinator" should
+    "start the next region only after previous region termination succeeds" in {
     val firstOp = createSourceOp("first-op")
     val firstWorkerId = createWorkerId(firstOp)
     val firstRegion = createSingleWorkerRegion(1, firstOp, firstWorkerId)
@@ -64,9 +100,8 @@ class WorkflowExecutionCoordinatorSpec
     registerLiveWorker(controller.actorRefService, firstWorkerId)
     registerLiveWorker(controller.actorRefService, secondWorkerId)
 
-    val nextRegionLevels = mutable.Queue(Set(firstRegion), Set(secondRegion))
     val workflowCoordinator = new WorkflowExecutionCoordinator(
-      () => if (nextRegionLevels.nonEmpty) nextRegionLevels.dequeue() else Set.empty,
+      Schedule(Map(0 -> Set(firstRegion), 1 -> Set(secondRegion))),
       workflowExecution,
       ControllerConfig(None, None, None, None),
       rpcProbe.asyncRPCClient
@@ -89,5 +124,85 @@ class WorkflowExecutionCoordinatorSpec
     assert(!controller.actorRefService.hasActorRef(firstWorkerId))
     assert(rpcProbe.initializedWorkers.contains(secondWorkerId))
     assert(rpcProbe.startedWorkers.contains(secondWorkerId))
+  }
+
+  "WorkflowExecutionCoordinator.jumpToRegionContainingOperator" should
+    "make the next scheduled region contain the target operator's region" in {
+    val (first, second, _, schedule) = threeLevelSchedule()
+    val coordinator = newJumpCoordinator(schedule)
+
+    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.pullNextRegions == Set(second))
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+
+    assert(coordinator.pullNextRegions == Set(first))
+  }
+
+  it should "support multiple sequential jumps interleaved with region pulls" in {
+    val (first, second, third, schedule) = threeLevelSchedule()
+    val coordinator = newJumpCoordinator(schedule)
+
+    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.pullNextRegions == Set(second))
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+    assert(coordinator.pullNextRegions == Set(first))
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("second"))
+    assert(coordinator.pullNextRegions == Set(second))
+    assert(coordinator.pullNextRegions == Set(third))
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+    assert(coordinator.pullNextRegions == Set(first))
+  }
+
+  it should "be a no-op when the target operator is not in any scheduled region" in {
+    val (first, second, _, schedule) = threeLevelSchedule()
+    val coordinator = newJumpCoordinator(schedule)
+
+    assert(coordinator.pullNextRegions == Set(first))
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("does-not-exist"))
+
+    // Iteration position must be unaffected by an unknown target.
+    assert(coordinator.pullNextRegions == Set(second))
+  }
+
+  it should "leave the schedule untouched when called repeatedly with unknown operators" in {
+    val (first, second, third, schedule) = threeLevelSchedule()
+    val coordinator = newJumpCoordinator(schedule)
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-1"))
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-2"))
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-3"))
+
+    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.pullNextRegions == Set(second))
+    assert(coordinator.pullNextRegions == Set(third))
+  }
+
+  it should "allow jumping back to the first region after the schedule is exhausted" in {
+    val (first, second, third, schedule) = threeLevelSchedule()
+    val coordinator = newJumpCoordinator(schedule)
+
+    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.pullNextRegions == Set(second))
+    assert(coordinator.pullNextRegions == Set(third))
+    assert(coordinator.pullNextRegions == Set.empty)
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+    assert(coordinator.pullNextRegions == Set(first))
+  }
+
+  it should "support jumping forward past regions that have not yet been pulled" in {
+    val (first, _, third, schedule) = threeLevelSchedule()
+    val coordinator = newJumpCoordinator(schedule)
+
+    assert(coordinator.pullNextRegions == Set(first))
+
+    coordinator.jumpToRegionContainingOperator(OperatorIdentity("third"))
+    assert(coordinator.pullNextRegions == Set(third))
+    assert(coordinator.pullNextRegions == Set.empty)
   }
 }

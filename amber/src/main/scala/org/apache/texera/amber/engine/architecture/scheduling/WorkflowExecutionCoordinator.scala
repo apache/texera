@@ -27,11 +27,6 @@ import org.apache.texera.amber.engine.architecture.common.{
   AkkaActorRefMappingService,
   AkkaActorService
 }
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionStateUpdate,
-  WorkflowScheduler
-}
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
@@ -41,11 +36,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
 class WorkflowExecutionCoordinator(
-    workflowScheduler: WorkflowScheduler,
+    initialSchedule: Schedule,
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
+
+  private var schedule: Schedule = initialSchedule
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
@@ -58,6 +55,14 @@ class WorkflowExecutionCoordinator(
 
   def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
+  }
+
+  def replaceSchedule(newSchedule: Schedule): Unit = {
+    schedule = newSchedule
+  }
+
+  private[scheduling] def pullNextRegions: Set[Region] = {
+    if (!schedule.hasNext) Set() else schedule.next()
   }
 
   /**
@@ -89,7 +94,7 @@ class WorkflowExecutionCoordinator(
     }
 
     // All existing regions are completed. Start the next region (if any).
-    val nextRegions = getNextRegions()
+    val nextRegions = pullNextRegions
     if (nextRegions.isEmpty) {
       if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
         asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
@@ -143,8 +148,12 @@ class WorkflowExecutionCoordinator(
     regionExecutionCoordinators.values.exists(!_.isCompleted)
   }
 
-  def jumpToOperator(opId: OperatorIdentity): Unit = {
-    workflowScheduler.schedule.jumpToOperator(opId)
+  def jumpToRegionContainingOperator(opId: OperatorIdentity): Unit = {
+    schedule.getLevelIndexOfOperator(opId).foreach { levelIndex =>
+      schedule = schedule.rewriteExecutionFrom(levelIndex)
+    }
   }
+
+  def jumpToOperator(opId: OperatorIdentity): Unit = jumpToRegionContainingOperator(opId)
 
 }
