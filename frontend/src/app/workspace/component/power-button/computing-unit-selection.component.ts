@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, NgZone } from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import {
@@ -56,6 +56,17 @@ import {
   isComputingUnitShmTooLarge,
   getJvmMemorySliderConfig,
 } from "../../../common/util/computing-unit.util";
+import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
+
+type PveDraft = {
+  name: string;
+  pipOutput: string;
+  prettyPipOutput: string;
+  expanded: boolean;
+  socket?: WebSocket;
+  isInstalling: boolean;
+  isLocked: boolean;
+};
 
 @UntilDestroy()
 @Component({
@@ -65,6 +76,11 @@ import {
   standalone: false,
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  // variables for creating a virtual environment
+  pves: PveDraft[] = [];
+  systemPackages: { name: string; version: string }[] = [];
+  pveModalVisible = false;
+
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   protected readonly unitTypeMessageTemplate = unitTypeMessageTemplate;
   workflowId: number | undefined;
@@ -112,7 +128,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NzModalService,
     private cdr: ChangeDetectorRef,
-    private computingUnitActionsService: ComputingUnitActionsService
+    private computingUnitActionsService: ComputingUnitActionsService,
+    private workflowPveService: WorkflowPveService,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -381,6 +399,17 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     this.computingUnitActionsService.confirmAndTerminate(cuid, unit);
+
+    if (this.selectedComputingUnit?.computingUnit.type === "local") {
+      this.workflowPveService
+        .deleteEnvironments(cuid)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          error: (err: unknown) => {
+            console.error("Failed to delete PVE environments", err);
+          },
+        });
+    }
   }
 
   /**
@@ -637,5 +666,233 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (visible) {
       this.computingUnitStatusService.refreshComputingUnitList();
     }
+  }
+
+  trackByIndex(index: number): number {
+    return index;
+  }
+
+  addEnvironment(): void {
+    this.pves.push({
+      name: "",
+      pipOutput: "",
+      prettyPipOutput: "",
+      expanded: true,
+      isInstalling: false,
+      isLocked: false,
+    });
+  }
+
+  showPVEmodalVisible(): void {
+    this.pveModalVisible = true;
+    this.getPVEs();
+  }
+
+  closePveModal(): void {
+    this.pves.forEach(pve => {
+      pve.socket?.close();
+      pve.socket = undefined;
+      pve.isInstalling = false;
+    });
+
+    this.pveModalVisible = false;
+  }
+
+  getPVEs(): void {
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+
+    this.workflowPveService
+      .fetchPVEs(cuId)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (resp: PvePackageResponse[]) => {
+          this.pves = resp.map(pve => ({
+            name: pve.pveName,
+            expanded: false,
+            isInstalling: false,
+            pipOutput: "",
+            prettyPipOutput: "",
+            isLocked: true,
+          }));
+
+          this.workflowPveService
+            .getSystemPackages()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: installedResp => {
+                this.systemPackages = installedResp.system.map(pkgStr => {
+                  const [name, version] = pkgStr.split("==");
+                  return {
+                    name: name.trim(),
+                    version: (version ?? "").trim(),
+                  };
+                });
+              },
+              error: (err: unknown) => {
+                console.error("Failed to fetch system packages:", err);
+                this.systemPackages = [];
+              },
+            });
+        },
+        error: (err: unknown) => {
+          console.error("Failed to fetch PVEs:", err);
+          this.pves = [];
+          this.systemPackages = [];
+        },
+      });
+  }
+
+  scrollToBottomOfPipModal(index: number) {
+    setTimeout(() => {
+      const pre = document.getElementById(`pip-log-${index}`) as HTMLElement | null;
+      if (pre) {
+        pre.scrollTop = pre.scrollHeight;
+      }
+    }, 50);
+  }
+
+  // Converts raw pip output for UI rendering by escaping unsafe characters and
+  // applying styling to exit codes, errors, warnings, and common success messages.
+  updatePrettyPipOutput(index: number) {
+    const env = this.pves[index];
+
+    const escapeHtml = (s: string) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    const raw = env.pipOutput ?? "";
+    const safe = escapeHtml(raw);
+
+    env.prettyPipOutput = safe
+      .replace(/^(\[pip\] Successfully installed.*)$/gm, '<span class="pip-exit ok"><strong>$1</strong></span>')
+
+      .replace(
+        /^(\[(?:PVE|pip|pve)\].*finished with exit code\s+0.*)$/gm,
+        '<span class="pip-exit ok"><strong>$1</strong></span>'
+      )
+
+      .replace(/^(\[PVE\] Running pip freeze.*)$/gm, '<span class="pip-exit ok"><strong>$1</strong></span>')
+
+      .replace(/^(\[(?:PVE|pip|pve)\]\[ERR\].*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
+
+      .replace(/\n/g, "<br/>");
+  }
+
+  createVirtualEnvironment(index: number): void {
+    const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+
+    const env = this.pves[index];
+
+    const trimmedName = env.name.trim();
+
+    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
+      this.notificationService.error("Environment name must contain only letters and numbers.");
+      return;
+    }
+
+    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
+
+    if (duplicateExists) {
+      this.notificationService.error("An environment with this name already exists.");
+      return;
+    }
+
+    const packageArray: string[] = [];
+
+    env.socket?.close();
+
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+
+    const websocketUrl = this.workflowPveService.createPveWebSocketUrl(cuId, trimmedName, isLocal, packageArray);
+    console.log("PVE websocketUrl", websocketUrl);
+    const socket = new WebSocket(websocketUrl);
+
+    this.pves[index] = {
+      ...env,
+      name: trimmedName,
+      socket,
+      pipOutput: "Starting ...\n",
+      isInstalling: true,
+      isLocked: true,
+    };
+
+    this.updatePrettyPipOutput(index);
+    this.scrollToBottomOfPipModal(index);
+
+    socket.onmessage = event => {
+      console.log("PVE WS received:", event.data);
+
+      this.ngZone.run(() => {
+        const currentEnv = this.pves[index];
+
+        if (event.data === "__DONE__") {
+          this.pves[index] = {
+            ...currentEnv,
+            socket: undefined,
+            isInstalling: false,
+            isLocked: true,
+          };
+
+          socket.close();
+          this.workflowPveService
+            .getSystemPackages()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: resp => {
+                this.systemPackages = resp.system.map(pkg => {
+                  const [name, version] = pkg.split("==");
+                  return { name: name.trim(), version: (version ?? "").trim() };
+                });
+                this.cdr.detectChanges();
+              },
+              error: (e: unknown) => console.error("Failed to refresh packages", e),
+            });
+
+          this.cdr.detectChanges();
+          return;
+        }
+
+        this.pves[index] = {
+          ...currentEnv,
+          pipOutput: `${currentEnv.pipOutput ?? ""}${event.data}\n`,
+        };
+
+        this.updatePrettyPipOutput(index);
+        this.scrollToBottomOfPipModal(index);
+        this.cdr.detectChanges();
+      });
+    };
+
+    socket.onerror = err => {
+      console.log("PVE WS error", err);
+
+      this.ngZone.run(() => {
+        const currentEnv = this.pves[index];
+
+        this.pves[index] = {
+          ...currentEnv,
+          pipOutput: `${currentEnv.pipOutput ?? ""}\n[WebSocket error]\n`,
+          socket: undefined,
+          isInstalling: false,
+          isLocked: true,
+        };
+
+        socket.close();
+        this.updatePrettyPipOutput(index);
+        this.cdr.detectChanges();
+      });
+    };
+
+    socket.onclose = event => {
+      console.log("PVE WS closed", {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      });
+    };
   }
 }

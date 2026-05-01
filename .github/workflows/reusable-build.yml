@@ -1,0 +1,264 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Reusable Build
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        required: false
+        type: string
+        default: ""
+      backport_target_branch:
+        required: false
+        type: string
+        default: ""
+      backport_commit_range:
+        required: false
+        type: string
+        default: ""
+      job_name_suffix:
+        required: false
+        type: string
+        default: ""
+      run_frontend:
+        required: false
+        type: boolean
+        default: true
+      run_scala:
+        required: false
+        type: boolean
+        default: true
+      run_python:
+        required: false
+        type: boolean
+        default: true
+      run_agent_service:
+        required: false
+        type: boolean
+        default: true
+
+env:
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+
+jobs:
+  frontend:
+    if: ${{ inputs.run_frontend }}
+    name: ${{ format('frontend{0} ({1}, 18)', inputs.job_name_suffix, matrix.os) }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: macos-latest
+            arch: arm64
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
+        node-version:
+          - 20.19.0
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          architecture: ${{ matrix.arch }}
+      - uses: actions/cache@v4
+        with:
+          path: frontend/.yarn/cache
+          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v4-
+      - name: Prepare Yarn 4.14.1
+        run: corepack enable && corepack prepare yarn@4.14.1 --activate
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependency
+        timeout-minutes: 20
+        run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
+      - name: Lint with Prettier & ESLint
+        run: yarn --cwd frontend format:ci
+      - name: Run frontend unit tests
+        run: yarn --cwd frontend run test:ci
+      - name: Prod build
+        run: yarn --cwd frontend run build:ci
+
+  scala:
+    if: ${{ inputs.run_scala }}
+    name: ${{ format('scala{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+        java-version: [11]
+    runs-on: ${{ matrix.os }}
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 11
+      - name: Setup Python for Scala tests
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Show Python
+        run: python --version || python3 --version
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Lint with scalafmt
+        run: sbt scalafmtCheckAll
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Create texera_db_for_test_cases
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Compile with sbt
+        run: sbt clean package
+      - name: Lint with scalafix
+        run: sbt "scalafixAll --check"
+      - name: Set docker-java API version
+        run: |
+          echo "api.version=1.52" >> ~/.docker-java.properties
+          cat ~/.docker-java.properties
+      - name: Run backend tests
+        run: sbt test
+
+  python:
+    if: ${{ inputs.run_python }}
+    name: ${{ format('python{0} ({1}, {2})', inputs.job_name_suffix, matrix.os, matrix.python-version) }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
+      - name: Install PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y postgresql
+      - name: Start PostgreSQL Service
+        run: sudo systemctl start postgresql
+      - name: Create Database and User
+        run: |
+          cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+      - name: Lint with Ruff
+        run: |
+          cd amber/src/main/python && ruff check . && ruff format --check .
+      - name: Test with pytest
+        run: |
+          cd amber/src/main/python && pytest -sv
+
+  agent-service:
+    if: ${{ inputs.run_agent_service }}
+    name: ${{ format('agent-service{0} ({1})', inputs.job_name_suffix, matrix.os) }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        bun-version: ["1.3.3"]
+    defaults:
+      run:
+        working-directory: agent-service
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup Bun
+        run: |
+          curl -fsSL https://bun.sh/install | bash -s -- bun-v${{ matrix.bun-version }}
+          echo "$HOME/.bun/bin" >> $GITHUB_PATH
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Lint with Prettier
+        run: bun run format:check
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Run unit tests
+        run: bun test
