@@ -115,13 +115,13 @@ class InputPortMaterializationReaderThread(
       try {
         val state_document =
           DocumentFactory
-            .openDocument(State.stateUriFromResultUri(uri))
+            .openDocument(State.uriFromResultUri(uri))
             ._1
             .asInstanceOf[VirtualDocument[Tuple]]
         val stateReadIterator = state_document.get()
 
         while (stateReadIterator.hasNext) {
-          val state = State.deserialize(stateReadIterator.next())
+          val state = State.fromTuple(stateReadIterator.next())
           inputMessageQueue.put(
             FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, StateFrame(state)))
           )

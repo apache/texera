@@ -39,12 +39,7 @@ from core.models.internal_queue import (
     InternalQueueElement,
 )
 from core.models.operator import LoopEndOperator, LoopStartOperator
-from core.models.state import (
-    State,
-    STATE_SCHEMA,
-    serialize_state,
-    state_uri_from_result_uri,
-)
+from core.models.state import State
 from core.runnables.data_processor import DataProcessor
 from core.storage.document_factory import DocumentFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
@@ -102,7 +97,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_state["LoopStartId"] = self.context.worker_id.split("-", 1)[1].rsplit(
             "-main-0", 1
         )[0]
-        output_state["LoopStartStateURI"] = state_uri_from_result_uri(
+        output_state["LoopStartStateURI"] = State.uri_from_result_uri(
             self.context.input_manager.get_input_state_result_uri()
         )
 
@@ -115,8 +110,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         uri = executor.state["LoopStartStateURI"]
         del executor.state["LoopStartStateURI"]
         del executor.state["LoopStartId"]
-        writer = DocumentFactory.create_document(uri, STATE_SCHEMA).writer("0")
-        writer.put_one(serialize_state(executor.state))
+        writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
+        writer.put_one(State(executor.state).to_tuple())
         writer.close()
 
     def complete(self) -> None:

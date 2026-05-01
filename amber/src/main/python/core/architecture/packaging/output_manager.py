@@ -44,12 +44,7 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 )
 from core.models import Tuple, Schema, StateFrame
 from core.models.payload import DataPayload, DataFrame
-from core.models.state import (
-    State,
-    STATE_SCHEMA,
-    serialize_state,
-    state_uri_from_result_uri,
-)
+from core.models.state import State
 from core.storage.document_factory import DocumentFactory
 from core.storage.runnables.port_storage_writer import (
     PortStorageWriter,
@@ -189,13 +184,13 @@ class OutputManager:
             return
 
         for uri in uris:
-            state_uri = state_uri_from_result_uri(uri)
+            state_uri = State.uri_from_result_uri(uri)
             try:
                 document = DocumentFactory.open_document(state_uri)[0]
             except ValueError:
-                document = DocumentFactory.create_document(state_uri, STATE_SCHEMA)
+                document = DocumentFactory.create_document(state_uri, State.SCHEMA)
             writer = document.writer(str(uuid.uuid4()))
-            writer.put_one(serialize_state(state))
+            writer.put_one(state.to_tuple())
             writer.close()
 
     def reset_output_storage(self) -> None:
@@ -282,7 +277,7 @@ class OutputManager:
                         receiver,
                         (
                             StateFrame(payload)
-                            if isinstance(payload, dict)
+                            if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),
                     )
