@@ -25,6 +25,7 @@ on:
     branches:
       - 'ci-enable/**'
       - 'main'
+      - 'release/**'
   pull_request:
   workflow_dispatch:
 
