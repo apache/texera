@@ -34,7 +34,37 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  precheck:
+    name: Precheck
+    runs-on: ubuntu-latest
+    outputs:
+      run_frontend: ${{ steps.decide.outputs.run_frontend }}
+      run_scala: ${{ steps.decide.outputs.run_scala }}
+      run_python: ${{ steps.decide.outputs.run_python }}
+      run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
+    steps:
+      - name: Decide which build jobs to run
+        id: decide
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Default: run everything. Replace these with path-based or label-based
+            // logic if we want to skip stacks selectively.
+            const decisions = {
+              run_frontend: true,
+              run_scala: true,
+              run_python: true,
+              run_agent_service: true,
+            };
+
+            for (const [key, value] of Object.entries(decisions)) {
+              core.info(`${key}=${value}`);
+              core.setOutput(key, value ? "true" : "false");
+            }
+
   frontend:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.run_frontend == 'true' }}
     name: frontend (${{ matrix.os }}, 18)
     runs-on: ${{ matrix.os }}
     strategy:
@@ -80,6 +110,8 @@ jobs:
         run: yarn --cwd frontend run build:ci
 
   scala:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.run_scala == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -149,6 +181,8 @@ jobs:
         run: sbt test
 
   python:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.run_python == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -181,6 +215,8 @@ jobs:
           cd amber/src/main/python && pytest -sv
 
   agent-service:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
