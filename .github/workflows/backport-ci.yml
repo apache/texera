@@ -15,11 +15,14 @@
 # limitations under the License.
 
 name: Backport
-run-name: Backport ${{ github.event.label.name }} (PR #${{ github.event.pull_request.number }})
+run-name: Backport (PR #${{ github.event.pull_request.number }})
 
 on:
   pull_request:
     types:
+      - opened
+      - reopened
+      - synchronize
       - labeled
 
 permissions:
@@ -27,17 +30,51 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
+  detect:
+    name: Detect backport targets
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+      has_targets: ${{ steps.targets.outputs.has_targets }}
+    steps:
+      - name: Collect release labels
+        id: targets
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const action = context.payload.action;
+            let targets = [];
+
+            if (action === "labeled") {
+              const newLabel = context.payload.label && context.payload.label.name;
+              if (newLabel && /^release\/.+$/.test(newLabel)) {
+                targets = [newLabel];
+              }
+            } else {
+              const labels = context.payload.pull_request.labels.map((l) => l.name);
+              targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
+            }
+
+            core.info(`event=${action} targets=${JSON.stringify(targets)}`);
+            core.setOutput("targets", JSON.stringify(targets));
+            core.setOutput("has_targets", targets.length > 0 ? "true" : "false");
+
   run:
-    if: ${{ startsWith(github.event.label.name, 'release/') }}
-    name: ${{ github.event.label.name }}
+    needs: detect
+    if: ${{ needs.detect.outputs.has_targets == 'true' }}
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.detect.outputs.targets) }}
     uses: ./.github/workflows/reusable-build.yml
     with:
       checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
-      backport_target_branch: ${{ github.event.label.name }}
+      backport_target_branch: ${{ matrix.target }}
       backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
       job_name_suffix: ""
       run_frontend: true

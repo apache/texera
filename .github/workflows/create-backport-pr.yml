@@ -86,15 +86,32 @@ jobs:
               }
             );
 
-            const greenTargets = requestedTargets.filter((target) => {
-              const expectedTitle = `Backport ${target} (PR #${pullRequest.number})`;
-              return backportRuns.some(
-                (run) =>
-                  run.display_title === expectedTitle &&
-                  run.status === "completed" &&
-                  run.conclusion === "success"
+            const latestRun = backportRuns
+              .filter((r) => r.status === "completed")
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+            let greenTargets = [];
+            if (!latestRun) {
+              core.warning(`No completed Backport workflow run found for ${pullRequest.head.sha}.`);
+            } else {
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                {
+                  owner,
+                  repo,
+                  run_id: latestRun.id,
+                  per_page: 100,
+                }
               );
-            });
+
+              greenTargets = requestedTargets.filter((target) =>
+                jobs.some(
+                  (job) =>
+                    job.name === `${target} / Build Summary` &&
+                    job.conclusion === "success"
+                )
+              );
+            }
 
             const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
             if (skippedTargets.length > 0) {
