@@ -104,13 +104,11 @@ jobs:
                 allJobs.push(...jobs);
               }
 
-              greenTargets = requestedTargets.filter((target) =>
-                allJobs.some(
-                  (job) =>
-                    job.name === `backport (${target}) / Build Summary` &&
-                    job.conclusion === "success"
-                )
-              );
+              greenTargets = requestedTargets.filter((target) => {
+                const prefix = `Backport ${target} / `;
+                const targetJobs = allJobs.filter((job) => job.name.startsWith(prefix));
+                return targetJobs.length > 0 && targetJobs.every((job) => job.conclusion === "success");
+              });
             }
 
             const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));

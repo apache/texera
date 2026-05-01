@@ -101,7 +101,6 @@ jobs:
   frontend:
     needs: precheck
     if: ${{ needs.precheck.outputs.run_frontend == 'true' }}
-    name: frontend (${{ matrix.os }}, 18)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -281,6 +280,7 @@ jobs:
   backport:
     needs: precheck
     if: ${{ needs.precheck.outputs.backport_targets != '[]' }}
+    name: Backport ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
@@ -295,4 +295,5 @@ jobs:
       run_scala: true
       run_python: true
       run_agent_service: true
+      run_summary: false
     secrets: inherit

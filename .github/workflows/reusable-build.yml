@@ -52,6 +52,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_summary:
+        required: false
+        type: boolean
+        default: true
       summary_job_name:
         required: false
         type: string
@@ -269,7 +273,7 @@ jobs:
 
   summary:
     name: ${{ inputs.summary_job_name }}
-    if: ${{ always() }}
+    if: ${{ always() && inputs.run_summary }}
     needs:
       - frontend
       - scala
