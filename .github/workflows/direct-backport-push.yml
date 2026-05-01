@@ -105,7 +105,7 @@ jobs:
               }
 
               greenTargets = requestedTargets.filter((target) => {
-                const prefix = `Backport ${target} / `;
+                const prefix = `backport (${target}) / `;
                 const targetJobs = allJobs.filter((job) => job.name.startsWith(prefix));
                 return targetJobs.length > 0 && targetJobs.every((job) => job.conclusion === "success");
               });
@@ -121,7 +121,6 @@ jobs:
             core.setOutput("has_targets", greenTargets.length > 0 ? "true" : "false");
 
   push-backports:
-    name: Push backport to ${{ matrix.target }}
     needs: discover
     if: ${{ needs.discover.outputs.has_targets == 'true' }}
     runs-on: ubuntu-latest

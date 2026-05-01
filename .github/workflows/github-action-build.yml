@@ -280,7 +280,6 @@ jobs:
   backport:
     needs: precheck
     if: ${{ needs.precheck.outputs.backport_targets != '[]' }}
-    name: Backport ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
