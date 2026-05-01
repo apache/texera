@@ -143,10 +143,10 @@ jobs:
       backport_target_branch: ${{ matrix.target }}
       backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
       job_name_suffix: ""
-      run_frontend: true
-      run_scala: true
-      run_python: true
-      run_agent_service: true
+      run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
+      run_scala: ${{ needs.precheck.outputs.run_scala == 'true' }}
+      run_python: ${{ needs.precheck.outputs.run_python == 'true' }}
+      run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
     secrets: inherit
 
   required-checks:
