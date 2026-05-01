@@ -27,28 +27,30 @@ import java.net.URI
 import java.util.Base64
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-final case class State(values: Map[String, Any])
+final case class State(values: Map[String, Any]) {
+
+  def apply(key: String): Any = values(key)
+
+  def get(key: String): Option[Any] = values.get(key)
+
+  def toJson: String =
+    objectMapper.writeValueAsString(State.toJsonValue(values))
+
+  def toTuple: Tuple =
+    Tuple.builder(State.schema).addSequentially(Array(toJson)).build()
+}
 
 object State {
-  private val StateContent = "content"
+  val Content = "content"
   private val BytesTypeMarker = "__texera_type__"
   private val BytesValue = "bytes"
   private val PayloadMarker = "payload"
 
   val schema: Schema = new Schema(
-    new Attribute(StateContent, AttributeType.STRING)
+    new Attribute(Content, AttributeType.STRING)
   )
 
-  def stateUriFromResultUri(resultUri: URI): URI =
-    new URI(resultUri.toString.replace("/result", "/state"))
-
-  def serialize(state: State): Tuple = {
-    val payloadJson = objectMapper.writeValueAsString(toJsonValue(state.values))
-    Tuple.builder(schema).addSequentially(Array(payloadJson)).build()
-  }
-
-  def deserialize(tuple: Tuple): State = {
-    val payload = tuple.getField[String](StateContent)
+  def fromJson(payload: String): State =
     State(
       objectMapper
         .readTree(payload)
@@ -57,7 +59,11 @@ object State {
         .map(entry => entry.getKey -> fromJsonValue(entry.getValue))
         .toMap
     )
-  }
+
+  def fromTuple(row: Tuple): State = fromJson(row.getField[String](Content))
+
+  def uriFromResultUri(resultUri: URI): URI =
+    new URI(resultUri.toString.replace("/result", "/state"))
 
   private def toJsonValue(value: Any): Any =
     value match {

@@ -23,12 +23,7 @@ from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from core.models import Schema, Tuple
-from core.models.state import (
-    STATE_SCHEMA,
-    deserialize_state,
-    serialize_state,
-    state_uri_from_result_uri,
-)
+from core.models.state import State
 from core.storage.document_factory import DocumentFactory
 from core.storage.storage_config import StorageConfig
 from core.storage.vfs_uri_factory import VFSURIFactory
@@ -338,25 +333,27 @@ class TestIcebergDocument:
                 input=False,
             ),
         )
-        state_uri = state_uri_from_result_uri(result_uri)
-        DocumentFactory.create_document(state_uri, STATE_SCHEMA)
+        state_uri = State.uri_from_result_uri(result_uri)
+        DocumentFactory.create_document(state_uri, State.SCHEMA)
         document, _ = DocumentFactory.open_document(state_uri)
 
-        state = {
-            "loop_counter": 3,
-            "name": "outer-loop",
-            "payload": b"\x00\x01state-bytes",
-            "nested": {"enabled": True, "values": [1, 2, 3]},
-        }
+        state = State(
+            {
+                "loop_counter": 3,
+                "name": "outer-loop",
+                "payload": b"\x00\x01state-bytes",
+                "nested": {"enabled": True, "values": [1, 2, 3]},
+            }
+        )
 
         writer = document.writer(str(uuid.uuid4()))
         writer.open()
-        writer.put_one(serialize_state(state))
+        writer.put_one(state.to_tuple())
         writer.close()
 
         stored_rows = list(document.get())
         assert len(stored_rows) == 1
-        assert deserialize_state(stored_rows[0]) == state
+        assert State.from_tuple(stored_rows[0]) == state
 
     def test_multiple_states_materialize_as_rows_in_one_table(self):
         operator_uuid = str(uuid.uuid4()).replace("-", "")
@@ -374,30 +371,32 @@ class TestIcebergDocument:
                 input=False,
             ),
         )
-        state_uri = state_uri_from_result_uri(result_uri)
-        DocumentFactory.create_document(state_uri, STATE_SCHEMA)
+        state_uri = State.uri_from_result_uri(result_uri)
+        DocumentFactory.create_document(state_uri, State.SCHEMA)
         document, _ = DocumentFactory.open_document(state_uri)
 
         states = [
-            {"loop_counter": 0, "i": 1, "payload": b"first"},
-            {
-                "loop_counter": 1,
-                "i": 2,
-                "payload": b"second",
-                "nested": {"values": [3, 4]},
-            },
+            State({"loop_counter": 0, "i": 1, "payload": b"first"}),
+            State(
+                {
+                    "loop_counter": 1,
+                    "i": 2,
+                    "payload": b"second",
+                    "nested": {"values": [3, 4]},
+                }
+            ),
         ]
 
         writer = document.writer(str(uuid.uuid4()))
         writer.open()
         for state in states:
-            writer.put_one(serialize_state(state))
+            writer.put_one(state.to_tuple())
         writer.close()
 
         stored_rows = list(document.get())
         assert len(stored_rows) == len(states)
         actual_states = sorted(
-            [deserialize_state(row) for row in stored_rows],
+            [State.from_tuple(row) for row in stored_rows],
             key=lambda state: state["loop_counter"],
         )
         assert actual_states == states

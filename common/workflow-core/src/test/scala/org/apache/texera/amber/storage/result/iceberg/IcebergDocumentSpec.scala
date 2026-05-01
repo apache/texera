@@ -143,25 +143,27 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   }
 
   it should "round trip materialized state documents" in {
-    val stateUri = State.stateUriFromResultUri(uri)
+    val stateUri = State.uriFromResultUri(uri)
     DocumentFactory.createDocument(stateUri, State.schema)
     val stateDocument =
       DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]
-    val state: State = Map(
-      "loop_counter" -> 3,
-      "name" -> "outer-loop",
-      "payload" -> Array[Byte](0, 1, 2, 3),
-      "nested" -> Map("enabled" -> true, "values" -> List(1, 2, 3))
+    val state = State(
+      Map(
+        "loop_counter" -> 3,
+        "name" -> "outer-loop",
+        "payload" -> Array[Byte](0, 1, 2, 3),
+        "nested" -> Map("enabled" -> true, "values" -> List(1, 2, 3))
+      )
     )
 
     val writer = stateDocument.writer(UUID.randomUUID().toString)
     writer.open()
-    writer.putOne(State.serialize(state))
+    writer.putOne(state.toTuple)
     writer.close()
 
     val storedRows = stateDocument.get().toList
     assert(storedRows.length == 1)
-    val deserialized = State.deserialize(storedRows.head)
+    val deserialized = State.fromTuple(storedRows.head)
     assert(deserialized("loop_counter") == 3L)
     assert(deserialized("name") == "outer-loop")
     assert(deserialized("payload").asInstanceOf[Array[Byte]].sameElements(Array[Byte](0, 1, 2, 3)))
@@ -170,27 +172,29 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   }
 
   it should "materialize multiple states as rows in one state table" in {
-    val stateUri = State.stateUriFromResultUri(uri)
+    val stateUri = State.uriFromResultUri(uri)
     DocumentFactory.createDocument(stateUri, State.schema)
     val stateDocument =
       DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]
     val states: List[State] = List(
-      Map("loop_counter" -> 0, "i" -> 1, "payload" -> Array[Byte](1, 2, 3)),
-      Map(
-        "loop_counter" -> 1,
-        "i" -> 2,
-        "payload" -> Array[Byte](4, 5, 6),
-        "nested" -> Map("values" -> List(3, 4))
+      State(Map("loop_counter" -> 0, "i" -> 1, "payload" -> Array[Byte](1, 2, 3))),
+      State(
+        Map(
+          "loop_counter" -> 1,
+          "i" -> 2,
+          "payload" -> Array[Byte](4, 5, 6),
+          "nested" -> Map("values" -> List(3, 4))
+        )
       )
     )
 
     val writer = stateDocument.writer(UUID.randomUUID().toString)
     writer.open()
-    states.foreach(state => writer.putOne(State.serialize(state)))
+    states.foreach(state => writer.putOne(state.toTuple))
     writer.close()
 
     val deserializedStates =
-      stateDocument.get().toList.map(State.deserialize).sortBy(_("loop_counter").asInstanceOf[Long])
+      stateDocument.get().toList.map(State.fromTuple).sortBy(_("loop_counter").asInstanceOf[Long])
     assert(deserializedStates.length == states.length)
     deserializedStates.zip(states).foreach {
       case (actual, expected) =>

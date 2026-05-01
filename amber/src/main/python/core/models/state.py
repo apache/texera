@@ -24,29 +24,31 @@ from .tuple import Tuple
 
 
 class State(dict):
-    pass
+    CONTENT = "content"
+    SCHEMA = Schema(raw_schema={CONTENT: "STRING"})
 
-STATE_CONTENT = "content"
+    def to_json(self) -> str:
+        return json.dumps(_to_json_value(self), separators=(",", ":"))
+
+    def to_tuple(self) -> Tuple:
+        return Tuple({State.CONTENT: self.to_json()}, schema=State.SCHEMA)
+
+    @classmethod
+    def from_json(cls, payload: str) -> "State":
+        return cls(_from_json_value(json.loads(payload)))
+
+    @classmethod
+    def from_tuple(cls, row: Tuple) -> "State":
+        return cls.from_json(row[cls.CONTENT])
+
+    @staticmethod
+    def uri_from_result_uri(result_uri: str) -> str:
+        return result_uri.replace("/result", "/state")
+
+
 _TYPE_MARKER = "__texera_type__"
 _PAYLOAD_MARKER = "payload"
 _BYTES_TYPE = "bytes"
-
-STATE_SCHEMA = Schema(raw_schema={STATE_CONTENT: "STRING"})
-
-
-def state_uri_from_result_uri(result_uri: str) -> str:
-    return result_uri.replace("/result", "/state")
-
-
-def serialize_state(state: State) -> Tuple:
-    return Tuple(
-        {STATE_CONTENT: json.dumps(_to_json_value(state), separators=(",", ":"))},
-        schema=STATE_SCHEMA,
-    )
-
-
-def deserialize_state(row: Tuple) -> State:
-    return State(_from_json_value(json.loads(row[STATE_CONTENT])))
 
 
 def _to_json_value(value: Any) -> Any:

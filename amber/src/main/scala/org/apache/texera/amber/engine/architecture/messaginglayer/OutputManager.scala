@@ -239,11 +239,11 @@ class OutputManager(
       storageUris.foreach {
         case (_, uri) =>
           val writer = DocumentFactory
-            .openDocument(State.stateUriFromResultUri(uri))
+            .openDocument(State.uriFromResultUri(uri))
             ._1
             .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
             .asInstanceOf[BufferedItemWriter[Tuple]]
-          writer.putOne(State.serialize(state))
+          writer.putOne(state.toTuple)
           writer.close()
       }
     } catch {

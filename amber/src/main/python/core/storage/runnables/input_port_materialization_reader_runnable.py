@@ -36,7 +36,6 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 )
 from core.models import Tuple, InternalQueue, DataFrame, DataPayload, State, StateFrame
 from core.models.internal_queue import DataElement, ECMElement
-from core.models.state import deserialize_state, state_uri_from_result_uri
 from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
@@ -151,12 +150,12 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
 
             try:
                 state_document, _ = DocumentFactory.open_document(
-                    state_uri_from_result_uri(self.uri)
+                    State.uri_from_result_uri(self.uri)
                 )
                 state_iterator = state_document.get()
                 for state in state_iterator:
                     for state_frame in self.emit_state_with_filter(
-                        deserialize_state(state)
+                        State.from_tuple(state)
                     ):
                         self.emit_payload(state_frame)
             except ValueError:

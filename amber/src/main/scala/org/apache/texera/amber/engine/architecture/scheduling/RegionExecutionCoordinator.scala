@@ -569,7 +569,7 @@ class RegionExecutionCoordinator(
     portConfigs.foreach {
       case (outputPortId, portConfig) =>
         val storageUriToAdd = portConfig.storageURI
-        val stateUriToAdd = State.stateUriFromResultUri(storageUriToAdd)
+        val stateUriToAdd = State.uriFromResultUri(storageUriToAdd)
         val (_, eid, _, _) = decodeURI(storageUriToAdd)
         val schemaOptional =
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
