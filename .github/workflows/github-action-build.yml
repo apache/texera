@@ -32,6 +32,7 @@ on:
       - reopened
       - synchronize
       - labeled
+      - unlabeled
   workflow_dispatch:
 
 permissions:
@@ -59,39 +60,22 @@ jobs:
         with:
           script: |
             const eventName = context.eventName;
-            const action = context.payload.action || "";
-            const isLabelOnlyEvent =
-              eventName === "pull_request" && action === "labeled";
 
-            // Main build stacks. Default: run all. Skip on label-only PR
-            // events because the code did not change.
-            const stacks = {
-              run_frontend: !isLabelOnlyEvent,
-              run_scala: !isLabelOnlyEvent,
-              run_python: !isLabelOnlyEvent,
-              run_agent_service: !isLabelOnlyEvent,
-            };
-            for (const [key, value] of Object.entries(stacks)) {
-              core.info(`${key}=${value}`);
-              core.setOutput(key, value ? "true" : "false");
+            // Main build stacks: always run.
+            const stacks = ["run_frontend", "run_scala", "run_python", "run_agent_service"];
+            for (const key of stacks) {
+              core.setOutput(key, "true");
             }
 
-            // Backport targets. Only on PR events.
+            // Backport targets: all current release/* labels on the PR.
             let targets = [];
             if (eventName === "pull_request") {
-              if (action === "labeled") {
-                const newLabel = context.payload.label && context.payload.label.name;
-                if (newLabel && /^release\/.+$/.test(newLabel)) {
-                  targets = [newLabel];
-                }
-              } else {
-                const labels = context.payload.pull_request.labels.map((l) => l.name);
-                targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
-              }
+              const labels = context.payload.pull_request.labels.map((l) => l.name);
+              targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
             }
 
             if (targets.length === 0) {
-              core.info(`No backport targets for event=${eventName} action=${action || "(none)"}.`);
+              core.info(`No backport targets on PR.`);
             } else {
               core.info(`Backport targets: ${targets.join(", ")}`);
             }
