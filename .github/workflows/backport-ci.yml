@@ -40,7 +40,6 @@ jobs:
       backport_target_branch: ${{ github.event.label.name }}
       backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
       job_name_suffix: ""
-      summary_job_name: ${{ format('Backport ({0})', github.event.label.name) }}
       run_frontend: true
       run_scala: true
       run_python: true

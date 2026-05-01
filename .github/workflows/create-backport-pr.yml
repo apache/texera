@@ -22,7 +22,7 @@ on:
       - main
 
 permissions:
-  checks: read
+  actions: read
   contents: write
   pull-requests: read
 
@@ -75,24 +75,26 @@ jobs:
               return;
             }
 
-            const checks = await github.request(
-              "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
+            const backportRuns = await github.paginate(
+              github.rest.actions.listWorkflowRuns,
               {
                 owner,
                 repo,
-                ref: pullRequest.head.sha,
+                workflow_id: "backport-ci.yml",
+                head_sha: pullRequest.head.sha,
                 per_page: 100,
               }
             );
 
-            const greenTargets = requestedTargets.filter((target) =>
-              checks.data.check_runs.some(
+            const greenTargets = requestedTargets.filter((target) => {
+              const expectedTitle = `Backport ${target} (PR #${pullRequest.number})`;
+              return backportRuns.some(
                 (run) =>
-                  run.name === `Backport (${target})` &&
+                  run.display_title === expectedTitle &&
                   run.status === "completed" &&
                   run.conclusion === "success"
-              )
-            );
+              );
+            });
 
             const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
             if (skippedTargets.length > 0) {
