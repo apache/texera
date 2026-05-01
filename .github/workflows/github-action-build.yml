@@ -27,7 +27,17 @@ on:
       - 'main'
       - 'release/**'
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -42,25 +52,53 @@ jobs:
       run_scala: ${{ steps.decide.outputs.run_scala }}
       run_python: ${{ steps.decide.outputs.run_python }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
+      backport_targets: ${{ steps.decide.outputs.backport_targets }}
+      has_backport_targets: ${{ steps.decide.outputs.has_backport_targets }}
     steps:
-      - name: Decide which build jobs to run
+      - name: Decide which jobs to run
         id: decide
         uses: actions/github-script@v8
         with:
           script: |
-            // Default: run everything. Replace these with path-based or label-based
-            // logic if we want to skip stacks selectively.
-            const decisions = {
-              run_frontend: true,
-              run_scala: true,
-              run_python: true,
-              run_agent_service: true,
-            };
+            const eventName = context.eventName;
+            const action = context.payload.action || "";
+            const isLabelOnlyEvent =
+              eventName === "pull_request" && (action === "labeled" || action === "unlabeled");
 
-            for (const [key, value] of Object.entries(decisions)) {
+            // Main build stacks. Default: run all. Skip on label-only PR
+            // events because the code did not change.
+            const stacks = {
+              run_frontend: !isLabelOnlyEvent,
+              run_scala: !isLabelOnlyEvent,
+              run_python: !isLabelOnlyEvent,
+              run_agent_service: !isLabelOnlyEvent,
+            };
+            for (const [key, value] of Object.entries(stacks)) {
               core.info(`${key}=${value}`);
               core.setOutput(key, value ? "true" : "false");
             }
+
+            // Backport targets. Only on PR events.
+            let targets = [];
+            if (eventName === "pull_request") {
+              if (action === "labeled") {
+                const newLabel = context.payload.label && context.payload.label.name;
+                if (newLabel && /^release\/.+$/.test(newLabel)) {
+                  targets = [newLabel];
+                }
+              } else if (action !== "unlabeled") {
+                const labels = context.payload.pull_request.labels.map((l) => l.name);
+                targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
+              }
+            }
+
+            if (targets.length === 0) {
+              core.info(`No backport targets for event=${eventName} action=${action || "(none)"}.`);
+            } else {
+              core.info(`Backport targets: ${targets.join(", ")}`);
+            }
+            core.setOutput("backport_targets", JSON.stringify(targets));
+            core.setOutput("has_backport_targets", targets.length > 0 ? "true" : "false");
 
   frontend:
     needs: precheck
@@ -241,3 +279,22 @@ jobs:
         run: bun run typecheck
       - name: Run unit tests
         run: bun test
+
+  backport:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.has_backport_targets == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.precheck.outputs.backport_targets) }}
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
+      backport_target_branch: ${{ matrix.target }}
+      backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+      job_name_suffix: ""
+      run_frontend: true
+      run_scala: true
+      run_python: true
+      run_agent_service: true
+    secrets: inherit
