@@ -34,15 +34,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  detect:
-    name: Detect backport targets
+  precheck:
+    name: Precheck
     runs-on: ubuntu-latest
     outputs:
-      targets: ${{ steps.targets.outputs.targets }}
-      has_targets: ${{ steps.targets.outputs.has_targets }}
+      targets: ${{ steps.decide.outputs.targets }}
+      has_targets: ${{ steps.decide.outputs.has_targets }}
     steps:
-      - name: Collect release labels
-        id: targets
+      - name: Decide backport targets
+        id: decide
         uses: actions/github-script@v8
         with:
           script: |
@@ -59,18 +59,23 @@ jobs:
               targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
             }
 
-            core.info(`event=${action} targets=${JSON.stringify(targets)}`);
+            if (targets.length === 0) {
+              core.info(`No backport label on PR #${context.payload.pull_request.number}; skipping backport job.`);
+            } else {
+              core.info(`Backport targets for PR #${context.payload.pull_request.number}: ${targets.join(", ")}`);
+            }
+
             core.setOutput("targets", JSON.stringify(targets));
             core.setOutput("has_targets", targets.length > 0 ? "true" : "false");
 
   run:
-    needs: detect
-    if: ${{ needs.detect.outputs.has_targets == 'true' }}
+    needs: precheck
+    if: ${{ needs.precheck.outputs.has_targets == 'true' }}
     name: ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJson(needs.detect.outputs.targets) }}
+        target: ${{ fromJson(needs.precheck.outputs.targets) }}
     uses: ./.github/workflows/reusable-build.yml
     with:
       checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
