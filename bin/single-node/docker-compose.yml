@@ -364,7 +364,7 @@ services:
     volumes:
       - workflow_result_data:/amber/user-resources
 
-  # DashboardService provides endpoints for hub resource management and
+  # DashboardService provides endpoints for community resource (e.g. workflows, users) management
   dashboard-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-dashboard-service:${IMAGE_TAG:-latest}
     container_name: dashboard-service
@@ -388,7 +388,7 @@ services:
 
   # LLM API proxy for different providers
   litellm:
-    image: ghcr.io/berriai/litellm:1.83
+    image: ghcr.io/berriai/litellm:v1.83.10-stable
     container_name: litellm
     restart: always
     # Keys read from shell first, falling back to .env.
@@ -407,7 +407,7 @@ services:
       retries: 10
       start_period: 15s
 
-  # Texera agent Management Service
+  # AgentService manages the texera agents' interal states, and provide endpoints for CRUD agents
   agent-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-agent-service:${IMAGE_TAG:-latest}
     container_name: agent-service
