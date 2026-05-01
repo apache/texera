@@ -43,16 +43,65 @@ jobs:
             const sha = context.sha;
             const { owner, repo } = context.repo;
 
-            const response = await github.request(
-              "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls",
-              {
-                owner,
-                repo,
-                commit_sha: sha,
+            // Strategy 1 (preferred): parse the squash-merge commit message.
+            // ASF .asf.yaml forces squash merges with PR_TITLE_AND_DESC, so the
+            // first line ends with "(#NNNN)". This is deterministic and avoids
+            // the commit↔PR association index, which can lag for tens of seconds
+            // after a merge.
+            async function resolvePrFromMessage() {
+              const message = context.payload?.head_commit?.message ?? "";
+              const firstLine = message.split("\n", 1)[0];
+              const match = firstLine.match(/\(#(\d+)\)\s*$/);
+              if (!match) {
+                core.info('Commit message does not end with "(#N)"; falling back to API.');
+                return null;
               }
-            );
+              const prNumber = Number(match[1]);
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                });
+                if (!pr.merged) {
+                  core.warning(`PR #${prNumber} extracted from commit message is not merged; falling back to API.`);
+                  return null;
+                }
+                core.info(`Resolved PR #${prNumber} from commit message.`);
+                return pr;
+              } catch (e) {
+                core.warning(`Failed to fetch PR #${prNumber}: ${e.message}. Falling back to API.`);
+                return null;
+              }
+            }
 
-            const pullRequest = response.data.find((pr) => pr.merge_commit_sha === sha) ?? response.data[0];
+            // Strategy 2 (fallback): GET /commits/{sha}/pulls with exponential
+            // backoff. 5 attempts at 0/2/4/8/16s — total worst case ~30s.
+            async function resolvePrFromApi() {
+              const backoffsMs = [0, 2000, 4000, 8000, 16000];
+              for (let i = 0; i < backoffsMs.length; i++) {
+                if (backoffsMs[i] > 0) {
+                  core.info(`Retrying commit→PR lookup in ${backoffsMs[i] / 1000}s (attempt ${i + 1}/${backoffsMs.length}).`);
+                  await new Promise((resolve) => setTimeout(resolve, backoffsMs[i]));
+                }
+                const response = await github.request(
+                  "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls",
+                  {
+                    owner,
+                    repo,
+                    commit_sha: sha,
+                  }
+                );
+                const pr = response.data.find((p) => p.merge_commit_sha === sha) ?? response.data[0];
+                if (pr) {
+                  core.info(`Resolved PR #${pr.number} from commits/${sha}/pulls on attempt ${i + 1}.`);
+                  return pr;
+                }
+              }
+              return null;
+            }
+
+            const pullRequest = (await resolvePrFromMessage()) ?? (await resolvePrFromApi());
             if (!pullRequest) {
               core.info(`No merged pull request is associated with ${sha}.`);
               core.setOutput("pr_number", "");
