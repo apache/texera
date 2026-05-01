@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Backport Compatibility
+name: Backport
+run-name: Backport ${{ github.event.label.name }} (PR #${{ github.event.pull_request.number }})
 
 on:
   pull_request:
@@ -30,15 +31,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backport-ci:
+  run:
     if: ${{ startsWith(github.event.label.name, 'release/') }}
-    name: Backport CI (${{ github.event.label.name }})
     uses: ./.github/workflows/reusable-build.yml
     with:
       checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
       backport_target_branch: ${{ github.event.label.name }}
       backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
-      job_name_suffix: ${{ format(' [backport {0}]', github.event.label.name) }}
+      job_name_suffix: ""
       summary_job_name: ${{ format('Backport CI ({0})', github.event.label.name) }}
       run_frontend: true
       run_scala: true
