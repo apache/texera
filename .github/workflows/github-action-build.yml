@@ -172,12 +172,13 @@ jobs:
     if: ${{ needs.precheck.outputs.run_scala == 'true' }}
     strategy:
       matrix:
-        os: [ubuntu-22.04]
-        java-version: [11]
+        os: [ ubuntu-22.04 ]
+        java-version: [ 11 ]
     runs-on: ${{ matrix.os }}
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+
     services:
       postgres:
         image: postgres
@@ -185,6 +186,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
+        # Add a health check so steps wait until Postgres is ready
         options: >-
           --health-cmd="pg_isready -U postgres"
           --health-interval=10s
@@ -278,8 +280,8 @@ jobs:
     if: ${{ needs.precheck.outputs.run_python == 'true' }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        os: [ ubuntu-latest ]
+        python-version: [ '3.10', '3.11', '3.12', '3.13' ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Texera
