@@ -52,14 +52,6 @@ on:
         required: false
         type: boolean
         default: true
-      run_summary:
-        required: false
-        type: boolean
-        default: true
-      summary_job_name:
-        required: false
-        type: string
-        default: "Build Summary"
 
 env:
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -270,38 +262,3 @@ jobs:
         run: bun run typecheck
       - name: Run unit tests
         run: bun test
-
-  summary:
-    name: ${{ inputs.summary_job_name }}
-    if: ${{ always() && inputs.run_summary }}
-    needs:
-      - frontend
-      - scala
-      - python
-      - agent-service
-    runs-on: ubuntu-latest
-    steps:
-      - name: Fail if any CI job failed
-        env:
-          FRONTEND_RESULT: ${{ needs.frontend.result }}
-          SCALA_RESULT: ${{ needs.scala.result }}
-          PYTHON_RESULT: ${{ needs.python.result }}
-          AGENT_SERVICE_RESULT: ${{ needs.agent-service.result }}
-          RUN_FRONTEND: ${{ inputs.run_frontend }}
-          RUN_SCALA: ${{ inputs.run_scala }}
-          RUN_PYTHON: ${{ inputs.run_python }}
-          RUN_AGENT_SERVICE: ${{ inputs.run_agent_service }}
-        run: |
-          check_result() {
-            local enabled="$1"
-            local result="$2"
-            if [[ "$enabled" == "true" && "$result" != "success" ]]; then
-              echo "A required CI job failed: $result"
-              exit 1
-            fi
-          }
-
-          check_result "$RUN_FRONTEND" "$FRONTEND_RESULT"
-          check_result "$RUN_SCALA" "$SCALA_RESULT"
-          check_result "$RUN_PYTHON" "$PYTHON_RESULT"
-          check_result "$RUN_AGENT_SERVICE" "$AGENT_SERVICE_RESULT"

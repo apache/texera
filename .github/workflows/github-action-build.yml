@@ -295,5 +295,4 @@ jobs:
       run_scala: true
       run_python: true
       run_agent_service: true
-      run_summary: false
     secrets: inherit
