@@ -30,7 +30,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, takeUntil } from "rxjs/operators";
+import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -1126,13 +1126,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     fromEvent<ClipboardEvent>(document, "copy")
       .pipe(
         filter(_ => document.activeElement === document.body),
+        withLatestFrom(this.operatorMenu.highlightedOperators$, this.operatorMenu.highlightedCommentBoxes$),
         untilDestroyed(this)
       )
-      .subscribe(() => {
-        if (
-          this.operatorMenu.highlightedOperators.value.length > 0 ||
-          this.operatorMenu.highlightedCommentBoxes.value.length > 0
-        ) {
+      .subscribe(([_, highlightedOperators, highlightedCommentBoxes]) => {
+        if (highlightedOperators.length > 0 || highlightedCommentBoxes.length > 0) {
           this.operatorMenu.saveHighlightedElements();
         }
       });
@@ -1148,13 +1146,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(
         filter(() => document.activeElement === document.body),
         filter(() => this.interactive),
+        withLatestFrom(this.operatorMenu.highlightedOperators$, this.operatorMenu.highlightedCommentBoxes$),
         untilDestroyed(this)
       )
-      .subscribe(() => {
-        if (
-          this.operatorMenu.highlightedOperators.value.length > 0 ||
-          this.operatorMenu.highlightedCommentBoxes.value.length > 0
-        ) {
+      .subscribe(([_, highlightedOperators, highlightedCommentBoxes]) => {
+        if (highlightedOperators.length > 0 || highlightedCommentBoxes.length > 0) {
           this.operatorMenu.saveHighlightedElements();
           this.deleteElements();
         }

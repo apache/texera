@@ -26,9 +26,22 @@ import { HttpClientModule } from "@angular/common/http";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import {
+  mockCommentBox,
+  mockPoint,
+  mockResultPredicate,
+  mockScanPredicate,
+  mockSentimentPredicate,
+} from "../workflow-graph/model/mock-workflow-data";
+import { Subscription } from "rxjs";
 
 describe("OperatorMenuService", () => {
   let service: OperatorMenuService;
+  let workflowActionService: WorkflowActionService;
+  let opsLatest: readonly string[] = [];
+  let boxesLatest: readonly string[] = [];
+  let subs: Subscription;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -39,10 +52,136 @@ describe("OperatorMenuService", () => {
       ],
       imports: [HttpClientModule],
     });
+    workflowActionService = TestBed.inject(WorkflowActionService);
     service = TestBed.inject(OperatorMenuService);
+
+    subs = new Subscription();
+    subs.add(service.highlightedOperators$.subscribe(ids => (opsLatest = ids)));
+    subs.add(service.highlightedCommentBoxes$.subscribe(ids => (boxesLatest = ids)));
   });
+
+  afterEach(() => subs.unsubscribe());
 
   it("should be created", () => {
     expect(service).toBeTruthy();
+  });
+
+  it("starts with empty highlighted snapshots", () => {
+    expect(opsLatest).toEqual([]);
+    expect(boxesLatest).toEqual([]);
+  });
+
+  it("does not expose mutable BehaviorSubjects on the public API", () => {
+    // service must not let outside code call .next() on its internal state.
+    expect((service as any).highlightedOperators).toBeUndefined();
+    expect((service as any).highlightedCommentBoxes).toBeUndefined();
+  });
+
+  it("emits the new highlighted operator IDs on highlightedOperators$", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+
+    expect(opsLatest).toEqual([mockScanPredicate.operatorID]);
+  });
+
+  it("emits the new highlighted comment box IDs on highlightedCommentBoxes$", () => {
+    workflowActionService.addCommentBox(mockCommentBox);
+    workflowActionService.getJointGraphWrapper().highlightCommentBoxes(mockCommentBox.commentBoxID);
+
+    expect(boxesLatest).toEqual([mockCommentBox.commentBoxID]);
+  });
+
+  it("emits exactly once on highlightedOperators$ per highlight change (no fan-out)", () => {
+    const emissions: string[][] = [];
+    const sub = service.highlightedOperators$.subscribe(ids => emissions.push([...ids]));
+    // BehaviorSubject seed
+    expect(emissions.length).toBe(1);
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+
+    // a single highlight event must produce a single emission, not 4 (one per dependent handler).
+    expect(emissions.length).toBe(2);
+    expect(emissions[1]).toEqual([mockScanPredicate.operatorID]);
+
+    workflowActionService.getJointGraphWrapper().unhighlightOperators(mockScanPredicate.operatorID);
+    expect(emissions.length).toBe(3);
+    expect(emissions[2]).toEqual([]);
+
+    sub.unsubscribe();
+  });
+
+  describe("button state recomputation", () => {
+    it("makes disable button clickable when an operator is highlighted and modification is enabled", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+
+      expect(service.isDisableOperatorClickable).toBeTrue();
+      expect(service.isDisableOperator).toBeTrue();
+    });
+
+    it("flips isDisableOperator to enable after the operator is disabled", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+
+      // all highlighted operators are now disabled, so clicking should re-enable them.
+      expect(service.isDisableOperator).toBeFalse();
+    });
+
+    it("excludes sinks from view-result targets", () => {
+      workflowActionService.addOperatorsAndLinks(
+        [
+          { op: mockScanPredicate, pos: mockPoint },
+          { op: mockResultPredicate, pos: mockPoint },
+        ],
+        []
+      );
+      const wrapper = workflowActionService.getJointGraphWrapper();
+      // start from a clean highlight state — addOperator may auto-highlight new operators.
+      wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+
+      // highlighting only a sink: view-result should not be clickable.
+      wrapper.highlightOperators(mockResultPredicate.operatorID);
+      expect(service.isToViewResultClickable).toBeFalse();
+      expect(service.isReuseResultClickable).toBeFalse();
+
+      // highlighting only a non-sink: view-result becomes clickable.
+      wrapper.unhighlightOperators(mockResultPredicate.operatorID);
+      wrapper.highlightOperators(mockScanPredicate.operatorID);
+      expect(service.isToViewResultClickable).toBeTrue();
+      expect(service.isReuseResultClickable).toBeTrue();
+    });
+
+    it("recomputes when modification-enabled stream fires without a highlight change", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      expect(service.isDisableOperatorClickable).toBeTrue();
+
+      workflowActionService.disableWorkflowModification();
+      expect(service.isDisableOperatorClickable).toBeFalse();
+
+      workflowActionService.enableWorkflowModification();
+      expect(service.isDisableOperatorClickable).toBeTrue();
+    });
+
+    it("recomputes when view-result state of a highlighted non-sink operator changes", () => {
+      workflowActionService.addOperatorsAndLinks(
+        [
+          { op: mockScanPredicate, pos: mockPoint },
+          { op: mockSentimentPredicate, pos: mockPoint },
+        ],
+        []
+      );
+      workflowActionService
+        .getJointGraphWrapper()
+        .highlightOperators(mockScanPredicate.operatorID, mockSentimentPredicate.operatorID);
+
+      expect(service.isToViewResult).toBeTrue();
+
+      workflowActionService.setViewOperatorResults([mockScanPredicate.operatorID, mockSentimentPredicate.operatorID]);
+      // both highlighted non-sinks are now viewing results → next click should toggle off.
+      expect(service.isToViewResult).toBeFalse();
+    });
   });
 });
