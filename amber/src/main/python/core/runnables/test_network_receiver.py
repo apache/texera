@@ -26,6 +26,7 @@ from core.models.internal_queue import (
     ECMElement,
 )
 from core.models.payload import DataFrame, StateFrame
+from core.models.state import State
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
@@ -154,13 +155,13 @@ class TestNetworkReceiver:
         input_queue.put(
             DataElement(
                 tag=channel_id,
-                payload=StateFrame({"loop_counter": 0, "i": 1}),
+                payload=StateFrame(State({"loop_counter": 0, "i": 1})),
             )
         )
         input_queue.put(
             DataElement(
                 tag=channel_id,
-                payload=StateFrame({"loop_counter": 1, "i": 2}),
+                payload=StateFrame(State({"loop_counter": 1, "i": 2})),
             )
         )
 
