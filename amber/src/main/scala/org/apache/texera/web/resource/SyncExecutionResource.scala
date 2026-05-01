@@ -199,9 +199,7 @@ class SyncExecutionResource extends LazyLogging {
       // once probe actually starts consuming, which closes the race.
       val targetExpectedExternalInputs: Map[String, Int] = effectiveLogicalPlan.operators
         .filter(op => request.targetOperatorIds.contains(op.operatorIdentifier.id))
-        .map(op =>
-          op.operatorIdentifier.id -> op.operatorInfo.inputPorts.count(!_.id.internal)
-        )
+        .map(op => op.operatorIdentifier.id -> op.operatorInfo.inputPorts.count(!_.id.internal))
         .toMap
 
       // Require COMPLETED, not just "has output", so upstream operators finish flushing
