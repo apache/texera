@@ -40,13 +40,13 @@ body:
     validations:
       required: true
   - type: dropdown
-    id: version
+    id: branch
     attributes:
-      label: Version
-      description: What version of Texera are you running?
+      label: Branch
+      description: Which branch did you hit this on?
       options:
-        - 1.1.0-incubating (Pre-release/Master)
-        - 1.0.0
+        - main
+        - 1.1.0-incubating
       default: 0
     validations:
       required: true
