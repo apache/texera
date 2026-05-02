@@ -82,20 +82,12 @@ class WorkflowExecutionCoordinatorSpec
   }
 
   // Mirrors what JumpToOperatorRegionHandler does: read the current schedule, look up the level
-  // containing the target operator, and replace the schedule with a copy whose execution levels
-  // are extended with a `targetLevel..N-1` replay tail.
+  // containing the target operator, and replace the schedule with a copy whose cursor is at
+  // that level.
   private def jumpTo(coordinator: WorkflowExecutionCoordinator, opName: String): Unit = {
     val schedule = coordinator.getSchedule
     schedule.getLevelIndexOfOperator(OperatorIdentity(opName)).foreach { targetLevel =>
-      val extendedExecutionLevels =
-        schedule.effectiveExecutionLevels.take(schedule.position) ++
-          Vector.range(targetLevel, schedule.levelCount)
-      coordinator.replaceSchedule(
-        schedule.copy(
-          executionLevels = extendedExecutionLevels,
-          initialLevelIndex = schedule.position
-        )
-      )
+      coordinator.replaceSchedule(schedule.copy(initialLevelIndex = targetLevel))
     }
   }
 
@@ -229,9 +221,9 @@ class WorkflowExecutionCoordinatorSpec
     assert(nextRegions(coordinator) == Set.empty)
   }
 
-  it should "extend the execution with a replay tail on each backward jump" in {
-    // Schedule ABCDEF: jumping from E back to C yields ABCDECDEF; jumping again from E back to C
-    // yields ABCDECDECDEF.
+  it should "replay the target-onward range each time it jumps back" in {
+    // Schedule ABCDEF: jumping from E back to C yields the visible sequence ABCDECDEF; jumping
+    // again from E back to C yields ABCDECDECDEF.
     val a = jumpRegion(1, "a")
     val b = jumpRegion(2, "b")
     val c = jumpRegion(3, "c")

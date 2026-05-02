@@ -23,7 +23,6 @@ import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 
 case class Schedule(
     private val levelSets: Map[Int, Set[Region]],
-    executionLevels: Vector[Int] = Vector.empty,
     initialLevelIndex: Int = 0
 ) extends Iterator[Set[Region]] {
   require(
@@ -31,33 +30,23 @@ case class Schedule(
     s"Schedule level keys must be contiguous starting at 0, got: ${levelSets.keys.toSeq.sorted}"
   )
 
-  // The actual sequence of levels iterated. Defaults to a single forward pass `0..N-1`;
-  // jump-driven extensions append a replay tail to this vector.
-  val effectiveExecutionLevels: Vector[Int] =
-    if (executionLevels.nonEmpty) executionLevels
-    else (0 until levelSets.size).toVector
-
   private val operatorLevelIndices: Map[OperatorIdentity, Int] =
     levelSets.iterator.flatMap {
       case (level, regions) =>
         regions.iterator.flatMap(region => region.getOperators.map(_.id.logicalOpId -> level))
     }.toMap
 
-  private var currentLevelIndex: Int = initialLevelIndex
-
-  def levelCount: Int = levelSets.size
-
-  def position: Int = currentLevelIndex
+  private var currentLevel: Int = initialLevelIndex
 
   def getRegions: List[Region] = levelSets.values.flatten.toList
 
   def getLevelIndexOfOperator(opId: OperatorIdentity): Option[Int] = operatorLevelIndices.get(opId)
 
-  override def hasNext: Boolean = effectiveExecutionLevels.isDefinedAt(currentLevelIndex)
+  override def hasNext: Boolean = levelSets.isDefinedAt(currentLevel)
 
   override def next(): Set[Region] = {
-    val level = effectiveExecutionLevels(currentLevelIndex)
-    currentLevelIndex += 1
-    levelSets(level)
+    val regions = levelSets(currentLevel)
+    currentLevel += 1
+    regions
   }
 }

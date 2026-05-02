@@ -37,14 +37,8 @@ trait JumpToOperatorRegionHandler {
   ): Future[EmptyReturn] = {
     val schedule = cp.workflowExecutionCoordinator.getSchedule
     schedule.getLevelIndexOfOperator(msg.targetOperatorId).foreach { targetLevel =>
-      val extendedExecutionLevels =
-        schedule.effectiveExecutionLevels.take(schedule.position) ++
-          Vector.range(targetLevel, schedule.levelCount)
       cp.workflowExecutionCoordinator.replaceSchedule(
-        schedule.copy(
-          executionLevels = extendedExecutionLevels,
-          initialLevelIndex = schedule.position
-        )
+        schedule.copy(initialLevelIndex = targetLevel)
       )
     }
     EmptyReturn()
