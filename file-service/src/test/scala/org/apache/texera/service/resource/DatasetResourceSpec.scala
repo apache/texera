@@ -370,6 +370,76 @@ class DatasetResourceSpec
     datasetDao.fetchOneByDid(dataset.getDid) should not be null
   }
 
+  "updateDatasetName" should "rename dataset successfully if user has write access" in {
+    val dataset = new Dataset
+    dataset.setName("rename-before")
+    dataset.setRepositoryName("rename-before-repo")
+    dataset.setDescription("for rename happy path")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    val response = datasetResource.updateDatasetName(
+      DatasetResource.DatasetNameModification(dataset.getDid, "rename-after"),
+      sessionUser
+    )
+
+    response.getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid).getName shouldEqual "rename-after"
+  }
+
+  it should "refuse to rename dataset if user lacks write access" in {
+    val dataset = new Dataset
+    dataset.setName("rename-forbidden")
+    dataset.setRepositoryName("rename-forbidden-repo")
+    dataset.setDescription("for rename forbidden test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    assertThrows[ForbiddenException] {
+      datasetResource.updateDatasetName(
+        DatasetResource.DatasetNameModification(dataset.getDid, "hijacked"),
+        sessionUser2
+      )
+    }
+
+    datasetDao.fetchOneByDid(dataset.getDid).getName shouldEqual "rename-forbidden"
+  }
+
+  it should "throw NotFoundException when renaming a non-existent dataset" in {
+    val nonExistentDid: Integer = Int.box(Int.MaxValue)
+
+    assertThrows[NotFoundException] {
+      datasetResource.updateDatasetName(
+        DatasetResource.DatasetNameModification(nonExistentDid, "ghost"),
+        sessionUser
+      )
+    }
+  }
+
+  it should "leave repository_name unchanged after rename" in {
+    val dataset = new Dataset
+    dataset.setName("rename-keeps-repo")
+    dataset.setRepositoryName("rename-keeps-repo-stable")
+    dataset.setDescription("for repo-name invariance test")
+    dataset.setOwnerUid(ownerUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    datasetResource.updateDatasetName(
+      DatasetResource.DatasetNameModification(dataset.getDid, "rename-keeps-repo-renamed"),
+      sessionUser
+    )
+
+    val reloaded = datasetDao.fetchOneByDid(dataset.getDid)
+    reloaded.getName shouldEqual "rename-keeps-repo-renamed"
+    reloaded.getRepositoryName shouldEqual "rename-keeps-repo-stable"
+  }
+
   // ===========================================================================
   // Multipart upload tests (merged in)
   // ===========================================================================
