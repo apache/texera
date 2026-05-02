@@ -33,29 +33,18 @@ body:
     validations:
       required: true
 
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priority
-      description: How urgent or important is this task?
-      options:
-        - P0 – Critical
-        - P1 – High
-        - P2 – Medium
-        - P3 – Low
-      default: 2
-
   - type: checkboxes
     id: checklist
     attributes:
       label: Task Type
       description: Select the type of work involved.
       options:
-        - label: Code Implementation
-        - label: Documentation
         - label: Refactor / Cleanup
+        - label: DevOps / Deployment / CI
         - label: Testing / QA
-        - label: DevOps / Deployment
+        - label: Documentation
+        - label: Performance
+        - label: Other
 
   - type: markdown
     attributes:

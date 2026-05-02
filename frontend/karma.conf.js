@@ -25,6 +25,7 @@ module.exports = function (config) {
     plugins: [
       require("karma-jasmine"),
       require("karma-chrome-launcher"),
+      require("karma-coverage"),
       require("@angular-devkit/build-angular/plugins/karma")
     ],
     client: {
@@ -53,7 +54,12 @@ module.exports = function (config) {
         ],
       },
     },
-    reporters: ["dots"], // Use dots reporter
+    reporters: ["dots", "coverage"], // dots = test progress; coverage = lcov.info for Codecov when --code-coverage is passed
+    coverageReporter: {
+      dir: require("path").join(__dirname, "./coverage"),
+      subdir: ".",
+      reporters: [{ type: "lcovonly", file: "lcov.info" }, { type: "text-summary" }]
+    },
     port: 9876, // Karma's web server port
     colors: true, // Enable colors in the output (reporters and logs)
     logLevel: config.LOG_INFO, // Set log level
