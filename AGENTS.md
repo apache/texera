@@ -17,7 +17,7 @@ Major areas:
 - `config-service/`, `access-control-service/`, `file-service/`,
   `computing-unit-managing-service/`, `workflow-compiling-service/`: backend
   services wired through `build.sbt`.
-- `frontend/`: Angular application. Uses Yarn 4.14.1, Node >= 20.19.0, Nx,
+- `frontend/`: Angular application. Uses Yarn 4.14.1, Node >= 24.0.0, Nx,
   Prettier, ESLint, Karma/Jasmine, and ng-zorro.
 - `agent-service/`: TypeScript Elysia service for Texera LLM agents. CI uses
   Bun 1.3.3.
@@ -113,7 +113,7 @@ outside CI.
 
 The Angular frontend lives in `frontend/`.
 
-- Node engine: `>=20.19.0`.
+- Node engine: `>=24.0.0`.
 - Package manager: Yarn 4.14.1 via Corepack.
 - Formatting is Prettier plus prettier-eslint. Prettier uses 2 spaces,
   semicolons, double quotes, `printWidth: 120`, and LF endings.

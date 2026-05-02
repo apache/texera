@@ -59,7 +59,7 @@ env:
 jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
-    name: ${{ format('frontend{0} ({1}, 18)', inputs.job_name_suffix, matrix.os) }}
+    name: ${{ format('frontend{0} ({1}, 24)', inputs.job_name_suffix, matrix.os) }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -72,7 +72,7 @@ jobs:
           - os: windows-latest
             arch: x64
         node-version:
-          - 20.19.0
+          - 24.10.0
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
