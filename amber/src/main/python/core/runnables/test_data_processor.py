@@ -32,10 +32,18 @@ def context():
 
 @pytest.fixture
 def data_processor(context, monkeypatch):
+    """
+    DataProcessor with `_switch_context` swapped for a counter so the
+    `post_switch` checks can yield without blocking the test thread and the
+    test can assert exactly how many extra switches happened.
+    """
     dp = DataProcessor(context)
-    # Silence the condition-variable wait so post_switch checks that yield
-    # again don't block the test thread.
-    monkeypatch.setattr(dp, "_switch_context", lambda: None)
+    dp.switch_calls = 0
+
+    def fake_switch():
+        dp.switch_calls += 1
+
+    monkeypatch.setattr(dp, "_switch_context", fake_switch)
     return dp
 
 
@@ -48,18 +56,17 @@ def _capture_exc_info() -> tuple:
 
 class TestPostSwitchContextChecks:
     @pytest.mark.timeout(2)
-    def test_no_exception_pending_writes_no_console_message(
-        self, context, data_processor
-    ):
+    def test_no_pending_exception_is_a_no_op(self, context, data_processor):
         data_processor._post_switch_context_checks()
 
         assert not context.exception_manager.has_exception()
         assert (
             list(context.console_message_manager.get_messages(force_flush=True)) == []
         )
+        assert data_processor.switch_calls == 0
 
     @pytest.mark.timeout(2)
-    def test_pending_exception_is_reported_as_console_message(
+    def test_pending_exception_is_reported_with_one_extra_switch(
         self, context, data_processor
     ):
         context.exception_manager.set_exception_info(_capture_exc_info())
@@ -73,6 +80,9 @@ class TestPostSwitchContextChecks:
         assert msg.msg_type == ConsoleMessageType.ERROR
         assert "RuntimeError: boom" in msg.title
         assert "RuntimeError: boom" in msg.message
+        # Exactly one extra switch — the yield that lets MainLoop wait
+        # for the resolution control message.
+        assert data_processor.switch_calls == 1
 
     @pytest.mark.timeout(2)
     def test_pending_exception_is_cleared_after_handling(self, context, data_processor):
@@ -90,36 +100,3 @@ class TestPostSwitchContextChecks:
         data_processor._post_switch_context_checks()
         msgs = list(context.console_message_manager.get_messages(force_flush=True))
         assert msgs == []
-
-    @pytest.mark.timeout(2)
-    def test_pending_exception_triggers_extra_context_switch(
-        self, context, monkeypatch
-    ):
-        dp = DataProcessor(context)
-        switch_calls = {"n": 0}
-
-        def fake_switch():
-            switch_calls["n"] += 1
-
-        monkeypatch.setattr(dp, "_switch_context", fake_switch)
-        context.exception_manager.set_exception_info(_capture_exc_info())
-
-        dp._post_switch_context_checks()
-
-        # Exactly one extra switch — the yield that lets MainLoop wait
-        # for the resolution control message.
-        assert switch_calls["n"] == 1
-
-    @pytest.mark.timeout(2)
-    def test_no_exception_skips_extra_context_switch(self, context, monkeypatch):
-        dp = DataProcessor(context)
-        switch_calls = {"n": 0}
-        monkeypatch.setattr(
-            dp,
-            "_switch_context",
-            lambda: switch_calls.__setitem__("n", switch_calls["n"] + 1),
-        )
-
-        dp._post_switch_context_checks()
-
-        assert switch_calls["n"] == 0
