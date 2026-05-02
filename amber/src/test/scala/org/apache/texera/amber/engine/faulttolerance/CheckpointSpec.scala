@@ -85,6 +85,15 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     chkpt.save(DP_STATE_KEY, dp)
   }
 
+  "CheckpointState" should "fail loudly on an unknown key" in {
+    val chkpt = new CheckpointState()
+    assert(!chkpt.has("unknown"))
+    val ex = intercept[RuntimeException] {
+      chkpt.load[Any]("unknown")
+    }
+    assert(ex.getMessage.contains("unknown"))
+  }
+
 //  "CSVScanOperator" should "be serializable" in {
 //    val chkpt = new CheckpointState()
 //    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
