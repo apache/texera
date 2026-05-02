@@ -32,7 +32,45 @@ import csv
 import json
 import re
 import sys
+import tempfile
 from pathlib import Path
+
+# Per-module LICENSE-binary files that the combined LICENSE-binary unions.
+# Resolved relative to the repo root (parent of bin/licensing/).
+PER_MODULE_LICENSE_BINARIES: list[str] = [
+    "access-control-service/LICENSE-binary",
+    "config-service/LICENSE-binary",
+    "file-service/LICENSE-binary",
+    "workflow-compiling-service/LICENSE-binary",
+    "computing-unit-managing-service/LICENSE-binary",
+    "amber/LICENSE-binary-java",
+    "amber/LICENSE-binary-python",
+    "frontend/LICENSE-binary",
+    "agent-service/LICENSE-binary",
+]
+
+
+def build_default_license_binary() -> Path:
+    """Concat all per-module LICENSE-binary files into a temp file using
+    bin/licensing/concat_license_binary.py and return its path. Used as
+    the default --license-binary when the caller doesn't pass one."""
+    here = Path(__file__).resolve().parent
+    repo_root = here.parent.parent
+    inputs = [repo_root / p for p in PER_MODULE_LICENSE_BINARIES]
+    missing = [p for p in inputs if not p.is_file()]
+    if missing:
+        sys.stderr.write(
+            f"error: per-module LICENSE-binary file(s) not found: {missing}\n"
+        )
+        sys.exit(2)
+    sys.path.insert(0, str(here))
+    import concat_license_binary as concat
+    parsed = [concat.parse(p) for p in inputs]
+    apache_header, groups = concat.merge(parsed)
+    text = concat.emit(apache_header, groups)
+    out = Path(tempfile.mkstemp(prefix="combined-LICENSE-binary-", suffix=".txt")[1])
+    out.write_text(text)
+    return out
 
 
 # Jars produced by Texera itself — not third-party deps, skip from drift checks.
@@ -193,14 +231,22 @@ def main() -> int:
     ap.add_argument("inputs", nargs="+")
     ap.add_argument(
         "--license-binary",
-        default=str(Path(__file__).resolve().parent.parent.parent / "LICENSE-binary"),
+        default=None,
+        help=(
+            "Path to LICENSE-binary to validate against. If omitted, the "
+            "tool builds a combined LICENSE-binary on the fly from the "
+            "per-module files (see PER_MODULE_LICENSE_BINARIES)."
+        ),
     )
     args = ap.parse_args()
 
-    lb = Path(args.license_binary)
-    if not lb.exists():
-        sys.stderr.write(f"error: {lb} not found\n")
-        return 2
+    if args.license_binary is None:
+        lb = build_default_license_binary()
+    else:
+        lb = Path(args.license_binary)
+        if not lb.exists():
+            sys.stderr.write(f"error: {lb} not found\n")
+            return 2
 
     if args.kind == "jar":
         claimed = parse_prose(lb, "jar")
