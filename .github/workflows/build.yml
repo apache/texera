@@ -229,16 +229,25 @@ jobs:
         run: |
           echo "api.version=1.52" >> ~/.docker-java.properties
           cat ~/.docker-java.properties
-      - name: Run amber tests
-        # 'jacoco' runs tests under sbt-jacoco's JVM agent and emits
-        # jacoco.xml that the codecov upload step picks up.
-        run: sbt "WorkflowExecutionService/jacoco"
-      - name: Upload amber coverage to Codecov
+      - name: Run amber and common module tests with coverage
+        # 'jacoco' runs tests under sbt-jacoco's JVM agent and emits per-
+        # module jacoco.xml that the codecov upload step picks up.
+        # `WorkflowExecutionService/jacoco` only runs that project's tests
+        # (sbt's `test` task does not transit dependsOn), so common
+        # modules' tests are listed explicitly here. Modules with no
+        # tests (Auth, Config) are skipped.
+        run: |
+          sbt "DAO/jacoco" \
+              "PyBuilder/jacoco" \
+              "WorkflowCore/jacoco" \
+              "WorkflowOperator/jacoco" \
+              "WorkflowExecutionService/jacoco"
+      - name: Upload amber and common coverage to Codecov
         if: always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./amber/target/scala-2.13/jacoco/report/jacoco.xml
+          files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
           flags: scala
           fail_ci_if_error: false
 
@@ -308,9 +317,10 @@ jobs:
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
-      - name: Build dist and run ${{ matrix.service }} tests
-        # Single sbt invocation so dist + test share compiled state.
-        run: sbt "${{ matrix.sbt_project }}/dist" "${{ matrix.sbt_project }}/test"
+      - name: Build dist and run ${{ matrix.service }} tests with coverage
+        # Single sbt invocation so dist + test share compiled state. Use
+        # `jacoco` so the codecov upload step has a report to pick up.
+        run: sbt "${{ matrix.sbt_project }}/dist" "${{ matrix.sbt_project }}/jacoco"
       - name: Unzip ${{ matrix.service }} dist and check binary licenses
         # Each platform service has its own LICENSE-binary at the repo root
         # after #4668; check this service's dist against just its own file.
@@ -325,6 +335,16 @@ jobs:
             /tmp/dists/${{ matrix.service }}-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/${{ matrix.service }}-*/lib || true
           exit "$check_exit"
+      - name: Upload ${{ matrix.service }} coverage to Codecov
+        # Same `scala` flag as the amber job so Codecov merges all Scala
+        # coverage reports into a single view.
+        if: always()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
+          flags: scala
+          fail_ci_if_error: false
 
   python:
     if: ${{ inputs.run_python }}
