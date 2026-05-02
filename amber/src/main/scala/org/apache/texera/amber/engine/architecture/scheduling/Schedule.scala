@@ -36,17 +36,17 @@ case class Schedule(
         regions.iterator.flatMap(region => region.getOperators.map(_.id.logicalOpId -> level))
     }.toMap
 
-  private var currentLevelIndex: Int = initialLevelIndex
+  private var currentLevel: Int = initialLevelIndex
 
   def getRegions: List[Region] = levelSets.values.flatten.toList
 
   def getLevelIndexOfOperator(opId: OperatorIdentity): Option[Int] = operatorLevelIndices.get(opId)
 
-  override def hasNext: Boolean = currentLevelIndex < levelSets.size
+  override def hasNext: Boolean = currentLevel < levelSets.size
 
   override def next(): Set[Region] = {
-    val regions = levelSets.getOrElse(currentLevelIndex, Set.empty)
-    currentLevelIndex += 1
+    val regions = levelSets.getOrElse(currentLevel, Set.empty)
+    currentLevel += 1
     regions
   }
 }
