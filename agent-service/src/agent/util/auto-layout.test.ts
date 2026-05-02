@@ -42,6 +42,12 @@ function makeLink(linkID: string, src: string, tgt: string): OperatorLink {
   };
 }
 
+// Sentinel coordinate that the layout pass must overwrite. Using a single
+// shared value for every operator means a no-op layout would leave every
+// node piled on the same point, which the assertions below detect.
+const SENTINEL = -9999;
+const SENTINEL_POS = { x: SENTINEL, y: SENTINEL };
+
 describe("autoLayoutWorkflow", () => {
   test("is a no-op when the workflow has no operators", () => {
     const state = new WorkflowState();
@@ -51,7 +57,7 @@ describe("autoLayoutWorkflow", () => {
 
   test("assigns a finite numeric position to a single operator", () => {
     const state = new WorkflowState();
-    state.addOperator(makeOperator("op1"));
+    state.addOperator(makeOperator("op1"), SENTINEL_POS);
 
     autoLayoutWorkflow(state);
 
@@ -59,13 +65,18 @@ describe("autoLayoutWorkflow", () => {
     expect(pos).toBeDefined();
     expect(Number.isFinite(pos!.x)).toBe(true);
     expect(Number.isFinite(pos!.y)).toBe(true);
+    // A regression to a no-op would leave the sentinel in place.
+    expect(pos!.x).not.toBe(SENTINEL);
+    expect(pos!.y).not.toBe(SENTINEL);
   });
 
   test("places linked operators left-to-right along the chain (rankdir LR)", () => {
     const state = new WorkflowState();
-    state.addOperator(makeOperator("a"));
-    state.addOperator(makeOperator("b"));
-    state.addOperator(makeOperator("c"));
+    // Seed every node with the same sentinel so the chain ordering can
+    // only emerge from the layout pass, not from incidental insertion order.
+    state.addOperator(makeOperator("a"), SENTINEL_POS);
+    state.addOperator(makeOperator("b"), SENTINEL_POS);
+    state.addOperator(makeOperator("c"), SENTINEL_POS);
     state.addLink(makeLink("l1", "a", "b"));
     state.addLink(makeLink("l2", "b", "c"));
 
@@ -81,9 +92,11 @@ describe("autoLayoutWorkflow", () => {
 
   test("assigns positions to disconnected operators as well", () => {
     const state = new WorkflowState();
-    state.addOperator(makeOperator("solo-1"));
-    state.addOperator(makeOperator("solo-2"));
-    state.addOperator(makeOperator("solo-3"));
+    // Seeding each disconnected node with the same sentinel forces the
+    // layout pass to actually touch them; otherwise they'd stay collapsed.
+    state.addOperator(makeOperator("solo-1"), SENTINEL_POS);
+    state.addOperator(makeOperator("solo-2"), SENTINEL_POS);
+    state.addOperator(makeOperator("solo-3"), SENTINEL_POS);
 
     autoLayoutWorkflow(state);
 
@@ -92,21 +105,27 @@ describe("autoLayoutWorkflow", () => {
       expect(pos).toBeDefined();
       expect(Number.isFinite(pos!.x)).toBe(true);
       expect(Number.isFinite(pos!.y)).toBe(true);
+      expect(pos!.x).not.toBe(SENTINEL);
+      expect(pos!.y).not.toBe(SENTINEL);
     }
   });
 
   test("overwrites pre-existing operator positions", () => {
     const state = new WorkflowState();
-    state.addOperator(makeOperator("a"), { x: -9999, y: -9999 });
-    state.addOperator(makeOperator("b"), { x: -9999, y: -9999 });
+    state.addOperator(makeOperator("a"), SENTINEL_POS);
+    state.addOperator(makeOperator("b"), SENTINEL_POS);
     state.addLink(makeLink("l1", "a", "b"));
 
     autoLayoutWorkflow(state);
 
     const a = state.getOperatorPosition("a")!;
     const b = state.getOperatorPosition("b")!;
-    expect(a.x).not.toBe(-9999);
-    expect(b.x).not.toBe(-9999);
+    // Both axes must be overwritten — a regression that left y stale
+    // while updating x would otherwise sneak past.
+    expect(a.x).not.toBe(SENTINEL);
+    expect(a.y).not.toBe(SENTINEL);
+    expect(b.x).not.toBe(SENTINEL);
+    expect(b.y).not.toBe(SENTINEL);
     expect(a.x).toBeLessThan(b.x);
   });
 
