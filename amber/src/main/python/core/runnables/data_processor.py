@@ -50,9 +50,7 @@ class DataProcessor(Runnable, Stoppable):
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.wait()
         self._running.set()
-        # Runs once before the first task so a debug command queued during
-        # worker setup fires before any tuple / state / marker is processed.
-        self._check_and_process_debug_command()
+        self._pre_loop_checks()
         while self._running.is_set():
             tpm = self._context.tuple_processing_manager
             spm = self._context.state_processing_manager
@@ -109,9 +107,11 @@ class DataProcessor(Runnable, Stoppable):
     def _executor_session(self):
         """
         Open one executor invocation: hand back (executor, port_id) under a
-        print-capture session, route any exception to the exception manager,
-        and always switch back to MainLoop on exit. Used by every
-        process_* method to keep the per-call boilerplate in one place.
+        print-capture session, route any exception into the exception
+        manager, and always switch back to MainLoop on exit. Reporting and
+        the post-resolution yield happen in `_post_switch_context_checks`
+        so they live in one place rather than being duplicated in every
+        process_* method.
         """
         try:
             executor = self._context.executor_manager.executor
@@ -123,9 +123,7 @@ class DataProcessor(Runnable, Stoppable):
                 yield executor, port_id
         except Exception as err:
             logger.exception(err)
-            exc_info = sys.exc_info()
-            self._context.exception_manager.set_exception_info(exc_info)
-            self._report_exception(exc_info)
+            self._context.exception_manager.set_exception_info(sys.exc_info())
         finally:
             self._switch_context()
 
@@ -162,7 +160,7 @@ class DataProcessor(Runnable, Stoppable):
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.notify()
             self._context.tuple_processing_manager.context_switch_condition.wait()
-        self._check_and_process_debug_command()
+        self._post_switch_context_checks()
 
     def _check_and_process_debug_command(self) -> None:
         """
@@ -173,6 +171,26 @@ class DataProcessor(Runnable, Stoppable):
             # This line will also trigger cmdloop in the debugger.
             # This line has no side effects on the current debugger state.
             self._context.debug_manager.debugger.set_trace()
+
+    def _post_switch_context_checks(self) -> None:
+        # Runs after every switch back from MainLoop. If the just-finished
+        # step raised a runtime exception, surface it as a console log
+        # and yield again so MainLoop can wait for the next control
+        # message — that message carries the resolution instruction
+        # (skip / retry / abort). Then handle any queued debug command.
+        if self._context.exception_manager.has_exception():
+            exc_info = self._context.exception_manager.get_exc_info()
+            self._report_exception(exc_info)
+            self._switch_context()
+        self._check_and_process_debug_command()
+
+    def _pre_loop_checks(self) -> None:
+        # Runs once after init and before the first task so that a debug
+        # command queued during worker setup fires before any
+        # tuple / state / marker is processed. Only the debug-command
+        # check is needed here -- no task has run yet, so there is no
+        # exception to surface.
+        self._check_and_process_debug_command()
 
     def _report_exception(self, exc_info: ExceptionInfo):
         tb = traceback.extract_tb(exc_info[2])
