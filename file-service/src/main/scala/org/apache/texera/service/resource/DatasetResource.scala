@@ -209,6 +209,8 @@ object DatasetResource {
 
   case class DatasetDescriptionModification(did: Integer, description: String)
 
+  case class DatasetNameModification(did: Integer, name: String)
+
   case class DatasetVersionRootFileNodesResponse(
       fileNodes: List[DatasetFileNode],
       size: Long
@@ -488,6 +490,29 @@ class DatasetResource {
       }
 
       dataset.setDescription(modificator.description)
+      datasetDao.update(dataset)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/name")
+  def updateDatasetName(
+      modificator: DatasetNameModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val uid = sessionUser.getUid
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val dataset = getDatasetByID(ctx, modificator.did)
+      if (!userHasWriteAccess(ctx, modificator.did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      dataset.setName(modificator.name)
       datasetDao.update(dataset)
       Response.ok().build()
     }
