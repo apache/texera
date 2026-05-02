@@ -129,7 +129,7 @@ jobs:
               {
                 owner,
                 repo,
-                workflow_id: "github-action-build.yml",
+                workflow_id: "required-checks.yml",
                 head_sha: pullRequest.head.sha,
                 per_page: 100,
               }
