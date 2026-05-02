@@ -35,13 +35,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
 class WorkflowExecutionCoordinator(
-    initialSchedule: Schedule,
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private var schedule: Schedule = initialSchedule
+  private var schedule: Schedule = Schedule(Map.empty)
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
