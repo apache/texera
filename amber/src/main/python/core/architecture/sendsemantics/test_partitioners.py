@@ -401,9 +401,7 @@ class TestOneToOnePartitioner:
         assert out == []
         assert partitioner.batch == [_tuple(k=1)]
 
-    def test_add_tuple_at_batch_yields_to_unique_receiver_and_resets(
-        self, partitioner
-    ):
+    def test_add_tuple_at_batch_yields_to_unique_receiver_and_resets(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=1)))
         out = list(partitioner.add_tuple_to_batch(_tuple(k=2)))
         assert out == [(_worker("A"), [_tuple(k=1), _tuple(k=2)])]
