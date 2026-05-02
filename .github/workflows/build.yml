@@ -111,7 +111,14 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
-        run: yarn --cwd frontend run test:ci
+        run: yarn --cwd frontend run test:ci --code-coverage
+      - name: Upload frontend coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && always()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          files: ./frontend/coverage/**/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
 
   scala:
     if: ${{ inputs.run_scala }}
@@ -233,7 +240,16 @@ jobs:
           echo "api.version=1.52" >> ~/.docker-java.properties
           cat ~/.docker-java.properties
       - name: Run backend tests
-        run: sbt test
+        # 'jacoco' runs tests under sbt-jacoco's JVM agent and emits per-
+        # module jacoco.xml that the codecov upload step picks up.
+        run: sbt jacoco
+      - name: Upload scala coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
+          flags: scala
+          fail_ci_if_error: false
 
   python:
     if: ${{ inputs.run_python }}
@@ -287,9 +303,22 @@ jobs:
       - name: Lint with Ruff
         run: |
           cd amber/src/main/python && ruff check . && ruff format --check .
+      - name: Install dev dependencies
+        # Test-only deps live in amber/dev-requirements.txt and are
+        # installed after the LICENSE-binary snapshot above so they never
+        # appear in pip-licenses output. Packaging skips this file.
+        run: |
+          if [ -f amber/dev-requirements.txt ]; then pip install -r amber/dev-requirements.txt; fi
       - name: Test with pytest
         run: |
-          cd amber/src/main/python && pytest -sv
+          cd amber/src/main/python && pytest --cov=. --cov-report=xml -sv
+      - name: Upload python coverage to Codecov
+        if: matrix.python-version == '3.12' && always()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          files: ./amber/src/main/python/coverage.xml
+          flags: python
+          fail_ci_if_error: false
 
   agent-service:
     if: ${{ inputs.run_agent_service }}
@@ -334,4 +363,11 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
       - name: Run unit tests
-        run: bun test
+        run: bun test --coverage --coverage-reporter=lcov
+      - name: Upload agent-service coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && always()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          files: ./agent-service/coverage/lcov.info
+          flags: agent-service
+          fail_ci_if_error: false
