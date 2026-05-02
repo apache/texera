@@ -15,11 +15,12 @@
 # limitations under the License.
 
 # Temporary stand-in for GitHub Merge Queue.
-# After every push to main, picks the oldest auto-merge-enabled PR whose head
-# is behind main and merges main into it. If a PAT/App token with workflow
-# write is provided as AUTO_MERGE_TOKEN, the resulting push will retrigger the
-# PR's required checks and let auto-merge fire. With GITHUB_TOKEN only, the
-# branch is updated but downstream workflows on the PR are not retriggered.
+# After every push to main, picks the oldest auto-merge-enabled PR and runs
+# updateBranch on it; if that's a no-op or fails, falls through to the next
+# eligible PR. If a PAT/App token with workflow write is provided as
+# AUTO_MERGE_TOKEN, the resulting push retriggers the PR's required checks
+# and lets auto-merge fire. With GITHUB_TOKEN only, the branch is updated
+# but downstream workflows on the PR are not retriggered.
 name: AutoQueue
 
 on:
@@ -67,26 +68,30 @@ jobs:
               }`;
 
             const data = await github.graphql(query, { owner, name: repo });
-            const candidates = data.repository.pullRequests.nodes.filter(p =>
-              p.autoMergeRequest &&
-              !p.isDraft &&
-              p.mergeable !== 'CONFLICTING' &&
-              p.mergeStateStatus === 'BEHIND'
+            // mergeStateStatus is computed asynchronously and is often UNKNOWN
+            // when this workflow fires moments after a push to main. Don't
+            // gate on BEHIND — instead try updateBranch on each eligible PR
+            // and let GitHub tell us whether work was done.
+            const eligible = data.repository.pullRequests.nodes.filter(p =>
+              p.autoMergeRequest && !p.isDraft && p.mergeable !== 'CONFLICTING'
             );
 
-            if (candidates.length === 0) {
-              core.info('No auto-merge PRs need updating.');
+            if (eligible.length === 0) {
+              core.info('No eligible auto-merge PRs.');
               return;
             }
 
-            const pr = candidates[0];
-            core.info(`Updating PR #${pr.number}: ${pr.title}`);
-
-            try {
-              await github.rest.pulls.updateBranch({
-                owner, repo, pull_number: pr.number,
-              });
-              core.info(`PR #${pr.number} update-branch dispatched.`);
-            } catch (e) {
-              core.setFailed(`updateBranch failed for #${pr.number}: ${e.message}`);
+            for (const pr of eligible) {
+              core.info(`Trying PR #${pr.number} (state=${pr.mergeStateStatus}): ${pr.title}`);
+              try {
+                const res = await github.rest.pulls.updateBranch({
+                  owner, repo, pull_number: pr.number,
+                });
+                core.info(`PR #${pr.number} update-branch dispatched (HTTP ${res.status}).`);
+                return;
+              } catch (e) {
+                core.warning(`PR #${pr.number} updateBranch did not apply: ${e.message}`);
+              }
             }
+
+            core.info('No eligible PR could be updated this run.');
