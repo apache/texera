@@ -42,6 +42,7 @@ service ControllerService {
   rpc PauseWorkflow(EmptyRequest) returns (EmptyReturn);
   rpc WorkerStateUpdated(WorkerStateUpdatedRequest) returns (EmptyReturn);
   rpc WorkerExecutionCompleted(EmptyRequest) returns (EmptyReturn);
+  rpc JumpToOperatorRegion(JumpToOperatorRegionRequest) returns (EmptyReturn);
   rpc LinkWorkers(LinkWorkersRequest) returns (EmptyReturn);
   rpc ControllerInitiateQueryStatistics(QueryStatisticsRequest) returns (EmptyReturn);
   rpc RetryWorkflow(RetryWorkflowRequest) returns (EmptyReturn);
