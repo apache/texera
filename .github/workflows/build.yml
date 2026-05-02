@@ -297,15 +297,14 @@ jobs:
         # uv purely for install-speed.
         run: |
           if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            python -m pip install --upgrade pip
-            if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
-            if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
-            pip install pip-licenses
+            python -m pip install --upgrade pip pip-licenses
+            install="pip install"
           else
             python -m pip install uv
-            if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
-            if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
+            install="uv pip install --system"
           fi
+          if [ -f amber/requirements.txt ]; then $install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then $install -r amber/operator-requirements.txt; fi
       - name: Generate pip-licenses manifest
         if: matrix.python-version == '3.12'
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
