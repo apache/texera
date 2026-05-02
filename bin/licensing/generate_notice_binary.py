@@ -93,108 +93,25 @@ def short_hash(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8", errors="replace")).hexdigest()[:10]
 
 
-# Mapping from Maven groupId-style jar prefix to a human-readable project
-# name, used as the block heading. We synthesize this by taking the longest
-# common prefix across a cluster's jar names and looking it up here. Falls
-# back to the longest common prefix itself if not mapped.
-PROJECT_NAMES: list[tuple[str, str]] = [
-    ("org.apache.hadoop.thirdparty.", "Apache Hadoop (third-party shaded)"),
-    ("org.apache.hadoop.",            "Apache Hadoop"),
-    ("org.apache.lucene.",            "Apache Lucene"),
-    ("org.apache.pekko.",             "Apache Pekko"),
-    ("org.apache.parquet.",           "Apache Parquet"),
-    ("org.apache.iceberg.",           "Apache Iceberg"),
-    ("org.apache.curator.",           "Apache Curator"),
-    ("org.apache.kerby.",             "Apache Kerby"),
-    ("org.apache.zookeeper.",         "Apache ZooKeeper"),
-    ("org.apache.arrow.",             "Apache Arrow"),
-    ("org.apache.avro.",              "Apache Avro"),
-    ("org.apache.commons.",           "Apache Commons"),
-    ("org.apache.httpcomponents.",    "Apache HttpComponents"),
-    ("org.apache.htrace.",            "Apache HTrace"),
-    ("org.apache.orc.",               "Apache ORC"),
-    ("org.apache.yetus.",             "Apache Yetus"),
-    ("commons-",                      "Apache Commons (legacy artifactId)"),
-    ("io.netty.",                     "Netty"),
-    ("org.eclipse.jetty.toolchain.",  "Eclipse Jetty Toolchain"),
-    ("org.eclipse.jetty.",            "Eclipse Jetty"),
-    ("org.glassfish.jersey.",         "Eclipse Jersey"),
-    ("org.glassfish.hk2.",            "Eclipse GlassFish HK2"),
-    ("org.glassfish.javax.",          "Eclipse GlassFish (legacy javax.*)"),
-    ("org.glassfish.",                "Eclipse GlassFish"),
-    ("jakarta.servlet.",              "Jakarta Servlet API"),
-    ("jakarta.xml.bind.",             "Jakarta XML Binding API"),
-    ("jakarta.ws.rs.",                "Jakarta RESTful Web Services API"),
-    ("jakarta.el.",                   "Jakarta Expression Language API"),
-    ("jakarta.annotation.",           "Jakarta Annotations API"),
-    ("jakarta.inject.",               "Jakarta Inject API"),
-    ("jakarta.activation.",           "Jakarta Activation"),
-    ("jakarta.",                      "Jakarta (other)"),
-    ("javax.servlet.",                "javax.servlet (legacy)"),
-    ("javax.activation.",             "javax.activation (legacy)"),
-    ("javax.annotation.",             "javax.annotation (legacy)"),
-    ("javax.ws.rs.",                  "javax.ws.rs (legacy)"),
-    ("javax.websocket.",              "javax.websocket (legacy)"),
-    ("javax.xml.bind.",               "javax.xml.bind (legacy)"),
-    ("com.fasterxml.jackson.",        "Jackson (FasterXML)"),
-    ("com.fasterxml.",                "FasterXML"),
-    ("com.sun.activation.",           "Sun Activation"),
-    ("com.sun.mail.",                 "Sun Mail"),
-    ("com.sun.jersey.",               "Sun Jersey"),
-    ("com.google.inject.",            "Google Guice"),
-    ("com.google.protobuf.",          "Google Protobuf"),
-    ("com.google.guava.",             "Google Guava"),
-    ("com.google.api.",               "Google API"),
-    ("com.google.http-client.",       "Google HTTP Client"),
-    ("com.google.oauth-client.",      "Google OAuth Client"),
-    ("com.google.",                   "Google (other)"),
-    ("com.esotericsoftware.kryo",     "Kryo"),
-    ("com.esotericsoftware.",         "EsotericSoftware"),
-    ("software.amazon.awssdk.",       "AWS SDK for Java 2.0"),
-    ("org.bouncycastle.",             "Bouncy Castle"),
-    ("org.objenesis.",                "Objenesis"),
-    ("org.jasypt.",                   "Jasypt"),
-    ("joda-time.",                    "Joda-Time"),
-    ("org.joda.",                     "Joda"),
-    ("io.r2dbc.",                     "R2DBC"),
-    ("org.apache.kerby.",             "Apache Kerby"),
-    ("ch.qos.logback.",               "Logback"),
-    ("ch.qos.reload4j.",              "Reload4j"),
-    ("log4j.",                        "Log4j 1.x"),
-    ("org.slf4j.",                    "SLF4J"),
-    ("org.scala-lang.",               "Scala"),
-    ("org.typelevel.",                "Typelevel"),
-    ("io.dropwizard.",                "Dropwizard"),
-    ("io.grpc.",                      "gRPC Java"),
-    ("io.opencensus.",                "OpenCensus"),
-    ("io.kamon.",                     "Kamon"),
-    ("io.fabric8.",                   "Fabric8"),
-    ("org.apache.htrace.",            "Apache HTrace"),
-    ("org.jboss.",                    "JBoss"),
-    ("org.jetbrains.kotlin.",         "Kotlin"),
-    ("org.jetbrains.",                "JetBrains"),
-]
+def project_name_for_cluster(jar_names: list[str]) -> str:
+    """Return a heading for a cluster of jars sharing a NOTICE.
 
-
-def project_name_for_cluster(jar_names: list[str]) -> tuple[str, str]:
-    """Return (heading, jar_prefix) for a cluster of jars sharing a NOTICE.
-
-    The heading prefers a hand-curated PROJECT_NAMES entry whose key is a
-    prefix of every jar in the cluster. Falls back to the longest common
-    Maven-style prefix (or the first jar's name) when nothing matches.
+    Uses the longest common dotted prefix of the jar filenames (e.g.
+    `org.apache.hadoop.hadoop-annotations-3.3.3.jar` and siblings yield
+    `org.apache.hadoop`). For single-jar clusters, returns the jar name
+    without `.jar`. The "Bundled jars: ..." line in each block lists
+    exact filenames, so the heading just needs to be a navigational
+    summary, not a polished project label.
     """
     if not jar_names:
-        return ("(unknown)", "")
-    sample = jar_names[0]
-    for prefix, name in PROJECT_NAMES:
-        if all(j.startswith(prefix) for j in jar_names):
-            return (name, prefix)
-    # Fallback: longest common prefix of dotted segments before the artifact.
+        return "(unknown)"
+    if len(jar_names) == 1:
+        name = jar_names[0]
+        return name[:-4] if name.endswith(".jar") else name
     common = os.path.commonprefix(jar_names)
-    # Trim back to the last '.' so we don't mid-word truncate.
     if "." in common:
-        common = common[: common.rfind(".") + 1]
-    return (common.rstrip(".") or sample, common)
+        common = common[: common.rfind(".")]
+    return common or jar_names[0]
 
 
 def collect_clusters(lib_dirs: list[Path]) -> dict[str, dict]:
@@ -274,7 +191,7 @@ def main() -> int:
         key=lambda kv: (-len(kv[1]["jars"]), kv[0]),
     )
     for h, c in sorted_clusters:
-        heading, _ = project_name_for_cluster(c["jars"])
+        heading = project_name_for_cluster(c["jars"])
         parts.append(emit_block(heading, c["jars"], c["content"]))
 
     if args.extras:

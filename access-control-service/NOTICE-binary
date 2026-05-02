@@ -5,7 +5,7 @@ This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
-Eclipse Jetty
+org.eclipse.jetty
 --------------------------------------------------------------------------------
 
 Bundled jars (7): org.eclipse.jetty.jetty-http-11.0.20.jar, org.eclipse.jetty.jetty-io-11.0.20.jar, org.eclipse.jetty.jetty-security-11.0.20.jar, ... (+4 more)
@@ -105,7 +105,7 @@ for non-commercial or commercial purposes and without fee is
 granted provided that the copyright notice appears in all copies.
 
 --------------------------------------------------------------------------------
-Eclipse Jersey
+org.glassfish.jersey
 --------------------------------------------------------------------------------
 
 Bundled jars (5): org.glassfish.jersey.containers.jersey-container-servlet-3.0.12.jar, org.glassfish.jersey.containers.jersey-container-servlet-core-3.0.12.jar, org.glassfish.jersey.core.jersey-client-3.0.12.jar, ... (+2 more)
@@ -225,7 +225,7 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-Eclipse GlassFish HK2
+org.glassfish.hk2
 --------------------------------------------------------------------------------
 
 Bundled jars: org.glassfish.hk2.external.aopalliance-repackaged-3.0.6.jar, org.glassfish.hk2.hk2-api-3.0.6.jar, org.glassfish.hk2.hk2-locator-3.0.3.jar, org.glassfish.hk2.hk2-utils-3.0.6.jar
@@ -287,7 +287,7 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-Jackson (FasterXML)
+com.fasterxml.jackson
 --------------------------------------------------------------------------------
 
 Bundled jars: com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar, com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.1.jar, com.fasterxml.jackson.module.jackson-module-parameter-names-2.16.1.jar
@@ -395,7 +395,7 @@ The project maintains the following source code repositories:
 * https://github.com/eclipse-ee4j/jaf
 
 --------------------------------------------------------------------------------
-Jackson (FasterXML)
+com.fasterxml.jackson.core
 --------------------------------------------------------------------------------
 
 Bundled jars: com.fasterxml.jackson.core.jackson-annotations-2.18.6.jar, com.fasterxml.jackson.core.jackson-databind-2.18.6.jar
@@ -423,7 +423,7 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-Scala
+org.scala-lang
 --------------------------------------------------------------------------------
 
 Bundled jars: org.scala-lang.scala-library-2.13.18.jar, org.scala-lang.scala-reflect-2.13.18.jar
@@ -446,7 +446,7 @@ limitations under the License.
 This software includes projects with other licenses -- see `doc/LICENSE.md`.
 
 --------------------------------------------------------------------------------
-Jackson (FasterXML)
+com.fasterxml.jackson.core.jackson-core-2.18.6
 --------------------------------------------------------------------------------
 
 Bundled jars: com.fasterxml.jackson.core.jackson-core-2.18.6.jar
@@ -525,7 +525,7 @@ https://github.com/wrandelshofer/FastDoubleParser/blob/39e123b15b71f29a38a087d16
 - as is required by that license.)
 
 --------------------------------------------------------------------------------
-Apache Commons
+org.apache.commons.commons-lang3-3.13.0
 --------------------------------------------------------------------------------
 
 Bundled jars: org.apache.commons.commons-lang3-3.13.0.jar
@@ -537,7 +537,7 @@ This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
 --------------------------------------------------------------------------------
-Eclipse Jetty Toolchain
+org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2
 --------------------------------------------------------------------------------
 
 Bundled jars: org.eclipse.jetty.toolchain.jetty-jakarta-servlet-api-5.0.2.jar
@@ -601,7 +601,7 @@ https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html
  * org.eclipse.jetty.toolchain:jetty-schemas
 
 --------------------------------------------------------------------------------
-Eclipse Jersey
+org.glassfish.jersey.core.jersey-server-3.0.12
 --------------------------------------------------------------------------------
 
 Bundled jars: org.glassfish.jersey.core.jersey-server-3.0.12.jar
@@ -767,7 +767,7 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-Eclipse Jersey
+org.glassfish.jersey.ext.jersey-bean-validation-3.0.12
 --------------------------------------------------------------------------------
 
 Bundled jars: org.glassfish.jersey.ext.jersey-bean-validation-3.0.12.jar
@@ -925,7 +925,7 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-Jackson (FasterXML)
+com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1
 --------------------------------------------------------------------------------
 
 Bundled jars: com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1.jar
@@ -953,7 +953,7 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-Jakarta Inject API
+jakarta.inject.jakarta.inject-api-2.0.1
 --------------------------------------------------------------------------------
 
 Bundled jars: jakarta.inject.jakarta.inject-api-2.0.1.jar
@@ -1001,7 +1001,7 @@ None
 None
 
 --------------------------------------------------------------------------------
-Jakarta XML Binding API
+jakarta.xml.bind.jakarta.xml.bind-api-3.0.1
 --------------------------------------------------------------------------------
 
 Bundled jars: jakarta.xml.bind.jakarta.xml.bind-api-3.0.1.jar
@@ -1085,7 +1085,7 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-Jakarta RESTful Web Services API
+jakarta.ws.rs.jakarta.ws.rs-api-3.0.0
 --------------------------------------------------------------------------------
 
 Bundled jars: jakarta.ws.rs.jakarta.ws.rs-api-3.0.0.jar
@@ -1152,7 +1152,7 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-R2DBC
+io.r2dbc.r2dbc-spi-0.9.0.RELEASE
 --------------------------------------------------------------------------------
 
 Bundled jars: io.r2dbc.r2dbc-spi-0.9.0.RELEASE.jar
@@ -1174,7 +1174,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 --------------------------------------------------------------------------------
-Jackson (FasterXML)
+com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1
 --------------------------------------------------------------------------------
 
 Bundled jars: com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar
@@ -1201,7 +1201,7 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-Jackson (FasterXML)
+com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1
 --------------------------------------------------------------------------------
 
 Bundled jars: com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
@@ -1229,7 +1229,7 @@ in some artifacts (usually source distributions); but is always available
 from the source code management (SCM) system project uses.
 
 --------------------------------------------------------------------------------
-FasterXML
+com.fasterxml.classmate-1.7.0
 --------------------------------------------------------------------------------
 
 Bundled jars: com.fasterxml.classmate-1.7.0.jar
@@ -1245,7 +1245,7 @@ Other developers who have contributed code are:
 Copyright 2007-, Tatu Saloranta (tatu.saloranta@iki.fi)
 
 --------------------------------------------------------------------------------
-Eclipse Jersey
+org.glassfish.jersey.core.jersey-common-3.0.12
 --------------------------------------------------------------------------------
 
 Bundled jars: org.glassfish.jersey.core.jersey-common-3.0.12.jar
@@ -1410,7 +1410,7 @@ W3.org documents
 * Copyright: Copyright (c) 1994-2001 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de Recherche en Informatique et en Automatique, Keio University). All Rights Reserved. http://www.w3.org/Consortium/Legal/
 
 --------------------------------------------------------------------------------
-Jakarta Annotations API
+jakarta.annotation.jakarta.annotation-api-2.1.1
 --------------------------------------------------------------------------------
 
 Bundled jars: jakarta.annotation.jakarta.annotation-api-2.1.1.jar
@@ -1455,7 +1455,7 @@ possession, or use, and re-export of encryption software, to see if this is
 permitted.
 
 --------------------------------------------------------------------------------
-Apache Commons
+org.apache.commons.commons-text-1.11.0
 --------------------------------------------------------------------------------
 
 Bundled jars: org.apache.commons.commons-text-1.11.0.jar
