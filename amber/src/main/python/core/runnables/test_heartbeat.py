@@ -79,13 +79,33 @@ class TestCheckHeartbeat:
         ):
             assert hb._check_heartbeat() is False
 
+    def test_returns_false_when_socket_close_raises(self):
+        # Pins the false-negative path: connect succeeds but the subsequent
+        # close() throws (e.g. broken pipe on a half-open socket). The bare
+        # `except Exception` in _check_heartbeat() catches it and reports
+        # "server down", and a regression that narrows that handler would be
+        # caught here.
+        hb = make_heartbeat()
+        fake_sock = MagicMock()
+        fake_sock.close.side_effect = OSError("close failed")
+        with patch(
+            "core.runnables.heartbeat.socket.create_connection",
+            return_value=fake_sock,
+        ):
+            assert hb._check_heartbeat() is False
+
 
 class TestRunEarlyExit:
+    @pytest.mark.timeout(2)
     def test_returns_immediately_when_stop_event_is_already_set(self):
         event = Event()
         event.set()
         hb = make_heartbeat(interval=10.0, event=event)
-        # Without an early exit this would block on wait(timeout=10).
+        # Event.wait(timeout=10) returns immediately because the event is
+        # already set, so `while not self._stop_event.wait(...)` short-circuits
+        # before the loop body runs and _check_heartbeat() is never called.
+        # The pytest timeout above turns a regression that re-enters the loop
+        # (or blocks on wait()) into a fast failure rather than a hung CI job.
         with patch.object(hb, "_check_heartbeat") as mock_check:
             hb.run()
         mock_check.assert_not_called()
