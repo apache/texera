@@ -62,10 +62,6 @@ class WorkflowExecutionCoordinator(
     schedule = newSchedule
   }
 
-  private[scheduling] def getNextRegions: Set[Region] = {
-    if (!schedule.hasNext) Set() else schedule.next()
-  }
-
   /**
     * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionCoordintor`, after which each
     * of the `RegionExecutionCoordintor`s will launch the corresponding next phase of whenever needed until it is
@@ -95,7 +91,7 @@ class WorkflowExecutionCoordinator(
     }
 
     // All existing regions are completed. Start the next region (if any).
-    val nextRegions = getNextRegions
+    val nextRegions = if (!schedule.hasNext) Set.empty[Region] else schedule.next()
     if (nextRegions.isEmpty) {
       if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
         asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
