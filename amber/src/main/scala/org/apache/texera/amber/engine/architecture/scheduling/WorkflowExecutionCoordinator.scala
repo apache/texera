@@ -40,7 +40,7 @@ class WorkflowExecutionCoordinator(
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private var schedule: Schedule = Schedule(Map.empty)
+  var schedule: Schedule = Schedule(Map.empty)
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
@@ -53,12 +53,6 @@ class WorkflowExecutionCoordinator(
 
   def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
-  }
-
-  def getSchedule: Schedule = schedule
-
-  def replaceSchedule(newSchedule: Schedule): Unit = {
-    schedule = newSchedule
   }
 
   /**
