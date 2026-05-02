@@ -29,27 +29,23 @@
     <h1 class="about-title">About Texera</h1>
 
     <p>
-      Texera is a system for users with various backgrounds to learn and practice data science, AI, and machine
-      learning. It also allows users to share their datasets and analyze workflows.
+      Apache Texera (Incubating) is an open-source platform for human-AI collaborative data science using visual
+      workflows. It enables analysts to construct, execute, and refine data analysis tasks through an intuitive GUI,
+      assisted by AI agents that understand natural-language instructions. Texera is well-suited for a wide range of
+      applications, including “AI for Science,” by making advanced AI and data science capabilities accessible to a
+      broader community. It can run on a laptop for local use or be deployed in the cloud to support scalable processing
+      of large datasets.
     </p>
 
-    <h2 class="content-title">Key Features</h2>
+    <h2 class="content-title">The platform has the following key features:</h2>
     <ul class="text-content">
-      <li>Supporting low-code/no-code data science using workflows</li>
-      <li>Parallel data-processing engine running on computing clusters</li>
-      <li>Using the Apache Pekko actor-model system</li>
-      <li>Supporting UDFs in Python, R, Java, and Scala</li>
-      <li>Supporting ML training and inference</li>
-      <li>Including a rich collection of ML operators</li>
-      <li>Interactive workflow execution model that supports pausing and resuming</li>
-      <li>Supporting collaborations with shared editing, shared execution, and version control</li>
-      <li>Supporting debugging, including line-by-line debugging in Python UDFs</li>
-      <li>Supporting reproducibility of data analysis</li>
-      <li>Region-by-region execution with full pipelining in each region</li>
-      <li>Storing execution results using Apache Iceberg</li>
-      <li>Supporting version-controlled file collections on S3-compatible storage managed by LakeFS</li>
-      <li>Adopting a microservice-based architecture using Kubernetes and Docker</li>
-      <li>Supporting computing isolation and storage isolation of multiple tenants</li>
+      <li>Natural-language data science through AI agents</li>
+      <li>Intuitive GUI-based workflows for data science</li>
+      <li>Real-time collaboration for workflow editing and execution</li>
+      <li>Parallel backend engine for scalable big-data processing</li>
+      <li>Language-agnostic workflow runtime, native support for Python and Java</li>
+      <li>Separation of compute and storage for flexible cloud deployment</li>
+      <li>Runtime debugging and interactive workflow execution</li>
     </ul>
     <img
       class="workflow-gui-screenshot"
@@ -58,13 +54,8 @@
     <h2 class="learn-more-title">Learn More</h2>
     <div class="learn-more-section">
       <p>
-        To learn more, please visit <a href="http://texera.io">texera.io</a>. The
-        <a href="https://github.com/Texera/texera">source code</a> of the platform is available on GitHub. If you have
-        comments and questions, please send email to
-        <img
-          src="../../../../../assets/texera_email_screenshot.png"
-          alt="texera email screenshot" />
-        .
+        To learn more, please visit <a href="https://texera.apache.org/">https://texera.apache.org/</a>. The
+        <a href="https://github.com/apache/texera">source code</a> of the platform is available on GitHub.
       </p>
     </div>
     <ng-container *ngIf="(isLogin$ | async) === false as isLogin">

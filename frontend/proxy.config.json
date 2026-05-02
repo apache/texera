@@ -55,6 +55,14 @@
     "secure": false,
     "changeOrigin": false
   },
+  "/pve": {
+    "target": "http://localhost:8085",
+    "secure": false,
+    "changeOrigin": false,
+    "pathRewrite": {
+      "^/pve": "/api/pve"
+    }
+  },
   "/wsapi": {
     "target": "http://localhost:8085",
     "secure": false,
