@@ -157,31 +157,42 @@ jobs:
           python-version: "3.11"
       - name: Show Python
         run: python --version || python3 --version
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
-      - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
-        with:
-          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
-      - name: Lint with scalafmt
-        run: sbt scalafmtCheckAll
       - name: Create Databases
+        # Must run before any sbt compile step: the build's JOOQ source
+        # generators connect to texera_db while compiling.
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
           psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
-      - name: Build distributable bundles for license check
-        # Build every dist-producing module so the union of bundled jars can
-        # be diffed against LICENSE-binary.
-        run: sbt 'clean; ConfigService/dist; AccessControlService/dist; FileService/dist; ComputingUnitManagingService/dist; WorkflowCompilingService/dist; WorkflowExecutionService/dist'
-      - name: Unzip JVM distributable bundles
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Lint and build distributable bundles
+        # Single sbt invocation runs scalafmt -> scalafix -> per-module dist
+        # in order; sbt exits at the first failing command (fail-fast). Each
+        # command is a separate sbt arg, not joined with ';', so a dist
+        # failure aborts the rest. scalafix triggers compile (and JOOQ
+        # codegen), which the dist commands then reuse incrementally.
         run: |
+          sbt scalafmtCheckAll \
+              "scalafixAll --check" \
+              ConfigService/dist \
+              AccessControlService/dist \
+              FileService/dist \
+              ComputingUnitManagingService/dist \
+              WorkflowCompilingService/dist \
+              WorkflowExecutionService/dist
+      - name: Unzip dists and check binary licenses
+        # Unzips every service's dist bundle, runs the binding LICENSE-binary
+        # check, then runs the advisory per-dep audit. The audit always runs
+        # (mirroring the previous 'if: always()' on its own step) and never
+        # fails the step; the binding check's exit code drives the result.
+        run: |
+          set -euo pipefail
           mkdir -p /tmp/dists
           for zip in \
             config-service/target/universal/config-service-*.zip \
@@ -192,33 +203,31 @@ jobs:
             amber/target/universal/amber-*.zip; do
               unzip -q "$zip" -d /tmp/dists/
           done
-      - name: Check bundled jars against LICENSE-binary
-        run: |
-          ./bin/licensing/check_binary_deps.py jar \
-            /tmp/dists/config-service-*/lib \
-            /tmp/dists/access-control-service-*/lib \
-            /tmp/dists/file-service-*/lib \
-            /tmp/dists/computing-unit-managing-service-*/lib \
-            /tmp/dists/workflow-compiling-service-*/lib \
+
+          lib_paths=(
+            /tmp/dists/config-service-*/lib
+            /tmp/dists/access-control-service-*/lib
+            /tmp/dists/file-service-*/lib
+            /tmp/dists/computing-unit-managing-service-*/lib
+            /tmp/dists/workflow-compiling-service-*/lib
             /tmp/dists/amber-*/lib
-      - name: Audit per-dep license preservation (advisory)
-        if: always()
+          )
+
+          check_exit=0
+          ./bin/licensing/check_binary_deps.py jar "${lib_paths[@]}" || check_exit=$?
+          ./bin/licensing/audit_jar_licenses.py "${lib_paths[@]}" || true
+          exit "$check_exit"
+      - name: Install dependencies
+        # Only the backend test step needs the python deps; install just
+        # before tests so a lint or dist failure does not pay for them.
         run: |
-          ./bin/licensing/audit_jar_licenses.py \
-            /tmp/dists/config-service-*/lib \
-            /tmp/dists/access-control-service-*/lib \
-            /tmp/dists/file-service-*/lib \
-            /tmp/dists/computing-unit-managing-service-*/lib \
-            /tmp/dists/workflow-compiling-service-*/lib \
-            /tmp/dists/amber-*/lib
+          python -m pip install --upgrade pip
+          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Compile with sbt
-        run: sbt clean package
-      - name: Lint with scalafix
-        run: sbt "scalafixAll --check"
       - name: Set docker-java API version
         run: |
           echo "api.version=1.52" >> ~/.docker-java.properties
