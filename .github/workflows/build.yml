@@ -116,6 +116,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/coverage/**/lcov.info
           flags: frontend
           fail_ci_if_error: false
@@ -247,6 +248,7 @@ jobs:
         if: always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
           flags: scala
           fail_ci_if_error: false
@@ -316,6 +318,7 @@ jobs:
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/src/main/python/coverage.xml
           flags: python
           fail_ci_if_error: false
@@ -368,6 +371,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/coverage/lcov.info
           flags: agent-service
           fail_ci_if_error: false
