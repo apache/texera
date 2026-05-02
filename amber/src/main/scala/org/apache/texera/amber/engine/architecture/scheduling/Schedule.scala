@@ -45,7 +45,7 @@ case class Schedule(
   override def hasNext: Boolean = currentLevel < levelSets.size
 
   override def next(): Set[Region] = {
-    val regions = levelSets.getOrElse(currentLevel, Set.empty)
+    val regions = levelSets(currentLevel)
     currentLevel += 1
     regions
   }
