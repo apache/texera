@@ -40,7 +40,11 @@ on:
         required: false
         type: boolean
         default: true
-      run_scala:
+      run_amber:
+        required: false
+        type: boolean
+        default: true
+      run_platform:
         required: false
         type: boolean
         default: true
@@ -121,9 +125,14 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
-  scala:
-    if: ${{ inputs.run_scala }}
-    name: ${{ format('scala{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
+  amber:
+    # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
+    # scalafixAll --check) once on behalf of every Scala module, then builds
+    # and tests just the WorkflowExecutionService dist. Per-service builds
+    # and tests for the platform services live in the `platform` matrix
+    # below. License-binary checks are scoped to the amber dist.
+    if: ${{ inputs.run_amber }}
+    name: ${{ format('amber{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -179,51 +188,31 @@ jobs:
       - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
-      - name: Lint and build distributable bundles
-        # Single sbt invocation runs scalafmt -> scalafix -> per-module dist
-        # in order; sbt exits at the first failing command (fail-fast). Each
-        # command is a separate sbt arg, not joined with ';', so a dist
-        # failure aborts the rest. scalafix triggers compile (and JOOQ
-        # codegen), which the dist commands then reuse incrementally.
+      - name: Lint and build amber distributable bundle
+        # Single sbt invocation: scalafmt -> scalafix -> amber dist.
+        # scalafmtCheckAll and scalafixAll cover every Scala module, so the
+        # platform matrix below skips them. scalafix triggers compile (and
+        # JOOQ codegen), which the dist command then reuses incrementally.
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
-              ConfigService/dist \
-              AccessControlService/dist \
-              FileService/dist \
-              ComputingUnitManagingService/dist \
-              WorkflowCompilingService/dist \
               WorkflowExecutionService/dist
-      - name: Unzip dists and check binary licenses
-        # Unzips every service's dist bundle, runs the binding LICENSE-binary
-        # check, then runs the advisory per-dep audit. The audit always runs
-        # (mirroring the previous 'if: always()' on its own step) and never
-        # fails the step; the binding check's exit code drives the result.
+      - name: Unzip amber dist and check binary licenses
+        # Per-module LICENSE-binary files live at the repo root after #4668;
+        # the amber JVM dist is checked against amber/LICENSE-binary-java.
+        # The audit always runs (mirroring the previous 'if: always()' on its
+        # own step) and never fails the step; the binding check's exit code
+        # drives it.
         run: |
           set -euo pipefail
           mkdir -p /tmp/dists
-          for zip in \
-            config-service/target/universal/config-service-*.zip \
-            access-control-service/target/universal/access-control-service-*.zip \
-            file-service/target/universal/file-service-*.zip \
-            computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip \
-            workflow-compiling-service/target/universal/workflow-compiling-service-*.zip \
-            amber/target/universal/amber-*.zip; do
-              unzip -q "$zip" -d /tmp/dists/
-          done
-
-          lib_paths=(
-            /tmp/dists/config-service-*/lib
-            /tmp/dists/access-control-service-*/lib
-            /tmp/dists/file-service-*/lib
-            /tmp/dists/computing-unit-managing-service-*/lib
-            /tmp/dists/workflow-compiling-service-*/lib
-            /tmp/dists/amber-*/lib
-          )
+          unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
 
           check_exit=0
-          ./bin/licensing/check_binary_deps.py --ignore-transitive-version jar "${lib_paths[@]}" || check_exit=$?
-          ./bin/licensing/audit_jar_licenses.py "${lib_paths[@]}" || true
+          ./bin/licensing/check_binary_deps.py --ignore-transitive-version jar \
+            --license-binary amber/LICENSE-binary-java \
+            /tmp/dists/amber-*/lib || check_exit=$?
+          ./bin/licensing/audit_jar_licenses.py /tmp/dists/amber-*/lib || true
           exit "$check_exit"
       - name: Install dependencies
         # Only the backend test step needs the python deps; install just
@@ -240,17 +229,121 @@ jobs:
         run: |
           echo "api.version=1.52" >> ~/.docker-java.properties
           cat ~/.docker-java.properties
-      - name: Run backend tests
+      - name: Run amber and common module tests with coverage
         # 'jacoco' runs tests under sbt-jacoco's JVM agent and emits per-
         # module jacoco.xml that the codecov upload step picks up.
-        run: sbt jacoco
-      - name: Upload scala coverage to Codecov
+        # `WorkflowExecutionService/jacoco` only runs that project's tests
+        # (sbt's `test` task does not transit dependsOn), so common
+        # modules' tests are listed explicitly here. Modules with no
+        # tests (Auth, Config) are skipped.
+        run: |
+          sbt "DAO/jacoco" \
+              "PyBuilder/jacoco" \
+              "WorkflowCore/jacoco" \
+              "WorkflowOperator/jacoco" \
+              "WorkflowExecutionService/jacoco"
+      - name: Upload amber and common coverage to Codecov
         if: always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
-          flags: scala
+          flags: amber
+          fail_ci_if_error: false
+
+  platform:
+    # Per-service build, test, and license check for the non-amber Scala
+    # services. Each matrix entry runs its own dist + test in isolation
+    # against per-module LICENSE-binary (#4668). scalafmt / scalafix already
+    # cover every module in the amber job above, so this matrix skips them.
+    if: ${{ inputs.run_platform }}
+    name: ${{ format('platform{0} ({1})', inputs.job_name_suffix, matrix.service) }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: config-service
+            sbt_project: ConfigService
+          - service: access-control-service
+            sbt_project: AccessControlService
+          - service: file-service
+            sbt_project: FileService
+          - service: computing-unit-managing-service
+            sbt_project: ComputingUnitManagingService
+          - service: workflow-compiling-service
+            sbt_project: WorkflowCompilingService
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      # Each platform service transitively depends on DAO, which runs JOOQ
+      # code generation at compile time and needs the live texera schema.
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 11
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Build dist and run ${{ matrix.service }} tests with coverage
+        # Single sbt invocation so dist + test share compiled state. Use
+        # `jacoco` so the codecov upload step has a report to pick up.
+        run: sbt "${{ matrix.sbt_project }}/dist" "${{ matrix.sbt_project }}/jacoco"
+      - name: Unzip ${{ matrix.service }} dist and check binary licenses
+        # Each platform service has its own LICENSE-binary at the repo root
+        # after #4668; check this service's dist against just its own file.
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dists
+          unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
+
+          check_exit=0
+          ./bin/licensing/check_binary_deps.py jar \
+            --license-binary ${{ matrix.service }}/LICENSE-binary \
+            /tmp/dists/${{ matrix.service }}-*/lib || check_exit=$?
+          ./bin/licensing/audit_jar_licenses.py /tmp/dists/${{ matrix.service }}-*/lib || true
+          exit "$check_exit"
+      - name: Upload ${{ matrix.service }} coverage to Codecov
+        # Per-service flag so each matrix entry has its own Codecov view
+        # rather than being merged into one umbrella `platform` flag.
+        if: always()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
+          flags: ${{ matrix.service }}
           fail_ci_if_error: false
 
   python:
