@@ -131,42 +131,42 @@ class WorkflowExecutionCoordinatorSpec
     val (first, second, _, schedule) = threeLevelSchedule()
     val coordinator = newJumpCoordinator(schedule)
 
-    assert(coordinator.pullNextRegions == Set(first))
-    assert(coordinator.pullNextRegions == Set(second))
+    assert(coordinator.getNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(second))
 
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
 
-    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(first))
   }
 
   it should "support multiple sequential jumps interleaved with region pulls" in {
     val (first, second, third, schedule) = threeLevelSchedule()
     val coordinator = newJumpCoordinator(schedule)
 
-    assert(coordinator.pullNextRegions == Set(first))
-    assert(coordinator.pullNextRegions == Set(second))
+    assert(coordinator.getNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(second))
 
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
-    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(first))
 
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("second"))
-    assert(coordinator.pullNextRegions == Set(second))
-    assert(coordinator.pullNextRegions == Set(third))
+    assert(coordinator.getNextRegions == Set(second))
+    assert(coordinator.getNextRegions == Set(third))
 
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
-    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(first))
   }
 
   it should "be a no-op when the target operator is not in any scheduled region" in {
     val (first, second, _, schedule) = threeLevelSchedule()
     val coordinator = newJumpCoordinator(schedule)
 
-    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(first))
 
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("does-not-exist"))
 
     // Iteration position must be unaffected by an unknown target.
-    assert(coordinator.pullNextRegions == Set(second))
+    assert(coordinator.getNextRegions == Set(second))
   }
 
   it should "leave the schedule untouched when called repeatedly with unknown operators" in {
@@ -177,32 +177,32 @@ class WorkflowExecutionCoordinatorSpec
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-2"))
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-3"))
 
-    assert(coordinator.pullNextRegions == Set(first))
-    assert(coordinator.pullNextRegions == Set(second))
-    assert(coordinator.pullNextRegions == Set(third))
+    assert(coordinator.getNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(second))
+    assert(coordinator.getNextRegions == Set(third))
   }
 
   it should "allow jumping back to the first region after the schedule is exhausted" in {
     val (first, second, third, schedule) = threeLevelSchedule()
     val coordinator = newJumpCoordinator(schedule)
 
-    assert(coordinator.pullNextRegions == Set(first))
-    assert(coordinator.pullNextRegions == Set(second))
-    assert(coordinator.pullNextRegions == Set(third))
-    assert(coordinator.pullNextRegions == Set.empty)
+    assert(coordinator.getNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(second))
+    assert(coordinator.getNextRegions == Set(third))
+    assert(coordinator.getNextRegions == Set.empty)
 
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
-    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(first))
   }
 
   it should "support jumping forward past regions that have not yet been pulled" in {
     val (first, _, third, schedule) = threeLevelSchedule()
     val coordinator = newJumpCoordinator(schedule)
 
-    assert(coordinator.pullNextRegions == Set(first))
+    assert(coordinator.getNextRegions == Set(first))
 
     coordinator.jumpToRegionContainingOperator(OperatorIdentity("third"))
-    assert(coordinator.pullNextRegions == Set(third))
-    assert(coordinator.pullNextRegions == Set.empty)
+    assert(coordinator.getNextRegions == Set(third))
+    assert(coordinator.getNextRegions == Set.empty)
   }
 }

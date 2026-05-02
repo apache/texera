@@ -61,7 +61,7 @@ class WorkflowExecutionCoordinator(
     schedule = newSchedule
   }
 
-  private[scheduling] def pullNextRegions: Set[Region] = {
+  private[scheduling] def getNextRegions: Set[Region] = {
     if (!schedule.hasNext) Set() else schedule.next()
   }
 
@@ -94,7 +94,7 @@ class WorkflowExecutionCoordinator(
     }
 
     // All existing regions are completed. Start the next region (if any).
-    val nextRegions = pullNextRegions
+    val nextRegions = getNextRegions
     if (nextRegions.isEmpty) {
       if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
         asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
