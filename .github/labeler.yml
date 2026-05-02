@@ -27,7 +27,17 @@ common:
 service:
   - changed-files:
       - any-glob-to-any-file:
-          - '*-service/**'
+          - 'access-control-service/**'
+          - 'computing-unit-managing-service/**'
+          - 'config-service/**'
+          - 'file-service/**'
+          - 'pyright-language-service/**'
+          - 'workflow-compiling-service/**'
+
+agent-service:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'agent-service/**'
 
 engine:
   - changed-files:
