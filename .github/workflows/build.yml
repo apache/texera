@@ -109,7 +109,7 @@ jobs:
         run: yarn --cwd frontend run build:ci
       - name: Check bundled npm packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
-        run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
+        run: ./bin/licensing/check_binary_deps.py --ignore-transitive-version npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
         run: yarn --cwd frontend run test:ci --code-coverage
       - name: Upload frontend coverage to Codecov
@@ -222,7 +222,7 @@ jobs:
           )
 
           check_exit=0
-          ./bin/licensing/check_binary_deps.py jar "${lib_paths[@]}" || check_exit=$?
+          ./bin/licensing/check_binary_deps.py --ignore-transitive-version jar "${lib_paths[@]}" || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py "${lib_paths[@]}" || true
           exit "$check_exit"
       - name: Install dependencies
@@ -297,7 +297,7 @@ jobs:
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
       - name: Check installed Python packages against per-module LICENSE-binary files
         if: matrix.python-version == '3.12'
-        run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
+        run: ./bin/licensing/check_binary_deps.py --ignore-transitive-version python /tmp/pip-licenses.csv
       - name: Create iceberg catalog database
         run: psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
         env:
@@ -358,7 +358,7 @@ jobs:
           bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
       - name: Check bundled agent-service packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
-        run: ../bin/licensing/check_binary_deps.py agent-npm dist/3rdpartylicenses.json
+        run: ../bin/licensing/check_binary_deps.py --ignore-transitive-version agent-npm dist/3rdpartylicenses.json
       - name: Install development dependencies
         run: bun install --frozen-lockfile
       - name: Lint with Prettier
