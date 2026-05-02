@@ -18,17 +18,19 @@
 # https://cwiki.apache.org/confluence/display/INFRA/Git+-+.asf.yaml+features
 
 github:
-  description: "Collaborative Machine-Learning-Centric Data Analytics Using Workflows"
-  homepage: https://texera.io/
+  description: "Human-AI Collaborative Data Science Using Visual Workflows"
+  homepage: https://texera.apache.org/
   labels:
-    - workflow
+    - human-ai-collaboration
+    - ai-agents 
+    - visual-workflows
     - data-science
-    - data
-    - machine-learning
+    - runtime-debugging
     - artificial-intelligence
+    - machine-learning
+    - interactive-engine
     - cloud-native
-    - data-analytics
-    - texera
+
 
   protected_tags:
     - "v*.*.*"
