@@ -19,6 +19,14 @@ ThisBuild / organization := "org.apache.texera"
 ThisBuild / version      := "1.1.0-incubating"
 ThisBuild / scalaVersion := "2.13.18"
 
+// sbt-jacoco emits only HTML by default; add XML so Codecov can consume
+// per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
+import com.github.sbt.jacoco.report.JacocoReportSettings
+import com.github.sbt.jacoco.report.formats.{ScalaHTMLReport, XMLReport}
+ThisBuild / jacocoReportSettings := JacocoReportSettings()
+  .withTitle("Apache Texera Coverage")
+  .withFormats(ScalaHTMLReport(), XMLReport(encoding = "utf-8"))
+
 // Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
 // Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
 // See project/AddMetaInfLicenseFiles.scala.
