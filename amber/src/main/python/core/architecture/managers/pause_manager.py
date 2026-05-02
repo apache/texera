@@ -29,10 +29,9 @@ from ...models import InternalQueue
 class PauseType(Enum):
     NO_PAUSE = 0
     USER_PAUSE = 1
-    SCHEDULER_TIME_SLOT_EXPIRED_PAUSE = 2
-    DEBUG_PAUSE = 3
-    EXCEPTION_PAUSE = 4
-    ECM_PAUSE = 5
+    DEBUG_PAUSE = 2
+    EXCEPTION_PAUSE = 3
+    ECM_PAUSE = 4
 
 
 class PauseManager:

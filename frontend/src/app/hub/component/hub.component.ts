@@ -30,6 +30,7 @@ import { SidebarTabs } from "../../common/type/gui-config";
   selector: "texera-hub",
   templateUrl: "hub.component.html",
   styleUrls: ["hub.component.scss"],
+  standalone: false,
 })
 export class HubComponent {
   @Input() isLogin: boolean = false;

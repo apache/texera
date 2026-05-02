@@ -62,6 +62,7 @@ export const DEFAULT_HEIGHT = 500;
   selector: "texera-result-panel",
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"],
+  standalone: false,
 })
 export class ResultPanelComponent implements OnInit, OnDestroy {
   @ViewChild("dynamicComponent")

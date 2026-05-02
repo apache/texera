@@ -27,7 +27,7 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
  *  - workflow-operator gets Apache 2.0 plus the mbknor-jackson-jsonschema
  *    attribution and the full MIT license text.
  *
- * NOTICE and DISCLAIMER-WIP are copied as-is from the repo root.
+ * NOTICE and DISCLAIMER are copied as-is from the repo root.
  *
  * See https://github.com/apache/texera/issues/4131
  */
@@ -93,8 +93,8 @@ object AddMetaInfLicenseFiles {
 
   private def noticeAndDisclaimer(managed: File, rootDir: File): Seq[File] = {
     val files = Seq(copyToMetaInf(managed, rootDir / "NOTICE", "NOTICE"))
-    val disclaimer = rootDir / "DISCLAIMER-WIP"
-    if (disclaimer.exists()) files :+ copyToMetaInf(managed, disclaimer, "DISCLAIMER-WIP")
+    val disclaimer = rootDir / "DISCLAIMER"
+    if (disclaimer.exists()) files :+ copyToMetaInf(managed, disclaimer, "DISCLAIMER")
     else files
   }
 
@@ -120,23 +120,35 @@ object AddMetaInfLicenseFiles {
     }.taskValue
   )
 
-  /** Additional settings for dist-producing modules: places the same files
-   *  at the top level of the sbt-native-packager Universal zip so they
-   *  appear alongside lib/ and bin/ in the distribution. */
-  lazy val distSettings: Seq[Setting[_]] = Seq(
-    Universal / mappings := {
-      val existing = (Universal / mappings).value
-      val root = rootDir.value
-      val licenseFile = root / "LICENSE"
-      val noticeFile = root / "NOTICE"
-      val disclaimerFile = root / "DISCLAIMER-WIP"
-      val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER-WIP")
-      val filtered = existing.filterNot { case (_, path) => reserved.contains(path) }
-      val extras = Seq(
-        licenseFile -> "LICENSE",
-        noticeFile -> "NOTICE"
-      ) ++ (if (disclaimerFile.exists()) Seq(disclaimerFile -> "DISCLAIMER-WIP") else Seq.empty)
-      filtered ++ extras
+  /** Ships LICENSE-binary, NOTICE-binary, DISCLAIMER (if present), and
+   *  licenses/ at the Universal zip's top level. LICENSE-binary and
+   *  NOTICE-binary are required; DISCLAIMER is optional (it will be
+   *  removed at graduation). */
+  def distMappings(existing: Seq[(File, String)], rootDir: File): Seq[(File, String)] = {
+    val licenseBinary = rootDir / "LICENSE-binary"
+    val noticeBinary = rootDir / "NOTICE-binary"
+    val disclaimerFile = rootDir / "DISCLAIMER"
+    val licensesDir = rootDir / "licenses"
+
+    require(licenseBinary.isFile,
+      s"LICENSE-binary not found at $licenseBinary; required for binary-distribution packaging.")
+    require(noticeBinary.isFile,
+      s"NOTICE-binary not found at $noticeBinary; required for binary-distribution packaging.")
+    require(licensesDir.isDirectory,
+      s"licenses/ directory not found at $licensesDir; required for binary-distribution packaging.")
+
+    val reserved = Set("LICENSE", "NOTICE", "DISCLAIMER")
+    val filtered = existing.filterNot {
+      case (_, path) => reserved.contains(path) || path.startsWith("licenses/")
     }
-  )
+
+    val licenseTexts = (licensesDir ** "*.txt").get.map(f => f -> s"licenses/${f.getName}")
+
+    val base = Seq(licenseBinary -> "LICENSE", noticeBinary -> "NOTICE")
+    val disclaimer =
+      if (disclaimerFile.isFile) Seq(disclaimerFile -> "DISCLAIMER")
+      else Seq.empty
+
+    filtered ++ base ++ disclaimer ++ licenseTexts
+  }
 }

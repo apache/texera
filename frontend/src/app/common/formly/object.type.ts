@@ -27,6 +27,7 @@ import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
         [field]="f"></formly-field>
     </div>
   `,
+  standalone: false,
 })
 export class ObjectTypeComponent extends FieldType<FieldTypeConfig> {
   defaultOptions = {

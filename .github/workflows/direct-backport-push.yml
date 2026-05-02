@@ -1,0 +1,223 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Direct Backport Push
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: read
+
+jobs:
+  discover:
+    name: Discover direct backport targets
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.discover.outputs.pr_number }}
+      targets: ${{ steps.discover.outputs.targets }}
+      has_targets: ${{ steps.discover.outputs.has_targets }}
+    steps:
+      - name: Resolve merged PR and green targets
+        id: discover
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const sha = context.sha;
+            const { owner, repo } = context.repo;
+
+            // Strategy 1 (preferred): parse the squash-merge commit message.
+            // ASF .asf.yaml forces squash merges with PR_TITLE_AND_DESC, so the
+            // first line ends with "(#NNNN)". This is deterministic and avoids
+            // the commit↔PR association index, which can lag for tens of seconds
+            // after a merge.
+            async function resolvePrFromMessage() {
+              const message = context.payload?.head_commit?.message ?? "";
+              const firstLine = message.split("\n", 1)[0];
+              const match = firstLine.match(/\(#(\d+)\)\s*$/);
+              if (!match) {
+                core.info('Commit message does not end with "(#N)"; falling back to API.');
+                return null;
+              }
+              const prNumber = Number(match[1]);
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                });
+                if (!pr.merged) {
+                  core.warning(`PR #${prNumber} extracted from commit message is not merged; falling back to API.`);
+                  return null;
+                }
+                core.info(`Resolved PR #${prNumber} from commit message.`);
+                return pr;
+              } catch (e) {
+                core.warning(`Failed to fetch PR #${prNumber}: ${e.message}. Falling back to API.`);
+                return null;
+              }
+            }
+
+            // Strategy 2 (fallback): GET /commits/{sha}/pulls with exponential
+            // backoff. 5 attempts at 0/2/4/8/16s — total worst case ~30s.
+            async function resolvePrFromApi() {
+              const backoffsMs = [0, 2000, 4000, 8000, 16000];
+              for (let i = 0; i < backoffsMs.length; i++) {
+                if (backoffsMs[i] > 0) {
+                  core.info(`Retrying commit→PR lookup in ${backoffsMs[i] / 1000}s (attempt ${i + 1}/${backoffsMs.length}).`);
+                  await new Promise((resolve) => setTimeout(resolve, backoffsMs[i]));
+                }
+                const response = await github.request(
+                  "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls",
+                  {
+                    owner,
+                    repo,
+                    commit_sha: sha,
+                  }
+                );
+                const pr = response.data.find((p) => p.merge_commit_sha === sha) ?? response.data[0];
+                if (pr) {
+                  core.info(`Resolved PR #${pr.number} from commits/${sha}/pulls on attempt ${i + 1}.`);
+                  return pr;
+                }
+              }
+              return null;
+            }
+
+            const pullRequest = (await resolvePrFromMessage()) ?? (await resolvePrFromApi());
+            if (!pullRequest) {
+              core.info(`No merged pull request is associated with ${sha}.`);
+              core.setOutput("pr_number", "");
+              core.setOutput("targets", "[]");
+              core.setOutput("has_targets", "false");
+              return;
+            }
+
+            const requestedTargets = [...new Set(
+              pullRequest.labels
+                .map((label) => label.name)
+                .filter((name) => /^release\/.+$/.test(name))
+            )].sort();
+
+            if (requestedTargets.length === 0) {
+              core.info(`PR #${pullRequest.number} does not request any backports.`);
+              core.setOutput("pr_number", String(pullRequest.number));
+              core.setOutput("targets", "[]");
+              core.setOutput("has_targets", "false");
+              return;
+            }
+
+            const buildRuns = await github.paginate(
+              github.rest.actions.listWorkflowRuns,
+              {
+                owner,
+                repo,
+                workflow_id: "required-checks.yml",
+                head_sha: pullRequest.head.sha,
+                per_page: 100,
+              }
+            );
+
+            let greenTargets = [];
+            if (buildRuns.length === 0) {
+              core.warning(`No Build workflow runs found for ${pullRequest.head.sha}.`);
+            } else {
+              const allJobs = [];
+              for (const run of buildRuns) {
+                const jobs = await github.paginate(
+                  github.rest.actions.listJobsForWorkflowRun,
+                  {
+                    owner,
+                    repo,
+                    run_id: run.id,
+                    per_page: 100,
+                  }
+                );
+                allJobs.push(...jobs);
+              }
+
+              greenTargets = requestedTargets.filter((target) => {
+                const prefix = `backport (${target}) / `;
+                const targetJobs = allJobs.filter((job) => job.name.startsWith(prefix));
+                // Treat skipped as green: precheck legitimately skips stacks
+                // based on PR labels, matching the Required Checks aggregator.
+                return (
+                  targetJobs.length > 0 &&
+                  targetJobs.every(
+                    (job) => job.conclusion === "success" || job.conclusion === "skipped"
+                  )
+                );
+              });
+            }
+
+            const skippedTargets = requestedTargets.filter((target) => !greenTargets.includes(target));
+            if (skippedTargets.length > 0) {
+              core.warning(`Skipping targets without a successful Backport run: ${skippedTargets.join(", ")}`);
+            }
+
+            core.setOutput("pr_number", String(pullRequest.number));
+            core.setOutput("targets", JSON.stringify(greenTargets));
+            core.setOutput("has_targets", greenTargets.length > 0 ? "true" : "false");
+
+  push-backports:
+    needs: discover
+    if: ${{ needs.discover.outputs.has_targets == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.discover.outputs.targets) }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Cherry-pick merge commit onto target branch
+        env:
+          MERGE_SHA: ${{ github.sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          parent_count=$(git rev-list --parents -n 1 "${MERGE_SHA}" | awk '{print NF-1}')
+          if [[ "${parent_count}" -ne 1 ]]; then
+            echo "Direct backport expects a squash-merged commit on main. ${MERGE_SHA} has ${parent_count} parents." >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Reuse the squash commit's full message so the PR title, description,
+          # and any Co-Authored-By trailers GitHub injected stay attached to
+          # the backport commit. The author is the squash commit's author
+          # (the original PR author for squash merges).
+          original_author=$(git log -1 --format='%an <%ae>' "${MERGE_SHA}")
+          merge_message=$(git log -1 --format=%B "${MERGE_SHA}")
+
+          git fetch --no-tags origin "${TARGET_BRANCH}"
+          git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
+          git cherry-pick --no-commit "${MERGE_SHA}"
+
+          {
+            printf '%s\n\n(backported from commit %s)\n' "${merge_message}" "${MERGE_SHA}"
+          } | git commit -F - --author="${original_author}"
+
+          git push origin "HEAD:${TARGET_BRANCH}"

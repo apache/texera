@@ -41,7 +41,7 @@ import {
   mockViewResultsSchema,
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { configure } from "rxjs-marbles";
-import { SimpleChange } from "@angular/core";
+import { NO_ERRORS_SCHEMA, SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
@@ -58,6 +58,13 @@ describe("OperatorPropertyEditFrameComponent", () => {
   let workflowActionService: WorkflowActionService;
 
   beforeEach(waitForAsync(() => {
+    TestBed.overrideComponent(OperatorPropertyEditFrameComponent, {
+      set: {
+        template:
+          '<div class="texera-workspace-property-editor-title">{{ formTitle }}</div><div class="texera-workspace-property-editor-form"></div>',
+      },
+    });
+
     TestBed.configureTestingModule({
       declarations: [OperatorPropertyEditFrameComponent],
       providers: [
@@ -78,6 +85,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
         ReactiveFormsModule,
         HttpClientTestingModule,
       ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   }));
 
@@ -85,10 +93,10 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
-    fixture.detectChanges();
   });
 
   it("should create", () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 
@@ -261,16 +269,16 @@ describe("OperatorPropertyEditFrameComponent", () => {
     expect(component.formData).toEqual(expectedResultOperatorProperties);
   });
 
-  it("check operator version", () => {
-    // check result operator version
+  it("should set result operator version", () => {
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     component.ngOnChanges({
       currentOperatorId: new SimpleChange(undefined, mockResultPredicate.operatorID, true),
     });
     fixture.detectChanges();
     expect(component.operatorVersion).toEqual(mockResultPredicate.operatorVersion);
+  });
 
-    // check scan operator version
+  it("should set scan operator version", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     component.ngOnChanges({
       currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),

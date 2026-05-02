@@ -49,20 +49,30 @@ class DataProcessor(Runnable, Stoppable):
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.wait()
         self._running.set()
-        self._switch_context()
+        self._pre_loop_checks()
         while self._running.is_set():
-            marker = self._context.tuple_processing_manager.get_internal_marker()
-            state = self._context.state_processing_manager.get_input_state()
-            tuple_ = self._context.tuple_processing_manager.current_input_tuple
-            if marker is not None:
-                self.process_internal_marker(marker)
-            elif state is not None:
-                self.process_state(state)
-            elif tuple_ is not None:
-                self.process_tuple()
+            tpm = self._context.tuple_processing_manager
+            spm = self._context.state_processing_manager
+            has_marker = tpm.current_internal_marker is not None
+            has_state = spm.current_input_state is not None
+            has_tuple = tpm.current_input_tuple is not None
+            queued = has_marker + has_state + has_tuple
+            # MainLoop is single-threaded and sets at most one of
+            # current_internal_marker / current_input_state /
+            # current_input_tuple per cycle before switching to here, so
+            # exactly one slot must be populated on every iteration.
+            if queued != 1:
+                raise RuntimeError(
+                    "DataProcessor expected exactly one queued input per "
+                    f"iteration, got marker={has_marker}, state={has_state}, "
+                    f"tuple={has_tuple}"
+                )
+            if has_marker:
+                self.process_internal_marker(tpm.get_internal_marker())
+            elif has_state:
+                self.process_state(spm.get_input_state())
             else:
-                raise RuntimeError("No marker or tuple to process.")
-            self._switch_context()
+                self.process_tuple()
 
     def process_internal_marker(self, internal_marker: InternalMarker) -> None:
         try:
@@ -158,6 +168,8 @@ class DataProcessor(Runnable, Stoppable):
         """
         Set the output state after processing by the executor.
         """
+        if output_state is not None and not isinstance(output_state, State):
+            output_state = State(output_state)
         self._context.state_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:
@@ -180,6 +192,14 @@ class DataProcessor(Runnable, Stoppable):
             self._context.debug_manager.debugger.set_trace()
 
     def _post_switch_context_checks(self):
+        self._check_and_process_debug_command()
+
+    def _pre_loop_checks(self) -> None:
+        # Runs once after init and before the first task so that a debug
+        # command queued during worker setup fires before any
+        # tuple / state / marker is processed. Only the debug-command
+        # check is needed here -- no task has run yet, so there is no
+        # exception to surface.
         self._check_and_process_debug_command()
 
     def _report_exception(self, exc_info: ExceptionInfo):

@@ -60,6 +60,7 @@ import { ComputingUnitActionsService } from "../../../../../common/service/compu
   selector: "texera-user-computing-unit-list-item",
   templateUrl: "./user-computing-unit-list-item.component.html",
   styleUrls: ["./user-computing-unit-list-item.component.scss"],
+  standalone: false,
 })
 export class UserComputingUnitListItemComponent implements OnInit {
   private _entry?: DashboardWorkflowComputingUnit;

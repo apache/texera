@@ -11,9 +11,11 @@ header:
     - '**/*.json'
     - '**/*.jsonl'
     - 'DESCRIPTION'
-    - 'DISCLAIMER-WIP'
+    - 'DISCLAIMER'
     - 'LICENSE'
+    - 'LICENSE-binary'
     - 'NOTICE'
+    - 'NOTICE-binary'
     - '.dockerignore'
     - '.gitattributes'
     - '.github/PULL_REQUEST_TEMPLATE'
@@ -26,6 +28,9 @@ header:
     - '.licenserc.yaml'
     - 'frontend/.yarn/**'
     - 'amber/src/main/python/proto/**'
+    - '**/.env.example'
+    - '**/.prettierrc'
+    - '**/bun.lock'
     # Third-party code with MIT license - see LICENSE file for attribution
     - 'common/workflow-operator/src/main/scala/com/kjetland/**'
     # TypeFox monaco-languageclient derived files (MIT License)

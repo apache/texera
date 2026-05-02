@@ -18,17 +18,19 @@
 # https://cwiki.apache.org/confluence/display/INFRA/Git+-+.asf.yaml+features
 
 github:
-  description: "Collaborative Machine-Learning-Centric Data Analytics Using Workflows"
-  homepage: https://texera.io/
+  description: "Human-AI Collaborative Data Science Using Visual Workflows"
+  homepage: https://texera.apache.org/
   labels:
-    - workflow
+    - human-ai-collaboration
+    - ai-agents 
+    - visual-workflows
     - data-science
-    - data
-    - machine-learning
+    - runtime-debugging
     - artificial-intelligence
+    - machine-learning
+    - interactive-engine
     - cloud-native
-    - data-analytics
-    - texera
+
 
   protected_tags:
     - "v*.*.*"
@@ -67,14 +69,7 @@ github:
         strict: true
         # contexts are the names of checks that must pass
         contexts:
-          - frontend (ubuntu-latest, 18)
-          - frontend (windows-latest, 18)
-          - frontend (macos-latest, 18)
-          - scala (ubuntu-22.04, 11)
-          - python (ubuntu-latest, 3.10)
-          - python (ubuntu-latest, 3.11)
-          - python (ubuntu-latest, 3.12)
-          - python (ubuntu-latest, 3.13)
+          - Required Checks
           - Check License Headers
           - Validate PR title
       required_pull_request_reviews:

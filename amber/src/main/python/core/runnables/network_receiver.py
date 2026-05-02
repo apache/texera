@@ -32,6 +32,7 @@ from core.architecture.handlers.actorcommand.credit_update_handler import (
 )
 from core.models import (
     DataFrame,
+    State,
     StateFrame,
 )
 from core.models.internal_queue import (
@@ -40,7 +41,6 @@ from core.models.internal_queue import (
     InternalQueue,
     ECMElement,
 )
-from core.models.state import State
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
@@ -96,7 +96,7 @@ class NetworkReceiver(Runnable, Stoppable):
                 "Data",
                 lambda _: DataFrame(table),
                 "State",
-                lambda _: StateFrame(State(table)),
+                lambda _: StateFrame(State.from_json(table[State.CONTENT][0].as_py())),
                 "ECM",
                 lambda _: EmbeddedControlMessage().parse(table["payload"][0].as_py()),
             )
