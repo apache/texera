@@ -156,7 +156,14 @@ jobs:
               greenTargets = requestedTargets.filter((target) => {
                 const prefix = `backport (${target}) / `;
                 const targetJobs = allJobs.filter((job) => job.name.startsWith(prefix));
-                return targetJobs.length > 0 && targetJobs.every((job) => job.conclusion === "success");
+                // Treat skipped as green: precheck legitimately skips stacks
+                // based on PR labels, matching the Required Checks aggregator.
+                return (
+                  targetJobs.length > 0 &&
+                  targetJobs.every(
+                    (job) => job.conclusion === "success" || job.conclusion === "skipped"
+                  )
+                );
               });
             }
 
