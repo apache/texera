@@ -68,6 +68,7 @@ ci:
   - changed-files:
       - any-glob-to-any-file:
           - '.github/workflows/**'
+          - '.asf.yaml'
 
 dev:
   - changed-files:
