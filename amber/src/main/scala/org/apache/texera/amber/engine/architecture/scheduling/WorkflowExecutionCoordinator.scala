@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 import org.apache.texera.amber.engine.architecture.common.{
   AkkaActorRefMappingService,
@@ -36,13 +35,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
 class WorkflowExecutionCoordinator(
-    initialSchedule: Schedule,
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private var schedule: Schedule = initialSchedule
+  var schedule: Schedule = Schedule(Map.empty)
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
@@ -55,14 +53,6 @@ class WorkflowExecutionCoordinator(
 
   def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
-  }
-
-  def replaceSchedule(newSchedule: Schedule): Unit = {
-    schedule = newSchedule
-  }
-
-  private[scheduling] def pullNextRegions: Set[Region] = {
-    if (!schedule.hasNext) Set() else schedule.next()
   }
 
   /**
@@ -94,7 +84,7 @@ class WorkflowExecutionCoordinator(
     }
 
     // All existing regions are completed. Start the next region (if any).
-    val nextRegions = pullNextRegions
+    val nextRegions = if (!schedule.hasNext) Set.empty[Region] else schedule.next()
     if (nextRegions.isEmpty) {
       if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
         asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
@@ -146,12 +136,6 @@ class WorkflowExecutionCoordinator(
 
   def hasUnfinishedRegionCoordinators: Boolean = {
     regionExecutionCoordinators.values.exists(!_.isCompleted)
-  }
-
-  def jumpToRegionContainingOperator(opId: OperatorIdentity): Unit = {
-    schedule.getLevelIndexOfOperator(opId).foreach { levelIndex =>
-      schedule = schedule.rewriteExecutionFrom(levelIndex)
-    }
   }
 
 }

@@ -116,7 +116,7 @@ class Controller(
   override def initState(): Unit = {
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
-    cp.updateExecutionSchedule(cp.workflowScheduler.getSchedule)
+    cp.workflowExecutionCoordinator.schedule = cp.workflowScheduler.getSchedule
 
     val regions: List[(Long, List[String])] =
       cp.workflowScheduler.getSchedule.getRegions.map { region =>

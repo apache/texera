@@ -27,7 +27,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
-/** Requests the scheduler to continue from the region containing the target operator. */
 trait JumpToOperatorRegionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
@@ -35,7 +34,14 @@ trait JumpToOperatorRegionHandler {
       msg: JumpToOperatorRegionRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    cp.workflowExecutionCoordinator.jumpToRegionContainingOperator(msg.targetOperatorId)
+    val coordinator = cp.workflowExecutionCoordinator
+    coordinator.schedule.levelSets.collectFirst {
+      case (level, regions)
+          if regions.exists(_.getOperators.exists(_.id.logicalOpId == msg.targetOperatorId)) =>
+        level
+    }.foreach { targetLevel =>
+      coordinator.schedule = coordinator.schedule.copy(initialLevelIndex = targetLevel)
+    }
     EmptyReturn()
   }
 }
