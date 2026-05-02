@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: texera-liquibase
+services:
+  liquibase:
+    image: liquibase/liquibase:4.29
+    volumes:
+      - .:/liquibase/sql
+      - ./changelog.xml:/liquibase/changelog.xml
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /tmp/sql/updates
+        for f in /liquibase/sql/updates/*.sql
+        do
+          sed 's/^\\c.*//g;/^SET search_path/d' "$$f" > /tmp/sql/updates/$(basename "$$f")
+        done
+        cp /liquibase/changelog.xml /tmp/changelog.xml
+        liquibase --url=jdbc:postgresql://host.docker.internal:5432/texera_db --username=postgres --password=postgres --changeLogFile=changelog.xml --search-path=/tmp update
+      # NOTE: The usernames/passwords above must match your postgres settings in storage.conf. Update them here if you changed them.
+      # Format: --username=<your-username> --password=<your-password>
+  codegen:
+    image: sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.12.9_2.13.18
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+    working_dir: /texera
+    volumes:
+      - ../:/texera
+      - ${HOME}/.ivy2:/root/.ivy2
+      - ${HOME}/.sbt:/root/.sbt
+    environment:
+      STORAGE_JDBC_URL: "jdbc:postgresql://host.docker.internal:5432/texera_db?currentSchema=texera_db,public"
+    command: sbt jooqGenerate
