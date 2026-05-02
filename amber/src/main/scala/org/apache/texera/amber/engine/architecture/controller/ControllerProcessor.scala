@@ -47,8 +47,6 @@ class ControllerProcessor(
   val workflowScheduler: WorkflowScheduler =
     new WorkflowScheduler(workflowContext, actorId)
 
-  // Constructed eagerly with an empty placeholder; Controller.initState calls
-  // `replaceSchedule(...)` once `workflowScheduler.updateSchedule(...)` has produced the real one.
   val workflowExecutionCoordinator: WorkflowExecutionCoordinator =
     new WorkflowExecutionCoordinator(
       Schedule(Map.empty),
