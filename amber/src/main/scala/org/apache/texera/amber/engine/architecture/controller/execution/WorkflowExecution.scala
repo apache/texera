@@ -41,7 +41,7 @@ case class WorkflowExecution() {
     *
     * @param region The `Region` for which to initialize or retrieve the `RegionExecution`.
     * @return The `RegionExecution` associated with the given `Region`.
-    * @throws AssertionError if the `RegionExecution` has already been initialized.
+    * @throws java.lang.AssertionError if the `RegionExecution` has already been initialized.
     */
   def initRegionExecution(region: Region): RegionExecution = {
     // ensure the region execution hasn't been initialized already.
@@ -130,7 +130,7 @@ case class WorkflowExecution() {
     * @param physicalOpId The unique identifier of the physical operator for which the latest execution is
     *                     to be retrieved.
     * @return The latest `OperatorExecution` instance associated with the given physical operatorId.
-    * @throws NoSuchElementException if no `OperatorExecution` is found for the specified operatorId.
+    * @throws java.util.NoSuchElementException if no `OperatorExecution` is found for the specified operatorId.
     */
   def getLatestOperatorExecution(physicalOpId: PhysicalOpIdentity): OperatorExecution = {
     getLatestOperatorExecutionOption(physicalOpId).get
