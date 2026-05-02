@@ -248,7 +248,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
-          flags: scala
+          flags: amber
           fail_ci_if_error: false
 
   platform:
@@ -336,14 +336,14 @@ jobs:
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/${{ matrix.service }}-*/lib || true
           exit "$check_exit"
       - name: Upload ${{ matrix.service }} coverage to Codecov
-        # Same `scala` flag as the amber job so Codecov merges all Scala
-        # coverage reports into a single view.
+        # All five matrix entries upload under the `platform` flag so
+        # Codecov merges them into one platform-stack view.
         if: always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
-          flags: scala
+          flags: platform
           fail_ci_if_error: false
 
   python:
