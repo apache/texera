@@ -47,10 +47,10 @@ jobs:
   #     the labels it applies (frontend, docs, dev, ...) are available, then
   #     gate run_* outputs on those labels.
   #   - run_frontend / run_scala / run_python / run_agent_service: gate the
-  #     main build stacks. PRs labelled exclusively with docs and/or dev skip
-  #     every stack; otherwise frontend skips when no `frontend` label is
-  #     present (the other stacks always run when at least one non-docs/dev
-  #     label exists). Push and dispatch events run every stack.
+  #     main build stacks. Each labeler-applied label maps to the stacks it
+  #     requires (LABEL_STACKS below); the run set is the union across all
+  #     PR labels. Empty union (e.g. docs-only / dev-only PRs) skips every
+  #     stack. Push and workflow_dispatch events run every stack.
   #   - backport_targets: JSON array of release/* labels currently on the PR.
   #     Drives the backport matrix; empty array means no backport runs.
   precheck:
@@ -106,31 +106,53 @@ jobs:
               core.info(`PR labels: ${labels.join(", ") || "(none)"}`);
             }
 
-            const SKIP_ONLY = new Set(["docs", "dev"]);
-            const FRONTEND_ONLY_ALLOWED = new Set(["frontend", "docs", "dev"]);
-            const onlySkippable =
-              eventName === "pull_request" &&
-              labels.length > 0 &&
-              labels.every((l) => SKIP_ONLY.has(l));
-            const frontendOnly =
-              eventName === "pull_request" &&
-              labels.includes("frontend") &&
-              labels.every((l) => FRONTEND_ONLY_ALLOWED.has(l));
+            // Map each labeler-applied label to the stacks it requires. The
+            // run set is the union across all PR labels. Labels not listed
+            // here (release/*, feature, fix, refactor) contribute no stacks.
+            // dependencies is intentionally a no-op: every dep manifest the
+            // labeler matches lives under a component dir and is already
+            // covered by that component's label.
+            //
+            //   label                | frontend | scala | python | agent-service
+            //   ---------------------|----------|-------|--------|--------------
+            //   frontend             |    x     |       |        |
+            //   python               |          |   x   |   x    |
+            //   engine               |          |   x   |   x    |
+            //   service              |          |   x   |        |     x
+            //   common               |          |   x   |        |
+            //   ddl-change           |          |   x   |        |
+            //   ci                   |    x     |   x   |   x    |     x
+            //   docs / dev / deps /  |          |       |        |
+            //   release/* / branch   |          |       |        |
+            const LABEL_STACKS = {
+              frontend: ["frontend"],
+              python: ["scala", "python"],   // pyamber drives scala integration tests too
+              engine: ["scala", "python"],   // amber/** spans both
+              service: ["scala", "agent-service"],
+              common: ["scala"],
+              "ddl-change": ["scala"],
+              ci: ["frontend", "scala", "python", "agent-service"],
+            };
 
             let runFrontend = true;
             let runScala = true;
             let runPython = true;
             let runAgentService = true;
 
-            if (onlySkippable) {
-              runFrontend = runScala = runPython = runAgentService = false;
-              core.info("Labels are docs/dev only; skipping all build stacks.");
-            } else if (frontendOnly) {
-              runScala = runPython = runAgentService = false;
-              core.info("Labels touch only frontend; skipping non-frontend stacks.");
-            } else if (eventName === "pull_request" && !labels.includes("frontend")) {
-              runFrontend = false;
-              core.info("No frontend label; skipping frontend stack.");
+            if (eventName === "pull_request") {
+              const stacks = new Set();
+              for (const label of labels) {
+                for (const stack of LABEL_STACKS[label] || []) {
+                  stacks.add(stack);
+                }
+              }
+              runFrontend = stacks.has("frontend");
+              runScala = stacks.has("scala");
+              runPython = stacks.has("python");
+              runAgentService = stacks.has("agent-service");
+              core.info(
+                `Stacks selected by label union: ${[...stacks].sort().join(", ") || "(none)"}`
+              );
             }
 
             core.setOutput("run_frontend", runFrontend ? "true" : "false");
