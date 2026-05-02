@@ -89,7 +89,8 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec {
 
   it should "ignore TextParsingExceptions whose cause is unrelated" in {
     val unrelated = new TextParsingException(null, "Some other parsing problem")
-    val withDifferentCause = new TextParsingException(null, "wrapper", new IllegalStateException("nope"))
+    val withDifferentCause =
+      new TextParsingException(null, "wrapper", new IllegalStateException("nope"))
     assert(!CSVScanSourceOpExec.isColumnOverflow(unrelated, maxColumns = 5))
     assert(!CSVScanSourceOpExec.isColumnOverflow(withDifferentCause, maxColumns = 5))
   }
