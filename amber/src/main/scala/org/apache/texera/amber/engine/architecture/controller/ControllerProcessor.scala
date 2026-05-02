@@ -46,9 +46,7 @@ class ControllerProcessor(
   val workflowExecution: WorkflowExecution = WorkflowExecution()
   val workflowScheduler: WorkflowScheduler =
     new WorkflowScheduler(workflowContext, actorId)
-
-  val workflowExecutionCoordinator: WorkflowExecutionCoordinator =
-    new WorkflowExecutionCoordinator(
+  val workflowExecutionCoordinator: WorkflowExecutionCoordinator = new WorkflowExecutionCoordinator(
       Schedule(Map.empty),
       workflowExecution,
       controllerConfig,
