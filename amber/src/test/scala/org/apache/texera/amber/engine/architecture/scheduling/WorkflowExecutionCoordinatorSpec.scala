@@ -90,12 +90,14 @@ class WorkflowExecutionCoordinatorSpec
   private def jumpTo(coordinator: WorkflowExecutionCoordinator, opName: String): Unit = {
     val opId = OperatorIdentity(opName)
     val schedule = coordinator.schedule
-    schedule.levelSets.collectFirst {
-      case (level, regions) if regions.exists(_.getOperators.exists(_.id.logicalOpId == opId)) =>
-        level
-    }.foreach { targetLevel =>
-      coordinator.schedule = schedule.copy(initialLevelIndex = targetLevel)
-    }
+    schedule.levelSets
+      .collectFirst {
+        case (level, regions) if regions.exists(_.getOperators.exists(_.id.logicalOpId == opId)) =>
+          level
+      }
+      .foreach { targetLevel =>
+        coordinator.schedule = schedule.copy(initialLevelIndex = targetLevel)
+      }
   }
 
   "WorkflowExecutionCoordinator" should
@@ -127,8 +129,7 @@ class WorkflowExecutionCoordinatorSpec
       ControllerConfig(None, None, None, None),
       rpcProbe.asyncRPCClient
     )
-    workflowCoordinator.schedule =
-      Schedule(Map(0 -> Set(firstRegion), 1 -> Set(secondRegion)))
+    workflowCoordinator.schedule = Schedule(Map(0 -> Set(firstRegion), 1 -> Set(secondRegion)))
     workflowCoordinator.setupActorRefService(controller.actorRefService)
 
     await(workflowCoordinator.coordinateRegionExecutors(controller.actorService))

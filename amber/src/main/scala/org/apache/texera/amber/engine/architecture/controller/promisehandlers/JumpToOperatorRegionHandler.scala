@@ -35,13 +35,15 @@ trait JumpToOperatorRegionHandler {
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
     val coordinator = cp.workflowExecutionCoordinator
-    coordinator.schedule.levelSets.collectFirst {
-      case (level, regions)
-          if regions.exists(_.getOperators.exists(_.id.logicalOpId == msg.targetOperatorId)) =>
-        level
-    }.foreach { targetLevel =>
-      coordinator.schedule = coordinator.schedule.copy(initialLevelIndex = targetLevel)
-    }
+    coordinator.schedule.levelSets
+      .collectFirst {
+        case (level, regions)
+            if regions.exists(_.getOperators.exists(_.id.logicalOpId == msg.targetOperatorId)) =>
+          level
+      }
+      .foreach { targetLevel =>
+        coordinator.schedule = coordinator.schedule.copy(initialLevelIndex = targetLevel)
+      }
     EmptyReturn()
   }
 }
