@@ -23,13 +23,16 @@
 #     last main push).
 #   * workflow_dispatch: manual smoke test.
 #
-# Strategy: scan open auto-merge PRs targeting main, try updateBranch on each
-# eligible candidate from oldest. A PR is eligible only if it would actually
-# merge once CI passes — auto-merge enabled, not a draft, not conflicting,
-# reviewDecision=APPROVED, and zero unresolved review threads. This avoids
-# burning CI on PRs blocked on review.
-# Retry with backoff up to ~2min, since mergeable / mergeStateStatus are
-# computed asynchronously and can be UNKNOWN right after a base-branch push.
+# Strategy: scan open PRs targeting main and pick the oldest eligible PR with
+# mergeStateStatus=BEHIND, then call updateBranch on it. A PR is eligible only
+# if it would actually merge once CI passes — auto-merge enabled, not a draft,
+# not conflicting, reviewDecision=APPROVED, and zero unresolved review threads.
+# This avoids burning CI on PRs blocked on review.
+#
+# mergeStateStatus is computed asynchronously and is UNKNOWN for a window
+# after a base-branch push. If at least one eligible PR is UNKNOWN, retry
+# with backoff up to ~2min to let it settle. If everything is settled and
+# nothing is BEHIND, exit without retrying — there's no work.
 #
 # Token: needs AUTO_MERGE_TOKEN with contents:write + pull_requests:write so
 # the resulting push retriggers required CI on the PR. Falls back to
@@ -126,61 +129,70 @@ jobs:
               const all = data.repository.pullRequests.nodes;
               core.info(`Scanned ${all.length} open PR(s) targeting main.`);
 
-              const eligible = [];
+              const behind = [];
+              const unknown = [];
               for (const p of all) {
                 const verdict = classify(p);
                 core.info(`  #${p.number} ${verdict} — ${p.title}`);
-                if (verdict.startsWith('eligible')) eligible.push(p);
+                if (!verdict.startsWith('eligible')) continue;
+                if (p.mergeStateStatus === 'BEHIND') behind.push(p);
+                else if (p.mergeStateStatus === 'UNKNOWN') unknown.push(p);
               }
 
-              if (eligible.length === 0) {
-                core.info('No eligible auto-merge PRs this attempt.');
+              core.info(
+                `Eligible: ${behind.length} BEHIND, ${unknown.length} UNKNOWN, ` +
+                `rest already up-to-date or otherwise blocked.`
+              );
+
+              if (behind.length > 0) {
+                let updated = null;
+                for (const pr of behind) {
+                  core.info(`→ updateBranch #${pr.number}`);
+                  try {
+                    const res = await github.rest.pulls.updateBranch({
+                      owner, repo, pull_number: pr.number,
+                    });
+                    core.info(
+                      `✓ #${pr.number} updateBranch dispatched (HTTP ${res.status}).`
+                    );
+                    updated = pr.number;
+                    break;
+                  } catch (e) {
+                    core.warning(
+                      `✗ #${pr.number} updateBranch failed ` +
+                      `(status ${e.status ?? '?'}): ${e.message}`
+                    );
+                  }
+                }
+                core.endGroup();
+                if (updated !== null) {
+                  core.info(`Done: #${updated} updated on attempt ${attempt + 1}.`);
+                  return;
+                }
+                core.info(
+                  'All BEHIND PRs failed updateBranch this attempt; retrying after backoff.'
+                );
+                continue;
+              }
+
+              if (unknown.length > 0) {
+                core.info(
+                  `No BEHIND PRs yet; ${unknown.length} eligible PR(s) ` +
+                  'still UNKNOWN — retrying after backoff to let GitHub settle.'
+                );
                 core.endGroup();
                 continue;
               }
 
               core.info(
-                `${eligible.length} eligible PR(s); trying updateBranch from oldest.`
+                'No BEHIND or UNKNOWN eligible PRs — nothing to do this run.'
               );
-
-              let updated = null;
-              for (const pr of eligible) {
-                core.info(
-                  `→ updateBranch #${pr.number} (state=${pr.mergeStateStatus})`
-                );
-                try {
-                  const res = await github.rest.pulls.updateBranch({
-                    owner, repo, pull_number: pr.number,
-                  });
-                  core.info(
-                    `✓ #${pr.number} updateBranch dispatched (HTTP ${res.status}).`
-                  );
-                  updated = pr.number;
-                  break;
-                } catch (e) {
-                  core.warning(
-                    `✗ #${pr.number} updateBranch did not apply ` +
-                    `(status ${e.status ?? '?'}): ${e.message}`
-                  );
-                }
-              }
-
               core.endGroup();
-
-              if (updated !== null) {
-                core.info(
-                  `Done: #${updated} updated on attempt ${attempt + 1}.`
-                );
-                return;
-              }
-
-              if (attempt + 1 < BACKOFFS_MS.length) {
-                core.info('No PR updated; will retry after backoff.');
-              }
+              return;
             }
 
             const totalS = Math.round((Date.now() - start) / 1000);
             core.info(
-              `Exhausted ${BACKOFFS_MS.length} attempt(s) over ${totalS}s; ` +
-              `no PR updated this run.`
+              `Exhausted ${BACKOFFS_MS.length} attempt(s) over ${totalS}s ` +
+              `without finding a BEHIND PR to update.`
             );
