@@ -43,20 +43,6 @@ body:
       required: true
 
   - type: dropdown
-    id: impact
-    attributes:
-      label: Impact / Priority
-      description: How important is this feature?
-      options:
-        - (P0)Critical – blocks existing use cases
-        - (P1)High – significantly improves user experience
-        - (P2)Medium – useful enhancement
-        - (P3)Low – nice to have
-      default: 2
-    validations:
-      required: true
-
-  - type: dropdown
     id: affected-area
     attributes:
       label: Affected Area
