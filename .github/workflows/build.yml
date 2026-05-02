@@ -107,7 +107,7 @@ jobs:
         run: yarn --cwd frontend format:ci
       - name: Prod build
         run: yarn --cwd frontend run build:ci
-      - name: Check bundled npm packages against LICENSE-binary
+      - name: Check bundled npm packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
         run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
@@ -116,6 +116,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/coverage/**/lcov.info
           flags: frontend
           fail_ci_if_error: false
@@ -247,6 +248,7 @@ jobs:
         if: always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
           flags: scala
           fail_ci_if_error: false
@@ -293,7 +295,7 @@ jobs:
       - name: Generate pip-licenses manifest
         if: matrix.python-version == '3.12'
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
-      - name: Check installed Python packages against LICENSE-binary
+      - name: Check installed Python packages against per-module LICENSE-binary files
         if: matrix.python-version == '3.12'
         run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
       - name: Create iceberg catalog database
@@ -316,6 +318,7 @@ jobs:
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/src/main/python/coverage.xml
           flags: python
           fail_ci_if_error: false
@@ -353,7 +356,7 @@ jobs:
         run: |
           mkdir -p dist
           bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
-      - name: Check bundled agent-service packages against LICENSE-binary
+      - name: Check bundled agent-service packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
         run: ../bin/licensing/check_binary_deps.py agent-npm dist/3rdpartylicenses.json
       - name: Install development dependencies
@@ -368,6 +371,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/coverage/lcov.info
           flags: agent-service
           fail_ci_if_error: false

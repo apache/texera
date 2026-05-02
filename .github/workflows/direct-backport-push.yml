@@ -189,6 +189,11 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          # Use AUTO_MERGE_TOKEN (fine-grained PAT) so the push to the release
+          # branch retriggers workflows on that branch. GITHUB_TOKEN-authored
+          # pushes are excluded from triggering downstream workflows, which
+          # silences post-merge CI on backport commits.
+          token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Cherry-pick merge commit onto target branch
         env:
           MERGE_SHA: ${{ github.sha }}

@@ -30,7 +30,7 @@ public @interface JsonSchemaInject {
     String json() default "{}";
 
     /**
-     * @return a class for supplier of a raw json. The json gets applied after {@link #json()}.
+     * @return a class for supplier of a raw json. The json gets applied after {@link JsonSchemaInject#json()}.
      */
     Class<? extends Supplier<JsonNode>> jsonSupplier() default None.class;
 
@@ -40,7 +40,7 @@ public @interface JsonSchemaInject {
     String jsonSupplierViaLookup() default "";
 
     /**
-     * @return a collection of key/value pairs to merge on top of the generated jsonSchema and applied after {@link #jsonSupplier()}
+     * @return a collection of key/value pairs to merge on top of the generated jsonSchema and applied after {@link JsonSchemaInject#jsonSupplier()}
      */
     JsonSchemaString[] strings() default {};
 

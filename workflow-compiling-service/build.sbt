@@ -29,7 +29,9 @@ enablePlugins(JavaAppPackaging)
 // See project/AddMetaInfLicenseFiles.scala.
 Universal / mappings := AddMetaInfLicenseFiles.distMappings(
   (Universal / mappings).value,
-  (ThisBuild / baseDirectory).value
+  (ThisBuild / baseDirectory).value,
+  baseDirectory.value / "LICENSE-binary",
+  baseDirectory.value / "NOTICE-binary"
 )
 
 // Enable semanticdb for Scalafix

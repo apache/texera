@@ -155,6 +155,7 @@ jobs:
           # Copy deployment files
           cp "$TEMP_DIR/_raw/bin/single-node/docker-compose.yml" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/nginx.conf" "$BUNDLE_DIR/"
+          cp "$TEMP_DIR/_raw/bin/single-node/litellm-config.yaml" "$BUNDLE_DIR/"
           cp -r "$TEMP_DIR/_raw/sql" "$BUNDLE_DIR/"
 
           # Patch the SQL mount path for the self-contained bundle layout
