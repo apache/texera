@@ -118,7 +118,8 @@ jobs:
             //   frontend             |    x     |       |        |
             //   python               |          |   x   |   x    |
             //   engine               |          |   x   |   x    |
-            //   service              |          |   x   |        |     x
+            //   service              |          |   x   |        |
+            //   agent-service        |          |       |        |     x
             //   common               |          |   x   |        |
             //   ddl-change           |          |   x   |        |
             //   ci                   |    x     |   x   |   x    |     x
@@ -126,9 +127,10 @@ jobs:
             //   release/* / branch   |          |       |        |
             const LABEL_STACKS = {
               frontend: ["frontend"],
-              python: ["scala", "python"],   // pyamber drives scala integration tests too
-              engine: ["scala", "python"],   // amber/** spans both
-              service: ["scala", "agent-service"],
+              python: ["scala", "python"],     // pyamber drives scala integration tests too
+              engine: ["scala", "python"],     // amber/** spans both
+              service: ["scala"],              // scala-side services; agent-service is its own label
+              "agent-service": ["agent-service"],
               common: ["scala"],
               "ddl-change": ["scala"],
               ci: ["frontend", "scala", "python", "agent-service"],
