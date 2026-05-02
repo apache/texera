@@ -62,7 +62,7 @@ class StableMergeSortOpExecSpec extends AnyFlatSpec {
     * Construct a Tuple for the provided schema.
     *
     * @param values map-like varargs: "colName" -> value. Must provide every column.
-    * @throws NoSuchElementException if a provided key is not in the schema.
+    * @throws java.util.NoSuchElementException if a provided key is not in the schema.
     */
   private def tupleOf(schema: Schema, values: (String, Any)*): Tuple = {
     val valueMap = values.toMap

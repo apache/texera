@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
-COPY LICENSE LICENSE-binary NOTICE NOTICE-binary DISCLAIMER ./
+COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
 
 RUN sbt clean AccessControlService/dist
@@ -56,8 +56,8 @@ COPY --from=build /texera/access-control-service/src/main/resources /texera/acce
 # bundled third-party contents of this image and ship as /texera/LICENSE
 # and /texera/NOTICE; licenses/ holds the per-license full texts referenced
 # by LICENSE-binary.
-COPY --from=build /texera/LICENSE-binary /texera/LICENSE
-COPY --from=build /texera/NOTICE-binary /texera/NOTICE
+COPY --from=build /texera/access-control-service/LICENSE-binary /texera/LICENSE
+COPY --from=build /texera/access-control-service/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
 CMD ["bin/access-control-service"]

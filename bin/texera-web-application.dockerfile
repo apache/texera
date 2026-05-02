@@ -40,22 +40,38 @@ COPY amber/ amber/
 COPY project/ project/
 COPY build.sbt build.sbt
 
-# Update system and install dependencies
+# Update system and install dependencies. python3-minimal is needed by
+# bin/licensing/concat_license_binary.py below.
 RUN apt-get update && apt-get install -y \
     netcat \
     unzip \
     libpq-dev \
+    python3-minimal \
     && apt-get clean
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
-COPY LICENSE LICENSE-binary NOTICE NOTICE-binary DISCLAIMER ./
+COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
+COPY bin/licensing/ bin/licensing/
+
+# Bring frontend/LICENSE-binary into this build stage so the per-image
+# LICENSE merge below can union it with amber/LICENSE-binary-java.
+COPY --from=build-frontend /frontend/LICENSE-binary amber/LICENSE-binary-frontend
 
 RUN sbt clean WorkflowExecutionService/dist
 
 # Unzip the texera binary
 RUN unzip amber/target/universal/amber-*.zip -d amber/target/
+
+# Merge per-aspect LICENSE-binary files (java jars + frontend npm) into a
+# single LICENSE-binary-combined keyed by license group, for the runtime
+# image. Per-license-group merge keeps Scala/Java jars and Angular npm
+# packages inside the same Apache-2.0 / MIT / BSD / ... section instead
+# of stacking the inputs end-to-end.
+RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined \
+        amber/LICENSE-binary-java \
+        amber/LICENSE-binary-frontend
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
@@ -72,8 +88,8 @@ COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/
 # bundled third-party contents of this image and ship as /texera/LICENSE
 # and /texera/NOTICE; licenses/ holds the per-license full texts referenced
 # by LICENSE-binary.
-COPY --from=build /texera/LICENSE-binary /texera/LICENSE
-COPY --from=build /texera/NOTICE-binary /texera/NOTICE
+COPY --from=build /texera/amber/LICENSE-binary-combined /texera/LICENSE
+COPY --from=build /texera/amber/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
 CMD ["bin/texera-web-application"]
