@@ -76,6 +76,15 @@ class WorkflowExecutionCoordinatorSpec
   private def newJumpCoordinator(schedule: Schedule): WorkflowExecutionCoordinator =
     new WorkflowExecutionCoordinator(schedule, WorkflowExecution(), null, null)
 
+  // Mirrors what JumpToOperatorRegionHandler does: read the current schedule, find the level
+  // containing the target operator, and replace the schedule with a copy seeded at that level.
+  private def jumpTo(coordinator: WorkflowExecutionCoordinator, opName: String): Unit = {
+    val schedule = coordinator.getSchedule
+    schedule.getLevelIndexOfOperator(OperatorIdentity(opName)).foreach { levelIndex =>
+      coordinator.replaceSchedule(schedule.copy(initialLevelIndex = levelIndex))
+    }
+  }
+
   "WorkflowExecutionCoordinator" should
     "start the next region only after previous region termination succeeds" in {
     val firstOp = createSourceOp("first-op")
@@ -126,7 +135,7 @@ class WorkflowExecutionCoordinatorSpec
     assert(rpcProbe.startedWorkers.contains(secondWorkerId))
   }
 
-  "WorkflowExecutionCoordinator.jumpToRegionContainingOperator" should
+  "Jumping to an operator's region" should
     "make the next scheduled region contain the target operator's region" in {
     val (first, second, _, schedule) = threeLevelSchedule()
     val coordinator = newJumpCoordinator(schedule)
@@ -134,7 +143,7 @@ class WorkflowExecutionCoordinatorSpec
     assert(coordinator.getNextRegions == Set(first))
     assert(coordinator.getNextRegions == Set(second))
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+    jumpTo(coordinator, "first")
 
     assert(coordinator.getNextRegions == Set(first))
   }
@@ -146,14 +155,14 @@ class WorkflowExecutionCoordinatorSpec
     assert(coordinator.getNextRegions == Set(first))
     assert(coordinator.getNextRegions == Set(second))
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+    jumpTo(coordinator, "first")
     assert(coordinator.getNextRegions == Set(first))
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("second"))
+    jumpTo(coordinator, "second")
     assert(coordinator.getNextRegions == Set(second))
     assert(coordinator.getNextRegions == Set(third))
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+    jumpTo(coordinator, "first")
     assert(coordinator.getNextRegions == Set(first))
   }
 
@@ -163,7 +172,7 @@ class WorkflowExecutionCoordinatorSpec
 
     assert(coordinator.getNextRegions == Set(first))
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("does-not-exist"))
+    jumpTo(coordinator, "does-not-exist")
 
     // Iteration position must be unaffected by an unknown target.
     assert(coordinator.getNextRegions == Set(second))
@@ -173,9 +182,9 @@ class WorkflowExecutionCoordinatorSpec
     val (first, second, third, schedule) = threeLevelSchedule()
     val coordinator = newJumpCoordinator(schedule)
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-1"))
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-2"))
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("ghost-3"))
+    jumpTo(coordinator, "ghost-1")
+    jumpTo(coordinator, "ghost-2")
+    jumpTo(coordinator, "ghost-3")
 
     assert(coordinator.getNextRegions == Set(first))
     assert(coordinator.getNextRegions == Set(second))
@@ -191,7 +200,7 @@ class WorkflowExecutionCoordinatorSpec
     assert(coordinator.getNextRegions == Set(third))
     assert(coordinator.getNextRegions == Set.empty)
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("first"))
+    jumpTo(coordinator, "first")
     assert(coordinator.getNextRegions == Set(first))
   }
 
@@ -201,7 +210,7 @@ class WorkflowExecutionCoordinatorSpec
 
     assert(coordinator.getNextRegions == Set(first))
 
-    coordinator.jumpToRegionContainingOperator(OperatorIdentity("third"))
+    jumpTo(coordinator, "third")
     assert(coordinator.getNextRegions == Set(third))
     assert(coordinator.getNextRegions == Set.empty)
   }

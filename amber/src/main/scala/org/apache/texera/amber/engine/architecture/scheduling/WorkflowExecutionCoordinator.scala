@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 import org.apache.texera.amber.engine.architecture.common.{
   AkkaActorRefMappingService,
@@ -56,6 +55,8 @@ class WorkflowExecutionCoordinator(
   def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
   }
+
+  def getSchedule: Schedule = schedule
 
   def replaceSchedule(newSchedule: Schedule): Unit = {
     schedule = newSchedule
@@ -146,12 +147,6 @@ class WorkflowExecutionCoordinator(
 
   def hasUnfinishedRegionCoordinators: Boolean = {
     regionExecutionCoordinators.values.exists(!_.isCompleted)
-  }
-
-  def jumpToRegionContainingOperator(opId: OperatorIdentity): Unit = {
-    schedule.getLevelIndexOfOperator(opId).foreach { levelIndex =>
-      schedule = schedule.copy(initialLevelIndex = levelIndex)
-    }
   }
 
 }
