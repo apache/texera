@@ -106,40 +106,6 @@ WordBreakTestUnicode_*.java is derived from Unicode data such as the
 Unicode Character Database.
 
 --------------------------------------------------------------------------------
-Apache Pekko
---------------------------------------------------------------------------------
-
-Apache Pekko
-Copyright 2022-2025 The Apache Software Foundation
-
-This product contains significant parts that were originally based on
-software from Lightbend (Akka <https://akka.io/>).
-Copyright (C) 2009-2022 Lightbend Inc. <https://www.lightbend.com>
-
-Apache Pekko is derived from Akka 2.6.x, the last version that was
-distributed under the Apache License, Version 2.0.
-
-pekko-actor contains MurmurHash.scala, scala-collection-compat, and code
-from scala-library, each modified by the Scala-Lang team under an Apache
-2.0 license.
-
-  Scala
-  Copyright (c) 2002-2023 EPFL
-  Copyright (c) 2011-2023 Lightbend, Inc.
-
-  Scala includes software developed at LAMP/EPFL (https://lamp.epfl.ch/)
-  and Lightbend, Inc. (https://www.lightbend.com/).
-
-pekko-actor contains code from Netty, released under an Apache 2.0
-license. Copyright 2014 The Netty Project (https://netty.io/).
-
-pekko-actor contains code from java-uuid-generator
-(https://github.com/cowtowncoder/java-uuid-generator) in
-`org.apache.pekko.util.UUIDComparator.scala`, released under an Apache 2.0
-license. Java UUID generator library has been written by Tatu Saloranta
-(tatu.saloranta@iki.fi).
-
---------------------------------------------------------------------------------
 Apache Parquet
 --------------------------------------------------------------------------------
 
@@ -154,7 +120,6 @@ This product includes code from Apache Avro.
 --------------------------------------------------------------------------------
 Apache Iceberg
 --------------------------------------------------------------------------------
-
 
 Apache Iceberg
 Copyright 2017-2024 The Apache Software Foundation
@@ -375,69 +340,6 @@ The AWS SDK bundles the following third-party works:
 Required Apache Commons Lang attribution:
   Apache Commons Lang
   Copyright 2001-2020 The Apache Software Foundation
-
---------------------------------------------------------------------------------
-Kryo
---------------------------------------------------------------------------------
-
-Kryo bundles Objenesis (see below).
-
---------------------------------------------------------------------------------
-Objenesis
---------------------------------------------------------------------------------
-
-Objenesis
-Copyright 2006-2024 Joe Walnes, Henri Tremblay, Leonardo Mesquita
-
-(NOTICE file corresponding to section 4d of the Apache License, Version
-2.0, in this case for Objenesis.)
-
---------------------------------------------------------------------------------
-Jasypt
---------------------------------------------------------------------------------
-
-Copyright (c) 2007-2010, The JASYPT team (http://www.jasypt.org)
-
-This distribution includes cryptographic software. The country in which
-you currently reside may have restrictions on the import, possession, use,
-and/or re-export to another country, of encryption software. BEFORE using
-any encryption software, please check your country's laws, regulations and
-policies concerning the import, possession, use, or re-export of
-encryption software.
-
-The U.S. Government Department of Commerce, Bureau of Industry and
-Security (BIS), has classified this software as Export Commodity Control
-Number (ECCN) 5D002.C.1. The PBE Encryption facilities require the Java
-Cryptography Extensions.
-
-Jasypt includes the ICU License (ICU 1.8.1 and later):
-
-  Copyright (c) 1995-2006 International Business Machines Corporation and
-  others. All rights reserved.
-
-  Permission is hereby granted, free of charge, to any person obtaining a
-  copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, and/or sell copies of the Software, and to permit persons
-  to whom the Software is furnished to do so, provided that the above
-  copyright notice(s) and this permission notice appear in all copies of
-  the Software and that both the above copyright notice(s) and this
-  permission notice appear in supporting documentation.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-  OR IMPLIED.
-
-  Except as contained in this notice, the name of a copyright holder
-  shall not be used in advertising or otherwise to promote the sale, use
-  or other dealings in this Software without prior written authorization
-  of the copyright holder.
-
---------------------------------------------------------------------------------
-Joda-Time
---------------------------------------------------------------------------------
-
-This product includes software developed by Joda.org (https://www.joda.org/).
 
 --------------------------------------------------------------------------------
 Jackson core (verbatim upstream NOTICE)
@@ -758,7 +660,6 @@ granted provided that the copyright notice appears in all copies.
 Apache Parquet (per-component supplementary notices)
 --------------------------------------------------------------------------------
 
-
 Apache Parquet MR (Incubating)
 Copyright 2014-2015 The Apache Software Foundation
 
@@ -815,31 +716,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
---------------------------------------------------------------------------------
-Joda-Convert
---------------------------------------------------------------------------------
-
-Joda Convert
-Copyright 2010-present Stephen Colebourne
-
-This product includes software developed by
-Joda.org (https://www.joda.org/).
-
-
-Joda-Convert includes code from Google Guava, which is licensed as follows:
-
-Copyright (C) 2011 The Guava Authors
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-in compliance with the License. You may obtain a copy of the License at
-
-https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License
-is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-or implied. See the License for the specific language governing permissions and limitations under
-the License.
 
 --------------------------------------------------------------------------------
 Eclipse Jersey (jersey-container-servlet, jersey-container-servlet-core, jersey-client, jersey-hk2, jersey-media-jaxb)
@@ -1995,43 +1871,3 @@ SPDX-License-Identifier: BSD-3-Clause
 The project maintains the following source code repositories:
 
 * https://github.com/eclipse-ee4j/jaf
-
---------------------------------------------------------------------------------
-Bouncy Castle
---------------------------------------------------------------------------------
-
-Bouncy Castle Cryptography (org.bouncycastle.*) is distributed under the
-Bouncy Castle License, whose text reproduces the MIT License with Bouncy
-Castle's copyright line:
-
-  Copyright (c) 2000-2024 The Legion of the Bouncy Castle Inc.
-  (https://www.bouncycastle.org)
-
-The full MIT-equivalent text is reproduced in
-licenses/LICENSE-MIT.txt; the Bouncy Castle copyright line above must be
-preserved alongside it.
-
---------------------------------------------------------------------------------
-aiohttp (vendored MIT-licensed C parser code)
---------------------------------------------------------------------------------
-
-The aiohttp wheel is primarily Apache-2.0 but bundles a small amount of
-MIT-licensed C code used for HTTP parsing. The MIT attribution required
-for redistribution of that code is:
-
-  Copyright (c) the aiohttp contributors and upstream authors of the
-  vendored parser source. Distributed under the MIT License.
-
-Consumers of the aiohttp wheel must preserve that MIT copyright notice in
-any downstream redistribution of the parser source or object code.
-
---------------------------------------------------------------------------------
-Matplotlib
---------------------------------------------------------------------------------
-
-Matplotlib is distributed under the "Matplotlib License", a modification of
-the PSF License. The attribution required for redistribution is:
-
-  Copyright (c) 2012- Matplotlib Development Team; All Rights Reserved.
-
-The full license text is covered by licenses/LICENSE-PSF-2.0.txt.

@@ -107,7 +107,7 @@ jobs:
         run: yarn --cwd frontend format:ci
       - name: Prod build
         run: yarn --cwd frontend run build:ci
-      - name: Check bundled npm packages against LICENSE-binary
+      - name: Check bundled npm packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
         run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
@@ -295,7 +295,7 @@ jobs:
       - name: Generate pip-licenses manifest
         if: matrix.python-version == '3.12'
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
-      - name: Check installed Python packages against LICENSE-binary
+      - name: Check installed Python packages against per-module LICENSE-binary files
         if: matrix.python-version == '3.12'
         run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
       - name: Create iceberg catalog database
@@ -356,7 +356,7 @@ jobs:
         run: |
           mkdir -p dist
           bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
-      - name: Check bundled agent-service packages against LICENSE-binary
+      - name: Check bundled agent-service packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
         run: ../bin/licensing/check_binary_deps.py agent-npm dist/3rdpartylicenses.json
       - name: Install development dependencies
