@@ -81,12 +81,21 @@ class WorkflowExecutionCoordinatorSpec
     if (schedule.hasNext) schedule.next() else Set.empty
   }
 
-  // Mirrors what JumpToOperatorRegionHandler does: read the current schedule, find the level
-  // containing the target operator, and replace the schedule with a copy seeded at that level.
+  // Mirrors what JumpToOperatorRegionHandler does: read the current schedule, look up the level
+  // containing the target operator, and replace the schedule with a copy whose execution levels
+  // are extended with a `targetLevel..N-1` replay tail.
   private def jumpTo(coordinator: WorkflowExecutionCoordinator, opName: String): Unit = {
     val schedule = coordinator.getSchedule
-    schedule.getLevelIndexOfOperator(OperatorIdentity(opName)).foreach { levelIndex =>
-      coordinator.replaceSchedule(schedule.copy(initialLevelIndex = levelIndex))
+    schedule.getLevelIndexOfOperator(OperatorIdentity(opName)).foreach { targetLevel =>
+      val extendedExecutionLevels =
+        schedule.effectiveExecutionLevels.take(schedule.position) ++
+          Vector.range(targetLevel, schedule.levelCount)
+      coordinator.replaceSchedule(
+        schedule.copy(
+          executionLevels = extendedExecutionLevels,
+          initialLevelIndex = schedule.position
+        )
+      )
     }
   }
 
@@ -217,6 +226,37 @@ class WorkflowExecutionCoordinatorSpec
 
     jumpTo(coordinator, "third")
     assert(nextRegions(coordinator) == Set(third))
+    assert(nextRegions(coordinator) == Set.empty)
+  }
+
+  it should "extend the execution with a replay tail on each backward jump" in {
+    // Schedule ABCDEF: jumping from E back to C yields ABCDECDEF; jumping again from E back to C
+    // yields ABCDECDECDEF.
+    val a = jumpRegion(1, "a")
+    val b = jumpRegion(2, "b")
+    val c = jumpRegion(3, "c")
+    val d = jumpRegion(4, "d")
+    val e = jumpRegion(5, "e")
+    val f = jumpRegion(6, "f")
+    val schedule = Schedule(
+      Map(0 -> Set(a), 1 -> Set(b), 2 -> Set(c), 3 -> Set(d), 4 -> Set(e), 5 -> Set(f))
+    )
+    val coordinator = newJumpCoordinator(schedule)
+
+    Seq(a, b, c, d, e).foreach { region =>
+      assert(nextRegions(coordinator) == Set(region))
+    }
+
+    jumpTo(coordinator, "c")
+    Seq(c, d, e).foreach { region =>
+      assert(nextRegions(coordinator) == Set(region))
+    }
+
+    jumpTo(coordinator, "c")
+    Seq(c, d, e, f).foreach { region =>
+      assert(nextRegions(coordinator) == Set(region))
+    }
+
     assert(nextRegions(coordinator) == Set.empty)
   }
 }
