@@ -19,10 +19,8 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
-
 case class Schedule(
-    private val levelSets: Map[Int, Set[Region]],
+    levelSets: Map[Int, Set[Region]],
     initialLevelIndex: Int = 0
 ) extends Iterator[Set[Region]] {
   require(
@@ -30,17 +28,9 @@ case class Schedule(
     s"Schedule level keys must be contiguous starting at 0, got: ${levelSets.keys.toSeq.sorted}"
   )
 
-  private val operatorLevelIndices: Map[OperatorIdentity, Int] =
-    levelSets.iterator.flatMap {
-      case (level, regions) =>
-        regions.iterator.flatMap(region => region.getOperators.map(_.id.logicalOpId -> level))
-    }.toMap
-
   private var currentLevel: Int = initialLevelIndex
 
   def getRegions: List[Region] = levelSets.values.flatten.toList
-
-  def getLevelIndexOfOperator(opId: OperatorIdentity): Option[Int] = operatorLevelIndices.get(opId)
 
   override def hasNext: Boolean = levelSets.isDefinedAt(currentLevel)
 

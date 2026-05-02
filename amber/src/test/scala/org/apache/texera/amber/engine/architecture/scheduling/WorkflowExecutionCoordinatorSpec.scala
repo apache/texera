@@ -81,12 +81,16 @@ class WorkflowExecutionCoordinatorSpec
     if (schedule.hasNext) schedule.next() else Set.empty
   }
 
-  // Mirrors what JumpToOperatorRegionHandler does: read the current schedule, look up the level
-  // containing the target operator, and replace the schedule with a copy whose cursor is at
-  // that level.
+  // Mirrors what JumpToOperatorRegionHandler does: read the current schedule, scan for the
+  // level containing the target operator, and replace the schedule with a copy whose cursor is
+  // at that level.
   private def jumpTo(coordinator: WorkflowExecutionCoordinator, opName: String): Unit = {
+    val opId = OperatorIdentity(opName)
     val schedule = coordinator.getSchedule
-    schedule.getLevelIndexOfOperator(OperatorIdentity(opName)).foreach { targetLevel =>
+    schedule.levelSets.collectFirst {
+      case (level, regions) if regions.exists(_.getOperators.exists(_.id.logicalOpId == opId)) =>
+        level
+    }.foreach { targetLevel =>
       coordinator.replaceSchedule(schedule.copy(initialLevelIndex = targetLevel))
     }
   }
