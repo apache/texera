@@ -400,7 +400,7 @@ object LakeFSStorageClient {
     *
     * @param address URI string in the form "<scheme>://<bucket>/<key...>"
     * @return (bucket, key) where key does not start with "/"
-    * @throws IllegalArgumentException
+    * @throws java.lang.IllegalArgumentException
     *   if the address is empty, not a valid URI, missing bucket/host, or missing key/path
     */
   def parsePhysicalAddress(address: String): (String, String) = {
