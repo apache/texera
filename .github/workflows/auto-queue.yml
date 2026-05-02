@@ -24,9 +24,12 @@
 #   * workflow_dispatch: manual smoke test.
 #
 # Strategy: scan open auto-merge PRs targeting main, try updateBranch on each
-# eligible candidate from oldest. Retry with backoff up to ~2min, since
-# mergeable / mergeStateStatus are computed asynchronously and can be UNKNOWN
-# right after a base-branch push.
+# eligible candidate from oldest. A PR is eligible only if it would actually
+# merge once CI passes — auto-merge enabled, not a draft, not conflicting,
+# reviewDecision=APPROVED, and zero unresolved review threads. This avoids
+# burning CI on PRs blocked on review.
+# Retry with backoff up to ~2min, since mergeable / mergeStateStatus are
+# computed asynchronously and can be UNKNOWN right after a base-branch push.
 #
 # Token: needs AUTO_MERGE_TOKEN with contents:write + pull_requests:write so
 # the resulting push retriggers required CI on the PR. Falls back to
@@ -81,7 +84,11 @@ jobs:
                       isDraft
                       mergeable
                       mergeStateStatus
+                      reviewDecision
                       autoMergeRequest { enabledAt }
+                      reviewThreads(first: 100) {
+                        nodes { isResolved }
+                      }
                     }
                   }
                 }
@@ -91,6 +98,14 @@ jobs:
               if (!p.autoMergeRequest) return 'skip: auto-merge not enabled';
               if (p.isDraft) return 'skip: draft';
               if (p.mergeable === 'CONFLICTING') return 'skip: mergeable=CONFLICTING';
+              if (p.reviewDecision !== 'APPROVED') {
+                return `skip: reviewDecision=${p.reviewDecision || 'NONE'}`;
+              }
+              const threads = p.reviewThreads?.nodes ?? [];
+              const unresolved = threads.filter((t) => !t.isResolved).length;
+              if (unresolved > 0) {
+                return `skip: ${unresolved} unresolved review thread(s)`;
+              }
               return `eligible: mergeable=${p.mergeable} state=${p.mergeStateStatus}`;
             }
 
