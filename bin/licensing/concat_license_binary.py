@@ -90,6 +90,7 @@ TRAILER = (
 @dataclass
 class Subsection:
     header: str
+    sub_license: str | None = None  # e.g. "CDDL 1.0\n~~~~~~~~", or None
     entries: list[list[str]] = field(default_factory=list)
 
 
@@ -97,8 +98,10 @@ class Subsection:
 class Group:
     header_block: list[str]
     title: str
-    sub_license: str | None = None
-    subsections: "OrderedDict[str, Subsection]" = field(default_factory=OrderedDict)
+    # Keyed by (sub_license, header). Two subsections with the same header
+    # (e.g. "Scala/Java jars:") under different sub-licenses (CDDL 1.0 vs
+    # CDDL 1.1) are distinct entries — that's why we key on the tuple.
+    subsections: "OrderedDict[tuple[str | None, str], Subsection]" = field(default_factory=OrderedDict)
 
     def has_entries(self) -> bool:
         return any(s.entries for s in self.subsections.values())
@@ -157,14 +160,17 @@ def parse(path: Path) -> tuple[str, list[Group]]:
 
         grp = Group(header_block=header_block, title=title)
         current: Subsection | None = None
+        current_sub_license: str | None = None
         while i < len(lines) and lines[i] != SEP:
             line = lines[i]
-            # Sub-license heading (e.g. "CDDL 1.0\n~~~~~~~~")
+            # Sub-license heading (e.g. "CDDL 1.0\n~~~~~~~~"). A group can
+            # carry multiple of these (CDDL 1.0 then CDDL 1.1); each acts
+            # as a scope marker for the subsections that follow.
             if i + 1 < len(lines) and lines[i + 1].startswith("~~~"):
                 if current is not None:
-                    grp.subsections[current.header] = current
+                    grp.subsections[(current.sub_license, current.header)] = current
                     current = None
-                grp.sub_license = line + "\n" + lines[i + 1]
+                current_sub_license = line + "\n" + lines[i + 1]
                 i += 3
                 continue
             # Subsection header (ends with ':'; matches our known set)
@@ -175,8 +181,8 @@ def parse(path: Path) -> tuple[str, list[Group]]:
                 [(p, p) for p in SUBSECTION_ORDER]
             ):
                 if current is not None:
-                    grp.subsections[current.header] = current
-                current = Subsection(header=stripped)
+                    grp.subsections[(current.sub_license, current.header)] = current
+                current = Subsection(header=stripped, sub_license=current_sub_license)
                 i += 1
                 continue
             # Entry: "  - <id>"; continuation lines start with 4 spaces and
@@ -195,7 +201,7 @@ def parse(path: Path) -> tuple[str, list[Group]]:
                 continue
             i += 1
         if current is not None:
-            grp.subsections[current.header] = current
+            grp.subsections[(current.sub_license, current.header)] = current
         groups.append(grp)
 
     return apache_header, groups
@@ -210,15 +216,15 @@ def merge(parsed: list[tuple[str, list[Group]]]) -> tuple[str, list[Group]]:
                 merged[g.title] = Group(
                     header_block=list(g.header_block),
                     title=g.title,
-                    sub_license=g.sub_license,
                 )
             mg = merged[g.title]
-            if mg.sub_license is None and g.sub_license is not None:
-                mg.sub_license = g.sub_license
-            for sub_header, sub in g.subsections.items():
-                if sub_header not in mg.subsections:
-                    mg.subsections[sub_header] = Subsection(header=sub_header)
-                target = mg.subsections[sub_header]
+            for key, sub in g.subsections.items():
+                if key not in mg.subsections:
+                    mg.subsections[key] = Subsection(
+                        header=sub.header,
+                        sub_license=sub.sub_license,
+                    )
+                target = mg.subsections[key]
                 seen = {entry_id(e) for e in target.entries}
                 for e in sub.entries:
                     eid = entry_id(e)
@@ -226,16 +232,31 @@ def merge(parsed: list[tuple[str, list[Group]]]) -> tuple[str, list[Group]]:
                         target.entries.append(e)
                         seen.add(eid)
 
-    # Reorder subsections within each group by SUBSECTION_ORDER.
+    # Reorder subsections within each group: group by sub_license bucket
+    # (preserving first-seen sub-license order), and within each bucket
+    # order by SUBSECTION_ORDER.
     for mg in merged.values():
-        ordered: "OrderedDict[str, Subsection]" = OrderedDict()
-        for prefix in SUBSECTION_ORDER:
-            for h, sub in mg.subsections.items():
-                if h.startswith(prefix) and h not in ordered:
-                    ordered[h] = sub
-        for h, sub in mg.subsections.items():
-            if h not in ordered:
-                ordered[h] = sub
+        sub_license_order: list[str | None] = []
+        by_sub_license: "OrderedDict[str | None, list[tuple[tuple[str | None, str], Subsection]]]" = OrderedDict()
+        for key, sub in mg.subsections.items():
+            sl = sub.sub_license
+            if sl not in by_sub_license:
+                by_sub_license[sl] = []
+                sub_license_order.append(sl)
+            by_sub_license[sl].append((key, sub))
+
+        ordered: "OrderedDict[tuple[str | None, str], Subsection]" = OrderedDict()
+        for sl in sub_license_order:
+            bucket = by_sub_license[sl]
+            placed: set[tuple[str | None, str]] = set()
+            for prefix in SUBSECTION_ORDER:
+                for key, sub in bucket:
+                    if sub.header.startswith(prefix) and key not in placed:
+                        ordered[key] = sub
+                        placed.add(key)
+            for key, sub in bucket:
+                if key not in placed:
+                    ordered[key] = sub
         mg.subsections = ordered
 
     return apache_header, list(merged.values())
@@ -257,12 +278,18 @@ def emit(apache_header: str, groups: list[Group]) -> str:
             continue
         out.extend(g.header_block)
         out.append("")
-        if g.sub_license:
-            out.append(g.sub_license)
-            out.append("")
+        last_sub_license: str | None = None
+        last_sub_license_emitted = False
         for sub in g.subsections.values():
             if not sub.entries:
                 continue
+            # Emit sub-license heading once whenever the marker changes.
+            if sub.sub_license != last_sub_license or not last_sub_license_emitted:
+                if sub.sub_license:
+                    out.append(sub.sub_license)
+                    out.append("")
+                last_sub_license = sub.sub_license
+                last_sub_license_emitted = True
             out.append(sub.header)
             for entry in sub.entries:
                 out.extend(entry)
