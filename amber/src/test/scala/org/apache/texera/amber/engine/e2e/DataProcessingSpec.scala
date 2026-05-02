@@ -62,13 +62,28 @@ class DataProcessingSpec
     with BeforeAndAfterEach
     with Retries {
 
+  // Diagnostic: per-test elapsed time, dumped sorted at the end of the suite.
+  // Used to identify the slowest e2e workflow tests so we can target them
+  // for consolidation / rewrite.
+  private val testTimingsMs =
+    scala.collection.mutable.ListBuffer[(String, Long)]()
+
   /**
     * This block retries each test once if it fails.
     * In the CI environment, there is a chance that executeWorkflow does not receive "COMPLETED" status.
     * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
     */
-  override def withFixture(test: NoArgTest): Outcome =
-    withRetry { super.withFixture(test) }
+  override def withFixture(test: NoArgTest): Outcome = {
+    val startNs = System.nanoTime()
+    try {
+      withRetry { super.withFixture(test) }
+    } finally {
+      val elapsedMs = (System.nanoTime() - startNs) / 1000000L
+      testTimingsMs.synchronized {
+        testTimingsMs += ((test.name, elapsedMs))
+      }
+    }
+  }
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
@@ -98,6 +113,15 @@ class DataProcessingSpec
   }
 
   override def afterAll(): Unit = {
+    val rows = testTimingsMs.synchronized(testTimingsMs.toList)
+    val sorted = rows.sortBy(-_._2)
+    val totalMs = sorted.iterator.map(_._2).sum
+    val header =
+      f"DataProcessingSpec per-test timings (sorted desc, total ${totalMs}%dms across ${sorted.size}%d tests):"
+    info(header)
+    sorted.foreach {
+      case (name, ms) => info(f"  ${ms}%6dms  ${name}")
+    }
     TestKit.shutdownActorSystem(system)
   }
 
