@@ -42,7 +42,7 @@ case class Schedule(
 
   def getLevelIndexOfOperator(opId: OperatorIdentity): Option[Int] = operatorLevelIndices.get(opId)
 
-  override def hasNext: Boolean = currentLevel < levelSets.size
+  override def hasNext: Boolean = levelSets.isDefinedAt(currentLevel)
 
   override def next(): Set[Region] = {
     val regions = levelSets(currentLevel)
