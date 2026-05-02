@@ -224,6 +224,40 @@ jobs:
           ./bin/licensing/check_binary_deps.py jar "${lib_paths[@]}" || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py "${lib_paths[@]}" || true
           exit "$check_exit"
+      - name: Verify per-module NOTICE-binary files match generator output
+        # NOTICE-binary files are generated from each module's bundled jars'
+        # META-INF/NOTICE content via bin/licensing/generate_notice_binary.py.
+        # Regenerate against the freshly-built dist lib dirs and diff against
+        # the committed files. Any drift means a dep was added/removed/bumped
+        # without rerunning the generator — fix by running:
+        #   ./bin/licensing/generate_notice_binary.py <module>/NOTICE-binary <lib-dir> [--extras ...]
+        run: |
+          set -euo pipefail
+          declare -A modules=(
+            [access-control-service]="/tmp/dists/access-control-service-*/lib"
+            [config-service]="/tmp/dists/config-service-*/lib"
+            [file-service]="/tmp/dists/file-service-*/lib"
+            [workflow-compiling-service]="/tmp/dists/workflow-compiling-service-*/lib"
+            [computing-unit-managing-service]="/tmp/dists/computing-unit-managing-service-*/lib"
+            [amber]="/tmp/dists/amber-*/lib"
+          )
+          drift=0
+          for module in "${!modules[@]}"; do
+            lib=$(eval echo "${modules[$module]}")
+            extras_arg=""
+            if [[ -f "${module}/NOTICE-binary-extras" ]]; then
+              extras_arg="--extras ${module}/NOTICE-binary-extras"
+            fi
+            ./bin/licensing/generate_notice_binary.py /tmp/notice-${module}.txt "$lib" $extras_arg
+            if ! diff -u "${module}/NOTICE-binary" /tmp/notice-${module}.txt; then
+              echo "::error::${module}/NOTICE-binary differs from generator output."
+              drift=1
+            fi
+          done
+          if (( drift )); then
+            echo "::error::Run bin/licensing/generate_notice_binary.py for the affected module(s) and commit the result."
+            exit 1
+          fi
       - name: Install dependencies
         # Only the backend test step needs the python deps; install just
         # before tests so a lint or dist failure does not pay for them.
