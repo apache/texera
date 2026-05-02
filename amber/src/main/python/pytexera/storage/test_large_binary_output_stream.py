@@ -17,7 +17,6 @@
 
 import queue
 import pytest
-import threading
 import time
 from unittest.mock import patch, MagicMock
 from core.models.type.large_binary import largebinary
@@ -314,15 +313,13 @@ class TestQueueReader:
         assert reader.read() == b"xyz"
 
     def test_read_polls_until_data_arrives(self):
-        # Validates the queue.Empty retry path: the reader keeps polling
-        # past the timeout and only returns once the producer pushes data.
-        q: queue.Queue = queue.Queue()
-
-        def producer():
-            time.sleep(0.15)  # > _QUEUE_TIMEOUT (0.1)
-            q.put(b"late")
-            q.put(None)
-
-        threading.Thread(target=producer, daemon=True).start()
+        # Validates the queue.Empty retry path: the reader must continue
+        # past a timeout and only return once data is available.
+        # Using a mock with a deterministic side_effect avoids real sleeps
+        # and the flakiness of relying on a background thread under load.
+        q = MagicMock()
+        q.get.side_effect = [queue.Empty(), b"late", None]
         reader = _QueueReader(q)
         assert reader.read() == b"late"
+        # The first call raised Empty, so we expect three total get() calls.
+        assert q.get.call_count == 3
