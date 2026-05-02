@@ -28,7 +28,7 @@ COPY agent-service/tsconfig.json ./
 
 COPY LICENSE-binary ./LICENSE
 COPY NOTICE-binary ./NOTICE
-COPY DISCLAIMER-WIP ./DISCLAIMER-WIP
+COPY DISCLAIMER ./DISCLAIMER
 COPY licenses ./licenses
 
 EXPOSE 3001
