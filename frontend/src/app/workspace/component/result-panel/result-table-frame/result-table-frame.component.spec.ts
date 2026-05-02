@@ -26,12 +26,20 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { AdminSettingsService } from "../../../../dashboard/service/admin/settings/admin-settings.service";
+import { Observable, of, throwError } from "rxjs";
 
 describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
   let fixture: ComponentFixture<ResultTableFrameComponent>;
 
-  beforeEach(waitForAsync(() => {
+  const GUI_CONFIG_LIMIT = 15;
+
+  // Build the test bed with a configurable AdminSettingsService stub so individual
+  // tests can vary how the result_table_columns_per_batch lookup behaves.
+  // The real service maps missing rows to null, so the stub mirrors that surface.
+  const setupWith = (getSetting: (key: string) => Observable<string | null>) => {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, NzModalModule],
       declarations: [ResultTableFrameComponent],
@@ -44,20 +52,25 @@ describe("ResultTableFrameComponent", () => {
           provide: GuiConfigService,
           useValue: {
             env: {
-              limitColumns: 15,
+              limitColumns: GUI_CONFIG_LIMIT,
             },
           },
+        },
+        {
+          provide: AdminSettingsService,
+          useValue: { getSetting },
         },
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
-
-  beforeEach(() => {
     fixture = TestBed.createComponent(ResultTableFrameComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-  });
+  };
+
+  beforeEach(waitForAsync(() => {
+    setupWith(() => of("15"));
+  }));
 
   it("should create", () => {
     expect(component).toBeTruthy();
@@ -72,5 +85,32 @@ describe("ResultTableFrameComponent", () => {
 
   it("should set columnLimit from config", () => {
     expect(component.columnLimit).toEqual(15);
+  });
+
+  describe("Result Panel — admin setting consumption", () => {
+    it("uses the admin-settings value when it is a positive integer, overriding gui-config", waitForAsync(() => {
+      setupWith(() => of("42"));
+      expect(component.columnLimit).toBe(42);
+    }));
+
+    it("falls back to gui-config limitColumns when admin-settings returns a non-positive value", waitForAsync(() => {
+      setupWith(() => of("0"));
+      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
+    }));
+
+    it("falls back to gui-config limitColumns when admin-settings returns an unparseable value", waitForAsync(() => {
+      setupWith(() => of("not-a-number"));
+      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
+    }));
+
+    it("falls back to gui-config limitColumns when admin-settings returns null", waitForAsync(() => {
+      setupWith(() => of(null));
+      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
+    }));
+
+    it("falls back to gui-config limitColumns when admin-settings errors", waitForAsync(() => {
+      setupWith(() => throwError(() => new Error("network down")));
+      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
+    }));
   });
 });

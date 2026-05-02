@@ -31,6 +31,7 @@ import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { AdminSettingsService } from "../../../../dashboard/service/admin/settings/admin-settings.service";
 
 /**
  * The Component will display the result in an excel table format,
@@ -84,7 +85,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
-    private guiConfigService: GuiConfigService
+    private guiConfigService: GuiConfigService,
+    private adminSettingsService: AdminSettingsService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -117,6 +119,19 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       });
 
     this.columnLimit = this.guiConfigService.env.limitColumns;
+    this.adminSettingsService
+      .getSetting("result_table_columns_per_batch")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: value => {
+          const parsed = parseInt(value);
+          if (parsed > 0) {
+            this.columnLimit = parsed;
+            this.changePaginatedResultData();
+          }
+        },
+        error: () => {},
+      });
 
     this.workflowResultService
       .getResultUpdateStream()
