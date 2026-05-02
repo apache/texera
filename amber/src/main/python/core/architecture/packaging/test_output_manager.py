@@ -148,6 +148,5 @@ class TestSaveStateToStorageIfNeeded:
             )
 
             assert (
-                output_manager._storage_uris[port_a]
-                == "vfs:///wf/0/exec/0/result/op-a"
+                output_manager._storage_uris[port_a] == "vfs:///wf/0/exec/0/result/op-a"
             )

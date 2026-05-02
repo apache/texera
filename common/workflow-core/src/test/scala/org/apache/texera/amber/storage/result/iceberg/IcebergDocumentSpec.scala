@@ -163,7 +163,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
     val storedRows = stateDocument.get().toList
     assert(storedRows.length == 1)
-    val deserialized = State.fromTuple(storedRows.head)
+    val deserialized = State.fromTuple(storedRows.head).values
     assert(deserialized("loop_counter") == 3L)
     assert(deserialized("name") == "outer-loop")
     assert(deserialized("payload").asInstanceOf[Array[Byte]].sameElements(Array[Byte](0, 1, 2, 3)))
@@ -194,20 +194,29 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     writer.close()
 
     val deserializedStates =
-      stateDocument.get().toList.map(State.fromTuple).sortBy(_("loop_counter").asInstanceOf[Long])
+      stateDocument
+        .get()
+        .toList
+        .map(State.fromTuple)
+        .sortBy(_.values("loop_counter").asInstanceOf[Long])
     assert(deserializedStates.length == states.length)
     deserializedStates.zip(states).foreach {
       case (actual, expected) =>
-        assert(actual("loop_counter") == expected("loop_counter").asInstanceOf[Int].toLong)
-        assert(actual("i") == expected("i").asInstanceOf[Int].toLong)
         assert(
-          actual("payload")
+          actual.values("loop_counter") == expected.values("loop_counter").asInstanceOf[Int].toLong
+        )
+        assert(actual.values("i") == expected.values("i").asInstanceOf[Int].toLong)
+        assert(
+          actual
+            .values("payload")
             .asInstanceOf[Array[Byte]]
-            .sameElements(expected("payload").asInstanceOf[Array[Byte]])
+            .sameElements(expected.values("payload").asInstanceOf[Array[Byte]])
         )
     }
     assert(
-      deserializedStates(1)("nested").asInstanceOf[Map[String, Any]]("values") == List(3L, 4L)
+      deserializedStates(1)
+        .values("nested")
+        .asInstanceOf[Map[String, Any]]("values") == List(3L, 4L)
     )
   }
 

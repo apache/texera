@@ -52,9 +52,7 @@ class TestEmitStateWithFilter:
         instance.tuple_schema = Schema(raw_schema={"x": "INTEGER"})
         return instance
 
-    def test_yields_state_frame_for_matching_receiver(
-        self, runnable, me
-    ):
+    def test_yields_state_frame_for_matching_receiver(self, runnable, me):
         state = State({"k": 1})
         runnable.partitioner.flush_state.return_value = [(me, state)]
 
@@ -64,9 +62,7 @@ class TestEmitStateWithFilter:
         assert isinstance(frames[0], StateFrame)
         assert frames[0].frame is state
 
-    def test_filters_out_non_matching_receivers(
-        self, runnable, me, someone_else
-    ):
+    def test_filters_out_non_matching_receivers(self, runnable, me, someone_else):
         state = State({"k": 1})
         runnable.partitioner.flush_state.return_value = [
             (someone_else, state),
