@@ -114,9 +114,10 @@ class Controller(
   )
 
   override def initState(): Unit = {
-    attachRuntimeServicesToCPState()
+    // updateSchedule must run before attachRuntimeServicesToCPState: the latter triggers
+    // the lazy `workflowExecutionCoordinator`, which reads `workflowScheduler.getSchedule`.
     cp.workflowScheduler.updateSchedule(physicalPlan)
-    cp.updateExecutionSchedule(cp.workflowScheduler.getSchedule)
+    attachRuntimeServicesToCPState()
 
     val regions: List[(Long, List[String])] =
       cp.workflowScheduler.getSchedule.getRegions.map { region =>

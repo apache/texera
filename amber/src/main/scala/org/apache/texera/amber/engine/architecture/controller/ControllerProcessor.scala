@@ -29,10 +29,7 @@ import org.apache.texera.amber.engine.architecture.common.{
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.logreplay.ReplayLogManager
-import org.apache.texera.amber.engine.architecture.scheduling.{
-  Schedule,
-  WorkflowExecutionCoordinator
-}
+import org.apache.texera.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
@@ -46,16 +43,16 @@ class ControllerProcessor(
   val workflowExecution: WorkflowExecution = WorkflowExecution()
   val workflowScheduler: WorkflowScheduler =
     new WorkflowScheduler(workflowContext, actorId)
-  val workflowExecutionCoordinator: WorkflowExecutionCoordinator = new WorkflowExecutionCoordinator(
-    Schedule(Map.empty),
-    workflowExecution,
-    controllerConfig,
-    asyncRPCClient
-  )
 
-  def updateExecutionSchedule(schedule: Schedule): Unit = {
-    workflowExecutionCoordinator.replaceSchedule(schedule)
-  }
+  // Lazy: first access must happen *after* `workflowScheduler.updateSchedule(...)` has produced
+  // a real schedule. Controller.initState enforces this order.
+  lazy val workflowExecutionCoordinator: WorkflowExecutionCoordinator =
+    new WorkflowExecutionCoordinator(
+      workflowScheduler.getSchedule,
+      workflowExecution,
+      controllerConfig,
+      asyncRPCClient
+    )
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
