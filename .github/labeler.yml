@@ -33,6 +33,12 @@ service:
           - 'file-service/**'
           - 'pyright-language-service/**'
           - 'workflow-compiling-service/**'
+          # Root-level scala build / lint config: a change to any of these
+          # affects the scala stack, but no component label catches them.
+          - 'build.sbt'
+          - 'project/**'
+          - '.scalafix.conf'
+          - '.scalafmt.conf'
 
 agent-service:
   - changed-files:
@@ -61,7 +67,8 @@ docs:
 ci:
   - changed-files:
       - any-glob-to-any-file:
-          - '.github/workflows/**'
+          - '.github/**'
+          - '.asf.yaml'
 
 dev:
   - changed-files:
