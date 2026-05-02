@@ -17,13 +17,15 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ResultTableFrameComponent } from "./result-table-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { NzTableModule } from "ng-zorro-antd/table";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { AdminSettingsService } from "../../../../dashboard/service/admin/settings/admin-settings.service";
@@ -38,10 +40,10 @@ describe("ResultTableFrameComponent", () => {
   // Build the test bed with a configurable AdminSettingsService stub so individual
   // tests can vary how the result_table_columns_per_batch lookup behaves.
   // The real service maps missing rows to null, so the stub mirrors that surface.
-  const setupWith = (getSetting: (key: string) => Observable<string | null>) => {
+  const setupWith = async (getSetting: (key: string) => Observable<string | null>) => {
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzModalModule],
+    await TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule, NzModalModule, NzTableModule, NoopAnimationsModule],
       declarations: [ResultTableFrameComponent],
       providers: [
         {
@@ -68,17 +70,17 @@ describe("ResultTableFrameComponent", () => {
     fixture.detectChanges();
   };
 
-  beforeEach(waitForAsync(() => {
-    setupWith(() => of("15"));
-  }));
+  beforeEach(async () => {
+    await setupWith(() => of("15"));
+  });
 
   it("should create", () => {
     expect(component).toBeTruthy();
   });
 
-  it("currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result  ", () => {
+  it("currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result", () => {
     component.currentResult = [{ test: "property" }];
-    (component as any).setupResultTable([]);
+    (component as any).setupResultTable([], 0);
 
     expect(component.currentResult).toEqual([{ test: "property" }]);
   });
@@ -88,29 +90,29 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("Result Panel — admin setting consumption", () => {
-    it("uses the admin-settings value when it is a positive integer, overriding gui-config", waitForAsync(() => {
-      setupWith(() => of("42"));
+    it("uses the admin-settings value when it is a positive integer, overriding gui-config", async () => {
+      await setupWith(() => of("42"));
       expect(component.columnLimit).toBe(42);
-    }));
+    });
 
-    it("falls back to gui-config limitColumns when admin-settings returns a non-positive value", waitForAsync(() => {
-      setupWith(() => of("0"));
+    it("falls back to gui-config limitColumns when admin-settings returns a non-positive value", async () => {
+      await setupWith(() => of("0"));
       expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    }));
+    });
 
-    it("falls back to gui-config limitColumns when admin-settings returns an unparseable value", waitForAsync(() => {
-      setupWith(() => of("not-a-number"));
+    it("falls back to gui-config limitColumns when admin-settings returns an unparseable value", async () => {
+      await setupWith(() => of("not-a-number"));
       expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    }));
+    });
 
-    it("falls back to gui-config limitColumns when admin-settings returns null", waitForAsync(() => {
-      setupWith(() => of(null));
+    it("falls back to gui-config limitColumns when admin-settings returns null", async () => {
+      await setupWith(() => of(null));
       expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    }));
+    });
 
-    it("falls back to gui-config limitColumns when admin-settings errors", waitForAsync(() => {
-      setupWith(() => throwError(() => new Error("network down")));
+    it("falls back to gui-config limitColumns when admin-settings errors", async () => {
+      await setupWith(() => throwError(() => new Error("network down")));
       expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    }));
+    });
   });
 });
