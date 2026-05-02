@@ -24,17 +24,22 @@ common:
       - any-glob-to-any-file:
           - 'common/**'
 
-service:
+platform:
   - changed-files:
       - any-glob-to-any-file:
           - 'access-control-service/**'
           - 'computing-unit-managing-service/**'
           - 'config-service/**'
           - 'file-service/**'
-          - 'pyright-language-service/**'
           - 'workflow-compiling-service/**'
+
+service:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'pyright-language-service/**'
           # Root-level scala build / lint config: a change to any of these
-          # affects the scala stack, but no component label catches them.
+          # affects every Scala stack (amber + the platform services), but
+          # no component label catches them.
           - 'build.sbt'
           - 'project/**'
           - '.scalafix.conf'
