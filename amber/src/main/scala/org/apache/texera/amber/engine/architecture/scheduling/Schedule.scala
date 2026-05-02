@@ -22,8 +22,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 
 case class Schedule(
-    levelSets: Map[Int, Set[Region]],
-    executionLevels: Vector[Int] = Vector.empty,
+    private val levelSets: Map[Int, Set[Region]],
     initialLevelIndex: Int = 0
 ) extends Iterator[Set[Region]] {
   require(
@@ -31,31 +30,23 @@ case class Schedule(
     s"Schedule level keys must be contiguous starting at 0, got: ${levelSets.keys.toSeq.sorted}"
   )
 
-  val baseLevels: Vector[Int] = levelSets.keys.toVector.sorted
-  val effectiveExecutionLevels: Vector[Int] =
-    if (executionLevels.nonEmpty || baseLevels.isEmpty) executionLevels else baseLevels
+  private val operatorLevelIndices: Map[OperatorIdentity, Int] =
+    levelSets.iterator.flatMap {
+      case (level, regions) =>
+        regions.iterator.flatMap(region => region.getOperators.map(_.id.logicalOpId -> level))
+    }.toMap
 
-  private val operatorLevelIndices = levelSets.iterator.flatMap {
-    case (level, regions) =>
-      val levelIndex = baseLevels.indexOf(level)
-      regions.iterator.flatMap(region => region.getOperators.map(_.id.logicalOpId -> levelIndex))
-  }.toMap
-
-  private var _currentLevelIndex: Int = initialLevelIndex
-  def currentLevelIndex: Int = _currentLevelIndex
+  private var currentLevelIndex: Int = initialLevelIndex
 
   def getRegions: List[Region] = levelSets.values.flatten.toList
 
   def getLevelIndexOfOperator(opId: OperatorIdentity): Option[Int] = operatorLevelIndices.get(opId)
 
-  override def hasNext: Boolean = _currentLevelIndex < effectiveExecutionLevels.length
+  override def hasNext: Boolean = currentLevelIndex < levelSets.size
 
   override def next(): Set[Region] = {
-    val regions = effectiveExecutionLevels
-      .lift(_currentLevelIndex)
-      .flatMap(levelSets.get)
-      .getOrElse(Set.empty)
-    _currentLevelIndex += 1
+    val regions = levelSets.getOrElse(currentLevelIndex, Set.empty)
+    currentLevelIndex += 1
     regions
   }
 }
