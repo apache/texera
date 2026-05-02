@@ -25,6 +25,7 @@ module.exports = function (config) {
     plugins: [
       require("karma-jasmine"),
       require("karma-chrome-launcher"),
+      require("karma-coverage"),
       require("@angular-devkit/build-angular/plugins/karma")
     ],
     client: {
