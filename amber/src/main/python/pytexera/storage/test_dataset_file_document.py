@@ -134,8 +134,16 @@ class TestGetPresignedUrl:
         doc = self._make_doc(monkeypatch)
         with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
             mock_get.return_value = make_response(403, body="forbidden")
-            with pytest.raises(RuntimeError, match="403"):
+            with pytest.raises(RuntimeError, match=r"403.*forbidden"):
                 doc.get_presigned_url()
+
+    def test_returns_none_when_response_body_lacks_presigned_url_key(self, monkeypatch):
+        # Pins current behavior: a 200 with no "presignedUrl" key yields None
+        # rather than raising. read_file() will then call requests.get(None).
+        doc = self._make_doc(monkeypatch)
+        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+            mock_get.return_value = make_response(200, body={"other": "value"})
+            assert doc.get_presigned_url() is None
 
 
 class TestReadFile:
@@ -159,7 +167,7 @@ class TestReadFile:
         doc = self._make_doc(monkeypatch)
         with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
             mock_get.return_value = make_response(500, body="upstream down")
-            with pytest.raises(RuntimeError, match="500"):
+            with pytest.raises(RuntimeError, match=r"500.*upstream down"):
                 doc.read_file()
 
     def test_raises_runtime_error_when_download_fails(self, monkeypatch):
@@ -169,7 +177,7 @@ class TestReadFile:
                 make_response(200, body={"presignedUrl": "https://signed.test/x"}),
                 make_response(404, body="missing"),
             ]
-            with pytest.raises(RuntimeError, match="404"):
+            with pytest.raises(RuntimeError, match=r"404.*missing"):
                 doc.read_file()
 
     def test_downloads_from_presigned_url_returned_by_first_call(self, monkeypatch):
