@@ -121,11 +121,11 @@ jobs:
             //   python         |          |   x   |          |   x    |
             //   engine         |          |   x   |          |   x    |
             //   platform       |          |       |    x     |        |
-            //   service        |          |   x   |    x     |        |  (root scala
+            //   agent-service  |          |       |          |        |     x
+            //   common         |          |   x   |    x     |        |  (also catches
+            //                                                            root scala
             //                                                            build/lint
             //                                                            config)
-            //   agent-service  |          |       |          |        |     x
-            //   common         |          |   x   |    x     |        |
             //   ddl-change     |          |   x   |    x     |        |
             //   ci             |    x     |   x   |    x     |   x    |     x
             //   docs / dev /   |          |       |          |        |
@@ -136,9 +136,8 @@ jobs:
               python: ["amber", "python"],          // pyamber drives amber integration tests too
               engine: ["amber", "python"],          // amber/** spans both
               platform: ["platform"],               // platform services
-              service: ["amber", "platform"],       // root scala build/lint affects both
               "agent-service": ["agent-service"],
-              common: ["amber", "platform"],
+              common: ["amber", "platform"],        // common/** + root scala build/lint
               "ddl-change": ["amber", "platform"],
               ci: ["frontend", "amber", "platform", "python", "agent-service"],
             };
