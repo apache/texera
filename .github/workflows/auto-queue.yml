@@ -35,7 +35,7 @@
 # the resulting push retriggers required CI on the PR. Falls back to
 # GITHUB_TOKEN, in which case auto-merge will not actually fire (GITHUB_TOKEN
 # pushes don't trigger downstream workflows).
-name: AutoQueue
+name: Auto Queue
 
 on:
   push:
