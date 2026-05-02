@@ -11,7 +11,7 @@ header:
     - '**/*.json'
     - '**/*.jsonl'
     - 'DESCRIPTION'
-    - 'DISCLAIMER-WIP'
+    - 'DISCLAIMER'
     - 'LICENSE'
     - 'LICENSE-binary'
     - 'NOTICE'

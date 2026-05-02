@@ -21,7 +21,7 @@ import pino, { type Logger } from "pino";
 import { env } from "./config/env";
 
 const rootLogger: Logger = pino({
-  level: env.LOG_LEVEL,
+  level: env.TEXERA_SERVICE_LOG_LEVEL,
   base: undefined,
   ...(env.LOG_PRETTY
     ? {

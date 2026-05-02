@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.common.actormessage.{Backpressure, CreditU
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
+import org.apache.texera.amber.config.PythonUtils
 
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
@@ -65,7 +66,6 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val pythonENVPath: String = UdfConfig.pythonPath.trim
   val RENVPath: String = UdfConfig.rPath.trim
 
   // Python process
@@ -173,8 +173,7 @@ class PythonWorkflowWorker(
     val isRest = StorageConfig.icebergCatalogType == "rest"
     pythonServerProcess = Process(
       Seq(
-        if (pythonENVPath.isEmpty) "python3"
-        else pythonENVPath, // add fall back in case of empty
+        PythonUtils.getPythonExecutable,
         "-u",
         udfEntryScriptPath,
         workerConfig.workerId.name,
