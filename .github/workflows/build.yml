@@ -234,6 +234,18 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
@@ -259,13 +271,10 @@ jobs:
       - name: Check installed Python packages against LICENSE-binary
         if: matrix.python-version == '3.12'
         run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
-      - name: Install PostgreSQL
-        run: sudo apt-get update && sudo apt-get install -y postgresql
-      - name: Start PostgreSQL Service
-        run: sudo systemctl start postgresql
-      - name: Create Database and User
-        run: |
-          cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+      - name: Create iceberg catalog database
+        run: psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+        env:
+          PGPASSWORD: postgres
       - name: Lint with Ruff
         run: |
           cd amber/src/main/python && ruff check . && ruff format --check .
