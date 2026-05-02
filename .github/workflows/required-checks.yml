@@ -107,10 +107,15 @@ jobs:
             }
 
             const SKIP_ONLY = new Set(["docs", "dev"]);
+            const FRONTEND_ONLY_ALLOWED = new Set(["frontend", "docs", "dev"]);
             const onlySkippable =
               eventName === "pull_request" &&
               labels.length > 0 &&
               labels.every((l) => SKIP_ONLY.has(l));
+            const frontendOnly =
+              eventName === "pull_request" &&
+              labels.includes("frontend") &&
+              labels.every((l) => FRONTEND_ONLY_ALLOWED.has(l));
 
             let runFrontend = true;
             let runScala = true;
@@ -120,6 +125,9 @@ jobs:
             if (onlySkippable) {
               runFrontend = runScala = runPython = runAgentService = false;
               core.info("Labels are docs/dev only; skipping all build stacks.");
+            } else if (frontendOnly) {
+              runScala = runPython = runAgentService = false;
+              core.info("Labels touch only frontend; skipping non-frontend stacks.");
             } else if (eventName === "pull_request" && !labels.includes("frontend")) {
               runFrontend = false;
               core.info("No frontend label; skipping frontend stack.");
