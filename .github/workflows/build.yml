@@ -59,7 +59,6 @@ env:
 jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
-    name: ${{ format('frontend{0} ({1}, 24)', inputs.job_name_suffix, matrix.os) }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -122,7 +121,6 @@ jobs:
 
   scala:
     if: ${{ inputs.run_scala }}
-    name: ${{ format('scala{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -253,7 +251,6 @@ jobs:
 
   python:
     if: ${{ inputs.run_python }}
-    name: ${{ format('python{0} ({1}, {2})', inputs.job_name_suffix, matrix.os, matrix.python-version) }}
     strategy:
       matrix:
         os: [ubuntu-latest]
