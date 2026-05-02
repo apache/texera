@@ -15,17 +15,30 @@
 # limitations under the License.
 
 # Temporary stand-in for GitHub Merge Queue.
-# After every push to main, picks the oldest auto-merge-enabled PR and runs
-# updateBranch on it; if that's a no-op or fails, falls through to the next
-# eligible PR. If a PAT/App token with workflow write is provided as
-# AUTO_MERGE_TOKEN, the resulting push retriggers the PR's required checks
-# and lets auto-merge fire. With GITHUB_TOKEN only, the branch is updated
-# but downstream workflows on the PR are not retriggered.
+#
+# Triggers:
+#   * push to main: advance the queue right after a merge.
+#   * hourly cron: catch PRs that became BEHIND while no merge happened
+#     (e.g. a force-push to base, or a PR enabling auto-merge after the
+#     last main push).
+#   * workflow_dispatch: manual smoke test.
+#
+# Strategy: scan open auto-merge PRs targeting main, try updateBranch on each
+# eligible candidate from oldest. Retry with backoff up to ~2min, since
+# mergeable / mergeStateStatus are computed asynchronously and can be UNKNOWN
+# right after a base-branch push.
+#
+# Token: needs AUTO_MERGE_TOKEN with contents:write + pull_requests:write so
+# the resulting push retriggers required CI on the PR. Falls back to
+# GITHUB_TOKEN, in which case auto-merge will not actually fire (GITHUB_TOKEN
+# pushes don't trigger downstream workflows).
 name: AutoQueue
 
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -45,6 +58,13 @@ jobs:
           github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
+
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            // 0, 10, 20, 30, 30, 30 = 120s total wall-clock budget across
+            // attempts. Short ramp catches the common case where
+            // mergeStateStatus settles within ~30s of a base-branch push;
+            // the tail keeps trying for the rare slow case.
+            const BACKOFFS_MS = [0, 10000, 20000, 30000, 30000, 30000];
 
             const query = `
               query($owner:String!, $name:String!) {
@@ -67,31 +87,85 @@ jobs:
                 }
               }`;
 
-            const data = await github.graphql(query, { owner, name: repo });
-            // mergeStateStatus is computed asynchronously and is often UNKNOWN
-            // when this workflow fires moments after a push to main. Don't
-            // gate on BEHIND — instead try updateBranch on each eligible PR
-            // and let GitHub tell us whether work was done.
-            const eligible = data.repository.pullRequests.nodes.filter(p =>
-              p.autoMergeRequest && !p.isDraft && p.mergeable !== 'CONFLICTING'
-            );
-
-            if (eligible.length === 0) {
-              core.info('No eligible auto-merge PRs.');
-              return;
+            function classify(p) {
+              if (!p.autoMergeRequest) return 'skip: auto-merge not enabled';
+              if (p.isDraft) return 'skip: draft';
+              if (p.mergeable === 'CONFLICTING') return 'skip: mergeable=CONFLICTING';
+              return `eligible: mergeable=${p.mergeable} state=${p.mergeStateStatus}`;
             }
 
-            for (const pr of eligible) {
-              core.info(`Trying PR #${pr.number} (state=${pr.mergeStateStatus}): ${pr.title}`);
-              try {
-                const res = await github.rest.pulls.updateBranch({
-                  owner, repo, pull_number: pr.number,
-                });
-                core.info(`PR #${pr.number} update-branch dispatched (HTTP ${res.status}).`);
+            const start = Date.now();
+
+            for (let attempt = 0; attempt < BACKOFFS_MS.length; attempt++) {
+              if (BACKOFFS_MS[attempt] > 0) {
+                const elapsedS = Math.round((Date.now() - start) / 1000);
+                core.info(
+                  `Waiting ${BACKOFFS_MS[attempt] / 1000}s before attempt ` +
+                  `${attempt + 1}/${BACKOFFS_MS.length} (elapsed ${elapsedS}s).`
+                );
+                await sleep(BACKOFFS_MS[attempt]);
+              }
+
+              core.startGroup(`Attempt ${attempt + 1}/${BACKOFFS_MS.length}`);
+              const data = await github.graphql(query, { owner, name: repo });
+              const all = data.repository.pullRequests.nodes;
+              core.info(`Scanned ${all.length} open PR(s) targeting main.`);
+
+              const eligible = [];
+              for (const p of all) {
+                const verdict = classify(p);
+                core.info(`  #${p.number} ${verdict} — ${p.title}`);
+                if (verdict.startsWith('eligible')) eligible.push(p);
+              }
+
+              if (eligible.length === 0) {
+                core.info('No eligible auto-merge PRs this attempt.');
+                core.endGroup();
+                continue;
+              }
+
+              core.info(
+                `${eligible.length} eligible PR(s); trying updateBranch from oldest.`
+              );
+
+              let updated = null;
+              for (const pr of eligible) {
+                core.info(
+                  `→ updateBranch #${pr.number} (state=${pr.mergeStateStatus})`
+                );
+                try {
+                  const res = await github.rest.pulls.updateBranch({
+                    owner, repo, pull_number: pr.number,
+                  });
+                  core.info(
+                    `✓ #${pr.number} updateBranch dispatched (HTTP ${res.status}).`
+                  );
+                  updated = pr.number;
+                  break;
+                } catch (e) {
+                  core.warning(
+                    `✗ #${pr.number} updateBranch did not apply ` +
+                    `(status ${e.status ?? '?'}): ${e.message}`
+                  );
+                }
+              }
+
+              core.endGroup();
+
+              if (updated !== null) {
+                core.info(
+                  `Done: #${updated} updated on attempt ${attempt + 1}.`
+                );
                 return;
-              } catch (e) {
-                core.warning(`PR #${pr.number} updateBranch did not apply: ${e.message}`);
+              }
+
+              if (attempt + 1 < BACKOFFS_MS.length) {
+                core.info('No PR updated; will retry after backoff.');
               }
             }
 
-            core.info('No eligible PR could be updated this run.');
+            const totalS = Math.round((Date.now() - start) / 1000);
+            core.info(
+              `Exhausted ${BACKOFFS_MS.length} attempt(s) over ${totalS}s; ` +
+              `no PR updated this run.`
+            );
