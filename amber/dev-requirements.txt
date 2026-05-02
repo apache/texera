@@ -15,22 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM oven/bun:1-alpine
+# Test- and dev-only Python dependencies. Installed in CI after the
+# LICENSE-binary snapshot is taken, so packages here never appear in
+# pip-licenses output and never need to be tracked in LICENSE-binary
+# / NOTICE-binary. Not installed by packaging.
 
-WORKDIR /app
-
-COPY agent-service/package.json agent-service/bun.lock ./
-
-RUN bun install --frozen-lockfile --production
-
-COPY agent-service/src ./src
-COPY agent-service/tsconfig.json ./
-
-COPY LICENSE-binary ./LICENSE
-COPY NOTICE-binary ./NOTICE
-COPY DISCLAIMER ./DISCLAIMER
-COPY licenses ./licenses
-
-EXPOSE 3001
-
-CMD ["bun", "run", "src/server.ts"]
+# Coverage instrumentation for pytest; emits coverage.xml consumed by
+# Codecov's Phase 1 upload.
+pytest-cov==5.0.0

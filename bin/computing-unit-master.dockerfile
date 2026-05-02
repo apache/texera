@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
-COPY LICENSE LICENSE-binary NOTICE NOTICE-binary DISCLAIMER-WIP ./
+COPY LICENSE LICENSE-binary NOTICE NOTICE-binary DISCLAIMER ./
 COPY licenses/ licenses/
 
 RUN sbt clean WorkflowExecutionService/dist
@@ -77,7 +77,7 @@ COPY --from=build /texera/amber/src/main/python /texera/amber/src/main/python
 COPY --from=build /texera/LICENSE-binary /texera/LICENSE
 COPY --from=build /texera/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
-COPY --from=build /texera/DISCLAIMER-WIP /texera/
+COPY --from=build /texera/DISCLAIMER /texera/
 CMD ["bin/computing-unit-master"]
 
 EXPOSE 8085

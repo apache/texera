@@ -1,0 +1,264 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Required Checks
+
+on:
+  push:
+    branches:
+      - 'ci-enable/**'
+      - 'main'
+      - 'release/**'
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # Precheck decides which downstream jobs run for this event:
+  #   - On PR events, wait for the Pull Request Labeler workflow to finish so
+  #     the labels it applies (frontend, docs, dev, ...) are available, then
+  #     gate run_* outputs on those labels.
+  #   - run_frontend / run_scala / run_python / run_agent_service: gate the
+  #     main build stacks. Each labeler-applied label maps to the stacks it
+  #     requires (LABEL_STACKS below); the run set is the union across all
+  #     PR labels. Empty union (e.g. docs-only / dev-only PRs) skips every
+  #     stack. Push and workflow_dispatch events run every stack.
+  #   - backport_targets: JSON array of release/* labels currently on the PR.
+  #     Drives the backport matrix; empty array means no backport runs.
+  precheck:
+    name: Precheck
+    runs-on: ubuntu-latest
+    outputs:
+      run_frontend: ${{ steps.decide.outputs.run_frontend }}
+      run_scala: ${{ steps.decide.outputs.run_scala }}
+      run_python: ${{ steps.decide.outputs.run_python }}
+      run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
+      backport_targets: ${{ steps.decide.outputs.backport_targets }}
+    steps:
+      - name: Wait for Pull Request Labeler
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const ref = context.payload.pull_request.head.sha;
+            const maxAttempts = 30;
+            for (let i = 0; i < maxAttempts; i++) {
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                check_name: "labeler",
+              });
+              const check = data.check_runs[0];
+              if (check && check.status === "completed") {
+                core.info(`labeler ${check.conclusion}`);
+                return;
+              }
+              core.info(`labeler not ready (attempt ${i + 1}/${maxAttempts})`);
+              await new Promise((r) => setTimeout(r, 10000));
+            }
+            core.warning("labeler did not complete within 5 minutes; proceeding with current labels.");
+
+      - name: Decide which jobs to run
+        id: decide
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const eventName = context.eventName;
+            let labels = [];
+
+            if (eventName === "pull_request") {
+              // Re-fetch labels: the labeler may have just added some.
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+              });
+              labels = pr.labels.map((l) => l.name);
+              core.info(`PR labels: ${labels.join(", ") || "(none)"}`);
+            }
+
+            // Map each labeler-applied label to the stacks it requires. The
+            // run set is the union across all PR labels. Labels not listed
+            // here (release/*, feature, fix, refactor) contribute no stacks.
+            // dependencies is intentionally a no-op: every dep manifest the
+            // labeler matches lives under a component dir and is already
+            // covered by that component's label.
+            //
+            //   label                | frontend | scala | python | agent-service
+            //   ---------------------|----------|-------|--------|--------------
+            //   frontend             |    x     |       |        |
+            //   python               |          |   x   |   x    |
+            //   engine               |          |   x   |   x    |
+            //   service              |          |   x   |        |
+            //   agent-service        |          |       |        |     x
+            //   common               |          |   x   |        |
+            //   ddl-change           |          |   x   |        |
+            //   ci                   |    x     |   x   |   x    |     x
+            //   docs / dev / deps /  |          |       |        |
+            //   release/* / branch   |          |       |        |
+            const LABEL_STACKS = {
+              frontend: ["frontend"],
+              python: ["scala", "python"],     // pyamber drives scala integration tests too
+              engine: ["scala", "python"],     // amber/** spans both
+              service: ["scala"],              // scala-side services; agent-service is its own label
+              "agent-service": ["agent-service"],
+              common: ["scala"],
+              "ddl-change": ["scala"],
+              ci: ["frontend", "scala", "python", "agent-service"],
+            };
+
+            let runFrontend = true;
+            let runScala = true;
+            let runPython = true;
+            let runAgentService = true;
+
+            if (eventName === "pull_request") {
+              const stacks = new Set();
+              for (const label of labels) {
+                for (const stack of LABEL_STACKS[label] || []) {
+                  stacks.add(stack);
+                }
+              }
+              runFrontend = stacks.has("frontend");
+              runScala = stacks.has("scala");
+              runPython = stacks.has("python");
+              runAgentService = stacks.has("agent-service");
+              core.info(
+                `Stacks selected by label union: ${[...stacks].sort().join(", ") || "(none)"}`
+              );
+            }
+
+            core.setOutput("run_frontend", runFrontend ? "true" : "false");
+            core.setOutput("run_scala", runScala ? "true" : "false");
+            core.setOutput("run_python", runPython ? "true" : "false");
+            core.setOutput("run_agent_service", runAgentService ? "true" : "false");
+
+            // Backport targets: all current release/* labels on the PR.
+            const targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
+            if (targets.length === 0) {
+              core.info("No backport targets on PR.");
+            } else {
+              core.info(`Backport targets: ${targets.join(", ")}`);
+            }
+            core.setOutput("backport_targets", JSON.stringify(targets));
+
+  cleanup-stale-backport:
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'unlabeled' && startsWith(github.event.label.name, 'release/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel obsolete backport check_runs for the removed target
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const target = context.payload.label.name;
+            const headSha = context.payload.pull_request.head.sha;
+            const prefix = `backport (${target}) `;
+
+            const checks = await github.paginate(
+              github.rest.checks.listForRef,
+              { owner, repo, ref: headSha, per_page: 100 }
+            );
+
+            for (const check of checks) {
+              if (!check.name.startsWith(prefix)) continue;
+              if (check.status === "completed" && check.conclusion === "cancelled") continue;
+              try {
+                await github.rest.checks.update({
+                  owner,
+                  repo,
+                  check_run_id: check.id,
+                  status: "completed",
+                  conclusion: "cancelled",
+                });
+                core.info(`Cancelled check ${check.name}`);
+              } catch (e) {
+                core.warning(`Failed to update check ${check.id} (${check.name}): ${e.message}`);
+              }
+            }
+
+  build:
+    needs: precheck
+    uses: ./.github/workflows/build.yml
+    with:
+      run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
+      run_scala: ${{ needs.precheck.outputs.run_scala == 'true' }}
+      run_python: ${{ needs.precheck.outputs.run_python == 'true' }}
+      run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
+    secrets: inherit
+
+  backport:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.backport_targets != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.precheck.outputs.backport_targets) }}
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: refs/pull/${{ github.event.pull_request.number }}/head
+      backport_target_branch: ${{ matrix.target }}
+      backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+      job_name_suffix: ""
+      run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
+      run_scala: ${{ needs.precheck.outputs.run_scala == 'true' }}
+      run_python: ${{ needs.precheck.outputs.run_python == 'true' }}
+      run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
+    secrets: inherit
+
+  required-checks:
+    # Do not rename this job — its display name is referenced in .asf.yaml.
+    name: Required Checks
+    needs: [precheck, build, backport]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required checks succeeded or were skipped
+        run: |
+          declare -A results=(
+            [precheck]="${{ needs.precheck.result }}"
+            [build]="${{ needs.build.result }}"
+            [backport]="${{ needs.backport.result }}"
+          )
+          failed=0
+          for job in "${!results[@]}"; do
+            r="${results[$job]}"
+            echo "${job}: ${r}"
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              failed=1
+            fi
+          done
+          if (( failed )); then
+            echo "::error::One or more required checks did not succeed."
+            exit 1
+          fi
+          echo "All required checks succeeded or were skipped."

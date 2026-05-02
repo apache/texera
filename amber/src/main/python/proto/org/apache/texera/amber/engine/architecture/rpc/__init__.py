@@ -101,6 +101,9 @@ class ControlRequest(betterproto.Message):
     workflow_reconfigure_request: "WorkflowReconfigureRequest" = (
         betterproto.message_field(10, group="sealed_value")
     )
+    jump_to_operator_region_request: "JumpToOperatorRegionRequest" = betterproto.message_field(
+        11, group="sealed_value"
+    )
     add_input_channel_request: "AddInputChannelRequest" = betterproto.message_field(
         50, group="sealed_value"
     )
@@ -383,6 +386,11 @@ class QueryStatisticsRequest(betterproto.Message):
         betterproto.message_field(1)
     )
     update_target: "StatisticsUpdateTarget" = betterproto.enum_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class JumpToOperatorRegionRequest(betterproto.Message):
+    target_operator_id: "___core__.OperatorIdentity" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1251,6 +1259,23 @@ class ControllerServiceStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def jump_to_operator_region(
+        self,
+        jump_to_operator_region_request: "JumpToOperatorRegionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/org.apache.texera.amber.engine.architecture.rpc.ControllerService/JumpToOperatorRegion",
+            jump_to_operator_region_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def link_workers(
         self,
         link_workers_request: "LinkWorkersRequest",
@@ -1923,6 +1948,11 @@ class ControllerServiceBase(ServiceBase):
     ) -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def jump_to_operator_region(
+        self, jump_to_operator_region_request: "JumpToOperatorRegionRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def link_workers(
         self, link_workers_request: "LinkWorkersRequest"
     ) -> "EmptyReturn":
@@ -2032,6 +2062,13 @@ class ControllerServiceBase(ServiceBase):
         response = await self.worker_execution_completed(request)
         await stream.send_message(response)
 
+    async def __rpc_jump_to_operator_region(
+        self, stream: "grpclib.server.Stream[JumpToOperatorRegionRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.jump_to_operator_region(request)
+        await stream.send_message(response)
+
     async def __rpc_link_workers(
         self, stream: "grpclib.server.Stream[LinkWorkersRequest, EmptyReturn]"
     ) -> None:
@@ -2132,6 +2169,12 @@ class ControllerServiceBase(ServiceBase):
                 self.__rpc_worker_execution_completed,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EmptyRequest,
+                EmptyReturn,
+            ),
+            "/org.apache.texera.amber.engine.architecture.rpc.ControllerService/JumpToOperatorRegion": grpclib.const.Handler(
+                self.__rpc_jump_to_operator_region,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                JumpToOperatorRegionRequest,
                 EmptyReturn,
             ),
             "/org.apache.texera.amber.engine.architecture.rpc.ControllerService/LinkWorkers": grpclib.const.Handler(

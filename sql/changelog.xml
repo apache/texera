@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,23 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+-->
 
-FROM oven/bun:1-alpine
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
 
-WORKDIR /app
+    <!-- example changeSet
+    <changeSet id="1" author="author">
+        <sqlFile path="sql/updates/1.sql"/>
+    </changeSet>
+    -->
 
-COPY agent-service/package.json agent-service/bun.lock ./
-
-RUN bun install --frozen-lockfile --production
-
-COPY agent-service/src ./src
-COPY agent-service/tsconfig.json ./
-
-COPY LICENSE-binary ./LICENSE
-COPY NOTICE-binary ./NOTICE
-COPY DISCLAIMER ./DISCLAIMER
-COPY licenses ./licenses
-
-EXPOSE 3001
-
-CMD ["bun", "run", "src/server.ts"]
+</databaseChangeLog>
