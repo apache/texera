@@ -27,7 +27,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
-/** Requests the scheduler to continue from the region containing the target operator. */
 trait JumpToOperatorRegionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
