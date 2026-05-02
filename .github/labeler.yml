@@ -53,11 +53,10 @@ ci:
       - any-glob-to-any-file:
           - '.github/workflows/**'
 
-build:
+dev:
   - changed-files:
       - any-glob-to-any-file:
           - 'bin/**'
-          - 'deployment/**'
 
 dependencies:
   - changed-files:
