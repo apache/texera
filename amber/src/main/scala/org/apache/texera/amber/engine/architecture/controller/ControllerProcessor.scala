@@ -29,10 +29,7 @@ import org.apache.texera.amber.engine.architecture.common.{
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.logreplay.ReplayLogManager
-import org.apache.texera.amber.engine.architecture.scheduling.{
-  Schedule,
-  WorkflowExecutionCoordinator
-}
+import org.apache.texera.amber.engine.architecture.scheduling.{Schedule, WorkflowExecutionCoordinator}
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
@@ -47,11 +44,11 @@ class ControllerProcessor(
   val workflowScheduler: WorkflowScheduler =
     new WorkflowScheduler(workflowContext, actorId)
   val workflowExecutionCoordinator: WorkflowExecutionCoordinator = new WorkflowExecutionCoordinator(
-      Schedule(Map.empty),
-      workflowExecution,
-      controllerConfig,
-      asyncRPCClient
-    )
+    Schedule(Map.empty),
+    workflowExecution,
+    controllerConfig,
+    asyncRPCClient
+  )
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
