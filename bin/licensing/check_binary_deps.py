@@ -58,7 +58,7 @@ PER_MODULE_LICENSE_BINARIES: list[str] = [
 
 # Primary requirement files used to mark deps as "direct" (vs. transitive).
 PRIMARY_REQUIREMENTS = {
-    "python":    ["amber/requirements.txt"],
+    "python":    ["amber/requirements.txt", "amber/operator-requirements.txt"],
     "npm":       ["frontend/package.json"],
     "agent-npm": ["agent-service/package.json"],
     # All SBT files in the repo are scanned for libraryDependencies entries.
@@ -132,7 +132,8 @@ def load_direct_python() -> set[str]:
             continue
         for raw in p.read_text().splitlines():
             line = raw.strip()
-            if not line or line.startswith("#"):
+            if not line or line.startswith("#") or line.startswith("-"):
+                # `-`-prefixed lines are pip flags (--extra-index-url, -r, ...).
                 continue
             # Strip env markers, extras, and version specifiers; we only
             # need the package name.
