@@ -67,9 +67,7 @@ docs:
 ci:
   - changed-files:
       - any-glob-to-any-file:
-          - '.github/workflows/**'
-          - '.github/scripts/**'
-          - '.github/labeler.yml'
+          - '.github/**'
           - '.asf.yaml'
 
 dev:
