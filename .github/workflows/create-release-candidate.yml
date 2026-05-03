@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Full history for proper tagging
 
@@ -308,7 +308,7 @@ jobs:
           echo "✓ Vote email template generated!"
 
       - name: Upload RC artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rc-artifacts
           path: |
@@ -330,7 +330,7 @@ jobs:
 
     steps:
       - name: Download RC artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: rc-artifacts
 
