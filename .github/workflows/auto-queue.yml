@@ -172,7 +172,20 @@ jobs:
               }
 
               core.startGroup(`Attempt ${attempt + 1}/${BACKOFFS_MS.length}`);
-              const data = await github.graphql(query, { owner, name: repo });
+              let data;
+              try {
+                data = await github.graphql(query, { owner, name: repo });
+              } catch (e) {
+                // Transient GitHub API failures (5xx, "terminated", etc.)
+                // shouldn't kill the whole run — the backoff loop is exactly
+                // the right place to absorb them. Try again next attempt.
+                core.warning(
+                  `GraphQL query failed (status ${e.status ?? '?'}): ` +
+                  `${e.message}. Retrying after backoff.`
+                );
+                core.endGroup();
+                continue;
+              }
               const all = data.repository.pullRequests.nodes;
               core.info(`Scanned ${all.length} open PR(s) targeting main.`);
 
