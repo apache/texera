@@ -108,7 +108,7 @@
 //       vi.spyOn(presetService, "applyPreset");
 
 //       component.applyPreset(testPreset);
-//       expect(presetService.applyPreset).toHaveBeenCalledOnceWith(
+//       expect(presetService.applyPreset).toHaveBeenCalledExactlyOnceWith(
 //         presetKey.presetType,
 //         presetKey.applyTarget,
 //         testPreset
@@ -218,7 +218,7 @@
 //       const dropdownEntry = nonNull(dropdown.querySelector(".dropdown-entry"));
 //       expect(dropdown.childElementCount).toEqual(component.searchResults.length);
 //       dropdownEntry.dispatchEvent(new Event("click"));
-//       expect(component.applyPreset).toHaveBeenCalledOnceWith(testPreset);
+//       expect(component.applyPreset).toHaveBeenCalledExactlyOnceWith(testPreset);
 //     }));
 
 //     it("should delete the preset if a preset entry's delete button is clicked", fakeAsync(() => {
@@ -243,7 +243,7 @@
 //       const dropdownDeleteButton = nonNull(dropdown.querySelector(".delete-button"));
 //       expect(dropdown.childElementCount).toEqual(component.searchResults.length);
 //       dropdownDeleteButton.dispatchEvent(new Event("click"));
-//       expect(component.deletePreset).toHaveBeenCalledOnceWith(testPreset);
+//       expect(component.deletePreset).toHaveBeenCalledExactlyOnceWith(testPreset);
 //     }));
 
 //     it("should set new search results whenever the value of the field changes", fakeAsync(() => {

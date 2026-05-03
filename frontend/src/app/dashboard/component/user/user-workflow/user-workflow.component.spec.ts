@@ -128,7 +128,7 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   // TODO: add this test case back and figure out why it failed
-  // xit("Modal Opened, then Closed", () => {
+  // it.skip("Modal Opened, then Closed", () => {
   //   const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
   //   vi.spyOn(modalService, "open").mockReturnValue(modalRef);
   //   component.onClickOpenShareAccess(testWorkflowEntries[0]);
