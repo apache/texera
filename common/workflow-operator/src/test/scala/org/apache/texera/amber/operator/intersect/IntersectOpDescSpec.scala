@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.intersect
 
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, SinglePartition, UnknownPartition}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -67,10 +68,15 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "wire the IntersectOpExec class name into the OpExecInitInfo" in {
+    // Pattern-match on OpExecWithClassName instead of substring-matching the
+    // toString output, which is brittle to scalapb formatting changes.
     val op = new IntersectOpDesc
     val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo.toString should include(
-      "org.apache.texera.amber.operator.intersect.IntersectOpExec"
-    )
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, _) =>
+        className shouldBe "org.apache.texera.amber.operator.intersect.IntersectOpExec"
+      case other =>
+        fail(s"expected OpExecWithClassName, got $other")
+    }
   }
 }

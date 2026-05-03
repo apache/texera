@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.sleep
 
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
@@ -56,12 +57,18 @@ class SleepOpDescSpec extends AnyFlatSpec with Matchers {
   it should "wire the SleepOpExec class name into the OpExecInitInfo" in {
     // The descriptor's getPhysicalOp encodes a fully-qualified Exec class
     // name; pin it so a rename of SleepOpExec breaks this spec deliberately.
+    // Pattern-match on OpExecWithClassName instead of substring-matching the
+    // toString output, which is brittle to scalapb formatting changes.
     val op = new SleepOpDesc
     op.sleepTime = 1
     val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo.toString should include(
-      "org.apache.texera.amber.operator.sleep.SleepOpExec"
-    )
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, descString) =>
+        className shouldBe "org.apache.texera.amber.operator.sleep.SleepOpExec"
+        descString should not be empty
+      case other =>
+        fail(s"expected OpExecWithClassName, got $other")
+    }
   }
 
   it should "carry forward the operatorInfo input/output ports onto the PhysicalOp" in {

@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.source.fetcher
 
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -75,20 +76,32 @@ class URLFetcherOpDescSpec extends AnyFlatSpec with Matchers {
     val op = new URLFetcherOpDesc
     op.url = "https://example.test/data"
     val schema = op.sourceSchema()
+    schema.getAttributes should have length 1
     schema.getAttributes.head.getType shouldBe AttributeType.ANY
   }
 
   "URLFetcherOpDesc.getPhysicalOp" should "wire the URLFetcherOpExec class name into the OpExecInitInfo" in {
+    // Pattern-match on OpExecWithClassName instead of substring-matching the
+    // toString output, which is brittle to scalapb formatting changes.
     val op = configured(DecodingMethod.UTF_8)
     val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo.toString should include(
-      "org.apache.texera.amber.operator.source.fetcher.URLFetcherOpExec"
-    )
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, _) =>
+        className shouldBe "org.apache.texera.amber.operator.source.fetcher.URLFetcherOpExec"
+      case other =>
+        fail(s"expected OpExecWithClassName, got $other")
+    }
   }
 
   it should "propagate sourceSchema onto the single output port" in {
+    // Exercise propagateSchema.func directly so the test actually proves the
+    // sourceSchema gets routed to the output port id, not just that an
+    // output port exists. Inputs are empty (this is a source operator).
     val op = configured(DecodingMethod.UTF_8)
     val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.outputPorts.size shouldBe op.operatorInfo.outputPorts.size
+    val outputPortId = op.operatorInfo.outputPorts.head.id
+    val propagated = physical.propagateSchema.func(Map.empty)
+    propagated should contain key outputPortId
+    propagated(outputPortId) shouldBe op.sourceSchema()
   }
 }
