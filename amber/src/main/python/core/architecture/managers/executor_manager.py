@@ -18,6 +18,7 @@
 import fs
 import importlib
 import inspect
+import itertools
 import sys
 from cached_property import cached_property
 from fs.base import FS
@@ -29,10 +30,22 @@ from core.models import Operator, SourceOperator
 
 
 class ExecutorManager:
+    # Process-wide monotonically increasing counter used to generate the
+    # tmp module names ExecutorManager hands to importlib. Making this a
+    # class-level counter (rather than a per-instance counter that always
+    # restarts at 1) guarantees that no two ExecutorManager instances in
+    # the same Python process can collide on `udf-v1`. Without that
+    # guarantee, the second instance hits the "module already loaded"
+    # branch of importlib and the post-clear+reload path can return a
+    # stale class on Python 3.11 (see #4705).
+    #
+    # Single-process counters are atomic in CPython under the GIL; we
+    # don't expect cross-thread contention on this anyway.
+    _module_name_counter = itertools.count(1)
+
     def __init__(self):
         self.executor: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
-        self.executor_version: int = 0  # incremental only
 
     @cached_property
     def fs(self) -> FS:
@@ -60,11 +73,13 @@ class ExecutorManager:
 
     def gen_module_file_name(self) -> Tuple[str, str]:
         """
-        Generate a UUID to be used as udf source code file.
+        Generate a unique module name and corresponding tmp file name.
+        Names come from a process-wide monotonic counter so they never
+        collide with any module already in `sys.modules`, even when
+        multiple ExecutorManager instances live in the same process.
         :return Tuple[str, str]: the pair of module_name and file_name.
         """
-        self.executor_version += 1
-        module_name = f"udf-v{self.executor_version}"
+        module_name = f"udf-v{next(ExecutorManager._module_name_counter)}"
         file_name = f"{module_name}.py"
         return module_name, file_name
 
@@ -84,13 +99,10 @@ class ExecutorManager:
             f"{Path(self.fs.getsyspath('/')).joinpath(file_name)}."
         )
 
-        if module_name in sys.modules:
-            executor_module = importlib.import_module(module_name)
-            executor_module.__dict__.clear()
-            executor_module.__dict__["__name__"] = module_name
-            executor_module = importlib.reload(executor_module)
-        else:
-            executor_module = importlib.import_module(module_name)
+        # gen_module_file_name guarantees module_name is unique across
+        # the process, so import_module will always cleanly load source
+        # from the tmp fs we just wrote — no re-import / reload dance.
+        executor_module = importlib.import_module(module_name)
         self.operator_module_name = module_name
 
         executors = list(
