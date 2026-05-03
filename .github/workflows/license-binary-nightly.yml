@@ -20,7 +20,7 @@ name: License-binary nightly
 # PR builds run check_binary_deps.py with --ignore-transitive-version
 # (#4691, #4693) so a benign upstream version bump on a transitive dep
 # does not block merges. This workflow runs the same build.yml every
-# night on `main` with `ignore_transitive_version: false`, exercising
+# night on `main` with `mode: release`, exercising
 # the strict exact-match check on every ecosystem. On drift, it files
 # (or updates / closes) a single tracking issue identified by the
 # stable label `license-binary-drift`. Sub-task of #4688.
@@ -48,13 +48,14 @@ concurrency:
 
 jobs:
   # Reuse the same build.yml that PRs go through; the only difference is
-  # ignore_transitive_version: false, which flips every license-binary
-  # check from relaxed to strict. secrets: inherit so the called jobs
-  # keep access to NX_CLOUD_ACCESS_TOKEN, CODECOV_TOKEN, etc.
+  # mode: release, which flips every license-binary check from relaxed
+  # (`--ignore-transitive-version`) to strict exact-match. secrets:
+  # inherit so the called jobs keep access to NX_CLOUD_ACCESS_TOKEN,
+  # CODECOV_TOKEN, etc.
   build:
     uses: ./.github/workflows/build.yml
     with:
-      ignore_transitive_version: false
+      mode: release
     secrets: inherit
 
   report:
@@ -164,11 +165,11 @@ jobs:
               `Nightly strict license-binary check ran on ` +
               `\`${context.sha.slice(0, 7)}\`.\n\n` +
               `Workflow run: ${runUrl}\n\n` +
-              `PR builds run \`build.yml\` with ` +
-              `\`ignore_transitive_version: true\` so transitive version ` +
-              `bumps don't block merges; this nightly job runs the same ` +
-              `\`build.yml\` with that input flipped to \`false\` and ` +
-              `reports any drift here. To resolve drift, refresh the ` +
+              `PR builds run \`build.yml\` with \`mode: PR\` so transitive ` +
+              `version bumps don't block merges; this nightly job runs ` +
+              `the same \`build.yml\` with \`mode: release\` (strict ` +
+              `exact-match) and reports any drift here. To resolve ` +
+              `drift, refresh the ` +
               `relevant per-module \`LICENSE-binary\` file(s) to match the ` +
               `bundled versions.\n\n` +
               `### License checks that failed\n\n` +
