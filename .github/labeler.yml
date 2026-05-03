@@ -23,22 +23,21 @@ common:
   - changed-files:
       - any-glob-to-any-file:
           - 'common/**'
+          # Root-level Scala build / lint config: a change to any of these
+          # affects every Scala stack (amber + the platform services).
+          - 'build.sbt'
+          - 'project/**'
+          - '.scalafix.conf'
+          - '.scalafmt.conf'
 
-service:
+platform:
   - changed-files:
       - any-glob-to-any-file:
           - 'access-control-service/**'
           - 'computing-unit-managing-service/**'
           - 'config-service/**'
           - 'file-service/**'
-          - 'pyright-language-service/**'
           - 'workflow-compiling-service/**'
-          # Root-level scala build / lint config: a change to any of these
-          # affects the scala stack, but no component label catches them.
-          - 'build.sbt'
-          - 'project/**'
-          - '.scalafix.conf'
-          - '.scalafmt.conf'
 
 agent-service:
   - changed-files:
