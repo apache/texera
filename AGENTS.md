@@ -102,9 +102,11 @@ Short, **Conventional Commits**, same shape for branch and commit subject.
 | Chore | `chore/angular-21` | `chore(deps): upgrade frontend to Angular 21` |
 | CI | `ci/cache-action-bump` | `ci: bump coursier/cache-action to v8.1.0` |
 
-Both ≤ ~60 chars; scope is a module (`amber`, `pyamber`, `frontend`,
-`agent-service`, `file-service`, …) — not `amber-python`. No
-`Co-authored-by:` trailer for the repo owner.
+Both ≤ ~60 chars. For code changes, if you use a scope, use the module name
+(`amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, …) — not
+`amber-python`. Use `chore(deps): ...` for dependency-only updates, and
+`ci: ...` for CI-only changes. No `Co-authored-by:` trailer for the repo
+owner.
 
 ### Issues and PRs
 
