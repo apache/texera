@@ -54,6 +54,13 @@ concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
 
+// `amber/src/test/integration/scala` holds Scala specs that exercise both
+// Scala and Python end-to-end (tagged @org.apache.texera.amber.tags.IntegrationTest).
+// They live outside `src/test/scala` so the labeler's `engine` rule can
+// match `amber/src/test/scala/**` cleanly without per-file exclusions.
+// sbt still treats them as ordinary Test sources.
+Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "integration" / "scala"
+
 // Excluding some proto files:
 PB.generate / excludeFilter := "scalapb.proto"
 
