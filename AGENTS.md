@@ -122,8 +122,8 @@ issue (template + Type)  ->  PR (Closes #N, template)  ->  review  ->  merge
   (`Bug` / `Task` / `Feature`); the template's `type:` frontmatter doesn't
   always apply on creation.
 - Reference the issue: `Closes #N` (or `Fixes` / `Resolves`, or "related to").
-- Issue titles are **plain prose** — Conventional Commits is for commits and
-  PR titles only.
+- Issue titles are **plain prose**; never use the Conventional Commits
+  format (`type(scope): ...`) — that prefix is for commit and PR titles only.
 - Task issues match `task-template.yaml` exactly: Task Summary + Task Type.
   No priority / proposed step / code blocks.
 - Prefer **tables** and small **ASCII diagrams** over long bullets. Don't
