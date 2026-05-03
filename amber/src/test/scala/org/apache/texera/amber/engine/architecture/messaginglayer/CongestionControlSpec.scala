@@ -40,6 +40,17 @@ class CongestionControlSpec extends AnyFlatSpec with Matchers {
   private def netMsg(id: Long): NetworkMessage =
     NetworkMessage(id, WorkflowFIFOMessage(channelId, sequenceNumber = id, StubPayload))
 
+  // Backdate `sentTime` for `id` so the timeout branches (ack > ackTimeLimit
+  // and getTimedOutInTransitMessages > resendTimeLimit) become reachable
+  // without sleeping. The field is `private val sentTime: LongMap[Long]`,
+  // accessed via Java reflection on the instance's backing field.
+  private def backdateSentTime(cc: CongestionControl, id: Long, ageMillis: Long): Unit = {
+    val field = classOf[CongestionControl].getDeclaredField("sentTime")
+    field.setAccessible(true)
+    val map = field.get(cc).asInstanceOf[scala.collection.mutable.LongMap[Long]]
+    map(id) = System.currentTimeMillis() - ageMillis
+  }
+
   // ----- canSend / windowSize default -----
 
   "CongestionControl" should "start with windowSize=1 (so canSend is true at zero in-flight)" in {
@@ -105,19 +116,21 @@ class CongestionControlSpec extends AnyFlatSpec with Matchers {
   // ----- ack: timeout shrinks the window -----
 
   "ack outside ackTimeLimit" should "halve ssThreshold and reset windowSize to ssThreshold" in {
+    // Drive windowSize up to 16 (== ssThreshold) via four in-window acks,
+    // then backdate the next send so the ack falls outside ackTimeLimit.
+    // The timeout branch should halve ssThreshold to 8 and snap windowSize
+    // back to 8.
     val cc = new CongestionControl
-    cc.markMessageInTransit(netMsg(0))
-    // Forge a stale send time by sleeping past the 3s ack window. Skip in
-    // the regular path; instead use direct stamp via reflection-free path:
-    // we drain enough acks to grow windowSize, then artificially time out
-    // the next one using setSentTime on the underlying map. But the field
-    // is private — easiest is to drive a real timeout by sleeping. To keep
-    // the suite fast, this test acks exactly within the limit and pins the
-    // happy-path math. Out-of-window ack semantics are documented here as
-    // a comment; an integration test with controlled clock would be the
-    // right place to exercise the halving branch.
-    cc.ack(0)
-    cc.getStatusReport should include("current window size = 2")
+    for (i <- 0 until 4) {
+      cc.markMessageInTransit(netMsg(i))
+      cc.ack(i)
+    }
+    cc.getStatusReport should include("current window size = 16")
+
+    cc.markMessageInTransit(netMsg(99))
+    backdateSentTime(cc, 99L, 5000) // > ackTimeLimit (3000)
+    cc.ack(99)
+    cc.getStatusReport should include("current window size = 8")
   }
 
   // ----- timed-out in-transit -----
@@ -126,6 +139,19 @@ class CongestionControlSpec extends AnyFlatSpec with Matchers {
     val cc = new CongestionControl
     cc.markMessageInTransit(netMsg(0))
     cc.getTimedOutInTransitMessages.toList shouldBe empty
+  }
+
+  it should "return only the messages whose sentTime is older than resendTimeLimit" in {
+    // Cover the AkkaMessageTransferService.checkResend() retransmission path:
+    // the in-transit message that has been sitting past the 60s
+    // resendTimeLimit must surface; the freshly-sent one must not.
+    val cc = new CongestionControl
+    cc.markMessageInTransit(netMsg(0))
+    cc.markMessageInTransit(netMsg(1))
+    backdateSentTime(cc, 0L, 70000) // > resendTimeLimit (60000)
+
+    val timedOut = cc.getTimedOutInTransitMessages.toList.map(_.messageId)
+    timedOut shouldBe List(0L)
   }
 
   // ----- getInTransitMessages / getAllMessages -----
@@ -142,12 +168,12 @@ class CongestionControlSpec extends AnyFlatSpec with Matchers {
   // ----- status report format -----
 
   "getStatusReport" should "format the three core counters in the documented order" in {
+    // Pin the exact format string (separator + ordering) so a reorder of
+    // the three fields or a tab-vs-comma swap fails this spec.
     val cc = new CongestionControl
     cc.markMessageInTransit(netMsg(0))
     cc.enqueueMessage(netMsg(1))
-    val status = cc.getStatusReport
-    status should include("current window size")
-    status should include("in transit = 1")
-    status should include("waiting = 1")
+    cc.getStatusReport shouldBe
+      "current window size = 1 \t in transit = 1 \t waiting = 1"
   }
 }
