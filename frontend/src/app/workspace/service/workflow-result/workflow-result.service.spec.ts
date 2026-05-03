@@ -17,12 +17,10 @@
  * under the License.
  */
 
-// TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
-
 import { TestBed } from "@angular/core/testing";
 import { OperatorPaginationResultService, WorkflowResultService } from "./workflow-result.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { of, Subject } from "rxjs";
+import { firstValueFrom, of, Subject } from "rxjs";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 describe("WorkflowResultService", () => {
@@ -64,7 +62,7 @@ describe("OperatorPaginationResultService", () => {
   });
 
   describe("selectTuple", () => {
-    it.skip("should return the correct tuple and schema", () => {
+    it("should return the correct tuple and schema", async () => {
       const testSchema: SchemaAttribute[] = [
         { attributeName: "id", attributeType: "integer" },
         { attributeName: "name", attributeType: "string" },
@@ -87,14 +85,12 @@ describe("OperatorPaginationResultService", () => {
         })
       );
 
-      service.selectTuple(1, 3).subscribe(result => {
-        expect(result.tuple).toEqual({ id: 2, name: "Bob" });
-        expect(result.schema).toEqual(testSchema);
-        done();
-      });
+      const result = await firstValueFrom(service.selectTuple(1, 3));
+      expect(result.tuple).toEqual({ id: 2, name: "Bob" });
+      expect(result.schema).toEqual(testSchema);
     });
 
-    it.skip("should handle out-of-bounds tuple index", () => {
+    it("should handle out-of-bounds tuple index", async () => {
       const testSchema: SchemaAttribute[] = [
         { attributeName: "id", attributeType: "integer" },
         { attributeName: "name", attributeType: "string" },
@@ -116,11 +112,9 @@ describe("OperatorPaginationResultService", () => {
         })
       );
 
-      service.selectTuple(2, 3).subscribe(result => {
-        expect(result.tuple).toBeUndefined();
-        expect(result.schema).toEqual(testSchema);
-        done();
-      });
+      const result = await firstValueFrom(service.selectTuple(2, 3));
+      expect(result.tuple).toBeUndefined();
+      expect(result.schema).toEqual(testSchema);
     });
   });
 });

@@ -92,6 +92,7 @@
             "runnerConfig": "vitest.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "include": ["**/*.spec.ts"],
+            "setupFiles": ["src/jsdom-svg-polyfill.ts"],
             "exclude": [
               "**/workflow-result.service.spec.ts",
               "**/download.service.spec.ts",
@@ -107,9 +108,7 @@
               "**/operator-menu.service.spec.ts",
               "**/workflow-console.service.spec.ts",
               "**/operator-reuse-cache-status.service.spec.ts",
-              "**/joint-ui.service.spec.ts",
-              "**/drag-drop.service.spec.ts",
-              "**/workflow-executions.service.spec.ts"
+              "**/drag-drop.service.spec.ts"
             ]
           }
         }
