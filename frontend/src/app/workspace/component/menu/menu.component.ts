@@ -121,7 +121,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzBadgeComponent,
     NzTooltipDirective,
     DatePipe,
-    ,
     NzSpaceCompactComponent,
   ],
 })
