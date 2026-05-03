@@ -2,79 +2,67 @@
 
 ## Architecture Map
 
-Apache Texera is a multi-language monorepo: a set of Scala/sbt backend services
-plus the Amber workflow execution engine, fronted by an Angular UI and Agent
-TypeScript services. JVM modules are wired in [`build.sbt`](build.sbt).
+Apache Texera: Scala/sbt backend services + the Amber workflow execution
+engine, an Angular UI, and helper TypeScript services. JVM modules wired in
+[`build.sbt`](build.sbt).
 
 | Area | Path | Detail |
 | --- | --- | --- |
 | Workflow execution engine (Amber) | `amber/` | [amber/README.md](amber/README.md) |
-| Config service | `config-service/` | `build.sbt` (`ConfigService`) |
-| Access control service | `access-control-service/` | `build.sbt` (`AccessControlService`) |
-| File service | `file-service/` | `build.sbt` (`FileService`) |
-| Computing-unit managing service | `computing-unit-managing-service/` | `build.sbt` (`ComputingUnitManagingService`) |
-| Workflow compiling service | `workflow-compiling-service/` | `build.sbt` (`WorkflowCompilingService`) |
+| Backend services | `config-service/`, `access-control-service/`, `file-service/`, `computing-unit-managing-service/`, `workflow-compiling-service/` | `build.sbt` |
 | Shared Scala libs | `common/` (`auth`, `config`, `dao`, `workflow-core`, `workflow-operator`, `pybuilder`) | `build.sbt` |
 | Frontend (Angular) | `frontend/` | [frontend/README.md](frontend/README.md) |
 | Agent service (Bun/TS, LLM agents) | `agent-service/` | `agent-service/package.json` |
 | Pyright language service | `pyright-language-service/` | [pyright-language-service/README.md](pyright-language-service/README.md) |
-| Deploy scripts / Dockerfiles | `bin/` | [bin/README.md](bin/README.md), [bin/k8s/README.md](bin/k8s/README.md), [bin/single-node/README.md](bin/single-node/README.md) |
-| DDL | `sql/` | files therein |
-| sbt build plugins | `project/` | files therein |
+| Deploy scripts / Dockerfiles | `bin/` | [README](bin/README.md) / [k8s](bin/k8s/README.md) / [single-node](bin/single-node/README.md) |
+| DDL, sbt plugins | `sql/`, `project/` | files therein |
 
 ### Amber breakdown
 
 | Path | Role |
 | --- | --- |
-| `amber/src/main/scala` | Pekko actors (controller/worker), scheduler, reconfiguration, fault tolerance, gRPC/proto |
-| `amber/src/main/python/pyamber` | Python engine (pyamber) — bridge to the Scala engine |
-| `amber/src/main/python/pytexera` | Python operator SDK exposed to user UDFs |
+| `amber/src/main/scala` | Pekko actors, scheduler, reconfiguration, fault tolerance, gRPC/proto |
+| `amber/src/main/python/pyamber` | Python engine (`pyamber`) — bridge to the Scala engine |
+| `amber/src/main/python/pytexera` | Python operator SDK exposed to UDFs |
 
 ## Where Things Live
 
 | Topic | Source of truth |
 | --- | --- |
-| Contribution steps, PR/commit conventions, lint/format/testing, license header | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Contribution / PR / lint / format / testing / license header | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Reporting security issues | [SECURITY.md](SECURITY.md) |
-| PR template (sections to fill) | [.github/PULL_REQUEST_TEMPLATE](.github/PULL_REQUEST_TEMPLATE) |
-| Issue templates | [.github/ISSUE_TEMPLATE/bug-template.yaml](.github/ISSUE_TEMPLATE/bug-template.yaml), [task-template.yaml](.github/ISSUE_TEMPLATE/task-template.yaml), [feature-template.yaml](.github/ISSUE_TEMPLATE/feature-template.yaml) |
-| License-header coverage rules | [.licenserc.yaml](.licenserc.yaml) |
-| Vendored-license handling for `workflow-operator` | [project/AddMetaInfLicenseFiles.scala](project/AddMetaInfLicenseFiles.scala) |
-| Local single-node and k8s deployment | [bin/single-node/README.md](bin/single-node/README.md), [bin/k8s/README.md](bin/k8s/README.md) |
+| PR template | [.github/PULL_REQUEST_TEMPLATE](.github/PULL_REQUEST_TEMPLATE) |
+| Issue templates | [bug](.github/ISSUE_TEMPLATE/bug-template.yaml) / [task](.github/ISSUE_TEMPLATE/task-template.yaml) / [feature](.github/ISSUE_TEMPLATE/feature-template.yaml) |
+| License-header coverage; vendored `workflow-operator` | [.licenserc.yaml](.licenserc.yaml); [project/AddMetaInfLicenseFiles.scala](project/AddMetaInfLicenseFiles.scala) |
+| Local single-node / k8s deploy | [single-node](bin/single-node/README.md), [k8s](bin/k8s/README.md) |
 
-If a topic is covered above, **read that file** instead of asking here.
+If a topic is above, **read that file** instead of asking here.
 
 ## Agent-Specific Rules
 
-Constraints that aren't in CONTRIBUTING.md — agent behavior, not project policy.
-
 ### Scope and safety
 
-- Keep changes narrowly scoped. No unrelated rewrites or cross-service moves
-  unless the task asks for it.
-- Check `git status --short` before editing; don't revert unrelated dirty files.
-- Never commit secrets, local config, generated build output, caches, or
-  binaries (`python_udf.conf`, `.env`, `target/`, `dist/`, `.pytest_cache/`,
-  `.ruff_cache/`, local logs).
+- Narrowly scoped changes. No unrelated rewrites or cross-service moves.
+- `git status --short` before editing; don't revert unrelated dirty files.
+- Never commit secrets / local config / build output / caches / binaries
+  (`python_udf.conf`, `.env`, `target/`, `dist/`, `.pytest_cache/`,
+  `.ruff_cache/`, logs).
 
 ### Develop in a worktree
 
-Leave the primary `texera/` checkout on `main`. Do all work in a fresh
-`git worktree` per PR, branched off a freshly fetched `upstream/main`.
+Leave `texera/` on `main`. One worktree per PR, branched off a freshly
+fetched `upstream/main`.
 
 ```
 texera/                      # stays on main, never dirty
 texera-worktrees/<branch>/   # one worktree per PR
 ```
 
-- One worktree per iteration; reset to `upstream/main` at the start.
-- Verify before pushing: `git log upstream/main..HEAD` should contain only
-  this PR's commits.
-- Remove the worktree after the PR merges.
+Reset to `upstream/main` at start; `git log upstream/main..HEAD` should
+contain only this PR's commits before pushing; remove the worktree after
+merge.
 
 ### Environment
-
-Project toolchain defaults:
 
 | Component | Version |
 | --- | --- |
@@ -83,41 +71,30 @@ Project toolchain defaults:
 | Python | 3.12 |
 | Node | 24 |
 
-For Python, create one venv shared across all worktrees rather than a venv
-per worktree — keep it as a sibling of the texera checkout so it isn't tied
-to any single worktree:
+One Python venv shared across worktrees, sibling of the texera checkout:
 
 ```
 <workspace>/
-├── texera/                   # main checkout, stays on main
-├── texera-worktrees/<br>/    # one worktree per PR
+├── texera/                   # main checkout
+├── texera-worktrees/<br>/    # per-PR worktrees
 └── venv312/                  # shared Python 3.12 venv
 ```
 
-From any worktree:
-
 ```bash
-python3.12 -m venv ../venv312
-source ../venv312/bin/activate
+python3.12 -m venv ../venv312 && source ../venv312/bin/activate
 pip install -r amber/requirements.txt -r amber/operator-requirements.txt
 ```
 
-Tests that spawn Python workers need the interpreter path configured. Either
-edit `python.path` in
-[`common/config/src/main/resources/udf.conf`](common/config/src/main/resources/udf.conf)
-or export `UDF_PYTHON_PATH` (which overrides it):
-
-```bash
-export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"
-```
-
-Without this, `sbt` Python-integration tests will fail to launch a worker.
+Tests that spawn Python workers need an interpreter path. Edit `python.path`
+in [`udf.conf`](common/config/src/main/resources/udf.conf) or
+`export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"` (env var overrides).
+Without it, `sbt` Python-integration tests fail to launch a worker.
 
 ### Branch and commit naming
 
-Short, **Conventional Commits**. Same shape for branch and commit subject.
+Short, **Conventional Commits**, same shape for branch and commit subject.
 
-| Kind | Example branch | Example commit |
+| Kind | Branch | Commit |
 | --- | --- | --- |
 | Feature | `feat/agent-workflow-edit` | `feat(agent-service): enable workflow edit` |
 | Bug fix | `fix/marker-replay` | `fix(amber): marker replay during reconfiguration` |
@@ -125,10 +102,9 @@ Short, **Conventional Commits**. Same shape for branch and commit subject.
 | Chore | `chore/angular-21` | `chore(deps): upgrade frontend to Angular 21` |
 | CI | `ci/cache-action-bump` | `ci: bump coursier/cache-action to v8.1.0` |
 
-- Keep both under ~60 chars where possible; the body explains the rest.
-- Scope matches the module (`amber`, `pyamber`, `frontend`, `agent-service`,
-  `file-service`, …) — not `amber-python`.
-- Don't add a `Co-authored-by:` trailer for the repo owner.
+Both ≤ ~60 chars; scope is a module (`amber`, `pyamber`, `frontend`,
+`agent-service`, `file-service`, …) — not `amber-python`. No
+`Co-authored-by:` trailer for the repo owner.
 
 ### Issues and PRs
 
@@ -138,44 +114,31 @@ Issue-first; both stay short.
 issue (template + Type)  ->  PR (Closes #N, template)  ->  review  ->  merge
 ```
 
-- Every change starts as an issue (minor typo, docs excepted). File against
+- Every change starts as an issue (minor typo / docs excepted). File against
   `apache/texera`, never a fork.
-- Pick the right template **and** set the GitHub Issue **Type** (`Bug`,
-  `Task`, `Feature`) — the template's `type:` frontmatter does not always
-  apply on creation; set it explicitly.
-- Reference the issue from the PR with `Closes #N` (or `Fixes` / `Resolves`,
-  or just "related to").
-
-Style for both:
-
-- Short prose. Prefer **tables** and small **ASCII diagrams** (e.g.
-  `A -> B -> C`, before/after blocks) over long bullet lists. Don't restate
-  the diff or the template.
+- Pick the right template **and** set the GitHub Issue **Type** explicitly
+  (`Bug` / `Task` / `Feature`); the template's `type:` frontmatter doesn't
+  always apply on creation.
+- Reference the issue: `Closes #N` (or `Fixes` / `Resolves`, or "related to").
 - Issue titles are **plain prose** — Conventional Commits is for commits and
   PR titles only.
 - Task issues match `task-template.yaml` exactly: Task Summary + Task Type.
-  No priority, no proposed next step, no code blocks.
+  No priority / proposed step / code blocks.
+- Prefer **tables** and small **ASCII diagrams** over long bullets. Don't
+  restate the diff or the template.
 - For bugs, lead with **root cause** and a **before -> after** sketch:
   ```
   Before:  reconfiguration -> replay marker -> worker hangs
   After:   reconfiguration -> replay marker -> resume from checkpoint
   ```
-
-Frontend PRs — screenshots required. Any change with visible UI impact must
-include screenshots (or a short GIF), **before / after** side by side
-whenever possible:
-
-| Before | After |
-| --- | --- |
-| ![before](url) | ![after](url) |
-
-For purely visual fixes this is the primary verification — say so under
-"How was this PR tested?". For interactive flows also list manual steps
-(click path, browser, viewport).
+- **Frontend PRs**: any visible UI change requires screenshots / GIF,
+  **before / after** side by side. For purely visual fixes that's the
+  primary verification under "How was this PR tested?"; interactive flows
+  also list manual steps (click path, browser, viewport).
 
 ### Tests come first
 
-Test-driven. Write the test before the source change.
+TDD. Write the test before the source change.
 
 ```
 write/adjust test (red)  ->  edit source (green)  ->  refactor
@@ -183,27 +146,26 @@ write/adjust test (red)  ->  edit source (green)  ->  refactor
 
 | Situation | Order |
 | --- | --- |
-| New feature or behavior change | Write failing test, then implement. |
-| Bug fix | Write a regression test that reproduces the bug, then fix. |
-| Touching code with **no tests** | Add **characterization tests** that pin current behavior first; commit those (or include in same PR). Only then change source and update tests. |
-| Refactor (no behavior change) | Tests stay green throughout — no edits to assertions. |
+| New feature / behavior change | Failing test, then implement. |
+| Bug fix | Regression test reproducing the bug, then fix. |
+| Code with **no tests** | **Characterization tests** pin current behavior first; only then change source. |
+| Refactor (no behavior change) | Tests stay green throughout — no assertion edits. |
 
-Coverage requirements for every test added:
+Every test must cover:
 
-- **Both directions**: positive (valid input → expected result) **and**
-  negative (invalid input / error path → specific failure mode).
+- **Both directions**: positive (valid → expected) **and** negative (invalid
+  / error → specific failure mode).
 - **Edge cases**: empty / null / zero / max / boundary, unicode,
   concurrency/order, missing or malformed config.
-- **Don't assume valid.** Never write tests that only exercise the happy
-  path. If the code accepts external input (user, API, file, message), test
-  what happens when it's wrong.
-- For known bugs you don't fix in this PR: pin the actual buggy behavior
-  with an explanatory comment, **and** add a `@pytest.mark.xfail(strict=True)`
-  (or equivalent) test for the intended contract.
+- **Don't assume valid.** External input (user / API / file / message) must
+  be tested with bad input.
+- Known bugs not fixed here: pin the buggy behavior with a comment **plus**
+  an `@pytest.mark.xfail(strict=True)` (or equivalent) test for the intended
+  contract.
 
-Don't claim "tested" without commands. Under the PR's "How was this PR
-tested?" section, paste the exact `sbt testOnly` / `pytest` / `yarn test:ci`
-/ `bun test` invocation.
+Don't claim "tested" without commands. Paste the exact `sbt testOnly` /
+`pytest` / `yarn test:ci` / `bun test` invocation under "How was this PR
+tested?".
 
 ### CI labels & gating
 
@@ -214,21 +176,12 @@ diff -> pr-labeler -> labels on PR -> required-checks maps labels to stacks -> C
 ```
 
 - Path → label rules: [`.github/labeler.yml`](.github/labeler.yml)
-- Label → stacks map (`LABEL_STACKS`, source of truth):
-  [`.github/workflows/required-checks.yml`](.github/workflows/required-checks.yml)
-
-Stacks are `frontend`, `scala`, `python`, `agent-service`. Read
-`LABEL_STACKS` for the current mapping — do not duplicate it here.
-
-Rules of thumb:
-
-- Don't fight the auto-labels. If the labeler missed something, **add** the
-  label rather than editing the workflow.
+- Label → stacks (`LABEL_STACKS`, source of truth):
+  [`.github/workflows/required-checks.yml`](.github/workflows/required-checks.yml).
+  Read it directly; don't duplicate the mapping here.
 - Need extra coverage the diff doesn't imply (e.g. a `common/` change you
-  suspect breaks the frontend)? **Add the relevant label manually** — e.g.
-  add `frontend` to also run the frontend stack.
+  suspect breaks the frontend)? **Add the relevant label manually**.
 - Empty stack union (docs-only / dev-only / `dependencies` / `feature` /
-  `fix` / `refactor` / `release/*` only) skips every build stack on
-  purpose; that's correct, not a bug to "fix".
+  `fix` / `refactor` / `release/*` only) skips every build stack on purpose.
 - `release/*` labels select backport targets; removing one cancels that
   backport.
