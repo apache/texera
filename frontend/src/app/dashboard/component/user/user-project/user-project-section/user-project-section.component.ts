@@ -24,13 +24,40 @@ import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isDefined } from "../../../../../common/util/predicate";
+import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
+import { NgIf, NgClass, NgStyle, DatePipe } from "@angular/common";
+import { MarkdownComponent } from "ngx-markdown";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { ColorPickerModule } from "ngx-color-picker";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { UserWorkflowComponent } from "../../user-workflow/user-workflow.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-project-section",
   templateUrl: "./user-project-section.component.html",
   styleUrls: ["./user-project-section.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NgIf,
+    MarkdownComponent,
+    NzCardMetaComponent,
+    NgClass,
+    NgStyle,
+    NzTooltipDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    ColorPickerModule,
+    NzIconDirective,
+    UserWorkflowComponent,
+    DatePipe,
+  ],
 })
 export class UserProjectSectionComponent implements OnInit {
   // information from the database about this project

@@ -19,6 +19,13 @@
 
 import { Component, Input, Output, EventEmitter } from "@angular/core";
 import { ReActStep } from "../../../../service/agent/agent-types";
+import { NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
+import { NgIf, NgFor, SlicePipe, DatePipe } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzDescriptionsComponent, NzDescriptionsItemComponent } from "ng-zorro-antd/descriptions";
+import { NzTagComponent } from "ng-zorro-antd/tag";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
 /**
  * Reusable modal component for displaying ReActStep details.
@@ -28,7 +35,21 @@ import { ReActStep } from "../../../../service/agent/agent-types";
   selector: "texera-react-step-detail-modal",
   templateUrl: "./react-step-detail-modal.component.html",
   styleUrls: ["./react-step-detail-modal.component.scss"],
-  standalone: false,
+  imports: [
+    NzModalComponent,
+    NzModalContentDirective,
+    NgIf,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDescriptionsComponent,
+    NzDescriptionsItemComponent,
+    NzTagComponent,
+    NzCollapseComponent,
+    NgFor,
+    NzCollapsePanelComponent,
+    SlicePipe,
+    DatePipe,
+  ],
 })
 export class ReActStepDetailModalComponent {
   @Input() visible: boolean = false;

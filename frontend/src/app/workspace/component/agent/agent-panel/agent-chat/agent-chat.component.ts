@@ -37,13 +37,59 @@ import { AgentInfo, AgentService } from "../../../../service/agent/agent.service
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NgIf, NgFor } from "@angular/common";
+import { MarkdownComponent } from "ngx-markdown";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
+import {
+  NzInputDirective,
+  NzAutosizeDirective,
+  NzInputGroupComponent,
+  NzInputGroupWhitSuffixOrPrefixDirective,
+} from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ReActStepDetailModalComponent } from "../react-step-detail-modal/react-step-detail-modal.component";
+import { NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
+import { NzTagComponent } from "ng-zorro-antd/tag";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 @UntilDestroy()
 @Component({
   selector: "texera-agent-chat",
   templateUrl: "agent-chat.component.html",
   styleUrls: ["agent-chat.component.scss"],
-  standalone: false,
+  imports: [
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzTooltipDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NgIf,
+    NgFor,
+    MarkdownComponent,
+    NzSpinComponent,
+    NzInputDirective,
+    FormsModule,
+    NzAutosizeDirective,
+    NzWaveDirective,
+    ReActStepDetailModalComponent,
+    NzModalComponent,
+    NzModalContentDirective,
+    NzTabsComponent,
+    NzTabComponent,
+    NzInputNumberComponent,
+    NzTagComponent,
+    NzInputGroupComponent,
+    NzInputGroupWhitSuffixOrPrefixDirective,
+    NzSwitchComponent,
+  ],
 })
 export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, OnChanges {
   @Input() agentInfo!: AgentInfo;

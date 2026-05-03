@@ -310,7 +310,11 @@
         <nz-collapse-panel
           nzActive="true"
           nzHeader="Create New Version">
-          <texera-user-files-uploader (uploadedFiles)="onNewUploadFilesChanged($event)"> </texera-user-files-uploader>
+          <texera-user-files-uploader
+            [ownerEmail]="ownerEmail"
+            [datasetName]="datasetName"
+            (uploadedFiles)="onNewUploadFilesChanged($event)">
+          </texera-user-files-uploader>
 
           <nz-collapse
             nzGhost

@@ -28,7 +28,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   selector: "texera-visualization-panel-content",
   templateUrl: "./visualization-frame-content.component.html",
   styleUrls: ["./visualization-frame-content.component.scss"],
-  standalone: false,
 })
 export class VisualizationFrameContentComponent implements AfterContentInit {
   // operatorId: string = inject(NZ_MODAL_DATA).operatorId;

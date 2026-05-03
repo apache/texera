@@ -54,13 +54,40 @@ import {
 } from "../../../../../common/util/computing-unit.util";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import { ComputingUnitActionsService } from "../../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NgIf, DecimalPipe } from "@angular/common";
+import { NzBadgeComponent } from "ng-zorro-antd/badge";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzProgressComponent } from "ng-zorro-antd/progress";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-computing-unit-list-item",
   templateUrl: "./user-computing-unit-list-item.component.html",
   styleUrls: ["./user-computing-unit-list-item.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzRowDirective,
+    NzColDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NgIf,
+    NzBadgeComponent,
+    NzTooltipDirective,
+    NzInputDirective,
+    NzPopoverDirective,
+    NzProgressComponent,
+    DecimalPipe,
+  ],
 })
 export class UserComputingUnitListItemComponent implements OnInit {
   private _entry?: DashboardWorkflowComputingUnit;

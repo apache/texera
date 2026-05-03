@@ -23,13 +23,34 @@ import { DatasetService } from "../../../../../service/user/dataset/dataset.serv
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { formatTime } from "src/app/common/util/format.util";
+import { NgIf, NgFor } from "@angular/common";
+import { NzListComponent, NzListItemComponent } from "ng-zorro-antd/list";
+import { NzTagComponent } from "ng-zorro-antd/tag";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzEmptyComponent } from "ng-zorro-antd/empty";
 
 @UntilDestroy()
 @Component({
   selector: "texera-dataset-staged-objects-list",
   templateUrl: "./user-dataset-staged-objects-list.component.html",
   styleUrls: ["./user-dataset-staged-objects-list.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzListComponent,
+    NgFor,
+    NzListItemComponent,
+    NzTagComponent,
+    NzTooltipDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzEmptyComponent,
+  ],
 })
 export class UserDatasetStagedObjectsListComponent implements OnInit {
   @Input() did?: number; // Dataset ID
