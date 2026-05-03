@@ -17,12 +17,17 @@
 
 name: License-binary nightly
 
-# PR builds run check_binary_deps.py with --ignore-transitive-version so a
-# benign upstream version bump on a transitive dep does not block merges
-# (#4691, #4693). This workflow runs the same checks **without** that flag
-# every night on `main`, then files (or updates / closes) a single tracking
-# issue so transitive drift is still visible and actionable before each
-# release. Sub-task of #4688; sibling of #4691 (PR-time relaxation).
+# PR builds run check_binary_deps.py with --ignore-transitive-version
+# (#4691, #4693) so a benign upstream version bump on a transitive dep
+# does not block merges. This workflow runs the same build.yml every
+# night on `main` with `ignore_transitive_version: false`, exercising
+# the strict exact-match check on every ecosystem. On drift, it files
+# (or updates / closes) a single tracking issue identified by the
+# stable label `license-binary-drift`. Sub-task of #4688.
+#
+# Reusing build.yml (rather than duplicating its dist-producing steps)
+# guarantees PR and nightly runs go through identical code paths — the
+# only difference between them is the value of one input.
 on:
   schedule:
     # 07:00 UTC daily — late evening US-Pacific, early morning Europe.
@@ -31,384 +36,165 @@ on:
 
 permissions:
   contents: read
-  # Required so the report job can create / update / close the tracking issue.
+  # Required so the report job can create / update / close the tracking
+  # issue. The reusable build workflow does not need elevated permissions.
   issues: write
+  # Needed for listJobsForWorkflowRun in the report step.
+  actions: read
 
 concurrency:
   group: license-binary-nightly
   cancel-in-progress: false
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # frontend-npm: build the prod webpack bundle, run the npm license check
-  # in strict mode against frontend/dist/3rdpartylicenses.json. Mirrors the
-  # corresponding step in build.yml's `frontend` job.
-  # ---------------------------------------------------------------------------
-  frontend-npm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Setup node
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20.19.0
-      - uses: actions/cache@v5
-        with:
-          path: frontend/.yarn/cache
-          key: ${{ runner.os }}-x64-20.19.0-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-x64-20.19.0-yarn-cache-v4-
-      - name: Prepare Yarn 4.14.1
-        run: corepack enable && corepack prepare yarn@4.14.1 --activate
-      - name: Install dependency
-        timeout-minutes: 20
-        run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
-      - name: Prod build
-        run: yarn --cwd frontend run build:ci
-      - name: License check (strict)
-        id: check
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json \
-            2>&1 | tee /tmp/result.txt
-      - name: Persist result
-        if: always()
-        run: |
-          echo "${{ steps.check.outcome }}" > /tmp/status.txt
-      - name: Upload result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: result-frontend-npm
-          path: |
-            /tmp/result.txt
-            /tmp/status.txt
+  # Reuse the same build.yml that PRs go through; the only difference is
+  # ignore_transitive_version: false, which flips every license-binary
+  # check from relaxed to strict. secrets: inherit so the called jobs
+  # keep access to NX_CLOUD_ACCESS_TOKEN, CODECOV_TOKEN, etc.
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      ignore_transitive_version: false
+    secrets: inherit
 
-  # ---------------------------------------------------------------------------
-  # agent-npm: install agent-service prod deps, regenerate the bundled
-  # 3rdpartylicenses.json via bin/collect-licenses.ts, run the agent-npm
-  # license check in strict mode. Mirrors build.yml's `agent_service` job.
-  # ---------------------------------------------------------------------------
-  agent-npm:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: agent-service
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Setup Bun
-        run: |
-          curl -fsSL https://bun.sh/install | bash -s -- bun-v1.3.3
-          echo "$HOME/.bun/bin" >> $GITHUB_PATH
-      - name: Install production dependencies
-        run: bun install --production --frozen-lockfile
-      - name: Generate agent-service license manifest
-        run: |
-          mkdir -p dist
-          bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
-      - name: License check (strict)
-        id: check
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          ../bin/licensing/check_binary_deps.py agent-npm dist/3rdpartylicenses.json \
-            2>&1 | tee /tmp/result.txt
-      - name: Persist result
-        if: always()
-        working-directory: ${{ github.workspace }}
-        run: |
-          echo "${{ steps.check.outcome }}" > /tmp/status.txt
-      - name: Upload result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: result-agent-npm
-          path: |
-            /tmp/result.txt
-            /tmp/status.txt
-
-  # ---------------------------------------------------------------------------
-  # python: install runtime + operator deps, snapshot via pip-licenses, run
-  # the python license check in strict mode. Mirrors build.yml's `python` job
-  # (the python-3.12 row, which is the one that produces the manifest).
-  # ---------------------------------------------------------------------------
-  python:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
-          pip install pip-licenses
-      - name: Generate pip-licenses manifest
-        run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
-      - name: License check (strict)
-        id: check
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv \
-            2>&1 | tee /tmp/result.txt
-      - name: Persist result
-        if: always()
-        run: |
-          echo "${{ steps.check.outcome }}" > /tmp/status.txt
-      - name: Upload result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: result-python
-          path: |
-            /tmp/result.txt
-            /tmp/status.txt
-
-  # ---------------------------------------------------------------------------
-  # jar: build the amber dist + every platform service dist, run the jar
-  # license check in strict mode against the union of all `lib/` directories.
-  # The default LICENSE-binary used by the script is the on-the-fly concat
-  # of all per-module files, so this validates that every bundled jar
-  # (across every module) is claimed somewhere in the per-module set.
-  # Per-service placement errors are still caught by build.yml on every PR;
-  # the nightly's job is exact-version drift, which the unified check
-  # surfaces just as well and at a fraction of the matrix cost.
-  # ---------------------------------------------------------------------------
-  jar:
-    runs-on: ubuntu-22.04
-    services:
-      postgres:
-        # DAO transitively pulled in by every dist runs JOOQ codegen at
-        # compile time and needs the texera schema to exist.
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    env:
-      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 11
-      - name: Create Databases
-        run: |
-          psql -h localhost -U postgres -f sql/texera_ddl.sql
-          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
-          psql -h localhost -U postgres -f sql/texera_lakefs.sql
-        env:
-          PGPASSWORD: postgres
-      - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
-        with:
-          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
-      - name: Build all dists
-        run: |
-          sbt \
-            "WorkflowExecutionService/dist" \
-            "ConfigService/dist" \
-            "AccessControlService/dist" \
-            "FileService/dist" \
-            "ComputingUnitManagingService/dist" \
-            "WorkflowCompilingService/dist"
-      - name: Unzip dists
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/dists
-          unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
-          for svc in config-service access-control-service file-service computing-unit-managing-service workflow-compiling-service; do
-            unzip -q "$svc/target/universal/$svc-"*.zip -d /tmp/dists/
-          done
-      - name: License check (strict)
-        id: check
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          shopt -s nullglob
-          lib_paths=(
-            /tmp/dists/access-control-service-*/lib
-            /tmp/dists/config-service-*/lib
-            /tmp/dists/file-service-*/lib
-            /tmp/dists/computing-unit-managing-service-*/lib
-            /tmp/dists/workflow-compiling-service-*/lib
-            /tmp/dists/amber-*/lib
-          )
-          ./bin/licensing/check_binary_deps.py jar "${lib_paths[@]}" \
-            2>&1 | tee /tmp/result.txt
-      - name: Persist result
-        if: always()
-        run: |
-          echo "${{ steps.check.outcome }}" > /tmp/status.txt
-      - name: Upload result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: result-jar
-          path: |
-            /tmp/result.txt
-            /tmp/status.txt
-
-  # ---------------------------------------------------------------------------
-  # report: aggregate per-ecosystem results into a single tracking issue.
-  # Stable identification via the `license-binary-drift` label so consecutive
-  # nightly runs update the same issue rather than spamming new ones; on a
-  # clean run, close the open tracking issue so the steady state is empty.
-  # ---------------------------------------------------------------------------
   report:
     if: always()
-    needs: [frontend-npm, agent-npm, python, jar]
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - name: Download all results
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/results
-          pattern: result-*
       - name: File or update tracking issue
         uses: actions/github-script@v8
         with:
           script: |
-            const fs = require('fs');
-            const path = require('path');
-
             const TRACKING_LABEL = 'license-binary-drift';
             const TITLE = 'License-binary drift detected (nightly)';
 
-            // Aggregate per-ecosystem outcomes from the downloaded artifacts.
-            const ecosystems = ['frontend-npm', 'agent-npm', 'python', 'jar'];
-            const sections = [];
-            let anyDrift = false;
-            for (const eco of ecosystems) {
-              const dir = `/tmp/results/result-${eco}`;
-              const statusPath = path.join(dir, 'status.txt');
-              const resultPath = path.join(dir, 'result.txt');
-              const status = fs.existsSync(statusPath)
-                ? fs.readFileSync(statusPath, 'utf8').trim()
-                : 'missing';
-              const output = fs.existsSync(resultPath)
-                ? fs.readFileSync(resultPath, 'utf8')
-                : '(no output captured)';
-              const ok = status === 'success';
-              if (!ok) anyDrift = true;
-              const heading = ok ? `✅ ${eco}` : `❌ ${eco}`;
-              sections.push(
-                `### ${heading}\n\n` +
-                '```\n' +
-                output.trim() +
-                '\n```'
-              );
+            // The license-check step names in build.yml all contain either
+            // "LICENSE-binary" or "binary licenses". Match both forms,
+            // case-insensitively, and ignore non-license-related failures
+            // (flaky tests, network blips) so they don't surface as drift.
+            const LICENSE_STEP_RE = /license[-\s]?binary|binary licenses/i;
+
+            const { owner, repo } = context.repo;
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // Walk every job in the current run (which includes the called
+            // build.yml jobs, prefixed with the calling job id `build`).
+            const jobs = await github.paginate(
+              github.rest.actions.listJobsForWorkflowRun,
+              { owner, repo, run_id: context.runId, per_page: 100 }
+            );
+
+            const licenseFailures = [];
+            const licenseSuccesses = [];
+            for (const job of jobs) {
+              for (const step of job.steps || []) {
+                if (!LICENSE_STEP_RE.test(step.name)) continue;
+                if (step.conclusion === 'failure') {
+                  licenseFailures.push({
+                    job: job.name,
+                    step: step.name,
+                    url: job.html_url,
+                  });
+                } else if (step.conclusion === 'success') {
+                  licenseSuccesses.push({ job: job.name, step: step.name });
+                }
+              }
             }
 
-            const runUrl =
-              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}` +
-              `/actions/runs/${context.runId}`;
-            const body =
-              `Nightly strict license-binary check ran on \`${context.sha.slice(0, 7)}\`.\n\n` +
-              `Workflow run: ${runUrl}\n\n` +
-              `PR builds run with \`--ignore-transitive-version\` so transitive\n` +
-              `version bumps don't block merges; this nightly job runs the same\n` +
-              `checks without that flag and reports any drift here. To resolve\n` +
-              `drift, refresh the relevant per-module \`LICENSE-binary\` file(s)\n` +
-              `to match the bundled versions.\n\n` +
-              sections.join('\n\n');
+            const anyDrift = licenseFailures.length > 0;
+            core.info(
+              `License-check steps: ${licenseSuccesses.length} ok, ` +
+              `${licenseFailures.length} failed.`
+            );
 
-            // Find an existing open tracking issue (stable label).
+            // Find the existing open tracking issue (stable label).
             const { data: existing } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: TRACKING_LABEL,
-              per_page: 5,
+              owner, repo, state: 'open', labels: TRACKING_LABEL, per_page: 5,
             });
 
-            // Only file/update issues for runs against the default branch.
-            // Manual workflow_dispatch runs against feature branches still log
-            // results to the workflow output but should not surface issues.
+            // Only file / update / close issues for runs against the default
+            // branch. Manual workflow_dispatch runs against feature branches
+            // still exercise the build.yml strict-mode check (useful for
+            // testing locally) but should not surface tracking issues.
+            const defaultBranch = context.payload.repository.default_branch;
             const isDefaultBranch =
-              context.ref === `refs/heads/${context.payload.repository.default_branch}` ||
+              context.ref === `refs/heads/${defaultBranch}` ||
               context.eventName === 'schedule';
             if (!isDefaultBranch) {
               core.info(
-                `Not on default branch (ref=${context.ref}); skipping issue creation. ` +
-                `Drift detected: ${anyDrift}.`
+                `Not on default branch (ref=${context.ref}); ` +
+                `skipping issue management. Drift detected: ${anyDrift}.`
               );
               return;
             }
 
             if (!anyDrift) {
-              if (existing.length > 0) {
-                for (const issue of existing) {
-                  await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issue.number,
-                    state: 'closed',
-                    state_reason: 'completed',
-                  });
-                  await github.rest.issues.createComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issue.number,
-                    body: `Closed automatically: nightly run ${runUrl} found no drift.`,
-                  });
-                  core.info(`Closed stale tracking issue #${issue.number}`);
-                }
-              } else {
+              if (existing.length === 0) {
                 core.info('No drift, no existing tracking issue. Nothing to do.');
+                return;
+              }
+              for (const issue of existing) {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: issue.number,
+                  state: 'closed', state_reason: 'completed',
+                });
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body:
+                    `Closed automatically: nightly run ${runUrl} found no ` +
+                    `license-binary drift across any ecosystem.`,
+                });
+                core.info(`Closed stale tracking issue #${issue.number}`);
               }
               return;
             }
 
+            // Build the issue body. Per-ecosystem diffs aren't repeated here
+            // (would require parsing workflow logs); we link to each failed
+            // job so the reviewer can click through to the script's output.
+            const failureLines = licenseFailures.map(
+              (f) => `- ❌ \`${f.job}\` — ${f.step} — [view logs](${f.url})`
+            );
+            const successLines = licenseSuccesses.map(
+              (s) => `- ✅ \`${s.job}\` — ${s.step}`
+            );
+            const body =
+              `Nightly strict license-binary check ran on ` +
+              `\`${context.sha.slice(0, 7)}\`.\n\n` +
+              `Workflow run: ${runUrl}\n\n` +
+              `PR builds run \`build.yml\` with ` +
+              `\`ignore_transitive_version: true\` so transitive version ` +
+              `bumps don't block merges; this nightly job runs the same ` +
+              `\`build.yml\` with that input flipped to \`false\` and ` +
+              `reports any drift here. To resolve drift, refresh the ` +
+              `relevant per-module \`LICENSE-binary\` file(s) to match the ` +
+              `bundled versions.\n\n` +
+              `### License checks that failed\n\n` +
+              failureLines.join('\n') +
+              (successLines.length > 0
+                ? `\n\n### License checks that passed\n\n${successLines.join('\n')}`
+                : '');
+
             if (existing.length > 0) {
               const issue = existing[0];
               await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                title: TITLE,
-                body,
+                owner, repo, issue_number: issue.number,
+                title: TITLE, body,
               });
               core.info(`Updated tracking issue #${issue.number}`);
-              // If somehow more than one is open, close the extras.
+              // Close any extras so we converge on a single tracking issue.
               for (const extra of existing.slice(1)) {
                 await github.rest.issues.update({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: extra.number,
-                  state: 'closed',
-                  state_reason: 'not_planned',
+                  owner, repo, issue_number: extra.number,
+                  state: 'closed', state_reason: 'not_planned',
                 });
                 core.info(`Closed duplicate tracking issue #${extra.number}`);
               }
             } else {
               const { data: created } = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: TITLE,
-                body,
+                owner, repo, title: TITLE, body,
                 labels: [TRACKING_LABEL, 'ci'],
               });
               core.info(`Filed new tracking issue #${created.number}`);
