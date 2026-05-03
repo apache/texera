@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Host, Input, Optional, Output } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { NgxFileDropEntry, NgxFileDropModule } from "ngx-file-drop";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -27,7 +27,6 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
-import { DatasetDetailComponent } from "../user-dataset/user-dataset-explorer/dataset-detail.component";
 import { formatSize } from "../../../../common/util/size-formatter.util";
 import {
   ConflictingFileModalContentComponent,
@@ -57,6 +56,15 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 })
 export class FilesUploaderComponent {
   @Input() showUploadAlert: boolean = false;
+  /**
+   * Optional context fields supplied by the embedding component. When the
+   * uploader is used inside `DatasetDetailComponent`, the parent passes
+   * `ownerEmail` and `datasetName` so the uploader can address staged files
+   * under the right owner/dataset path. When used standalone (e.g. dataset
+   * creation flow), they default to empty.
+   */
+  @Input() ownerEmail: string = "";
+  @Input() datasetName: string = "";
 
   @Output() uploadedFiles = new EventEmitter<FileUploadItem[]>();
 
@@ -71,7 +79,6 @@ export class FilesUploaderComponent {
     private notificationService: NotificationService,
     private adminSettingsService: AdminSettingsService,
     private datasetService: DatasetService,
-    @Optional() @Host() private parent: DatasetDetailComponent,
     private modal: NzModalService
   ) {
     this.adminSettingsService
@@ -206,8 +213,8 @@ export class FilesUploaderComponent {
 
   private getOwnerAndName(): { ownerEmail: string; datasetName: string } {
     return {
-      ownerEmail: this.parent?.ownerEmail ?? "",
-      datasetName: this.parent?.datasetName ?? "",
+      ownerEmail: this.ownerEmail,
+      datasetName: this.datasetName,
     };
   }
 
