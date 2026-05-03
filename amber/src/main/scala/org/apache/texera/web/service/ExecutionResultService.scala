@@ -58,6 +58,7 @@ import org.apache.texera.web.service.ExecutionResultService.convertTuplesToJson
 import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -65,6 +66,9 @@ import scala.concurrent.duration.DurationInt
 object ExecutionResultService {
 
   private val defaultPageSize: Int = 5
+  // ISO_8859_1 gives a 1:1 byte-to-char mapping for all 256 byte values,
+  // so it never throws or substitutes replacement chars on arbitrary binary data.
+  private val binaryCharset = StandardCharsets.ISO_8859_1
 
   /**
     * Converts a collection of Tuples to a list of JSON ObjectNodes.
@@ -101,12 +105,12 @@ object ExecutionResultService {
                         val sizeFormatted = f"$totalSize%,d"
                         val preview =
                           if (totalSize <= 13)
-                            new String(byteArray, java.nio.charset.StandardCharsets.ISO_8859_1)
+                            new String(byteArray, binaryCharset)
                           else {
                             val leading =
-                              new String(byteArray.take(10), java.nio.charset.StandardCharsets.ISO_8859_1)
+                              new String(byteArray.take(10), binaryCharset)
                             val trailing =
-                              new String(byteArray.takeRight(3), java.nio.charset.StandardCharsets.ISO_8859_1)
+                              new String(byteArray.takeRight(3), binaryCharset)
                             s"$leading...$trailing"
                           }
                         s"<binary: $preview $sizeFormatted bytes>"
