@@ -376,6 +376,11 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Unit-test licensing scripts
+        # Stdlib only, no install needed. Runs on every matrix row (3.10 →
+        # 3.13) so the script's behavior is guarded across all supported
+        # Python versions before the license check itself runs (3.12 only).
+        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
