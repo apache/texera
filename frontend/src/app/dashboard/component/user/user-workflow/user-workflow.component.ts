@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { CUSTOM_ELEMENTS_SCHEMA, AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -46,7 +46,7 @@ import { DownloadService } from "../../../service/user/download/download.service
 import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { NzCardComponent } from "ng-zorro-antd/card";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -107,8 +107,9 @@ import { FormsModule } from "@angular/forms";
     NzSelectComponent,
     FormsModule,
     SearchResultsComponent,
+    ,
+    NzSpaceCompactComponent,
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class UserWorkflowComponent implements AfterViewInit {
   private _searchResultsComponent?: SearchResultsComponent;

@@ -18,7 +18,7 @@
  */
 
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CUSTOM_ELEMENTS_SCHEMA, AfterViewInit, Component, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, ViewChild } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
@@ -62,7 +62,6 @@ import { FormsModule } from "@angular/forms";
     FormsModule,
     SearchResultsComponent,
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;

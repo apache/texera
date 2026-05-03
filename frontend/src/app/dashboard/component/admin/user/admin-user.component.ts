@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { CUSTOM_ELEMENTS_SCHEMA, Component, ElementRef, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   NzTableFilterFn,
@@ -84,7 +84,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzTooltipDirective,
     DatePipe,
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class AdminUserComponent implements OnInit {
   userList: ReadonlyArray<User> = [];

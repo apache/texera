@@ -82,7 +82,7 @@
       <texera-user-icon></texera-user-icon>
     </div>
     <div id="button-groups">
-      <nz-button-group
+      <nz-space-compact
         id="user-buttons"
         *ngIf="!displayParticularWorkflowVersion">
         <a [routerLink]="DASHBOARD_USER_WORKFLOW">
@@ -149,9 +149,9 @@
             nz-icon
             nzType="info-circle"></i>
         </button>
-      </nz-button-group>
+      </nz-space-compact>
       <ng-template #utilities>
-        <nz-button-group>
+        <nz-space-compact>
           <button
             nz-dropdown
             [nzDropdownMenu]="menu"
@@ -339,7 +339,7 @@
               nz-icon
               nzType="redo"></i>
           </button>
-        </nz-button-group>
+        </nz-space-compact>
       </ng-template>
       <nz-dropdown-menu #menu="nzDropdownMenu">
         <ng-template [ngTemplateOutlet]="utilities"></ng-template>
@@ -360,7 +360,7 @@
           nzType="ellipsis"></i>
       </button>
 
-      <nz-button-group id="execution-buttons">
+      <nz-space-compact id="execution-buttons">
         <texera-computing-unit-selection id="texera-compute-unit-selection"> </texera-computing-unit-selection>
         <button
           nz-button
@@ -452,7 +452,7 @@
           </ng-template>
         </div>
         <div style="color: #007bff; line-height: 32px">{{ executionDuration | date: 'H:mm:ss': 'UTC' }}</div>
-      </nz-button-group>
+      </nz-space-compact>
     </div>
   </div>
 </div>

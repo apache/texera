@@ -18,7 +18,7 @@
  */
 
 import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
-import { CUSTOM_ELEMENTS_SCHEMA, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -58,7 +58,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
 import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/markdown-description/markdown-description.component";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
@@ -121,8 +121,9 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzBadgeComponent,
     NzTooltipDirective,
     DatePipe,
+    ,
+    NzSpaceCompactComponent,
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started

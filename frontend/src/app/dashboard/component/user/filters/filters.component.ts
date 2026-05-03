@@ -17,15 +17,7 @@
  * under the License.
  */
 
-import {
-  CUSTOM_ELEMENTS_SCHEMA,
-  ChangeDetectorRef,
-  Component,
-  EventEmitter,
-  Input,
-  OnInit,
-  Output,
-} from "@angular/core";
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, of } from "rxjs";
@@ -37,7 +29,7 @@ import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { switchMap } from "rxjs/operators";
 import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -71,8 +63,9 @@ import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
     NzCheckboxComponent,
     NgIf,
     NzSubMenuComponent,
+    ,
+    NzSpaceCompactComponent,
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class FiltersComponent implements OnInit {
   public isLogin = this.userService.isLogin();
