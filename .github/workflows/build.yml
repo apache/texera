@@ -221,10 +221,13 @@ jobs:
       - name: Install dependencies
         # Only the backend test step needs the python deps; install just
         # before tests so a lint or dist failure does not pay for them.
+        # Use uv for speed — the scala job's binary license check is
+        # jar-only, so any pip-vs-uv resolver differences in the Python
+        # tree don't affect amber/LICENSE-binary-python here.
         run: |
-          python -m pip install --upgrade pip
-          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
+          python -m pip install uv
+          if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
@@ -388,11 +391,21 @@ jobs:
         # Python versions before the license check itself runs (3.12 only).
         run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
+        # 3.12 is the only leg that drives the binary-license check via
+        # pip-licenses. Keep stock pip there so the resolved versions
+        # match amber/LICENSE-binary-python (also generated with pip,
+        # tracking what the production image installs). Other legs use
+        # uv purely for install-speed.
         run: |
-          python -m pip install --upgrade pip
-          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
-          if [ "${{ matrix.python-version }}" = "3.12" ]; then pip install pip-licenses; fi
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then
+            python -m pip install --upgrade pip pip-licenses
+            install="pip install"
+          else
+            python -m pip install uv
+            install="uv pip install --system"
+          fi
+          if [ -f amber/requirements.txt ]; then $install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then $install -r amber/operator-requirements.txt; fi
       - name: Generate pip-licenses manifest
         if: matrix.python-version == '3.12'
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
@@ -409,9 +422,11 @@ jobs:
       - name: Install dev dependencies
         # Test-only deps live in amber/dev-requirements.txt and are
         # installed after the LICENSE-binary snapshot above so they never
-        # appear in pip-licenses output. Packaging skips this file.
+        # appear in pip-licenses output. Packaging skips this file. uv
+        # is safe here regardless of leg because it runs post-snapshot.
         run: |
-          if [ -f amber/dev-requirements.txt ]; then pip install -r amber/dev-requirements.txt; fi
+          python -m pip install uv
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
       - name: Test with pytest
         run: |
           cd amber/src/main/python && pytest --cov=. --cov-report=xml -sv
