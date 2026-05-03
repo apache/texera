@@ -32,7 +32,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
-import { NzUploadFile } from "ng-zorro-antd/upload";
+import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
@@ -45,6 +45,19 @@ import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NgIf } from "@angular/common";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
+import { NzSelectComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -77,7 +90,25 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
   selector: "texera-saved-workflow-section",
   templateUrl: "user-workflow.component.html",
   styleUrls: ["user-workflow.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    SortButtonComponent,
+    NzUploadComponent,
+    NzTooltipDirective,
+    NgIf,
+    NzPopconfirmDirective,
+    FiltersComponent,
+    FiltersInstructionsComponent,
+    NzSelectComponent,
+    FormsModule,
+    SearchResultsComponent,
+    NzSpaceCompactComponent,
+  ],
 })
 export class UserWorkflowComponent implements AfterViewInit {
   private _searchResultsComponent?: SearchResultsComponent;

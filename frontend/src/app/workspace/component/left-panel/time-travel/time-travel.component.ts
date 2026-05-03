@@ -32,13 +32,34 @@ import { Observable, timer } from "rxjs";
 import { map } from "rxjs/operators";
 import { ReplayExecutionInfo } from "../../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { NgIf, NgFor, DatePipe } from "@angular/common";
+import {
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzCellAlignDirective,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
 
 @UntilDestroy()
 @Component({
   selector: "texera-time-travel",
   templateUrl: "time-travel.component.html",
   styleUrls: ["time-travel.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzCellAlignDirective,
+    NzTbodyComponent,
+    NgFor,
+    DatePipe,
+  ],
 })
 export class TimeTravelComponent implements OnInit, OnDestroy {
   interactionHistories: { [eid: number]: string[] } = {};

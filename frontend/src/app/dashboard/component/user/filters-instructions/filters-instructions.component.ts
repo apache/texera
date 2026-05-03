@@ -18,10 +18,13 @@
  */
 
 import { Component } from "@angular/core";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
 
 @Component({
   selector: "texera-filters-instructions",
   templateUrl: "./filters-instructions.component.html",
-  standalone: false,
+  imports: [ɵNzTransitionPatchDirective, NzIconDirective, NzPopoverDirective],
 })
 export class FiltersInstructionsComponent {}

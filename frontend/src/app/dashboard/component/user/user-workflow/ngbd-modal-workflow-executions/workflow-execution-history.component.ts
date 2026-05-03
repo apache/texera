@@ -30,6 +30,33 @@ import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
 import * as Plotly from "plotly.js-basic-dist-min";
 import { ActivatedRoute } from "@angular/router";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputGroupComponent, NzInputGroupWhitSuffixOrPrefixDirective, NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzAutocompleteTriggerDirective, NzAutocompleteComponent } from "ng-zorro-antd/auto-complete";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NgIf, NgStyle, NgFor, DatePipe } from "@angular/common";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import {
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzThSelectionComponent,
+  NzTbodyComponent,
+  NzCellEllipsisDirective,
+  NzTdAddOnComponent,
+} from "ng-zorro-antd/table";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { UserAvatarComponent } from "../../user-avatar/user-avatar.component";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -40,7 +67,41 @@ const MAX_USERNAME_SIZE = 5;
   selector: "texera-ngbd-modal-workflow-executions",
   templateUrl: "./workflow-execution-history.component.html",
   styleUrls: ["./workflow-execution-history.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    ɵNzTransitionPatchDirective,
+    NzSpaceCompactItemDirective,
+    NzInputGroupComponent,
+    NzInputGroupWhitSuffixOrPrefixDirective,
+    NzInputDirective,
+    FormsModule,
+    NzAutocompleteTriggerDirective,
+    NzIconDirective,
+    NzPopoverDirective,
+    NzAutocompleteComponent,
+    NgIf,
+    NzTooltipDirective,
+    NzPopconfirmDirective,
+    NzTabsComponent,
+    NzTabComponent,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzThSelectionComponent,
+    NgStyle,
+    NgFor,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzTbodyComponent,
+    NzCellEllipsisDirective,
+    NzTdAddOnComponent,
+    UserAvatarComponent,
+    NzRowDirective,
+    NzColDirective,
+    DatePipe,
+  ],
 })
 export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit {
   wid: number = 0;

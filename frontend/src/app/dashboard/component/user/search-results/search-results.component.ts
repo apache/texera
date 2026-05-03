@@ -20,6 +20,15 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { ɵɵCdkVirtualScrollViewport, ɵɵCdkFixedSizeVirtualScroll } from "@angular/cdk/overlay";
+import { NzListComponent } from "ng-zorro-antd/list";
+import { NgFor, NgIf } from "@angular/common";
+import { ListItemComponent } from "../list-item/list-item.component";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 export type LoadMoreFunction = (start: number, count: number) => Promise<{ entries: DashboardEntry[]; more: boolean }>;
 
@@ -27,7 +36,19 @@ export type LoadMoreFunction = (start: number, count: number) => Promise<{ entri
   selector: "texera-search-results",
   templateUrl: "./search-results.component.html",
   styleUrls: ["./search-results.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    ɵɵCdkVirtualScrollViewport,
+    ɵɵCdkFixedSizeVirtualScroll,
+    NzListComponent,
+    NgFor,
+    ListItemComponent,
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+  ],
 })
 export class SearchResultsComponent {
   loadMoreFunction: LoadMoreFunction | null = null;

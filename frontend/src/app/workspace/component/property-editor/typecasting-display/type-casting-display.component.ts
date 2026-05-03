@@ -23,6 +23,15 @@ import { WorkflowCompilingService } from "../../../service/compile-workflow/work
 import { filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AttributeType, SchemaAttribute } from "../../../types/workflow-compiling.interface";
+import { NgIf, NgFor } from "@angular/common";
+import {
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
 
 // correspond to operator type specified in backend OperatorDescriptor
 export const TYPE_CASTING_OPERATOR_TYPE = "TypeCasting";
@@ -31,7 +40,16 @@ export const TYPE_CASTING_OPERATOR_TYPE = "TypeCasting";
 @Component({
   selector: "texera-type-casting-display",
   templateUrl: "./type-casting-display.component.html",
-  standalone: false,
+  imports: [
+    NgIf,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzTbodyComponent,
+    NgFor,
+  ],
 })
 export class TypeCastingDisplayComponent implements OnInit, OnChanges {
   @Input() currentOperatorId: string | undefined;

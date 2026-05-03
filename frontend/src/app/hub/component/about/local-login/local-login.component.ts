@@ -18,7 +18,7 @@
  */
 
 import { Component, OnInit } from "@angular/core";
-import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
+import { FormBuilder, FormControl, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -27,13 +27,39 @@ import { catchError } from "rxjs/operators";
 import { throwError } from "rxjs";
 import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { NgIf } from "@angular/common";
+import { NzFormDirective, NzFormItemComponent, NzFormControlComponent } from "ng-zorro-antd/form";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputGroupComponent, NzInputDirective } from "ng-zorro-antd/input";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
   templateUrl: "./local-login.component.html",
   styleUrls: ["./local-login.component.scss"],
-  standalone: false,
+  imports: [
+    NzTabsComponent,
+    NgIf,
+    NzTabComponent,
+    FormsModule,
+    NzFormDirective,
+    ReactiveFormsModule,
+    NzRowDirective,
+    NzFormItemComponent,
+    NzColDirective,
+    NzFormControlComponent,
+    ɵNzTransitionPatchDirective,
+    NzSpaceCompactItemDirective,
+    NzInputGroupComponent,
+    NzInputDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+  ],
 })
 export class LocalLoginComponent implements OnInit {
   public loginErrorMessage: string | undefined;

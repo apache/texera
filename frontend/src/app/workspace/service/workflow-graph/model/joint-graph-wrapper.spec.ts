@@ -573,7 +573,7 @@ describe("JointGraphWrapperService", () => {
 
     beforeEach(() => {
       // Get the mock service and enable linkBreakpoint for each test in this describe block
-      mockConfigService = TestBed.inject(GuiConfigService) as any as MockGuiConfigService;
+      mockConfigService = TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService;
       mockConfigService.setConfig({ linkBreakpointEnabled: true });
     });
 

@@ -28,13 +28,43 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { switchMap } from "rxjs/operators";
+import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzDatePickerComponent, NzRangePickerComponent } from "ng-zorro-antd/date-picker";
+import { FormsModule } from "@angular/forms";
+import { NgFor, NgIf } from "@angular/common";
+import { NzMenuDirective, NzMenuItemComponent, NzSubMenuComponent } from "ng-zorro-antd/menu";
+import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 
 @UntilDestroy()
 @Component({
   selector: "texera-filters",
   templateUrl: "./filters.component.html",
   styleUrls: ["./filters.component.scss"],
-  standalone: false,
+  imports: [
+    NzDropdownADirective,
+    NzDropdownDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzDatePickerComponent,
+    NzRangePickerComponent,
+    FormsModule,
+    NgFor,
+    NzMenuDirective,
+    NzMenuItemComponent,
+    NzCheckboxComponent,
+    NgIf,
+    NzSubMenuComponent,
+    NzSpaceCompactComponent,
+  ],
 })
 export class FiltersComponent implements OnInit {
   public isLogin = this.userService.isLogin();

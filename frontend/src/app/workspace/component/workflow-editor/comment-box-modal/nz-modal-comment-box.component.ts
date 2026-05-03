@@ -25,15 +25,51 @@ import { UserService } from "src/app/common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { User } from "src/app/common/type/user";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { formatDate } from "@angular/common";
+import { formatDate, NgFor } from "@angular/common";
 import { YType } from "../../../types/shared-editing.interface";
+import {
+  NzListComponent,
+  NzListItemComponent,
+  NzListItemActionsComponent,
+  NzListItemActionComponent,
+} from "ng-zorro-antd/list";
+import { NzCommentComponent, NzCommentAvatarDirective, NzCommentContentDirective } from "ng-zorro-antd/comment";
+import { NzAvatarComponent } from "ng-zorro-antd/avatar";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputGroupComponent, NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-nz-modal-comment-box",
   templateUrl: "./nz-modal-comment-box.component.html",
   styleUrls: ["./nz-modal-comment-box.component.scss"],
-  standalone: false,
+  imports: [
+    NzListComponent,
+    NgFor,
+    NzListItemComponent,
+    NzCommentComponent,
+    NzAvatarComponent,
+    NzCommentAvatarDirective,
+    NzCommentContentDirective,
+    ɵNzTransitionPatchDirective,
+    NzSpaceCompactItemDirective,
+    NzInputGroupComponent,
+    NzInputDirective,
+    FormsModule,
+    NzAutosizeDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzIconDirective,
+    NzListItemActionsComponent,
+    NzListItemActionComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class NzModalCommentBoxComponent {
   readonly commentBox: YType<CommentBox> = inject(NZ_MODAL_DATA).commentBox;
