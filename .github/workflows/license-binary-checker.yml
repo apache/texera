@@ -15,19 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: License-binary nightly
+name: License Binary Checker
 
+# Scheduled (cron) drift checker for per-module LICENSE-binary files.
+#
 # PR builds run check_binary_deps.py with --ignore-transitive-version
 # (#4691, #4693) so a benign upstream version bump on a transitive dep
-# does not block merges. This workflow runs the same build.yml every
-# night on `main` with `mode: release`, exercising
-# the strict exact-match check on every ecosystem. On drift, it files
-# (or updates / closes) a single tracking issue identified by the
-# stable label `license-binary-drift`. Sub-task of #4688.
+# does not block merges. This workflow runs the same build.yml on a
+# daily cron with `mode: nightly`, exercising the strict exact-match
+# check on every ecosystem. On drift, it files (or updates / closes) a
+# single tracking issue identified by the stable label
+# `license-binary-drift`. Sub-task of #4688.
 #
 # Reusing build.yml (rather than duplicating its dist-producing steps)
-# guarantees PR and nightly runs go through identical code paths — the
-# only difference between them is the value of one input.
+# guarantees PR and scheduled runs go through identical code paths —
+# the only difference between them is the value of one input.
 on:
   schedule:
     # 11:00 UTC daily = 04:00 PDT / 03:00 PST. Picked so the run lands
@@ -46,19 +48,19 @@ permissions:
   actions: read
 
 concurrency:
-  group: license-binary-nightly
+  group: license-binary-checker
   cancel-in-progress: false
 
 jobs:
   # Reuse the same build.yml that PRs go through; the only difference is
-  # mode: release, which flips every license-binary check from relaxed
+  # mode: nightly, which flips every license-binary check from relaxed
   # (`--ignore-transitive-version`) to strict exact-match. secrets:
   # inherit so the called jobs keep access to NX_CLOUD_ACCESS_TOKEN,
   # CODECOV_TOKEN, etc.
   build:
     uses: ./.github/workflows/build.yml
     with:
-      mode: release
+      mode: nightly
     secrets: inherit
 
   report:
@@ -69,9 +71,16 @@ jobs:
       - name: File or update tracking issue
         uses: actions/github-script@v8
         with:
+          # Same pattern as .github/workflows/issue-triage.yml — the
+          # default GITHUB_TOKEN authors actions as `github-actions[bot]`,
+          # which becomes the issue creator. The `permissions:` block at
+          # the top of this workflow grants this token `issues: write`
+          # (for create/update/close + comment) and `actions: read` (for
+          # listJobsForWorkflowRun); no fine-grained PAT is needed.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const TRACKING_LABEL = 'license-binary-drift';
-            const TITLE = 'License-binary drift detected (nightly)';
+            const TITLE = 'License-binary drift detected';
 
             // The license-check step names in build.yml all contain either
             // "LICENSE-binary" or "binary licenses". Match both forms,
@@ -147,17 +156,20 @@ jobs:
                 await github.rest.issues.createComment({
                   owner, repo, issue_number: issue.number,
                   body:
-                    `Closed automatically: nightly run ${runUrl} found no ` +
-                    `license-binary drift across any ecosystem.`,
+                    `Closed automatically: scheduled run ${runUrl} found ` +
+                    `no license-binary drift across any ecosystem.`,
                 });
                 core.info(`Closed stale tracking issue #${issue.number}`);
               }
               return;
             }
 
-            // Build the issue body. Per-ecosystem diffs aren't repeated here
-            // (would require parsing workflow logs); we link to each failed
-            // job so the reviewer can click through to the script's output.
+            // Build the issue body following the same Markdown shape that
+            // .github/ISSUE_TEMPLATE/task-template.yaml renders to when a
+            // human files a Task issue (### Task Summary, ### Task Type,
+            // Apache CoC footer). Per-ecosystem diffs aren't repeated
+            // here — clicking through to each failed job's logs gets the
+            // script's full output.
             const failureLines = licenseFailures.map(
               (f) => `- ❌ \`${f.job}\` — ${f.step} — [view logs](${f.url})`
             );
@@ -165,21 +177,32 @@ jobs:
               (s) => `- ✅ \`${s.job}\` — ${s.step}`
             );
             const body =
-              `Nightly strict license-binary check ran on ` +
+              `### Task Summary\n\n` +
+              `Strict license-binary check found drift on ` +
               `\`${context.sha.slice(0, 7)}\`.\n\n` +
               `Workflow run: ${runUrl}\n\n` +
               `PR builds run \`build.yml\` with \`mode: PR\` so transitive ` +
-              `version bumps don't block merges; this nightly job runs ` +
-              `the same \`build.yml\` with \`mode: release\` (strict ` +
-              `exact-match) and reports any drift here. To resolve ` +
-              `drift, refresh the ` +
-              `relevant per-module \`LICENSE-binary\` file(s) to match the ` +
-              `bundled versions.\n\n` +
-              `### License checks that failed\n\n` +
+              `version bumps don't block merges; this scheduled job runs ` +
+              `the same \`build.yml\` with \`mode: nightly\` (strict ` +
+              `exact-match) and reports any drift here. To resolve drift, ` +
+              `refresh the relevant per-module \`LICENSE-binary\` file(s) ` +
+              `to match the bundled versions.\n\n` +
+              `#### License checks that failed\n\n` +
               failureLines.join('\n') +
               (successLines.length > 0
-                ? `\n\n### License checks that passed\n\n${successLines.join('\n')}`
-                : '');
+                ? `\n\n#### License checks that passed\n\n${successLines.join('\n')}`
+                : '') +
+              `\n\n### Task Type\n\n` +
+              `- [ ] Refactor / Cleanup\n` +
+              `- [x] DevOps / Deployment / CI\n` +
+              `- [ ] Testing / QA\n` +
+              `- [ ] Documentation\n` +
+              `- [ ] Performance\n` +
+              `- [ ] Other\n\n` +
+              `---\n\n` +
+              `By submitting this issue, you agree to follow the ` +
+              `[Apache Code of Conduct]` +
+              `(https://www.apache.org/foundation/policies/conduct).`;
 
             if (existing.length > 0) {
               const issue = existing[0];
@@ -199,7 +222,10 @@ jobs:
             } else {
               const { data: created } = await github.rest.issues.create({
                 owner, repo, title: TITLE, body,
-                labels: [TRACKING_LABEL, 'ci'],
+                // `triage` mirrors the default label that
+                // ISSUE_TEMPLATE/task-template.yaml applies; the other
+                // two are this workflow's stable identifier + ci scope.
+                labels: [TRACKING_LABEL, 'ci', 'triage'],
               });
               core.info(`Filed new tracking issue #${created.number}`);
             }

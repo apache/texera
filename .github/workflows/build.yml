@@ -57,13 +57,17 @@ on:
         type: boolean
         default: true
       mode:
-        # Strictness of the license-binary check. Valid values:
+        # Context this build runs in; controls strictness of the
+        # license-binary check. Valid values:
         #   PR      — pass --ignore-transitive-version (default; PR-time
         #             builds keep going on benign upstream bumps in
         #             transitive deps).
-        #   release — strict exact-match (no flag); used by the nightly
-        #             workflow license-binary-nightly.yml so transitive
-        #             drift on `main` still surfaces before each release.
+        #   nightly — strict exact-match (no flag); used by the scheduled
+        #             license-binary-checker.yml so transitive drift on
+        #             `main` still surfaces between releases.
+        #   release — strict exact-match (no flag); used when cutting a
+        #             release candidate so the documented LICENSE-binary
+        #             matches the bundled jars / packages exactly.
         # workflow_call inputs cannot enforce enums; any value other than
         # "PR" falls through to strict, which is the safer side.
         required: false
