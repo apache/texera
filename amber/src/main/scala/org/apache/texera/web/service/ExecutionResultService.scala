@@ -98,16 +98,18 @@ object ExecutionResultService {
                     value match {
                       case byteArray: Array[Byte] =>
                         val totalSize = byteArray.length
-                        // Slice the byte array before hex-encoding to avoid materializing
-                        // an O(N) string for large blobs (e.g. 50 MB -> ~150 MB hex string).
-                        // 13 bytes is the threshold: hex length = 3*N-1, so 13 bytes = 38 chars < 39.
-                        if (totalSize <= 13) {
-                          s"bytes'${byteArrayToHexString(byteArray)}' (length: $totalSize)"
-                        } else {
-                          val leadingHex = byteArrayToHexString(byteArray.take(10))
-                          val trailingHex = byteArrayToHexString(byteArray.takeRight(3))
-                          s"bytes'$leadingHex...$trailingHex' (length: $totalSize)"
-                        }
+                        val sizeFormatted = f"$totalSize%,d"
+                        val preview =
+                          if (totalSize <= 13)
+                            new String(byteArray, java.nio.charset.StandardCharsets.ISO_8859_1)
+                          else {
+                            val leading =
+                              new String(byteArray.take(10), java.nio.charset.StandardCharsets.ISO_8859_1)
+                            val trailing =
+                              new String(byteArray.takeRight(3), java.nio.charset.StandardCharsets.ISO_8859_1)
+                            s"$leading...$trailing"
+                          }
+                        s"<binary: $preview $sizeFormatted bytes>"
 
                       case _ =>
                         throw new RuntimeException(
@@ -128,19 +130,6 @@ object ExecutionResultService {
 
       TupleUtils.tuple2json(tuple.schema, processedFields)
     }.toList
-  }
-
-  /**
-    * Converts a byte array to a hex string representation.
-    *
-    * This helper function takes a byte array and converts its contents to a space-separated
-    * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
-    *
-    * @param byteArray The byte array to convert
-    * @return A string containing the hex representation of the byte array's contents
-    */
-  private def byteArrayToHexString(byteArray: Array[Byte]): String = {
-    byteArray.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
   }
 
   /**
