@@ -63,7 +63,6 @@ engine:
           - 'amber/src/main/resources/**'
           - 'amber/src/test/scala/**'
           - 'amber/src/test/java/**'
-          - 'amber/user-resources/**'
 
 amber-integration:
   # Scala specs that exercise both Scala and Python end-to-end. They
