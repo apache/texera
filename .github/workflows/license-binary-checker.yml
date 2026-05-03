@@ -1,0 +1,176 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: License Binary Checker
+
+# Scheduled drift checker for per-module LICENSE-binary files. Calls
+# build.yml with mode=nightly (strict) and files / updates / closes
+# one tracking issue (label `license-binary-drift`). Sub-task of #4688.
+on:
+  schedule:
+    # 11:00 UTC daily = 04:00 PDT / 03:00 PST.
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write          # create / update / close the tracking issue
+  actions: read          # listJobsForWorkflowRun in the report step
+
+concurrency:
+  group: license-binary-checker
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      mode: nightly
+    secrets: inherit
+
+  report:
+    if: always()
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: File or update tracking issue
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const TRACKING_LABEL = 'license-binary-drift';
+            const TITLE = 'License-binary drift detected';
+            // Match license-check step names; ignore unrelated failures.
+            const LICENSE_STEP_RE = /license[-\s]?binary|binary licenses/i;
+
+            const { owner, repo } = context.repo;
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // Walk every job in the current run (which includes the called
+            // build.yml jobs, prefixed with the calling job id `build`).
+            const jobs = await github.paginate(
+              github.rest.actions.listJobsForWorkflowRun,
+              { owner, repo, run_id: context.runId, per_page: 100 }
+            );
+
+            const licenseFailures = [];
+            const licenseSuccesses = [];
+            for (const job of jobs) {
+              for (const step of job.steps || []) {
+                if (!LICENSE_STEP_RE.test(step.name)) continue;
+                if (step.conclusion === 'failure') {
+                  licenseFailures.push({
+                    job: job.name,
+                    step: step.name,
+                    url: job.html_url,
+                  });
+                } else if (step.conclusion === 'success') {
+                  licenseSuccesses.push({ job: job.name, step: step.name });
+                }
+              }
+            }
+
+            const anyDrift = licenseFailures.length > 0;
+            core.info(
+              `License-check steps: ${licenseSuccesses.length} ok, ` +
+              `${licenseFailures.length} failed.`
+            );
+
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: TRACKING_LABEL, per_page: 5,
+            });
+
+            // Only manage issues for runs against the default branch.
+            const defaultBranch = context.payload.repository.default_branch;
+            const isDefaultBranch =
+              context.ref === `refs/heads/${defaultBranch}` ||
+              context.eventName === 'schedule';
+            if (!isDefaultBranch) {
+              core.info(
+                `Not on default branch (ref=${context.ref}); ` +
+                `skipping issue management. Drift detected: ${anyDrift}.`
+              );
+              return;
+            }
+
+            if (!anyDrift) {
+              if (existing.length === 0) {
+                core.info('No drift, no existing tracking issue. Nothing to do.');
+                return;
+              }
+              for (const issue of existing) {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: issue.number,
+                  state: 'closed', state_reason: 'completed',
+                });
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body:
+                    `Closed automatically: scheduled run ${runUrl} found ` +
+                    `no license-binary drift across any ecosystem.`,
+                });
+                core.info(`Closed stale tracking issue #${issue.number}`);
+              }
+              return;
+            }
+
+            // Body shape mirrors ISSUE_TEMPLATE/task-template.yaml.
+            const failureLines = licenseFailures.map(
+              (f) => `- \`${f.job}\` — ${f.step} ([logs](${f.url}))`
+            );
+            const body =
+              `### Task Summary\n\n` +
+              `License-binary drift on \`${context.sha.slice(0, 7)}\` ` +
+              `([run](${runUrl})).\n\n` +
+              `**Where:**\n\n` +
+              failureLines.join('\n') +
+              `\n\n**How to resolve:** refresh the per-module ` +
+              `\`LICENSE-binary\` file(s) to match the bundled versions.\n\n` +
+              `### Task Type\n\n` +
+              `- [ ] Refactor / Cleanup\n` +
+              `- [x] DevOps / Deployment / CI\n` +
+              `- [ ] Testing / QA\n` +
+              `- [ ] Documentation\n` +
+              `- [ ] Performance\n` +
+              `- [ ] Other\n\n` +
+              `---\n\n` +
+              `By submitting this issue, you agree to follow the ` +
+              `[Apache Code of Conduct]` +
+              `(https://www.apache.org/foundation/policies/conduct).`;
+
+            if (existing.length > 0) {
+              const issue = existing[0];
+              await github.rest.issues.update({
+                owner, repo, issue_number: issue.number,
+                title: TITLE, body,
+              });
+              core.info(`Updated tracking issue #${issue.number}`);
+              for (const extra of existing.slice(1)) {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: extra.number,
+                  state: 'closed', state_reason: 'not_planned',
+                });
+                core.info(`Closed duplicate tracking issue #${extra.number}`);
+              }
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner, repo, title: TITLE, body,
+                labels: [TRACKING_LABEL, 'ci', 'triage'],
+              });
+              core.info(`Filed new tracking issue #${created.number}`);
+            }
