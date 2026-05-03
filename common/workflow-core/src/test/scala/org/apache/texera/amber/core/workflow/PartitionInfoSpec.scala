@@ -103,14 +103,12 @@ class PartitionInfoSpec extends AnyFlatSpec with Matchers {
 
   // ----- JsonSubTypes registration -----
 
-  "PartitionInfo @JsonSubTypes" should "register all concrete subclasses for polymorphic JSON" in {
+  "PartitionInfo @JsonSubTypes" should "list the current registration set (omits OneToOnePartition)" in {
     // Pin: the @JsonSubTypes annotation on PartitionInfo currently registers
     // HashPartition, RangePartition, SinglePartition, BroadcastPartition,
-    // and UnknownPartition — but NOT OneToOnePartition. That means
-    // Jackson cannot deserialize a OneToOnePartition payload via the
-    // polymorphic dispatch on `type`. Filed as a Bug; this assertion pins
-    // the current registration set so the fix that adds OneToOnePartition
-    // breaks this spec on purpose.
+    // and UnknownPartition — but NOT OneToOnePartition. The "all" claim was
+    // moved to the pendingUntilFixed test below so this spec only documents
+    // the present-day set.
     val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
     val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
     registered shouldBe Set(
@@ -120,7 +118,19 @@ class PartitionInfoSpec extends AnyFlatSpec with Matchers {
       "BroadcastPartition",
       "UnknownPartition"
     )
-    registered should not contain "OneToOnePartition"
+  }
+
+  it should "eventually register every concrete PartitionInfo subclass (pendingUntilFixed)" in pendingUntilFixed {
+    // Intended contract: every concrete PartitionInfo subtype must be
+    // reachable through the polymorphic dispatch on `type`, otherwise
+    // Jackson cannot deserialize the missing payload (today: OneToOne-
+    // Partition). Asserting `contains "OneToOnePartition"` here flips this
+    // test from Pending to a real pass once the bug is fixed — pendingUntil-
+    // Fixed inverts that and turns the now-passing assertion into a failure
+    // so the fix has to delete the marker deliberately.
+    val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
+    val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
+    registered should contain("OneToOnePartition")
   }
 
   // ----- case class equality -----
