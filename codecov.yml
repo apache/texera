@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Codecov configuration for apache/texera. The repo uploads four flags
+# (frontend, scala, python, agent-service); without an explicit config,
+# defaults bite us in three places that this file fixes:
+#   1. Single-stack PRs leave non-uploaded flags as `?` in the comment
+#      and drop them from the rollup. Carry forward instead.
+#   2. Coverage of generated code (protobuf), build output, and the
+#      tests themselves dilutes the "real" coverage figure. Ignore
+#      those paths.
+#   3. Default status checks fail on any project drop and require 100%
+#      patch coverage, so non-test refactors get a red Codecov check
+#      even when behavior is preserved. Allow 1% slack on project and
+#      keep patch coverage informational.
+
+flag_management:
+  default_rules:
+    # If the current PR didn't run the job for a given flag, inherit
+    # the latest report on the base branch instead of showing `?`.
+    carryforward: true
+
+ignore:
+  # Generated protobuf — line counts swamp real code.
+  - "amber/src/main/python/proto/**"
+  - "**/src_managed/**"          # sbt JOOQ / scalapb-generated sources
+  # Build / install output — never source-of-truth.
+  - "**/target/**"
+  - "frontend/dist/**"
+  - "frontend/.angular/**"
+  # Test files don't count toward source coverage.
+  - "**/test_*.py"
+  - "**/*.spec.ts"
+  - "**/src/test/**"             # sbt test source roots
+
+coverage:
+  status:
+    project:
+      default:
+        # Don't drop below the base-branch baseline, but tolerate
+        # ≤1% jitter from re-runs / flaky tests / ignore-rule churn.
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        # Surface patch coverage in the Codecov report but don't gate
+        # PRs on it: a 100%-patch policy blocks plenty of legitimate
+        # refactors / config-only changes that have no tests to add.
+        informational: true
