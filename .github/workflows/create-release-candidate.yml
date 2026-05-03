@@ -36,7 +36,17 @@ on:
         default: 'ghcr.io/apache'
 
 jobs:
+  # Strict-mode build of the tagged commit. Gates RC artifact creation: if
+  # the tag doesn't compile or has license-binary drift, no RC is produced.
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: ${{ github.event.inputs.tag }}
+      mode: release
+    secrets: inherit
+
   create-rc:
+    needs: build
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.vars.outputs.version }}
@@ -46,7 +56,6 @@ jobs:
       commit_hash: ${{ steps.vars.outputs.commit_hash }}
       src_tarball: ${{ steps.vars.outputs.src_tarball }}
       compose_tarball: ${{ steps.vars.outputs.compose_tarball }}
-      helm_tarball: ${{ steps.vars.outputs.helm_tarball }}
 
     steps:
       - name: Checkout code
@@ -89,7 +98,6 @@ jobs:
           RC_DIR="${VERSION}-RC${RC_NUM}"
           SRC_TARBALL="apache-texera-${VERSION}-src.tar.gz"
           COMPOSE_TARBALL="apache-texera-${VERSION}-docker-compose.tar.gz"
-          HELM_TARBALL="apache-texera-${VERSION}-helm.tgz"
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "rc_num=$RC_NUM" >> $GITHUB_OUTPUT
@@ -100,7 +108,6 @@ jobs:
           echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
           echo "src_tarball=$SRC_TARBALL" >> $GITHUB_OUTPUT
           echo "compose_tarball=$COMPOSE_TARBALL" >> $GITHUB_OUTPUT
-          echo "helm_tarball=$HELM_TARBALL" >> $GITHUB_OUTPUT
 
           echo "Release Candidate: $TAG_NAME"
           echo "Version: $VERSION"
@@ -156,6 +163,9 @@ jobs:
           cp "$TEMP_DIR/_raw/bin/single-node/docker-compose.yml" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/nginx.conf" "$BUNDLE_DIR/"
           cp "$TEMP_DIR/_raw/bin/single-node/litellm-config.yaml" "$BUNDLE_DIR/"
+          cp "$TEMP_DIR/_raw/bin/single-node/LICENSE" "$BUNDLE_DIR/"
+          cp "$TEMP_DIR/_raw/bin/single-node/NOTICE" "$BUNDLE_DIR/"
+          cp "$TEMP_DIR/_raw/bin/single-node/DISCLAIMER" "$BUNDLE_DIR/"
           cp -r "$TEMP_DIR/_raw/sql" "$BUNDLE_DIR/"
 
           # Patch the SQL mount path for the self-contained bundle layout
@@ -199,58 +209,6 @@ jobs:
           ls -lh "$COMPOSE_TARBALL"
           echo "✓ Created Docker Compose bundle: $COMPOSE_TARBALL"
 
-      - name: Create Helm chart package
-        run: |
-          VERSION="${{ steps.vars.outputs.version }}"
-          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
-          COMMIT_SHORT="${{ steps.vars.outputs.commit_short }}"
-          IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
-          HELM_TARBALL="${{ steps.vars.outputs.helm_tarball }}"
-
-          # Install Helm
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-          # Export the Helm chart from the tagged source
-          # Include sql/ because bin/k8s/files/ has symlinks to ../../../sql/
-          TEMP_DIR=$(mktemp -d)
-          git archive --format=tar "$TAG_NAME" -- bin/k8s/ sql/ | tar -x -C "$TEMP_DIR"
-
-          CHART_DIR="$TEMP_DIR/bin/k8s"
-
-          # Resolve symlinks in the chart so it packages as a self-contained artifact
-          find "$CHART_DIR" -type l | while read -r link; do
-            target=$(readlink -f "$link")
-            rm "$link"
-            cp "$target" "$link"
-          done
-
-          # Update Chart.yaml with release version
-          sed -i "s/^version:.*/version: ${VERSION}/" "$CHART_DIR/Chart.yaml"
-          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" "$CHART_DIR/Chart.yaml"
-
-          # Update values.yaml with release image registry and tag
-          sed -i "s|imageRegistry:.*|imageRegistry: ${IMAGE_REGISTRY}|" "$CHART_DIR/values.yaml"
-          sed -i "s|imageTag:.*|imageTag: ${COMMIT_SHORT}|" "$CHART_DIR/values.yaml"
-
-          # Download chart dependencies declared in Chart.yaml
-          # These tarballs are .gitignored so they're not in git archive
-          helm dependency build "$CHART_DIR"
-
-          # Package the Helm chart
-          helm package "$CHART_DIR" \
-            --version "$VERSION" \
-            --app-version "$VERSION" \
-            --destination "$GITHUB_WORKSPACE"
-
-          # Rename to our expected artifact name
-          HELM_PKG=$(ls "$GITHUB_WORKSPACE"/texera-helm-*.tgz 2>/dev/null | head -1)
-          if [[ -n "$HELM_PKG" && "$HELM_PKG" != "$GITHUB_WORKSPACE/$HELM_TARBALL" ]]; then
-            mv "$HELM_PKG" "$GITHUB_WORKSPACE/$HELM_TARBALL"
-          fi
-
-          ls -lh "$GITHUB_WORKSPACE/$HELM_TARBALL"
-          echo "✓ Created Helm chart package: $HELM_TARBALL"
-
       - name: Import GPG key
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
@@ -264,8 +222,7 @@ jobs:
         run: |
           for artifact in \
             "${{ steps.vars.outputs.src_tarball }}" \
-            "${{ steps.vars.outputs.compose_tarball }}" \
-            "${{ steps.vars.outputs.helm_tarball }}"; do
+            "${{ steps.vars.outputs.compose_tarball }}"; do
 
             # GPG signature
             echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
@@ -318,9 +275,6 @@ jobs:
             ${{ steps.vars.outputs.compose_tarball }}
             ${{ steps.vars.outputs.compose_tarball }}.asc
             ${{ steps.vars.outputs.compose_tarball }}.sha512
-            ${{ steps.vars.outputs.helm_tarball }}
-            ${{ steps.vars.outputs.helm_tarball }}.asc
-            ${{ steps.vars.outputs.helm_tarball }}.sha512
             vote-email.txt
           retention-days: 7
 
@@ -338,12 +292,11 @@ jobs:
         run: |
           SRC_TARBALL="${{ needs.create-rc.outputs.src_tarball }}"
           COMPOSE_TARBALL="${{ needs.create-rc.outputs.compose_tarball }}"
-          HELM_TARBALL="${{ needs.create-rc.outputs.helm_tarball }}"
 
           echo "Verifying downloaded artifacts..."
           ls -lh
 
-          for artifact in "$SRC_TARBALL" "$COMPOSE_TARBALL" "$HELM_TARBALL"; do
+          for artifact in "$SRC_TARBALL" "$COMPOSE_TARBALL"; do
             if [[ ! -f "$artifact" ]] || [[ ! -f "${artifact}.asc" ]] || [[ ! -f "${artifact}.sha512" ]]; then
               echo "Error: Missing artifact or signature/checksum for: $artifact"
               exit 1
@@ -397,13 +350,12 @@ jobs:
         run: |
           SRC_TARBALL="${{ needs.create-rc.outputs.src_tarball }}"
           COMPOSE_TARBALL="${{ needs.create-rc.outputs.compose_tarball }}"
-          HELM_TARBALL="${{ needs.create-rc.outputs.helm_tarball }}"
           RC_DIR="${{ needs.create-rc.outputs.rc_dir }}"
 
           cd svn-texera/"$RC_DIR"
 
           # Copy all artifacts
-          for artifact in "$SRC_TARBALL" "$COMPOSE_TARBALL" "$HELM_TARBALL"; do
+          for artifact in "$SRC_TARBALL" "$COMPOSE_TARBALL"; do
             cp "$GITHUB_WORKSPACE/$artifact" .
             cp "$GITHUB_WORKSPACE/${artifact}.asc" .
             cp "$GITHUB_WORKSPACE/${artifact}.sha512" .
@@ -426,7 +378,7 @@ jobs:
           cd svn-texera
 
           # Commit with descriptive message
-          svn commit -m "Add Apache Texera ${VERSION} RC${RC_NUM} artifacts (source + docker-compose + helm)" \
+          svn commit -m "Add Apache Texera ${VERSION} RC${RC_NUM} artifacts (source + docker-compose)" \
             --username "${{ secrets.SVN_USERNAME }}" \
             --password "${{ secrets.SVN_PASSWORD }}" \
             --no-auth-cache
@@ -442,7 +394,6 @@ jobs:
           COMMIT_HASH="${{ needs.create-rc.outputs.commit_hash }}"
           SRC_TARBALL="${{ needs.create-rc.outputs.src_tarball }}"
           COMPOSE_TARBALL="${{ needs.create-rc.outputs.compose_tarball }}"
-          HELM_TARBALL="${{ needs.create-rc.outputs.helm_tarball }}"
 
           echo "## Release Candidate Created Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -460,7 +411,6 @@ jobs:
           echo "|----------|-------------|" >> $GITHUB_STEP_SUMMARY
           echo "| \`${SRC_TARBALL}\` | Source code |" >> $GITHUB_STEP_SUMMARY
           echo "| \`${COMPOSE_TARBALL}\` | Docker Compose deployment bundle |" >> $GITHUB_STEP_SUMMARY
-          echo "| \`${HELM_TARBALL}\` | Helm chart for Kubernetes deployment |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Each artifact has a corresponding \`.asc\` (GPG signature) and \`.sha512\` (checksum) file." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -475,12 +425,10 @@ jobs:
           echo "gpg --import KEYS" >> $GITHUB_STEP_SUMMARY
           echo "gpg --verify ${SRC_TARBALL}.asc ${SRC_TARBALL}" >> $GITHUB_STEP_SUMMARY
           echo "gpg --verify ${COMPOSE_TARBALL}.asc ${COMPOSE_TARBALL}" >> $GITHUB_STEP_SUMMARY
-          echo "gpg --verify ${HELM_TARBALL}.asc ${HELM_TARBALL}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# Verify SHA512 checksums" >> $GITHUB_STEP_SUMMARY
           echo "sha512sum -c ${SRC_TARBALL}.sha512" >> $GITHUB_STEP_SUMMARY
           echo "sha512sum -c ${COMPOSE_TARBALL}.sha512" >> $GITHUB_STEP_SUMMARY
-          echo "sha512sum -c ${HELM_TARBALL}.sha512" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**KEYS file:** https://downloads.apache.org/incubator/texera/KEYS" >> $GITHUB_STEP_SUMMARY
