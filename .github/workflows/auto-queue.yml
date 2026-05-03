@@ -37,6 +37,12 @@
 # not conflicting, reviewDecision=APPROVED, and zero unresolved review threads.
 # This avoids burning CI on PRs blocked on review.
 #
+# Emergency priority: a PR carrying the `emergency` label is bumped before
+# any non-emergency PR regardless of CREATED_AT ordering, AND its presence
+# in BEHIND bypasses the in-flight guard so a non-emergency PR's running
+# CI does not delay the bump. Non-emergency PRs continue to wait for the
+# queue head as usual.
+#
 # In-flight guard: if any eligible PR is already past the BEHIND state and
 # its required CI is still running (mergeStateStatus != BEHIND and
 # statusCheckRollup state is PENDING/EXPECTED), the run exits without
@@ -129,6 +135,9 @@ jobs:
                       mergeStateStatus
                       reviewDecision
                       autoMergeRequest { enabledAt }
+                      labels(first: 20) {
+                        nodes { name }
+                      }
                       reviewThreads(first: 100) {
                         nodes { isResolved }
                       }
@@ -144,6 +153,17 @@ jobs:
                 }
               }`;
 
+            // Carrying the `emergency` label lifts a PR above all other
+            // eligible PRs: it is bumped first regardless of CREATED_AT, and
+            // its presence in BEHIND bypasses the in-flight guard so a
+            // non-emergency PR's running CI does not block the bump.
+            const EMERGENCY_LABEL = 'emergency';
+            function isEmergency(p) {
+              return (p.labels?.nodes ?? []).some(
+                (l) => l.name === EMERGENCY_LABEL,
+              );
+            }
+
             function classify(p) {
               if (!p.autoMergeRequest) return 'skip: auto-merge not enabled';
               if (p.isDraft) return 'skip: draft';
@@ -156,7 +176,8 @@ jobs:
               if (unresolved > 0) {
                 return `skip: ${unresolved} unresolved review thread(s)`;
               }
-              return `eligible: mergeable=${p.mergeable} state=${p.mergeStateStatus}`;
+              const tag = isEmergency(p) ? ' [emergency]' : '';
+              return `eligible${tag}: mergeable=${p.mergeable} state=${p.mergeStateStatus}`;
             }
 
             const start = Date.now();
@@ -222,13 +243,26 @@ jobs:
                 }
               }
 
+              // Stable partition: emergency-labeled PRs go first; within
+              // each priority class the GraphQL ASC-by-CREATED_AT order
+              // is preserved.
+              const emergencyBehind = behind.filter(isEmergency);
+              const normalBehind = behind.filter((p) => !isEmergency(p));
+              const orderedBehind = [...emergencyBehind, ...normalBehind];
+
               core.info(
-                `Eligible: ${behind.length} BEHIND, ${unknown.length} UNKNOWN, ` +
+                `Eligible: ${behind.length} BEHIND ` +
+                `(${emergencyBehind.length} emergency), ` +
+                `${unknown.length} UNKNOWN, ` +
                 `${inFlight.length} in-flight (queue head still merging), ` +
                 `rest blocked on failed CI or non-CI gates.`
               );
 
-              if (inFlight.length > 0) {
+              // Emergency BEHIND bypasses the in-flight guard: an emergency
+              // is by definition something that should preempt CI capacity
+              // on a non-emergency PR. Without an emergency, fall back to
+              // the normal "wait for the queue head" behavior.
+              if (inFlight.length > 0 && emergencyBehind.length === 0) {
                 const head = inFlight[0];
                 core.info(
                   `Skip: PR #${head.pr.number} is in flight ` +
@@ -239,11 +273,18 @@ jobs:
                 core.endGroup();
                 return;
               }
+              if (inFlight.length > 0 && emergencyBehind.length > 0) {
+                core.info(
+                  `${emergencyBehind.length} emergency PR(s) BEHIND — ` +
+                  `bypassing in-flight guard for #${inFlight[0].pr.number}.`
+                );
+              }
 
-              if (behind.length > 0) {
+              if (orderedBehind.length > 0) {
                 let updated = null;
-                for (const pr of behind) {
-                  core.info(`→ updateBranch #${pr.number}`);
+                for (const pr of orderedBehind) {
+                  const tag = isEmergency(pr) ? ' [emergency]' : '';
+                  core.info(`→ updateBranch #${pr.number}${tag}`);
                   try {
                     const res = await github.rest.pulls.updateBranch({
                       owner, repo, pull_number: pr.number,
