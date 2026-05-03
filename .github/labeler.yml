@@ -76,10 +76,16 @@ amber-integration:
           - 'amber/src/test/integration/**'
 
 python:
+  # Includes pip requirement manifests so dependency-only PRs still
+  # exercise the Python + amber-integration stacks. Without this a
+  # bumped requirements.txt would only get `dependencies` (no stack
+  # mapping) and silently skip CI for the very deps it's changing.
   - changed-files:
       - any-glob-to-any-file:
           - 'amber/src/main/python/**'
           - '**/*.py'
+          - '**/requirements.txt'
+          - '**/*-requirements.txt'
 
 docs:
   - changed-files:
