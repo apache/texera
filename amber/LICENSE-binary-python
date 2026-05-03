@@ -319,7 +319,7 @@ Python packages:
   - scipy==1.17.1
   - sympy==1.14.0
   - threadpoolctl==3.6.0
-  - tifffile==2026.4.11
+  - tifffile==2026.5.2
   - torch==2.8.0
   - zstandard==0.25.0
 
