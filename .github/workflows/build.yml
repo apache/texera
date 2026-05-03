@@ -323,24 +323,15 @@ jobs:
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Set docker-java API version
-        run: |
-          echo "api.version=1.52" >> ~/.docker-java.properties
-          cat ~/.docker-java.properties
-      - name: Run amber integration tests with coverage
+      - name: Run amber integration tests
         # `-n <tag>` keeps only IntegrationTest-tagged tests; the regular
-        # amber job uses `-l <tag>` to skip the same set.
+        # amber job uses `-l <tag>` to skip the same set. No jacoco
+        # coverage here — these specs validate Python-UDF e2e behavior
+        # whose underlying code paths are already covered by amber's
+        # unit-test coverage.
         run: |
           sbt 'set WorkflowExecutionService / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.amber.tags.IntegrationTest")' \
-              "WorkflowExecutionService/jacoco"
-      - name: Upload amber-integration coverage to Codecov
-        if: always()
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
-          flags: amber-integration
-          fail_ci_if_error: false
+              "WorkflowExecutionService/test"
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala
