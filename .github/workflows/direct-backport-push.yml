@@ -221,8 +221,48 @@ jobs:
           git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
           git cherry-pick --no-commit "${MERGE_SHA}"
 
-          {
-            printf '%s\n\n(backported from commit %s)\n' "${merge_message}" "${MERGE_SHA}"
-          } | git commit -F - --author="${original_author}"
+          # Compose the final commit message. The "(backported from commit X)"
+          # note goes between the message body and the trailer block (the
+          # trailing run of `Key: value` lines such as Co-Authored-By and
+          # Signed-off-by) so trailers stay contiguous at the bottom of the
+          # message — that's where git itself parses them.
+          #
+          # The trailer block, by git convention, is the run of `Key: value`
+          # lines after the LAST blank line in the message, and only counts
+          # if EVERY line after that blank line is in trailer format. This
+          # avoids mis-detecting a Conventional Commits subject like
+          # "feat: foo" or a body line like "References:" as a trailer.
+          new_message=$(
+            printf '%s' "${merge_message}" | \
+              python3 -c '
+import re, sys
+sha = sys.argv[1]
+msg = sys.stdin.read().rstrip("\n")
+lines = msg.split("\n")
+trailer_re = re.compile(r"^[A-Za-z][A-Za-z0-9-]*:\s")
+
+last_blank = -1
+for idx in range(len(lines) - 1, -1, -1):
+    if lines[idx] == "":
+        last_blank = idx
+        break
+
+trailer_start = len(lines)
+if last_blank != -1:
+    candidate = lines[last_blank + 1:]
+    if candidate and all(trailer_re.match(l) for l in candidate):
+        trailer_start = last_blank + 1
+
+backport = f"(backported from commit {sha})"
+if trailer_start == len(lines):
+    print(msg + "\n\n" + backport)
+else:
+    body = "\n".join(lines[:trailer_start]).rstrip("\n")
+    trailers = "\n".join(lines[trailer_start:])
+    print(body + "\n\n" + backport + "\n\n" + trailers)
+' "${MERGE_SHA}"
+          )
+
+          printf '%s\n' "${new_message}" | git commit -F - --author="${original_author}"
 
           git push origin "HEAD:${TARGET_BRANCH}"
