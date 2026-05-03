@@ -78,6 +78,20 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     opId.layerName shouldBe "main"
   }
 
+  it should "misparse layer names that contain hyphens (current behavior)" in {
+    // The layer capture group is `(\w+)`, which does not allow `-`. When the
+    // real layer name contains hyphens (e.g. "1st-physical-op", as seen in
+    // amber WorkerSpec), the greedy operator group eats most of the layer:
+    // operator becomes "myOp-1st-physical" and layer becomes "op". This pins
+    // the current bug so a future fix that broadens `workerNamePattern` to
+    // accept hyphenated layers will surface here and force this spec to be
+    // updated alongside the implementation.
+    val actor = ActorVirtualIdentity("Worker:WF1-myOp-1st-physical-op-3")
+    val opId = VirtualIdentityUtils.getPhysicalOpId(actor)
+    opId.logicalOpId.id shouldBe "myOp-1st-physical"
+    opId.layerName shouldBe "op"
+  }
+
   // ----- getWorkerIndex -----
 
   "getWorkerIndex" should "return the trailing numeric workerId from a worker actor name" in {
@@ -85,15 +99,31 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     VirtualIdentityUtils.getWorkerIndex(actor) shouldBe 42
   }
 
-  // Intentionally not covered: actor names that do not match workerNamePattern
-  // make getWorkerIndex throw scala.MatchError because the method has no
-  // fallback case. See the "Potential bug" note in the PR description.
+  it should "throw MatchError on non-worker actor names (current behavior)" in {
+    // getWorkerIndex pattern-matches on workerNamePattern with no fallback,
+    // so passing a special ActorVirtualIdentity like CONTROLLER or SELF
+    // yields scala.MatchError. Pinning this behavior here means a future
+    // change that adds a fallback (or a different exception) breaks this
+    // spec on purpose so the new contract is reviewed.
+    val controller = ActorVirtualIdentity("CONTROLLER")
+    assertThrows[scala.MatchError] {
+      VirtualIdentityUtils.getWorkerIndex(controller)
+    }
+  }
 
   // ----- toShorterString -----
 
   "toShorterString" should "keep operator names <= 6 chars unchanged" in {
     val actor = ActorVirtualIdentity("Worker:WF1-myOp-main-0")
     VirtualIdentityUtils.toShorterString(actor) shouldBe "WF1-myOp-main-0"
+  }
+
+  it should "keep operator names of exactly 6 chars unchanged (boundary case)" in {
+    // Pin the off-by-one boundary: the implementation uses `length > 6`, so a
+    // six-character operator name must still pass through untouched. A
+    // regression to `>= 6` would shorten "sixSix" and fail this spec.
+    val actor = ActorVirtualIdentity("Worker:WF1-sixSix-main-0")
+    VirtualIdentityUtils.toShorterString(actor) shouldBe "WF1-sixSix-main-0"
   }
 
   it should "shorten UUID-style operator names to op + last 6 chars of the postfix" in {
