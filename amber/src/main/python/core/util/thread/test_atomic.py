@@ -73,14 +73,33 @@ class TestAtomicIntegerSingleThreaded:
         # the deadlock without hanging the whole suite, and pair it with an
         # xfail-strict test below that asserts the intended contract.
         a = AtomicInteger(10)
+        started = threading.Event()
         completed = threading.Event()
+        errors: list[BaseException] = []
 
         def attempt():
-            a.get_and_set(99)
-            completed.set()
+            started.set()
+            try:
+                a.get_and_set(99)
+                completed.set()
+            except BaseException as exc:
+                errors.append(exc)
 
-        threading.Thread(target=attempt, daemon=True).start()
+        worker = threading.Thread(target=attempt, daemon=True)
+        worker.start()
+        # Make sure the worker actually entered `attempt` — otherwise a
+        # scheduling delay alone could let the assertions below pass even on
+        # a fixed implementation.
+        assert started.wait(timeout=2.0), "worker thread never started"
+        # Give get_and_set a moment to either deadlock or return.
         completed.wait(timeout=0.5)
+        assert not errors, (
+            f"get_and_set raised before reaching the deadlock spin: {errors[0]!r}"
+        )
+        assert worker.is_alive(), (
+            "worker thread exited unexpectedly — get_and_set neither deadlocked "
+            "nor completed; the test no longer pins the documented bug."
+        )
         assert not completed.is_set(), (
             "get_and_set unexpectedly returned — the deadlock bug appears fixed; "
             "delete this pinned test along with the xfail below."
