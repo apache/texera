@@ -25,7 +25,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
-import org.apache.texera.amber.core.executor.OpExecInitInfo
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
@@ -53,6 +53,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   stateReached
 }
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
+import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
@@ -60,8 +61,17 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 
-class ReconfigurationSpec
-    extends TestKit(ActorSystem("ReconfigurationSpec", AmberRuntime.akkaConfig))
+/**
+  * E2E reconfiguration tests that spawn Python UDF workers. Routed to the
+  * `amber-integration` CI job via the class-level `@IntegrationTest` tag,
+  * which provisions Python deps; the lighter `amber` job excludes this tag.
+  *
+  * Pure-Scala reconfiguration tests live in [[ReconfigurationSpec]] and run
+  * in the regular `amber` job.
+  */
+@IntegrationTest
+class ReconfigurationIntegrationSpec
+    extends TestKit(ActorSystem("ReconfigurationIntegrationSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -78,7 +88,7 @@ class ReconfigurationSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  val logger = Logger("ReconfigurationSpecLogger")
+  val logger = Logger("ReconfigurationIntegrationSpecLogger")
   val ctx = new WorkflowContext()
 
   override protected def beforeEach(): Unit = {
@@ -179,48 +189,103 @@ class ReconfigurationSpec
     result
   }
 
-  "Engine" should "be able to modify a java operator in workflow" in {
-    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
-    val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
-    val keywordMatchManyOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+  "Engine" should "be able to modify a python UDF worker in workflow" in {
+    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
+    val udfOpDesc = TestOperators.pythonOpDesc()
+    val code = """
+                 |from pytexera import *
+                 |
+                 |class ProcessTupleOperator(UDFOperatorV2):
+                 |    @overrides
+                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
+                 |        yield tuple_
+                 |""".stripMargin
+
     val result = shouldReconfigure(
-      List(sourceOpDesc, keywordMatchNoneOpDesc),
+      List(sourceOpDesc, udfOpDesc),
       List(
         LogicalLink(
           sourceOpDesc.operatorIdentifier,
           PortIdentity(),
-          keywordMatchNoneOpDesc.operatorIdentifier,
+          udfOpDesc.operatorIdentifier,
           PortIdentity()
         )
       ),
-      Seq(keywordMatchNoneOpDesc),
-      keywordMatchManyOpDesc.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
+      Seq(udfOpDesc),
+      OpExecWithCode(code, "python")
     )
-    assert(result(keywordMatchNoneOpDesc.operatorIdentifier).nonEmpty)
+    assert(result(udfOpDesc.operatorIdentifier).exists { t =>
+      t.getField("Region").asInstanceOf[String].contains("_reconfigured")
+    })
   }
 
-  "Engine" should "not be able to modify a source operator in workflow" in {
-    val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()
-    val sourceOpDesc2 = TestOperators.mediumCsvScanOpDesc()
-    val keywordMatchNoneOpDesc = TestOperators.keywordSearchOpDesc("Region", "ShouldMatchNone")
-    val ex = intercept[Throwable] {
-      shouldReconfigure(
-        List(sourceOpDesc, keywordMatchNoneOpDesc),
-        List(
-          LogicalLink(
-            sourceOpDesc.operatorIdentifier,
-            PortIdentity(),
-            keywordMatchNoneOpDesc.operatorIdentifier,
-            PortIdentity()
-          )
-        ),
-        Seq(sourceOpDesc),
-        sourceOpDesc2.getPhysicalOp(ctx.workflowId, ctx.executionId).opExecInitInfo
-      )
-    }
-    assert(
-      ex.getMessage == "java.lang.IllegalStateException: Reconfiguration cannot be applied to source operators"
+  "Engine" should "propagate reconfiguration through a source operator in workflow" in {
+    val sourceOpDesc = TestOperators.pythonSourceOpDesc(10000)
+    val udfOpDesc = TestOperators.pythonOpDesc()
+    val code = """
+                 |from pytexera import *
+                 |
+                 |class ProcessTupleOperator(UDFOperatorV2):
+                 |    @overrides
+                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                 |        tuple_['field_1'] = tuple_['field_1'] + '_reconfigured'
+                 |        yield tuple_
+                 |""".stripMargin
+    val result = shouldReconfigure(
+      List(sourceOpDesc, udfOpDesc),
+      List(
+        LogicalLink(
+          sourceOpDesc.operatorIdentifier,
+          PortIdentity(),
+          udfOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      Seq(udfOpDesc),
+      OpExecWithCode(code, "python")
     )
+    assert(result(udfOpDesc.operatorIdentifier).exists { t =>
+      t.getField("field_1").asInstanceOf[String].contains("_reconfigured")
+    })
+  }
+
+  "Engine" should "be able to modify two python UDFs in workflow" in {
+    val sourceOpDesc = TestOperators.smallCsvScanOpDesc()
+    val udfOpDesc1 = TestOperators.pythonOpDesc()
+    val udfOpDesc2 = TestOperators.pythonOpDesc()
+    val code = """
+                 |from pytexera import *
+                 |
+                 |class ProcessTupleOperator(UDFOperatorV2):
+                 |    @overrides
+                 |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                 |        tuple_['Region'] = tuple_['Region'] + '_reconfigured'
+                 |        yield tuple_
+                 |""".stripMargin
+
+    val result = shouldReconfigure(
+      List(sourceOpDesc, udfOpDesc1, udfOpDesc2),
+      List(
+        LogicalLink(
+          sourceOpDesc.operatorIdentifier,
+          PortIdentity(),
+          udfOpDesc1.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          udfOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          udfOpDesc2.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      Seq(udfOpDesc1, udfOpDesc2),
+      OpExecWithCode(code, "python")
+    )
+    assert(result(udfOpDesc2.operatorIdentifier).exists { t =>
+      t.getField("Region").asInstanceOf[String].contains("_reconfigured_reconfigured")
+    })
   }
 
 }
