@@ -120,13 +120,18 @@ object AddMetaInfLicenseFiles {
     }.taskValue
   )
 
-  /** Ships LICENSE-binary, NOTICE-binary, DISCLAIMER (if present), and
-   *  licenses/ at the Universal zip's top level. LICENSE-binary and
-   *  NOTICE-binary are required; DISCLAIMER is optional (it will be
-   *  removed at graduation). */
-  def distMappings(existing: Seq[(File, String)], rootDir: File): Seq[(File, String)] = {
-    val licenseBinary = rootDir / "LICENSE-binary"
-    val noticeBinary = rootDir / "NOTICE-binary"
+  /** Ships the module's per-module LICENSE-binary, NOTICE-binary, DISCLAIMER
+   *  (if present), and licenses/ at the Universal zip's top level. The
+   *  per-module files describe only the third-party content actually
+   *  bundled in this module's dist zip; the licenses/ directory at the
+   *  repo root is shared by all dist zips. DISCLAIMER is optional (it
+   *  will be removed at graduation). */
+  def distMappings(
+    existing: Seq[(File, String)],
+    rootDir: File,
+    licenseBinary: File,
+    noticeBinary: File
+  ): Seq[(File, String)] = {
     val disclaimerFile = rootDir / "DISCLAIMER"
     val licensesDir = rootDir / "licenses"
 

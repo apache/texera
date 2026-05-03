@@ -70,7 +70,7 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
   }
 
   /**
-   * True if a [[Type]] carries @EncodableStringAnnotation as a TYPE_USE annotation (via [[AnnotatedType]]).
+   * True if a [[Type]] carries @EncodableStringAnnotation as a TYPE_USE annotation (via [[java.lang.reflect.AnnotatedType]]).
    *
    * Walks common wrappers (existentials, refinements, type refs) to find nested annotations.
    */
@@ -103,7 +103,7 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
   /**
    * Checks @EncodableStringAnnotation on either:
    *   - accessed symbol (field/param), or
-   *   - type (TYPE_USE), via [[AnnotatedType]].
+   *   - type (TYPE_USE), via [[java.lang.reflect.AnnotatedType]].
    */
   def treeHasEncodableString(tree: Tree): Boolean = {
     val rawSym = tree.symbol

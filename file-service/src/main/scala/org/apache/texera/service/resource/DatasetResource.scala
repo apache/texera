@@ -1359,7 +1359,7 @@ class DatasetResource {
     * - Cannot start with a hyphen.
     *
     * @param name The dataset name to validate.
-    * @throws IllegalArgumentException if the name is invalid.
+    * @throws java.lang.IllegalArgumentException if the name is invalid.
     */
   private def validateDatasetName(name: String): Unit = {
     val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
