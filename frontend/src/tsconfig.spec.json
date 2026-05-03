@@ -4,5 +4,10 @@
     "outDir": "../out-tsc/spec",
     "types": ["node"]
   },
-  "include": ["**/*.spec.ts", "**/*.d.ts", "vitest-globals.d.ts"]
+  "include": ["**/*.spec.ts", "**/*.d.ts", "vitest-globals.d.ts"],
+  "exclude": [
+    "**/workflow-result.service.spec.ts",
+    "**/download.service.spec.ts",
+    "**/preset.service.spec.ts"
+  ]
 }

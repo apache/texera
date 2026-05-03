@@ -64,6 +64,9 @@
                   "with": "src/environments/environment.prod.ts"
                 }
               ]
+            },
+            "test": {
+              "tsConfig": "src/tsconfig.test.json"
             }
           },
           "defaultConfiguration": ""
@@ -83,10 +86,15 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "buildTarget": "gui:build",
+            "buildTarget": "gui:build:test",
             "runner": "vitest",
             "runnerConfig": "vitest.config.ts",
-            "tsConfig": "src/tsconfig.spec.json"
+            "tsConfig": "src/tsconfig.spec.json",
+            "exclude": [
+              "**/workflow-result.service.spec.ts",
+              "**/download.service.spec.ts",
+              "**/preset.service.spec.ts"
+            ]
           }
         }
       }

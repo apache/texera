@@ -105,7 +105,7 @@
 //   describe("functional api", () => {
 //     it("should properly apply a preset", () => {
 //       const presetService = TestBed.inject(PresetService);
-//       spyOn(presetService, "applyPreset");
+//       vi.spyOn(presetService, "applyPreset");
 
 //       component.applyPreset(testPreset);
 //       expect(presetService.applyPreset).toHaveBeenCalledOnceWith(
@@ -119,8 +119,8 @@
 //       const presetService = TestBed.inject(PresetService);
 //       const otherPreset = { testkey: "otherPresetValue2", otherkey: "otherPresetValue2" };
 //       const existingPresets = [testPreset, otherPreset];
-//       spyOn(presetService, "getPresets").and.returnValue(existingPresets);
-//       const deletePreset = spyOn(presetService, "deletePreset");
+//       vi.spyOn(presetService, "getPresets").mockReturnValue(existingPresets);
+//       const deletePreset = vi.spyOn(presetService, "deletePreset");
 
 //       component.deletePreset(testPreset);
 //       expect(deletePreset).toHaveBeenCalledTimes(1);
@@ -132,12 +132,12 @@
 //     });
 
 //     it("should properly generate a preset title", () => {
-//       expect(component.getEntryTitle(testPreset)).toEqual(jasmine.any(String));
+//       expect(component.getEntryTitle(testPreset)).toEqual(expect.any(String));
 //       expect(component.getEntryTitle(testPreset).replace(/\s\s+/g, "")).not.toEqual("");
 //     });
 
 //     it("should properly generate a preset description", () => {
-//       expect(component.getEntryDescription(testPreset)).toEqual(jasmine.any(String));
+//       expect(component.getEntryDescription(testPreset)).toEqual(expect.any(String));
 //       expect(component.getEntryDescription(testPreset).replace(/\s\s+/g, "")).not.toEqual("");
 //     });
 
@@ -158,7 +158,7 @@
 //     it("should update search results when dropdown becomes visible", () => {
 //       const debugElement = fixture.debugElement.query(By.directive(PresetWrapperComponent));
 //       component.searchResults = [];
-//       spyOn(component, "getSearchResults").and.returnValue([testPreset]);
+//       vi.spyOn(component, "getSearchResults").mockReturnValue([testPreset]);
 
 //       expect(component.searchResults).toEqual([]);
 //       // trigger nzVisibleChange, as if the dropdown menu was triggered
@@ -178,7 +178,7 @@
 //       const debugElement = fixture.debugElement.query(By.directive(PresetWrapperComponent));
 
 //       // trigger dropdown menu
-//       spyOn(component, "getSearchResults").and.returnValue(searchResults);
+//       vi.spyOn(component, "getSearchResults").mockReturnValue(searchResults);
 //       debugElement.query(By.css(".preset-field")).nativeElement.dispatchEvent(new Event("click"));
 //       fixture.detectChanges();
 //       tick(1000);
@@ -205,8 +205,8 @@
 
 //       const searchResults = [testPreset];
 //       const debugElement = fixture.debugElement.query(By.directive(PresetWrapperComponent));
-//       spyOn(component, "getSearchResults").and.returnValue(searchResults);
-//       spyOn(component, "applyPreset");
+//       vi.spyOn(component, "getSearchResults").mockReturnValue(searchResults);
+//       vi.spyOn(component, "applyPreset");
 
 //       // trigger dropdown menu
 //       debugElement.query(By.css(".preset-field")).nativeElement.dispatchEvent(new Event("click"));
@@ -229,8 +229,8 @@
 
 //       const searchResults = [testPreset];
 //       const debugElement = fixture.debugElement.query(By.directive(PresetWrapperComponent));
-//       spyOn(component, "getSearchResults").and.returnValue(searchResults);
-//       spyOn(component, "deletePreset");
+//       vi.spyOn(component, "getSearchResults").mockReturnValue(searchResults);
+//       vi.spyOn(component, "deletePreset");
 
 //       // trigger dropdown menu
 //       debugElement.query(By.css(".preset-field")).nativeElement.dispatchEvent(new Event("click"));
@@ -249,7 +249,7 @@
 //     it("should set new search results whenever the value of the field changes", fakeAsync(() => {
 //       const inputfield = fixture.debugElement.query(By.css(".preset-field input")).nativeElement;
 //       const searchResults = [testPreset];
-//       spyOn(component, "getSearchResults").and.returnValue(searchResults);
+//       vi.spyOn(component, "getSearchResults").mockReturnValue(searchResults);
 
 //       // trigger input event as if typing
 //       inputfield.value = "asdf";
