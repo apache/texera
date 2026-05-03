@@ -112,7 +112,10 @@ object ExecutionResultService {
                             val leading =
                               new String(byteArray.take(binaryPreviewLeadingBytes), binaryCharset)
                             val trailing =
-                              new String(byteArray.takeRight(binaryPreviewTrailingBytes), binaryCharset)
+                              new String(
+                                byteArray.takeRight(binaryPreviewTrailingBytes),
+                                binaryCharset
+                              )
                             s"$leading...$trailing"
                           }
                         s"<binary: $preview $sizeFormatted bytes>"
