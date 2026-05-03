@@ -17,9 +17,17 @@
  * under the License.
  */
 
-import { getTestBed } from "@angular/core/testing";
-import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from "@angular/platform-browser-dynamic/testing";
+import { defineConfig } from "vitest/config";
 
-getTestBed().initTestEnvironment(BrowserDynamicTestingModule, platformBrowserDynamicTesting(), {
-  teardown: { destroyAfterEach: false },
+export default defineConfig({
+  test: {
+    // Make describe/it/expect/vi/beforeEach/etc available as globals so
+    // existing Jasmine-style specs don't need a per-file import sweep.
+    // Paired with `vitest/globals` triple-slash in src/vitest-globals.d.ts.
+    globals: true,
+    // Per-spec exclusions live in `angular.json` (the unit-test builder
+    // applies them at the discovery stage, before Vitest's own filter,
+    // which is what the Vitest team recommends — see the Vite warning
+    // when this list is duplicated here.)
+  },
 });

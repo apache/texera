@@ -61,15 +61,14 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
   let fixture: ComponentFixture<UserWorkflowComponent>;
 
-  let downloadServiceSpy: jasmine.SpyObj<DownloadService>;
+  let downloadServiceSpy: any;
 
   beforeEach(waitForAsync(() => {
-    downloadServiceSpy = jasmine.createSpyObj<DownloadService>(["downloadWorkflowsAsZip"]);
+    downloadServiceSpy = { downloadWorkflowsAsZip: vi.fn() } as any;
 
     TestBed.configureTestingModule({
       declarations: [
@@ -131,7 +130,7 @@ describe("SavedWorkflowSectionComponent", () => {
   // TODO: add this test case back and figure out why it failed
   // xit("Modal Opened, then Closed", () => {
   //   const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
-  //   spyOn(modalService, "open").and.returnValue(modalRef);
+  //   vi.spyOn(modalService, "open").mockReturnValue(modalRef);
   //   component.onClickOpenShareAccess(testWorkflowEntries[0]);
   //   expect(modalService.open).toHaveBeenCalled();
   //   fixture.detectChanges();
@@ -146,7 +145,7 @@ describe("SavedWorkflowSectionComponent", () => {
   it("searchNoInput", async () => {
     // When no search input is provided, it should show all workflows.
     await component.search();
-    expect(component.searchResultsComponent.loading).toBeFalse();
+    expect(component.searchResultsComponent.loading).toBe(false);
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
     console.log("Master Filter List:", component.filters.masterFilterList);
@@ -159,7 +158,7 @@ describe("SavedWorkflowSectionComponent", () => {
     // than all containing the keyword "workflow".
     component.filters.masterFilterList = ["workflow 5"];
     await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBeFalse();
+    expect(component.searchResultsComponent.loading).toBe(false);
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 5"]);
     expect(component.filters.masterFilterList).toEqual(["workflow 5"]);
@@ -170,7 +169,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.owners[0].checked = true;
     component.filters.updateSelectedOwners();
     await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBeFalse();
+    expect(component.searchResultsComponent.loading).toBe(false);
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2"]);
     expect(component.filters.masterFilterList).toEqual(["owner: Texera"]);
@@ -183,7 +182,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.wids[2].checked = true;
     component.filters.updateSelectedIDs();
     await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBeFalse();
+    expect(component.searchResultsComponent.loading).toBe(false);
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.filters.masterFilterList).toEqual(["id: 1", "id: 2", "id: 3"]);
@@ -200,7 +199,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.userProjectsDropdown[0].checked = true;
     component.filters.updateSelectedProjects();
     await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBeFalse();
+    expect(component.searchResultsComponent.loading).toBe(false);
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
     expect(component.filters.masterFilterList).toEqual(["project: Project1"]);
@@ -211,7 +210,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     component.filters.buildMasterFilterList();
     await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBeFalse();
+    expect(component.searchResultsComponent.loading).toBe(false);
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
     expect(component.filters.masterFilterList).toEqual(["ctime: 1970-01-03 ~ 1981-03-13"]);
@@ -222,7 +221,7 @@ describe("SavedWorkflowSectionComponent", () => {
     component.filters.selectedMtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
     component.filters.buildMasterFilterList();
     await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBeFalse();
+    expect(component.searchResultsComponent.loading).toBe(false);
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 4", "workflow 5"]);
     expect(component.filters.masterFilterList).toEqual(["mtime: 1970-01-03 ~ 1981-03-13"]);
@@ -299,7 +298,7 @@ describe("SavedWorkflowSectionComponent", () => {
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1"]);
     expect(component.filters.masterFilterList).toEqual(
-      jasmine.arrayWithExactContents([
+      expect.arrayContaining([
         "1",
         "owner: Texera",
         "owner: Angular",
@@ -322,7 +321,7 @@ describe("SavedWorkflowSectionComponent", () => {
     testWorkflowFileNameConflictEntries[0].checked = true;
     testWorkflowFileNameConflictEntries[2].checked = true;
 
-    downloadServiceSpy.downloadWorkflowsAsZip.and.returnValue(of(new Blob()));
+    downloadServiceSpy.downloadWorkflowsAsZip.mockReturnValue(of(new Blob()));
 
     await component.onClickOpenDownloadZip();
 
@@ -339,7 +338,7 @@ describe("SavedWorkflowSectionComponent", () => {
     ]);
 
     // Check that the checked entries are unchecked after download
-    expect(testWorkflowFileNameConflictEntries[0].checked).toBeTrue();
-    expect(testWorkflowFileNameConflictEntries[2].checked).toBeTrue();
+    expect(testWorkflowFileNameConflictEntries[0].checked).toBe(true);
+    expect(testWorkflowFileNameConflictEntries[2].checked).toBe(true);
   });
 });

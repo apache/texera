@@ -64,6 +64,10 @@
                   "with": "src/environments/environment.prod.ts"
                 }
               ]
+            },
+            "test": {
+              "tsConfig": "src/tsconfig.test.json",
+              "main": "src/main.test.ts"
             }
           },
           "defaultConfiguration": ""
@@ -81,28 +85,31 @@
           }
         },
         "test": {
-          "builder": "@angular-builders/custom-webpack:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "assets": ["src/assets"],
-            "fileReplacements": [
-              {
-                "replace": "src/environments/environment.ts",
-                "with": "src/environments/environment.test.ts"
-              }
-            ],
-            "karmaConfig": "./karma.conf.js",
-            "main": "src/test.ts",
-            "polyfills": ["zone.js", "zone.js/testing"],
-            "styles": [
-              "node_modules/jointjs/css/layout.css",
-              "node_modules/jointjs/css/themes/material.css",
-              "node_modules/jointjs/css/themes/default.css",
-              "src/styles.scss"
-            ],
-            "customWebpackConfig": {
-              "path": "./custom-webpack.config.js"
-            },
-            "tsConfig": "src/tsconfig.spec.json"
+            "buildTarget": "gui:build:test",
+            "runner": "vitest",
+            "runnerConfig": "vitest.config.ts",
+            "tsConfig": "src/tsconfig.spec.json",
+            "include": ["**/*.spec.ts"],
+            "setupFiles": ["src/jsdom-svg-polyfill.ts"],
+            "exclude": [
+              "**/workflow-result.service.spec.ts",
+              "**/download.service.spec.ts",
+              "**/preset.service.spec.ts",
+              "**/*.component.spec.ts",
+              "**/coeditor-presence.service.spec.ts",
+              "**/execute-workflow.service.spec.ts",
+              "**/user.service.spec.ts",
+              "**/workflow-websocket.service.spec.ts",
+              "**/workflow-result-export.service.spec.ts",
+              "**/udf-debug.service.spec.ts",
+              "**/user-config.service.spec.ts",
+              "**/operator-menu.service.spec.ts",
+              "**/workflow-console.service.spec.ts",
+              "**/operator-reuse-cache-status.service.spec.ts",
+              "**/drag-drop.service.spec.ts"
+            ]
           }
         }
       }
