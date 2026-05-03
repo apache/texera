@@ -40,6 +40,7 @@ import json
 import re
 import sys
 import tempfile
+from collections import defaultdict
 from pathlib import Path
 
 # Per-module LICENSE-binary files that the combined LICENSE-binary unions.
@@ -292,41 +293,50 @@ def collect_python(path: Path) -> set[str]:
 SCALA_SUFFIX = re.compile(r"_\d+(?:\.\d+)+$")
 
 
-def _index_npm(items: set[str]) -> dict[str, str]:
-    """{ 'react@18.2.0', '@scope/foo@1.0' } -> { 'react': '18.2.0', '@scope/foo': '1.0' }."""
-    out: dict[str, str] = {}
+def _index_npm(items: set[str]) -> dict[str, set[str]]:
+    """{ 'react@18.2.0', 'react@17.0.0' } -> { 'react': {'18.2.0', '17.0.0'} }.
+    Same name can legitimately appear at multiple versions when the bundle
+    pulls in two majors of a transitive dep."""
+    out: dict[str, set[str]] = defaultdict(set)
     for entry in items:
         # Last '@' is the version separator; '@' inside scoped names is at index 0.
         idx = entry.rfind("@")
         if idx <= 0:
             continue
-        out[entry[:idx]] = entry[idx + 1:]
+        out[entry[:idx]].add(entry[idx + 1:])
     return out
 
 
-def _index_python(items: set[str]) -> dict[str, str]:
-    """{ 'numpy==2.1.0' } -> { 'numpy': '2.1.0' }."""
-    out: dict[str, str] = {}
+def _index_python(items: set[str]) -> dict[str, set[str]]:
+    """{ 'numpy==2.1.0' } -> { 'numpy': {'2.1.0'} }."""
+    out: dict[str, set[str]] = defaultdict(set)
     for entry in items:
         if "==" not in entry:
             continue
         name, _, ver = entry.partition("==")
-        out[name] = ver
+        out[name].add(ver)
     return out
 
 
-def _index_jar(items: set[str]) -> dict[str, tuple[str, str]]:
-    """{ 'netty-all-4.1.96.Final.jar' } -> { 'netty-all': ('4.1.96.Final', '<basename>') }.
-    Falls back to keying by the full basename when version extraction fails;
-    such entries can still be flagged as added/stale but not as drift."""
-    out: dict[str, tuple[str, str]] = {}
+def _index_jar(items: set[str]) -> dict[str, set[str]]:
+    """{ 'netty-all-4.1.96.Final.jar' } -> { 'netty-all': {'4.1.96.Final'} }.
+    Same shape as _index_npm / _index_python: an artifact legitimately
+    bundled at multiple versions (e.g. logback at 1.2.x in one service
+    and 1.4.x in another) survives intact. Unparseable jar names are
+    surfaced loudly rather than silently dropped — a parser bug here
+    means real bundled deps would skip license validation."""
+    out: dict[str, set[str]] = defaultdict(set)
     for jar in items:
         m = JAR_NAME_VERSION.match(jar)
-        if m:
-            out[m.group(1)] = (m.group(2), jar)
-        else:
-            out[jar] = ("", jar)  # unparseable — version "" sentinel
+        if not m:
+            sys.stderr.write(f"warning: cannot parse jar name: {jar}\n")
+            continue
+        out[m.group(1)].add(m.group(2))
     return out
+
+
+def _jar_basename(artifact: str, version: str) -> str:
+    return f"{artifact}-{version}.jar"
 
 
 def _is_direct_jar(artifact: str, direct_artifacts: set[str]) -> bool:
@@ -384,13 +394,17 @@ def report(
         print()
         rc = 1
 
+    def _fmt_drift(entry: tuple[str, list[str], list[str]]) -> str:
+        name, cvers, rvers = entry
+        return f"  ~ {name}: LICENSE-binary={', '.join(cvers)}  bundled={', '.join(rvers)}"
+
     if drift_direct:
-        print(f"DRIFT (direct) {label} — claimed version differs from bundled:")
-        for name, claimed_v, real_v in sorted(drift_direct):
-            print(f"  ~ {name}: LICENSE-binary={claimed_v}  bundled={real_v}")
+        print(f"DRIFT (direct) {label} — claimed versions differ from bundled:")
+        for entry in sorted(drift_direct):
+            print(_fmt_drift(entry))
         print()
         print("ACTION REQUIRED")
-        print(f"  Update LICENSE-binary to match the bundled version. Direct deps")
+        print(f"  Update LICENSE-binary to match the bundled versions. Direct deps")
         print(f"  always block CI — a version bump may carry license changes.")
         print()
         rc = 1
@@ -398,18 +412,18 @@ def report(
     if drift_transitive:
         if ignore_transitive_version:
             print(f"DRIFT (transitive, informational) {label}:")
-            for name, claimed_v, real_v in sorted(drift_transitive):
-                print(f"  ~ {name}: LICENSE-binary={claimed_v}  bundled={real_v}")
+            for entry in sorted(drift_transitive):
+                print(_fmt_drift(entry))
             print(f"  (--ignore-transitive-version is set; nightly exact-match")
             print(f"   check on main is responsible for refreshing these.)")
             print()
         else:
-            print(f"DRIFT (transitive) {label} — claimed version differs from bundled:")
-            for name, claimed_v, real_v in sorted(drift_transitive):
-                print(f"  ~ {name}: LICENSE-binary={claimed_v}  bundled={real_v}")
+            print(f"DRIFT (transitive) {label} — claimed versions differ from bundled:")
+            for entry in sorted(drift_transitive):
+                print(_fmt_drift(entry))
             print()
             print("ACTION REQUIRED")
-            print(f"  Update LICENSE-binary to match the bundled version, or rerun")
+            print(f"  Update LICENSE-binary to match the bundled versions, or rerun")
             print(f"  with --ignore-transitive-version to treat transitive drift as")
             print(f"  informational.")
             print()
@@ -421,48 +435,63 @@ def report(
 # --- main ------------------------------------------------------------------
 
 def diff_simple(
-    claim_idx: dict[str, str],
-    real_idx: dict[str, str],
+    claim_idx: dict[str, set[str]],
+    real_idx: dict[str, set[str]],
     direct_names: set[str],
-) -> tuple[list[str], list[str], list[tuple[str, str, str]], list[tuple[str, str, str]]]:
-    """Diff claims vs reality keyed by name. Same shape for npm/python."""
-    added = sorted(real_idx.keys() - claim_idx.keys())
-    stale = sorted(claim_idx.keys() - real_idx.keys())
-    drift_direct: list[tuple[str, str, str]] = []
-    drift_transitive: list[tuple[str, str, str]] = []
+    joiner: str,
+) -> tuple[list[str], list[str], list[tuple[str, list[str], list[str]]], list[tuple[str, list[str], list[str]]]]:
+    """Diff name->{versions} multimaps for npm/python. `joiner` is the
+    separator used when rendering added/stale entries (`@` for npm, `==`
+    for python). Drifts are returned as (name, sorted_claimed_versions,
+    sorted_real_versions)."""
+    added: list[str] = []
+    stale: list[str] = []
+    drift_direct: list[tuple[str, list[str], list[str]]] = []
+    drift_transitive: list[tuple[str, list[str], list[str]]] = []
+
+    for name in sorted(real_idx.keys() - claim_idx.keys()):
+        for v in sorted(real_idx[name]):
+            added.append(f"{name}{joiner}{v}")
+    for name in sorted(claim_idx.keys() - real_idx.keys()):
+        for v in sorted(claim_idx[name]):
+            stale.append(f"{name}{joiner}{v}")
     for name in sorted(claim_idx.keys() & real_idx.keys()):
-        c, r = claim_idx[name], real_idx[name]
-        if c != r:
-            entry = (name, c, r)
-            (drift_direct if name in direct_names else drift_transitive).append(entry)
+        cvers, rvers = claim_idx[name], real_idx[name]
+        if cvers == rvers:
+            continue
+        entry = (name, sorted(cvers), sorted(rvers))
+        (drift_direct if name in direct_names else drift_transitive).append(entry)
     return added, stale, drift_direct, drift_transitive
 
 
 def diff_jars(
-    claim_idx: dict[str, tuple[str, str]],
-    real_idx: dict[str, tuple[str, str]],
+    claim_idx: dict[str, set[str]],
+    real_idx: dict[str, set[str]],
     direct_artifacts: set[str],
-) -> tuple[list[str], list[str], list[tuple[str, str, str]], list[tuple[str, str, str]]]:
-    """Like diff_simple but the index value is (version, jar_basename) so
-    added/stale can be reported using the full basename users will see in
-    LICENSE-binary."""
+) -> tuple[list[str], list[str], list[tuple[str, list[str], list[str]]], list[tuple[str, list[str], list[str]]]]:
+    """Diff artifact->{versions} multimaps. Added/stale are rendered as
+    full jar basenames users will see in LICENSE-binary; drifts are
+    (artifact, sorted_claimed, sorted_real)."""
     added: list[str] = []
     stale: list[str] = []
-    drift_direct: list[tuple[str, str, str]] = []
-    drift_transitive: list[tuple[str, str, str]] = []
+    drift_direct: list[tuple[str, list[str], list[str]]] = []
+    drift_transitive: list[tuple[str, list[str], list[str]]] = []
+
     for artifact in sorted(real_idx.keys() - claim_idx.keys()):
-        added.append(real_idx[artifact][1])
+        for v in sorted(real_idx[artifact]):
+            added.append(_jar_basename(artifact, v))
     for artifact in sorted(claim_idx.keys() - real_idx.keys()):
-        stale.append(claim_idx[artifact][1])
+        for v in sorted(claim_idx[artifact]):
+            stale.append(_jar_basename(artifact, v))
     for artifact in sorted(claim_idx.keys() & real_idx.keys()):
-        cv, _cname = claim_idx[artifact]
-        rv, _rname = real_idx[artifact]
-        if cv != rv:
-            entry = (artifact, cv, rv)
-            if _is_direct_jar(artifact, direct_artifacts):
-                drift_direct.append(entry)
-            else:
-                drift_transitive.append(entry)
+        cvers, rvers = claim_idx[artifact], real_idx[artifact]
+        if cvers == rvers:
+            continue
+        entry = (artifact, sorted(cvers), sorted(rvers))
+        if _is_direct_jar(artifact, direct_artifacts):
+            drift_direct.append(entry)
+        else:
+            drift_transitive.append(entry)
     return added, stale, drift_direct, drift_transitive
 
 
@@ -514,7 +543,7 @@ def main() -> int:
         claimed = parse_prose(lb, "npm")
         reality = collect_npm(Path(args.inputs[0]))
         direct = load_direct_npm("frontend/package.json")
-        added, stale, dd, dt = diff_simple(_index_npm(claimed), _index_npm(reality), direct)
+        added, stale, dd, dt = diff_simple(_index_npm(claimed), _index_npm(reality), direct, joiner="@")
         rc = report(added, stale, dd, dt, "npm packages", "npm", args.ignore_transitive_version)
         if rc == 0:
             print(f"OK: {len(reality)} npm packages match LICENSE-binary.")
@@ -524,7 +553,7 @@ def main() -> int:
         claimed = parse_prose(lb, "agent-npm")
         reality = collect_npm(Path(args.inputs[0]))
         direct = load_direct_npm("agent-service/package.json")
-        added, stale, dd, dt = diff_simple(_index_npm(claimed), _index_npm(reality), direct)
+        added, stale, dd, dt = diff_simple(_index_npm(claimed), _index_npm(reality), direct, joiner="@")
         rc = report(added, stale, dd, dt, "agent-service npm packages", "agent-npm", args.ignore_transitive_version)
         if rc == 0:
             print(f"OK: {len(reality)} agent-service npm packages match LICENSE-binary.")
@@ -534,7 +563,7 @@ def main() -> int:
         claimed = parse_prose(lb, "python")
         reality = collect_python(Path(args.inputs[0]))
         direct = load_direct_python()
-        added, stale, dd, dt = diff_simple(_index_python(claimed), _index_python(reality), direct)
+        added, stale, dd, dt = diff_simple(_index_python(claimed), _index_python(reality), direct, joiner="==")
         rc = report(added, stale, dd, dt, "Python packages", "python", args.ignore_transitive_version)
         if rc == 0:
             print(f"OK: {len(reality)} Python packages match LICENSE-binary.")
