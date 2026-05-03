@@ -17,9 +17,13 @@
  * under the License.
  */
 
-import { getTestBed } from "@angular/core/testing";
-import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from "@angular/platform-browser-dynamic/testing";
+import { defineConfig } from "vitest/config";
 
-getTestBed().initTestEnvironment(BrowserDynamicTestingModule, platformBrowserDynamicTesting(), {
-  teardown: { destroyAfterEach: false },
+export default defineConfig({
+  test: {
+    // Make describe/it/expect/vi/beforeEach/etc available as globals so
+    // existing Jasmine-style specs don't need a per-file import sweep.
+    // Paired with `"types": ["vitest/globals", ...]` in tsconfig.spec.json.
+    globals: true,
+  },
 });
