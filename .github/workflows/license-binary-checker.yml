@@ -61,6 +61,20 @@ jobs:
             const runUrl =
               `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
 
+            // Ensure the tracking label exists (idempotent). Without this,
+            // first-run on a fork would have to silently auto-create it with
+            // a random color via issues.create.
+            try {
+              await github.rest.issues.createLabel({
+                owner, repo, name: TRACKING_LABEL, color: 'fbca04',
+                description:
+                  'Tracking issue for license-binary drift between bundled ' +
+                  'artifacts and per-module LICENSE-binary files',
+              });
+            } catch (err) {
+              if (err.status !== 422) throw err;
+            }
+
             // Walk every job in the current run (which includes the called
             // build.yml jobs, prefixed with the calling job id `build`).
             const jobs = await github.paginate(
