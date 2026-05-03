@@ -313,8 +313,12 @@ class TestUpdateExecutor:
         assert initialized_manager.executor is not before
         assert initialized_manager.executor.runtime_field == "set-after-init"
         assert initialized_manager.executor.counter == 6
+        # Assert key presence explicitly so a missing key with an expected
+        # value of None doesn't slip past via dict.get()'s default.
+        after_dict = initialized_manager.executor.__dict__
         for key, value in before_dict.items():
-            assert initialized_manager.executor.__dict__.get(key) == value
+            assert key in after_dict, f"key {key!r} missing after update"
+            assert after_dict[key] == value
 
     def test_update_increments_executor_version_and_module_name(
         self, initialized_manager
