@@ -120,7 +120,7 @@ jobs:
             //   ---------------|----------|-------|-------------|----------|--------|--------------
             //   frontend       |    x     |       |             |          |        |
             //   python         |          |       |      x      |          |   x    |
-            //   engine         |          |   x   |      x      |          |   x    |
+            //   engine         |          |   x   |      x      |          |        |
             //   platform       |          |       |             |    x     |        |
             //   agent-service  |          |       |             |          |        |     x
             //   common         |          |   x   |      x      |    x     |        |  (root
@@ -135,13 +135,14 @@ jobs:
             //
             // amber-integration runs the Scala tests tagged
             // @org.apache.texera.amber.tags.IntegrationTest (e2e specs that
-            // spawn Python UDF workers). A bare `python` label fires it
-            // alongside the python stack but skips amber's pure Scala
-            // unit tests.
+            // spawn Python UDF workers). The labeler attaches `python` to
+            // any *.py change (including amber/src/main/python/**), so
+            // `engine` does not need to fire the python stack itself —
+            // pure-Python amber changes pick up `python` directly.
             const LABEL_STACKS = {
               frontend: ["frontend"],
               python: ["amber-integration", "python"],
-              engine: ["amber", "amber-integration", "python"], // amber/** spans both
+              engine: ["amber", "amber-integration"],
               platform: ["platform"],
               "agent-service": ["agent-service"],
               common: ["amber", "amber-integration", "platform"],
