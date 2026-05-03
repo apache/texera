@@ -2,7 +2,7 @@
   "name": "gui",
   "version": "0.0.0",
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=24.0.0"
   },
   "license": "Apache-2.0",
   "scripts": {
@@ -113,7 +113,7 @@
     "@types/karma-coverage": "^2",
     "@types/lodash": "4.14.179",
     "@types/lodash-es": "4.17.4",
-    "@types/node": "20.19.39",
+    "@types/node": "24.10.1",
     "@types/papaparse": "5.3.5",
     "@types/plotly.js-basic-dist-min": "2.12.4",
     "@types/quill": "2.0.9",
