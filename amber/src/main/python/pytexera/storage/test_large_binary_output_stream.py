@@ -39,7 +39,7 @@ class TestLargeBinaryOutputStream:
         assert stream._large_binary == large_binary
         assert stream._bucket_name == "test-bucket"
         assert stream._object_key == "path/to/object"
-        assert not stream._closed
+        assert not stream.closed
         assert stream._upload_thread is None
 
     def test_init_with_none_raises_error(self):
@@ -169,10 +169,10 @@ class TestLargeBinaryOutputStream:
 
             with LargeBinaryOutputStream(large_binary) as stream:
                 stream.write(b"test data")
-                assert not stream._closed
+                assert not stream.closed
 
             # Stream should be closed after context exit
-            assert stream._closed
+            assert stream.closed
 
     def test_write_after_close_raises_error(self, large_binary):
         """Test that writing after close raises ValueError."""
