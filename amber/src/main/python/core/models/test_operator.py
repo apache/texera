@@ -23,9 +23,11 @@ from core.models import (
     BatchOperator,
     SourceOperator,
     State,
+    Table,
+    Tuple,
     TupleOperatorV2,
 )
-from core.models.operator import Operator
+from core.models.operator import Operator, TableOperator
 
 
 class _ConcreteOperator(TupleOperatorV2):
@@ -47,6 +49,18 @@ class _ConcreteBatch(BatchOperator):
 
     def process_batch(self, batch, port):
         yield batch
+
+
+class _ConcreteTable(TableOperator):
+    """Concrete subclass that records the table it received via process_table."""
+
+    def __init__(self):
+        super().__init__()
+        self.received_tables = []
+
+    def process_table(self, table, port):
+        self.received_tables.append(table)
+        yield None
 
 
 class TestPythonTemplateDecoder:
@@ -140,22 +154,32 @@ class TestIsSourceProperty:
         op.is_source = False
         assert op.is_source is False
 
-    def test_source_operator_class_attr_is_dead_code_due_to_name_mangling(self):
-        # Bug pin: SourceOperator declares `__internal_is_source = True`, but
-        # Python name-mangles that to `_SourceOperator__internal_is_source`,
-        # while Operator.is_source reads `self.__internal_is_source` from the
-        # Operator class scope, which mangles to `_Operator__internal_is_source`.
-        # The two are different attributes, so a fresh SourceOperator subclass
-        # instance reports is_source=False until the explicit setter is invoked
-        # (which ExecutorManager does in initialize_executor). Pinning this so
-        # a future fix that removes / repairs the dead class attribute will
-        # deliberately break this spec and force a contract review.
+    def test_source_operator_class_attr_storage_diverges_from_property_read(
+        self,
+    ):
+        # Documents the underlying defect without claiming a contract: the class
+        # attribute is stored under one mangled name, the property reads from
+        # another, so they cannot agree. Asserting the two attributes directly
+        # decouples this from the eventual is_source-on-SourceOperator fix.
         src = _ConcreteSource()
-        assert src.is_source is False
-        # The mangled attribute the class actually set — present but unused:
+        # The mangled attribute SourceOperator set — present but unused:
         assert getattr(src, "_SourceOperator__internal_is_source") is True
-        # The attribute the property reads — still the inherited Operator default:
+        # The attribute Operator.is_source actually reads — still the default:
         assert getattr(src, "_Operator__internal_is_source") is False
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "Known bug: SourceOperator's __internal_is_source class attribute "
+            "is name-mangled to _SourceOperator__internal_is_source, while "
+            "Operator.is_source reads _Operator__internal_is_source. The "
+            "intended contract is is_source=True on SourceOperator instances; "
+            "this xfail flips to XPASS when the bug is fixed."
+        ),
+    )
+    def test_source_operator_subclass_should_report_is_source_true(self):
+        src = _ConcreteSource()
+        assert src.is_source is True
 
 
 class TestOperatorDefaultMethods:
@@ -223,3 +247,45 @@ class TestBatchOperatorValidation:
     def test_concrete_batch_operator_initializes_with_valid_size(self):
         op = _ConcreteBatch()
         assert op.BATCH_SIZE == 4
+
+
+class TestTableOperator:
+    def test_process_tuple_buffers_input_and_yields_none(self):
+        # process_tuple is @final on TableOperator: it must record the tuple
+        # internally and yield exactly one None so the framework's iterator
+        # protocol still sees a value, but no output is produced per-tuple.
+        op = _ConcreteTable()
+        out = list(op.process_tuple(Tuple({"x": 1}), port=0))
+        assert out == [None]
+        # Nothing was passed downstream to process_table yet.
+        assert op.received_tables == []
+
+    def test_on_finish_calls_process_table_with_buffered_tuples(self):
+        op = _ConcreteTable()
+        list(op.process_tuple(Tuple({"x": 1, "y": "a"}), port=0))
+        list(op.process_tuple(Tuple({"x": 2, "y": "b"}), port=0))
+        # Drain on_finish so the generator runs.
+        list(op.on_finish(port=0))
+
+        assert len(op.received_tables) == 1
+        table = op.received_tables[0]
+        assert isinstance(table, Table)
+        rows = [t for t in table.as_tuples()]
+        assert rows == [Tuple({"x": 1, "y": "a"}), Tuple({"x": 2, "y": "b"})]
+
+    def test_on_finish_with_no_buffered_tuples_yields_empty_table(self):
+        op = _ConcreteTable()
+        list(op.on_finish(port=0))
+        assert len(op.received_tables) == 1
+        assert list(op.received_tables[0].as_tuples()) == []
+
+    def test_buffers_are_keyed_by_port(self):
+        # Each input port has its own tuple buffer; on_finish for one port
+        # must not surface tuples written through a different port.
+        op = _ConcreteTable()
+        list(op.process_tuple(Tuple({"x": 1}), port=0))
+        list(op.process_tuple(Tuple({"x": 99}), port=1))
+
+        list(op.on_finish(port=0))
+        rows = list(op.received_tables[0].as_tuples())
+        assert rows == [Tuple({"x": 1})]
