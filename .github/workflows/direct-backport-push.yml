@@ -234,8 +234,44 @@ jobs:
           base_sha=$(git rev-parse HEAD)
           log "base_sha=${base_sha}"
           if ! git cherry-pick --no-commit "${MERGE_SHA}"; then
-            echo "::error::Cherry-pick of ${MERGE_SHA} onto ${TARGET_BRANCH} hit a conflict; manual backport required."
-            git status --short || true
+            endgroup
+            group "Conflict diagnosis"
+            conflicts=$(git diff --name-only --diff-filter=U)
+            log "Conflicted files:"
+            printf '  %s\n' ${conflicts}
+
+            # merge-base of the source commit and the target branch — the
+            # most recent point where main and the release branch shared
+            # history. Anything on main between the merge-base and the
+            # source commit that touches a conflicting file is a candidate
+            # "missing prerequisite" the backport probably needs first.
+            merge_base=$(git merge-base "${MERGE_SHA}^" "origin/${TARGET_BRANCH}" || echo "")
+            log ""
+            log "merge_base(${MERGE_SHA:0:8}^, origin/${TARGET_BRANCH})=${merge_base:-<none>}"
+
+            for f in ${conflicts}; do
+              log ""
+              log "── ${f} ──"
+              log "Conflict markers (line numbers in the working tree):"
+              grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- "${f}" | head -40 || true
+
+              if [[ -n "${merge_base}" ]]; then
+                log ""
+                log "Commits on main that modified ${f} between ${merge_base:0:8}..${MERGE_SHA:0:8}^ (likely-missing prerequisites — consider backporting these first):"
+                git log --oneline --no-merges "${merge_base}..${MERGE_SHA}^" -- "${f}" | head -20 || true
+
+                log ""
+                log "Commits on ${TARGET_BRANCH} that modified ${f} since ${merge_base:0:8} (changes already on the release branch that diverged from main):"
+                git log --oneline --no-merges "${merge_base}..origin/${TARGET_BRANCH}" -- "${f}" | head -20 || true
+              fi
+
+              log ""
+              log "Last 3 commits anywhere that touched ${f}:"
+              git log --oneline --all -3 -- "${f}" || true
+            done
+            endgroup
+
+            echo "::error::Cherry-pick of ${MERGE_SHA} onto ${TARGET_BRANCH} hit conflicts. See 'Conflict diagnosis' group above for likely-missing prerequisite commits and per-file conflict markers."
             exit 1
           fi
           endgroup
@@ -276,11 +312,26 @@ jobs:
             # hit the same transient error — backoff handles that.
             log "Refreshing origin/${TARGET_BRANCH} before retry"
             git fetch --no-tags origin "${TARGET_BRANCH}"
+            old_remote_head="${remote_head:-${base_sha}}"
             remote_head=$(git rev-parse "origin/${TARGET_BRANCH}")
             log "origin/${TARGET_BRANCH}=${remote_head}"
             if ! git rebase "origin/${TARGET_BRANCH}"; then
+              conflicts=$(git diff --name-only --diff-filter=U)
+              group "Rebase conflict diagnosis"
+              log "Conflicted files during rebase:"
+              printf '  %s\n' ${conflicts}
+              log ""
+              log "Commits on ${TARGET_BRANCH} that landed since this run started (${old_remote_head:0:8}..${remote_head:0:8}):"
+              git log --oneline --no-merges "${old_remote_head}..${remote_head}" | head -20 || true
+              for f in ${conflicts}; do
+                log ""
+                log "── ${f} ──"
+                log "Commits in ${old_remote_head:0:8}..${remote_head:0:8} that touched ${f}:"
+                git log --oneline --no-merges "${old_remote_head}..${remote_head}" -- "${f}" | head -20 || true
+              done
+              endgroup
               git rebase --abort || true
-              echo "::error::Rebase onto refreshed origin/${TARGET_BRANCH} hit a conflict; another commit changed the same lines. Manual backport required."
+              echo "::error::Rebase onto refreshed origin/${TARGET_BRANCH} hit a conflict; another commit changed the same lines. See 'Rebase conflict diagnosis' group for the racing commits."
               exit 1
             fi
           done
