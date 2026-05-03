@@ -17,14 +17,17 @@
  * under the License.
  */
 
-import { Component, Inject, Input, TemplateRef, ViewChild } from "@angular/core";
+import { Component, Inject, TemplateRef, ViewChild } from "@angular/core";
+import { FormsModule } from "@angular/forms";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { NzInputModule } from "ng-zorro-antd/input";
 
 @Component({
   selector: "texera-registration-request-modal",
   templateUrl: "./registration-request-modal.component.html",
   styleUrls: ["./registration-request-modal.component.scss"],
-  standalone: false,
+  standalone: true,
+  imports: [FormsModule, NzInputModule],
 })
 
 // Component for registration form modal

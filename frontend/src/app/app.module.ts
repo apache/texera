@@ -187,7 +187,6 @@ import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
-import { RegistrationRequestModalComponent } from "./common/service/user/registration-request-modal/registration-request-modal.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { UserComputingUnitListItemComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit-list-item/user-computing-unit-list-item.component";
 
@@ -286,7 +285,6 @@ registerLocaleData(en);
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
     AdminSettingsComponent,
-    RegistrationRequestModalComponent,
     MarkdownDescriptionComponent,
     UserComputingUnitComponent,
     UserComputingUnitListItemComponent,
