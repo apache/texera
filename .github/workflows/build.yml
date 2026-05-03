@@ -120,7 +120,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
-        run: yarn --cwd frontend run test:ci --code-coverage
+        run: yarn --cwd frontend run test:ci
       - name: Upload frontend coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
