@@ -56,7 +56,6 @@ export class AdminSettingsComponent implements OnInit {
   chunkSizeMiB: number = 50;
 
   csvMaxColumns: number = 512;
-  resultTableColumnsPerBatch: number = 15;
 
   // S3 Multipart Upload Constraints
   readonly MIN_PART_SIZE_MiB = 5; // 5 MiB minimum for parts (except last part)
@@ -64,11 +63,8 @@ export class AdminSettingsComponent implements OnInit {
   readonly MAX_FILE_SIZE_MiB = 5242880; // 5 TiB maximum object size (5 * 1024 * 1024 MiB)
   readonly MAX_TOTAL_PARTS = 10000; // S3 maximum parts per upload
 
-  // Result Panel bounds (kept in sync with admin-settings.component.html nzMin/nzMax)
   readonly MIN_CSV_MAX_COLUMNS = 1;
   readonly MAX_CSV_MAX_COLUMNS = 100000;
-  readonly MIN_RESULT_TABLE_COLUMNS_PER_BATCH = 1;
-  readonly MAX_RESULT_TABLE_COLUMNS_PER_BATCH = 1000;
 
   private readonly RELOAD_DELAY = 1000;
 
@@ -277,21 +273,11 @@ export class AdminSettingsComponent implements OnInit {
       .getSetting("csv_parser_max_columns")
       .pipe(untilDestroyed(this))
       .subscribe(value => (this.csvMaxColumns = parseInt(value) || 512));
-    this.adminSettingsService
-      .getSetting("result_table_columns_per_batch")
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.resultTableColumnsPerBatch = parseInt(value) || 15));
   }
 
   saveCsvSettings(): void {
-    // The nz-input-number widget already clamps to MIN_*/MAX_* via nzMin/nzMax,
-    // so the values reaching this point are in range — no extra validation noise.
     const saveRequests = [
       this.adminSettingsService.updateSetting("csv_parser_max_columns", this.csvMaxColumns.toString()),
-      this.adminSettingsService.updateSetting(
-        "result_table_columns_per_batch",
-        this.resultTableColumnsPerBatch.toString()
-      ),
     ];
 
     forkJoin(saveRequests)
@@ -303,9 +289,7 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   resetCsvSettings(): void {
-    ["csv_parser_max_columns", "result_table_columns_per_batch"].forEach(setting =>
-      this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({})
-    );
+    this.adminSettingsService.resetSetting("csv_parser_max_columns").pipe(untilDestroyed(this)).subscribe({});
 
     this.notificationService.info("Resetting result panel settings...");
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);

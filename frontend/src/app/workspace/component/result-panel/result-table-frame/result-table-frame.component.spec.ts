@@ -28,8 +28,6 @@ import { NzTableModule } from "ng-zorro-antd/table";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { AdminSettingsService } from "../../../../dashboard/service/admin/settings/admin-settings.service";
-import { Observable, of, throwError } from "rxjs";
 
 describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
@@ -37,11 +35,7 @@ describe("ResultTableFrameComponent", () => {
 
   const GUI_CONFIG_LIMIT = 15;
 
-  // Build the test bed with a configurable AdminSettingsService stub so individual
-  // tests can vary how the result_table_columns_per_batch lookup behaves.
-  // The real service maps missing rows to null, so the stub mirrors that surface.
-  const setupWith = async (getSetting: (key: string) => Observable<string | null>) => {
-    TestBed.resetTestingModule();
+  beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, NzModalModule, NzTableModule, NoopAnimationsModule],
       declarations: [ResultTableFrameComponent],
@@ -58,20 +52,12 @@ describe("ResultTableFrameComponent", () => {
             },
           },
         },
-        {
-          provide: AdminSettingsService,
-          useValue: { getSetting },
-        },
         ...commonTestProviders,
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ResultTableFrameComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-  };
-
-  beforeEach(async () => {
-    await setupWith(() => of("15"));
   });
 
   it("should create", () => {
@@ -85,34 +71,7 @@ describe("ResultTableFrameComponent", () => {
     expect(component.currentResult).toEqual([{ test: "property" }]);
   });
 
-  it("should set columnLimit from config", () => {
-    expect(component.columnLimit).toEqual(15);
-  });
-
-  describe("Result Panel — admin setting consumption", () => {
-    it("uses the admin-settings value when it is a positive integer, overriding gui-config", async () => {
-      await setupWith(() => of("42"));
-      expect(component.columnLimit).toBe(42);
-    });
-
-    it("falls back to gui-config limitColumns when admin-settings returns a non-positive value", async () => {
-      await setupWith(() => of("0"));
-      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    });
-
-    it("falls back to gui-config limitColumns when admin-settings returns an unparseable value", async () => {
-      await setupWith(() => of("not-a-number"));
-      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    });
-
-    it("falls back to gui-config limitColumns when admin-settings returns null", async () => {
-      await setupWith(() => of(null));
-      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    });
-
-    it("falls back to gui-config limitColumns when admin-settings errors", async () => {
-      await setupWith(() => throwError(() => new Error("network down")));
-      expect(component.columnLimit).toBe(GUI_CONFIG_LIMIT);
-    });
+  it("should set columnLimit from gui-config", () => {
+    expect(component.columnLimit).toEqual(GUI_CONFIG_LIMIT);
   });
 });

@@ -358,22 +358,6 @@
     number }})
   </div>
 
-  <div class="settings-row">
-    <span>Columns Per Panel:</span>
-    <nz-input-number
-      [(ngModel)]="resultTableColumnsPerBatch"
-      [nzMin]="MIN_RESULT_TABLE_COLUMNS_PER_BATCH"
-      [nzMax]="MAX_RESULT_TABLE_COLUMNS_PER_BATCH"
-      [nzStep]="5"
-      [nzPrecision]="0">
-    </nz-input-number>
-  </div>
-  <div class="help-text-number">
-    Number of columns shown per page in the result table. Use the left/right arrows in the result panel to navigate
-    between column batches. Default: 15. (Range: {{ MIN_RESULT_TABLE_COLUMNS_PER_BATCH }} - {{
-    MAX_RESULT_TABLE_COLUMNS_PER_BATCH | number }})
-  </div>
-
   <div class="button-row">
     <button
       nz-button
