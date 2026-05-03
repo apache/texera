@@ -72,6 +72,29 @@ texera-worktrees/<branch>/   # one worktree per PR
   this PR's commits.
 - Remove the worktree after the PR merges.
 
+### Environment
+
+Default to **Python 3.12** for development. Create one venv shared across all
+worktrees rather than a venv per worktree:
+
+```
+~/IdeaProjects/venv312/        # shared by every texera worktree
+```
+
+`python -m venv ~/IdeaProjects/venv312 && source ~/IdeaProjects/venv312/bin/activate`,
+then install `amber/requirements.txt` and `amber/operator-requirements.txt`.
+
+Tests that spawn Python workers need the interpreter path configured. Either
+edit `python.path` in
+[`common/config/src/main/resources/udf.conf`](common/config/src/main/resources/udf.conf)
+or export `UDF_PYTHON_PATH` (which overrides it):
+
+```bash
+export UDF_PYTHON_PATH=$HOME/IdeaProjects/venv312/bin/python
+```
+
+Without this, `sbt` Python-integration tests will fail to launch a worker.
+
 ### Branch and commit naming
 
 Short, **Conventional Commits**. Same shape for branch and commit subject.
