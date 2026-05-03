@@ -27,7 +27,6 @@ import { UserService } from "../../common/service/user/user.service";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
 import {
-import type { Mock } from "vitest";
   ActivatedRoute,
   ActivatedRouteSnapshot,
   convertToParamMap,
@@ -37,6 +36,7 @@ import type { Mock } from "vitest";
   Router,
   UrlSegment,
 } from "@angular/router";
+import type { Mock } from "vitest";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../common/testing/test-utils";
 

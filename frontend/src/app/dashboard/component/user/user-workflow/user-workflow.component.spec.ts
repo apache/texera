@@ -68,7 +68,7 @@ describe("SavedWorkflowSectionComponent", () => {
   let downloadServiceSpy: any;
 
   beforeEach(waitForAsync(() => {
-    downloadServiceSpy = ({ downloadWorkflowsAsZip: vi.fn() } as any);
+    downloadServiceSpy = { downloadWorkflowsAsZip: vi.fn() } as any;
 
     TestBed.configureTestingModule({
       declarations: [

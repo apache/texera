@@ -30,7 +30,13 @@ describe("UserQuotaComponent", () => {
   let mockUserQuotaService: any;
 
   beforeEach(() => {
-    mockUserQuotaService = { getCreatedDatasets: vi.fn(), getCreatedWorkflows: vi.fn(), getAccessWorkflows: vi.fn(), getExecutionQuota: vi.fn(), deleteExecutionCollection: vi.fn() };
+    mockUserQuotaService = {
+      getCreatedDatasets: vi.fn(),
+      getCreatedWorkflows: vi.fn(),
+      getAccessWorkflows: vi.fn(),
+      getExecutionQuota: vi.fn(),
+      deleteExecutionCollection: vi.fn(),
+    };
     mockUserQuotaService.getCreatedDatasets.mockReturnValue(of([]));
     mockUserQuotaService.getCreatedWorkflows.mockReturnValue(of([]));
     mockUserQuotaService.getAccessWorkflows.mockReturnValue(of([]));

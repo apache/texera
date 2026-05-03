@@ -34,7 +34,7 @@ import { commonTestProviders } from "../../../../../common/testing/test-utils";
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
   let fixture: ComponentFixture<UserWorkflowListItemComponent>;
-  const fileSaverServiceSpy = ({ saveAs: vi.fn() } as any);
+  const fileSaverServiceSpy = { saveAs: vi.fn() } as any;
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [NzModalModule, HttpClientTestingModule, NzTooltipModule],

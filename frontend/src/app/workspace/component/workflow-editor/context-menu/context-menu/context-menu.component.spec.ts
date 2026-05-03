@@ -46,7 +46,11 @@ describe("ContextMenuComponent", () => {
 
   beforeEach(async () => {
     // Create spies for the services
-    jointGraphWrapperSpy = { getCurrentHighlightedOperatorIDs: vi.fn(), getCurrentHighlightedCommentBoxIDs: vi.fn(), getCurrentHighlightedLinkIDs: vi.fn() };
+    jointGraphWrapperSpy = {
+      getCurrentHighlightedOperatorIDs: vi.fn(),
+      getCurrentHighlightedCommentBoxIDs: vi.fn(),
+      getCurrentHighlightedLinkIDs: vi.fn(),
+    };
 
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
     jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.mockReturnValue([]);
@@ -54,8 +58,15 @@ describe("ContextMenuComponent", () => {
 
     const texeraGraphSpy = { isOperatorDisabled: vi.fn(), hasLinkWithID: vi.fn(), bundleActions: vi.fn() };
 
-    const workflowActionServiceSpy = { getJointGraphWrapper: vi.fn(), getWorkflowModificationEnabledStream: vi.fn(), deleteOperatorsAndLinks: vi.fn(), deleteCommentBox: vi.fn(), getWorkflowMetadata: vi.fn(), // Add this if used in the component
-      "getTexeraGraph": vi.fn(), deleteLinkWithID: vi.fn() };
+    const workflowActionServiceSpy = {
+      getJointGraphWrapper: vi.fn(),
+      getWorkflowModificationEnabledStream: vi.fn(),
+      deleteOperatorsAndLinks: vi.fn(),
+      deleteCommentBox: vi.fn(),
+      getWorkflowMetadata: vi.fn(),
+      getTexeraGraph: vi.fn(),
+      deleteLinkWithID: vi.fn(),
+    };
     workflowActionServiceSpy.getJointGraphWrapper.mockReturnValue(jointGraphWrapperSpy);
     workflowActionServiceSpy.getWorkflowModificationEnabledStream.mockReturnValue(of(true));
     workflowActionServiceSpy.getTexeraGraph.mockReturnValue(texeraGraphSpy);
@@ -114,9 +125,7 @@ describe("ContextMenuComponent", () => {
 
     workflowActionService = TestBed.inject(WorkflowActionService) as any;
     workflowResultService = TestBed.inject(WorkflowResultService) as any;
-    workflowResultExportService = TestBed.inject(
-      WorkflowResultExportService
-    ) as any;
+    workflowResultExportService = TestBed.inject(WorkflowResultExportService) as any;
     // operatorMenuService is already assigned
     validationWorkflowService = TestBed.inject(ValidationWorkflowService) as any;
 

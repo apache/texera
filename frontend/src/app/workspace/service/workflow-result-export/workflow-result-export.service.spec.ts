@@ -45,12 +45,25 @@ describe("WorkflowResultExportService", () => {
 
   beforeEach(() => {
     // Create spies for the required services
-    jointGraphWrapperSpy = { getCurrentHighlightedOperatorIDs: vi.fn(), getJointOperatorHighlightStream: vi.fn(), getJointOperatorUnhighlightStream: vi.fn() };
+    jointGraphWrapperSpy = {
+      getCurrentHighlightedOperatorIDs: vi.fn(),
+      getJointOperatorHighlightStream: vi.fn(),
+      getJointOperatorUnhighlightStream: vi.fn(),
+    };
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
     jointGraphWrapperSpy.getJointOperatorHighlightStream.mockReturnValue(of());
     jointGraphWrapperSpy.getJointOperatorUnhighlightStream.mockReturnValue(of());
 
-    texeraGraphSpy = { getAllOperators: vi.fn(), getOperatorAddStream: vi.fn(), getOperatorDeleteStream: vi.fn(), getOperatorPropertyChangeStream: vi.fn(), getLinkAddStream: vi.fn(), getLinkDeleteStream: vi.fn(), getDisabledOperatorsChangedStream: vi.fn(), getAllLinks: vi.fn() };
+    texeraGraphSpy = {
+      getAllOperators: vi.fn(),
+      getOperatorAddStream: vi.fn(),
+      getOperatorDeleteStream: vi.fn(),
+      getOperatorPropertyChangeStream: vi.fn(),
+      getLinkAddStream: vi.fn(),
+      getLinkDeleteStream: vi.fn(),
+      getDisabledOperatorsChangedStream: vi.fn(),
+      getAllLinks: vi.fn(),
+    };
     texeraGraphSpy.getAllOperators.mockReturnValue([]);
     texeraGraphSpy.getOperatorAddStream.mockReturnValue(of());
     texeraGraphSpy.getOperatorDeleteStream.mockReturnValue(of());

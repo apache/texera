@@ -129,9 +129,9 @@ describe("ExecuteWorkflowService", () => {
     const targetOperatorId = "test-operator-id";
 
     const logicalPlanSpy = vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockReturnValue({} as LogicalPlan);
-    const settingsSpy = vi.spyOn(service["workflowActionService"], "getWorkflowSettings").mockReturnValue(
-      {} as WorkflowSettings
-    );
+    const settingsSpy = vi
+      .spyOn(service["workflowActionService"], "getWorkflowSettings")
+      .mockReturnValue({} as WorkflowSettings);
     const resetExecutionStateSpy = vi.spyOn(service, "resetExecutionState");
     const resetStatusSpy = vi.spyOn(service["workflowStatusService"], "resetStatus");
     const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest");
@@ -155,7 +155,9 @@ describe("ExecuteWorkflowService", () => {
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
 
-    const logicalPlanSpy = vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockImplementation(() => { throw "Logical plan error"; });
+    const logicalPlanSpy = vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockImplementation(() => {
+      throw "Logical plan error";
+    });
     const resetExecutionStateSpy = vi.spyOn(service, "resetExecutionState");
     const resetStatusSpy = vi.spyOn(service["workflowStatusService"], "resetStatus");
     const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest");

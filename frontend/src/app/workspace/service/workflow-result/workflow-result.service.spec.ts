@@ -1,4 +1,3 @@
-// TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+// TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
 
 import { TestBed } from "@angular/core/testing";
 import { OperatorPaginationResultService, WorkflowResultService } from "./workflow-result.service";

@@ -36,7 +36,12 @@ describe("UserComputingUnitComponent", () => {
   let mockComputingUnitService: any;
 
   beforeEach(async () => {
-    mockComputingUnitService = ({ getComputingUnitTypes: vi.fn(), getComputingUnitLimitOptions: vi.fn(), createKubernetesBasedComputingUnit: vi.fn(), createLocalComputingUnit: vi.fn() } as any);
+    mockComputingUnitService = {
+      getComputingUnitTypes: vi.fn(),
+      getComputingUnitLimitOptions: vi.fn(),
+      createKubernetesBasedComputingUnit: vi.fn(),
+      createLocalComputingUnit: vi.fn(),
+    } as any;
     mockComputingUnitService.getComputingUnitTypes.mockReturnValue(of({ typeOptions: [] }));
     mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
       of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: [] })

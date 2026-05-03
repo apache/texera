@@ -1,4 +1,3 @@
-// TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,6 +17,8 @@
  * under the License.
  */
 
+// TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
+
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { DownloadService } from "./download.service";
@@ -34,7 +35,7 @@ describe("DownloadService", () => {
   let notificationServiceSpy: any;
 
   beforeEach(() => {
-    const datasetSpy = { retrieveDatasetVersionSingleFile: vi.fn(), retrieveDatasetVersionZip: vi.fn(), // Add this method to the spy: vi.fn() };
+    const datasetSpy = { retrieveDatasetVersionSingleFile: vi.fn(), retrieveDatasetVersionZip: vi.fn() };
     const fileSaverSpy = { saveAs: vi.fn() };
     const notificationSpy = { info: vi.fn(), success: vi.fn(), error: vi.fn() };
     const workflowPersistSpy = { getWorkflow: vi.fn() };
