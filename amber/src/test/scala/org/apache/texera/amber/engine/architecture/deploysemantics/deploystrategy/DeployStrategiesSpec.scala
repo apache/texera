@@ -25,9 +25,12 @@ import org.scalatest.matchers.should.Matchers
 
 class DeployStrategiesSpec extends AnyFlatSpec with Matchers {
 
-  private val nodeA = Address("akka", "sys", "host-a", 2552)
-  private val nodeB = Address("akka", "sys", "host-b", 2552)
-  private val nodeC = Address("akka", "sys", "host-c", 2552)
+  // Use the "pekko" protocol to match Amber's real node addresses
+  // (e.g. AmberConfig.masterNodeAddr); "akka" diverges from production and
+  // can mislead anyone who debugs a failure by comparing addresses.
+  private val nodeA = Address("pekko", "sys", "host-a", 2552)
+  private val nodeB = Address("pekko", "sys", "host-b", 2552)
+  private val nodeC = Address("pekko", "sys", "host-c", 2552)
 
   // ----- OneOnEach -----
 
@@ -52,7 +55,7 @@ class DeployStrategiesSpec extends AnyFlatSpec with Matchers {
     assertThrows[IndexOutOfBoundsException](strategy.next())
   }
 
-  it should "reset its iteration cursor when re-initialized with a new array" in {
+  it should "preserve its iteration cursor across re-initialization (current behavior)" in {
     // Pin: initialize() replaces the array reference but does NOT reset the
     // index, so a re-initialized strategy continues counting from the prior
     // position. A future fix that zeroes index inside initialize will break
