@@ -127,19 +127,31 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
   "objectMapper" should "exclude null and absent fields from serialized output" in {
     case class Box(present: String, opt: Option[String])
     val box = Box("kept", None)
-    val json = JSONUtils.objectMapper.writeValueAsString(box)
-    json should include("kept")
-    json should not include "opt"
+    // Parse back into a JsonNode so the assertion is structural rather than
+    // substring-based: pretty-printing changes or a "kept" value that happens
+    // to contain "opt" would otherwise produce false positives/negatives.
+    val root = parse(JSONUtils.objectMapper.writeValueAsString(box))
+    root.get("present").asText() shouldBe "kept"
+    root.has("opt") shouldBe false
   }
 
   it should "serialize Scala collections via DefaultScalaModule" in {
     // Without DefaultScalaModule registration, Scala Seqs / Maps fall through
     // to Jackson's bean serialization and emit reflection-leaking output. Pin
     // the working contract so a future ObjectMapper rewire that drops the
-    // module catches the regression here.
+    // module catches the regression here. Use structural assertions on a
+    // parsed tree so whitespace / pretty-printing changes don't flake.
     val payload = Map("xs" -> Seq("a", "b"), "n" -> Seq.empty[String])
-    val json = JSONUtils.objectMapper.writeValueAsString(payload)
-    json should include("\"xs\":[\"a\",\"b\"]")
-    json should include("\"n\":[]")
+    val root = parse(JSONUtils.objectMapper.writeValueAsString(payload))
+
+    val xs = root.get("xs")
+    xs.isArray shouldBe true
+    xs.size() shouldBe 2
+    xs.get(0).asText() shouldBe "a"
+    xs.get(1).asText() shouldBe "b"
+
+    val n = root.get("n")
+    n.isArray shouldBe true
+    n.size() shouldBe 0
   }
 }
