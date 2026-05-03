@@ -36,7 +36,17 @@ on:
         default: 'ghcr.io/apache'
 
 jobs:
+  # Strict-mode build of the tagged commit. Gates RC artifact creation: if
+  # the tag doesn't compile or has license-binary drift, no RC is produced.
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: ${{ github.event.inputs.tag }}
+      mode: release
+    secrets: inherit
+
   create-rc:
+    needs: build
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.vars.outputs.version }}
