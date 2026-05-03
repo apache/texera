@@ -132,8 +132,6 @@ class ReconfigurationSpec
               uri.nonEmpty
             })
             .map(terminalOpId => {
-              //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
-              Thread.sleep(1000)
               val uri = getResultUriByLogicalPortId(
                 workflow.context.executionId,
                 terminalOpId,
