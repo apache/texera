@@ -70,8 +70,13 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "default to an empty steps list when none are configured" in {
+    // The bullet-chart template ships with several unrelated `[]` literals
+    // (`colors`, `valid_steps`, `step_errors`, `steps_list`, `html_chunks`),
+    // so a bare `code should include("[]")` is too weak. Anchor on the
+    // generated `steps_data = ...` literal directly so a regression that
+    // makes it non-empty would actually fail the assertion.
     val code = configured.generatePythonCode()
-    code should include("[]")
+    code should include regex """steps_data\s*=\s*\[\]"""
   }
 
   it should "include each configured step's start/end JSON keys with extra decode sites" in {
@@ -90,13 +95,25 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
     withSteps shouldBe baseDecodes + 4
   }
 
-  it should "render a code block even with the default empty configuration (no assert guard)" in {
-    // Pin: BulletChartOpDesc, unlike FunnelPlot / ImageVisualizer, has no
-    // assert guards inside generatePythonCode. Empty defaults still produce
-    // valid Python source. Pinning so a future tightening that adds asserts
-    // breaks this spec deliberately.
+  it should "currently render a code block even with the default empty configuration (no assert guard)" in {
+    // Documents the present behavior: BulletChartOpDesc has no assert
+    // guards inside generatePythonCode, so empty defaults still produce
+    // syntactically valid Python source. The intended contract lives in
+    // the pendingUntilFixed test below.
     val op = new BulletChartOpDesc
     val code = op.generatePythonCode()
     code should include("plotly.graph_objects")
+  }
+
+  it should "eventually reject empty required value/deltaReference like FunnelPlot/ImageVisualizer (pendingUntilFixed)" in pendingUntilFixed {
+    // Intended contract: `value` and `deltaReference` are marked required
+    // on `BulletChartOpDesc`, so generatePythonCode on a default-constructed
+    // instance should raise instead of rendering empty-string column refs.
+    // Using pendingUntilFixed so a future validation fix flips this test
+    // from Pending to a deliberate failure and forces removal of the marker.
+    val op = new BulletChartOpDesc
+    intercept[RuntimeException] {
+      op.generatePythonCode()
+    }
   }
 }

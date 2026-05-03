@@ -31,16 +31,28 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     opDesc = new ImageVisualizerOpDesc()
   }
 
-  it should "throw assertion error if BinaryContent is empty" in {
-    // Pin: `binaryContent` is declared `var binaryContent: EncodableString = _`
-    // — an uninitialized reference field defaults to null, so the
+  it should "currently throw NullPointerException when binaryContent is uninitialized" in {
+    // Documents the present behavior without claiming it is the contract:
+    // `binaryContent` is declared `var binaryContent: EncodableString = _`,
+    // so an uninitialized reference field defaults to null and the
     // `assert(binaryContent.nonEmpty)` inside `createBinaryData` reaches
-    // `null.nonEmpty` and throws NullPointerException before the assert
-    // message can fire. Other OpDescs that initialize their fields to `""`
-    // hit the assert path and raise AssertionError instead.
+    // `null.nonEmpty` and throws NPE before the assert message can fire.
     assertThrows[NullPointerException] {
       opDesc.createBinaryData()
     }
+  }
+
+  it should "eventually reject missing binaryContent with a controlled error (pendingUntilFixed)" in pendingUntilFixed {
+    // Intended contract: because `binaryContent` is declared
+    // `@JsonProperty(required = true)`, an unconfigured operator should
+    // surface a domain error (AssertionError or IllegalArgumentException),
+    // not an NPE from dereferencing null. Using pendingUntilFixed so a
+    // future validation fix flips this test from Pending to a deliberate
+    // failure that forces removal of the marker.
+    val ex = intercept[RuntimeException] {
+      opDesc.createBinaryData()
+    }
+    ex shouldBe a[AssertionError]
   }
 
   "ImageVisualizerOpDesc.operatorInfo" should "advertise the user-friendly name and Media group" in {

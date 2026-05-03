@@ -68,14 +68,28 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     decodeOccurrences should be >= 2
   }
 
-  it should "still render code when required fields are empty (no assert guard, current behavior)" in {
-    // Pin: unlike FunnelPlot / ImageVisualizer, VolcanoPlotOpDesc does not
-    // assert on its required fields inside generatePythonCode. An empty
-    // configuration therefore renders weird (but syntactically valid) Python
-    // that references an empty string. Documenting the divergence so a
-    // future tightening that adds the assert breaks this spec deliberately.
+  it should "currently render code even when required fields are empty (no assert guard)" in {
+    // Documents the present behavior: VolcanoPlotOpDesc does not assert on
+    // its required fields inside `generatePythonCode`. An empty
+    // configuration therefore renders syntactically valid Python that
+    // references an empty string. The intended contract is split out into
+    // the pendingUntilFixed test below so this assertion no longer reads
+    // as the contract.
     val op = new VolcanoPlotOpDesc
     val code = op.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
+  }
+
+  it should "eventually reject empty required fields like FunnelPlot/ImageVisualizer (pendingUntilFixed)" in pendingUntilFixed {
+    // Intended contract: `effectColumn` and `pvalueColumn` are marked
+    // required on `VolcanoPlotOpDesc`, so generatePythonCode on a
+    // default-constructed instance should raise instead of producing a
+    // string-literal-empty payload. Using pendingUntilFixed so a future
+    // validation fix flips this test from Pending to a deliberate failure
+    // and forces removal of the marker.
+    val op = new VolcanoPlotOpDesc
+    intercept[RuntimeException] {
+      op.generatePythonCode()
+    }
   }
 }
