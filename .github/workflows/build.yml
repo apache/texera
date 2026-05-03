@@ -227,16 +227,16 @@ jobs:
       - name: Run amber and common module tests with coverage
         # 'jacoco' runs tests under sbt-jacoco's JVM agent and emits per-
         # module jacoco.xml that the codecov upload step picks up.
-        # `WorkflowExecutionService/jacoco` only runs that project's tests
-        # (sbt's `test` task does not transit dependsOn), so common
-        # modules' tests are listed explicitly here. Modules with no
-        # tests (Auth, Config) are skipped.
+        # `WorkflowExecutionService/jacoco` only runs that project's
+        # Test config (sbt's `test` task does not transit dependsOn),
+        # so common modules' tests are listed explicitly here. Modules
+        # with no tests (Auth, Config) are skipped.
         #
-        # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
-        # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
-        # those run in the amber-integration job below.
-        env:
-          AMBER_TEST_FILTER: skip-integration
+        # IntegrationTest config (defined in build.sbt for
+        # WorkflowExecutionService) carries the Python-UDF e2e specs
+        # under amber/src/test/integration/. Those run separately in
+        # the amber-integration job; nothing in this step needs to
+        # filter them.
         run: |
           sbt "DAO/jacoco" \
               "PyBuilder/jacoco" \
@@ -324,16 +324,21 @@ jobs:
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Run amber integration tests
-        # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
-        # keep only @org.apache.texera.amber.tags.IntegrationTest specs;
-        # the regular amber job uses skip-integration to exclude the
-        # same set. No jacoco coverage here — these specs validate
-        # Python-UDF e2e behavior whose underlying code paths are
-        # already covered by amber's unit-test coverage.
-        env:
-          AMBER_TEST_FILTER: integration-only
-        run: sbt "WorkflowExecutionService/test"
+      - name: Lint and run amber integration tests
+        # IntegrationTest is a separate sbt configuration scoped to
+        # amber/src/test/integration (see build.sbt). Tasks under this
+        # config naturally only see the integration sources, so:
+        #   - scalafmtCheck / scalafix --check lint integration only,
+        #     covering integration-only PRs that bypass the engine
+        #     label and therefore the amber job's cross-cutting lint;
+        #   - test runs only the @IntegrationTest-tagged specs.
+        # Single sbt invocation so the JVM starts once. No jacoco —
+        # these specs exercise code paths already covered by amber's
+        # unit-test coverage.
+        run: |
+          sbt "WorkflowExecutionService/IntegrationTest/scalafmtCheck" \
+              "WorkflowExecutionService/IntegrationTest/scalafix --check" \
+              "WorkflowExecutionService/IntegrationTest/test"
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala

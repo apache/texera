@@ -19,6 +19,14 @@ ThisBuild / organization := "org.apache.texera"
 ThisBuild / version      := "1.1.0-incubating"
 ThisBuild / scalaVersion := "2.13.18"
 
+// Dedicated sbt configuration for Scala specs that exercise both Scala
+// and Python end-to-end. Sources live under amber/src/test/integration,
+// run via `WorkflowExecutionService/IntegrationTest/test`. `extend(Test)`
+// inherits the Test-scope dependencies (testkit, scalatest, etc.); the
+// inConfig wiring on the project below installs the standard test +
+// scalafmt + scalafix tasks under this configuration.
+lazy val IntegrationTest = config("integration").extend(Test)
+
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
 // JacocoPlugin defines a project-scoped default that overrides ThisBuild,
@@ -116,6 +124,15 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
 
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
+  .configs(IntegrationTest)
+  .settings(inConfig(IntegrationTest)(Defaults.testSettings))
+  .settings(inConfig(IntegrationTest)(org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings))
+  .settings(inConfig(IntegrationTest)(scalafix.sbt.ScalafixPlugin.scalafixConfigSettings(IntegrationTest)))
+  .settings(
+    IntegrationTest / unmanagedSourceDirectories := Seq(
+      baseDirectory.value / "src" / "test" / "integration"
+    )
+  )
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
