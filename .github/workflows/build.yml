@@ -172,10 +172,6 @@ jobs:
           python-version: "3.11"
       - name: Show Python
         run: python --version || python3 --version
-      - name: Unit-test licensing scripts
-        # Guard the binary-dep checker's behavior before we rely on it in
-        # the jar / python license checks below. Stdlib only, no install.
-        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Create Databases
         # Must run before any sbt compile step: the build's JOOQ source
         # generators connect to texera_db while compiling.
@@ -380,6 +376,11 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Unit-test licensing scripts
+        # Stdlib only, no install needed. Runs on every matrix row (3.10 →
+        # 3.13) so the script's behavior is guarded across all supported
+        # Python versions before the license check itself runs (3.12 only).
+        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
