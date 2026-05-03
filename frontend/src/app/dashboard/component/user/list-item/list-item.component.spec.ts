@@ -26,10 +26,11 @@ import { of, throwError } from "rxjs";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
-  let workflowPersistService: any;
+  let workflowPersistService: Mocked<WorkflowPersistService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
@@ -47,7 +48,7 @@ describe("ListItemComponent", () => {
 
     fixture = TestBed.createComponent(ListItemComponent);
     component = fixture.componentInstance;
-    workflowPersistService = TestBed.inject(WorkflowPersistService) as any;
+    workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
   });
 
   it("should update workflow name successfully", () => {

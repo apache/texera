@@ -34,15 +34,16 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../../common/testing/test-utils"; // Import NzModalModule and NzModalService
+import type { Mocked } from "vitest";
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
   let fixture: ComponentFixture<ContextMenuComponent>;
-  let workflowActionService: any;
-  let workflowResultService: any;
-  let workflowResultExportService: any;
+  let workflowActionService: Mocked<WorkflowActionService>;
+  let workflowResultService: Mocked<WorkflowResultService>;
+  let workflowResultExportService: Mocked<WorkflowResultExportService>;
   let operatorMenuService: any; // We'll define this more precisely below
   let jointGraphWrapperSpy: any;
-  let validationWorkflowService: any;
+  let validationWorkflowService: Mocked<ValidationWorkflowService>;
 
   beforeEach(async () => {
     // Create spies for the services
@@ -123,11 +124,15 @@ describe("ContextMenuComponent", () => {
       ],
     }).compileComponents();
 
-    workflowActionService = TestBed.inject(WorkflowActionService) as any;
-    workflowResultService = TestBed.inject(WorkflowResultService) as any;
-    workflowResultExportService = TestBed.inject(WorkflowResultExportService) as any;
+    workflowActionService = TestBed.inject(WorkflowActionService) as unknown as Mocked<WorkflowActionService>;
+    workflowResultService = TestBed.inject(WorkflowResultService) as unknown as Mocked<WorkflowResultService>;
+    workflowResultExportService = TestBed.inject(
+      WorkflowResultExportService
+    ) as unknown as Mocked<WorkflowResultExportService>;
     // operatorMenuService is already assigned
-    validationWorkflowService = TestBed.inject(ValidationWorkflowService) as any;
+    validationWorkflowService = TestBed.inject(
+      ValidationWorkflowService
+    ) as unknown as Mocked<ValidationWorkflowService>;
 
     fixture = TestBed.createComponent(ContextMenuComponent);
     component = fixture.componentInstance;

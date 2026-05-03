@@ -28,11 +28,12 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { of, throwError } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("DownloadService", () => {
   let downloadService: DownloadService;
-  let datasetServiceSpy: any;
-  let fileSaverServiceSpy: any;
-  let notificationServiceSpy: any;
+  let datasetServiceSpy: Mocked<DatasetService>;
+  let fileSaverServiceSpy: Mocked<FileSaverService>;
+  let notificationServiceSpy: Mocked<NotificationService>;
 
   beforeEach(() => {
     const datasetSpy = { retrieveDatasetVersionSingleFile: vi.fn(), retrieveDatasetVersionZip: vi.fn() };
@@ -53,9 +54,9 @@ describe("DownloadService", () => {
     });
 
     downloadService = TestBed.inject(DownloadService);
-    datasetServiceSpy = TestBed.inject(DatasetService) as any;
-    fileSaverServiceSpy = TestBed.inject(FileSaverService) as any;
-    notificationServiceSpy = TestBed.inject(NotificationService) as any;
+    datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
+    fileSaverServiceSpy = TestBed.inject(FileSaverService) as unknown as Mocked<FileSaverService>;
+    notificationServiceSpy = TestBed.inject(NotificationService) as unknown as Mocked<NotificationService>;
   });
 
   it.skip("should download a single file successfully", () => {

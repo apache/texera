@@ -30,15 +30,16 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;
-  let workflowWebsocketServiceSpy: any;
-  let workflowActionServiceSpy: any;
-  let notificationServiceSpy: any;
-  let executeWorkflowServiceSpy: any;
-  let workflowResultServiceSpy: any;
-  let downloadServiceSpy: any;
-  let datasetServiceSpy: any;
+  let workflowWebsocketServiceSpy: Mocked<WorkflowWebsocketService>;
+  let workflowActionServiceSpy: Mocked<WorkflowActionService>;
+  let notificationServiceSpy: Mocked<NotificationService>;
+  let executeWorkflowServiceSpy: Mocked<ExecuteWorkflowService>;
+  let workflowResultServiceSpy: Mocked<WorkflowResultService>;
+  let downloadServiceSpy: Mocked<DownloadService>;
+  let datasetServiceSpy: Mocked<DatasetService>;
 
   let jointGraphWrapperSpy: any;
   let texeraGraphSpy: any;
@@ -109,13 +110,15 @@ describe("WorkflowResultExportService", () => {
 
     // Inject the service and spies
     service = TestBed.inject(WorkflowResultExportService);
-    workflowWebsocketServiceSpy = TestBed.inject(WorkflowWebsocketService) as any;
-    workflowActionServiceSpy = TestBed.inject(WorkflowActionService) as any;
-    notificationServiceSpy = TestBed.inject(NotificationService) as any;
-    executeWorkflowServiceSpy = TestBed.inject(ExecuteWorkflowService) as any;
-    workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as any;
-    downloadServiceSpy = TestBed.inject(DownloadService) as any;
-    datasetServiceSpy = TestBed.inject(DatasetService) as any;
+    workflowWebsocketServiceSpy = TestBed.inject(
+      WorkflowWebsocketService
+    ) as unknown as Mocked<WorkflowWebsocketService>;
+    workflowActionServiceSpy = TestBed.inject(WorkflowActionService) as unknown as Mocked<WorkflowActionService>;
+    notificationServiceSpy = TestBed.inject(NotificationService) as unknown as Mocked<NotificationService>;
+    executeWorkflowServiceSpy = TestBed.inject(ExecuteWorkflowService) as unknown as Mocked<ExecuteWorkflowService>;
+    workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as unknown as Mocked<WorkflowResultService>;
+    downloadServiceSpy = TestBed.inject(DownloadService) as unknown as Mocked<DownloadService>;
+    datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
   });
 
   it("should be created", () => {
