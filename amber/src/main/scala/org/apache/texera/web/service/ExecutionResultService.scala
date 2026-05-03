@@ -98,17 +98,15 @@ object ExecutionResultService {
                     value match {
                       case byteArray: Array[Byte] =>
                         val totalSize = byteArray.length
-                        val hexString = byteArrayToHexString(byteArray)
-
-                        // 39 = 30 (leading bytes) + 9 (trailing bytes)
-                        // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
-                        // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
-                        if (hexString.length < 39) {
-                          s"bytes'$hexString' (length: $totalSize)"
+                        // Slice the byte array before hex-encoding to avoid materializing
+                        // an O(N) string for large blobs (e.g. 50 MB → ~150 MB hex string).
+                        // 13 bytes is the threshold: hex length = 3*N-1, so 13 bytes = 38 chars < 39.
+                        if (totalSize <= 13) {
+                          s"bytes'${byteArrayToHexString(byteArray)}' (length: $totalSize)"
                         } else {
-                          val leadingBytes = hexString.take(30)
-                          val trailingBytes = hexString.takeRight(9)
-                          s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
+                          val leadingHex = byteArrayToHexString(byteArray.take(10))
+                          val trailingHex = byteArrayToHexString(byteArray.takeRight(3))
+                          s"bytes'$leadingHex...$trailingHex' (length: $totalSize)"
                         }
 
                       case _ =>
