@@ -23,11 +23,26 @@ common:
   - changed-files:
       - any-glob-to-any-file:
           - 'common/**'
+          # Root-level Scala build / lint config: a change to any of these
+          # affects every Scala stack (amber + the platform services).
+          - 'build.sbt'
+          - 'project/**'
+          - '.scalafix.conf'
+          - '.scalafmt.conf'
 
-service:
+platform:
   - changed-files:
       - any-glob-to-any-file:
-          - '*-service/**'
+          - 'access-control-service/**'
+          - 'computing-unit-managing-service/**'
+          - 'config-service/**'
+          - 'file-service/**'
+          - 'workflow-compiling-service/**'
+
+agent-service:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'agent-service/**'
 
 engine:
   - changed-files:
@@ -51,7 +66,9 @@ docs:
 ci:
   - changed-files:
       - any-glob-to-any-file:
-          - '.github/workflows/**'
+          - '.github/**'
+          - '.asf.yaml'
+          - 'codecov.yml'
 
 dev:
   - changed-files:

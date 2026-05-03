@@ -523,7 +523,7 @@ class HubResource {
     *                      Supported values: View, Like, Clone, Unlike. If empty or null, all actions are returned.
     * @return              A list of CountResponse objects, one per (entityType, entityId) pair,
     *                      each containing the counts for the requested actions.
-    * @throws BadRequestException if entityTypes or entityIds are missing, empty, mismatched in length,
+    * @throws javax.ws.rs.BadRequestException if entityTypes or entityIds are missing, empty, mismatched in length,
     *         or if actionTypes contains an unsupported value.
     */
   @GET

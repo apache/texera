@@ -246,3 +246,136 @@ class TestExecutorManager:
                 language="python",
             )
         assert "SourceOperator API" in str(exc_info.value)
+
+
+REPLACEMENT_OPERATOR_CODE = """
+from pytexera import *
+
+class ReplacementOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+"""
+
+NO_OPERATOR_CODE = """
+def helper():
+    return 42
+"""
+
+TWO_OPERATORS_CODE = """
+from pytexera import *
+
+class FirstOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+
+class SecondOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+"""
+
+
+class TestUpdateExecutor:
+    """Test suite for ExecutorManager.update_executor.
+
+    Notes on test isolation: the existing TestExecutorManager fixture cannot
+    fully clean up the udf-vN modules it imports (its `hasattr(manager, "_fs")`
+    cleanup guard is buggy — the actual cached_property key is `fs`), so a
+    given udf-v1 module may already live in sys.modules with a path attached
+    to a previous test's tmp filesystem. These tests therefore avoid asserting
+    on attributes baked into a specific operator class and instead use
+    setattr/getattr-only semantics that hold regardless of which cached
+    module satisfies the import.
+    """
+
+    @pytest.fixture
+    def initialized_manager(self):
+        manager = ExecutorManager()
+        manager.initialize_executor(
+            code=SAMPLE_OPERATOR_CODE, is_source=False, language="python"
+        )
+        # Stamp custom attributes on the live instance so the dict-preservation
+        # check works even if the underlying class came from a cached module.
+        manager.executor.runtime_field = "set-after-init"
+        manager.executor.counter = 6
+        yield manager
+        manager.close()
+
+    def test_update_preserves_pre_update_dict_state(self, initialized_manager):
+        before = initialized_manager.executor
+        before_dict = dict(before.__dict__)
+
+        initialized_manager.update_executor(
+            code=REPLACEMENT_OPERATOR_CODE, is_source=False
+        )
+
+        # update_executor reuses the prior __dict__ on a freshly instantiated
+        # operator — verify both halves: a NEW instance, but the OLD state.
+        assert initialized_manager.executor is not before
+        assert initialized_manager.executor.runtime_field == "set-after-init"
+        assert initialized_manager.executor.counter == 6
+        # Assert key presence explicitly so a missing key with an expected
+        # value of None doesn't slip past via dict.get()'s default.
+        after_dict = initialized_manager.executor.__dict__
+        for key, value in before_dict.items():
+            assert key in after_dict, f"key {key!r} missing after update"
+            assert after_dict[key] == value
+
+    def test_update_increments_executor_version_and_module_name(
+        self, initialized_manager
+    ):
+        # initialize_executor already produced udf-v1.
+        assert initialized_manager.executor_version == 1
+        assert initialized_manager.operator_module_name == "udf-v1"
+
+        initialized_manager.update_executor(
+            code=REPLACEMENT_OPERATOR_CODE, is_source=False
+        )
+
+        assert initialized_manager.executor_version == 2
+        assert initialized_manager.operator_module_name == "udf-v2"
+
+    def test_update_with_source_mismatch_raises_assertion(self, initialized_manager):
+        # The replacement code is a regular operator, but is_source=True asks
+        # the manager to treat it as a source operator. Same guardrail as
+        # initialize_executor.
+        with pytest.raises(AssertionError) as exc_info:
+            initialized_manager.update_executor(
+                code=REPLACEMENT_OPERATOR_CODE, is_source=True
+            )
+        assert "SourceOperator API" in str(exc_info.value)
+
+    def test_update_with_no_operator_class_raises_assertion(self, initialized_manager):
+        # load_executor_definition asserts exactly one Operator subclass exists
+        # in the module — an empty module trips that assertion.
+        with pytest.raises(AssertionError) as exc_info:
+            initialized_manager.update_executor(code=NO_OPERATOR_CODE, is_source=False)
+        assert "one and only one Operator" in str(exc_info.value)
+
+    def test_update_with_multiple_operator_classes_raises_assertion(
+        self, initialized_manager
+    ):
+        with pytest.raises(AssertionError) as exc_info:
+            initialized_manager.update_executor(
+                code=TWO_OPERATORS_CODE, is_source=False
+            )
+        assert "one and only one Operator" in str(exc_info.value)
+
+    def test_repeated_updates_keep_carrying_the_running_state(
+        self, initialized_manager
+    ):
+        # Update once, mutate the new instance, then update again — the second
+        # update must see the *latest* state, not the snapshot from before
+        # the first update.
+        initialized_manager.update_executor(
+            code=REPLACEMENT_OPERATOR_CODE, is_source=False
+        )
+        initialized_manager.executor.counter = 42
+        initialized_manager.executor.added_after_update = True
+
+        initialized_manager.update_executor(
+            code=REPLACEMENT_OPERATOR_CODE, is_source=False
+        )
+
+        assert initialized_manager.executor.counter == 42
+        assert initialized_manager.executor.added_after_update is True
+        assert initialized_manager.executor_version == 3
