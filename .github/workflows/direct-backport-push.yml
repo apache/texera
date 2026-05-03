@@ -24,7 +24,8 @@ on:
 permissions:
   actions: read
   contents: write
-  pull-requests: read
+  issues: write
+  pull-requests: write
 
 jobs:
   discover:
@@ -195,6 +196,7 @@ jobs:
           # silences post-merge CI on backport commits.
           token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Cherry-pick merge commit onto target branch
+        id: cherry_pick
         env:
           MERGE_SHA: ${{ github.sha }}
           TARGET_BRANCH: ${{ matrix.target }}
@@ -221,48 +223,100 @@ jobs:
           git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
           git cherry-pick --no-commit "${MERGE_SHA}"
 
-          # Compose the final commit message. The "(backported from commit X)"
-          # note goes between the message body and the trailer block (the
-          # trailing run of `Key: value` lines such as Co-Authored-By and
-          # Signed-off-by) so trailers stay contiguous at the bottom of the
-          # message — that's where git itself parses them.
-          #
-          # The trailer block, by git convention, is the run of `Key: value`
-          # lines after the LAST blank line in the message, and only counts
-          # if EVERY line after that blank line is in trailer format. This
-          # avoids mis-detecting a Conventional Commits subject like
-          # "feat: foo" or a body line like "References:" as a trailer.
           new_message=$(
-            printf '%s' "${merge_message}" | \
-              python3 -c '
-import re, sys
-sha = sys.argv[1]
-msg = sys.stdin.read().rstrip("\n")
-lines = msg.split("\n")
-trailer_re = re.compile(r"^[A-Za-z][A-Za-z0-9-]*:\s")
-
-last_blank = -1
-for idx in range(len(lines) - 1, -1, -1):
-    if lines[idx] == "":
-        last_blank = idx
-        break
-
-trailer_start = len(lines)
-if last_blank != -1:
-    candidate = lines[last_blank + 1:]
-    if candidate and all(trailer_re.match(l) for l in candidate):
-        trailer_start = last_blank + 1
-
-backport = f"(backported from commit {sha})"
-if trailer_start == len(lines):
-    print(msg + "\n\n" + backport)
-else:
-    body = "\n".join(lines[:trailer_start]).rstrip("\n")
-    trailers = "\n".join(lines[trailer_start:])
-    print(body + "\n\n" + backport + "\n\n" + trailers)
-' "${MERGE_SHA}"
+            printf '%s' "${merge_message}" \
+              | python3 .github/scripts/compose-backport-message.py "${MERGE_SHA}"
           )
 
           printf '%s\n' "${new_message}" | git commit -F - --author="${original_author}"
 
           git push origin "HEAD:${TARGET_BRANCH}"
+
+          new_sha=$(git rev-parse HEAD)
+          echo "new_sha=${new_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Annotate original PR and commit on success
+        if: success()
+        uses: actions/github-script@v8
+        env:
+          MERGE_SHA: ${{ github.sha }}
+          TARGET_BRANCH: ${{ matrix.target }}
+          NEW_SHA: ${{ steps.cherry_pick.outputs.new_sha }}
+          PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
+        with:
+          script: |
+            const { MERGE_SHA, TARGET_BRANCH, NEW_SHA, PR_NUMBER } = process.env;
+            const { owner, repo } = context.repo;
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const newCommitUrl =
+              `${context.serverUrl}/${owner}/${repo}/commit/${NEW_SHA}`;
+            const branchUrl =
+              `${context.serverUrl}/${owner}/${repo}/tree/${TARGET_BRANCH}`;
+
+            // GitHub auto-derives the branch badges shown next to a commit
+            // title from "branches that contain this commit". A cherry-pick
+            // produces a different SHA than the main commit, so the release
+            // branch will never naturally appear on the main commit's page.
+            // Posting a commit comment is the closest practical equivalent —
+            // it surfaces the backport target on the same page.
+            await github.rest.repos.createCommitComment({
+              owner,
+              repo,
+              commit_sha: MERGE_SHA,
+              body:
+                `Backported to [\`${TARGET_BRANCH}\`](${branchUrl}) as ` +
+                `[\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
+                `[Run](${runUrl})`,
+            });
+
+            if (PR_NUMBER) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: Number(PR_NUMBER),
+                body:
+                  `Backport to [\`${TARGET_BRANCH}\`](${branchUrl}) succeeded ` +
+                  `as [\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
+                  `[Run](${runUrl})`,
+              });
+            }
+
+      - name: Annotate original PR on failure
+        if: failure()
+        uses: actions/github-script@v8
+        env:
+          TARGET_BRANCH: ${{ matrix.target }}
+          PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
+        with:
+          script: |
+            const { TARGET_BRANCH, PR_NUMBER } = process.env;
+            if (!PR_NUMBER) return;
+            const { owner, repo } = context.repo;
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // Find this matrix leg's job so the link drops the user directly
+            // onto the failing log instead of the run summary.
+            let jobUrl = runUrl;
+            try {
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                { owner, repo, run_id: context.runId, per_page: 100 },
+              );
+              const me = jobs.find((j) =>
+                j.name.includes(`(${TARGET_BRANCH})`),
+              );
+              if (me?.html_url) jobUrl = me.html_url;
+            } catch (e) {
+              core.warning(`Could not resolve job URL: ${e.message}`);
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: Number(PR_NUMBER),
+              body:
+                `Backport to \`${TARGET_BRANCH}\` failed. ` +
+                `See [job log](${jobUrl}).`,
+            });
