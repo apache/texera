@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-wheel==0.41.2
+wheel==0.47.0
 setuptools==80.10.2
 numpy==2.1.0
 pandas==2.2.3
