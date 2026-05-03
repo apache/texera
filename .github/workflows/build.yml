@@ -44,6 +44,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_amber_integration:
+        required: false
+        type: boolean
+        default: true
       run_platform:
         required: false
         type: boolean
@@ -172,12 +176,6 @@ jobs:
         with:
           distribution: "temurin"
           java-version: 11
-      - name: Setup Python for Scala tests
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-      - name: Show Python
-        run: python --version || python3 --version
       - name: Create Databases
         # Must run before any sbt compile step: the build's JOOQ source
         # generators connect to texera_db while compiling.
@@ -218,16 +216,6 @@ jobs:
             /tmp/dists/amber-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/amber-*/lib || true
           exit "$check_exit"
-      - name: Install dependencies
-        # Only the backend test step needs the python deps; install just
-        # before tests so a lint or dist failure does not pay for them.
-        # Use uv for speed — the scala job's binary license check is
-        # jar-only, so any pip-vs-uv resolver differences in the Python
-        # tree don't affect amber/LICENSE-binary-python here.
-        run: |
-          python -m pip install uv
-          if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
@@ -239,10 +227,16 @@ jobs:
       - name: Run amber and common module tests with coverage
         # 'jacoco' runs tests under sbt-jacoco's JVM agent and emits per-
         # module jacoco.xml that the codecov upload step picks up.
-        # `WorkflowExecutionService/jacoco` only runs that project's tests
-        # (sbt's `test` task does not transit dependsOn), so common
-        # modules' tests are listed explicitly here. Modules with no
-        # tests (Auth, Config) are skipped.
+        # `WorkflowExecutionService/jacoco` only runs that project's
+        # Test config (sbt's `test` task does not transit dependsOn),
+        # so common modules' tests are listed explicitly here. Modules
+        # with no tests (Auth, Config) are skipped.
+        #
+        # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
+        # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
+        # those run in the amber-integration job below.
+        env:
+          AMBER_TEST_FILTER: skip-integration
         run: |
           sbt "DAO/jacoco" \
               "PyBuilder/jacoco" \
@@ -257,6 +251,99 @@ jobs:
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
           flags: amber
           fail_ci_if_error: false
+
+  amber-integration:
+    # Runs Scala tests tagged @org.apache.texera.amber.tags.IntegrationTest —
+    # currently the e2e specs that spawn Python UDF workers. Provisions
+    # Python deps that the lighter `amber` job no longer installs. Cross-
+    # cutting lints (scalafmt / scalafix) and the amber dist + binary
+    # license check stay in `amber`; this job is tests-only.
+    if: ${{ inputs.run_amber_integration }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+        java-version: [11]
+    runs-on: ${{ matrix.os }}
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 11
+      - name: Setup Python for Scala-Python integration tests
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Show Python
+        run: python --version || python3 --version
+      - name: Install Python dependencies
+        # The integration tests spawn Python UDF workers; install
+        # everything they need on the host. uv for speed; no licensing
+        # concerns because no dist is built here.
+        run: |
+          python -m pip install uv
+          if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Create texera_db_for_test_cases
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Lint and run amber integration tests
+        # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
+        # keep only @org.apache.texera.amber.tags.IntegrationTest
+        # specs. The Java @TagAnnotation makes the marker visible to
+        # ScalaTest's reflection, so `-n TAG` correctly narrows the
+        # run.
+        #
+        # scalafmtCheckAll + scalafixAll --check are run here as well
+        # because an integration-only PR fires only the
+        # `amber-integration` label; the amber job's own cross-cutting
+        # lint would not run, and the change would otherwise land
+        # unlinted. Costs ~30s when amber also runs, which is fine.
+        # No jacoco — these specs exercise code paths already covered
+        # by amber's unit-test coverage.
+        env:
+          AMBER_TEST_FILTER: integration-only
+        run: |
+          sbt scalafmtCheckAll \
+              "scalafixAll --check" \
+              "WorkflowExecutionService/test"
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala
