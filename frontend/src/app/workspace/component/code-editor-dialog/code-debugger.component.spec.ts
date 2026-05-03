@@ -65,7 +65,7 @@ describe("CodeDebuggerComponent", () => {
 
     // Set required input properties
     component.currentOperatorId = operatorId;
-    component.monacoEditor = { dispose: vi.fn() };
+    component.monacoEditor = { dispose: vi.fn() } as any;
 
     // Trigger change detection to ensure view updates
     fixture.detectChanges();

@@ -71,9 +71,9 @@ describe("ContextMenuComponent", () => {
     workflowActionServiceSpy.getJointGraphWrapper.mockReturnValue(jointGraphWrapperSpy);
     workflowActionServiceSpy.getWorkflowModificationEnabledStream.mockReturnValue(of(true));
     workflowActionServiceSpy.getTexeraGraph.mockReturnValue(texeraGraphSpy);
-    workflowActionServiceSpy.deleteOperatorsAndLinks.mockReturnValue();
-    workflowActionServiceSpy.deleteCommentBox.mockReturnValue();
-    workflowActionServiceSpy.deleteLinkWithID.mockReturnValue();
+    workflowActionServiceSpy.deleteOperatorsAndLinks.mockReturnValue(undefined);
+    workflowActionServiceSpy.deleteCommentBox.mockReturnValue(undefined);
+    workflowActionServiceSpy.deleteLinkWithID.mockReturnValue(undefined);
     workflowActionServiceSpy.getWorkflowMetadata.mockReturnValue({ name: "Test Workflow" }); // Mock return value
 
     // Set up TexeraGraph spy return values

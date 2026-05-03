@@ -63,7 +63,7 @@ describe("UserWorkflowListItemComponent", () => {
   it("sends http request to backend to retrieve export json", () => {
     // Test the workflow download button.
     component.onClickDownloadWorkfllow();
-    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledOnceWith(
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledExactlyOnceWith(
       new Blob([JSON.stringify(testWorkflowEntries[0].workflow.workflow.content)], {
         type: "text/plain;charset=utf-8",
       }),

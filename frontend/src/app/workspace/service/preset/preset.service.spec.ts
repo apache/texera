@@ -16,6 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+// TODO: rewrite skipped tests away from Jasmine done/fail callbacks (#4861).
+// These stubs make the it.skip bodies type-check without running.
+declare function done(): void;
+declare function fail(message?: string): never;
 
 // TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
 
