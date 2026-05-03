@@ -232,12 +232,13 @@ jobs:
         # modules' tests are listed explicitly here. Modules with no
         # tests (Auth, Config) are skipped.
         #
-        # Tests tagged @org.apache.texera.amber.tags.IntegrationTest are
-        # excluded here — they spawn Python UDF workers and run in the
-        # amber-integration job below, which provisions Python deps.
+        # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
+        # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
+        # those run in the amber-integration job below.
+        env:
+          AMBER_TEST_FILTER: skip-integration
         run: |
-          sbt 'set WorkflowExecutionService / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.amber.tags.IntegrationTest")' \
-              "DAO/jacoco" \
+          sbt "DAO/jacoco" \
               "PyBuilder/jacoco" \
               "WorkflowCore/jacoco" \
               "WorkflowOperator/jacoco" \
@@ -324,14 +325,15 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Run amber integration tests
-        # `-n <tag>` keeps only IntegrationTest-tagged tests; the regular
-        # amber job uses `-l <tag>` to skip the same set. No jacoco
-        # coverage here — these specs validate Python-UDF e2e behavior
-        # whose underlying code paths are already covered by amber's
-        # unit-test coverage.
-        run: |
-          sbt 'set WorkflowExecutionService / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.amber.tags.IntegrationTest")' \
-              "WorkflowExecutionService/test"
+        # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
+        # keep only @org.apache.texera.amber.tags.IntegrationTest specs;
+        # the regular amber job uses skip-integration to exclude the
+        # same set. No jacoco coverage here — these specs validate
+        # Python-UDF e2e behavior whose underlying code paths are
+        # already covered by amber's unit-test coverage.
+        env:
+          AMBER_TEST_FILTER: integration-only
+        run: sbt "WorkflowExecutionService/test"
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala

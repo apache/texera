@@ -61,6 +61,20 @@ Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "
 // sbt still treats them as ordinary Test sources.
 Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "integration" / "scala"
 
+// Test-filter switch driven by the AMBER_TEST_FILTER env var so the two
+// CI jobs (amber, amber-integration) pick which subset to run without
+// each invocation having to embed a `set Tests.Argument(...)` prefix.
+//   skip-integration : exclude @IntegrationTest-tagged specs
+//   integration-only : include only @IntegrationTest-tagged specs
+//   (unset)          : run everything (default for local sbt)
+Test / testOptions ++= (sys.env.get("AMBER_TEST_FILTER") match {
+  case Some("skip-integration") =>
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.amber.tags.IntegrationTest"))
+  case Some("integration-only") =>
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.amber.tags.IntegrationTest"))
+  case _ => Nil
+})
+
 // Excluding some proto files:
 PB.generate / excludeFilter := "scalapb.proto"
 
