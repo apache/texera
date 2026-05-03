@@ -20,10 +20,7 @@
 import { Pipe, PipeTransform } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 
-@Pipe({
-  name: "highlightSearchTerms",
-  standalone: false,
-})
+@Pipe({ name: "highlightSearchTerms" })
 export class HighlightSearchTermsPipe implements PipeTransform {
   constructor(private sanitizer: DomSanitizer) {}
 

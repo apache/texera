@@ -22,9 +22,9 @@ import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
+import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
@@ -45,12 +45,37 @@ import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { User } from "../../common/type/user";
 import { Role } from "../../common/type/user";
+import { NzLayoutComponent, NzSiderComponent, NzContentComponent } from "ng-zorro-antd/layout";
+import { NzMenuDirective, NzSubMenuComponent, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NgIf } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { SearchBarComponent } from "./user/search-bar/search-bar.component";
+import { UserIconComponent } from "./user/user-icon/user-icon.component";
 
 @Component({
   selector: "texera-dashboard",
   templateUrl: "dashboard.component.html",
   styleUrls: ["dashboard.component.scss"],
-  standalone: false,
+  imports: [
+    NzLayoutComponent,
+    NzSiderComponent,
+    NzMenuDirective,
+    NgIf,
+    NzSubMenuComponent,
+    ɵNzTransitionPatchDirective,
+    HubComponent,
+    NzMenuItemComponent,
+    NzTooltipDirective,
+    RouterLink,
+    NzIconDirective,
+    SearchBarComponent,
+    UserIconComponent,
+    GoogleSigninButtonModule,
+    NzContentComponent,
+    RouterOutlet,
+  ],
 })
 @UntilDestroy()
 export class DashboardComponent implements OnInit {

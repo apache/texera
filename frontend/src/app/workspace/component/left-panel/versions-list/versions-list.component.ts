@@ -23,13 +23,43 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/type/workflow-version-entry";
 import { ActivatedRoute } from "@angular/router";
+import { NgIf, NgFor, NgClass, DatePipe } from "@angular/common";
+import {
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzCellAlignDirective,
+  NzTbodyComponent,
+  NzTdAddOnComponent,
+} from "ng-zorro-antd/table";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 @UntilDestroy()
 @Component({
   selector: "texera-version-list",
   templateUrl: "versions-list.component.html",
   styleUrls: ["versions-list.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NgFor,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzCellAlignDirective,
+    NzTbodyComponent,
+    NgClass,
+    NzTdAddOnComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    DatePipe,
+  ],
 })
 export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;

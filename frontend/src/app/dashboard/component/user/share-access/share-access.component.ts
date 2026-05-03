@@ -18,7 +18,7 @@
  */
 
 import { Component, EventEmitter, inject, OnDestroy, OnInit, Output } from "@angular/core";
-import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
+import { FormBuilder, FormControl, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { Privilege, ShareAccess } from "../../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -31,13 +31,47 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { NgIf, NgFor } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { NzFormItemComponent, NzFormLabelComponent, NzFormControlComponent } from "ng-zorro-antd/form";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzAutocompleteTriggerDirective, NzAutocompleteComponent } from "ng-zorro-antd/auto-complete";
+import { NzTagComponent } from "ng-zorro-antd/tag";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 @UntilDestroy()
 @Component({
   selector: "texera-share-access",
   templateUrl: "share-access.component.html",
   styleUrls: ["./share-access.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    FormsModule,
+    ReactiveFormsModule,
+    NzCardComponent,
+    NzRowDirective,
+    NzFormItemComponent,
+    NzColDirective,
+    NzFormLabelComponent,
+    NzFormControlComponent,
+    NzInputDirective,
+    NzAutocompleteTriggerDirective,
+    NzAutocompleteComponent,
+    NgFor,
+    NzTagComponent,
+    NzTooltipDirective,
+  ],
 })
 export class ShareAccessComponent implements OnInit, OnDestroy {
   readonly nzModalData = inject(NZ_MODAL_DATA);

@@ -25,14 +25,36 @@ import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
+import {
+  NzAutocompleteOptionComponent,
+  NzAutocompleteTriggerDirective,
+  NzAutocompleteComponent,
+} from "ng-zorro-antd/auto-complete";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NgFor, NgTemplateOutlet } from "@angular/common";
+import { OperatorLabelComponent } from "./operator-label/operator-label.component";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
 @UntilDestroy()
 @Component({
   selector: "texera-operator-menu",
   templateUrl: "operator-menu.component.html",
   styleUrls: ["operator-menu.component.scss"],
-  standalone: false,
+  imports: [
+    NzSpaceCompactItemDirective,
+    NzInputDirective,
+    FormsModule,
+    NzAutocompleteTriggerDirective,
+    NzAutocompleteComponent,
+    NgFor,
+    NzAutocompleteOptionComponent,
+    OperatorLabelComponent,
+    NgTemplateOutlet,
+    NzCollapseComponent,
+    NzCollapsePanelComponent,
+  ],
 })
 export class OperatorMenuComponent {
   public opList = new Map<string, Array<OperatorSchema>>();

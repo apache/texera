@@ -19,7 +19,7 @@
 
 import { Component, EventEmitter, Host, Input, Optional, Output } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { NgxFileDropEntry } from "ngx-file-drop";
+import { NgxFileDropEntry, NgxFileDropModule } from "ngx-file-drop";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
@@ -33,13 +33,27 @@ import {
   ConflictingFileModalContentComponent,
   ConflictingFileModalData,
 } from "./conflicting-file-modal-content/conflicting-file-modal-content.component";
+import { NgIf } from "@angular/common";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-files-uploader",
   templateUrl: "./files-uploader.component.html",
   styleUrls: ["./files-uploader.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzAlertComponent,
+    NgxFileDropModule,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+  ],
 })
 export class FilesUploaderComponent {
   @Input() showUploadAlert: boolean = false;

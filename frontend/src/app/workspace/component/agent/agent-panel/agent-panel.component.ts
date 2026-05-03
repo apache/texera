@@ -19,18 +19,54 @@
 
 import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
+import { NgIf, NgClass, NgFor } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NzTabsComponent, NzTabBarExtraContentDirective, NzTabComponent, NzTabDirective } from "ng-zorro-antd/tabs";
+import { AgentRegistrationComponent } from "./agent-registration/agent-registration.component";
+import { AgentChatComponent } from "./agent-chat/agent-chat.component";
+import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-agent-panel",
   templateUrl: "agent-panel.component.html",
   styleUrls: ["agent-panel.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    CdkDrag,
+    NzResizableDirective,
+    NzMenuDirective,
+    NgClass,
+    NzMenuItemComponent,
+    CdkDragHandle,
+    NzTabsComponent,
+    NzTabBarExtraContentDirective,
+    NzTabComponent,
+    NzTabDirective,
+    AgentRegistrationComponent,
+    NgFor,
+    AgentChatComponent,
+    NzResizeHandlesComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   protected readonly window = window;
