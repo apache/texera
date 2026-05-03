@@ -74,15 +74,33 @@ texera-worktrees/<branch>/   # one worktree per PR
 
 ### Environment
 
-Default to **Python 3.12** for development. Create one venv shared across all
-worktrees rather than a venv per worktree:
+Project toolchain defaults:
+
+| Component | Version |
+| --- | --- |
+| Java | JDK 11 |
+| Scala | 2.13 |
+| Python | 3.12 |
+| Node | 24 |
+
+For Python, create one venv shared across all worktrees rather than a venv
+per worktree — keep it as a sibling of the texera checkout so it isn't tied
+to any single worktree:
 
 ```
-~/IdeaProjects/venv312/        # shared by every texera worktree
+<workspace>/
+├── texera/                   # main checkout, stays on main
+├── texera-worktrees/<br>/    # one worktree per PR
+└── venv312/                  # shared Python 3.12 venv
 ```
 
-`python -m venv ~/IdeaProjects/venv312 && source ~/IdeaProjects/venv312/bin/activate`,
-then install `amber/requirements.txt` and `amber/operator-requirements.txt`.
+From any worktree:
+
+```bash
+python3.12 -m venv ../venv312
+source ../venv312/bin/activate
+pip install -r amber/requirements.txt -r amber/operator-requirements.txt
+```
 
 Tests that spawn Python workers need the interpreter path configured. Either
 edit `python.path` in
@@ -90,7 +108,7 @@ edit `python.path` in
 or export `UDF_PYTHON_PATH` (which overrides it):
 
 ```bash
-export UDF_PYTHON_PATH=$HOME/IdeaProjects/venv312/bin/python
+export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"
 ```
 
 Without this, `sbt` Python-integration tests will fail to launch a worker.
