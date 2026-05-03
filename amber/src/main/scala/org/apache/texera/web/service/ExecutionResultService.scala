@@ -66,6 +66,8 @@ import scala.concurrent.duration.DurationInt
 object ExecutionResultService {
 
   private val defaultPageSize: Int = 5
+  private val binaryPreviewLeadingBytes: Int = 10
+  private val binaryPreviewTrailingBytes: Int = 3
   // ISO_8859_1 gives a 1:1 byte-to-char mapping for all 256 byte values,
   // so it never throws or substitutes replacement chars on arbitrary binary data.
   private val binaryCharset = StandardCharsets.ISO_8859_1
@@ -104,13 +106,13 @@ object ExecutionResultService {
                         val totalSize = byteArray.length
                         val sizeFormatted = f"$totalSize%,d"
                         val preview =
-                          if (totalSize <= 13)
+                          if (totalSize <= binaryPreviewLeadingBytes + binaryPreviewTrailingBytes)
                             new String(byteArray, binaryCharset)
                           else {
                             val leading =
-                              new String(byteArray.take(10), binaryCharset)
+                              new String(byteArray.take(binaryPreviewLeadingBytes), binaryCharset)
                             val trailing =
-                              new String(byteArray.takeRight(3), binaryCharset)
+                              new String(byteArray.takeRight(binaryPreviewTrailingBytes), binaryCharset)
                             s"$leading...$trailing"
                           }
                         s"<binary: $preview $sizeFormatted bytes>"
