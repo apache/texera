@@ -318,20 +318,25 @@ def _index_python(items: set[str]) -> dict[str, set[str]]:
     return out
 
 
-def _index_jar(items: set[str]) -> dict[str, dict[str, str]]:
-    """{ 'netty-all-4.1.96.Final.jar' } -> { 'netty-all': {'4.1.96.Final': '<basename>'} }.
-    Two-level mapping artifact -> version -> basename so an artifact
-    legitimately bundled at multiple versions (e.g. logback at 1.2.x in
-    one service and 1.4.x in another) survives intact. Unparseable jar
-    names fall back to a sentinel `""` version."""
-    out: dict[str, dict[str, str]] = defaultdict(dict)
+def _index_jar(items: set[str]) -> dict[str, set[str]]:
+    """{ 'netty-all-4.1.96.Final.jar' } -> { 'netty-all': {'4.1.96.Final'} }.
+    Same shape as _index_npm / _index_python: an artifact legitimately
+    bundled at multiple versions (e.g. logback at 1.2.x in one service
+    and 1.4.x in another) survives intact. Unparseable jar names are
+    surfaced loudly rather than silently dropped — a parser bug here
+    means real bundled deps would skip license validation."""
+    out: dict[str, set[str]] = defaultdict(set)
     for jar in items:
         m = JAR_NAME_VERSION.match(jar)
-        if m:
-            out[m.group(1)][m.group(2)] = jar
-        else:
-            out[jar][""] = jar
+        if not m:
+            sys.stderr.write(f"warning: cannot parse jar name: {jar}\n")
+            continue
+        out[m.group(1)].add(m.group(2))
     return out
+
+
+def _jar_basename(artifact: str, version: str) -> str:
+    return f"{artifact}-{version}.jar"
 
 
 def _is_direct_jar(artifact: str, direct_artifacts: set[str]) -> bool:
@@ -460,14 +465,13 @@ def diff_simple(
 
 
 def diff_jars(
-    claim_idx: dict[str, dict[str, str]],
-    real_idx: dict[str, dict[str, str]],
+    claim_idx: dict[str, set[str]],
+    real_idx: dict[str, set[str]],
     direct_artifacts: set[str],
 ) -> tuple[list[str], list[str], list[tuple[str, list[str], list[str]]], list[tuple[str, list[str], list[str]]]]:
-    """Diff artifact->{version: basename} multimaps. Added/stale are
-    reported as the full jar basenames users will see in LICENSE-binary;
-    drifts are returned as (artifact, sorted_claimed_versions,
-    sorted_real_versions)."""
+    """Diff artifact->{versions} multimaps. Added/stale are rendered as
+    full jar basenames users will see in LICENSE-binary; drifts are
+    (artifact, sorted_claimed, sorted_real)."""
     added: list[str] = []
     stale: list[str] = []
     drift_direct: list[tuple[str, list[str], list[str]]] = []
@@ -475,13 +479,12 @@ def diff_jars(
 
     for artifact in sorted(real_idx.keys() - claim_idx.keys()):
         for v in sorted(real_idx[artifact]):
-            added.append(real_idx[artifact][v])
+            added.append(_jar_basename(artifact, v))
     for artifact in sorted(claim_idx.keys() - real_idx.keys()):
         for v in sorted(claim_idx[artifact]):
-            stale.append(claim_idx[artifact][v])
+            stale.append(_jar_basename(artifact, v))
     for artifact in sorted(claim_idx.keys() & real_idx.keys()):
-        cvers = set(claim_idx[artifact].keys())
-        rvers = set(real_idx[artifact].keys())
+        cvers, rvers = claim_idx[artifact], real_idx[artifact]
         if cvers == rvers:
             continue
         entry = (artifact, sorted(cvers), sorted(rvers))
