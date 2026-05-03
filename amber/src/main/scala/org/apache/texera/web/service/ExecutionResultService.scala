@@ -58,7 +58,7 @@ import org.apache.texera.web.service.ExecutionResultService.convertTuplesToJson
 import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
-import java.nio.charset.StandardCharsets
+import java.lang.Byte.{SIZE => BitsPerByte}
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -66,11 +66,15 @@ import scala.concurrent.duration.DurationInt
 object ExecutionResultService {
 
   private val defaultPageSize: Int = 5
-  private val binaryPreviewLeadingBytes: Int = 10
-  private val binaryPreviewTrailingBytes: Int = 3
-  // ISO_8859_1 gives a 1:1 byte-to-char mapping for all 256 byte values,
-  // so it never throws or substitutes replacement chars on arbitrary binary data.
-  private val binaryCharset = StandardCharsets.ISO_8859_1
+  private val binaryPreviewLeadingBits: Int = 10
+  private val binaryPreviewTrailingBits: Int = 3
+
+  private def bytesToBinaryString(bytes: Array[Byte]): String =
+    bytes
+      .map(b =>
+        String.format(s"%${BitsPerByte}s", Integer.toBinaryString(b & 0xff)).replace(' ', '0')
+      )
+      .mkString("")
 
   /**
     * Converts a collection of Tuples to a list of JSON ObjectNodes.
@@ -105,20 +109,23 @@ object ExecutionResultService {
                       case byteArray: Array[Byte] =>
                         val totalSize = byteArray.length
                         val sizeFormatted = f"$totalSize%,d"
+                        val totalBits = totalSize * BitsPerByte
                         val preview =
-                          if (totalSize <= binaryPreviewLeadingBytes + binaryPreviewTrailingBytes)
-                            new String(byteArray, binaryCharset)
+                          if (totalBits <= binaryPreviewLeadingBits + binaryPreviewTrailingBits)
+                            bytesToBinaryString(byteArray)
                           else {
-                            val leading =
-                              new String(byteArray.take(binaryPreviewLeadingBytes), binaryCharset)
-                            val trailing =
-                              new String(
-                                byteArray.takeRight(binaryPreviewTrailingBytes),
-                                binaryCharset
-                              )
+                            val leadingBytesNeeded =
+                              math.ceil(binaryPreviewLeadingBits.toDouble / BitsPerByte).toInt
+                            val trailingBytesNeeded =
+                              math.ceil(binaryPreviewTrailingBits.toDouble / BitsPerByte).toInt
+                            val leading = bytesToBinaryString(byteArray.take(leadingBytesNeeded))
+                              .take(binaryPreviewLeadingBits)
+                            val trailing = bytesToBinaryString(
+                              byteArray.takeRight(trailingBytesNeeded)
+                            ).takeRight(binaryPreviewTrailingBits)
                             s"$leading...$trailing"
                           }
-                        s"<binary: $preview $sizeFormatted bytes>"
+                        s"<binary $preview, size = $sizeFormatted bytes>"
 
                       case _ =>
                         throw new RuntimeException(
