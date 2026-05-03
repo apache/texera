@@ -68,6 +68,7 @@ ci:
       - any-glob-to-any-file:
           - '.github/**'
           - '.asf.yaml'
+          - 'codecov.yml'
 
 dev:
   - changed-files:
