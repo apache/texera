@@ -116,33 +116,38 @@ jobs:
             // labeler matches lives under a component dir and is already
             // covered by that component's label.
             //
-            //   label          | frontend | amber | amber-integ | platform | python | agent-service
-            //   ---------------|----------|-------|-------------|----------|--------|--------------
-            //   frontend       |    x     |       |             |          |        |
-            //   python         |          |       |      x      |          |   x    |
-            //   engine         |          |   x   |      x      |          |        |
-            //   platform       |          |       |             |    x     |        |
-            //   agent-service  |          |       |             |          |        |     x
-            //   common         |          |   x   |      x      |    x     |        |  (root
-            //                                                                          scala
-            //                                                                          build/lint
-            //                                                                          config)
-            //   ddl-change     |          |   x   |      x      |    x     |        |
-            //   ci             |    x     |   x   |      x      |    x     |   x    |     x
-            //   docs / dev /   |          |       |             |          |        |
-            //   deps / release/|          |       |             |          |        |
-            //   * / branch     |          |       |             |          |        |
+            //   label             | frontend | amber | amber-integ | platform | python | agent-service
+            //   ------------------|----------|-------|-------------|----------|--------|--------------
+            //   frontend          |    x     |       |             |          |        |
+            //   python            |          |       |      x      |          |   x    |
+            //   engine            |          |   x   |      x      |          |        |
+            //   amber-integration |          |       |      x      |          |        |
+            //   platform          |          |       |             |    x     |        |
+            //   agent-service     |          |       |             |          |        |     x
+            //   common            |          |   x   |      x      |    x     |        |  (root
+            //                                                                            scala
+            //                                                                            build/lint
+            //                                                                            config)
+            //   ddl-change        |          |   x   |      x      |    x     |        |
+            //   ci                |    x     |   x   |      x      |    x     |   x    |     x
+            //   docs / dev /      |          |       |             |          |        |
+            //   deps / release/   |          |       |             |          |        |
+            //   * / branch        |          |       |             |          |        |
             //
             // amber-integration runs the Scala tests tagged
             // @org.apache.texera.amber.tags.IntegrationTest (e2e specs that
             // spawn Python UDF workers). The labeler attaches `python` to
             // any *.py change (including amber/src/main/python/**), so
             // `engine` does not need to fire the python stack itself —
-            // pure-Python amber changes pick up `python` directly.
+            // pure-Python amber changes pick up `python` directly. The
+            // `amber-integration` label catches *IntegrationSpec.scala
+            // edits so a test-only change does not trigger the full
+            // Scala-only amber stack.
             const LABEL_STACKS = {
               frontend: ["frontend"],
               python: ["amber-integration", "python"],
               engine: ["amber", "amber-integration"],
+              "amber-integration": ["amber-integration"],
               platform: ["platform"],
               "agent-service": ["agent-service"],
               common: ["amber", "amber-integration", "platform"],

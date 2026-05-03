@@ -50,6 +50,12 @@ engine:
   # `python` label (which the labeler also matches via **/*.py),
   # so they only trigger the python + amber-integration stacks
   # rather than the full Scala-only `amber` stack.
+  #
+  # `*IntegrationSpec.scala` files (Scala tests tagged
+  # @org.apache.texera.amber.tags.IntegrationTest, executed by the
+  # amber-integration job) are excluded via the trailing negation
+  # glob so changes to them only pick up the `amber-integration`
+  # label below, not `engine`.
   - changed-files:
       - any-glob-to-any-file:
           - 'amber/build.sbt'
@@ -61,6 +67,18 @@ engine:
           - 'amber/src/test/scala/**'
           - 'amber/src/test/java/**'
           - 'amber/user-resources/**'
+          - '!**/*IntegrationSpec.scala'
+
+amber-integration:
+  # Scala specs that exercise both Scala and Python end-to-end. The
+  # convention is `*IntegrationSpec.scala` plus the class-level
+  # `@org.apache.texera.amber.tags.IntegrationTest` annotation; this
+  # label maps to the amber-integration stack only, so a PR that
+  # touches just an integration spec does not pay for the full
+  # Scala-only `amber` job.
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'amber/src/test/scala/**/*IntegrationSpec.scala'
 
 python:
   - changed-files:
