@@ -25,15 +25,9 @@ export default defineConfig({
     // existing Jasmine-style specs don't need a per-file import sweep.
     // Paired with `vitest/globals` triple-slash in src/vitest-globals.d.ts.
     globals: true,
-    // Specs that rely on Jasmine's `done`-callback signature; rewriting
-    // them to async/await is tracked in #4861. Excluded from this PR so
-    // the rest of the suite can run green under Vitest.
-    exclude: [
-      "**/node_modules/**",
-      "**/dist/**",
-      "src/app/workspace/service/workflow-result/workflow-result.service.spec.ts",
-      "src/app/dashboard/service/user/download/download.service.spec.ts",
-      "src/app/workspace/service/preset/preset.service.spec.ts",
-    ],
+    // Per-spec exclusions live in `angular.json` (the unit-test builder
+    // applies them at the discovery stage, before Vitest's own filter,
+    // which is what the Vitest team recommends — see the Vite warning
+    // when this list is duplicated here.)
   },
 });
