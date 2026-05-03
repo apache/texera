@@ -24,7 +24,9 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
 import java.util
+import java.util.Base64
 
 class LineChartOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -68,10 +70,30 @@ class LineChartOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "LineChartOpDesc.generatePythonCode" should "render Python source with runtime decode sites for both labels" in {
-    val code = configured.generatePythonCode()
+    // Use distinct sentinels for the two LABELS *and* the LineConfig values
+    // so the spec actually exercises both label fields. Asserting on the
+    // exact base64 payloads proves each field was wrapped through
+    // wrapWithPythonDecoderExpr individually — `decodeOccurrences >= 2`
+    // could otherwise be satisfied by xValue/yValue alone.
+    val op = new LineChartOpDesc
+    op.xLabel = "X_LBL_SENT"
+    op.yLabel = "Y_LBL_SENT"
+    val ls = new util.ArrayList[LineConfig]()
+    ls.add(lineConfig("X_VAL_SENT", "Y_VAL_SENT"))
+    op.lines = ls
+
+    val code = op.generatePythonCode()
     code should include("plotly")
-    val decodeOccurrences = "decode_python_template".r.findAllIn(code).length
-    decodeOccurrences should be >= 2
+
+    def b64(s: String): String =
+      Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+    code should include(s"self.decode_python_template('${b64("X_LBL_SENT")}')")
+    code should include(s"self.decode_python_template('${b64("Y_LBL_SENT")}')")
+    // Raw sentinels must be absent from the encoded output — their presence
+    // would mean the field was never run through the decoder wrapper.
+    code should not include "X_LBL_SENT"
+    code should not include "Y_LBL_SENT"
   }
 
   it should "raise NullPointerException when lines is left at its null default" in {

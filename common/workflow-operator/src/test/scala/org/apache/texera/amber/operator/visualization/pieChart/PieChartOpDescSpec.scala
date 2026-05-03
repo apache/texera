@@ -25,6 +25,9 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   var opDesc: PieChartOpDesc = _
   before {
@@ -61,13 +64,23 @@ class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   }
 
   "PieChartOpDesc.generatePythonCode" should "render Python source with runtime decode sites for value and name" in {
-    opDesc.value = "amount"
-    opDesc.name = "label"
+    // Use distinct sentinels and assert on the exact base64-wrapped decode
+    // expressions so a regression that leaves `name` as a raw literal
+    // cannot satisfy a generic `decodeOccurrences >= 2` (since `value` is
+    // referenced multiple times in the generated template anyway).
+    opDesc.value = "VAL_SENT"
+    opDesc.name = "NAME_SENT"
     val code = opDesc.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("plotly.express")
-    val decodeOccurrences = "decode_python_template".r.findAllIn(code).length
-    decodeOccurrences should be >= 2
+
+    def b64(s: String): String =
+      Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+    code should include(s"self.decode_python_template('${b64("VAL_SENT")}')")
+    code should include(s"self.decode_python_template('${b64("NAME_SENT")}')")
+    code should not include "VAL_SENT"
+    code should not include "NAME_SENT"
   }
 
   it should "fail-fast when value is unset even if name is set (only `value` is asserted)" in {

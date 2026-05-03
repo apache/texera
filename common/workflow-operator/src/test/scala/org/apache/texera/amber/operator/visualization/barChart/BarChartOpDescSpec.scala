@@ -25,6 +25,9 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
   var opDesc: BarChartOpDesc = _
@@ -79,16 +82,25 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     schema.getAttributes.head.getType shouldBe AttributeType.STRING
   }
 
-  "BarChartOpDesc.generatePythonCode" should "render a UDFTableOperator source with at least two runtime decode sites for value/fields" in {
-    // EncodableString fields are wrapped in `self.decode_python_template(...)`
-    // calls by the pyb macro; pin a structural count instead of literal names.
-    opDesc.value = "v"
-    opDesc.fields = "f"
+  "BarChartOpDesc.generatePythonCode" should "render a UDFTableOperator source with runtime decode sites for value AND fields" in {
+    // Use distinct sentinels and assert on the exact base64-wrapped decode
+    // expressions so the test actually proves both `value` *and* `fields`
+    // were wrapped through wrapWithPythonDecoderExpr. A generic
+    // `decodeOccurrences >= 2` could be satisfied by `value` alone since
+    // both fields appear in multiple template positions.
+    opDesc.value = "VAL_SENT"
+    opDesc.fields = "FIELDS_SENT"
     val code = opDesc.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("plotly.express")
-    val decodeOccurrences = "decode_python_template".r.findAllIn(code).length
-    decodeOccurrences should be >= 2
+
+    def b64(s: String): String =
+      Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+    code should include(s"self.decode_python_template('${b64("VAL_SENT")}')")
+    code should include(s"self.decode_python_template('${b64("FIELDS_SENT")}')")
+    code should not include "VAL_SENT"
+    code should not include "FIELDS_SENT"
   }
 
   it should "fail-fast when value or fields is unset (asserts inside manipulateTable)" in {
