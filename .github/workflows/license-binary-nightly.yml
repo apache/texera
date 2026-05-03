@@ -30,8 +30,11 @@ name: License-binary nightly
 # only difference between them is the value of one input.
 on:
   schedule:
-    # 07:00 UTC daily — late evening US-Pacific, early morning Europe.
-    - cron: "0 7 * * *"
+    # 11:00 UTC daily = 04:00 PDT / 03:00 PST. Picked so the run lands
+    # outside US-Pacific working hours; if that's still too frequent we
+    # can drop to every 48–72 h. GitHub cron is fixed UTC, so the local
+    # clock-time shifts by an hour at DST transitions.
+    - cron: "0 11 * * *"
   workflow_dispatch:
 
 permissions:
