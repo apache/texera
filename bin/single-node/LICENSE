@@ -137,8 +137,8 @@
 
    6. Trademarks. This License does not grant permission to use the trade
       names, trademarks, service marks, or product names of the Licensor,
-      except as required for describing the origin of the Work and
-      reproducing the content of the NOTICE file.
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
 
    7. Disclaimer of Warranty. Unless required by applicable law or
       agreed to in writing, Licensor provides the Work (and each
@@ -162,7 +162,7 @@
       other commercial damages or losses), even if such Contributor
       has been advised of the possibility of such damages.
 
-   9. Accepting Warranty or Support. While redistributing
+   9. Accepting Warranty or Additional Liability. While redistributing
       the Work or Derivative Works thereof, You may choose to offer,
       and charge a fee for, acceptance of support, warranty, indemnity,
       or other liability obligations and/or rights consistent with this
@@ -171,7 +171,7 @@
       of any other Contributor, and only if You agree to indemnify,
       defend, and hold each Contributor harmless for any liability
       incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or support.
+      of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
 
@@ -196,171 +196,7 @@
 
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-   implied. See the License for the specific language governing
-   permissions and limitations under the License.
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 
-================================================================================
-THIRD-PARTY COMPONENTS
-================================================================================
-
-Apache Texera's binary distribution of the texera-workflow-execution-coordinator and texera-workflow-execution-runner Docker images bundles the following third-party Python packages (installed via pip from amber/requirements.txt and amber/operator-requirements.txt), grouped by license.
-
---------------------------------------------------------------------------------
-Dependencies under the Apache License, Version 2.0
---------------------------------------------------------------------------------
-
-Python packages:
-  - aiobotocore==2.25.1
-  - aiohttp==3.13.5
-  - aiosignal==1.4.0
-  - boto3==1.40.53
-  - botocore==1.40.53
-  - frozenlist==1.8.0
-  - hf-xet==1.4.3
-  - huggingface-hub==0.36.2
-  - multidict==6.7.1
-  - overrides==7.4.0
-  - packaging==26.2
-  - propcache==0.4.1
-  - pyarrow==21.0.0
-  - pyiceberg==0.11.1
-  - pympler==1.1
-  - python-dateutil==2.8.2
-  - regex==2026.4.4
-  - requests==2.33.1
-  - s3transfer==0.14.0
-  - safetensors==0.7.0
-  - tenacity==8.5.0
-  - tokenizers==0.22.2
-  - transformers==4.57.3
-  - tzdata==2026.2
-  - websocket-client==1.9.0
-  - yarl==1.23.0
-
---------------------------------------------------------------------------------
-Dependencies under the MIT License
---------------------------------------------------------------------------------
-
-Python packages:
-  - aioitertools==0.13.0
-  - annotated-types==0.7.0
-  - appdirs==1.4.4
-  - asn1crypto==1.5.1
-  - attrs==26.1.0
-  - betterproto==2.0.0b7
-  - cachetools==6.2.6
-  - charset-normalizer==3.4.7
-  - deprecated==1.2.14
-  - filelock==3.29.0
-  - fonttools==4.62.1
-  - fs==2.4.16
-  - greenlet==3.5.0
-  - h2==4.3.0
-  - hpack==4.1.0
-  - hyperframe==6.1.0
-  - iniconfig==1.1.1
-  - jmespath==1.1.0
-  - loguru==0.7.0
-  - markdown-it-py==4.0.0
-  - mdurl==0.1.2
-  - mmh3==5.2.1
-  - pampy==0.3.0
-  - plotly==5.24.1
-  - pluggy==1.6.0
-  - pydantic==2.13.3
-  - pydantic-core==2.46.3
-  - pyparsing==3.3.2
-  - pyroaring==1.1.0
-  - pytest==7.4.0
-  - pytest-reraise==2.1.2
-  - pytest-timeout==2.2.0
-  - pytz==2026.1.post1
-  - pyyaml==6.0.3
-  - readerwriterlock==1.0.9
-  - rich==14.3.4
-  - ruff==0.14.7
-  - scramp==1.4.8
-  - six==1.17.0
-  - sqlalchemy==2.0.37
-  - strictyaml==1.7.3
-  - typing-inspection==0.4.2
-  - tzlocal==2.1
-  - urllib3==2.6.3
-  - wordcloud==1.9.3
-
---------------------------------------------------------------------------------
-Dependencies under the BSD 3-Clause License
---------------------------------------------------------------------------------
-
-Python packages:
-  - cached-property==1.5.2
-  - click==8.3.3
-  - contourpy==1.3.3
-  - cycler==0.12.1
-  - fsspec==2025.9.0
-  - grpclib==0.4.9
-  - idna==3.13
-  - jinja2==3.1.6
-  - joblib==1.5.3
-  - kiwisolver==1.5.0
-  - lazy-loader==0.5
-  - markupsafe==3.0.3
-  - mpmath==1.3.0
-  - networkx==3.6.1
-  - numpy==2.1.0
-  - pandas==2.2.3
-  - pg8000==1.31.5
-  - protobuf==7.34.1
-  - psutil==5.9.0
-  - s3fs==2025.9.0
-  - scikit-image==0.25.2
-  - scikit-learn==1.5.0
-  - scipy==1.17.1
-  - sympy==1.14.0
-  - threadpoolctl==3.6.0
-  - tifffile==2026.5.2
-  - torch==2.8.0
-  - zstandard==0.25.0
-
---------------------------------------------------------------------------------
-Dependencies under the BSD 2-Clause License
---------------------------------------------------------------------------------
-
-Python packages:
-  - imageio==2.37.3
-  - praw==7.6.1
-  - prawcore==2.4.0
-  - pybase64==1.3.2
-  - pygments==2.20.0
-  - update-checker==0.18.0
-  - wrapt==1.17.3
-
---------------------------------------------------------------------------------
-Dependencies under the Mozilla Public License, Version 2.0
---------------------------------------------------------------------------------
-
-Python packages:
-  - bidict==0.22.0
-  - certifi==2026.4.22
-  - tqdm==4.67.3
-
---------------------------------------------------------------------------------
-Dependencies under the Python Software Foundation License
---------------------------------------------------------------------------------
-
-Python packages:
-  - aiohappyeyeballs==2.6.1
-  - matplotlib==3.10.9
-  - typing-extensions==4.14.1
-
---------------------------------------------------------------------------------
-Dependencies under the MIT-CMU License
---------------------------------------------------------------------------------
-
-Python packages:
-  - pillow==12.1.1
-
-Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
-files that apply to their specific contents; those files continue to govern
-the use of those components.
