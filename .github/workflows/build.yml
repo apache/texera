@@ -131,7 +131,6 @@ jobs:
     # and tests for the platform services live in the `platform` matrix
     # below. License-binary checks are scoped to the amber dist.
     if: ${{ inputs.run_amber }}
-    name: ${{ format('amber{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
