@@ -271,6 +271,36 @@ jobs:
             done
             endgroup
 
+            # Write a condensed markdown summary for the failure PR comment.
+            # Caps: 5 files, 10 prerequisite commits total — keep PR
+            # comments scannable; the full detail is in the job log above.
+            diagnosis_file="${RUNNER_TEMP:-/tmp}/backport-diagnosis.md"
+            {
+              echo "**Conflicts in:**"
+              num=0
+              for f in ${conflicts}; do
+                if [[ ${num} -lt 5 ]]; then
+                  printf -- '- `%s`\n' "${f}"
+                fi
+                num=$((num + 1))
+              done
+              if [[ ${num} -gt 5 ]]; then
+                printf -- '- _(+%d more)_\n' "$((num - 5))"
+              fi
+              if [[ -n "${merge_base}" ]]; then
+                echo
+                echo "**Likely-missing prerequisites on main** (commits that touched these files between merge-base \`${merge_base:0:8}\` and \`${MERGE_SHA:0:8}^\` — consider backporting these first):"
+                {
+                  for f in ${conflicts}; do
+                    git log --oneline --no-merges "${merge_base}..${MERGE_SHA}^" -- "${f}" || true
+                  done
+                } | sort -u | head -10 | while IFS= read -r line; do
+                  [[ -n "${line}" ]] && printf -- '- `%s`\n' "${line}"
+                done
+              fi
+            } > "${diagnosis_file}"
+            log "Wrote diagnosis summary to ${diagnosis_file}"
+
             echo "::error::Cherry-pick of ${MERGE_SHA} onto ${TARGET_BRANCH} hit conflicts. See 'Conflict diagnosis' group above for likely-missing prerequisite commits and per-file conflict markers."
             exit 1
           fi
@@ -330,6 +360,30 @@ jobs:
                 git log --oneline --no-merges "${old_remote_head}..${remote_head}" -- "${f}" | head -20 || true
               done
               endgroup
+
+              diagnosis_file="${RUNNER_TEMP:-/tmp}/backport-diagnosis.md"
+              {
+                printf -- '**Rebase conflict during push** — another commit landed on `%s` between the start of this run and the push attempt.\n\n' "${TARGET_BRANCH}"
+                echo "**Conflicts in:**"
+                num=0
+                for f in ${conflicts}; do
+                  if [[ ${num} -lt 5 ]]; then
+                    printf -- '- `%s`\n' "${f}"
+                  fi
+                  num=$((num + 1))
+                done
+                if [[ ${num} -gt 5 ]]; then
+                  printf -- '- _(+%d more)_\n' "$((num - 5))"
+                fi
+                echo
+                printf -- '**Racing commits on `%s`** (`%s..%s`):\n' \
+                  "${TARGET_BRANCH}" "${old_remote_head:0:8}" "${remote_head:0:8}"
+                git log --oneline --no-merges "${old_remote_head}..${remote_head}" | head -10 | while IFS= read -r line; do
+                  [[ -n "${line}" ]] && printf -- '- `%s`\n' "${line}"
+                done
+              } > "${diagnosis_file}"
+              log "Wrote diagnosis summary to ${diagnosis_file}"
+
               git rebase --abort || true
               echo "::error::Rebase onto refreshed origin/${TARGET_BRANCH} hit a conflict; another commit changed the same lines. See 'Rebase conflict diagnosis' group for the racing commits."
               exit 1
@@ -528,15 +582,36 @@ jobs:
               }),
             );
 
+            // Pick up the markdown diagnosis the bash step wrote on
+            // conflict (cherry-pick or rebase). Missing file just means
+            // the failure happened elsewhere (e.g. push 5xx after retries,
+            // permissions) — we still post the basic comment.
+            const fs = require("fs");
+            const diagPath =
+              `${process.env.RUNNER_TEMP || "/tmp"}/backport-diagnosis.md`;
+            let diagnosis = "";
+            try {
+              diagnosis = fs.readFileSync(diagPath, "utf8").trim();
+              if (diagnosis) {
+                core.info(`Found diagnosis at ${diagPath} (${diagnosis.length} chars)`);
+              }
+            } catch (e) {
+              core.info(
+                `No diagnosis file at ${diagPath} (${e.code}) — failure likely not a conflict.`,
+              );
+            }
+
             if (PR_NUMBER) {
+              const head =
+                `Backport to \`${TARGET_BRANCH}\` failed. ` +
+                `See [job log](${jobUrl}).`;
+              const body = diagnosis ? `${head}\n\n${diagnosis}` : head;
               await withRetry("createPRComment", () =>
                 github.rest.issues.createComment({
                   owner,
                   repo,
                   issue_number: Number(PR_NUMBER),
-                  body:
-                    `Backport to \`${TARGET_BRANCH}\` failed. ` +
-                    `See [job log](${jobUrl}).`,
+                  body,
                 }),
               );
             } else {
