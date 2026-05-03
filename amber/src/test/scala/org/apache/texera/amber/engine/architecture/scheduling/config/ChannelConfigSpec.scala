@@ -24,7 +24,6 @@ import org.apache.texera.amber.core.workflow.{
   BroadcastPartition,
   HashPartition,
   OneToOnePartition,
-  PartitionInfo,
   PortIdentity,
   RangePartition,
   SinglePartition,
@@ -87,7 +86,7 @@ class ChannelConfigSpec extends AnyFlatSpec with Matchers {
       List(w1),
       List(u1, u2),
       port,
-      RangePartition(List("k"), 0L, 100L).asInstanceOf[PartitionInfo]
+      RangePartition(List("k"), 0L, 100L)
     )
     endpoints(out) shouldBe List(("w1", "u1"), ("w1", "u2"))
   }
@@ -164,7 +163,11 @@ class ChannelConfigSpec extends AnyFlatSpec with Matchers {
 
   // ----- empty inputs -----
 
-  it should "return an empty list when fromWorkerIds is empty (cross-product arm)" in {
+  // The previous block ended with `"OneToOnePartition" should ...`, so switch
+  // back to `generateChannelConfigs` here. Otherwise the empty-input cases
+  // (which exercise Hash/Broadcast arms too) and the toPortId test below
+  // would be reported as `"OneToOnePartition" should ...`.
+  "generateChannelConfigs" should "return an empty list when fromWorkerIds is empty (cross-product arm)" in {
     val out = ChannelConfig.generateChannelConfigs(
       Nil,
       List(u1, u2),
