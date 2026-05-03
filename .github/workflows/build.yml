@@ -324,20 +324,16 @@ jobs:
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Lint and run amber integration tests
+      - name: Run amber integration tests
         # IntegrationTest is a separate sbt configuration scoped to
-        # amber/src/test/integration (see build.sbt). Tasks under this
-        # config naturally only see the integration sources, so:
-        #   - scalafmtCheck / scalafix --check lint integration only,
-        #     covering integration-only PRs that bypass the engine
-        #     label and therefore the amber job's cross-cutting lint;
-        #   - test runs only the @IntegrationTest-tagged specs.
-        # Single sbt invocation so the JVM starts once. No jacoco —
-        # these specs exercise code paths already covered by amber's
-        # unit-test coverage.
-        run: |
-          sbt "WorkflowExecutionService/IntegrationTest/scalafmtCheck" \
-              "WorkflowExecutionService/IntegrationTest/test"
+        # amber/src/test/integration (see build.sbt). Test runs the
+        # specs under that path. No jacoco — these specs exercise
+        # code paths already covered by amber's unit-test coverage.
+        # Lint is not run here: sbt-scalafmt and sbt-scalafix don't
+        # expose a public hook to install their tasks into a custom
+        # configuration, and the integration source tree is small
+        # enough for manual review.
+        run: sbt "WorkflowExecutionService/IntegrationTest/test"
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala

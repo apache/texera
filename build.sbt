@@ -126,12 +126,15 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
   .configs(IntegrationTest)
   .settings(inConfig(IntegrationTest)(Defaults.testSettings))
-  .settings(inConfig(IntegrationTest)(org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings))
-  // sbt-scalafix's `perConfigSettings` is private[sbt-scalafix], so
-  // there is no clean public hook to wire scalafix into the
-  // IntegrationTest config. The integration source tree is small
-  // and reviewed manually; the cross-cutting `scalafixAll --check`
-  // in amber's job covers every other module.
+  // Neither sbt-scalafmt nor sbt-scalafix exposes a clean public hook
+  // (`perConfigSettings`) to install scalafmt/scalafix tasks into a
+  // user-defined configuration: scalafmt's `scalafmtConfigSettings`
+  // exists on the object but does not register `scalafmtCheck` into a
+  // custom config when applied via `inConfig`, and scalafix's helper
+  // is `private`. The integration source tree is small and reviewed
+  // manually; the cross-cutting `scalafmtCheckAll` /
+  // `scalafixAll --check` in amber's job continue to cover every
+  // module under Compile + Test.
   .settings(
     IntegrationTest / unmanagedSourceDirectories := Seq(
       baseDirectory.value / "src" / "test" / "integration"
