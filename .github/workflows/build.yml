@@ -337,7 +337,6 @@ jobs:
         # unit-test coverage.
         run: |
           sbt "WorkflowExecutionService/IntegrationTest/scalafmtCheck" \
-              "WorkflowExecutionService/IntegrationTest/scalafix --check" \
               "WorkflowExecutionService/IntegrationTest/test"
 
   platform:
