@@ -15,16 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from core.models import State, StateFrame, Tuple
+from core.models.internal_queue import DataElement
 from core.models.schema import Schema
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
-from proto.org.apache.texera.amber.core import ActorVirtualIdentity
+from proto.org.apache.texera.amber.core import (
+    ActorVirtualIdentity,
+    ChannelIdentity,
+)
 
 
 class TestEmitStateWithFilter:
@@ -95,3 +99,92 @@ class TestEmitStateWithFilter:
         runnable.partitioner.flush_state.return_value = []
 
         assert list(runnable.emit_state_with_filter(state)) == []
+
+
+class TestRunStateReadingBlock:
+    """Cover the inner try-block in run() that opens the state document and
+    emits its rows as StateFrames.
+    """
+
+    @pytest.fixture
+    def me(self):
+        return ActorVirtualIdentity(name="me")
+
+    @pytest.fixture
+    def runnable(self, me):
+        instance = InputPortMaterializationReaderRunnable.__new__(
+            InputPortMaterializationReaderRunnable
+        )
+        instance.uri = "vfs:///wf/0/exec/0/result/op-a"
+        instance.worker_actor_id = me
+        instance.tuple_schema = Schema(raw_schema={"x": "INTEGER"})
+        instance._stopped = False
+        instance._finished = False
+        instance.channel_id = ChannelIdentity(me, me, is_control=False)
+        instance.queue = MagicMock()
+        instance.partitioner = MagicMock()
+        # No tuple-batches and no ECM-flush payloads in these tests.
+        instance.partitioner.flush.return_value = []
+        return instance
+
+    def test_state_rows_are_emitted_as_state_frames(self, runnable, me):
+        state_a = State({"loop_counter": 0})
+        state_b = State({"loop_counter": 1})
+
+        # The state document yields opaque tuples; from_tuple deserializes
+        # them. Patch from_tuple so we don't have to wire a real serialization.
+        result_doc = MagicMock()
+        result_doc.get.return_value = iter([])  # No materialized tuples.
+        state_doc = MagicMock()
+        state_doc.get.return_value = iter(["row-a", "row-b"])
+
+        with (
+            patch(
+                "core.storage.runnables.input_port_materialization_reader_runnable.DocumentFactory"
+            ) as mock_factory,
+            patch.object(State, "from_tuple") as mock_from_tuple,
+        ):
+            mock_factory.open_document.side_effect = [
+                (result_doc, runnable.tuple_schema),
+                (state_doc, None),
+            ]
+            mock_from_tuple.side_effect = [state_a, state_b]
+            runnable.partitioner.flush_state.side_effect = [
+                [(me, state_a)],
+                [(me, state_b)],
+            ]
+
+            runnable.run()
+
+        # Two StateFrames must have been put on the queue, in order.
+        state_frames = [
+            call.args[0]
+            for call in runnable.queue.put.call_args_list
+            if isinstance(call.args[0], DataElement)
+            and isinstance(call.args[0].payload, StateFrame)
+        ]
+        assert [sf.payload.frame for sf in state_frames] == [state_a, state_b]
+        assert runnable._finished is True
+
+    def test_missing_state_document_does_not_abort_run(self, runnable):
+        # The inner try is meant to swallow ValueError when no state document
+        # is provisioned; the outer run() should still finish cleanly.
+        result_doc = MagicMock()
+        result_doc.get.return_value = iter([])
+
+        with patch(
+            "core.storage.runnables.input_port_materialization_reader_runnable.DocumentFactory"
+        ) as mock_factory:
+            mock_factory.open_document.side_effect = [
+                (result_doc, runnable.tuple_schema),
+                ValueError("no storage"),
+            ]
+
+            runnable.run()
+
+        assert runnable._finished is True
+        # No StateFrames should have been emitted.
+        for call in runnable.queue.put.call_args_list:
+            element = call.args[0]
+            if isinstance(element, DataElement):
+                assert not isinstance(element.payload, StateFrame)
