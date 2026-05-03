@@ -204,11 +204,18 @@ jobs:
         run: |
           set -euo pipefail
 
+          log() { printf '[backport %s] %s\n' "${TARGET_BRANCH}" "$*"; }
+          group() { printf '::group::%s\n' "$*"; }
+          endgroup() { printf '::endgroup::\n'; }
+
+          group "Validate merge commit ${MERGE_SHA}"
           parent_count=$(git rev-list --parents -n 1 "${MERGE_SHA}" | awk '{print NF-1}')
+          log "parent_count=${parent_count}"
           if [[ "${parent_count}" -ne 1 ]]; then
-            echo "Direct backport expects a squash-merged commit on main. ${MERGE_SHA} has ${parent_count} parents." >&2
+            echo "::error::Direct backport expects a squash-merged commit on main. ${MERGE_SHA} has ${parent_count} parents."
             exit 1
           fi
+          endgroup
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -219,21 +226,72 @@ jobs:
           # (the original PR author for squash merges).
           original_author=$(git log -1 --format='%an <%ae>' "${MERGE_SHA}")
           merge_message=$(git log -1 --format=%B "${MERGE_SHA}")
+          log "original_author=${original_author}"
 
+          group "Cherry-pick onto ${TARGET_BRANCH}"
           git fetch --no-tags origin "${TARGET_BRANCH}"
           git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
-          git cherry-pick --no-commit "${MERGE_SHA}"
+          base_sha=$(git rev-parse HEAD)
+          log "base_sha=${base_sha}"
+          if ! git cherry-pick --no-commit "${MERGE_SHA}"; then
+            echo "::error::Cherry-pick of ${MERGE_SHA} onto ${TARGET_BRANCH} hit a conflict; manual backport required."
+            git status --short || true
+            exit 1
+          fi
+          endgroup
 
+          group "Compose backport commit message"
           new_message=$(
             printf '%s' "${merge_message}" \
               | python3 .github/scripts/compose-backport-message.py "${MERGE_SHA}"
           )
-
           printf '%s\n' "${new_message}" | git commit -F - --author="${original_author}"
+          log "local_sha=$(git rev-parse HEAD)"
+          endgroup
 
-          git push origin "HEAD:${TARGET_BRANCH}"
+          # Push with retry. Transient failures (network, GitHub 5xx) are pure
+          # backoff. Non-fast-forward (race with another push to the same
+          # release branch) refreshes origin/<target> and rebases this single
+          # cherry-pick on top before retrying.
+          push_attempts=5
+          push_backoffs=(0 5 15 30 60)
+          push_success=0
+          for i in $(seq 0 $((push_attempts - 1))); do
+            if [[ "${push_backoffs[i]}" -gt 0 ]]; then
+              log "Push attempt $((i + 1))/${push_attempts}: sleeping ${push_backoffs[i]}s"
+              sleep "${push_backoffs[i]}"
+            fi
+            group "Push attempt $((i + 1))/${push_attempts}"
+            if git push origin "HEAD:${TARGET_BRANCH}" 2>&1; then
+              push_success=1
+              endgroup
+              break
+            fi
+            push_rc=$?
+            log "git push exit code=${push_rc}"
+            endgroup
+
+            # Refresh origin and rebase before retrying. If the remote did not
+            # advance, this is a no-op rebase and the next push will likely
+            # hit the same transient error — backoff handles that.
+            log "Refreshing origin/${TARGET_BRANCH} before retry"
+            git fetch --no-tags origin "${TARGET_BRANCH}"
+            remote_head=$(git rev-parse "origin/${TARGET_BRANCH}")
+            log "origin/${TARGET_BRANCH}=${remote_head}"
+            if ! git rebase "origin/${TARGET_BRANCH}"; then
+              git rebase --abort || true
+              echo "::error::Rebase onto refreshed origin/${TARGET_BRANCH} hit a conflict; another commit changed the same lines. Manual backport required."
+              exit 1
+            fi
+          done
+
+          if [[ "${push_success}" -ne 1 ]]; then
+            echo "::error::git push to ${TARGET_BRANCH} failed after ${push_attempts} attempts"
+            exit 1
+          fi
 
           new_sha=$(git rev-parse HEAD)
+          log "new_sha=${new_sha}"
           echo "new_sha=${new_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Annotate original PR and commit on success
@@ -255,6 +313,41 @@ jobs:
             const branchUrl =
               `${context.serverUrl}/${owner}/${repo}/tree/${TARGET_BRANCH}`;
 
+            core.info(
+              `Annotating: merge_sha=${MERGE_SHA} new_sha=${NEW_SHA} ` +
+              `target=${TARGET_BRANCH} pr=${PR_NUMBER || '<unknown>'}`,
+            );
+
+            // Annotation API calls are best-effort: a transient 5xx shouldn't
+            // demote the whole job to failure when the cherry-pick itself
+            // succeeded. Each call gets a small bounded retry; if it still
+            // fails we log a warning and move on so the other annotations
+            // still get a chance to land.
+            const backoffsMs = [0, 2000, 5000, 15000];
+            async function withRetry(name, fn) {
+              for (let i = 0; i < backoffsMs.length; i++) {
+                if (backoffsMs[i] > 0) {
+                  core.info(
+                    `Retrying ${name} in ${backoffsMs[i] / 1000}s ` +
+                    `(attempt ${i + 1}/${backoffsMs.length}).`,
+                  );
+                  await new Promise((r) => setTimeout(r, backoffsMs[i]));
+                }
+                try {
+                  const out = await fn();
+                  core.info(`${name} ok.`);
+                  return out;
+                } catch (e) {
+                  const msg = `${name} failed (status ${e.status ?? '?'}): ${e.message}`;
+                  if (i === backoffsMs.length - 1) {
+                    core.warning(`${msg} — giving up.`);
+                    return null;
+                  }
+                  core.warning(`${msg} — will retry.`);
+                }
+              }
+            }
+
             // GitHub auto-derives the branch badges shown next to a commit
             // title from "branches that contain this commit". A cherry-pick
             // produces a different SHA than the main commit, so the release
@@ -264,36 +357,44 @@ jobs:
             //      same row as CI statuses on the commit and any PRs that
             //      reference it. target_url drops the user on the new commit.
             //   2. A commit comment with the same info, for richer detail.
-            await github.rest.repos.createCommitStatus({
-              owner,
-              repo,
-              sha: MERGE_SHA,
-              state: "success",
-              context: `backport/${TARGET_BRANCH}`,
-              description: `Backported as ${NEW_SHA.slice(0, 7)}`,
-              target_url: newCommitUrl,
-            });
-
-            await github.rest.repos.createCommitComment({
-              owner,
-              repo,
-              commit_sha: MERGE_SHA,
-              body:
-                `Backported to [\`${TARGET_BRANCH}\`](${branchUrl}) as ` +
-                `[\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
-                `[Run](${runUrl})`,
-            });
-
-            if (PR_NUMBER) {
-              await github.rest.issues.createComment({
+            await withRetry("createCommitStatus", () =>
+              github.rest.repos.createCommitStatus({
                 owner,
                 repo,
-                issue_number: Number(PR_NUMBER),
+                sha: MERGE_SHA,
+                state: "success",
+                context: `backport/${TARGET_BRANCH}`,
+                description: `Backported as ${NEW_SHA.slice(0, 7)}`,
+                target_url: newCommitUrl,
+              }),
+            );
+
+            await withRetry("createCommitComment", () =>
+              github.rest.repos.createCommitComment({
+                owner,
+                repo,
+                commit_sha: MERGE_SHA,
                 body:
-                  `Backport to [\`${TARGET_BRANCH}\`](${branchUrl}) succeeded ` +
-                  `as [\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
+                  `Backported to [\`${TARGET_BRANCH}\`](${branchUrl}) as ` +
+                  `[\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
                   `[Run](${runUrl})`,
-              });
+              }),
+            );
+
+            if (PR_NUMBER) {
+              await withRetry("createPRComment", () =>
+                github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: Number(PR_NUMBER),
+                  body:
+                    `Backport to [\`${TARGET_BRANCH}\`](${branchUrl}) succeeded ` +
+                    `as [\`${NEW_SHA.slice(0, 7)}\`](${newCommitUrl}). ` +
+                    `[Run](${runUrl})`,
+                }),
+              );
+            } else {
+              core.info("No PR number resolved — skipping PR comment.");
             }
 
       - name: Annotate original PR and commit on failure
@@ -310,39 +411,83 @@ jobs:
             const runUrl =
               `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
 
+            core.info(
+              `Annotating failure: merge_sha=${MERGE_SHA} ` +
+              `target=${TARGET_BRANCH} pr=${PR_NUMBER || '<unknown>'}`,
+            );
+
+            const backoffsMs = [0, 2000, 5000, 15000];
+            async function withRetry(name, fn) {
+              for (let i = 0; i < backoffsMs.length; i++) {
+                if (backoffsMs[i] > 0) {
+                  core.info(
+                    `Retrying ${name} in ${backoffsMs[i] / 1000}s ` +
+                    `(attempt ${i + 1}/${backoffsMs.length}).`,
+                  );
+                  await new Promise((r) => setTimeout(r, backoffsMs[i]));
+                }
+                try {
+                  const out = await fn();
+                  core.info(`${name} ok.`);
+                  return out;
+                } catch (e) {
+                  const msg = `${name} failed (status ${e.status ?? '?'}): ${e.message}`;
+                  if (i === backoffsMs.length - 1) {
+                    core.warning(`${msg} — giving up.`);
+                    return null;
+                  }
+                  core.warning(`${msg} — will retry.`);
+                }
+              }
+            }
+
             // Find this matrix leg's job so the link drops the user directly
             // onto the failing log instead of the run summary.
             let jobUrl = runUrl;
-            try {
-              const jobs = await github.paginate(
-                github.rest.actions.listJobsForWorkflowRun,
-                { owner, repo, run_id: context.runId, per_page: 100 },
-              );
-              const me = jobs.find((j) =>
-                j.name.includes(`(${TARGET_BRANCH})`),
-              );
-              if (me?.html_url) jobUrl = me.html_url;
-            } catch (e) {
-              core.warning(`Could not resolve job URL: ${e.message}`);
-            }
-
-            await github.rest.repos.createCommitStatus({
-              owner,
-              repo,
-              sha: MERGE_SHA,
-              state: "failure",
-              context: `backport/${TARGET_BRANCH}`,
-              description: "Backport failed",
-              target_url: jobUrl,
-            });
-
-            if (PR_NUMBER) {
-              await github.rest.issues.createComment({
+            const jobs = await withRetry("listJobsForWorkflowRun", () =>
+              github.paginate(github.rest.actions.listJobsForWorkflowRun, {
                 owner,
                 repo,
-                issue_number: Number(PR_NUMBER),
-                body:
-                  `Backport to \`${TARGET_BRANCH}\` failed. ` +
-                  `See [job log](${jobUrl}).`,
-              });
+                run_id: context.runId,
+                per_page: 100,
+              }),
+            );
+            if (jobs) {
+              const me = jobs.find((j) => j.name.includes(`(${TARGET_BRANCH})`));
+              if (me?.html_url) {
+                jobUrl = me.html_url;
+                core.info(`Resolved job URL for matrix leg: ${jobUrl}`);
+              } else {
+                core.info(
+                  `No job matched name including "(${TARGET_BRANCH})"; ` +
+                  "falling back to run URL.",
+                );
+              }
+            }
+
+            await withRetry("createCommitStatus", () =>
+              github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: MERGE_SHA,
+                state: "failure",
+                context: `backport/${TARGET_BRANCH}`,
+                description: "Backport failed",
+                target_url: jobUrl,
+              }),
+            );
+
+            if (PR_NUMBER) {
+              await withRetry("createPRComment", () =>
+                github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: Number(PR_NUMBER),
+                  body:
+                    `Backport to \`${TARGET_BRANCH}\` failed. ` +
+                    `See [job log](${jobUrl}).`,
+                }),
+              );
+            } else {
+              core.info("No PR number resolved — skipping PR comment.");
             }
