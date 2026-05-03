@@ -17,6 +17,8 @@
  * under the License.
  */
 
+// TODO(vitest): done callbacks need rewrite to async/Promise pattern; these specs are skipped pending follow-up — tracked in #4861.
+
 // import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 // import { TestBed, inject, fakeAsync, tick, flush, discardPeriodicTasks } from "@angular/core/testing";
 // import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -69,7 +71,7 @@
 //   }));
 
 //   describe("preset I/O", () => {
-//     it("should emit an event when presets are applied", done => {
+//     it.skip("should emit an event when presets are applied", () => {
 //       presetService.applyPresetStream.subscribe(value => {
 //         expect(value).toEqual({ type: "testType", target: "testTarget", preset: { testPresetKey: "testPresetValue" } });
 //         done();
@@ -77,7 +79,7 @@
 //       presetService.applyPreset("testType", "testTarget", { testPresetKey: "testPresetValue" });
 //     });
 
-//     it("should emit an event when presets are saved", done => {
+//     it.skip("should emit an event when presets are saved", () => {
 //       presetService.savePresetsStream.subscribe(value => {
 //         expect(value).toEqual({
 //           type: "testType",
@@ -191,7 +193,7 @@
 //       const testDict: any = {};
 //       testDict[testPresetKey] = JSON.stringify(testPresets);
 
-//       spyOn(userDictionaryService, "forceGetUserDictionary").and.returnValue(testDict);
+//       vi.spyOn(userDictionaryService, "forceGetUserDictionary").mockReturnValue(testDict);
 
 //       presetService = new PresetService(
 //         userDictionaryService,
@@ -265,7 +267,7 @@
 //     });
 
 //     it("should reject an empty preset", () => {
-//       expect(presetService.isValidOperatorPreset({}, mockPresetEnabledPredicate.operatorID)).toBeFalse();
+//       expect(presetService.isValidOperatorPreset({}, mockPresetEnabledPredicate.operatorID)).toBe(false);
 //     });
 
 //     it("should reject preset with the wrong properties", () => {
@@ -274,13 +276,13 @@
 //           { wrongProperty: "wrongpropertyPreset" },
 //           mockPresetEnabledPredicate.operatorID
 //         )
-//       ).toBeFalse();
+//       ).toBe(false);
 //     });
 
 //     it("should reject preset with empty properties", () => {
 //       expect(
 //         presetService.isValidOperatorPreset({ presetProperty: "" }, mockPresetEnabledPredicate.operatorID)
-//       ).toBeFalse();
+//       ).toBe(false);
 //     });
 
 //     it("should accept a properly formatted preset", () => {
@@ -289,29 +291,29 @@
 //           { presetProperty: "presetHasBeenApplied" },
 //           mockPresetEnabledPredicate.operatorID
 //         )
-//       ).toBeTrue();
+//       ).toBe(true);
 //     });
 
 //     it("should reject new presets if they already exist", () => {
-//       spyOn(presetService, "getPresets").and.returnValue([{ presetProperty: "presetHasBeenApplied" }]);
+//       vi.spyOn(presetService, "getPresets").mockReturnValue([{ presetProperty: "presetHasBeenApplied" }]);
 
 //       expect(
 //         presetService.isValidNewOperatorPreset(
 //           { presetProperty: "presetHasBeenApplied" },
 //           mockPresetEnabledPredicate.operatorID
 //         )
-//       ).toBeFalse();
+//       ).toBe(false);
 //     });
 
 //     it("should accept new presets if they are novel", () => {
-//       spyOn(presetService, "getPresets").and.returnValue([{ presetProperty: "presetHasBeenApplied" }]);
+//       vi.spyOn(presetService, "getPresets").mockReturnValue([{ presetProperty: "presetHasBeenApplied" }]);
 
 //       expect(
 //         presetService.isValidNewOperatorPreset(
 //           { presetProperty: "alternatePreset" },
 //           mockPresetEnabledPredicate.operatorID
 //         )
-//       ).toBeTrue();
+//       ).toBe(true);
 //     });
 //   });
 

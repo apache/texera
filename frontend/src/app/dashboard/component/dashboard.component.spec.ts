@@ -36,6 +36,7 @@ import {
   Router,
   UrlSegment,
 } from "@angular/router";
+import type { Mock } from "vitest";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../common/testing/test-utils";
 
@@ -70,24 +71,24 @@ describe("DashboardComponent", () => {
 
   beforeEach(async () => {
     userServiceMock = {
-      isAdmin: jasmine.createSpy("isAdmin").and.returnValue(false),
-      isLogin: jasmine.createSpy("isLogin").and.returnValue(false),
-      userChanged: jasmine.createSpy("userChanged").and.returnValue(of(null)),
+      isAdmin: vi.fn().mockReturnValue(false),
+      isLogin: vi.fn().mockReturnValue(false),
+      userChanged: vi.fn().mockReturnValue(of(null)),
     };
 
     routerMock = {
       events: of(new NavigationEnd(1, "/dashboard", "/dashboard")),
       url: "/dashboard",
-      navigateByUrl: jasmine.createSpy("navigateByUrl"),
+      navigateByUrl: vi.fn(),
     };
 
     flarumServiceMock = {
-      auth: jasmine.createSpy("auth").and.returnValue(of({ token: "dummyToken" })),
-      register: jasmine.createSpy("register").and.returnValue(of(null)),
+      auth: vi.fn().mockReturnValue(of({ token: "dummyToken" })),
+      register: vi.fn().mockReturnValue(of(null)),
     };
 
     cdrMock = {
-      detectChanges: jasmine.createSpy("detectChanges"),
+      detectChanges: vi.fn(),
     };
 
     ngZoneMock = {
@@ -139,7 +140,7 @@ describe("DashboardComponent", () => {
   });
 
   it("should render Google sign-in button when user is NOT logged in", () => {
-    (userServiceMock.isLogin as jasmine.Spy).and.returnValue(false);
+    (userServiceMock.isLogin as Mock).mockReturnValue(false);
     fixture.detectChanges();
 
     const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));

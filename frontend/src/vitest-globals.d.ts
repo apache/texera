@@ -17,9 +17,8 @@
  * under the License.
  */
 
-describe("WorkflowExecutionsService", () => {
-  // This spec was created without test bodies. The placeholder below keeps
-  // Vitest's discovery happy so the file compiles cleanly; real tests for
-  // WorkflowExecutionsService are tracked in #4861.
-  it.todo("add unit tests for WorkflowExecutionsService");
-});
+// Pulls in Vitest's global typings (describe/it/expect/vi/etc.) for spec
+// files. Used instead of `"types": ["vitest/globals"]` in tsconfig.spec.json
+// because the parent tsconfig pins typeRoots to `node_modules/@types`, and
+// Vitest publishes its types from its own package — not via DefinitelyTyped.
+/// <reference types="vitest/globals" />

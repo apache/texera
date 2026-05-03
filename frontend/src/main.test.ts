@@ -17,9 +17,12 @@
  * under the License.
  */
 
-describe("WorkflowExecutionsService", () => {
-  // This spec was created without test bodies. The placeholder below keeps
-  // Vitest's discovery happy so the file compiles cleanly; real tests for
-  // WorkflowExecutionsService are tracked in #4861.
-  it.todo("add unit tests for WorkflowExecutionsService");
-});
+// Minimal entry for the test-only build configuration. The unit-test
+// builder uses the buildTarget's `main` to seed the bundle graph; pointing
+// it at the real `main.ts` pulls AppModule (and every component declared
+// there) into the spec compile, surfacing template type-check failures
+// for components that no active spec actually references. This stub
+// keeps the bundle graph minimal so only the modules each spec imports
+// directly get compiled. Tests' Angular setup is provided by the unit-test
+// builder itself (TestBed init).
+export {};

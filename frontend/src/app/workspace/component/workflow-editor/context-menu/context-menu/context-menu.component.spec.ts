@@ -34,63 +34,54 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { commonTestProviders } from "../../../../../common/testing/test-utils"; // Import NzModalModule and NzModalService
-
+import type { Mocked } from "vitest";
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
   let fixture: ComponentFixture<ContextMenuComponent>;
-  let workflowActionService: jasmine.SpyObj<WorkflowActionService>;
-  let workflowResultService: jasmine.SpyObj<WorkflowResultService>;
-  let workflowResultExportService: jasmine.SpyObj<WorkflowResultExportService>;
+  let workflowActionService: Mocked<WorkflowActionService>;
+  let workflowResultService: Mocked<WorkflowResultService>;
+  let workflowResultExportService: Mocked<WorkflowResultExportService>;
   let operatorMenuService: any; // We'll define this more precisely below
-  let jointGraphWrapperSpy: jasmine.SpyObj<any>;
-  let validationWorkflowService: jasmine.SpyObj<ValidationWorkflowService>;
+  let jointGraphWrapperSpy: any;
+  let validationWorkflowService: Mocked<ValidationWorkflowService>;
 
   beforeEach(async () => {
     // Create spies for the services
-    jointGraphWrapperSpy = jasmine.createSpyObj("JointGraphWrapper", [
-      "getCurrentHighlightedOperatorIDs",
-      "getCurrentHighlightedCommentBoxIDs",
-      "getCurrentHighlightedLinkIDs",
-    ]);
+    jointGraphWrapperSpy = {
+      getCurrentHighlightedOperatorIDs: vi.fn(),
+      getCurrentHighlightedCommentBoxIDs: vi.fn(),
+      getCurrentHighlightedLinkIDs: vi.fn(),
+    };
 
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
-    jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.and.returnValue([]);
-    jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.and.returnValue([]);
+    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
+    jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.mockReturnValue([]);
+    jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.mockReturnValue([]);
 
-    const texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", [
-      "isOperatorDisabled",
-      "hasLinkWithID",
-      "bundleActions",
-    ]);
+    const texeraGraphSpy = { isOperatorDisabled: vi.fn(), hasLinkWithID: vi.fn(), bundleActions: vi.fn() };
 
-    const workflowActionServiceSpy = jasmine.createSpyObj("WorkflowActionService", [
-      "getJointGraphWrapper",
-      "getWorkflowModificationEnabledStream",
-      "deleteOperatorsAndLinks",
-      "deleteCommentBox",
-      "getWorkflowMetadata", // Add this if used in the component
-      "getTexeraGraph",
-      "deleteLinkWithID",
-    ]);
-    workflowActionServiceSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
-    workflowActionServiceSpy.getWorkflowModificationEnabledStream.and.returnValue(of(true));
-    workflowActionServiceSpy.getTexeraGraph.and.returnValue(texeraGraphSpy);
-    workflowActionServiceSpy.deleteOperatorsAndLinks.and.returnValue();
-    workflowActionServiceSpy.deleteCommentBox.and.returnValue();
-    workflowActionServiceSpy.deleteLinkWithID.and.returnValue();
-    workflowActionServiceSpy.getWorkflowMetadata.and.returnValue({ name: "Test Workflow" }); // Mock return value
+    const workflowActionServiceSpy = {
+      getJointGraphWrapper: vi.fn(),
+      getWorkflowModificationEnabledStream: vi.fn(),
+      deleteOperatorsAndLinks: vi.fn(),
+      deleteCommentBox: vi.fn(),
+      getWorkflowMetadata: vi.fn(),
+      getTexeraGraph: vi.fn(),
+      deleteLinkWithID: vi.fn(),
+    };
+    workflowActionServiceSpy.getJointGraphWrapper.mockReturnValue(jointGraphWrapperSpy);
+    workflowActionServiceSpy.getWorkflowModificationEnabledStream.mockReturnValue(of(true));
+    workflowActionServiceSpy.getTexeraGraph.mockReturnValue(texeraGraphSpy);
+    workflowActionServiceSpy.deleteOperatorsAndLinks.mockReturnValue();
+    workflowActionServiceSpy.deleteCommentBox.mockReturnValue();
+    workflowActionServiceSpy.deleteLinkWithID.mockReturnValue();
+    workflowActionServiceSpy.getWorkflowMetadata.mockReturnValue({ name: "Test Workflow" }); // Mock return value
 
     // Set up TexeraGraph spy return values
-    texeraGraphSpy.hasLinkWithID.and.returnValue(false);
-    texeraGraphSpy.bundleActions.and.callFake((callback: Function) => callback());
+    texeraGraphSpy.hasLinkWithID.mockReturnValue(false);
+    texeraGraphSpy.bundleActions.mockImplementation((callback: Function) => callback());
 
-    const workflowResultServiceSpy = jasmine.createSpyObj("WorkflowResultService", [
-      "getResultService",
-      "hasAnyResult",
-    ]);
-    const workflowResultExportServiceSpy = jasmine.createSpyObj("WorkflowResultExportService", [
-      "exportOperatorsResultAsFile",
-    ]);
+    const workflowResultServiceSpy = { getResultService: vi.fn(), hasAnyResult: vi.fn() };
+    const workflowResultExportServiceSpy = { exportOperatorsResultAsFile: vi.fn() };
 
     // Create a mock for OperatorMenuService with necessary properties and methods
     operatorMenuService = {
@@ -102,15 +93,15 @@ describe("ContextMenuComponent", () => {
       isToViewResultClickable: false,
       isMarkForReuse: false,
       isReuseResultClickable: false,
-      saveHighlightedElements: jasmine.createSpy("saveHighlightedElements"),
-      performPasteOperation: jasmine.createSpy("performPasteOperation"),
-      disableHighlightedOperators: jasmine.createSpy("disableHighlightedOperators"),
-      viewResultHighlightedOperators: jasmine.createSpy("viewResultHighlightedOperators"),
-      reuseResultHighlightedOperator: jasmine.createSpy("reuseResultHighlightedOperator"),
-      executeUpToOperator: jasmine.createSpy("executeUpToOperator"),
+      saveHighlightedElements: vi.fn(),
+      performPasteOperation: vi.fn(),
+      disableHighlightedOperators: vi.fn(),
+      viewResultHighlightedOperators: vi.fn(),
+      reuseResultHighlightedOperator: vi.fn(),
+      executeUpToOperator: vi.fn(),
     };
 
-    const validationWorkflowServiceSpy = jasmine.createSpyObj("ValidationWorkflowService", ["validateOperator"]);
+    const validationWorkflowServiceSpy = { validateOperator: vi.fn() };
 
     await TestBed.configureTestingModule({
       declarations: [ContextMenuComponent],
@@ -133,13 +124,15 @@ describe("ContextMenuComponent", () => {
       ],
     }).compileComponents();
 
-    workflowActionService = TestBed.inject(WorkflowActionService) as jasmine.SpyObj<WorkflowActionService>;
-    workflowResultService = TestBed.inject(WorkflowResultService) as jasmine.SpyObj<WorkflowResultService>;
+    workflowActionService = TestBed.inject(WorkflowActionService) as unknown as Mocked<WorkflowActionService>;
+    workflowResultService = TestBed.inject(WorkflowResultService) as unknown as Mocked<WorkflowResultService>;
     workflowResultExportService = TestBed.inject(
       WorkflowResultExportService
-    ) as jasmine.SpyObj<WorkflowResultExportService>;
+    ) as unknown as Mocked<WorkflowResultExportService>;
     // operatorMenuService is already assigned
-    validationWorkflowService = TestBed.inject(ValidationWorkflowService) as jasmine.SpyObj<ValidationWorkflowService>;
+    validationWorkflowService = TestBed.inject(
+      ValidationWorkflowService
+    ) as unknown as Mocked<ValidationWorkflowService>;
 
     fixture = TestBed.createComponent(ContextMenuComponent);
     component = fixture.componentInstance;
@@ -152,71 +145,71 @@ describe("ContextMenuComponent", () => {
 
   describe("isSelectedOperatorValid", () => {
     it("should return false when multiple operators are highlighted", () => {
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1", "op2"]);
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1", "op2"]);
       component.isWorkflowModifiable = true;
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
     });
 
     it("should return false when no operators are highlighted", () => {
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
       component.isWorkflowModifiable = true;
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
     });
 
     it("should return false when workflow is not modifiable", () => {
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1"]);
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
       component.isWorkflowModifiable = false;
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
     });
 
     it("should return true when single operator is highlighted, workflow is modifiable, and operator is valid", () => {
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1"]);
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
       component.isWorkflowModifiable = true;
-      validationWorkflowService.validateOperator.and.returnValue({ isValid: true });
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
 
-      expect(component.canExecuteOperator()).toBeTrue();
+      expect(component.canExecuteOperator()).toBe(true);
       expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
     });
 
     it("should return false when single operator is highlighted but operator is invalid", () => {
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1"]);
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
       component.isWorkflowModifiable = true;
-      validationWorkflowService.validateOperator.and.returnValue({ isValid: false, messages: {} });
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: false, messages: {} });
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
     });
   });
 
   describe("canExecuteOperator", () => {
-    let texeraGraphSpy: jasmine.SpyObj<any>;
+    let texeraGraphSpy: any;
 
     beforeEach(() => {
-      texeraGraphSpy = workflowActionService.getTexeraGraph() as jasmine.SpyObj<any>;
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1"]);
+      texeraGraphSpy = workflowActionService.getTexeraGraph() as any;
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
       component.isWorkflowModifiable = true;
-      validationWorkflowService.validateOperator.and.returnValue({ isValid: true });
-      texeraGraphSpy.isOperatorDisabled.and.returnValue(false);
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
+      texeraGraphSpy.isOperatorDisabled.mockReturnValue(false);
     });
 
     it("should return false when multiple operators are highlighted", () => {
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1", "op2"]);
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1", "op2"]);
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
       expect(texeraGraphSpy.isOperatorDisabled).not.toHaveBeenCalled();
     });
 
     it("should return false when no operators are highlighted", () => {
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
       expect(texeraGraphSpy.isOperatorDisabled).not.toHaveBeenCalled();
     });
@@ -224,42 +217,42 @@ describe("ContextMenuComponent", () => {
     it("should return false when workflow is not modifiable", () => {
       component.isWorkflowModifiable = false;
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
       expect(texeraGraphSpy.isOperatorDisabled).not.toHaveBeenCalled();
     });
 
     it("should return true when all conditions are met (valid, enabled, modifiable)", () => {
-      expect(component.canExecuteOperator()).toBeTrue();
+      expect(component.canExecuteOperator()).toBe(true);
       expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
       expect(texeraGraphSpy.isOperatorDisabled).toHaveBeenCalledWith("op1");
     });
 
     it("should return false when operator is invalid and not check disabled status", () => {
-      validationWorkflowService.validateOperator.and.returnValue({ isValid: false, messages: {} });
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: false, messages: {} });
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
       expect(texeraGraphSpy.isOperatorDisabled).not.toHaveBeenCalled();
     });
 
     it("should return false when operator is valid but disabled", () => {
-      validationWorkflowService.validateOperator.and.returnValue({ isValid: true });
-      texeraGraphSpy.isOperatorDisabled.and.returnValue(true);
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
+      texeraGraphSpy.isOperatorDisabled.mockReturnValue(true);
 
-      expect(component.canExecuteOperator()).toBeFalse();
+      expect(component.canExecuteOperator()).toBe(false);
       expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
       expect(texeraGraphSpy.isOperatorDisabled).toHaveBeenCalledWith("op1");
     });
 
     it("should check disabled status only for valid operators", () => {
       // First test with invalid operator
-      validationWorkflowService.validateOperator.and.returnValue({ isValid: false, messages: {} });
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: false, messages: {} });
       component.canExecuteOperator();
       expect(texeraGraphSpy.isOperatorDisabled).not.toHaveBeenCalled();
 
       // Then test with valid operator
-      validationWorkflowService.validateOperator.and.returnValue({ isValid: true });
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
       component.canExecuteOperator();
       expect(texeraGraphSpy.isOperatorDisabled).toHaveBeenCalledWith("op1");
     });

@@ -27,13 +27,12 @@ import * as Y from "yjs";
 import { BreakpointInfo } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
 describe("CodeDebuggerComponent", () => {
   let component: CodeDebuggerComponent;
   let fixture: ComponentFixture<CodeDebuggerComponent>;
 
-  let mockWorkflowStatusService: jasmine.SpyObj<WorkflowStatusService>;
-  let mockUdfDebugService: jasmine.SpyObj<UdfDebugService>;
+  let mockWorkflowStatusService: any;
+  let mockUdfDebugService: any;
 
   let statusUpdateStream: Subject<Record<string, OperatorStatistics>>;
   let debugState: Y.Map<BreakpointInfo>;
@@ -45,11 +44,11 @@ describe("CodeDebuggerComponent", () => {
     statusUpdateStream = new Subject<Record<string, OperatorStatistics>>();
     debugState = new Y.Map<BreakpointInfo>();
 
-    mockWorkflowStatusService = jasmine.createSpyObj("WorkflowStatusService", ["getStatusUpdateStream"]);
-    mockWorkflowStatusService.getStatusUpdateStream.and.returnValue(statusUpdateStream.asObservable());
+    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() };
+    mockWorkflowStatusService.getStatusUpdateStream.mockReturnValue(statusUpdateStream.asObservable());
 
-    mockUdfDebugService = jasmine.createSpyObj("UdfDebugService", ["getDebugState", "doModifyBreakpoint"]);
-    mockUdfDebugService.getDebugState.and.returnValue(debugState);
+    mockUdfDebugService = { getDebugState: vi.fn(), doModifyBreakpoint: vi.fn() };
+    mockUdfDebugService.getDebugState.mockReturnValue(debugState);
 
     await TestBed.configureTestingModule({
       declarations: [CodeDebuggerComponent],
@@ -66,7 +65,7 @@ describe("CodeDebuggerComponent", () => {
 
     // Set required input properties
     component.currentOperatorId = operatorId;
-    component.monacoEditor = jasmine.createSpyObj("monacoEditor", ["dispose"]);
+    component.monacoEditor = { dispose: vi.fn() };
 
     // Trigger change detection to ensure view updates
     fixture.detectChanges();
@@ -83,8 +82,8 @@ describe("CodeDebuggerComponent", () => {
   });
 
   it("should setup monaco breakpoint methods when state is Running", fakeAsync(() => {
-    const setupSpy = spyOn(component, "setupMonacoBreakpointMethods");
-    const rerenderSpy = spyOn(component, "rerenderExistingBreakpoints");
+    const setupSpy = vi.spyOn(component, "setupMonacoBreakpointMethods");
+    const rerenderSpy = vi.spyOn(component, "rerenderExistingBreakpoints");
 
     // Emit a Running state event
     statusUpdateStream.next({
@@ -156,7 +155,7 @@ describe("CodeDebuggerComponent", () => {
   }));
 
   it("should remove monaco breakpoint methods when state changes to Uninitialized", () => {
-    const removeSpy = spyOn(component, "removeMonacoBreakpointMethods");
+    const removeSpy = vi.spyOn(component, "removeMonacoBreakpointMethods");
 
     // Emit an Uninitialized state event
     statusUpdateStream.next({

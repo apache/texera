@@ -24,24 +24,23 @@ import { UserQuotaService } from "../../../service/user/quota/user-quota.service
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { of } from "rxjs";
-
 describe("UserQuotaComponent", () => {
   let component: UserQuotaComponent;
   let fixture: ComponentFixture<UserQuotaComponent>;
-  let mockUserQuotaService: jasmine.SpyObj<UserQuotaService>;
+  let mockUserQuotaService: any;
 
   beforeEach(() => {
-    mockUserQuotaService = jasmine.createSpyObj("UserQuotaService", [
-      "getCreatedDatasets",
-      "getCreatedWorkflows",
-      "getAccessWorkflows",
-      "getExecutionQuota",
-      "deleteExecutionCollection",
-    ]);
-    mockUserQuotaService.getCreatedDatasets.and.returnValue(of([]));
-    mockUserQuotaService.getCreatedWorkflows.and.returnValue(of([]));
-    mockUserQuotaService.getAccessWorkflows.and.returnValue(of([]));
-    mockUserQuotaService.getExecutionQuota.and.returnValue(of([]));
+    mockUserQuotaService = {
+      getCreatedDatasets: vi.fn(),
+      getCreatedWorkflows: vi.fn(),
+      getAccessWorkflows: vi.fn(),
+      getExecutionQuota: vi.fn(),
+      deleteExecutionCollection: vi.fn(),
+    };
+    mockUserQuotaService.getCreatedDatasets.mockReturnValue(of([]));
+    mockUserQuotaService.getCreatedWorkflows.mockReturnValue(of([]));
+    mockUserQuotaService.getAccessWorkflows.mockReturnValue(of([]));
+    mockUserQuotaService.getExecutionQuota.mockReturnValue(of([]));
 
     TestBed.configureTestingModule({
       declarations: [UserQuotaComponent],
