@@ -3,7 +3,7 @@
 ## Architecture Map
 
 Apache Texera: Scala/sbt backend services + the Amber workflow execution
-engine, an Angular UI, and helper TypeScript services. JVM modules wired in
+engine, an Angular UI, and the agent service. JVM modules wired in
 [`build.sbt`](build.sbt).
 
 | Area | Path | Detail |
@@ -124,8 +124,7 @@ issue (template + Type)  ->  PR (Closes #N, template)  ->  review  ->  merge
 - Reference the issue: `Closes #N` (or `Fixes` / `Resolves`, or "related to").
 - Issue titles are **plain prose**; never use the Conventional Commits
   format (`type(scope): ...`) — that prefix is for commit and PR titles only.
-- Task issues match `task-template.yaml` exactly: Task Summary + Task Type.
-  No priority / proposed step / code blocks.
+- Task issues match `task-template.yaml` exactly.
 - Prefer **tables** and small **ASCII diagrams** over long bullets. Don't
   restate the diff or the template.
 - For bugs, lead with **root cause** and a **before -> after** sketch:
@@ -161,9 +160,6 @@ Every test must cover:
   concurrency/order, missing or malformed config.
 - **Don't assume valid.** External input (user / API / file / message) must
   be tested with bad input.
-- Known bugs not fixed here: pin the buggy behavior with a comment **plus**
-  an `@pytest.mark.xfail(strict=True)` (or equivalent) test for the intended
-  contract.
 
 Don't claim "tested" without commands. Paste the exact `sbt testOnly` /
 `pytest` / `yarn test:ci` / `bun test` invocation under "How was this PR
