@@ -242,6 +242,38 @@ class TestLargeBinaryOutputStream:
             stream.close()
 
 
+class TestCleanupFailedUpload:
+    """Direct unit tests for _cleanup_failed_upload's silent-swallow path."""
+
+    @pytest.fixture
+    def large_binary(self):
+        return largebinary("s3://test-bucket/path/to/object")
+
+    def test_delete_object_failure_is_swallowed(self, large_binary):
+        # If the post-failure cleanup itself raises, the original upload
+        # IOError must still surface unmasked. Pinning this so a future
+        # change that propagates cleanup errors is intentional.
+        with (
+            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
+            patch.object(
+                large_binary_manager, "_ensure_bucket_exists"
+            ) as mock_ensure_bucket,
+        ):
+            mock_s3 = MagicMock()
+            mock_get_s3_client.return_value = mock_s3
+            mock_ensure_bucket.return_value = None
+            mock_s3.upload_fileobj.side_effect = Exception("upload failed")
+            mock_s3.delete_object.side_effect = Exception("delete also failed")
+
+            stream = LargeBinaryOutputStream(large_binary)
+            stream.write(b"data")
+            with pytest.raises(IOError, match="Failed to complete upload"):
+                stream.close()
+            mock_s3.delete_object.assert_called_once_with(
+                Bucket="test-bucket", Key="path/to/object"
+            )
+
+
 class TestQueueReader:
     """Direct unit tests for the private _QueueReader helper."""
 
