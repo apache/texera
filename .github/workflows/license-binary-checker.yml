@@ -17,46 +17,25 @@
 
 name: License Binary Checker
 
-# Scheduled (cron) drift checker for per-module LICENSE-binary files.
-#
-# PR builds run check_binary_deps.py with --ignore-transitive-version
-# (#4691, #4693) so a benign upstream version bump on a transitive dep
-# does not block merges. This workflow runs the same build.yml on a
-# daily cron with `mode: nightly`, exercising the strict exact-match
-# check on every ecosystem. On drift, it files (or updates / closes) a
-# single tracking issue identified by the stable label
-# `license-binary-drift`. Sub-task of #4688.
-#
-# Reusing build.yml (rather than duplicating its dist-producing steps)
-# guarantees PR and scheduled runs go through identical code paths —
-# the only difference between them is the value of one input.
+# Scheduled drift checker for per-module LICENSE-binary files. Calls
+# build.yml with mode=nightly (strict) and files / updates / closes
+# one tracking issue (label `license-binary-drift`). Sub-task of #4688.
 on:
   schedule:
-    # 11:00 UTC daily = 04:00 PDT / 03:00 PST. Picked so the run lands
-    # outside US-Pacific working hours; if that's still too frequent we
-    # can drop to every 48–72 h. GitHub cron is fixed UTC, so the local
-    # clock-time shifts by an hour at DST transitions.
+    # 11:00 UTC daily = 04:00 PDT / 03:00 PST.
     - cron: "0 11 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
-  # Required so the report job can create / update / close the tracking
-  # issue. The reusable build workflow does not need elevated permissions.
-  issues: write
-  # Needed for listJobsForWorkflowRun in the report step.
-  actions: read
+  issues: write          # create / update / close the tracking issue
+  actions: read          # listJobsForWorkflowRun in the report step
 
 concurrency:
   group: license-binary-checker
   cancel-in-progress: false
 
 jobs:
-  # Reuse the same build.yml that PRs go through; the only difference is
-  # mode: nightly, which flips every license-binary check from relaxed
-  # (`--ignore-transitive-version`) to strict exact-match. secrets:
-  # inherit so the called jobs keep access to NX_CLOUD_ACCESS_TOKEN,
-  # CODECOV_TOKEN, etc.
   build:
     uses: ./.github/workflows/build.yml
     with:
@@ -71,21 +50,11 @@ jobs:
       - name: File or update tracking issue
         uses: actions/github-script@v8
         with:
-          # Same pattern as .github/workflows/issue-triage.yml — the
-          # default GITHUB_TOKEN authors actions as `github-actions[bot]`,
-          # which becomes the issue creator. The `permissions:` block at
-          # the top of this workflow grants this token `issues: write`
-          # (for create/update/close + comment) and `actions: read` (for
-          # listJobsForWorkflowRun); no fine-grained PAT is needed.
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const TRACKING_LABEL = 'license-binary-drift';
             const TITLE = 'License-binary drift detected';
-
-            // The license-check step names in build.yml all contain either
-            // "LICENSE-binary" or "binary licenses". Match both forms,
-            // case-insensitively, and ignore non-license-related failures
-            // (flaky tests, network blips) so they don't surface as drift.
+            // Match license-check step names; ignore unrelated failures.
             const LICENSE_STEP_RE = /license[-\s]?binary|binary licenses/i;
 
             const { owner, repo } = context.repo;
@@ -122,15 +91,11 @@ jobs:
               `${licenseFailures.length} failed.`
             );
 
-            // Find the existing open tracking issue (stable label).
             const { data: existing } = await github.rest.issues.listForRepo({
               owner, repo, state: 'open', labels: TRACKING_LABEL, per_page: 5,
             });
 
-            // Only file / update / close issues for runs against the default
-            // branch. Manual workflow_dispatch runs against feature branches
-            // still exercise the build.yml strict-mode check (useful for
-            // testing locally) but should not surface tracking issues.
+            // Only manage issues for runs against the default branch.
             const defaultBranch = context.payload.repository.default_branch;
             const isDefaultBranch =
               context.ref === `refs/heads/${defaultBranch}` ||
@@ -164,35 +129,19 @@ jobs:
               return;
             }
 
-            // Build the issue body following the same Markdown shape that
-            // .github/ISSUE_TEMPLATE/task-template.yaml renders to when a
-            // human files a Task issue (### Task Summary, ### Task Type,
-            // Apache CoC footer). Per-ecosystem diffs aren't repeated
-            // here — clicking through to each failed job's logs gets the
-            // script's full output.
+            // Body shape mirrors ISSUE_TEMPLATE/task-template.yaml.
             const failureLines = licenseFailures.map(
-              (f) => `- ❌ \`${f.job}\` — ${f.step} — [view logs](${f.url})`
-            );
-            const successLines = licenseSuccesses.map(
-              (s) => `- ✅ \`${s.job}\` — ${s.step}`
+              (f) => `- \`${f.job}\` — ${f.step} ([logs](${f.url}))`
             );
             const body =
               `### Task Summary\n\n` +
-              `Strict license-binary check found drift on ` +
-              `\`${context.sha.slice(0, 7)}\`.\n\n` +
-              `Workflow run: ${runUrl}\n\n` +
-              `PR builds run \`build.yml\` with \`mode: PR\` so transitive ` +
-              `version bumps don't block merges; this scheduled job runs ` +
-              `the same \`build.yml\` with \`mode: nightly\` (strict ` +
-              `exact-match) and reports any drift here. To resolve drift, ` +
-              `refresh the relevant per-module \`LICENSE-binary\` file(s) ` +
-              `to match the bundled versions.\n\n` +
-              `#### License checks that failed\n\n` +
+              `License-binary drift on \`${context.sha.slice(0, 7)}\` ` +
+              `([run](${runUrl})).\n\n` +
+              `**Where:**\n\n` +
               failureLines.join('\n') +
-              (successLines.length > 0
-                ? `\n\n#### License checks that passed\n\n${successLines.join('\n')}`
-                : '') +
-              `\n\n### Task Type\n\n` +
+              `\n\n**How to resolve:** refresh the per-module ` +
+              `\`LICENSE-binary\` file(s) to match the bundled versions.\n\n` +
+              `### Task Type\n\n` +
               `- [ ] Refactor / Cleanup\n` +
               `- [x] DevOps / Deployment / CI\n` +
               `- [ ] Testing / QA\n` +
@@ -211,7 +160,6 @@ jobs:
                 title: TITLE, body,
               });
               core.info(`Updated tracking issue #${issue.number}`);
-              // Close any extras so we converge on a single tracking issue.
               for (const extra of existing.slice(1)) {
                 await github.rest.issues.update({
                   owner, repo, issue_number: extra.number,
@@ -222,9 +170,6 @@ jobs:
             } else {
               const { data: created } = await github.rest.issues.create({
                 owner, repo, title: TITLE, body,
-                // `triage` mirrors the default label that
-                // ISSUE_TEMPLATE/task-template.yaml applies; the other
-                // two are this workflow's stable identifier + ci scope.
                 labels: [TRACKING_LABEL, 'ci', 'triage'],
               });
               core.info(`Filed new tracking issue #${created.number}`);
