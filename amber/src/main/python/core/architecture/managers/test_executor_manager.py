@@ -330,19 +330,20 @@ class TestUpdateExecutor:
             assert key in after_dict, f"key {key!r} missing after update"
             assert after_dict[key] == value
 
-    def test_update_increments_executor_version_and_module_name(
-        self, initialized_manager
-    ):
-        # initialize_executor already produced udf-v1.
-        assert initialized_manager.executor_version == 1
-        assert initialized_manager.operator_module_name == "udf-v1"
+    def test_update_advances_module_name_monotonically(self, initialized_manager):
+        # The module-name counter is process-wide, so absolute values
+        # depend on prior tests in the same pytest session; only the
+        # relative bump matters.
+        before = initialized_manager.operator_module_name
+        assert before is not None and before.startswith("udf-v")
 
         initialized_manager.update_executor(
             code=REPLACEMENT_OPERATOR_CODE, is_source=False
         )
 
-        assert initialized_manager.executor_version == 2
-        assert initialized_manager.operator_module_name == "udf-v2"
+        after = initialized_manager.operator_module_name
+        assert after is not None and after.startswith("udf-v")
+        assert int(after.removeprefix("udf-v")) == int(before.removeprefix("udf-v")) + 1
 
     def test_update_with_source_mismatch_raises_assertion(self, initialized_manager):
         # The replacement code is a regular operator, but is_source=True asks
@@ -388,4 +389,3 @@ class TestUpdateExecutor:
 
         assert initialized_manager.executor.counter == 42
         assert initialized_manager.executor.added_after_update is True
-        assert initialized_manager.executor_version == 3
