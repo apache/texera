@@ -56,6 +56,12 @@ on:
         required: false
         type: boolean
         default: true
+      mode:
+        # PR (default) | nightly | release. Only "PR" passes
+        # --ignore-transitive-version to check_binary_deps.py.
+        required: false
+        type: string
+        default: PR
 
 env:
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -63,7 +69,6 @@ env:
 jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
-    name: ${{ format('frontend{0} ({1}, 18)', inputs.job_name_suffix, matrix.os) }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -76,7 +81,7 @@ jobs:
           - os: windows-latest
             arch: x64
         node-version:
-          - 20.19.0
+          - 24.10.0
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
@@ -113,7 +118,7 @@ jobs:
         run: yarn --cwd frontend run build:ci
       - name: Check bundled npm packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
-        run: ./bin/licensing/check_binary_deps.py --ignore-transitive-version npm frontend/dist/3rdpartylicenses.json
+        run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
         run: yarn --cwd frontend run test:ci --code-coverage
       - name: Upload frontend coverage to Codecov
@@ -132,7 +137,6 @@ jobs:
     # and tests for the platform services live in the `platform` matrix
     # below. License-binary checks are scoped to the amber dist.
     if: ${{ inputs.run_amber }}
-    name: ${{ format('amber{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -209,7 +213,7 @@ jobs:
           unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
 
           check_exit=0
-          ./bin/licensing/check_binary_deps.py --ignore-transitive-version jar \
+          ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} jar \
             --license-binary amber/LICENSE-binary-java \
             /tmp/dists/amber-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/amber-*/lib || true
@@ -330,7 +334,7 @@ jobs:
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
 
           check_exit=0
-          ./bin/licensing/check_binary_deps.py jar \
+          ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} jar \
             --license-binary ${{ matrix.service }}/LICENSE-binary \
             /tmp/dists/${{ matrix.service }}-*/lib || check_exit=$?
           ./bin/licensing/audit_jar_licenses.py /tmp/dists/${{ matrix.service }}-*/lib || true
@@ -348,7 +352,6 @@ jobs:
 
   python:
     if: ${{ inputs.run_python }}
-    name: ${{ format('python{0} ({1}, {2})', inputs.job_name_suffix, matrix.os, matrix.python-version) }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -379,6 +382,11 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Unit-test licensing scripts
+        # Stdlib only, no install needed. Runs on every matrix row (3.10 →
+        # 3.13) so the script's behavior is guarded across all supported
+        # Python versions before the license check itself runs (3.12 only).
+        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -390,7 +398,7 @@ jobs:
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
       - name: Check installed Python packages against per-module LICENSE-binary files
         if: matrix.python-version == '3.12'
-        run: ./bin/licensing/check_binary_deps.py --ignore-transitive-version python /tmp/pip-licenses.csv
+        run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} python /tmp/pip-licenses.csv
       - name: Create iceberg catalog database
         run: psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
         env:
@@ -451,7 +459,7 @@ jobs:
           bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
       - name: Check bundled agent-service packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
-        run: ../bin/licensing/check_binary_deps.py --ignore-transitive-version agent-npm dist/3rdpartylicenses.json
+        run: ../bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} agent-npm dist/3rdpartylicenses.json
       - name: Install development dependencies
         run: bun install --frozen-lockfile
       - name: Lint with Prettier
