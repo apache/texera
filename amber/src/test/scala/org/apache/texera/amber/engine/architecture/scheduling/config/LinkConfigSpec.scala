@@ -196,7 +196,11 @@ class LinkConfigSpec extends AnyFlatSpec with Matchers {
 
   // ----- empty inputs -----
 
-  it should "return empty channels when fromWorkerIds is empty (cross-product arm)" in {
+  // The previous block ended with a `"UnknownPartition" should ...` subject.
+  // Switch back to "toPartitioning" so test reports for the empty-input,
+  // batch-propagation, and unsupported-branch cases below don't get
+  // misattributed to UnknownPartition.
+  "toPartitioning" should "return empty channels when fromWorkerIds is empty (cross-product arm)" in {
     val out = LinkConfig.toPartitioning(
       Nil,
       List(u1, u2),
@@ -227,5 +231,23 @@ class LinkConfigSpec extends AnyFlatSpec with Matchers {
       customBatch
     )
     out.asInstanceOf[OneToOnePartitioning].batchSize shouldBe customBatch
+  }
+
+  // ----- unsupported branch -----
+
+  it should "throw UnsupportedOperationException when partitionInfo is unrecognized" in {
+    // PartitionInfo is sealed, so the only way to reach the catch-all
+    // `case _` branch from a test is to pass an off-domain value such as
+    // null. This pins the contract that an unknown PartitionInfo subtype
+    // results in UnsupportedOperationException rather than silently
+    // dropping into a default partitioning.
+    assertThrows[UnsupportedOperationException] {
+      LinkConfig.toPartitioning(
+        List(w1),
+        List(u1),
+        null,
+        batch
+      )
+    }
   }
 }
