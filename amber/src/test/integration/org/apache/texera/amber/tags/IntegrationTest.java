@@ -29,11 +29,15 @@ import org.scalatest.TagAnnotation;
 /**
  * Class-level marker tag for ScalaTest specs that exercise both Scala
  * and Python end-to-end. Routing to the {@code amber-integration} CI
- * job is path-based (specs live under {@code amber/src/test/integration})
- * via a dedicated {@code IntegrationTest} sbt configuration; this
- * annotation is kept for IDE / reader clarity and so a future ScalaTest
- * tag-filter (e.g. {@code -n org.apache.texera.amber.tags.IntegrationTest})
- * also works.
+ * job is by ScalaTest tag filtering, controlled by the
+ * {@code AMBER_TEST_FILTER} env var in {@code amber/build.sbt}: the
+ * lighter {@code amber} job runs with {@code skip-integration} (which
+ * passes {@code -l org.apache.texera.amber.tags.IntegrationTest} to
+ * ScalaTest), and the {@code amber-integration} job runs with
+ * {@code integration-only} (which passes {@code -n} for the same tag).
+ * The {@code amber/src/test/integration} directory is added to sbt's
+ * {@code Test/unmanagedSourceDirectories} so these specs compile in
+ * the regular Test config; there is no separate sbt configuration.
  *
  * <p>Written in Java rather than Scala because ScalaTest detects tag
  * annotations via {@code java.lang.annotation} reflection. A Scala

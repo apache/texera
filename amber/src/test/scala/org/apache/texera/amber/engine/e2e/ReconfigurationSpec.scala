@@ -19,41 +19,22 @@
 
 package org.apache.texera.amber.engine.e2e
 
-import com.twitter.util.{Await, Duration, Promise}
 import com.typesafe.scalalogging.Logger
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.storage.DocumentFactory
-import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionStateUpdate
-}
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
-  EmptyRequest,
-  UpdateExecutorRequest,
-  WorkflowReconfigureRequest
-}
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  PAUSED
-}
 import org.apache.texera.amber.engine.common.AmberRuntime
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   cleanupWorkflowExecutionData,
   initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData,
-  stateReached
+  setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -101,83 +82,16 @@ class ReconfigurationSpec
     TestKit.shutdownActorSystem(system)
   }
 
+  // Thin wrapper around the shared TestUtils helper so call sites below stay
+  // ctx/system-implicit. The actual workflow-driver logic lives in TestUtils
+  // and is reused by ReconfigurationIntegrationSpec.
   def shouldReconfigure(
       operators: List[LogicalOp],
       links: List[LogicalLink],
       targetOps: Seq[LogicalOp],
       newOpExecInitInfo: OpExecInitInfo
-  ): Map[OperatorIdentity, List[Tuple]] = {
-    val workflow =
-      TestUtils.buildWorkflow(operators, links, ctx)
-    val client =
-      new AmberClient(
-        system,
-        workflow.context,
-        workflow.physicalPlan,
-        ControllerConfig.default,
-        error => {}
-      )
-    val completion = Promise[Unit]()
-    var result: Map[OperatorIdentity, List[Tuple]] = null
-    client
-      .registerCallback[ExecutionStateUpdate](evt => {
-        if (evt.state == COMPLETED) {
-          result = workflow.logicalPlan.getTerminalOperatorIds
-            .filter(terminalOpId => {
-              val uri = getResultUriByLogicalPortId(
-                workflow.context.executionId,
-                terminalOpId,
-                PortIdentity()
-              )
-              uri.nonEmpty
-            })
-            .map(terminalOpId => {
-              val uri = getResultUriByLogicalPortId(
-                workflow.context.executionId,
-                terminalOpId,
-                PortIdentity()
-              ).get
-              terminalOpId -> DocumentFactory
-                .openDocument(uri)
-                ._1
-                .asInstanceOf[VirtualDocument[Tuple]]
-                .get()
-                .toList
-            })
-            .toMap
-          completion.setDone()
-        }
-      })
-    Await.result(
-      client.controllerInterface.startWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
-    )
-    val pausedReached = stateReached(client, PAUSED)
-    Await.result(
-      client.controllerInterface.pauseWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
-    )
-    Await.result(pausedReached, Duration.fromSeconds(10))
-    val physicalOps = targetOps.flatMap(op =>
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
-    )
-    Await.result(
-      client.controllerInterface.reconfigureWorkflow(
-        WorkflowReconfigureRequest(
-          reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
-          reconfigurationId = "test-reconfigure-1"
-        ),
-        ()
-      ),
-      Duration.fromSeconds(5)
-    )
-    Await.result(
-      client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
-      Duration.fromSeconds(5)
-    )
-    Await.result(completion, Duration.fromMinutes(1))
-    result
-  }
+  ): Map[OperatorIdentity, List[Tuple]] =
+    TestUtils.shouldReconfigure(system, ctx, operators, links, targetOps, newOpExecInitInfo)
 
   "Engine" should "be able to modify a java operator in workflow" in {
     val sourceOpDesc = TestOperators.mediumCsvScanOpDesc()

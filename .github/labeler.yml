@@ -52,10 +52,14 @@ engine:
   # than the full Scala-only `amber` stack. Integration specs live
   # under amber/src/test/integration/** (added to sbt's Test sources
   # via amber/build.sbt) and are caught by the `amber-integration`
-  # label below.
+  # label below. Top-level Scala formatter / linter configs are
+  # included so a PR that only updates them still triggers the Scala
+  # stacks instead of producing an empty stack union.
   - changed-files:
       - any-glob-to-any-file:
           - 'amber/build.sbt'
+          - 'amber/.scalafmt.conf'
+          - 'amber/.scalafix.conf'
           - 'amber/project/**'
           - 'amber/src/main/scala/**'
           - 'amber/src/main/java/**'
@@ -66,11 +70,12 @@ engine:
 
 amber-integration:
   # Scala specs that exercise both Scala and Python end-to-end. They
-  # live under amber/src/test/integration/scala/** (sbt's Test config
-  # picks them up via amber/build.sbt) and are tagged
-  # @org.apache.texera.amber.tags.IntegrationTest. This label maps to
-  # the amber-integration stack only, so a PR that touches just an
-  # integration spec does not pay for the full Scala-only `amber` job.
+  # live under amber/src/test/integration/** (sbt picks them up via
+  # `Test / unmanagedSourceDirectories += .../test/integration` in
+  # amber/build.sbt) and are tagged @org.apache.texera.amber.tags
+  # .IntegrationTest. This label maps to the amber-integration stack
+  # only, so a PR that touches just an integration spec does not pay
+  # for the full Scala-only `amber` job.
   - changed-files:
       - any-glob-to-any-file:
           - 'amber/src/test/integration/**'
