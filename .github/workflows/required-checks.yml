@@ -60,6 +60,7 @@ jobs:
     outputs:
       run_frontend: ${{ steps.decide.outputs.run_frontend }}
       run_amber: ${{ steps.decide.outputs.run_amber }}
+      run_amber_integration: ${{ steps.decide.outputs.run_amber_integration }}
       run_platform: ${{ steps.decide.outputs.run_platform }}
       run_python: ${{ steps.decide.outputs.run_python }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
@@ -115,35 +116,48 @@ jobs:
             // labeler matches lives under a component dir and is already
             // covered by that component's label.
             //
-            //   label          | frontend | amber | platform | python | agent-service
-            //   ---------------|----------|-------|----------|--------|--------------
-            //   frontend       |    x     |       |          |        |
-            //   python         |          |   x   |          |   x    |
-            //   engine         |          |   x   |          |   x    |
-            //   platform       |          |       |    x     |        |
-            //   agent-service  |          |       |          |        |     x
-            //   common         |          |   x   |    x     |        |  (also catches
-            //                                                            root scala
-            //                                                            build/lint
-            //                                                            config)
-            //   ddl-change     |          |   x   |    x     |        |
-            //   ci             |    x     |   x   |    x     |   x    |     x
-            //   docs / dev /   |          |       |          |        |
-            //   deps / release/|          |       |          |        |
-            //   * / branch     |          |       |          |        |
+            //   label             | frontend | amber | amber-integ | platform | python | agent-service
+            //   ------------------|----------|-------|-------------|----------|--------|--------------
+            //   frontend          |    x     |       |             |          |        |
+            //   python            |          |       |      x      |          |   x    |
+            //   engine            |          |   x   |      x      |          |        |
+            //   amber-integration |          |       |      x      |          |        |
+            //   platform          |          |       |             |    x     |        |
+            //   agent-service     |          |       |             |          |        |     x
+            //   common            |          |   x   |      x      |    x     |        |  (root
+            //                                                                            scala
+            //                                                                            build/lint
+            //                                                                            config)
+            //   ddl-change        |          |   x   |      x      |    x     |        |
+            //   ci                |    x     |   x   |      x      |    x     |   x    |     x
+            //   docs / dev /      |          |       |             |          |        |
+            //   deps / release/   |          |       |             |          |        |
+            //   * / branch        |          |       |             |          |        |
+            //
+            // amber-integration runs the Scala tests tagged
+            // @org.apache.texera.amber.tags.IntegrationTest (e2e specs that
+            // spawn Python UDF workers). The labeler attaches `python` to
+            // any *.py change (including amber/src/main/python/**), so
+            // `engine` does not need to fire the python stack itself —
+            // pure-Python amber changes pick up `python` directly. The
+            // `amber-integration` label catches *IntegrationSpec.scala
+            // edits so a test-only change does not trigger the full
+            // Scala-only amber stack.
             const LABEL_STACKS = {
               frontend: ["frontend"],
-              python: ["amber", "python"],          // pyamber drives amber integration tests too
-              engine: ["amber", "python"],          // amber/** spans both
-              platform: ["platform"],               // platform services
+              python: ["amber-integration", "python"],
+              engine: ["amber", "amber-integration"],
+              "amber-integration": ["amber-integration"],
+              platform: ["platform"],
               "agent-service": ["agent-service"],
-              common: ["amber", "platform"],        // common/** + root scala build/lint
-              "ddl-change": ["amber", "platform"],
-              ci: ["frontend", "amber", "platform", "python", "agent-service"],
+              common: ["amber", "amber-integration", "platform"],
+              "ddl-change": ["amber", "amber-integration", "platform"],
+              ci: ["frontend", "amber", "amber-integration", "platform", "python", "agent-service"],
             };
 
             let runFrontend = true;
             let runAmber = true;
+            let runAmberIntegration = true;
             let runPlatform = true;
             let runPython = true;
             let runAgentService = true;
@@ -157,6 +171,7 @@ jobs:
               }
               runFrontend = stacks.has("frontend");
               runAmber = stacks.has("amber");
+              runAmberIntegration = stacks.has("amber-integration");
               runPlatform = stacks.has("platform");
               runPython = stacks.has("python");
               runAgentService = stacks.has("agent-service");
@@ -167,6 +182,7 @@ jobs:
 
             core.setOutput("run_frontend", runFrontend ? "true" : "false");
             core.setOutput("run_amber", runAmber ? "true" : "false");
+            core.setOutput("run_amber_integration", runAmberIntegration ? "true" : "false");
             core.setOutput("run_platform", runPlatform ? "true" : "false");
             core.setOutput("run_python", runPython ? "true" : "false");
             core.setOutput("run_agent_service", runAgentService ? "true" : "false");
@@ -221,6 +237,7 @@ jobs:
     with:
       run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
       run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
+      run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_python: ${{ needs.precheck.outputs.run_python == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
@@ -241,6 +258,7 @@ jobs:
       job_name_suffix: ""
       run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
       run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
+      run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_python: ${{ needs.precheck.outputs.run_python == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
