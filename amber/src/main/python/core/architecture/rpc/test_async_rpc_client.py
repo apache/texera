@@ -16,18 +16,21 @@
 # under the License.
 
 import asyncio
+import inspect
 from concurrent.futures import Future
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
+from core.architecture.rpc import async_rpc_client as async_rpc_client_module
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient, async_run
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
 )
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    ControllerServiceStub,
     ControlReturn,
     ReturnInvocation,
 )
@@ -119,12 +122,34 @@ class TestFulfillPromise:
         assert fut.done() and fut.result() is ret
         assert (actor, 0) not in client._unfulfilled_promises
 
-    def test_silently_logs_when_no_matching_promise_exists(self):
+    def test_silently_logs_when_no_matching_promise_exists(self, monkeypatch):
         client = _make_client()
-        # No prior _create_future — nothing to match. Method must not raise.
+        # Place an unrelated pending promise so we can verify the no-match
+        # branch leaves it alone instead of silently dropping the dict entry.
+        actor_b = ActorVirtualIdentity(name="B")
+        fut_b = client._create_future(actor_b)
+        # Patch the loguru logger used inside async_rpc_client so we can
+        # assert that the no-match branch DID emit a warning. Without this
+        # the implementation could silently drop unknown ControlReturns and
+        # the suite would still pass.
+        warning_calls = []
+        monkeypatch.setattr(
+            async_rpc_client_module.logger,
+            "warning",
+            lambda msg, *a, **kw: warning_calls.append(msg),
+        )
+
+        # No prior _create_future for actor "A" — nothing to match. Method
+        # must not raise.
         client._fulfill_promise(
             self._channel("A"), command_id=99, control_return=ControlReturn()
         )
+
+        assert len(warning_calls) == 1
+        assert "no corresponding ControlCommand found" in warning_calls[0]
+        # Unrelated pending promise is untouched.
+        assert not fut_b.done()
+        assert (actor_b, 0) in client._unfulfilled_promises
 
     def test_does_not_disturb_unrelated_pending_promises(self):
         client = _make_client()
@@ -187,3 +212,48 @@ class TestControllerStub:
         # Identity check: same instance every call (lazily configured in __init__).
         assert stub is client._controller_service_stub
         assert stub is client.controller_stub()
+
+    def test_controller_stub_unary_unary_is_rewired_with_async_context(self):
+        # AsyncRPCClient.__init__ replaces the stub's `_unary_unary` with the
+        # closure produced by `_assign_context`, then `_wrap_all_async_methods`
+        # wraps that (originally async) function with `async_run`. The end
+        # state is therefore: the handler is no longer the bound method from
+        # ControllerServiceStub, but a synchronous async_run wrapper. A
+        # regression that returned an unconfigured stub would pass the identity
+        # check above, but cannot pass this one.
+        client = _make_client()
+        stub = client.controller_stub()
+        baseline = ControllerServiceStub("")
+        assert stub._unary_unary is not baseline._unary_unary
+        # The _assign_context wrapper closes over the AsyncRPCClient self, so
+        # if the rewiring really happened the function we end up with mentions
+        # `_assign_context` somewhere in its qualname (either directly, when
+        # async_run reuses the wrapped name, or via __wrapped__).
+        target = getattr(stub._unary_unary, "__wrapped__", stub._unary_unary)
+        assert "_assign_context" in target.__qualname__
+
+    def test_controller_stub_async_methods_are_wrapped_with_async_run(self):
+        # AsyncRPCClient also runs `_wrap_all_async_methods_with_async_run`,
+        # which replaces every coroutinefunction on the stub with the sync
+        # `async_run` wrapper. So whatever methods were async on a fresh
+        # `ControllerServiceStub` must now be NON-coroutine on the configured
+        # stub. Without this assertion the wrap-all pass could no-op silently.
+        client = _make_client()
+        stub = client.controller_stub()
+        baseline = ControllerServiceStub("")
+        async_method_names = [
+            name
+            for name in dir(baseline)
+            if not name.startswith("_")
+            and inspect.iscoroutinefunction(getattr(baseline, name))
+        ]
+        # Sanity: the upstream stub really does ship with async methods.
+        assert async_method_names, (
+            "ControllerServiceStub no longer has any async methods; this test "
+            "needs to be reconsidered."
+        )
+        for name in async_method_names:
+            assert not inspect.iscoroutinefunction(getattr(stub, name)), (
+                f"{name!r} on the configured stub should have been wrapped by "
+                "async_run but is still a coroutine function."
+            )
