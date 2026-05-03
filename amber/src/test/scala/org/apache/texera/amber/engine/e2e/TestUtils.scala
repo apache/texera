@@ -19,11 +19,30 @@
 
 package org.apache.texera.amber.engine.e2e
 
-import com.twitter.util.{Promise, Return}
+import com.twitter.util.{Await, Duration, Promise, Return}
+import org.apache.pekko.actor.ActorSystem
 import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.amber.core.workflow.WorkflowContext
-import org.apache.texera.amber.engine.architecture.controller.{ExecutionStateUpdate, Workflow}
+import org.apache.texera.amber.core.executor.OpExecInitInfo
+import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStateUpdate,
+  Workflow
+}
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  EmptyRequest,
+  UpdateExecutorRequest,
+  WorkflowReconfigureRequest
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  PAUSED
+}
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.dao.SqlServer
@@ -41,6 +60,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Workflow => WorkflowPojo
 }
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
 
 object TestUtils {
@@ -137,6 +157,92 @@ object TestUtils {
       }
     })
     p
+  }
+
+  /**
+    * Pause a freshly-started workflow, swap the executor for the given target
+    * operators via WorkflowReconfigureRequest, resume, and collect the
+    * terminal-port outputs once the run completes. Shared by ReconfigurationSpec
+    * (pure-Scala) and ReconfigurationIntegrationSpec (Python-tagged), so an
+    * earlier in-spec copy doesn't drift between the two as new e2e specs
+    * land. The caller passes its own `system` (TestKit) and `ctx`
+    * (WorkflowContext) since both are tied to the spec lifecycle.
+    */
+  def shouldReconfigure(
+      system: ActorSystem,
+      ctx: WorkflowContext,
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      targetOps: Seq[LogicalOp],
+      newOpExecInitInfo: OpExecInitInfo
+  ): Map[OperatorIdentity, List[Tuple]] = {
+    val workflow = buildWorkflow(operators, links, ctx)
+    val client = new AmberClient(
+      system,
+      workflow.context,
+      workflow.physicalPlan,
+      ControllerConfig.default,
+      error => {}
+    )
+    val completion = Promise[Unit]()
+    var result: Map[OperatorIdentity, List[Tuple]] = null
+    client.registerCallback[ExecutionStateUpdate](evt => {
+      if (evt.state == COMPLETED) {
+        result = workflow.logicalPlan.getTerminalOperatorIds
+          .filter(terminalOpId => {
+            val uri = getResultUriByLogicalPortId(
+              workflow.context.executionId,
+              terminalOpId,
+              PortIdentity()
+            )
+            uri.nonEmpty
+          })
+          .map(terminalOpId => {
+            val uri = getResultUriByLogicalPortId(
+              workflow.context.executionId,
+              terminalOpId,
+              PortIdentity()
+            ).get
+            terminalOpId -> DocumentFactory
+              .openDocument(uri)
+              ._1
+              .asInstanceOf[VirtualDocument[Tuple]]
+              .get()
+              .toList
+          })
+          .toMap
+        completion.setDone()
+      }
+    })
+    Await.result(
+      client.controllerInterface.startWorkflow(EmptyRequest(), ()),
+      Duration.fromSeconds(5)
+    )
+    val pausedReached = stateReached(client, PAUSED)
+    Await.result(
+      client.controllerInterface.pauseWorkflow(EmptyRequest(), ()),
+      Duration.fromSeconds(5)
+    )
+    Await.result(pausedReached, Duration.fromSeconds(10))
+    val physicalOps = targetOps.flatMap(op =>
+      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
+    )
+    Await.result(
+      client.controllerInterface.reconfigureWorkflow(
+        WorkflowReconfigureRequest(
+          reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
+          reconfigurationId = "test-reconfigure-1"
+        ),
+        ()
+      ),
+      Duration.fromSeconds(5)
+    )
+    Await.result(
+      client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
+      Duration.fromSeconds(5)
+    )
+    Await.result(completion, Duration.fromMinutes(1))
+    result
   }
 
   def cleanupWorkflowExecutionData(): Unit = {
