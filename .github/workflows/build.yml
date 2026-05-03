@@ -63,7 +63,6 @@ env:
 jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
-    name: ${{ format('frontend{0} ({1}, 18)', inputs.job_name_suffix, matrix.os) }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -76,7 +75,7 @@ jobs:
           - os: windows-latest
             arch: x64
         node-version:
-          - 20.19.0
+          - 24.10.0
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
@@ -132,7 +131,6 @@ jobs:
     # and tests for the platform services live in the `platform` matrix
     # below. License-binary checks are scoped to the amber dist.
     if: ${{ inputs.run_amber }}
-    name: ${{ format('amber{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -348,7 +346,6 @@ jobs:
 
   python:
     if: ${{ inputs.run_python }}
-    name: ${{ format('python{0} ({1}, {2})', inputs.job_name_suffix, matrix.os, matrix.python-version) }}
     strategy:
       matrix:
         os: [ubuntu-latest]
