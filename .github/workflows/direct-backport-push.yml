@@ -26,6 +26,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  statuses: write
 
 jobs:
   discover:
@@ -258,8 +259,21 @@ jobs:
             // title from "branches that contain this commit". A cherry-pick
             // produces a different SHA than the main commit, so the release
             // branch will never naturally appear on the main commit's page.
-            // Posting a commit comment is the closest practical equivalent —
-            // it surfaces the backport target on the same page.
+            // Two surfacing channels instead:
+            //   1. A commit status — appears as a green check badge in the
+            //      same row as CI statuses on the commit and any PRs that
+            //      reference it. target_url drops the user on the new commit.
+            //   2. A commit comment with the same info, for richer detail.
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: MERGE_SHA,
+              state: "success",
+              context: `backport/${TARGET_BRANCH}`,
+              description: `Backported as ${NEW_SHA.slice(0, 7)}`,
+              target_url: newCommitUrl,
+            });
+
             await github.rest.repos.createCommitComment({
               owner,
               repo,
@@ -282,16 +296,16 @@ jobs:
               });
             }
 
-      - name: Annotate original PR on failure
+      - name: Annotate original PR and commit on failure
         if: failure()
         uses: actions/github-script@v8
         env:
+          MERGE_SHA: ${{ github.sha }}
           TARGET_BRANCH: ${{ matrix.target }}
           PR_NUMBER: ${{ needs.discover.outputs.pr_number }}
         with:
           script: |
-            const { TARGET_BRANCH, PR_NUMBER } = process.env;
-            if (!PR_NUMBER) return;
+            const { MERGE_SHA, TARGET_BRANCH, PR_NUMBER } = process.env;
             const { owner, repo } = context.repo;
             const runUrl =
               `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
@@ -312,11 +326,23 @@ jobs:
               core.warning(`Could not resolve job URL: ${e.message}`);
             }
 
-            await github.rest.issues.createComment({
+            await github.rest.repos.createCommitStatus({
               owner,
               repo,
-              issue_number: Number(PR_NUMBER),
-              body:
-                `Backport to \`${TARGET_BRANCH}\` failed. ` +
-                `See [job log](${jobUrl}).`,
+              sha: MERGE_SHA,
+              state: "failure",
+              context: `backport/${TARGET_BRANCH}`,
+              description: "Backport failed",
+              target_url: jobUrl,
             });
+
+            if (PR_NUMBER) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: Number(PR_NUMBER),
+                body:
+                  `Backport to \`${TARGET_BRANCH}\` failed. ` +
+                  `See [job log](${jobUrl}).`,
+              });
+            }
