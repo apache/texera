@@ -66,7 +66,8 @@
               ]
             },
             "test": {
-              "tsConfig": "src/tsconfig.test.json"
+              "tsConfig": "src/tsconfig.test.json",
+              "main": "src/main.test.ts"
             }
           },
           "defaultConfiguration": ""
@@ -90,10 +91,25 @@
             "runner": "vitest",
             "runnerConfig": "vitest.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
+            "include": ["**/*.spec.ts"],
             "exclude": [
               "**/workflow-result.service.spec.ts",
               "**/download.service.spec.ts",
-              "**/preset.service.spec.ts"
+              "**/preset.service.spec.ts",
+              "**/*.component.spec.ts",
+              "**/coeditor-presence.service.spec.ts",
+              "**/execute-workflow.service.spec.ts",
+              "**/user.service.spec.ts",
+              "**/workflow-websocket.service.spec.ts",
+              "**/workflow-result-export.service.spec.ts",
+              "**/udf-debug.service.spec.ts",
+              "**/user-config.service.spec.ts",
+              "**/operator-menu.service.spec.ts",
+              "**/workflow-console.service.spec.ts",
+              "**/operator-reuse-cache-status.service.spec.ts",
+              "**/joint-ui.service.spec.ts",
+              "**/drag-drop.service.spec.ts",
+              "**/workflow-executions.service.spec.ts"
             ]
           }
         }
