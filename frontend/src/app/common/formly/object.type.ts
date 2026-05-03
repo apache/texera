@@ -8,7 +8,8 @@
  */
 
 import { Component } from "@angular/core";
-import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
+import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
+import { NgIf, NgFor } from "@angular/common";
 
 @Component({
   // selector: 'formly-object-type',
@@ -27,7 +28,7 @@ import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
         [field]="f"></formly-field>
     </div>
   `,
-  standalone: false,
+  imports: [NgIf, FormlyModule, NgFor],
 })
 export class ObjectTypeComponent extends FieldType<FieldTypeConfig> {
   defaultOptions = {

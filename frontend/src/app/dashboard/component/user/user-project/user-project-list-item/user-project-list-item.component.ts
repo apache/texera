@@ -26,13 +26,68 @@ import { ShareAccessComponent } from "../../share-access/share-access.component"
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { DASHBOARD_USER_PROJECT } from "../../../../../app-routing.constant";
+import {
+  NzListItemComponent,
+  NzListItemMetaComponent,
+  NzListItemMetaAvatarComponent,
+  NzListItemMetaTitleComponent,
+  NzListItemMetaDescriptionComponent,
+  NzListItemActionsComponent,
+  NzListItemActionComponent,
+} from "ng-zorro-antd/list";
+import { NgStyle, NgIf, DatePipe } from "@angular/common";
+import { NzAvatarComponent } from "ng-zorro-antd/avatar";
+import { ColorPickerModule } from "ngx-color-picker";
+import { RouterLink } from "@angular/router";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { MarkdownComponent } from "ngx-markdown";
+import {
+  NzInputGroupComponent,
+  NzInputGroupWhitSuffixOrPrefixDirective,
+  NzInputDirective,
+  NzAutosizeDirective,
+} from "ng-zorro-antd/input";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-project-list-item",
   templateUrl: "./user-project-list-item.component.html",
   styleUrls: ["./user-project-list-item.component.scss"],
-  standalone: false,
+  imports: [
+    NzListItemComponent,
+    NzListItemMetaComponent,
+    NzListItemMetaAvatarComponent,
+    NgStyle,
+    NzAvatarComponent,
+    ColorPickerModule,
+    NzListItemMetaTitleComponent,
+    NgIf,
+    RouterLink,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzListItemMetaDescriptionComponent,
+    MarkdownComponent,
+    NzInputGroupComponent,
+    NzInputGroupWhitSuffixOrPrefixDirective,
+    NzInputDirective,
+    NzAutosizeDirective,
+    NzListItemActionsComponent,
+    NzListItemActionComponent,
+    NzWaveDirective,
+    NzPopconfirmDirective,
+    DatePipe,
+    HighlightSearchTermsPipe,
+  ],
 })
 export class UserProjectListItemComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = DASHBOARD_USER_PROJECT;

@@ -28,13 +28,14 @@ import { SearchService } from "../../../dashboard/service/user/search.service";
 import { isDefined } from "../../../common/util/predicate";
 import { firstValueFrom } from "rxjs";
 import { map } from "rxjs/operators";
+import { SortButtonComponent } from "../../../dashboard/component/user/sort-button/sort-button.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-hub-search",
   templateUrl: "./hub-search-result.component.html",
   styleUrls: ["./hub-search-result.component.scss"],
-  standalone: false,
+  imports: [SortButtonComponent, FiltersComponent, SearchResultsComponent],
 })
 export class HubSearchResultComponent implements OnInit, AfterViewInit {
   public searchType: "dataset" | "workflow" = "workflow";

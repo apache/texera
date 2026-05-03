@@ -21,12 +21,32 @@ import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ExecutionQuota, File, Workflow, WorkflowQuota } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
-import { NzTableSortFn } from "ng-zorro-antd/table";
+import {
+  NzTableSortFn,
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzThAddOnComponent,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
 import { UserQuotaService } from "src/app/dashboard/service/user/quota/user-quota.service";
 import { AdminUserService } from "src/app/dashboard/service/admin/user/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import * as Plotly from "plotly.js-basic-dist-min";
 import { formatSize } from "src/app/common/util/size-formatter.util";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { NgFor } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 type UserServiceType = AdminUserService | UserQuotaService;
 
@@ -34,7 +54,28 @@ type UserServiceType = AdminUserService | UserQuotaService;
 @Component({
   templateUrl: "./user-quota.component.html",
   styleUrls: ["./user-quota.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzTabsComponent,
+    NzTabComponent,
+    NzCollapseComponent,
+    NgFor,
+    NzCollapsePanelComponent,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzThAddOnComponent,
+    NzTbodyComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzPopconfirmDirective,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+  ],
 })
 export class UserQuotaComponent implements OnInit {
   readonly userId: number;

@@ -23,6 +23,23 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AgentService } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { NgIf, NgFor } from "@angular/common";
+import {
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 
 /**
  * AgentInteractionComponent provides a compact interface for users to send feedback
@@ -34,7 +51,26 @@ import { NotificationService } from "../../../../common/service/notification/not
   selector: "texera-agent-interaction",
   templateUrl: "./agent-interaction.component.html",
   styleUrls: ["./agent-interaction.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzTheadComponent,
+    NzTrDirective,
+    NgFor,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzTbodyComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzSpaceCompactItemDirective,
+    NzSelectComponent,
+    FormsModule,
+    NzOptionComponent,
+    NzTooltipDirective,
+    NzInputDirective,
+    NzAutosizeDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+  ],
 })
 export class AgentInteractionComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;
