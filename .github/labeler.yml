@@ -45,9 +45,22 @@ agent-service:
           - 'agent-service/**'
 
 engine:
+  # Non-Python parts of amber/. Pure Python changes under
+  # amber/src/main/python/** intentionally fall through to the
+  # `python` label (which the labeler also matches via **/*.py),
+  # so they only trigger the python + amber-integration stacks
+  # rather than the full Scala-only `amber` stack.
   - changed-files:
       - any-glob-to-any-file:
-          - 'amber/**'
+          - 'amber/build.sbt'
+          - 'amber/project/**'
+          - 'amber/src/main/scala/**'
+          - 'amber/src/main/java/**'
+          - 'amber/src/main/protobuf/**'
+          - 'amber/src/main/resources/**'
+          - 'amber/src/test/scala/**'
+          - 'amber/src/test/java/**'
+          - 'amber/user-resources/**'
 
 python:
   - changed-files:
