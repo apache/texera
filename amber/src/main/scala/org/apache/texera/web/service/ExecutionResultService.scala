@@ -99,7 +99,7 @@ object ExecutionResultService {
                       case byteArray: Array[Byte] =>
                         val totalSize = byteArray.length
                         // Slice the byte array before hex-encoding to avoid materializing
-                        // an O(N) string for large blobs (e.g. 50 MB → ~150 MB hex string).
+                        // an O(N) string for large blobs (e.g. 50 MB -> ~150 MB hex string).
                         // 13 bytes is the threshold: hex length = 3*N-1, so 13 bytes = 38 chars < 39.
                         if (totalSize <= 13) {
                           s"bytes'${byteArrayToHexString(byteArray)}' (length: $totalSize)"
