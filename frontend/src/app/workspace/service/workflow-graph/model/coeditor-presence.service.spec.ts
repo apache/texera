@@ -33,8 +33,7 @@ describe("CoeditorPresenceService", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzDropDownModule],
-      declarations: [CoeditorUserIconComponent],
+      imports: [HttpClientTestingModule, NzDropDownModule, CoeditorUserIconComponent],
       providers: [
         WorkflowActionService,
         CoeditorPresenceService,
