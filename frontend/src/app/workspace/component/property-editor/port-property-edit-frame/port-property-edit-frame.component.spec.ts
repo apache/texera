@@ -31,9 +31,8 @@ describe("PortPropertyEditFrameComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [PortPropertyEditFrameComponent],
       providers: [WorkflowActionService, ...commonTestProviders],
-      imports: [HttpClientTestingModule],
+      imports: [PortPropertyEditFrameComponent, HttpClientTestingModule],
     }).compileComponents();
   });
 
