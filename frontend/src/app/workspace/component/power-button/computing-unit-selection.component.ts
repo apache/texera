@@ -690,7 +690,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.pves.push({
       name: "",
       userPackages: [],
-      newPackages: [{name: "", operator: "==", version: ""}],
+      newPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
       expanded: true,
@@ -892,19 +892,26 @@ export class ComputingUnitSelectionComponent implements OnInit {
     };
   }
 
-  private refreshSystemPackages(): void {
+  private refreshUserPackages(index: number): void {
+    const env = this.pves[index];
+
     this.workflowPveService
-      .getSystemPackages()
+      .getUserPackages(this.selectedComputingUnit!.computingUnit.cuid, env.name)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: resp => {
-          this.systemPackages = resp.system.map(pkg => {
+        next: pkgs => {
+          env.userPackages = pkgs.map(pkg => {
             const [name, version] = pkg.split("==");
-            return { name: name.trim(), version: (version ?? "").trim() };
+            return {
+              name: name.trim(),
+              operator: "==",
+              version: (version ?? "").trim()
+            };
           });
+
           this.cdr.detectChanges();
         },
-        error: e => console.error("Failed to refresh packages", e),
+        error: e => console.error("Failed to refresh user packages", e),
       });
   }
 
@@ -944,12 +951,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .map(pkg => `${pkg.name.trim()}${pkg.version ? `==${pkg.version.trim()}` : ""}`) ?? [];
 
     if (packageArray.length === 0) {
-      this.refreshSystemPackages();
+      this.pves[index].newPackages = [];
+      this.refreshUserPackages(index);
       return;
     }
 
     this.runPveWebSocket(index, "install", "Installing user packages...\n", packageArray, () => {
-      this.refreshSystemPackages();
+      this.pves[index].newPackages = [];
+      this.refreshUserPackages(index);
     });
   }
 

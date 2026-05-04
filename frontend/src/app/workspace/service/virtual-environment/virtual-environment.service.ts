@@ -18,6 +18,7 @@
 
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
+import { map } from "rxjs/operators";
 import { HttpClient, HttpParams } from "@angular/common/http";
 import { AuthService } from "../../../common/service/user/auth.service";
 
@@ -56,6 +57,12 @@ export class WorkflowPveService {
   fetchPVEs(cuid: number): Observable<PvePackageResponse[]> {
     const params = this.buildBaseParams().set("cuid", cuid.toString());
     return this.http.get<PvePackageResponse[]>("/pve/pves", { params });
+  }
+
+  getUserPackages(cuid: number, pveName: string): Observable<string[]> {
+    return this.fetchPVEs(cuid).pipe(
+      map(pves => pves.find(pve => pve.pveName === pveName)?.userPackages ?? [])
+    );
   }
 
   deleteEnvironments(cuid: number) {
