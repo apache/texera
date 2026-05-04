@@ -67,7 +67,7 @@ export class WorkflowPveService {
     return this.http.delete(`/pve/pves/${cuid}`);
   }
 
-  PveWebSocketUrl(cuid: number, pveName: string, isLocal: boolean, action: string, packages: string[] = []): string {
+  getPveWebSocketUrl(cuid: number, pveName: string, isLocal: boolean, action: string, packages: string[] = []): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const query = encodeURIComponent(JSON.stringify(packages));
 

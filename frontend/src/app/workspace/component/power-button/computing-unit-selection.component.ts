@@ -870,7 +870,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     env.socket?.close();
 
-    const websocketUrl = this.workflowPveService.PveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
+    const websocketUrl = this.workflowPveService.getPveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
 
     const socket = new WebSocket(websocketUrl);
 
