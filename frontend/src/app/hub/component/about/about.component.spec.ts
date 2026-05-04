@@ -30,7 +30,7 @@ describe("AboutComponent", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [AboutComponent],
+      imports: [AboutComponent],
       providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
     });
     fixture = TestBed.createComponent(AboutComponent);
