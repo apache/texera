@@ -40,7 +40,7 @@ class TestLargeBinaryInputStream:
         try:
             assert stream._large_binary == large_binary
             assert stream._underlying is None
-            assert not stream._closed
+            assert not stream.closed
         finally:
             stream.close()
 
@@ -139,7 +139,7 @@ class TestLargeBinaryInputStream:
             stream.close()
             assert stream.readable() is False
         finally:
-            if not stream._closed:
+            if not stream.closed:
                 stream.close()
 
     def test_seekable(self, large_binary):
@@ -159,7 +159,7 @@ class TestLargeBinaryInputStream:
             stream.close()
             assert stream.closed is True
         finally:
-            if not stream._closed:
+            if not stream.closed:
                 stream.close()
 
     def test_close(self, large_binary, mock_s3_response):
@@ -174,7 +174,7 @@ class TestLargeBinaryInputStream:
             assert stream._underlying is not None
 
             stream.close()
-            assert stream._closed is True
+            assert stream.closed is True
             assert stream._underlying.closed
 
     def test_context_manager(self, large_binary, mock_s3_response):
@@ -187,10 +187,10 @@ class TestLargeBinaryInputStream:
             with LargeBinaryInputStream(large_binary) as stream:
                 data = stream.read()
                 assert data == b"test data content"
-                assert not stream._closed
+                assert not stream.closed
 
             # Stream should be closed after context exit
-            assert stream._closed
+            assert stream.closed
 
     def test_iteration(self, large_binary):
         """Test iteration over lines."""

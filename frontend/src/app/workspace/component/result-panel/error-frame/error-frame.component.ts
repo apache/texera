@@ -23,13 +23,25 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { NgIf, NgFor, KeyValuePipe } from "@angular/common";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 @UntilDestroy()
 @Component({
   selector: "texera-error-frame",
   templateUrl: "./error-frame.component.html",
   styleUrls: ["./error-frame.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NgFor,
+    NzCollapseComponent,
+    NzCollapsePanelComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    KeyValuePipe,
+  ],
 })
 export class ErrorFrameComponent implements OnInit {
   @Input() operatorId?: string;

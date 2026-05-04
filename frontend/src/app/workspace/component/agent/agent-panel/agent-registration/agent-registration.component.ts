@@ -24,12 +24,36 @@ import { WorkflowActionService } from "../../../../service/workflow-graph/model/
 import { ComputingUnitStatusService } from "../../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../../../common/type/computing-unit-connection.interface";
 import { Subject, takeUntil } from "rxjs";
+import { NgIf, NgFor } from "@angular/common";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 @Component({
   selector: "texera-agent-registration",
   templateUrl: "agent-registration.component.html",
   styleUrls: ["agent-registration.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzSpinComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NgFor,
+    NzSpaceCompactItemDirective,
+    NzInputDirective,
+    FormsModule,
+    NzAlertComponent,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzTooltipDirective,
+  ],
 })
 export class AgentRegistrationComponent implements OnInit, OnDestroy {
   @Output() agentCreated = new EventEmitter<string>();

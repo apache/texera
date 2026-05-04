@@ -18,21 +18,39 @@
  */
 
 import { Component, inject, OnInit } from "@angular/core";
-import { FormBuilder, FormGroup } from "@angular/forms";
-import { FormlyFieldConfig } from "@ngx-formly/core";
+import { FormBuilder, FormGroup, FormsModule } from "@angular/forms";
+import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { Dataset } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { NgClass, NgIf } from "@angular/common";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-dataset-version-creator",
   templateUrl: "./user-dataset-version-creator.component.html",
   styleUrls: ["./user-dataset-version-creator.component.scss"],
-  standalone: false,
+  imports: [
+    NzSpinComponent,
+    NgClass,
+    FormlyModule,
+    NgIf,
+    NzSwitchComponent,
+    FormsModule,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+  ],
 })
 export class UserDatasetVersionCreatorComponent implements OnInit {
   readonly isCreatingVersion: boolean = inject(NZ_MODAL_DATA).isCreatingVersion;

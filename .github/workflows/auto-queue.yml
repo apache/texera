@@ -18,9 +18,17 @@
 #
 # Triggers:
 #   * push to main: advance the queue right after a merge.
-#   * hourly cron: catch PRs that became BEHIND while no merge happened
-#     (e.g. a force-push to base, or a PR enabling auto-merge after the
-#     last main push).
+#   * pull_request {auto_merge_enabled, ready_for_review}: a PR just
+#     became eligible — kick the queue without waiting for cron.
+#   * pull_request_review {submitted}: an approval may have just made
+#     a PR eligible (script filters non-approval review states).
+#   * workflow_run {Required Checks, completed}: the head PR's CI
+#     just finished. On success, auto-merge fires and the next push to
+#     main triggers us; on failure, the head PR's CI moves from PENDING
+#     to FAILURE so the in-flight guard releases — this trigger gives
+#     us a same-second kick instead of waiting on cron.
+#   * 5-minute cron: bounded safety net for any missed event delivery
+#     and for PRs that became BEHIND without producing any of the above.
 #   * workflow_dispatch: manual smoke test.
 #
 # Strategy: scan open PRs targeting main and pick the oldest eligible PR with
@@ -28,6 +36,21 @@
 # if it would actually merge once CI passes — auto-merge enabled, not a draft,
 # not conflicting, reviewDecision=APPROVED, and zero unresolved review threads.
 # This avoids burning CI on PRs blocked on review.
+#
+# Emergency priority: a PR carrying the `emergency` label is bumped before
+# any non-emergency PR regardless of CREATED_AT ordering, AND its presence
+# in BEHIND bypasses the in-flight guard so a non-emergency PR's running
+# CI does not delay the bump. Non-emergency PRs continue to wait for the
+# queue head as usual.
+#
+# In-flight guard: if any eligible PR is already past the BEHIND state and
+# its required CI is still running (mergeStateStatus != BEHIND and
+# statusCheckRollup state is PENDING/EXPECTED), the run exits without
+# bumping anyone else. That PR is the queue head; bumping a different PR
+# while it is in flight would just preempt CI capacity for a PR that
+# would still need re-bumping after the head merges. PRs that are
+# BEHIND with PENDING checks do NOT count as in-flight — that CI is on
+# pre-update code and would need to re-run after updateBranch anyway.
 #
 # mergeStateStatus is computed asynchronously and is UNKNOWN for a window
 # after a base-branch push. If at least one eligible PR is UNKNOWN, retry
@@ -43,8 +66,15 @@ name: Auto Queue
 on:
   push:
     branches: [main]
+  pull_request:
+    types: [auto_merge_enabled, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+  workflow_run:
+    workflows: [Required Checks]
+    types: [completed]
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -64,6 +94,22 @@ jobs:
           github-token: ${{ secrets.AUTO_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
+
+            // pull_request_review fires for any submitted review (Comment /
+            // Approve / Request changes). Only Approve can newly satisfy the
+            // reviewDecision=APPROVED gate, so other states are pure no-ops
+            // worth short-circuiting before the GraphQL call.
+            if (
+              context.eventName === 'pull_request_review' &&
+              context.payload.review?.state !== 'approved'
+            ) {
+              core.info(
+                `Skip: pull_request_review state=` +
+                `${context.payload.review?.state} (only "approved" can ` +
+                `change queue eligibility).`
+              );
+              return;
+            }
 
             const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
             // 0, 10, 20, 30, 30, 30 = 120s total wall-clock budget across
@@ -89,13 +135,34 @@ jobs:
                       mergeStateStatus
                       reviewDecision
                       autoMergeRequest { enabledAt }
+                      labels(first: 20) {
+                        nodes { name }
+                      }
                       reviewThreads(first: 100) {
                         nodes { isResolved }
+                      }
+                      commits(last: 1) {
+                        nodes {
+                          commit {
+                            statusCheckRollup { state }
+                          }
+                        }
                       }
                     }
                   }
                 }
               }`;
+
+            // Carrying the `emergency` label lifts a PR above all other
+            // eligible PRs: it is bumped first regardless of CREATED_AT, and
+            // its presence in BEHIND bypasses the in-flight guard so a
+            // non-emergency PR's running CI does not block the bump.
+            const EMERGENCY_LABEL = 'emergency';
+            function isEmergency(p) {
+              return (p.labels?.nodes ?? []).some(
+                (l) => l.name === EMERGENCY_LABEL,
+              );
+            }
 
             function classify(p) {
               if (!p.autoMergeRequest) return 'skip: auto-merge not enabled';
@@ -109,7 +176,8 @@ jobs:
               if (unresolved > 0) {
                 return `skip: ${unresolved} unresolved review thread(s)`;
               }
-              return `eligible: mergeable=${p.mergeable} state=${p.mergeStateStatus}`;
+              const tag = isEmergency(p) ? ' [emergency]' : '';
+              return `eligible${tag}: mergeable=${p.mergeable} state=${p.mergeStateStatus}`;
             }
 
             const start = Date.now();
@@ -125,29 +193,98 @@ jobs:
               }
 
               core.startGroup(`Attempt ${attempt + 1}/${BACKOFFS_MS.length}`);
-              const data = await github.graphql(query, { owner, name: repo });
+              let data;
+              try {
+                data = await github.graphql(query, { owner, name: repo });
+              } catch (e) {
+                // Transient GitHub API failures (5xx, "terminated", etc.)
+                // shouldn't kill the whole run — the backoff loop is exactly
+                // the right place to absorb them. Try again next attempt.
+                core.warning(
+                  `GraphQL query failed (status ${e.status ?? '?'}): ` +
+                  `${e.message}. Retrying after backoff.`
+                );
+                core.endGroup();
+                continue;
+              }
               const all = data.repository.pullRequests.nodes;
               core.info(`Scanned ${all.length} open PR(s) targeting main.`);
 
               const behind = [];
               const unknown = [];
+              const inFlight = [];
               for (const p of all) {
                 const verdict = classify(p);
                 core.info(`  #${p.number} ${verdict} — ${p.title}`);
                 if (!verdict.startsWith('eligible')) continue;
-                if (p.mergeStateStatus === 'BEHIND') behind.push(p);
-                else if (p.mergeStateStatus === 'UNKNOWN') unknown.push(p);
+                if (p.mergeStateStatus === 'BEHIND') {
+                  behind.push(p);
+                  continue;
+                }
+                if (p.mergeStateStatus === 'UNKNOWN') {
+                  unknown.push(p);
+                  continue;
+                }
+                // Eligible AND not BEHIND/UNKNOWN: this PR is ahead of any
+                // BEHIND PR in the queue. Treat it as in-flight only if its
+                // current required CI is actually working toward a merge.
+                // PENDING/EXPECTED (CI still running on the with-main code)
+                // means "wait for it"; SUCCESS (about to auto-merge) means
+                // "wait for it"; FAILURE/ERROR (CI failed) is NOT in-flight
+                // — auto-merge will not fire, queue can advance past it.
+                const ciState =
+                  p.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state;
+                if (
+                  ciState === 'PENDING' ||
+                  ciState === 'EXPECTED' ||
+                  ciState === 'SUCCESS'
+                ) {
+                  inFlight.push({ pr: p, ciState });
+                }
               }
 
+              // Stable partition: emergency-labeled PRs go first; within
+              // each priority class the GraphQL ASC-by-CREATED_AT order
+              // is preserved.
+              const emergencyBehind = behind.filter(isEmergency);
+              const normalBehind = behind.filter((p) => !isEmergency(p));
+              const orderedBehind = [...emergencyBehind, ...normalBehind];
+
               core.info(
-                `Eligible: ${behind.length} BEHIND, ${unknown.length} UNKNOWN, ` +
-                `rest already up-to-date or otherwise blocked.`
+                `Eligible: ${behind.length} BEHIND ` +
+                `(${emergencyBehind.length} emergency), ` +
+                `${unknown.length} UNKNOWN, ` +
+                `${inFlight.length} in-flight (queue head still merging), ` +
+                `rest blocked on failed CI or non-CI gates.`
               );
 
-              if (behind.length > 0) {
+              // Emergency BEHIND bypasses the in-flight guard: an emergency
+              // is by definition something that should preempt CI capacity
+              // on a non-emergency PR. Without an emergency, fall back to
+              // the normal "wait for the queue head" behavior.
+              if (inFlight.length > 0 && emergencyBehind.length === 0) {
+                const head = inFlight[0];
+                core.info(
+                  `Skip: PR #${head.pr.number} is in flight ` +
+                  `(state=${head.pr.mergeStateStatus}, ci=${head.ciState}). ` +
+                  `Letting it finish to avoid preempting CI on a PR we may ` +
+                  `need to re-bump.`
+                );
+                core.endGroup();
+                return;
+              }
+              if (inFlight.length > 0 && emergencyBehind.length > 0) {
+                core.info(
+                  `${emergencyBehind.length} emergency PR(s) BEHIND — ` +
+                  `bypassing in-flight guard for #${inFlight[0].pr.number}.`
+                );
+              }
+
+              if (orderedBehind.length > 0) {
                 let updated = null;
-                for (const pr of behind) {
-                  core.info(`→ updateBranch #${pr.number}`);
+                for (const pr of orderedBehind) {
+                  const tag = isEmergency(pr) ? ' [emergency]' : '';
+                  core.info(`→ updateBranch #${pr.number}${tag}`);
                   try {
                     const res = await github.rest.pulls.updateBranch({
                       owner, repo, pull_number: pr.number,

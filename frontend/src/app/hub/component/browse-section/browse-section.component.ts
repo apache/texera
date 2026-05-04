@@ -29,13 +29,29 @@ import {
   DASHBOARD_USER_WORKSPACE,
 } from "../../../app-routing.constant";
 import { AppSettings } from "../../../common/app-setting";
+import { NgIf, NgFor, NgStyle, DatePipe } from "@angular/common";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { RouterLink } from "@angular/router";
+import { UserAvatarComponent } from "../../../dashboard/component/user/user-avatar/user-avatar.component";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzAvatarComponent } from "ng-zorro-antd/avatar";
 
 @UntilDestroy()
 @Component({
   selector: "texera-browse-section",
   templateUrl: "./browse-section.component.html",
   styleUrls: ["./browse-section.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NgFor,
+    NzCardComponent,
+    RouterLink,
+    UserAvatarComponent,
+    ɵNzTransitionPatchDirective,
+    NzAvatarComponent,
+    NgStyle,
+    DatePipe,
+  ],
 })
 export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() entities: DashboardEntry[] = [];

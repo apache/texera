@@ -8,7 +8,8 @@
  */
 
 import { Component } from "@angular/core";
-import { FieldType } from "@ngx-formly/core";
+import { FieldType, FormlyModule } from "@ngx-formly/core";
+import { NgIf, NgFor } from "@angular/common";
 
 @Component({
   // selector: 'formly-multi-schema-type',
@@ -29,6 +30,6 @@ import { FieldType } from "@ngx-formly/core";
       </div>
     </div>
   `,
-  standalone: false,
+  imports: [NgIf, FormlyModule, NgFor],
 })
 export class MultiSchemaTypeComponent extends FieldType {}

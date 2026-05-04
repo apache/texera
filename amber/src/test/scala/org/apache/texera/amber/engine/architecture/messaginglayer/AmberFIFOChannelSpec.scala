@@ -26,137 +26,177 @@ import org.apache.texera.amber.engine.common.ambermessage.{
   WorkflowFIFOMessagePayload
 }
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class AmberFIFOChannelSpec extends AnyFlatSpec with Matchers {
+class AmberFIFOChannelSpec extends AnyFlatSpec {
 
-  // A dummy non-DataFrame payload — getInMemSize falls through to its 200L
-  // default, so each message contributes a known fixed credit cost.
-  private case object StubPayload extends WorkflowFIFOMessagePayload
-  private val FIXED_CREDIT_PER_MESSAGE = 200L
+  private val cid =
+    ChannelIdentity(ActorVirtualIdentity("from"), ActorVirtualIdentity("to"), isControl = false)
 
-  private val channelId = ChannelIdentity(
-    ActorVirtualIdentity("from"),
-    ActorVirtualIdentity("to"),
-    isControl = false
-  )
+  // Non-DataFrame payload, so each message has a deterministic 200L size
+  // for credit/queued/stashed accounting.
+  private case class FixedSizePayload() extends WorkflowFIFOMessagePayload
+  private val msgSize: Long = 200L
 
   private def msg(seq: Long): WorkflowFIFOMessage =
-    WorkflowFIFOMessage(channelId, seq, StubPayload)
+    WorkflowFIFOMessage(cid, seq, FixedSizePayload())
 
-  // ----- initial state -----
+  // ---------------------------------------------------------------------------
+  // Construction defaults
+  // ---------------------------------------------------------------------------
 
-  "AmberFIFOChannel" should "start with current=0 and no queued or stashed messages" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.getCurrentSeq shouldBe 0L
-    ch.hasMessage shouldBe false
-    ch.isEnabled shouldBe true
-    ch.getQueuedCredit shouldBe 0L
-    ch.getTotalMessageSize shouldBe 0L
-    ch.getTotalStashedSize shouldBe 0L
+  "AmberFIFOChannel" should "expose the configured channelId and have an empty queue at construction" in {
+    val ch = new AmberFIFOChannel(cid)
+    assert(ch.channelId == cid)
+    assert(!ch.hasMessage)
+    assert(ch.getCurrentSeq == 0L)
+    assert(ch.getQueuedCredit == 0L)
+    assert(ch.getTotalMessageSize == 0L)
+    assert(ch.getTotalStashedSize == 0L)
   }
 
-  // ----- acceptMessage -----
-
-  "acceptMessage" should "enqueue an in-order message and advance current" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(0))
-    ch.hasMessage shouldBe true
-    ch.getCurrentSeq shouldBe 1L
-    ch.getQueuedCredit shouldBe FIXED_CREDIT_PER_MESSAGE
+  it should "default to enabled" in {
+    val ch = new AmberFIFOChannel(cid)
+    assert(ch.isEnabled)
   }
 
-  it should "stash a future message without changing current" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(2))
-    ch.getCurrentSeq shouldBe 0L
-    ch.hasMessage shouldBe false
-    ch.getTotalStashedSize shouldBe FIXED_CREDIT_PER_MESSAGE
+  // ---------------------------------------------------------------------------
+  // FIFO ordering and stash
+  // ---------------------------------------------------------------------------
+
+  "AmberFIFOChannel.acceptMessage" should "forward an in-order seq=0 message and advance the current sequence" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(0L))
+    assert(ch.hasMessage)
+    assert(ch.getCurrentSeq == 1L)
+    assert(ch.getQueuedCredit == msgSize)
+    assert(ch.getTotalMessageSize == msgSize)
   }
 
-  it should "drop a duplicate message (sequenceNumber below current)" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(0))
-    ch.acceptMessage(msg(0)) // duplicate
-    ch.getCurrentSeq shouldBe 1L
-    ch.getQueuedCredit shouldBe FIXED_CREDIT_PER_MESSAGE // not double-counted
+  it should "stash an out-of-order message until its predecessor arrives, then drain in FIFO order" in {
+    val ch = new AmberFIFOChannel(cid)
+    // arrives out of order: seq 1 first, then seq 0
+    ch.acceptMessage(msg(1L))
+    assert(!ch.hasMessage, "ahead-of-window message must be stashed, not delivered")
+    assert(ch.getCurrentSeq == 0L)
+    assert(ch.getTotalStashedSize == msgSize)
+
+    ch.acceptMessage(msg(0L))
+    // both should drain
+    assert(ch.hasMessage)
+    assert(ch.getCurrentSeq == 2L)
+    assert(ch.getQueuedCredit == 2 * msgSize)
+    assert(ch.getTotalStashedSize == 0L)
+
+    val first = ch.take
+    val second = ch.take
+    assert(first.sequenceNumber == 0L)
+    assert(second.sequenceNumber == 1L)
+    assert(!ch.hasMessage)
+    assert(ch.getQueuedCredit == 0L)
   }
 
-  it should "drop a message whose sequenceNumber is already stashed" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(2))
-    ch.acceptMessage(msg(2)) // already in ofoMap
-    ch.getTotalStashedSize shouldBe FIXED_CREDIT_PER_MESSAGE
-  }
-
-  it should "drain a contiguous run from the stash once the gap fills" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(1))
-    ch.acceptMessage(msg(2))
-    ch.acceptMessage(msg(4)) // non-contiguous gap at 3
-    ch.acceptMessage(msg(0)) // unblocks 1, 2; 4 stays stashed because 3 missing
-    ch.getCurrentSeq shouldBe 3L
+  it should "drain a contiguous run from the stash once the gap fills, leaving a non-contiguous stashed message behind" in {
+    // A three-message stash with a gap: seq 1, 2, 4 are all stashed because
+    // seq 0 hasn't arrived; once 0 arrives, the contiguous run 0..2 drains
+    // but 4 stays stashed because seq 3 is still missing.
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(1L))
+    ch.acceptMessage(msg(2L))
+    ch.acceptMessage(msg(4L))
+    ch.acceptMessage(msg(0L))
+    assert(ch.getCurrentSeq == 3L, "drain must advance current to the first missing seq")
     // queued: 0, 1, 2 — three messages worth of credit
-    ch.getQueuedCredit shouldBe 3 * FIXED_CREDIT_PER_MESSAGE
-    ch.getTotalStashedSize shouldBe FIXED_CREDIT_PER_MESSAGE // only seq=4 remains
+    assert(ch.getQueuedCredit == 3 * msgSize)
+    assert(ch.getTotalStashedSize == msgSize, "only seq=4 remains stashed")
   }
 
-  // ----- take -----
-
-  "take" should "return messages in FIFO order and decrement holdCredit" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(0))
-    ch.acceptMessage(msg(1))
-    ch.take.sequenceNumber shouldBe 0L
-    ch.getQueuedCredit shouldBe FIXED_CREDIT_PER_MESSAGE
-    ch.take.sequenceNumber shouldBe 1L
-    ch.getQueuedCredit shouldBe 0L
-    ch.hasMessage shouldBe false
+  it should "drop duplicates whose sequence number is below the current high-water mark" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(0L))
+    ch.acceptMessage(msg(0L)) // duplicate
+    assert(ch.getCurrentSeq == 1L, "duplicate must not advance the sequence")
+    // only one message is buffered
+    val out = ch.take
+    assert(out.sequenceNumber == 0L)
+    assert(!ch.hasMessage)
   }
 
-  // ----- enable / isEnabled -----
+  it should "drop duplicates that are stashed twice ahead of the current window" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(2L))
+    ch.acceptMessage(msg(2L)) // duplicate stash
+    assert(ch.getTotalStashedSize == msgSize, "duplicate stash must not double-count")
+    // unblock by delivering 0 and 1
+    ch.acceptMessage(msg(0L))
+    ch.acceptMessage(msg(1L))
+    assert(ch.getCurrentSeq == 3L)
+    val received = (0 until 3).map(_ => ch.take.sequenceNumber).toList
+    assert(received == List(0L, 1L, 2L))
+  }
 
-  "enable(false)" should "flip the enabled flag" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.isEnabled shouldBe true
+  // ---------------------------------------------------------------------------
+  // Accounting under take
+  // ---------------------------------------------------------------------------
+
+  "AmberFIFOChannel.take" should "decrement getQueuedCredit by the size of the dequeued message" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(0L))
+    ch.acceptMessage(msg(1L))
+    assert(ch.getQueuedCredit == 2 * msgSize)
+    ch.take
+    assert(ch.getQueuedCredit == msgSize)
+    ch.take
+    assert(ch.getQueuedCredit == 0L)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Size accessors
+  // ---------------------------------------------------------------------------
+
+  "AmberFIFOChannel.getTotalMessageSize" should "report the sum of in-memory size across queued messages" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(0L))
+    ch.acceptMessage(msg(1L))
+    assert(ch.getTotalMessageSize == 2 * msgSize)
+  }
+
+  "AmberFIFOChannel.getTotalStashedSize" should "report the sum of in-memory size across stashed messages only" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(2L))
+    ch.acceptMessage(msg(4L))
+    assert(ch.getTotalStashedSize == 2 * msgSize)
+    assert(ch.getTotalMessageSize == 0L, "stashed messages do not count toward queued size")
+  }
+
+  // ---------------------------------------------------------------------------
+  // enable / isEnabled
+  // ---------------------------------------------------------------------------
+
+  "AmberFIFOChannel.enable" should "toggle the enabled flag" in {
+    val ch = new AmberFIFOChannel(cid)
     ch.enable(false)
-    ch.isEnabled shouldBe false
+    assert(!ch.isEnabled)
     ch.enable(true)
-    ch.isEnabled shouldBe true
+    assert(ch.isEnabled)
   }
 
-  // ----- size accessors -----
+  // ---------------------------------------------------------------------------
+  // PortId association
+  // ---------------------------------------------------------------------------
 
-  "getTotalMessageSize" should "report the sum of in-memory size across queued messages" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(0))
-    ch.acceptMessage(msg(1))
-    ch.getTotalMessageSize shouldBe 2 * FIXED_CREDIT_PER_MESSAGE
+  "AmberFIFOChannel.getPortId" should "throw when no portId has been set" in {
+    val ch = new AmberFIFOChannel(cid)
+    // Option.get on None
+    assertThrows[NoSuchElementException] {
+      ch.getPortId
+    }
   }
 
-  "getTotalStashedSize" should "report the sum of in-memory size across stashed messages only" in {
-    val ch = new AmberFIFOChannel(channelId)
-    ch.acceptMessage(msg(2))
-    ch.acceptMessage(msg(4))
-    ch.getTotalStashedSize shouldBe 2 * FIXED_CREDIT_PER_MESSAGE
-    ch.getTotalMessageSize shouldBe 0L // none are queued yet
-  }
-
-  // ----- portId -----
-
-  "setPortId / getPortId" should "round-trip a PortIdentity once set" in {
-    val ch = new AmberFIFOChannel(channelId)
-    val port = PortIdentity(id = 3, internal = true)
-    ch.setPortId(port)
-    ch.getPortId shouldBe port
-  }
-
-  it should "throw NoSuchElementException when getPortId is called before setPortId (current behavior)" in {
-    // Pin: getPortId calls `.get` on an Option that defaults to None. Calling
-    // it before setPortId yields NoSuchElementException — there is no
-    // explicit guard or default. Documenting so a future change to a safer
-    // accessor (Option getter, or a sentinel default) breaks this spec.
-    val ch = new AmberFIFOChannel(channelId)
-    assertThrows[NoSuchElementException](ch.getPortId)
+  it should "return the most recently configured portId" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.setPortId(PortIdentity(0))
+    assert(ch.getPortId == PortIdentity(0))
+    ch.setPortId(PortIdentity(7))
+    assert(ch.getPortId == PortIdentity(7))
   }
 }

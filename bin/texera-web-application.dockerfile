@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM node:22-bookworm AS build-frontend
+FROM node:24-bookworm AS build-frontend
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 build-essential git ca-certificates

@@ -26,13 +26,51 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
+import {
+  NzListItemComponent,
+  NzListItemMetaComponent,
+  NzListItemMetaAvatarComponent,
+  NzListItemMetaTitleComponent,
+  NzListItemMetaDescriptionComponent,
+  NzListItemActionsComponent,
+  NzListItemActionComponent,
+} from "ng-zorro-antd/list";
+import { NgStyle, NgIf } from "@angular/common";
+import { NzAvatarComponent } from "ng-zorro-antd/avatar";
+import { RouterLink } from "@angular/router";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-dataset-list-item",
   templateUrl: "./user-dataset-list-item.component.html",
   styleUrls: ["./user-dataset-list-item.component.scss"],
-  standalone: false,
+  imports: [
+    NzListItemComponent,
+    NzListItemMetaComponent,
+    NzListItemMetaAvatarComponent,
+    NgStyle,
+    NzAvatarComponent,
+    NzListItemMetaTitleComponent,
+    NgIf,
+    RouterLink,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzListItemMetaDescriptionComponent,
+    NzListItemActionsComponent,
+    NzListItemActionComponent,
+    NzWaveDirective,
+    NzPopconfirmDirective,
+  ],
 })
 export class UserDatasetListItemComponent {
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;

@@ -32,8 +32,7 @@ describe("UserAvatarComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [UserAvatarComponent],
-      imports: [HttpClientModule, HttpClientTestingModule, NzAvatarModule],
+      imports: [UserAvatarComponent, HttpClientModule, HttpClientTestingModule, NzAvatarModule],
       providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
     }).compileComponents();
   });

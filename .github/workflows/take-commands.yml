@@ -1,0 +1,85 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# /take and /untake comment commands.
+#
+# Triage state is no longer materialized as a label — it is the search
+# filter `is:issue is:open no:assignee`. Anyone can self-claim an issue
+# by commenting `/take` (and self-release with `/untake`); PR-driven
+# assignee sync is handled by `pr-assignment.yml`.
+name: Issue take commands
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  take:
+    # The startsWith filter at the job level keeps unrelated comments
+    # from allocating a runner; the regex inside the script enforces an
+    # exact `/take` or `/untake` so suffixes like `/take this` do not
+    # silently match.
+    if: >-
+      github.event_name == 'issue_comment'
+      && github.event.action == 'created'
+      && github.event.issue.pull_request == null
+      && github.event.comment.user.type != 'Bot'
+      && (startsWith(github.event.comment.body, '/take')
+          || startsWith(github.event.comment.body, '/untake'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = (context.payload.comment.body || '').trim();
+            const issue_number = context.payload.issue.number;
+            const login = context.payload.comment.user.login;
+            const { owner, repo } = context.repo;
+            core.info(
+              `take/untake candidate: ${login} on issue #${issue_number}; ` +
+                `body=${JSON.stringify(body)}`,
+            );
+
+            if (/^\/take\s*$/.test(body)) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner, repo, issue_number, assignees: [login],
+                });
+                core.info(`Assigned ${login} to issue #${issue_number}`);
+              } catch (e) {
+                core.warning(
+                  `addAssignees on #${issue_number} failed: ${e.message}`,
+                );
+              }
+            } else if (/^\/untake\s*$/.test(body)) {
+              try {
+                await github.rest.issues.removeAssignees({
+                  owner, repo, issue_number, assignees: [login],
+                });
+                core.info(`Unassigned ${login} from issue #${issue_number}`);
+              } catch (e) {
+                core.warning(
+                  `removeAssignees on #${issue_number} failed: ${e.message}`,
+                );
+              }
+            } else {
+              core.info(
+                `Comment does not match exact '/take' or '/untake'; skipping.`,
+              );
+            }

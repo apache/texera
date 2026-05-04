@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import "zone.js/testing";
+
 import { DOCUMENT } from "@angular/core";
 import { ExecutionState, LogicalPlan } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
@@ -97,7 +99,7 @@ describe("ExecuteWorkflowService", () => {
 
   it("should msg backend when executing workflow", fakeAsync(() => {
     const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
-    const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
+    const wsSendSpy = vi.spyOn((service as any).workflowWebsocketService, "send");
     const settings = service["workflowActionService"].getWorkflowSettings();
     service.sendExecutionRequest("", logicalPlan, settings, false, undefined);
     tick(FORM_DEBOUNCE_TIME_MS + 1);
@@ -128,13 +130,13 @@ describe("ExecuteWorkflowService", () => {
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
 
-    const logicalPlanSpy = spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").and.returnValue({} as LogicalPlan);
-    const settingsSpy = spyOn(service["workflowActionService"], "getWorkflowSettings").and.returnValue(
-      {} as WorkflowSettings
-    );
-    const resetExecutionStateSpy = spyOn(service, "resetExecutionState");
-    const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
-    const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
+    const logicalPlanSpy = vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockReturnValue({} as LogicalPlan);
+    const settingsSpy = vi
+      .spyOn(service["workflowActionService"], "getWorkflowSettings")
+      .mockReturnValue({} as WorkflowSettings);
+    const resetExecutionStateSpy = vi.spyOn(service, "resetExecutionState");
+    const resetStatusSpy = vi.spyOn(service["workflowStatusService"], "resetStatus");
+    const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest");
 
     service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
 
@@ -144,8 +146,8 @@ describe("ExecuteWorkflowService", () => {
     expect(resetStatusSpy).toHaveBeenCalled();
     expect(sendExecutionRequestSpy).toHaveBeenCalledWith(
       executionName,
-      jasmine.any(Object),
-      jasmine.any(Object),
+      expect.any(Object),
+      expect.any(Object),
       emailNotificationEnabled
     );
   });
@@ -155,10 +157,12 @@ describe("ExecuteWorkflowService", () => {
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
 
-    const logicalPlanSpy = spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").and.throwError("Logical plan error");
-    const resetExecutionStateSpy = spyOn(service, "resetExecutionState");
-    const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
-    const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
+    const logicalPlanSpy = vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockImplementation(() => {
+      throw "Logical plan error";
+    });
+    const resetExecutionStateSpy = vi.spyOn(service, "resetExecutionState");
+    const resetStatusSpy = vi.spyOn(service["workflowStatusService"], "resetStatus");
+    const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest");
 
     expect(() => {
       service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);

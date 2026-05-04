@@ -17,9 +17,8 @@
  * under the License.
  */
 
-import { getTestBed } from "@angular/core/testing";
-import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from "@angular/platform-browser-dynamic/testing";
-
-getTestBed().initTestEnvironment(BrowserDynamicTestingModule, platformBrowserDynamicTesting(), {
-  teardown: { destroyAfterEach: false },
-});
+// Pulls in Vitest's global typings (describe/it/expect/vi/etc.) for spec
+// files. Used instead of `"types": ["vitest/globals"]` in tsconfig.spec.json
+// because the parent tsconfig pins typeRoots to `node_modules/@types`, and
+// Vitest publishes its types from its own package — not via DefinitelyTyped.
+/// <reference types="vitest/globals" />
