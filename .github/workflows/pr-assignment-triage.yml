@@ -17,21 +17,25 @@
 name: PR assignment triage
 on:
   pull_request_target:
-    types: [opened, edited, reopened, ready_for_review, closed]
+    types: [opened, edited, closed]
 
 permissions:
   issues: write
   pull-requests: write
 
 jobs:
-  assign-pr-author:
-    if: >-
-      github.event.action == 'opened'
-      && github.event.pull_request.user.type != 'Bot'
-      && github.event.pull_request.assignees[0] == null
+  # All three behaviors live as steps under one job so the PR Checks
+  # tab shows a single entry per event instead of two-or-three skipped
+  # siblings. Step-level if-guards keep the actual work scoped.
+  pr-assignment-triage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v8
+      - name: Self-assign PR author to the PR
+        if: >-
+          github.event.action == 'opened'
+          && github.event.pull_request.user.type != 'Bot'
+          && github.event.pull_request.assignees[0] == null
+        uses: actions/github-script@v8
         with:
           script: |
             const pr = context.payload.pull_request;
@@ -41,19 +45,17 @@ jobs:
               assignees: [pr.user.login],
             });
 
-  sync-issue-assignees:
-    # Mirror the PR opener as an assignee on each same-repo issue listed in
-    # closingIssuesReferences. On body edits, also drop the opener from
-    # issues whose closing keyword was removed. Other manual assignees are
-    # never touched here, so this never fights with credit-issue-on-pr-merge
-    # or human triage decisions.
-    if: >-
-      contains(fromJSON('["opened","edited","reopened","ready_for_review"]'), github.event.action)
-      && github.event.pull_request.state == 'open'
-      && github.event.pull_request.user.type != 'Bot'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v8
+      - name: Sync PR opener as assignee on linked issues
+        # Mirror the PR opener as an assignee on each same-repo issue listed
+        # in closingIssuesReferences. On body edits, also drop the opener
+        # from issues whose closing keyword was removed. Other manual
+        # assignees are never touched here, so this never fights with the
+        # merge-time credit step or human triage decisions.
+        if: >-
+          contains(fromJSON('["opened","edited"]'), github.event.action)
+          && github.event.pull_request.state == 'open'
+          && github.event.pull_request.user.type != 'Bot'
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -115,11 +117,9 @@ jobs:
               }
             }
 
-  credit-issue-on-pr-merge:
-    if: github.event.action == 'closed' && github.event.pull_request.merged
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v8
+      - name: Credit issue assignees on PR merge
+        if: github.event.action == 'closed' && github.event.pull_request.merged
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
