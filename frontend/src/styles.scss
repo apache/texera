@@ -270,10 +270,18 @@ hr {
     background: #ffffff;
   }
 
-  .package-inputs {
+  .system-package-inputs {
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    width: 100%;
+  }
+
+  .user-package-inputs {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 160px 1fr;
     gap: 14px;
     width: 100%;
   }

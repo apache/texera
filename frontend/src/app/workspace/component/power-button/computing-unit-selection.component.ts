@@ -77,8 +77,16 @@ import { NzSliderComponent } from "ng-zorro-antd/slider";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
+type PackageRow = {
+  name: string;
+  operator?: "==" | ">=" | "<=";
+  version?: string;
+};
+
 type PveDraft = {
   name: string;
+  userPackages: PackageRow[];
+  newPackages: PackageRow[];
   pipOutput: string;
   prettyPipOutput: string;
   expanded: boolean;
@@ -722,9 +730,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return index;
   }
 
+  addPackage(index: number): void {
+    const env = this.pves[index];
+    env.newPackages.push({ name: "", version: "", operator: undefined });
+  }
+
   addEnvironment(): void {
     this.pves.push({
       name: "",
+      userPackages: [],
+      newPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
       expanded: true,
@@ -758,6 +773,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (resp: PvePackageResponse[]) => {
           this.pves = resp.map(pve => ({
             name: pve.pveName,
+            userPackages: pve.userPackages.map(pkgStr => {
+              const [name, version] = pkgStr.split("==");
+              return {
+                name: name.trim(),
+                operator: "==" as const,
+                version: (version ?? "").trim(),
+              };
+            }),
+            newPackages: [],
             expanded: false,
             isInstalling: false,
             pipOutput: "",
@@ -832,40 +856,29 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .replace(/\n/g, "<br/>");
   }
 
-  createVirtualEnvironment(index: number): void {
+  private runPveWebSocket(
+    index: number,
+    action: "create" | "install",
+    initialMessage: string,
+    packages: string[] = [],
+    onDone?: () => void
+  ): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
-
     const env = this.pves[index];
-
     const trimmedName = env.name.trim();
-
-    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
-      this.notificationService.error("Environment name must contain only letters and numbers.");
-      return;
-    }
-
-    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
-
-    if (duplicateExists) {
-      this.notificationService.error("An environment with this name already exists.");
-      return;
-    }
-
-    const packageArray: string[] = [];
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     env.socket?.close();
 
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+    const websocketUrl = this.workflowPveService.PveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
 
-    const websocketUrl = this.workflowPveService.createPveWebSocketUrl(cuId, trimmedName, isLocal, packageArray);
-    console.log("PVE websocketUrl", websocketUrl);
     const socket = new WebSocket(websocketUrl);
 
     this.pves[index] = {
       ...env,
       name: trimmedName,
       socket,
-      pipOutput: "Starting ...\n",
+      pipOutput: initialMessage,
       isInstalling: true,
       isLocked: true,
     };
@@ -874,8 +887,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.scrollToBottomOfPipModal(index);
 
     socket.onmessage = event => {
-      console.log("PVE WS received:", event.data);
-
       this.ngZone.run(() => {
         const currentEnv = this.pves[index];
 
@@ -888,19 +899,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           };
 
           socket.close();
-          this.workflowPveService
-            .getSystemPackages()
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              next: resp => {
-                this.systemPackages = resp.system.map(pkg => {
-                  const [name, version] = pkg.split("==");
-                  return { name: name.trim(), version: (version ?? "").trim() };
-                });
-                this.cdr.detectChanges();
-              },
-              error: (e: unknown) => console.error("Failed to refresh packages", e),
-            });
+          onDone?.();
 
           this.cdr.detectChanges();
           return;
@@ -917,9 +916,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       });
     };
 
-    socket.onerror = err => {
-      console.log("PVE WS error", err);
-
+    socket.onerror = () => {
       this.ngZone.run(() => {
         const currentEnv = this.pves[index];
 
@@ -936,13 +933,74 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.cdr.detectChanges();
       });
     };
+  }
 
-    socket.onclose = event => {
-      console.log("PVE WS closed", {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
+  private refreshUserPackages(index: number): void {
+    const env = this.pves[index];
+
+    this.workflowPveService
+      .getUserPackages(this.selectedComputingUnit!.computingUnit.cuid, env.name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: pkgs => {
+          env.userPackages = pkgs.map(pkg => {
+            const [name, version] = pkg.split("==");
+            return {
+              name: name.trim(),
+              operator: "==",
+              version: (version ?? "").trim(),
+            };
+          });
+
+          this.cdr.detectChanges();
+        },
+        error: (e: unknown) => console.error("Failed to refresh user packages", e),
       });
-    };
+  }
+
+  createVirtualEnvironment(index: number): void {
+    const env = this.pves[index];
+    const trimmedName = env.name.trim();
+
+    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
+      this.notificationService.error("Environment name must contain only letters and numbers.");
+      return;
+    }
+
+    if (env.isLocked) {
+      this.installUserPackages(index);
+      return;
+    }
+
+    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
+
+    if (duplicateExists) {
+      this.notificationService.error("An environment with this name already exists.");
+      return;
+    }
+
+    this.runPveWebSocket(index, "create", "Creating virtual environment...\n", [], () => {
+      this.installUserPackages(index);
+    });
+  }
+
+  private installUserPackages(index: number): void {
+    const env = this.pves[index];
+
+    const packageArray =
+      env.newPackages
+        ?.filter(pkg => pkg.name?.trim())
+        .map(pkg => `${pkg.name.trim()}${pkg.version ? `==${pkg.version.trim()}` : ""}`) ?? [];
+
+    if (packageArray.length === 0) {
+      this.pves[index].newPackages = [];
+      this.refreshUserPackages(index);
+      return;
+    }
+
+    this.runPveWebSocket(index, "install", "Installing user packages...\n", packageArray, () => {
+      this.pves[index].newPackages = [];
+      this.refreshUserPackages(index);
+    });
   }
 }

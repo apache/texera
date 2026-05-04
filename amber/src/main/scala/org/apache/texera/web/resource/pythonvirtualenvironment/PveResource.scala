@@ -28,7 +28,7 @@ import java.util
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class PveResource {
   // --------------------------------------------------
-  // Get installed packages
+  // Get system packages
   // --------------------------------------------------
   @GET
   @Path("/system")
@@ -45,7 +45,7 @@ class PveResource {
   }
 
   // --------------------------------------------------
-  // Fetch PVEs
+  // Fetch PVEs and Installed User Packages
   // --------------------------------------------------
   @GET
   @Path("/pves")
@@ -54,9 +54,10 @@ class PveResource {
     try {
       PveManager
         .getEnvironments(cuid)
-        .map { pveName =>
+        .map { pve =>
           Map(
-            "pveName" -> pveName.asInstanceOf[Object]
+            "pveName" -> pve.pveName.asInstanceOf[Object],
+            "userPackages" -> pve.userPackages.asJava.asInstanceOf[Object]
           ).asJava
         }
         .asJava

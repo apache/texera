@@ -32,7 +32,8 @@ import org.apache.texera.amber.config.PythonUtils
   * for each Computing Unit
   *
   * It supports:
-  * - Creating and initializing isolated Python environments
+  * - Creating and initializing isolated Python environments (with system packages)
+  * - installing user defined packages
   * - Streaming pip output logs back to the caller
   *
   * Each PVE is stored under:
@@ -40,6 +41,11 @@ import org.apache.texera.amber.config.PythonUtils
   */
 
 object PveManager {
+
+  case class PvePackageResponse(
+      pveName: String,
+      userPackages: Seq[String]
+  )
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
@@ -121,18 +127,6 @@ object PveManager {
       return
     }
 
-    if (!Files.exists(requirementsPath)) {
-      queue.put(s"[PVE][ERR] requirements.txt not found at ${requirementsPath.toAbsolutePath}")
-      return
-    }
-
-    if (!Files.exists(operatorRequirementsPath)) {
-      queue.put(
-        s"[PVE][ERR] operator-requirements.txt not found at ${operatorRequirementsPath.toAbsolutePath}"
-      )
-      return
-    }
-
     queue.put(
       s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath} and ${operatorRequirementsPath.toAbsolutePath}"
     )
@@ -170,7 +164,8 @@ object PveManager {
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
 
-  def getEnvironments(cuid: Int): List[String] = {
+  // returns list of PVE names and corresponding user packages for a given CU
+  def getEnvironments(cuid: Int): List[PvePackageResponse] = {
 
     val cuPath = VenvRoot.resolve(cuid.toString)
 
@@ -185,7 +180,27 @@ object PveManager {
         .iterator()
         .asScala
         .filter(path => Files.isDirectory(path))
-        .map(path => path.getFileName.toString)
+        .map { path =>
+          val pveName = path.getFileName.toString
+          val metadataPath = path.resolve("user-packages.txt")
+
+          val userPackages =
+            if (Files.exists(metadataPath)) {
+              Files
+                .readAllLines(metadataPath)
+                .asScala
+                .map(_.trim)
+                .filter(_.nonEmpty)
+                .toSeq
+            } else {
+              Seq()
+            }
+
+          PvePackageResponse(
+            pveName = pveName,
+            userPackages = userPackages
+          )
+        }
         .toList
     } finally {
       stream.close()
@@ -210,6 +225,93 @@ object PveManager {
         .foreach(path => Files.deleteIfExists(path))
     } finally {
       stream.close()
+    }
+  }
+
+  /**
+    * Installs user requested Python packages into the PVE.
+    *
+    * 1. Executes pip install for each package
+    * 2. Updates user metadata file
+    * 3. Streams logs back via queue
+    */
+  def installUserPackages(
+      packages: List[String],
+      cuid: Int,
+      queue: BlockingQueue[String],
+      pveName: String
+  ): Unit = {
+
+    val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
+    val envVars = pipEnv
+
+    if (!Files.exists(Paths.get(python))) {
+      queue.put(s"[PVE][ERR] Python executable not found for PVE: $python")
+      return
+    }
+
+    val metadataPath = cuidDir(cuid, pveName).resolve("user-packages.txt")
+    Files.createDirectories(metadataPath.getParent)
+
+    var installedPackages =
+      if (Files.exists(metadataPath)) {
+        Files
+          .readAllLines(metadataPath)
+          .asScala
+          .map(_.trim)
+          .filter(_.nonEmpty)
+          .toSet
+      } else {
+        Set[String]()
+      }
+
+    packages.foreach { pkg =>
+      val trimmedPkg = pkg.trim
+
+      if (trimmedPkg.nonEmpty) {
+        queue.put(s"[PVE] Installing package: $trimmedPkg")
+
+        val code = Process(
+          Seq(
+            python,
+            "-u",
+            "-m",
+            "pip",
+            "install",
+            "--progress-bar",
+            "off",
+            "--no-input",
+            trimmedPkg
+          ),
+          None,
+          envVars.toSeq: _*
+        ).!(
+          ProcessLogger(
+            out => queue.put(s"[pip] $out"),
+            err => queue.put(s"[pip][ERR] $err")
+          )
+        )
+
+        queue.put(s"[pip] install($trimmedPkg) finished with exit code $code")
+
+        if (code != 0) {
+          queue.put(s"[PVE][ERR] Failed to install package: $trimmedPkg")
+          return
+        }
+
+        installedPackages = installedPackages + trimmedPkg
+
+        Files.write(
+          metadataPath,
+          installedPackages.toSeq.sorted.asJava
+        )
+      }
+    }
+
+    queue.put("[PVE] Final user package list:")
+
+    installedPackages.toSeq.sorted.foreach { pkg =>
+      queue.put(s"[user-package] $pkg")
     }
   }
 }
