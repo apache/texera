@@ -43,8 +43,6 @@
     "**/app/dashboard/component/user/user-quota/user-quota.component.spec.ts",
     "**/app/dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component.spec.ts",
     "**/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts",
-    "**/app/hub/component/about/about.component.spec.ts",
-    "**/app/hub/component/browse-section/browse-section.component.spec.ts",
     "**/app/workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component.spec.ts",
     "**/app/workspace/component/code-editor-dialog/code-debugger.component.spec.ts",
     "**/app/workspace/component/code-editor-dialog/code-editor.component.spec.ts",
