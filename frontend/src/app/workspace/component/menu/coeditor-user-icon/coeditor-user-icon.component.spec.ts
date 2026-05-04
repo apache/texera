@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { CoeditorUserIconComponent } from "./coeditor-user-icon.component";
 import { CoeditorPresenceService } from "../../../service/workflow-graph/model/coeditor-presence.service";
@@ -25,6 +25,8 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropdownMenuComponent, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("CoeditorUserIconComponent", () => {
@@ -32,19 +34,19 @@ describe("CoeditorUserIconComponent", () => {
   let fixture: ComponentFixture<CoeditorUserIconComponent>;
   let coeditorPresenceService: CoeditorPresenceService;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzDropDownModule],
-      declarations: [CoeditorUserIconComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [CoeditorUserIconComponent, HttpClientTestingModule, NzDropDownModule],
       providers: [
         WorkflowActionService,
         CoeditorPresenceService,
         HttpClient,
         NzDropdownMenuComponent,
+        { provide: UserService, useClass: StubUserService },
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(CoeditorUserIconComponent);

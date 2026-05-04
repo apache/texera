@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import "zone.js/testing";
+
 import { DOCUMENT } from "@angular/core";
 import { ExecutionState, LogicalPlan } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
