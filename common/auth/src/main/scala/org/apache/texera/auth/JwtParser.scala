@@ -20,41 +20,25 @@
 package org.apache.texera.auth
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.config.AuthConfig
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.jose4j.jwt.JwtClaims
-import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
-import org.jose4j.keys.HmacKey
 import org.jose4j.lang.UnresolvableKeyException
 
-import java.nio.charset.StandardCharsets
 import java.util.Optional
 
+/** Single source of truth for converting a verified JWT into a [[SessionUser]].
+  *
+  * Verification reuses [[JwtAuth.jwtConsumer]] (same secret, same clock-skew
+  * config). The claim set extracted here mirrors what [[JwtAuth.jwtClaims]]
+  * writes when issuing a token.
+  */
 object JwtParser extends LazyLogging {
 
-  private val TOKEN_SECRET = AuthConfig.jwtSecretKey
-
-  private val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
-    .setAllowedClockSkewInSeconds(30)
-    .setRequireExpirationTime()
-    .setRequireSubject()
-    .setVerificationKey(new HmacKey(TOKEN_SECRET.getBytes(StandardCharsets.UTF_8)))
-    .setRelaxVerificationKeyValidation()
-    .build()
-
+  /** Verify and parse a Bearer token string. */
   def parseToken(token: String): Optional[SessionUser] = {
     try {
-      val jwtClaims: JwtClaims = jwtConsumer.processToClaims(token)
-      val userName = jwtClaims.getSubject
-      val email = jwtClaims.getClaimValue("email", classOf[String])
-      val userId = jwtClaims.getClaimValue("userId").asInstanceOf[Long].toInt
-      val role = UserRoleEnum.valueOf(jwtClaims.getClaimValue("role").asInstanceOf[String])
-      val googleId = jwtClaims.getClaimValue("googleId", classOf[String])
-
-      val user =
-        new User(userId, userName, email, null, googleId, null, role, null, null, null, null)
-      Optional.of(new SessionUser(user))
+      Optional.of(claimsToSessionUser(JwtAuth.jwtConsumer.processToClaims(token)))
     } catch {
       case _: UnresolvableKeyException =>
         logger.error("Invalid JWT Signature")
@@ -63,5 +47,35 @@ object JwtParser extends LazyLogging {
         logger.error(s"Failed to parse JWT: ${e.getMessage}")
         Optional.empty()
     }
+  }
+
+  /** Build a [[SessionUser]] from already-verified claims. Used by both
+    * [[parseToken]] (which verifies then calls this) and amber's
+    * `UserAuthenticator` (which the toastshaman filter calls after its own
+    * signature verification).
+    */
+  def claimsToSessionUser(claims: JwtClaims): SessionUser = {
+    val userName = claims.getSubject
+    val email = claims.getClaimValue("email", classOf[String])
+    // jose4j returns Long after JSON round-trip but the original setClaim
+    // call writes Integer; widen via Number to handle both cases.
+    val userId = claims.getClaimValue("userId", classOf[Number]).intValue()
+    val role = UserRoleEnum.valueOf(claims.getClaimValue("role").asInstanceOf[String])
+    val googleId = claims.getClaimValue("googleId", classOf[String])
+    val googleAvatar = claims.getClaimValue("googleAvatar", classOf[String])
+    val user = new User(
+      userId,
+      userName,
+      email,
+      null,
+      googleId,
+      googleAvatar,
+      role,
+      null,
+      null,
+      null,
+      null
+    )
+    new SessionUser(user)
   }
 }

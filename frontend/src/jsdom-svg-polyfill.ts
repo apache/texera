@@ -96,6 +96,16 @@ if (SVG_ELEMENT_GLOBAL?.prototype) {
 }
 
 /**
+ * jsdom doesn't implement the legacy `document.queryCommandSupported`,
+ * which monaco-editor probes during initialization. Without it the
+ * editor's setup throws even when no spec actually exercises monaco.
+ */
+const docProto = (globalThis as unknown as { Document?: { prototype: Record<string, AnyFn> } }).Document?.prototype;
+if (docProto && typeof docProto.queryCommandSupported !== "function") {
+  docProto.queryCommandSupported = (() => false) as AnyFn;
+}
+
+/**
  * y-websocket schedules a reconnect timer the moment a service that uses
  * collaborative editing is constructed. When that timer fires AFTER vitest
  * has begun tearing down the jsdom window, jsdom's WebSocket implementation
