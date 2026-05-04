@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PR assignment triage
+name: PR assignment
 on:
   pull_request_target:
     types: [opened, edited, closed]
@@ -27,7 +27,7 @@ jobs:
   # All three behaviors live as steps under one job so the PR Checks
   # tab shows a single entry per event instead of two-or-three skipped
   # siblings. Step-level if-guards keep the actual work scoped.
-  pr-assignment-triage:
+  pr-assignment:
     runs-on: ubuntu-latest
     steps:
       - name: Self-assign PR author to the PR
