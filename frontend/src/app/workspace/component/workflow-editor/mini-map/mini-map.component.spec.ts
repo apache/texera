@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { MiniMapComponent } from "./mini-map.component";
 import { WorkflowEditorComponent } from "../workflow-editor.component";
@@ -33,9 +33,8 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 describe("MiniMapComponent", () => {
   let fixture: ComponentFixture<MiniMapComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [MiniMapComponent, WorkflowEditorComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
         WorkflowUtilService,
@@ -47,9 +46,9 @@ describe("MiniMapComponent", () => {
         },
         ...commonTestProviders,
       ],
-      imports: [HttpClientTestingModule, DragDropModule],
+      imports: [MiniMapComponent, WorkflowEditorComponent, HttpClientTestingModule, DragDropModule],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(MiniMapComponent);

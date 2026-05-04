@@ -104,7 +104,6 @@ describe("ContextMenuComponent", () => {
     const validationWorkflowServiceSpy = { validateOperator: vi.fn() };
 
     await TestBed.configureTestingModule({
-      declarations: [ContextMenuComponent],
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: WorkflowActionService, useValue: workflowActionServiceSpy },
@@ -116,6 +115,7 @@ describe("ContextMenuComponent", () => {
         ...commonTestProviders,
       ],
       imports: [
+        ContextMenuComponent,
         HttpClientModule,
         ReactiveFormsModule,
         BrowserAnimationsModule,
