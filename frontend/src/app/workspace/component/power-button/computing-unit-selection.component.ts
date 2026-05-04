@@ -118,7 +118,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
-  jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
+  jvmMemoryMarks: { [key: number]: string } = {1: "1G"};
   jvmMemoryMax: number = 1;
   jvmMemorySteps: number[] = [1]; // Available steps in binary progression (1,2,4,8...)
   showJvmMemorySlider: boolean = false; // Whether to show the slider
@@ -140,7 +140,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
     private ngZone: NgZone
-  ) {}
+  ) {
+  }
 
   ngOnInit(): void {
     // Fetch available computing unit types
@@ -150,7 +151,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .getComputingUnitTypes()
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({ typeOptions }) => {
+        next: ({typeOptions}) => {
           this.availableComputingUnitTypes = typeOptions;
           // Set default selected type if available
           if (typeOptions.includes("kubernetes")) {
@@ -167,7 +168,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .getComputingUnitLimitOptions()
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
+        next: ({cpuLimitOptions, memoryLimitOptions, gpuLimitOptions}) => {
           this.cpuOptions = cpuLimitOptions;
           this.memoryOptions = memoryLimitOptions;
           this.gpuOptions = gpuLimitOptions;
@@ -683,14 +684,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   addPackage(index: number): void {
     const env = this.pves[index];
-    env.newPackages.push({ name: "", version: "", operator: undefined, deleteToggle: false });
+    env.newPackages.push({name: "", version: "", operator: undefined, deleteToggle: false});
   }
 
   addEnvironment(): void {
     this.pves.push({
       name: "",
       userPackages: [],
-      newPackages: [{ name: "", operator: "==", version: "" }],
+      newPackages: [{name: "", operator: "==", version: ""}],
       pipOutput: "",
       prettyPipOutput: "",
       expanded: true,
@@ -800,40 +801,35 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .replace(/\n/g, "<br/>");
   }
 
-  createVirtualEnvironment(index: number): void {
+  private runPveWebSocket(
+    index: number,
+    action: "create" | "install",
+    initialMessage: string,
+    packages: string[] = [],
+    onDone?: () => void
+  ): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
-
     const env = this.pves[index];
-
     const trimmedName = env.name.trim();
-
-    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
-      this.notificationService.error("Environment name must contain only letters and numbers.");
-      return;
-    }
-
-    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
-
-    if (duplicateExists) {
-      this.notificationService.error("An environment with this name already exists.");
-      return;
-    }
-
-    const packageArray: string[] = [];
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     env.socket?.close();
 
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+    const websocketUrl = this.workflowPveService.PveWebSocketUrl(
+      cuId,
+      trimmedName,
+      isLocal,
+      action,
+      packages
+    );
 
-    const websocketUrl = this.workflowPveService.createPveWebSocketUrl(cuId, trimmedName, isLocal, packageArray);
-    console.log("PVE websocketUrl", websocketUrl);
     const socket = new WebSocket(websocketUrl);
 
     this.pves[index] = {
       ...env,
       name: trimmedName,
       socket,
-      pipOutput: "Starting ...\n",
+      pipOutput: initialMessage,
       isInstalling: true,
       isLocked: true,
     };
@@ -842,8 +838,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.scrollToBottomOfPipModal(index);
 
     socket.onmessage = event => {
-      console.log("PVE WS received:", event.data);
-
       this.ngZone.run(() => {
         const currentEnv = this.pves[index];
 
@@ -856,19 +850,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           };
 
           socket.close();
-          this.workflowPveService
-            .getSystemPackages()
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              next: resp => {
-                this.systemPackages = resp.system.map(pkg => {
-                  const [name, version] = pkg.split("==");
-                  return { name: name.trim(), version: (version ?? "").trim() };
-                });
-                this.cdr.detectChanges();
-              },
-              error: (e: unknown) => console.error("Failed to refresh packages", e),
-            });
+          onDone?.();
 
           this.cdr.detectChanges();
           return;
@@ -885,9 +867,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       });
     };
 
-    socket.onerror = err => {
-      console.log("PVE WS error", err);
-
+    socket.onerror = () => {
       this.ngZone.run(() => {
         const currentEnv = this.pves[index];
 
@@ -904,13 +884,67 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.cdr.detectChanges();
       });
     };
-
-    socket.onclose = event => {
-      console.log("PVE WS closed", {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-      });
-    };
   }
+
+  private refreshSystemPackages(): void {
+    this.workflowPveService
+      .getSystemPackages()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: resp => {
+          this.systemPackages = resp.system.map(pkg => {
+            const [name, version] = pkg.split("==");
+            return { name: name.trim(), version: (version ?? "").trim() };
+          });
+          this.cdr.detectChanges();
+        },
+        error: e => console.error("Failed to refresh packages", e),
+      });
+  }
+
+  createVirtualEnvironment(index: number): void {
+    const env = this.pves[index];
+    const trimmedName = env.name.trim();
+
+    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
+      this.notificationService.error("Environment name must contain only letters and numbers.");
+      return;
+    }
+
+    if (env.isLocked) {
+      this.installUserPackages(index);
+      return;
+    }
+
+    const duplicateExists = this.pves.some(
+      (pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName
+    );
+
+    if (duplicateExists) {
+      this.notificationService.error("An environment with this name already exists.");
+      return;
+    }
+
+    this.runPveWebSocket(index, "create", "Creating virtual environment...\n", [], () => {
+      this.installUserPackages(index);
+    });
+  }
+
+  private installUserPackages(index: number): void {
+    const env = this.pves[index];
+
+    const packageArray = env.newPackages
+      ?.filter(pkg => pkg.name?.trim())
+      .map(pkg => `${pkg.name.trim()}${pkg.version ? `==${pkg.version.trim()}` : ""}`) ?? [];
+
+    if (packageArray.length === 0) {
+      this.refreshSystemPackages();
+      return;
+    }
+
+    this.runPveWebSocket(index, "install", "Installing user packages...\n", packageArray, () => {
+      this.refreshSystemPackages();
+    });
+  }
+
 }
