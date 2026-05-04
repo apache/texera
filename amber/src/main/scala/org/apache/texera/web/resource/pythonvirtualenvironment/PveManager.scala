@@ -33,7 +33,7 @@ import org.apache.texera.amber.config.PythonUtils
   *
   * It supports:
   * - Creating and initializing isolated Python environments (with system packages)
-  * - installing user defined packages
+  * - Installing user defined packages
   * - Streaming pip output logs back to the caller
   *
   * Each PVE is stored under:
