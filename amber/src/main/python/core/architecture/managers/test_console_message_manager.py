@@ -53,8 +53,12 @@ class TestConsoleMessageManager:
     def test_get_without_flush_below_threshold_yields_nothing(self):
         # Below max_message_num (default 10) and within max_flush_interval
         # (default 500ms) — the underlying TimedBuffer should withhold output.
+        # Pin `_last_output_time` to "now" right before the assertion so the
+        # `(now - _last_output_time).seconds >= 1` branch can't fire if the
+        # rest of the test happens to run more than ~1s after construction.
         mgr = ConsoleMessageManager()
         mgr.put_message(_msg("only"))
+        mgr.print_buf._last_output_time = datetime.now()
         assert list(mgr.get_messages(force_flush=False)) == []
         # The withheld message must still be drainable on a force flush.
         assert [m.title for m in mgr.get_messages(force_flush=True)] == ["only"]
@@ -68,9 +72,10 @@ class TestConsoleMessageManager:
         flushed = [m.title for m in mgr.get_messages(force_flush=False)]
         assert flushed == [f"m{i}" for i in range(10)]
 
-    def test_get_drains_when_last_output_time_is_stale(self, monkeypatch):
-        # Backdate the buffer's `_last_output_time` so the >=500ms branch
-        # fires even with a single message and force_flush=False.
+    def test_get_drains_when_last_output_time_is_stale(self):
+        # Backdate the buffer's `_last_output_time` directly so the
+        # >=500ms branch fires even with a single message and
+        # force_flush=False, without sleeping or monkeypatching `datetime`.
         mgr = ConsoleMessageManager()
         mgr.put_message(_msg("stale"))
         mgr.print_buf._last_output_time = datetime.now() - timedelta(seconds=2)

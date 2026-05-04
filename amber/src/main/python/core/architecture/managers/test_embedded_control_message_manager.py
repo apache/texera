@@ -49,8 +49,10 @@ def _make_ecm(
     ecm_type: EmbeddedControlMessageType,
     scope=None,
 ) -> EmbeddedControlMessage:
-    # Reuse the same identity *object* across calls so the dict in
-    # `EmbeddedControlMessageManager.ecm_received` aggregates under one key.
+    # Each call constructs a fresh `EmbeddedControlMessageIdentity(id="ecm-1")`,
+    # but the dataclass-style equality means all of them hash to the same key
+    # in `EmbeddedControlMessageManager.ecm_received`, so messages built from
+    # different invocations still aggregate under the single "ecm-1" entry.
     return EmbeddedControlMessage(
         id=EmbeddedControlMessageIdentity(id="ecm-1"),
         ecm_type=ecm_type,
