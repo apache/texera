@@ -85,6 +85,19 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     chkpt.save(DP_STATE_KEY, dp)
   }
 
+  "CheckpointState" should "fail loudly on an unknown key" in {
+    // Pin the documented contract precisely: load throws
+    // RuntimeException("no state saved for key = $key"). A bare
+    // `contains("unknown")` would still pass if the message ever drifts to
+    // something like "unknown checkpoint", silently weakening the assertion.
+    val chkpt = new CheckpointState()
+    assert(!chkpt.has("unknown"))
+    val ex = intercept[RuntimeException] {
+      chkpt.load[Any]("unknown")
+    }
+    assert(ex.getMessage == "no state saved for key = unknown")
+  }
+
 //  "CSVScanOperator" should "be serializable" in {
 //    val chkpt = new CheckpointState()
 //    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()

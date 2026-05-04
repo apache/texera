@@ -24,12 +24,33 @@ import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common
 import { DatasetVersion } from "../../../common/type/dataset";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
+import { NgFor } from "@angular/common";
+import { UserDatasetVersionFiletreeComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 @UntilDestroy()
 @Component({
   templateUrl: "dataset-selection-modal.component.html",
   styleUrls: ["dataset-selection-modal.component.scss"],
-  standalone: false,
+  imports: [
+    NzRowDirective,
+    NzSpaceCompactItemDirective,
+    NzSelectComponent,
+    NzColDirective,
+    FormsModule,
+    NgFor,
+    NzOptionComponent,
+    UserDatasetVersionFiletreeComponent,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+  ],
 })
 export class DatasetSelectionModalComponent implements OnInit {
   private readonly data = inject(NZ_MODAL_DATA) as {

@@ -16,7 +16,6 @@
 
 name: Feature Request
 description: Suggest a new feature or improvement.
-labels: ["triage"]
 type: "Feature"
 body:
   - type: markdown

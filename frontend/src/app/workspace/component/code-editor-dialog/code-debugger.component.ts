@@ -46,7 +46,7 @@ const MouseTargetType = monaco.editor.MouseTargetType;
 @Component({
   selector: "texera-code-debugger",
   templateUrl: "code-debugger.component.html",
-  standalone: false,
+  imports: [BreakpointConditionInputComponent],
 })
 export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   @Input() monacoEditor!: MonacoEditor;

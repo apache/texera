@@ -23,18 +23,34 @@ import { FiltersComponent } from "../filters/filters.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SortMethod } from "../../../type/sort-method";
-import { Location } from "@angular/common";
+import { Location, NgClass } from "@angular/common";
 import { ActivatedRoute } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
 import { firstValueFrom } from "rxjs";
 import { map } from "rxjs/operators";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 
 @UntilDestroy()
 @Component({
   selector: "texera-search",
   templateUrl: "./search.component.html",
   styleUrls: ["./search.component.scss"],
-  standalone: false,
+  imports: [
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    SortButtonComponent,
+    NzWaveDirective,
+    NgClass,
+    FiltersComponent,
+    SearchResultsComponent,
+  ],
 })
 export class SearchComponent implements AfterViewInit {
   public searchParam: string = "";

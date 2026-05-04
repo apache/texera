@@ -24,8 +24,8 @@ import { createOutputFormChangeEventStream } from "../../../../common/formly/for
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { isEqual } from "lodash";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
-import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
-import { FormGroup } from "@angular/forms";
+import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from "@ngx-formly/core";
+import { FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { cloneDeep } from "lodash-es";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { filter } from "rxjs/operators";
@@ -36,6 +36,12 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import { mockPortSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import { NgIf } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -44,7 +50,17 @@ Quill.register("modules/cursors", QuillCursors);
   selector: "texera-port-property-edit-frame",
   templateUrl: "./port-property-edit-frame.component.html",
   styleUrls: ["./port-property-edit-frame.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    FormsModule,
+    ReactiveFormsModule,
+    FormlyModule,
+  ],
 })
 export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentPortID: LogicalPort | undefined;

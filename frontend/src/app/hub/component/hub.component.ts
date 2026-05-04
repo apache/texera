@@ -25,12 +25,18 @@ import {
 } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
+import { NgIf } from "@angular/common";
+import { NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { RouterLink } from "@angular/router";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 @Component({
   selector: "texera-hub",
   templateUrl: "hub.component.html",
   styleUrls: ["hub.component.scss"],
-  standalone: false,
+  imports: [NgIf, NzMenuItemComponent, ɵNzTransitionPatchDirective, NzTooltipDirective, RouterLink, NzIconDirective],
 })
 export class HubComponent {
   @Input() isLogin: boolean = false;

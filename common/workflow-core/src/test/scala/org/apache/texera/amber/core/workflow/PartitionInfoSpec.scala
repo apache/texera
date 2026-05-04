@@ -21,102 +21,172 @@ package org.apache.texera.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class PartitionInfoSpec extends AnyFlatSpec with Matchers {
+class PartitionInfoSpec extends AnyFlatSpec {
 
-  // ----- satisfies -----
+  // The full set of "named" partition kinds we care about cross-checking.
+  // Two HashPartitions with different attribute lists count as a "different
+  // partition" too, so we include both shapes.
+  private val hashA: PartitionInfo = HashPartition(List("a"))
+  private val hashB: PartitionInfo = HashPartition(List("b"))
+  private val rangeA: PartitionInfo = new RangePartition(List("a"), 0L, 10L)
+  private val single: PartitionInfo = SinglePartition()
+  private val broadcast: PartitionInfo = BroadcastPartition()
+  private val oneToOne: PartitionInfo = OneToOnePartition()
+  private val unknown: PartitionInfo = UnknownPartition()
 
-  "satisfies" should "report a partition as satisfying itself" in {
-    HashPartition(List("k")).satisfies(HashPartition(List("k"))) shouldBe true
-    SinglePartition().satisfies(SinglePartition()) shouldBe true
-    BroadcastPartition().satisfies(BroadcastPartition()) shouldBe true
+  // Five "primary" partition kinds (excluding the duplicate Hash and the
+  // catch-all Unknown — both handled separately) used for the cross product.
+  private val primaryKinds: List[(String, PartitionInfo)] = List(
+    "HashPartition" -> hashA,
+    "RangePartition" -> rangeA,
+    "SinglePartition" -> single,
+    "BroadcastPartition" -> broadcast,
+    "OneToOnePartition" -> oneToOne
+  )
+
+  "PartitionInfo.satisfies" should "hold reflexively (each partition satisfies itself)" in {
+    primaryKinds.foreach {
+      case (name, p) =>
+        assert(p.satisfies(p), s"$name should satisfy itself")
+    }
+    // UnknownPartition reflexively satisfies itself too.
+    assert(unknown.satisfies(unknown))
+    // HashPartition with the same attribute list satisfies itself even
+    // across distinct instances.
+    assert(HashPartition(List("a")).satisfies(HashPartition(List("a"))))
   }
 
-  it should "treat UnknownPartition as the universal accepter (any partition satisfies Unknown)" in {
-    // The convention is that "no partition requirement" is satisfied by
-    // every concrete partition.
-    HashPartition(List("k")).satisfies(UnknownPartition()) shouldBe true
-    SinglePartition().satisfies(UnknownPartition()) shouldBe true
-    BroadcastPartition().satisfies(UnknownPartition()) shouldBe true
-    OneToOnePartition().satisfies(UnknownPartition()) shouldBe true
+  it should "fail across the full 5x5 cross-product of distinct primary kinds" in {
+    // For every pair of distinct primary partition kinds, satisfies must be
+    // false. This covers the full 5x5 = 25 cell matrix; the diagonal is
+    // covered by the reflexivity test above.
+    for {
+      (lname, lhs) <- primaryKinds
+      (rname, rhs) <- primaryKinds
+      if lhs != rhs
+    } {
+      assert(!lhs.satisfies(rhs), s"$lname must not satisfy $rname")
+    }
   }
 
-  it should "not relax the requirement: UnknownPartition does NOT satisfy a concrete partition" in {
-    UnknownPartition().satisfies(SinglePartition()) shouldBe false
-    UnknownPartition().satisfies(HashPartition()) shouldBe false
+  it should "hold for any primary partition against UnknownPartition" in {
+    primaryKinds.foreach {
+      case (name, p) =>
+        assert(p.satisfies(unknown), s"$name should satisfy UnknownPartition")
+    }
+    // And UnknownPartition satisfies itself.
+    assert(unknown.satisfies(unknown))
   }
 
-  it should "report different concrete partitions as not satisfying each other" in {
-    HashPartition(List("k")).satisfies(SinglePartition()) shouldBe false
-    SinglePartition().satisfies(HashPartition(List("k"))) shouldBe false
-    HashPartition(List("a")).satisfies(HashPartition(List("b"))) shouldBe false
+  it should "fail when UnknownPartition is on the LHS against any primary kind" in {
+    primaryKinds.foreach {
+      case (name, p) =>
+        assert(!unknown.satisfies(p), s"UnknownPartition must not satisfy $name")
+    }
   }
 
-  // ----- merge -----
-
-  "merge" should "preserve the partition when merging with itself" in {
-    val hp = HashPartition(List("k"))
-    hp.merge(hp) shouldBe hp
-    SinglePartition().merge(SinglePartition()) shouldBe SinglePartition()
-    BroadcastPartition().merge(BroadcastPartition()) shouldBe BroadcastPartition()
+  it should "fail for HashPartition with different attribute lists (and otherwise-equal shape)" in {
+    assert(!hashA.satisfies(hashB))
+    assert(!hashB.satisfies(hashA))
+    // But both still satisfy UnknownPartition.
+    assert(hashA.satisfies(unknown))
+    assert(hashB.satisfies(unknown))
   }
 
-  it should "fall back to UnknownPartition when merging two different concrete partitions" in {
-    HashPartition(List("k")).merge(SinglePartition()) shouldBe UnknownPartition()
-    SinglePartition().merge(BroadcastPartition()) shouldBe UnknownPartition()
+  "PartitionInfo.merge" should "preserve the partition when merged with itself across every kind" in {
+    primaryKinds.foreach {
+      case (name, p) =>
+        // RangePartition has its own override that always returns
+        // UnknownPartition (covered separately below); skip it here.
+        if (!p.isInstanceOf[RangePartition]) {
+          assert(p.merge(p) == p, s"$name should merge with itself to itself")
+        }
+    }
+    // UnknownPartition merges with itself to itself.
+    assert(unknown.merge(unknown) == unknown)
+    // HashPartition with same attributes merges to itself.
+    assert(HashPartition(List("a")).merge(HashPartition(List("a"))) == HashPartition(List("a")))
   }
 
-  it should "always return UnknownPartition when merging RangePartition with anything (override)" in {
-    // RangePartition.merge overrides the default to always return Unknown,
-    // because two range-partitioned streams merged without a re-sort lose
-    // their ordering invariant.
-    val rp = RangePartition(List("k"), 0L, 100L)
-    rp.merge(rp) shouldBe UnknownPartition()
-    rp.merge(HashPartition()) shouldBe UnknownPartition()
-    rp.merge(UnknownPartition()) shouldBe UnknownPartition()
+  it should "fall back to UnknownPartition for the full 5x5 cross-product of distinct primary kinds" in {
+    // Every distinct-pair merge produces UnknownPartition.
+    for {
+      (lname, lhs) <- primaryKinds
+      (rname, rhs) <- primaryKinds
+      if lhs != rhs
+    } {
+      assert(
+        lhs.merge(rhs) == unknown,
+        s"$lname.merge($rname) must be UnknownPartition"
+      )
+    }
   }
 
-  it should "merge anything with UnknownPartition into UnknownPartition" in {
-    HashPartition(List("k")).merge(UnknownPartition()) shouldBe UnknownPartition()
-    SinglePartition().merge(UnknownPartition()) shouldBe UnknownPartition()
+  it should "fall back to UnknownPartition when either side is UnknownPartition (excluding self-merge)" in {
+    primaryKinds.foreach {
+      case (name, p) =>
+        assert(p.merge(unknown) == unknown, s"$name.merge(Unknown) must be Unknown")
+        assert(unknown.merge(p) == unknown, s"Unknown.merge($name) must be Unknown")
+    }
   }
 
-  // ----- RangePartition.apply factory -----
-
-  "RangePartition.apply" should "return a RangePartition when range attribute names are non-empty" in {
-    RangePartition(List("k"), 0L, 100L) shouldBe a[RangePartition]
+  it should "always return UnknownPartition for RangePartition merges, including with itself" in {
+    val r = new RangePartition(List("a"), 0L, 10L)
+    assert(r.merge(r) == unknown, "RangePartition self-merge is overridden to Unknown")
+    primaryKinds.foreach {
+      case (name, p) =>
+        assert(r.merge(p) == unknown, s"RangePartition.merge($name) must be Unknown")
+    }
   }
 
-  it should "fall back to UnknownPartition when the range attribute name list is empty" in {
-    // Pin: an empty rangeAttributeNames list collapses to UnknownPartition
-    // — without this fallback the subsequent shuffle code would have nothing
-    // to range-partition on.
-    RangePartition(List.empty, 0L, 100L) shouldBe UnknownPartition()
+  it should "treat HashPartitions with different attribute lists as distinct (merge → Unknown)" in {
+    assert(hashA.merge(hashB) == unknown)
+    assert(hashB.merge(hashA) == unknown)
   }
 
-  // ----- HashPartition default attribute list -----
+  "RangePartition.apply" should "return an UnknownPartition when no range attributes are provided" in {
+    assert(RangePartition(List.empty, 0L, 10L) == UnknownPartition())
+  }
+
+  it should "return a RangePartition when at least one range attribute is provided" in {
+    val result = RangePartition(List("a"), 0L, 10L)
+    assert(result.isInstanceOf[RangePartition])
+    val rp = result.asInstanceOf[RangePartition]
+    assert(rp.rangeAttributeNames == List("a"))
+    assert(rp.rangeMin == 0L)
+    assert(rp.rangeMax == 10L)
+  }
+
+  // ---------------------------------------------------------------------------
+  // HashPartition default attribute list
+  // ---------------------------------------------------------------------------
 
   "HashPartition()" should "default to an empty hash attribute list" in {
-    HashPartition().hashAttributeNames shouldBe empty
+    assert(HashPartition().hashAttributeNames.isEmpty)
   }
 
-  // ----- JsonSubTypes registration -----
+  // ---------------------------------------------------------------------------
+  // JsonSubTypes registration
+  // ---------------------------------------------------------------------------
 
-  "PartitionInfo @JsonSubTypes" should "list the current registration set (omits OneToOnePartition)" in {
+  "PartitionInfo @JsonSubTypes" should
+    "list the current registration set (omits OneToOnePartition)" in {
     // Pin: the @JsonSubTypes annotation on PartitionInfo currently registers
     // HashPartition, RangePartition, SinglePartition, BroadcastPartition,
-    // and UnknownPartition — but NOT OneToOnePartition. The "all" claim was
-    // moved to the pendingUntilFixed test below so this spec only documents
-    // the present-day set.
+    // and UnknownPartition — but NOT OneToOnePartition. The "all" claim is
+    // documented separately in the pendingUntilFixed test below so this
+    // spec only documents the present-day set.
     val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
     val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
-    registered shouldBe Set(
-      "HashPartition",
-      "RangePartition",
-      "SinglePartition",
-      "BroadcastPartition",
-      "UnknownPartition"
+    assert(
+      registered == Set(
+        "HashPartition",
+        "RangePartition",
+        "SinglePartition",
+        "BroadcastPartition",
+        "UnknownPartition"
+      )
     )
   }
 
@@ -124,21 +194,24 @@ class PartitionInfoSpec extends AnyFlatSpec with Matchers {
     // Intended contract: every concrete PartitionInfo subtype must be
     // reachable through the polymorphic dispatch on `type`, otherwise
     // Jackson cannot deserialize the missing payload (today: OneToOne-
-    // Partition). Asserting `contains "OneToOnePartition"` here flips this
-    // test from Pending to a real pass once the bug is fixed — pendingUntil-
-    // Fixed inverts that and turns the now-passing assertion into a failure
-    // so the fix has to delete the marker deliberately.
+    // Partition). Asserting `contains "OneToOnePartition"` here flips
+    // this test from Pending to a real pass once the bug is fixed —
+    // pendingUntilFixed inverts that and turns the now-passing
+    // assertion into a failure so the fix has to delete the marker
+    // deliberately.
     val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
     val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
-    registered should contain("OneToOnePartition")
+    assert(registered.contains("OneToOnePartition"))
   }
 
-  // ----- case class equality -----
+  // ---------------------------------------------------------------------------
+  // case-class equality
+  // ---------------------------------------------------------------------------
 
   "PartitionInfo case classes" should "use structural equality (case-class semantics)" in {
-    HashPartition(List("k")) shouldBe HashPartition(List("k"))
-    HashPartition(List("k")) should not be HashPartition(List("other"))
-    SinglePartition() shouldBe SinglePartition()
-    UnknownPartition() shouldBe UnknownPartition()
+    assert(HashPartition(List("k")) == HashPartition(List("k")))
+    assert(HashPartition(List("k")) != HashPartition(List("other")))
+    assert(SinglePartition() == SinglePartition())
+    assert(UnknownPartition() == UnknownPartition())
   }
 }

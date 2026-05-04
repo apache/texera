@@ -29,13 +29,60 @@ import { isDefined } from "../../../../common/util/predicate";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
+import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
+import { FormsModule } from "@angular/forms";
+import { NzListComponent, NzListItemComponent } from "ng-zorro-antd/list";
+import { NgFor, NgIf, DatePipe } from "@angular/common";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { NzBadgeComponent } from "ng-zorro-antd/badge";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { NzTagComponent } from "ng-zorro-antd/tag";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputGroupComponent, NzInputDirective } from "ng-zorro-antd/input";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 
 @UntilDestroy()
 @Component({
   selector: "texera-console-frame",
   templateUrl: "./console-frame.component.html",
   styleUrls: ["./console-frame.component.scss"],
-  standalone: false,
+  imports: [
+    NzDropdownADirective,
+    NzDropdownDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
+    NzSwitchComponent,
+    FormsModule,
+    NzListComponent,
+    NgFor,
+    NzListItemComponent,
+    NzRowDirective,
+    NzColDirective,
+    NzBadgeComponent,
+    NgIf,
+    NzCollapseComponent,
+    NzCollapsePanelComponent,
+    NzTagComponent,
+    NzSpaceCompactItemDirective,
+    NzInputGroupComponent,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzTooltipDirective,
+    NzInputDirective,
+    NzSelectComponent,
+    NzOptionComponent,
+    DatePipe,
+  ],
 })
 export class ConsoleFrameComponent implements OnInit, OnChanges {
   @Input() operatorId!: string;

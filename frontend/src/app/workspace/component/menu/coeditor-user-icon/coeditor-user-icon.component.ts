@@ -20,6 +20,11 @@
 import { Component, Input } from "@angular/core";
 import { Coeditor, Role } from "../../../../common/type/user";
 import { CoeditorPresenceService } from "../../../service/workflow-graph/model/coeditor-presence.service";
+import { UserAvatarComponent } from "../../../../dashboard/component/user/user-avatar/user-avatar.component";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NgIf } from "@angular/common";
 
 /**
  * CoeditorUserIconComponent is the user icon of a co-editor.
@@ -31,7 +36,15 @@ import { CoeditorPresenceService } from "../../../service/workflow-graph/model/c
   selector: "texera-coeditor-user-icon",
   templateUrl: "coeditor-user-icon.component.html",
   styleUrls: ["coeditor-user-icon.component.css"],
-  standalone: false,
+  imports: [
+    UserAvatarComponent,
+    ɵNzTransitionPatchDirective,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NgIf,
+    NzMenuItemComponent,
+  ],
 })
 export class CoeditorUserIconComponent {
   @Input() coeditor: Coeditor = {

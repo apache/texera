@@ -34,13 +34,58 @@ import { firstValueFrom } from "rxjs";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { DASHBOARD_USER_PROJECT, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import {
+  NzListItemComponent,
+  NzListItemMetaComponent,
+  NzListItemMetaAvatarComponent,
+  NzListItemMetaTitleComponent,
+  NzListItemMetaDescriptionComponent,
+  NzListItemActionsComponent,
+  NzListItemActionComponent,
+} from "ng-zorro-antd/list";
+import { NgStyle, NgIf, NgFor, NgClass, DatePipe } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { NzAvatarComponent } from "ng-zorro-antd/avatar";
+import { RouterLink } from "@angular/router";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-workflow-list-item",
   templateUrl: "./user-workflow-list-item.component.html",
   styleUrls: ["./user-workflow-list-item.component.scss"],
-  standalone: false,
+  imports: [
+    NzListItemComponent,
+    NzListItemMetaComponent,
+    NzListItemMetaAvatarComponent,
+    NgStyle,
+    NgIf,
+    FormsModule,
+    NzAvatarComponent,
+    NzListItemMetaTitleComponent,
+    RouterLink,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzListItemMetaDescriptionComponent,
+    NgFor,
+    NgClass,
+    NzListItemActionsComponent,
+    NzListItemActionComponent,
+    NzWaveDirective,
+    NzPopconfirmDirective,
+    DatePipe,
+    HighlightSearchTermsPipe,
+  ],
 })
 export class UserWorkflowListItemComponent {
   protected readonly DASHBOARD_USER_WORKSPACE = DASHBOARD_USER_WORKSPACE;

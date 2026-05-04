@@ -41,15 +41,24 @@ import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { isDefined } from "../../../common/util/predicate";
-import { CdkDragEnd } from "@angular/cdk/drag-drop";
+import { CdkDragEnd, CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { PanelService } from "../../service/panel/panel.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
+import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
+import { NgClass, NgIf, NgFor, NgComponentOutlet, KeyValuePipe } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 export const DEFAULT_WIDTH = 800;
 export const DEFAULT_HEIGHT = 500;
@@ -62,7 +71,28 @@ export const DEFAULT_HEIGHT = 500;
   selector: "texera-result-panel",
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"],
-  standalone: false,
+  imports: [
+    NzMenuDirective,
+    NgClass,
+    NgIf,
+    NzMenuItemComponent,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzMenuDividerDirective,
+    CdkDrag,
+    NzResizableDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    CdkDragHandle,
+    NzTabsComponent,
+    NzTabComponent,
+    NgFor,
+    NgComponentOutlet,
+    NzResizeHandlesComponent,
+    FormlyRepeatDndComponent,
+    KeyValuePipe,
+  ],
 })
 export class ResultPanelComponent implements OnInit, OnDestroy {
   @ViewChild("dynamicComponent")
