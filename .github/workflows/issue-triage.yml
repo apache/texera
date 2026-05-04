@@ -17,7 +17,7 @@
 name: Issue triage
 on:
   issues:
-    types: [assigned, unassigned]
+    types: [opened, assigned, unassigned]
   issue_comment:
     types: [created]
 
@@ -33,6 +33,37 @@ jobs:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     steps:
+      - name: Add 'triage' label when issue is opened with no assignees
+        # Issue templates already attach `labels: ["triage"]`, but issues
+        # opened bare (no template, or via API/migration) miss that.
+        # Skip when the issue was opened with an assignee already in place
+        # so the assigned-handler below does not immediately remove it.
+        if: >-
+          github.event.action == 'opened'
+          && github.event.issue.assignees[0] == null
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.issue.number;
+            const labels = (context.payload.issue.labels || []).map((l) => l.name);
+            if (labels.includes('triage')) {
+              core.info(`Issue #${issue_number} already has 'triage' (template applied it).`);
+              return;
+            }
+            try {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: ['triage'],
+              });
+              core.info(`Added 'triage' to issue #${issue_number}`);
+            } catch (e) {
+              core.warning(`Failed to add 'triage' to issue #${issue_number}: ${e.message}`);
+            }
+
       - name: Remove 'triage' label when issue is assigned
         if: github.event.action == 'assigned'
         uses: actions/github-script@v8
