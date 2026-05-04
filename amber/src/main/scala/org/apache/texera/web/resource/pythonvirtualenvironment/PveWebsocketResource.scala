@@ -81,10 +81,10 @@ class PveWebsocketResource {
       var done = false
 
       while (!done && session.isOpen) {
-        val msg = queue.take()
-        session.getBasicRemote.sendText(msg)
+        val line = queue.take()
+        session.getBasicRemote.sendText(line)
 
-        if (msg == "__DONE__") {
+        if (line == "__DONE__") {
           done = true
           session.close()
         }
