@@ -20,7 +20,6 @@
 package org.apache.texera.auth
 
 import jakarta.annotation.security.PermitAll
-import jakarta.ws.rs.WebApplicationException
 import jakarta.ws.rs.container.{ContainerRequestContext, ResourceInfo}
 import jakarta.ws.rs.core.{HttpHeaders, Response, SecurityContext}
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
@@ -33,8 +32,9 @@ import java.util.concurrent.atomic.AtomicReference
 
 class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
 
-  // Minimal stand-in for a request context. Only the methods the filter
-  // actually touches are wired up; the rest are unimplemented.
+  // Minimal stand-in for ContainerRequestContext. The filter only reads the
+  // Authorization header and writes a SecurityContext; everything else is
+  // unimplemented.
   private class StubRequestContext(authHeader: String) extends ContainerRequestContext {
     val securityContext = new AtomicReference[SecurityContext](null)
 
@@ -69,6 +69,26 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
     override def setEntityStream(x$1: java.io.InputStream): Unit = ()
   }
 
+  // Inject @Context ResourceInfo via reflection so tests can flip annotation
+  // states per-case without spinning up Jersey.
+  private def withResourceInfo(filter: JwtAuthFilter, info: ResourceInfo): Unit = {
+    val f: Field = classOf[JwtAuthFilter].getDeclaredField("resourceInfo")
+    f.setAccessible(true)
+    f.set(filter, info)
+  }
+
+  private class StubResourceInfo(method: Method, cls: Class[_]) extends ResourceInfo {
+    override def getResourceMethod: Method = method
+    override def getResourceClass: Class[_] = cls
+  }
+
+  private def methodOf(cls: Class[_], name: String): Method =
+    cls.getDeclaredMethods.find(_.getName == name).get
+
+  private class RequiredAuthResource { def secured(): Unit = () }
+  private class OptionalAuthResource { @PermitAll def cover(): Unit = () }
+  @PermitAll private class OpenResource { def anything(): Unit = () }
+
   private def buildClaims(): JwtClaims = {
     val c = new JwtClaims
     c.setSubject("alice")
@@ -81,37 +101,67 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
     c
   }
 
-  private def challenge(thrown: WebApplicationException): String = {
-    thrown.getResponse.getStatus shouldBe 401
-    thrown.getResponse.getHeaderString(HttpHeaders.WWW_AUTHENTICATE)
+  // -------------------- challenge constants --------------------
+
+  "JwtAuthFilter constants" should "match RFC 6750 §3 challenge syntax" in {
+    JwtAuthFilter.BearerChallenge shouldBe "Bearer realm=\"texera\""
+    JwtAuthFilter.InvalidTokenChallenge shouldBe "Bearer realm=\"texera\", error=\"invalid_token\""
   }
 
-  // -------------------- tests --------------------
+  // -------------------- required-auth method --------------------
 
-  "JwtAuthFilter" should "challenge with bare Bearer realm when no Authorization header is present" in {
+  "JwtAuthFilter on a required-auth method" should "throw UnauthorizedException(BearerChallenge) when no Authorization header is present" in {
     val filter = new JwtAuthFilter
+    withResourceInfo(
+      filter,
+      new StubResourceInfo(
+        methodOf(classOf[RequiredAuthResource], "secured"),
+        classOf[RequiredAuthResource]
+      )
+    )
     val ctx = new StubRequestContext(null)
-    val thrown = the[WebApplicationException] thrownBy filter.filter(ctx)
-    challenge(thrown) shouldBe "Bearer realm=\"texera\""
+    val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
+    thrown.challenge shouldBe JwtAuthFilter.BearerChallenge
     ctx.getSecurityContext shouldBe null
   }
 
-  it should "challenge with bare Bearer realm when the header is not a Bearer token" in {
+  it should "throw UnauthorizedException(BearerChallenge) when the header is not a Bearer token" in {
     val filter = new JwtAuthFilter
+    withResourceInfo(
+      filter,
+      new StubResourceInfo(
+        methodOf(classOf[RequiredAuthResource], "secured"),
+        classOf[RequiredAuthResource]
+      )
+    )
     val ctx = new StubRequestContext("Basic abc")
-    val thrown = the[WebApplicationException] thrownBy filter.filter(ctx)
-    challenge(thrown) shouldBe "Bearer realm=\"texera\""
+    val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
+    thrown.challenge shouldBe JwtAuthFilter.BearerChallenge
   }
 
-  it should "challenge with error=invalid_token when the Bearer token cannot be verified" in {
+  it should "throw UnauthorizedException(InvalidTokenChallenge) when the Bearer token cannot be verified" in {
     val filter = new JwtAuthFilter
+    withResourceInfo(
+      filter,
+      new StubResourceInfo(
+        methodOf(classOf[RequiredAuthResource], "secured"),
+        classOf[RequiredAuthResource]
+      )
+    )
     val ctx = new StubRequestContext("Bearer not-a-real-jwt")
-    val thrown = the[WebApplicationException] thrownBy filter.filter(ctx)
-    challenge(thrown) shouldBe "Bearer realm=\"texera\", error=\"invalid_token\""
+    val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
+    thrown.challenge shouldBe JwtAuthFilter.InvalidTokenChallenge
   }
 
   it should "install a SecurityContext with the parsed SessionUser when the token is valid" in {
     val filter = new JwtAuthFilter
+    withResourceInfo(
+      filter,
+      new StubResourceInfo(
+        methodOf(classOf[RequiredAuthResource], "secured"),
+        classOf[RequiredAuthResource]
+      )
+    )
     val ctx = new StubRequestContext(s"Bearer ${JwtAuth.jwtToken(buildClaims())}")
 
     filter.filter(ctx)
@@ -126,24 +176,6 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
 
   // -------------------- @PermitAll opt-out --------------------
 
-  private class RequiredAuthResource { def secured(): Unit = () }
-  private class OptionalAuthResource { @PermitAll def cover(): Unit = () }
-  @PermitAll private class OpenResource { def anything(): Unit = () }
-
-  private def methodOf(cls: Class[_], name: String): Method =
-    cls.getDeclaredMethods.find(_.getName == name).get
-
-  private def withResourceInfo(filter: JwtAuthFilter, info: ResourceInfo): Unit = {
-    val f: Field = classOf[JwtAuthFilter].getDeclaredField("resourceInfo")
-    f.setAccessible(true)
-    f.set(filter, info)
-  }
-
-  private class StubResourceInfo(method: Method, cls: Class[_]) extends ResourceInfo {
-    override def getResourceMethod: Method = method
-    override def getResourceClass: Class[_] = cls
-  }
-
   "JwtAuthFilter on a @PermitAll method" should "let an unauthenticated request pass through with no SecurityContext" in {
     val filter = new JwtAuthFilter
     withResourceInfo(
@@ -154,12 +186,11 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
       )
     )
     val ctx = new StubRequestContext(null)
-
     filter.filter(ctx) // must NOT throw
     ctx.getSecurityContext shouldBe null
   }
 
-  it should "still 401 when a token is supplied but invalid (tampered or stale)" in {
+  it should "still throw UnauthorizedException(InvalidTokenChallenge) when a token is supplied but invalid" in {
     val filter = new JwtAuthFilter
     withResourceInfo(
       filter,
@@ -169,9 +200,8 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
       )
     )
     val ctx = new StubRequestContext("Bearer not-a-real-jwt")
-
-    val thrown = the[WebApplicationException] thrownBy filter.filter(ctx)
-    challenge(thrown) shouldBe "Bearer realm=\"texera\", error=\"invalid_token\""
+    val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
+    thrown.challenge shouldBe JwtAuthFilter.InvalidTokenChallenge
   }
 
   it should "install a SecurityContext when a valid token is supplied" in {
@@ -184,7 +214,6 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
       )
     )
     val ctx = new StubRequestContext(s"Bearer ${JwtAuth.jwtToken(buildClaims())}")
-
     filter.filter(ctx)
     ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
   }
@@ -196,7 +225,6 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
       new StubResourceInfo(methodOf(classOf[OpenResource], "anything"), classOf[OpenResource])
     )
     val ctx = new StubRequestContext(null)
-
     filter.filter(ctx) // must NOT throw
     ctx.getSecurityContext shouldBe null
   }
@@ -205,7 +233,7 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
     val filter = new JwtAuthFilter
     // resourceInfo left as null — pre-matching path or test scenario
     val ctx = new StubRequestContext(null)
-    val thrown = the[WebApplicationException] thrownBy filter.filter(ctx)
-    challenge(thrown) shouldBe "Bearer realm=\"texera\""
+    val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
+    thrown.challenge shouldBe JwtAuthFilter.BearerChallenge
   }
 }
