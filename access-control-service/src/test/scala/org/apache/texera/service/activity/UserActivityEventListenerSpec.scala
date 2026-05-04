@@ -24,7 +24,7 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.glassfish.jersey.server.ContainerRequest
-import org.glassfish.jersey.server.monitoring.RequestEvent
+import org.glassfish.jersey.server.monitoring.{ApplicationEvent, RequestEvent}
 import org.mockito.Mockito.{mock, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -108,5 +108,20 @@ class UserActivityEventListenerSpec extends AnyFlatSpec with Matchers {
     val (rel, recorded) = setup()
     rel.onEvent(buildEvent(RequestEvent.Type.RESOURCE_METHOD_FINISHED, null))
     recorded.isEmpty shouldBe true
+  }
+
+  it should "no-op on ApplicationEvent (lifecycle hook unused)" in {
+    val recorded = new ConcurrentLinkedQueue[Integer]()
+    val listener = new UserActivityEventListener(uid => { recorded.add(uid); () })
+    val appEvent = mock(classOf[ApplicationEvent])
+    listener.onEvent(appEvent)
+    recorded.isEmpty shouldBe true
+  }
+
+  it should "construct with the default tracker without invoking it" in {
+    // Default-arg path: new UserActivityEventListener() resolves track to
+    // UserActivityTracker.markActive but does not call it (the listener
+    // only calls track when a matched SessionUser arrives).
+    new UserActivityEventListener() should not be null
   }
 }
