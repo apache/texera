@@ -97,9 +97,7 @@ describe("ExecuteWorkflowService", () => {
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
   });
 
-  // TODO(vitest): fakeAsync needs ProxyZone wrapping that Vitest+Angular
-  // doesn't currently provide; tracked under #4880.
-  it.skip("should msg backend when executing workflow", fakeAsync(() => {
+  it("should msg backend when executing workflow", fakeAsync(() => {
     const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     const wsSendSpy = vi.spyOn((service as any).workflowWebsocketService, "send");
     const settings = service["workflowActionService"].getWorkflowSettings();

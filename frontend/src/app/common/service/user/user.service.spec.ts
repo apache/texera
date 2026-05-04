@@ -92,9 +92,7 @@ describe("UserService", () => {
     });
   });
 
-  // TODO(vitest): fakeAsync needs ProxyZone wrapping that Vitest+Angular
-  // doesn't currently provide; tracked under #4880.
-  it.skip("should log out when called log out function", fakeAsync(() => {
+  it("should log out when called log out function", fakeAsync(() => {
     expect((service as any).currentUser).toBeFalsy();
     service
       .userChanged()
