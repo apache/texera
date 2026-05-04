@@ -77,7 +77,7 @@ import { NzSliderComponent } from "ng-zorro-antd/slider";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
-type PackageRow = {
+type PveUserPackageRow = {
   name: string;
   operator?: "==" | ">=" | "<=";
   version?: string;
@@ -85,8 +85,8 @@ type PackageRow = {
 
 type PveDraft = {
   name: string;
-  userPackages: PackageRow[];
-  newPackages: PackageRow[];
+  userPackages: PveUserPackageRow[];
+  newPackages: PveUserPackageRow[];
   pipOutput: string;
   prettyPipOutput: string;
   expanded: boolean;
