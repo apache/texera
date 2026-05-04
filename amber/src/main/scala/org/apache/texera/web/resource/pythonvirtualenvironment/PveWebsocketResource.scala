@@ -26,9 +26,9 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
-  * WebSocket endpoint for PVE creation that streams pip installation logs
-  * to the frontend in real time. The environment setup runs asynchronously,
-  * and output is pushed to the client until completion.
+  * WebSocket endpoint for PVE creation and user pacakge installation that streams
+  *  pip installation logs  to the frontend in real time. The environment setup runs
+  *  asynchronously, and output is pushed to the client until completion.
   */
 
 @ServerEndpoint("/wsapi/pve")
@@ -42,12 +42,32 @@ class PveWebsocketResource {
     val cuid = params.get("cuid").get(0).toInt
     val pveName = params.get("pveName").get(0)
     val isLocal = params.get("isLocal").get(0).toBoolean
+    val action = params.getOrDefault("action", java.util.List.of("create")).get(0)
 
     val queue = new LinkedBlockingQueue[String]()
 
     Future {
       try {
-        PveManager.createNewPve(cuid, queue, pveName, isLocal)
+        action match {
+          case "create" =>
+            PveManager.createNewPve(cuid, queue, pveName, isLocal)
+
+          case "install" =>
+            val packages =
+              params.getOrDefault("packages", java.util.List.of("[]"))
+                .get(0)
+                .stripPrefix("[")
+                .stripSuffix("]")
+                .split(",")
+                .toList
+                .map(_.replace("\"", "").trim)
+                .filter(_.nonEmpty)
+
+            PveManager.installUserPackages(packages, cuid, queue, pveName)
+
+          case _ =>
+            queue.put(s"[ERR] Unknown action: $action")
+        }
       } catch {
         case e: Exception =>
           queue.put(s"[ERR] ${e.getMessage}")
@@ -60,11 +80,10 @@ class PveWebsocketResource {
       var done = false
 
       while (!done && session.isOpen) {
-        val line = queue.take()
+        val msg = queue.take()
+        session.getBasicRemote.sendText(msg)
 
-        session.getBasicRemote.sendText(line)
-
-        if (line == "__DONE__") {
+        if (msg == "__DONE__") {
           done = true
           session.close()
         }

@@ -67,21 +67,21 @@ object PveManager {
   }
 
   /**
-    * Creates a new PVE for a CU.
-    *
-    * Behavior:
-    * Creates a fresh venv and installs dependencies
-    *
-    * Steps:
-    * 1. Install system dependencies
-    * 2. Logs progress to the provided queue.
-    */
+   * Creates a new PVE for a CU.
+   *
+   * Behavior:
+   * Creates a fresh venv and installs dependencies
+   *
+   * Steps:
+   * 1. Install system dependencies
+   * 2. Logs progress to the provided queue.
+   */
   def createNewPve(
-      cuid: Int,
-      queue: BlockingQueue[String],
-      pveName: String,
-      isLocal: Boolean
-  ): Unit = {
+                    cuid: Int,
+                    queue: BlockingQueue[String],
+                    pveName: String,
+                    isLocal: Boolean
+                  ): Unit = {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
     // NOTE: These paths are derived from computing-unit-master.dockerfile.
@@ -118,18 +118,6 @@ object PveManager {
 
     if (createCode != 0) {
       queue.put(s"[PVE][ERR] Failed to create venv (exit=$createCode)")
-      return
-    }
-
-    if (!Files.exists(requirementsPath)) {
-      queue.put(s"[PVE][ERR] requirements.txt not found at ${requirementsPath.toAbsolutePath}")
-      return
-    }
-
-    if (!Files.exists(operatorRequirementsPath)) {
-      queue.put(
-        s"[PVE][ERR] operator-requirements.txt not found at ${operatorRequirementsPath.toAbsolutePath}"
-      )
       return
     }
 
@@ -211,5 +199,79 @@ object PveManager {
     } finally {
       stream.close()
     }
+  }
+
+  /**
+   * Installs user requested Python packages into the PVE.
+   *
+   * 1. Executes pip install for each package
+   * 2. Updates user metadata file
+   * 3. Streams logs back via queue
+   */
+  def installUserPackages(
+                       packages: List[String],
+                       cuid: Int,
+                       queue: BlockingQueue[String],
+                       pveName: String
+                     ): Unit = {
+
+    val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
+    val envVars = pipEnv
+
+    if (!Files.exists(Paths.get(python))) {
+      queue.put(s"[PVE][ERR] Python executable not found for PVE: $python")
+      return
+    }
+
+    packages.foreach { pkg =>
+      val trimmedPkg = pkg.trim
+
+      if (trimmedPkg.nonEmpty) {
+        queue.put(s"[PVE] Installing package: $trimmedPkg")
+
+        val code = Process(
+          Seq(
+            python,
+            "-u",
+            "-m",
+            "pip",
+            "install",
+            "--progress-bar",
+            "off",
+            "--no-input",
+            trimmedPkg
+          ),
+          None,
+          envVars.toSeq: _*
+        ).!(
+          ProcessLogger(
+            out => queue.put(s"[pip] $out"),
+            err => queue.put(s"[pip][ERR] $err")
+          )
+        )
+
+        queue.put(s"[pip] install($trimmedPkg) finished with exit code $code")
+
+        if (code != 0) {
+          queue.put(s"[PVE][ERR] Failed to install package: $trimmedPkg")
+          return
+        }
+      }
+    }
+
+    queue.put("[PVE] Final package list:")
+
+    val freezeCode = Process(
+      Seq(python, "-m", "pip", "freeze"),
+      None,
+      envVars.toSeq: _*
+    ).!(
+      ProcessLogger(
+        out => queue.put(s"[pip/freeze] $out"),
+        err => queue.put(s"[pip/freeze][ERR] $err")
+      )
+    )
+
+    queue.put(s"[PVE] pip freeze finished with exit code $freezeCode")
   }
 }
