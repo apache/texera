@@ -117,7 +117,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
-  jvmMemoryMarks: { [key: number]: string } = {1: "1G"};
+  jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
   jvmMemoryMax: number = 1;
   jvmMemorySteps: number[] = [1]; // Available steps in binary progression (1,2,4,8...)
   showJvmMemorySlider: boolean = false; // Whether to show the slider
@@ -139,8 +139,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
     private ngZone: NgZone
-  ) {
-  }
+  ) {}
 
   ngOnInit(): void {
     // Fetch available computing unit types
@@ -150,7 +149,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .getComputingUnitTypes()
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({typeOptions}) => {
+        next: ({ typeOptions }) => {
           this.availableComputingUnitTypes = typeOptions;
           // Set default selected type if available
           if (typeOptions.includes("kubernetes")) {
@@ -167,7 +166,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .getComputingUnitLimitOptions()
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({cpuLimitOptions, memoryLimitOptions, gpuLimitOptions}) => {
+        next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
           this.cpuOptions = cpuLimitOptions;
           this.memoryOptions = memoryLimitOptions;
           this.gpuOptions = gpuLimitOptions;
@@ -683,7 +682,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   addPackage(index: number): void {
     const env = this.pves[index];
-    env.newPackages.push({name: "", version: "", operator: undefined});
+    env.newPackages.push({ name: "", version: "", operator: undefined });
   }
 
   addEnvironment(): void {
@@ -821,13 +820,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     env.socket?.close();
 
-    const websocketUrl = this.workflowPveService.PveWebSocketUrl(
-      cuId,
-      trimmedName,
-      isLocal,
-      action,
-      packages
-    );
+    const websocketUrl = this.workflowPveService.PveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
 
     const socket = new WebSocket(websocketUrl);
 
@@ -905,13 +898,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
             return {
               name: name.trim(),
               operator: "==",
-              version: (version ?? "").trim()
+              version: (version ?? "").trim(),
             };
           });
 
           this.cdr.detectChanges();
         },
-        error: e => console.error("Failed to refresh user packages", e),
+        error: (e: unknown) => console.error("Failed to refresh user packages", e),
       });
   }
 
@@ -929,9 +922,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       return;
     }
 
-    const duplicateExists = this.pves.some(
-      (pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName
-    );
+    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
 
     if (duplicateExists) {
       this.notificationService.error("An environment with this name already exists.");
@@ -946,9 +937,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   private installUserPackages(index: number): void {
     const env = this.pves[index];
 
-    const packageArray = env.newPackages
-      ?.filter(pkg => pkg.name?.trim())
-      .map(pkg => `${pkg.name.trim()}${pkg.version ? `==${pkg.version.trim()}` : ""}`) ?? [];
+    const packageArray =
+      env.newPackages
+        ?.filter(pkg => pkg.name?.trim())
+        .map(pkg => `${pkg.name.trim()}${pkg.version ? `==${pkg.version.trim()}` : ""}`) ?? [];
 
     if (packageArray.length === 0) {
       this.pves[index].newPackages = [];
@@ -961,5 +953,4 @@ export class ComputingUnitSelectionComponent implements OnInit {
       this.refreshUserPackages(index);
     });
   }
-
 }

@@ -42,9 +42,9 @@ import org.apache.texera.amber.config.PythonUtils
 object PveManager {
 
   case class PvePackageResponse(
-                                 pveName: String,
-                                 userPackages: Seq[String]
-                               )
+      pveName: String,
+      userPackages: Seq[String]
+  )
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
@@ -72,21 +72,21 @@ object PveManager {
   }
 
   /**
-   * Creates a new PVE for a CU.
-   *
-   * Behavior:
-   * Creates a fresh venv and installs dependencies
-   *
-   * Steps:
-   * 1. Install system dependencies
-   * 2. Logs progress to the provided queue.
-   */
+    * Creates a new PVE for a CU.
+    *
+    * Behavior:
+    * Creates a fresh venv and installs dependencies
+    *
+    * Steps:
+    * 1. Install system dependencies
+    * 2. Logs progress to the provided queue.
+    */
   def createNewPve(
-                    cuid: Int,
-                    queue: BlockingQueue[String],
-                    pveName: String,
-                    isLocal: Boolean
-                  ): Unit = {
+      cuid: Int,
+      queue: BlockingQueue[String],
+      pveName: String,
+      isLocal: Boolean
+  ): Unit = {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
     // NOTE: These paths are derived from computing-unit-master.dockerfile.
@@ -184,7 +184,9 @@ object PveManager {
 
           val userPackages =
             if (Files.exists(metadataPath)) {
-              Files.readAllLines(metadataPath).asScala
+              Files
+                .readAllLines(metadataPath)
+                .asScala
                 .map(_.trim)
                 .filter(_.nonEmpty)
                 .toSeq
@@ -225,18 +227,18 @@ object PveManager {
   }
 
   /**
-   * Installs user requested Python packages into the PVE.
-   *
-   * 1. Executes pip install for each package
-   * 2. Updates user metadata file
-   * 3. Streams logs back via queue
-   */
+    * Installs user requested Python packages into the PVE.
+    *
+    * 1. Executes pip install for each package
+    * 2. Updates user metadata file
+    * 3. Streams logs back via queue
+    */
   def installUserPackages(
-                           packages: List[String],
-                           cuid: Int,
-                           queue: BlockingQueue[String],
-                           pveName: String
-                         ): Unit = {
+      packages: List[String],
+      cuid: Int,
+      queue: BlockingQueue[String],
+      pveName: String
+  ): Unit = {
 
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val envVars = pipEnv
@@ -251,7 +253,9 @@ object PveManager {
 
     var installedPackages =
       if (Files.exists(metadataPath)) {
-        Files.readAllLines(metadataPath).asScala
+        Files
+          .readAllLines(metadataPath)
+          .asScala
           .map(_.trim)
           .filter(_.nonEmpty)
           .toSet

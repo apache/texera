@@ -60,9 +60,7 @@ export class WorkflowPveService {
   }
 
   getUserPackages(cuid: number, pveName: string): Observable<string[]> {
-    return this.fetchPVEs(cuid).pipe(
-      map(pves => pves.find(pve => pve.pveName === pveName)?.userPackages ?? [])
-    );
+    return this.fetchPVEs(cuid).pipe(map(pves => pves.find(pve => pve.pveName === pveName)?.userPackages ?? []));
   }
 
   deleteEnvironments(cuid: number) {

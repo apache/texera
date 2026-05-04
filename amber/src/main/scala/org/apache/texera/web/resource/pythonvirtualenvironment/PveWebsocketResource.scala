@@ -54,7 +54,8 @@ class PveWebsocketResource {
 
           case "install" =>
             val packages =
-              params.getOrDefault("packages", java.util.List.of("[]"))
+              params
+                .getOrDefault("packages", java.util.List.of("[]"))
                 .get(0)
                 .stripPrefix("[")
                 .stripSuffix("]")
