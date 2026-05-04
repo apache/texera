@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Auto-assign
+name: PR assignment triage
 on:
   pull_request_target:
-    types: [opened, closed]
+    types: [opened, edited, reopened, ready_for_review, closed]
 
 permissions:
   issues: write
@@ -40,6 +40,80 @@ jobs:
               issue_number: pr.number,
               assignees: [pr.user.login],
             });
+
+  sync-issue-assignees:
+    # Mirror the PR opener as an assignee on each same-repo issue listed in
+    # closingIssuesReferences. On body edits, also drop the opener from
+    # issues whose closing keyword was removed. Other manual assignees are
+    # never touched here, so this never fights with credit-issue-on-pr-merge
+    # or human triage decisions.
+    if: >-
+      contains(fromJSON('["opened","edited","reopened","ready_for_review"]'), github.event.action)
+      && github.event.pull_request.state == 'open'
+      && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const opener = pr.user.login;
+
+            const { repository: { pullRequest: prq } } = await github.graphql(`
+              query($owner: String!, $repo: String!, $pr: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    closingIssuesReferences(first: 50) {
+                      nodes { number repository { nameWithOwner } }
+                    }
+                  }
+                }
+              }`, { owner, repo, pr: pr.number });
+
+            const sameRepo = `${owner}/${repo}`;
+            const linked = prq.closingIssuesReferences.nodes
+              .filter((n) => n.repository.nameWithOwner === sameRepo)
+              .map((n) => n.number);
+
+            for (const issue_number of linked) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner, repo, issue_number, assignees: [opener],
+                });
+                core.info(`Assigned ${opener} to issue #${issue_number}`);
+              } catch (e) {
+                core.warning(`addAssignees on #${issue_number} failed: ${e.message}`);
+              }
+            }
+
+            // On body edit, find closing refs that disappeared from the body
+            // and remove the opener from those issues. closingIssuesReferences
+            // is a snapshot of the *new* state, so we need text-diff to detect
+            // removals. Cross-repo refs are intentionally skipped.
+            if (
+              context.payload.action === 'edited' &&
+              context.payload.changes &&
+              context.payload.changes.body &&
+              typeof context.payload.changes.body.from === 'string'
+            ) {
+              const re = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi;
+              const oldBody = context.payload.changes.body.from || '';
+              const newBody = pr.body || '';
+              const oldRefs = new Set([...oldBody.matchAll(re)].map((m) => Number(m[1])));
+              const newRefs = new Set([...newBody.matchAll(re)].map((m) => Number(m[1])));
+              const removed = [...oldRefs].filter((n) => !newRefs.has(n));
+              for (const issue_number of removed) {
+                try {
+                  await github.rest.issues.removeAssignees({
+                    owner, repo, issue_number, assignees: [opener],
+                  });
+                  core.info(`Unassigned ${opener} from issue #${issue_number}`);
+                } catch (e) {
+                  core.warning(`removeAssignees on #${issue_number} failed: ${e.message}`);
+                }
+              }
+            }
 
   credit-issue-on-pr-merge:
     if: github.event.action == 'closed' && github.event.pull_request.merged
