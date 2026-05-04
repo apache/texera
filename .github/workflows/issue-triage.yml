@@ -72,6 +72,8 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issue_number = context.payload.issue.number;
+            const newAssignee = context.payload.assignee?.login || '(unknown)';
+            core.info(`Issue #${issue_number} assigned to ${newAssignee}; removing 'triage' label.`);
 
             try {
               await github.rest.issues.removeLabel({
@@ -99,8 +101,10 @@ jobs:
             const issue = context.payload.issue;
             const { owner, repo } = context.repo;
             const issue_number = issue.number;
+            const removed = context.payload.assignee?.login || '(unknown)';
 
             const assignees = issue.assignees || [];
+            core.info(`Issue #${issue_number} unassigned ${removed}; remaining assignees: [${assignees.map((a) => a.login).join(', ') || '(none)'}]`);
             if (assignees.length > 0) {
               core.info(
                 `Issue #${issue_number} still has ${assignees.length} assignee(s), not adding 'triage'.`
@@ -116,6 +120,7 @@ jobs:
                 issue_number,
                 labels: ['triage'],
               });
+              core.info(`Added 'triage' to issue #${issue_number}`);
             } catch (e) {
               core.warning(`Failed to add 'triage' to issue #${issue_number}: ${e.message}`);
               throw e;
@@ -145,15 +150,15 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const body = (context.payload.comment.body || '').trim();
+            const issue_number = context.payload.issue.number;
+            const login = context.payload.comment.user.login;
+            core.info(`/take candidate: comment by ${login} on issue #${issue_number}; body=${JSON.stringify(body)}`);
             if (!/^\/take\s*$/.test(body)) {
               core.info(`Comment does not match exact '/take'; skipping.`);
               return;
             }
 
             const { owner, repo } = context.repo;
-            const issue_number = context.payload.issue.number;
-            const login = context.payload.comment.user.login;
-
             try {
               await github.rest.issues.addAssignees({
                 owner,

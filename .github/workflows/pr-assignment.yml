@@ -39,11 +39,17 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            await github.rest.issues.addAssignees({
-              ...context.repo,
-              issue_number: pr.number,
-              assignees: [pr.user.login],
-            });
+            core.info(`PR #${pr.number} opened by ${pr.user.login}; self-assigning.`);
+            try {
+              await github.rest.issues.addAssignees({
+                ...context.repo,
+                issue_number: pr.number,
+                assignees: [pr.user.login],
+              });
+              core.info(`Assigned ${pr.user.login} to PR #${pr.number}`);
+            } catch (e) {
+              core.warning(`Self-assign on PR #${pr.number} failed: ${e.message}`);
+            }
 
       - name: Sync PR opener as assignee on linked issues
         # Mirror the PR opener as an assignee on each same-repo issue listed
@@ -61,6 +67,7 @@ jobs:
             const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
             const opener = pr.user.login;
+            core.info(`Event ${context.payload.action} on PR #${pr.number} by ${opener}; syncing closing-issue assignees.`);
 
             const { repository: { pullRequest: prq } } = await github.graphql(`
               query($owner: String!, $repo: String!, $pr: Int!) {
@@ -74,9 +81,15 @@ jobs:
               }`, { owner, repo, pr: pr.number });
 
             const sameRepo = `${owner}/${repo}`;
-            const linked = prq.closingIssuesReferences.nodes
+            const allRefs = prq.closingIssuesReferences.nodes;
+            const linked = allRefs
               .filter((n) => n.repository.nameWithOwner === sameRepo)
               .map((n) => n.number);
+            const crossRepo = allRefs.filter((n) => n.repository.nameWithOwner !== sameRepo);
+            core.info(`Found ${linked.length} same-repo closing reference(s): ${linked.join(', ') || '(none)'}`);
+            if (crossRepo.length) {
+              core.info(`Skipping ${crossRepo.length} cross-repo reference(s): ${crossRepo.map((n) => `${n.repository.nameWithOwner}#${n.number}`).join(', ')}`);
+            }
 
             for (const issue_number of linked) {
               try {
@@ -105,6 +118,7 @@ jobs:
               const oldRefs = new Set([...oldBody.matchAll(re)].map((m) => Number(m[1])));
               const newRefs = new Set([...newBody.matchAll(re)].map((m) => Number(m[1])));
               const removed = [...oldRefs].filter((n) => !newRefs.has(n));
+              core.info(`Body-diff: oldRefs=[${[...oldRefs].join(',')}] newRefs=[${[...newRefs].join(',')}] removed=[${removed.join(',')}]`);
               for (const issue_number of removed) {
                 try {
                   await github.rest.issues.removeAssignees({
@@ -115,6 +129,8 @@ jobs:
                   core.warning(`removeAssignees on #${issue_number} failed: ${e.message}`);
                 }
               }
+            } else if (context.payload.action === 'edited') {
+              core.info(`Body unchanged on edit; skipping removal-detection.`);
             }
 
       - name: Credit issue assignees on PR merge
@@ -123,8 +139,10 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const opener = context.payload.pull_request.user;
+            const pr = context.payload.pull_request;
+            const opener = pr.user;
             const isHuman = (l) => l && !l.endsWith('[bot]');
+            core.info(`PR #${pr.number} merged by opener=${opener.login}; computing credited authors.`);
 
             const { repository: { pullRequest: prq } } = await github.graphql(`
               query($owner: String!, $repo: String!, $pr: Int!) {
@@ -145,7 +163,7 @@ jobs:
                     }
                   }
                 }
-              }`, { owner, repo, pr: context.payload.pull_request.number });
+              }`, { owner, repo, pr: pr.number });
 
             const authors = new Set();
             if (opener.type !== 'Bot' && isHuman(opener.login)) authors.add(opener.login);
@@ -156,15 +174,32 @@ jobs:
               }
             }
             const credited = [...authors].slice(0, 10);
-            if (!credited.length) return;
             const creditedSet = new Set(credited);
+            core.info(`Credited authors (max 10, [bot] filtered): [${credited.join(', ') || '(none)'}]`);
+            if (!credited.length) {
+              core.info(`No human authors to credit; skipping all linked issues.`);
+              return;
+            }
 
-            for (const issue of prq.closingIssuesReferences.nodes) {
-              if (issue.repository.nameWithOwner !== `${owner}/${repo}`) continue;
+            const sameRepoIssues = prq.closingIssuesReferences.nodes.filter((n) => n.repository.nameWithOwner === `${owner}/${repo}`);
+            core.info(`Linked same-repo issues to credit: [${sameRepoIssues.map((i) => `#${i.number}`).join(', ') || '(none)'}]`);
+
+            for (const issue of sameRepoIssues) {
               const current = issue.assignees.nodes.map(n => n.login);
               const toRemove = current.filter(l => !creditedSet.has(l));
               const toAdd = credited.filter(l => !current.includes(l));
               const args = { owner, repo, issue_number: issue.number };
-              if (toRemove.length) await github.rest.issues.removeAssignees({ ...args, assignees: toRemove });
-              if (toAdd.length) await github.rest.issues.addAssignees({ ...args, assignees: toAdd });
+              core.info(`Issue #${issue.number}: current=[${current.join(',')}] credited=[${credited.join(',')}] toRemove=[${toRemove.join(',')}] toAdd=[${toAdd.join(',')}]`);
+              try {
+                if (toRemove.length) {
+                  await github.rest.issues.removeAssignees({ ...args, assignees: toRemove });
+                  core.info(`Removed [${toRemove.join(', ')}] from issue #${issue.number}`);
+                }
+                if (toAdd.length) {
+                  await github.rest.issues.addAssignees({ ...args, assignees: toAdd });
+                  core.info(`Added [${toAdd.join(', ')}] to issue #${issue.number}`);
+                }
+              } catch (e) {
+                core.warning(`Updating assignees on #${issue.number} failed: ${e.message}`);
+              }
             }
