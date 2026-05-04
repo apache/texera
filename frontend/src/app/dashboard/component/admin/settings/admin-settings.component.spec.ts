@@ -28,8 +28,7 @@ describe("AdminSettingsComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [AdminSettingsComponent],
-      imports: [HttpClientTestingModule, NzCardModule],
+      imports: [AdminSettingsComponent, HttpClientTestingModule, NzCardModule],
     }).compileComponents();
   });
 

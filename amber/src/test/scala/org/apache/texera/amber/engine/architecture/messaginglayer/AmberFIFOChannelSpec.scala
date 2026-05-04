@@ -95,6 +95,21 @@ class AmberFIFOChannelSpec extends AnyFlatSpec {
     assert(ch.getQueuedCredit == 0L)
   }
 
+  it should "drain a contiguous run from the stash once the gap fills, leaving a non-contiguous stashed message behind" in {
+    // A three-message stash with a gap: seq 1, 2, 4 are all stashed because
+    // seq 0 hasn't arrived; once 0 arrives, the contiguous run 0..2 drains
+    // but 4 stays stashed because seq 3 is still missing.
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(1L))
+    ch.acceptMessage(msg(2L))
+    ch.acceptMessage(msg(4L))
+    ch.acceptMessage(msg(0L))
+    assert(ch.getCurrentSeq == 3L, "drain must advance current to the first missing seq")
+    // queued: 0, 1, 2 — three messages worth of credit
+    assert(ch.getQueuedCredit == 3 * msgSize)
+    assert(ch.getTotalStashedSize == msgSize, "only seq=4 remains stashed")
+  }
+
   it should "drop duplicates whose sequence number is below the current high-water mark" in {
     val ch = new AmberFIFOChannel(cid)
     ch.acceptMessage(msg(0L))
@@ -132,6 +147,25 @@ class AmberFIFOChannelSpec extends AnyFlatSpec {
     assert(ch.getQueuedCredit == msgSize)
     ch.take
     assert(ch.getQueuedCredit == 0L)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Size accessors
+  // ---------------------------------------------------------------------------
+
+  "AmberFIFOChannel.getTotalMessageSize" should "report the sum of in-memory size across queued messages" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(0L))
+    ch.acceptMessage(msg(1L))
+    assert(ch.getTotalMessageSize == 2 * msgSize)
+  }
+
+  "AmberFIFOChannel.getTotalStashedSize" should "report the sum of in-memory size across stashed messages only" in {
+    val ch = new AmberFIFOChannel(cid)
+    ch.acceptMessage(msg(2L))
+    ch.acceptMessage(msg(4L))
+    assert(ch.getTotalStashedSize == 2 * msgSize)
+    assert(ch.getTotalMessageSize == 0L, "stashed messages do not count toward queued size")
   }
 
   // ---------------------------------------------------------------------------
