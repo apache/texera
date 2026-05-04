@@ -133,7 +133,6 @@ object PveManager {
 
     val venvDirPath = pveDir(cuid, pveName).toAbsolutePath
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
-    val envVars = pipEnv
 
     val createVenvPython = PythonUtils.getPythonExecutable
 
