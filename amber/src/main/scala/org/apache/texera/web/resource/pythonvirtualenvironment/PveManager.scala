@@ -73,10 +73,10 @@ object PveManager {
   }
 
   private def runPipInstall(
-                             python: String,
-                             args: Seq[String],
-                             queue: BlockingQueue[String]
-                           ): Int = {
+      python: String,
+      args: Seq[String],
+      queue: BlockingQueue[String]
+  ): Int = {
     Process(
       Seq(
         python,

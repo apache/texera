@@ -846,10 +846,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
       .replace(/^(\[(?:PVE|pip|pve)\]\[ERR\].*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
 
-      .replace(
-        /^(\[PVE\] Skipped.*)$/gm,
-        '<span class="pip-exit err"><strong>$1</strong></span>'
-      )
+      .replace(/^(\[PVE\] Skipped.*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
 
       .replace(/\n/g, "<br/>");
   }
@@ -977,13 +974,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   private installUserPackages(index: number): void {
     const env = this.pves[index];
 
-    const systemPackageNames = new Set(
-      this.systemPackages.map(pkg => pkg.name.trim().toLowerCase())
-    );
+    const systemPackageNames = new Set(this.systemPackages.map(pkg => pkg.name.trim().toLowerCase()));
 
-    const userPackageNames = new Set(
-      env.userPackages.map(pkg => pkg.name.trim().toLowerCase())
-    );
+    const userPackageNames = new Set(env.userPackages.map(pkg => pkg.name.trim().toLowerCase()));
 
     const skippedMessages: string[] = [];
 
@@ -994,16 +987,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
           const packageName = pkg.name.trim().toLowerCase();
 
           if (systemPackageNames.has(packageName)) {
-            skippedMessages.push(
-              `[PVE] Skipped ${pkg.name}: already installed as a system package.`
-            );
+            skippedMessages.push(`[PVE] Skipped ${pkg.name}: already installed as a system package.`);
             return false;
           }
 
           if (userPackageNames.has(packageName)) {
-            skippedMessages.push(
-              `[PVE] Skipped ${pkg.name}: already installed in this environment.`
-            );
+            skippedMessages.push(`[PVE] Skipped ${pkg.name}: already installed in this environment.`);
             return false;
           }
 
@@ -1012,10 +1001,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
         .map(pkg => `${pkg.name.trim()}${pkg.version ? `==${pkg.version.trim()}` : ""}`) ?? [];
 
     if (skippedMessages.length > 0) {
-      this.pves[index].pipOutput =
-        `${this.pves[index].pipOutput ?? ""}` +
-        skippedMessages.join("\n") +
-        "\n";
+      this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}` + skippedMessages.join("\n") + "\n";
 
       this.updatePrettyPipOutput(index);
       this.scrollToBottomOfPipModal(index);
