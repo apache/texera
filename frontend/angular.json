@@ -97,7 +97,6 @@
               "**/drag-drop.service.spec.ts",
               "**/app/common/formly/preset-wrapper/preset-wrapper.component.spec.ts",
               "**/app/common/service/user/config/user-config.service.spec.ts",
-              "**/app/common/service/user/user.service.spec.ts",
               "**/app/dashboard/component/admin/execution/admin-execution.component.spec.ts",
               "**/app/dashboard/component/admin/settings/admin-settings.component.spec.ts",
               "**/app/dashboard/component/admin/user/admin-user.component.spec.ts",
@@ -140,9 +139,7 @@
               "**/app/workspace/component/workflow-editor/mini-map/mini-map.component.spec.ts",
               "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
               "**/app/workspace/component/workspace.component.spec.ts",
-              "**/app/workspace/service/execute-workflow/execute-workflow.service.spec.ts",
-              "**/app/workspace/service/preset/preset.service.spec.ts",
-              "**/app/workspace/service/workflow-graph/model/coeditor-presence.service.spec.ts"
+              "**/app/workspace/service/preset/preset.service.spec.ts"
             ]
           }
         }
