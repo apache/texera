@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ErrorFrameComponent } from "./error-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
@@ -32,10 +32,9 @@ describe("ConsoleFrameComponent", () => {
   let component: ErrorFrameComponent;
   let fixture: ComponentFixture<ErrorFrameComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzDropDownModule],
-      declarations: [ErrorFrameComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ErrorFrameComponent, HttpClientTestingModule, NzDropDownModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -48,7 +47,7 @@ describe("ConsoleFrameComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ErrorFrameComponent);

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ResultPanelComponent } from "./result-panel.component";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
@@ -39,10 +39,9 @@ describe("ResultPanelComponent", () => {
   let executeWorkflowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [ResultPanelComponent],
-      imports: [HttpClientTestingModule, NzModalModule],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ResultPanelComponent, HttpClientTestingModule, NzModalModule],
       providers: [
         WorkflowActionService,
         ExecuteWorkflowService,
@@ -54,7 +53,7 @@ describe("ResultPanelComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultPanelComponent);
