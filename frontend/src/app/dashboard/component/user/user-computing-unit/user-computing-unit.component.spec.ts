@@ -21,7 +21,9 @@ import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserComputingUnitComponent } from "./user-computing-unit.component";
 import { NzCardModule } from "ng-zorro-antd/card";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { FileAddOutline } from "@ant-design/icons-angular/icons";
 import { HttpClient } from "@angular/common/http";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -56,7 +58,7 @@ describe("UserComputingUnitComponent", () => {
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
-      imports: [UserComputingUnitComponent, NzCardModule],
+      imports: [UserComputingUnitComponent, NzCardModule, NzIconModule.forChild([FileAddOutline])],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
