@@ -20,7 +20,7 @@
 import { mockScanSourceSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMenuComponent } from "./operator-menu.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
@@ -39,15 +39,14 @@ describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
   let fixture: ComponentFixture<OperatorMenuComponent>;
 
-  beforeEach(waitForAsync(() => {
+  beforeEach(async () => {
     TestBed.overrideComponent(OperatorMenuComponent, {
       set: {
         template: "",
       },
     });
 
-    TestBed.configureTestingModule({
-      declarations: [OperatorMenuComponent, OperatorLabelComponent],
+    await TestBed.configureTestingModule({
       providers: [
         {
           provide: OperatorMetadataService,
@@ -60,10 +59,17 @@ describe("OperatorPanelComponent", () => {
         JointUIService,
         ...commonTestProviders,
       ],
-      imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
+      imports: [
+        OperatorMenuComponent,
+        OperatorLabelComponent,
+        NzDropDownModule,
+        NzCollapseModule,
+        BrowserAnimationsModule,
+        RouterTestingModule.withRoutes([]),
+      ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorMenuComponent);

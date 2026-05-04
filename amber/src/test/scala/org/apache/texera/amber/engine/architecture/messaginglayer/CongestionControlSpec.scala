@@ -32,6 +32,17 @@ class CongestionControlSpec extends AnyFlatSpec {
   private def msg(id: Long): NetworkMessage =
     NetworkMessage(id, WorkflowFIFOMessage(channelId, id, DataFrame(Array.empty)))
 
+  // Backdate `sentTime` for `id` so the timeout branches (ack > ackTimeLimit
+  // and getTimedOutInTransitMessages > resendTimeLimit) become reachable
+  // without sleeping. The field is `private val sentTime: LongMap[Long]`,
+  // accessed via Java reflection on the instance's backing field.
+  private def backdateSentTime(cc: CongestionControl, id: Long, ageMillis: Long): Unit = {
+    val field = classOf[CongestionControl].getDeclaredField("sentTime")
+    field.setAccessible(true)
+    val map = field.get(cc).asInstanceOf[scala.collection.mutable.LongMap[Long]]
+    map(id) = System.currentTimeMillis() - ageMillis
+  }
+
   "CongestionControl.canSend" should "be true initially with empty in-transit set" in {
     val cc = new CongestionControl()
     assert(cc.canSend)
@@ -126,6 +137,43 @@ class CongestionControlSpec extends AnyFlatSpec {
     )
   }
 
+  it should "double the window during slow start, then increment linearly past ssThreshold" in {
+    // ssThreshold defaults to 16 and windowSize to 1. Five quick acks should
+    // double 1→2→4→8→16, then increment to 17 on the next ack (the fifth ack
+    // hits the linear branch because windowSize == ssThreshold == 16).
+    val cc = new CongestionControl()
+    for (i <- 0 until 5) {
+      cc.markMessageInTransit(msg(i.toLong))
+      cc.ack(i.toLong)
+    }
+    assert(
+      cc.getStatusReport.contains("current window size = 17"),
+      s"unexpected status: ${cc.getStatusReport}"
+    )
+  }
+
+  "CongestionControl.ack outside ackTimeLimit" should
+    "halve ssThreshold and snap windowSize back to ssThreshold" in {
+    // Drive windowSize up to 16 (== ssThreshold) via four in-window acks,
+    // then backdate the next send so the ack falls outside ackTimeLimit.
+    // The timeout branch should halve ssThreshold to 8 and snap windowSize
+    // back to 8.
+    val cc = new CongestionControl()
+    for (i <- 0 until 4) {
+      cc.markMessageInTransit(msg(i.toLong))
+      cc.ack(i.toLong)
+    }
+    assert(cc.getStatusReport.contains("current window size = 16"))
+
+    cc.markMessageInTransit(msg(99L))
+    backdateSentTime(cc, 99L, 5000) // > ackTimeLimit (3000)
+    cc.ack(99L)
+    assert(
+      cc.getStatusReport.contains("current window size = 8"),
+      s"unexpected status: ${cc.getStatusReport}"
+    )
+  }
+
   "CongestionControl.getBufferedMessagesToSend" should "be bounded by remaining window capacity" in {
     val cc = new CongestionControl()
     cc.enqueueMessage(msg(1L))
@@ -165,6 +213,18 @@ class CongestionControlSpec extends AnyFlatSpec {
     assert(cc.getTimedOutInTransitMessages.isEmpty)
   }
 
+  it should "return only the messages whose sentTime is older than resendTimeLimit" in {
+    // Cover the AkkaMessageTransferService.checkResend() retransmission path:
+    // the in-transit message that has been sitting past the 60s
+    // resendTimeLimit must surface; the freshly-sent one must not.
+    val cc = new CongestionControl()
+    cc.markMessageInTransit(msg(0L))
+    cc.markMessageInTransit(msg(1L))
+    backdateSentTime(cc, 0L, 70000) // > resendTimeLimit (60000)
+    val timedOut = cc.getTimedOutInTransitMessages.toList.map(_.messageId)
+    assert(timedOut == List(0L))
+  }
+
   "CongestionControl.enqueueMessage" should "not place the message into the in-transit set on its own" in {
     val cc = new CongestionControl()
     cc.enqueueMessage(msg(1L))
@@ -174,13 +234,16 @@ class CongestionControlSpec extends AnyFlatSpec {
     assert(cc.getAllMessages.exists(_.messageId == 1L))
   }
 
-  "CongestionControl.getStatusReport" should "include window size, in-transit count, and waiting count" in {
+  "CongestionControl.getStatusReport" should
+    "format the three core counters in the documented order" in {
+    // Pin the exact format string (separator + ordering) so a reorder of
+    // the three fields or a tab-vs-comma swap fails this spec.
     val cc = new CongestionControl()
-    cc.markMessageInTransit(msg(1L))
-    cc.enqueueMessage(msg(2L))
-    val report = cc.getStatusReport
-    assert(report.contains("window size"))
-    assert(report.contains("in transit"))
-    assert(report.contains("waiting"))
+    cc.markMessageInTransit(msg(0L))
+    cc.enqueueMessage(msg(1L))
+    assert(
+      cc.getStatusReport == "current window size = 1 \t in transit = 1 \t waiting = 1",
+      s"unexpected format: ${cc.getStatusReport}"
+    )
   }
 }

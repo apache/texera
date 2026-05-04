@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.workflow
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
 import org.scalatest.flatspec.AnyFlatSpec
 
 class PartitionInfoSpec extends AnyFlatSpec {
@@ -155,5 +156,62 @@ class PartitionInfoSpec extends AnyFlatSpec {
     assert(rp.rangeAttributeNames == List("a"))
     assert(rp.rangeMin == 0L)
     assert(rp.rangeMax == 10L)
+  }
+
+  // ---------------------------------------------------------------------------
+  // HashPartition default attribute list
+  // ---------------------------------------------------------------------------
+
+  "HashPartition()" should "default to an empty hash attribute list" in {
+    assert(HashPartition().hashAttributeNames.isEmpty)
+  }
+
+  // ---------------------------------------------------------------------------
+  // JsonSubTypes registration
+  // ---------------------------------------------------------------------------
+
+  "PartitionInfo @JsonSubTypes" should
+    "list the current registration set (omits OneToOnePartition)" in {
+    // Pin: the @JsonSubTypes annotation on PartitionInfo currently registers
+    // HashPartition, RangePartition, SinglePartition, BroadcastPartition,
+    // and UnknownPartition — but NOT OneToOnePartition. The "all" claim is
+    // documented separately in the pendingUntilFixed test below so this
+    // spec only documents the present-day set.
+    val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
+    val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
+    assert(
+      registered == Set(
+        "HashPartition",
+        "RangePartition",
+        "SinglePartition",
+        "BroadcastPartition",
+        "UnknownPartition"
+      )
+    )
+  }
+
+  it should "eventually register every concrete PartitionInfo subclass (pendingUntilFixed)" in pendingUntilFixed {
+    // Intended contract: every concrete PartitionInfo subtype must be
+    // reachable through the polymorphic dispatch on `type`, otherwise
+    // Jackson cannot deserialize the missing payload (today: OneToOne-
+    // Partition). Asserting `contains "OneToOnePartition"` here flips
+    // this test from Pending to a real pass once the bug is fixed —
+    // pendingUntilFixed inverts that and turns the now-passing
+    // assertion into a failure so the fix has to delete the marker
+    // deliberately.
+    val annotation = classOf[PartitionInfo].getAnnotation(classOf[JsonSubTypes])
+    val registered = annotation.value().toList.map(_.value().getSimpleName).toSet
+    assert(registered.contains("OneToOnePartition"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // case-class equality
+  // ---------------------------------------------------------------------------
+
+  "PartitionInfo case classes" should "use structural equality (case-class semantics)" in {
+    assert(HashPartition(List("k")) == HashPartition(List("k")))
+    assert(HashPartition(List("k")) != HashPartition(List("other")))
+    assert(SinglePartition() == SinglePartition())
+    assert(UnknownPartition() == UnknownPartition())
   }
 }
