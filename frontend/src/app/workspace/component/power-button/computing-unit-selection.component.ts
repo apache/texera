@@ -62,7 +62,6 @@ type PackageRow = {
   name: string;
   operator?: "==" | ">=" | "<=";
   version?: string;
-  deleteToggle?: boolean;
 };
 
 type PveDraft = {
@@ -684,7 +683,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   addPackage(index: number): void {
     const env = this.pves[index];
-    env.newPackages.push({name: "", version: "", operator: undefined, deleteToggle: false});
+    env.newPackages.push({name: "", version: "", operator: undefined});
   }
 
   addEnvironment(): void {
@@ -725,7 +724,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (resp: PvePackageResponse[]) => {
           this.pves = resp.map(pve => ({
             name: pve.pveName,
-            userPackages: [],
+            userPackages: pve.userPackages.map(pkgStr => {
+              const [name, version] = pkgStr.split("==");
+              return {
+                name: name.trim(),
+                operator: "==" as const,
+                version: (version ?? "").trim(),
+              };
+            }),
             newPackages: [],
             expanded: false,
             isInstalling: false,

@@ -41,6 +41,11 @@ import org.apache.texera.amber.config.PythonUtils
 
 object PveManager {
 
+  case class PvePackageResponse(
+                                 pveName: String,
+                                 userPackages: Seq[String]
+                               )
+
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
   private def cuidDir(cuid: Int, pveName: String): Path = {
@@ -158,7 +163,7 @@ object PveManager {
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
 
-  def getEnvironments(cuid: Int): List[String] = {
+  def getEnvironments(cuid: Int): List[PvePackageResponse] = {
 
     val cuPath = VenvRoot.resolve(cuid.toString)
 
@@ -173,7 +178,25 @@ object PveManager {
         .iterator()
         .asScala
         .filter(path => Files.isDirectory(path))
-        .map(path => path.getFileName.toString)
+        .map { path =>
+          val pveName = path.getFileName.toString
+          val metadataPath = path.resolve("user-packages.txt")
+
+          val userPackages =
+            if (Files.exists(metadataPath)) {
+              Files.readAllLines(metadataPath).asScala
+                .map(_.trim)
+                .filter(_.nonEmpty)
+                .toSeq
+            } else {
+              Seq()
+            }
+
+          PvePackageResponse(
+            pveName = pveName,
+            userPackages = userPackages
+          )
+        }
         .toList
     } finally {
       stream.close()
@@ -209,11 +232,11 @@ object PveManager {
    * 3. Streams logs back via queue
    */
   def installUserPackages(
-                       packages: List[String],
-                       cuid: Int,
-                       queue: BlockingQueue[String],
-                       pveName: String
-                     ): Unit = {
+                           packages: List[String],
+                           cuid: Int,
+                           queue: BlockingQueue[String],
+                           pveName: String
+                         ): Unit = {
 
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val envVars = pipEnv
@@ -222,6 +245,19 @@ object PveManager {
       queue.put(s"[PVE][ERR] Python executable not found for PVE: $python")
       return
     }
+
+    val metadataPath = cuidDir(cuid, pveName).resolve("user-packages.txt")
+    Files.createDirectories(metadataPath.getParent)
+
+    var installedPackages =
+      if (Files.exists(metadataPath)) {
+        Files.readAllLines(metadataPath).asScala
+          .map(_.trim)
+          .filter(_.nonEmpty)
+          .toSet
+      } else {
+        Set[String]()
+      }
 
     packages.foreach { pkg =>
       val trimmedPkg = pkg.trim
@@ -256,22 +292,20 @@ object PveManager {
           queue.put(s"[PVE][ERR] Failed to install package: $trimmedPkg")
           return
         }
+
+        installedPackages = installedPackages + trimmedPkg
+
+        Files.write(
+          metadataPath,
+          installedPackages.toSeq.sorted.asJava
+        )
       }
     }
 
-    queue.put("[PVE] Final package list:")
+    queue.put("[PVE] Final user package list:")
 
-    val freezeCode = Process(
-      Seq(python, "-m", "pip", "freeze"),
-      None,
-      envVars.toSeq: _*
-    ).!(
-      ProcessLogger(
-        out => queue.put(s"[pip/freeze] $out"),
-        err => queue.put(s"[pip/freeze][ERR] $err")
-      )
-    )
-
-    queue.put(s"[PVE] pip freeze finished with exit code $freezeCode")
+    installedPackages.toSeq.sorted.foreach { pkg =>
+      queue.put(s"[user-package] $pkg")
+    }
   }
 }

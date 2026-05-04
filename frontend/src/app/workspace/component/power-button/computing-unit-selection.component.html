@@ -529,21 +529,12 @@
               [disabled]="pve.isLocked || pve.isInstalling" />
           </div>
 
-          -----------------------------------------
-
           <!-- USER PACKAGES -->
-          <div
-            class="section-title"
-            *ngIf="pve.userPackages.length > 0">
-            Installed User Packages
-          </div>
-
           <div
             *ngFor="let pkg of pve.userPackages; let i = index"
             class="package-row">
             <div class="user-package-inputs">
               <div class="field">
-                <label>Package</label>
                 <input
                   nz-input
                   [ngModel]="pkg.name"
@@ -551,7 +542,10 @@
               </div>
 
               <div class="field">
-                <label>Version</label>
+                <input nz-input [ngModel]="pkg.operator" [disabled]="true" />
+              </div>
+
+              <div class="field">
                 <input
                   nz-input
                   [ngModel]="pkg.version"
@@ -612,8 +606,6 @@
                 nzType="plus"></i>
             </button>
           </div>
-
-          -----------------------------------------
 
           <!-- Per-environment OK/Install button -->
           <div class="env-footer">

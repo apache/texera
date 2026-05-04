@@ -23,7 +23,6 @@ import { AuthService } from "../../../common/service/user/auth.service";
 
 export interface PackageResponse {
   system: string[];
-  user: string[];
 }
 
 export interface PvePackageResponse {
