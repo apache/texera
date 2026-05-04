@@ -20,35 +20,81 @@
 package org.apache.texera.auth
 
 import com.typesafe.scalalogging.LazyLogging
-import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter}
-import jakarta.ws.rs.core.{HttpHeaders, SecurityContext}
+import jakarta.annotation.security.PermitAll
+import jakarta.ws.rs.WebApplicationException
+import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter, ResourceInfo}
+import jakarta.ws.rs.core.{Context, HttpHeaders, Response, SecurityContext}
 import jakarta.ws.rs.ext.Provider
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 
 import java.security.Principal
 
+/** JAX-RS request filter that authenticates a Bearer JWT and installs a
+  * [[SessionUser]] security context.
+  *
+  * Failure semantics (RFC 6750):
+  *   - No `Authorization: Bearer …` header: throw `401` with a bare
+  *     `WWW-Authenticate: Bearer realm="texera"` challenge — unless the
+  *     resource method or class is annotated with `@PermitAll`, in which
+  *     case the request continues with no security context. This supports
+  *     the `@Auth Optional[SessionUser]` pattern for endpoints that need
+  *     to serve anonymous users.
+  *   - Header present but token verification / claim extraction fails:
+  *     throw `401` with `error="invalid_token"` always, even on `@PermitAll`
+  *     endpoints — a tampered or stale token is never silently treated as
+  *     anonymous.
+  *   - Header present and valid: install a `SecurityContext` whose
+  *     principal is the parsed [[SessionUser]].
+  */
 @Provider
 class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
+
+  @Context
+  private var resourceInfo: ResourceInfo = _
 
   override def filter(requestContext: ContainerRequestContext): Unit = {
     val authHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION)
 
-    if (authHeader != null && authHeader.startsWith("Bearer ")) {
-      val token = authHeader.substring(7) // Remove "Bearer " prefix
-      val userOpt = JwtParser.parseToken(token)
-
-      if (userOpt.isPresent) {
-        val user = userOpt.get()
-        requestContext.setSecurityContext(new SecurityContext {
-          override def getUserPrincipal: Principal = user
-          override def isUserInRole(role: String): Boolean =
-            user.isRoleOf(UserRoleEnum.valueOf(role))
-          override def isSecure: Boolean = false
-          override def getAuthenticationScheme: String = "Bearer"
-        })
-      } else {
-        logger.warn("Invalid JWT: Unable to parse token")
-      }
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+      if (isPermitAll) return
+      throw new WebApplicationException(unauthorized(BearerChallenge))
     }
+
+    val token = authHeader.substring(7) // Remove "Bearer " prefix
+    val userOpt = JwtParser.parseToken(token)
+    if (!userOpt.isPresent) {
+      logger.warn("Invalid JWT: Unable to parse token")
+      throw new WebApplicationException(unauthorized(InvalidTokenChallenge))
+    }
+
+    val user = userOpt.get()
+    requestContext.setSecurityContext(new SecurityContext {
+      override def getUserPrincipal: Principal = user
+      override def isUserInRole(role: String): Boolean =
+        user.isRoleOf(UserRoleEnum.valueOf(role))
+      override def isSecure: Boolean = false
+      override def getAuthenticationScheme: String = "Bearer"
+    })
   }
+
+  private def isPermitAll: Boolean = {
+    if (resourceInfo == null) return false
+    val m = resourceInfo.getResourceMethod
+    val c = resourceInfo.getResourceClass
+    (m != null && m.isAnnotationPresent(classOf[PermitAll])) ||
+    (c != null && c.isAnnotationPresent(classOf[PermitAll]))
+  }
+
+  // RFC 6750 §3: the bare challenge means "please authenticate"; the
+  // `error="invalid_token"` parameter signals "the token you sent is
+  // malformed / expired / signature failed" so a well-behaved client can
+  // discard it instead of retrying.
+  private val BearerChallenge = "Bearer realm=\"texera\""
+  private val InvalidTokenChallenge = "Bearer realm=\"texera\", error=\"invalid_token\""
+
+  private def unauthorized(challenge: String): Response =
+    Response
+      .status(Response.Status.UNAUTHORIZED)
+      .header(HttpHeaders.WWW_AUTHENTICATE, challenge)
+      .build()
 }
