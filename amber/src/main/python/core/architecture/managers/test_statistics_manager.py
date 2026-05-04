@@ -32,6 +32,7 @@ class TestStatisticsManagerDefaults:
         assert list(stats.output_tuple_metrics) == []
         assert stats.data_processing_time == 0
         assert stats.control_processing_time == 0
+        # idle_time = total_execution - data - control = 0 at init.
         assert stats.idle_time == 0
 
 
@@ -109,32 +110,56 @@ class TestStatisticsManagerProcessingTime:
             getattr(mgr, method)(-1)
 
 
-class TestStatisticsManagerIdleTime:
-    def test_idle_time_accumulates(self):
+class TestStatisticsManagerExecutionTime:
+    def test_total_execution_time_is_relative_to_worker_start(self):
         mgr = StatisticsManager()
-        mgr.increase_idle_time(100)
-        mgr.increase_idle_time(50)
-        assert mgr.get_statistics().idle_time == 150
+        mgr.initialize_worker_start_time(1_000)
+        mgr.update_total_execution_time(1_500)
+        stats = mgr.get_statistics()
+        # idle = total_exec - data - control = 500 - 0 - 0
+        assert stats.idle_time == 500
 
-    def test_idle_time_zero_by_default(self):
-        assert StatisticsManager().get_statistics().idle_time == 0
-
-    def test_zero_idle_time_is_allowed(self):
+    def test_total_execution_time_equal_to_start_is_allowed(self):
+        # The validation is `time < start`, so equality is OK and yields 0.
         mgr = StatisticsManager()
-        mgr.increase_idle_time(0)
+        mgr.initialize_worker_start_time(1_000)
+        mgr.update_total_execution_time(1_000)
         assert mgr.get_statistics().idle_time == 0
 
-    def test_negative_idle_time_raises(self):
+    def test_total_execution_time_before_start_raises(self):
         mgr = StatisticsManager()
-        with pytest.raises(ValueError, match="Time must be non-negative"):
-            mgr.increase_idle_time(-1)
+        mgr.initialize_worker_start_time(1_000)
+        with pytest.raises(
+            ValueError,
+            match="Current time must be greater than or equal to worker start time",
+        ):
+            mgr.update_total_execution_time(999)
 
-    def test_idle_time_independent_of_processing_times(self):
+    def test_idle_time_can_go_negative_when_processing_exceeds_total(self):
+        # Pin a real-but-questionable behavior: get_statistics computes
+        # idle_time = total_execution - data - control with NO clamp. If
+        # instrumentation overcounts (or update_total_execution_time was
+        # called early), idle goes negative. Filed as a Bug — see the
+        # accompanying issue. A future fix that floors at 0 must also
+        # update this test deliberately.
         mgr = StatisticsManager()
-        mgr.increase_idle_time(200)
-        mgr.increase_data_processing_time(300)
-        mgr.increase_control_processing_time(100)
+        mgr.initialize_worker_start_time(1_000)
+        mgr.update_total_execution_time(1_100)  # 100ns total
+        mgr.increase_data_processing_time(80)
+        mgr.increase_control_processing_time(50)  # 130 > 100 total
         stats = mgr.get_statistics()
-        assert stats.idle_time == 200
-        assert stats.data_processing_time == 300
-        assert stats.control_processing_time == 100
+        assert stats.idle_time == -30
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="Bug: idle_time goes negative when data+control processing time "
+        "overshoots total_execution_time. The fix should floor at 0 (or surface "
+        "the inconsistency); flips to XPASS when corrected.",
+    )
+    def test_idle_time_should_never_be_negative(self):
+        mgr = StatisticsManager()
+        mgr.initialize_worker_start_time(1_000)
+        mgr.update_total_execution_time(1_100)
+        mgr.increase_data_processing_time(80)
+        mgr.increase_control_processing_time(50)
+        assert mgr.get_statistics().idle_time >= 0

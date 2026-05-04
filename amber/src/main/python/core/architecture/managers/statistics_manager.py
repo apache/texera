@@ -37,9 +37,11 @@ class StatisticsManager:
         )
         self._data_processing_time: int = 0
         self._control_processing_time: int = 0
-        self._idle_time: int = 0
+        self._total_execution_time: int = 0
+        self._worker_start_time: int = 0
 
     def get_statistics(self) -> WorkerStatistics:
+        # Compile and return worker statistics
         return WorkerStatistics(
             [
                 PortTupleMetricsMapping(port_id, TupleMetrics(*tuple_metrics))
@@ -51,7 +53,12 @@ class StatisticsManager:
             ],
             self._data_processing_time,
             self._control_processing_time,
-            max(0, self._idle_time),
+            max(
+                0,
+                self._total_execution_time
+                - self._data_processing_time
+                - self._control_processing_time,
+            ),
         )
 
     def increase_input_statistics(self, port_id: PortIdentity, size: int) -> None:
@@ -76,7 +83,13 @@ class StatisticsManager:
             raise ValueError("Time must be non-negative")
         self._control_processing_time += time
 
-    def increase_idle_time(self, time: int) -> None:
-        if time < 0:
-            raise ValueError("Time must be non-negative")
-        self._idle_time += time
+    def update_total_execution_time(self, time: int) -> None:
+        if time < self._worker_start_time:
+            raise ValueError(
+                "Current time must be greater than or equal to worker start time"
+            )
+        self._total_execution_time = time - self._worker_start_time
+
+    def initialize_worker_start_time(self, time: int) -> None:
+        # Set the worker start time
+        self._worker_start_time = time
