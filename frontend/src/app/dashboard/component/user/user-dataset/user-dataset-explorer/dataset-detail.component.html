@@ -133,16 +133,35 @@
       <div style="display: flex; justify-content: space-between; align-items: center">
         <div class="file-info">
           <h3 class="file-title">
-            <b>{{currentDisplayedFileName}}</b>
-            <span
-              *ngIf="currentFileSize"
-              class="file-size">
+            <span class="file-title-main">
+              <b>{{ currentDisplayedFileName }}</b>
+
+              <button
+                nz-button
+                nzType="text"
+                nzSize="small"
+                class="copy-path-btn"
+                nz-tooltip
+                nzTooltipTitle="Copy file path"
+                *ngIf="currentDisplayedFileName"
+                (click)="copyCurrentFilePath()">
+                <i
+                  nz-icon
+                  nzType="copy"
+                  nzTheme="twotone">
+                </i>
+              </button>
+            </span>
+
+                      <span
+                        *ngIf="currentFileSize"
+                        class="file-size">
               <i
                 nz-icon
                 nzType="file"
                 nzTheme="outline"
                 class="icon-file"></i>
-              {{ formatSize(currentFileSize) }}
+                        {{ formatSize(currentFileSize) }}
             </span>
           </h3>
         </div>
