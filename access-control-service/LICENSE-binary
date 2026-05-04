@@ -247,6 +247,7 @@ Scala/Java jars:
   - com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
   - com.typesafe.config-1.4.6.jar
   - com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar
+  - com.zaxxer.HikariCP-5.1.0.jar
   - io.dropwizard.dropwizard-auth-4.0.7.jar
   - io.dropwizard.dropwizard-configuration-4.0.7.jar
   - io.dropwizard.dropwizard-core-4.0.7.jar

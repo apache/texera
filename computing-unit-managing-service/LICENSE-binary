@@ -274,6 +274,7 @@ Scala/Java jars:
   - com.typesafe.play.play-functional_2.13-2.10.6.jar
   - com.typesafe.play.play-json_2.13-2.10.6.jar
   - com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar
+  - com.zaxxer.HikariCP-5.1.0.jar
   - commons-beanutils.commons-beanutils-1.9.4.jar
   - commons-cli.commons-cli-1.2.jar
   - commons-codec.commons-codec-1.17.1.jar
