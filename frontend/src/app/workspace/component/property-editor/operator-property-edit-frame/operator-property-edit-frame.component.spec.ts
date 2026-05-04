@@ -181,7 +181,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
     expect(emitEventCounter).toEqual(1);
   }));
 
-  xit(
+  it.skip(
     "should debounce the user form input to avoid emitting event too frequently",
     marbles(m => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();

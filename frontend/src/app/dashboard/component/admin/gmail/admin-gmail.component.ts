@@ -19,15 +19,38 @@
 
 import { Component, OnInit } from "@angular/core";
 import { GmailService } from "../../../../common/service/gmail/gmail.service";
-import { FormBuilder, FormGroup, Validators } from "@angular/forms";
+import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzFormDirective, NzFormItemComponent, NzFormLabelComponent, NzFormControlComponent } from "ng-zorro-antd/form";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 @UntilDestroy()
 @Component({
   selector: "texera-gmail",
   templateUrl: "./admin-gmail.component.html",
   styleUrls: ["./admin-gmail.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    FormsModule,
+    NzFormDirective,
+    ReactiveFormsModule,
+    NzRowDirective,
+    NzFormItemComponent,
+    NzColDirective,
+    NzFormLabelComponent,
+    NzFormControlComponent,
+    NzSpaceCompactItemDirective,
+    NzInputDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+  ],
 })
 export class AdminGmailComponent implements OnInit {
   public validateForm!: FormGroup;

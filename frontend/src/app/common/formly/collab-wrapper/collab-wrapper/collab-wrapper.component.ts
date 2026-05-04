@@ -26,6 +26,7 @@ import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
 import QuillCursors from "quill-cursors";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NgStyle } from "@angular/common";
 
 // Quill related definitions
 export const COLLAB_DEBOUNCE_TIME_MS = 10;
@@ -66,7 +67,7 @@ Quill.register("modules/cursors", QuillCursors);
 @Component({
   templateUrl: "./collab-wrapper.component.html",
   styleUrls: ["./collab-wrapper.component.css"],
-  standalone: false,
+  imports: [NgStyle],
 })
 export class CollabWrapperComponent extends FieldWrapper<FieldTypeConfig> implements AfterContentInit {
   private quill?: Quill;

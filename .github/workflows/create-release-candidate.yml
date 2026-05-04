@@ -34,6 +34,11 @@ on:
         required: false
         type: string
         default: 'ghcr.io/apache'
+      use_tag_as_image_tag:
+        description: 'If true, pin the bundled docker-compose IMAGE_TAG to the git tag (with leading "v" stripped, e.g. 1.1.0-incubating-rc7). If false, pin it to the 9-char commit hash.'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   # Strict-mode build of the tagged commit. Gates RC artifact creation: if
@@ -99,6 +104,16 @@ jobs:
           SRC_TARBALL="apache-texera-${VERSION}-src.tar.gz"
           COMPOSE_TARBALL="apache-texera-${VERSION}-docker-compose.tar.gz"
 
+          # Choose what gets pinned as IMAGE_TAG in the bundled .env. Default
+          # is the commit short hash; if use_tag_as_image_tag is true, use the
+          # git tag with the leading "v" stripped.
+          USE_TAG_AS_IMAGE_TAG="${{ github.event.inputs.use_tag_as_image_tag }}"
+          if [[ "$USE_TAG_AS_IMAGE_TAG" == "true" ]]; then
+            IMAGE_TAG="${TAG_NAME#v}"
+          else
+            IMAGE_TAG="$COMMIT_SHORT"
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "rc_num=$RC_NUM" >> $GITHUB_OUTPUT
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
@@ -106,6 +121,7 @@ jobs:
           echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
           echo "commit_short=$COMMIT_SHORT" >> $GITHUB_OUTPUT
           echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "src_tarball=$SRC_TARBALL" >> $GITHUB_OUTPUT
           echo "compose_tarball=$COMPOSE_TARBALL" >> $GITHUB_OUTPUT
 
@@ -114,6 +130,7 @@ jobs:
           echo "RC Number: $RC_NUM"
           echo "Commit: $COMMIT_HASH ($COMMIT_SHORT)"
           echo "Image Registry: $IMAGE_REGISTRY"
+          echo "Bundled IMAGE_TAG: $IMAGE_TAG"
           echo "Staging directory: dist/dev/incubator/texera/$RC_DIR"
 
       - name: Create source tarball
@@ -148,7 +165,7 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           TAG_NAME="${{ steps.vars.outputs.tag_name }}"
           IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
-          COMMIT_SHORT="${{ steps.vars.outputs.commit_short }}"
+          IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
           COMPOSE_TARBALL="${{ steps.vars.outputs.compose_tarball }}"
 
           TEMP_DIR=$(mktemp -d)
@@ -182,9 +199,9 @@ jobs:
             echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}" >> "$BUNDLE_DIR/.env"
           fi
           if grep -q '^IMAGE_TAG=' "$BUNDLE_DIR/.env"; then
-            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${COMMIT_SHORT}|" "$BUNDLE_DIR/.env"
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" "$BUNDLE_DIR/.env"
           else
-            echo "IMAGE_TAG=${COMMIT_SHORT}" >> "$BUNDLE_DIR/.env"
+            echo "IMAGE_TAG=${IMAGE_TAG}" >> "$BUNDLE_DIR/.env"
           fi
           if grep -q '^TEXERA_SERVICE_LOG_LEVEL=' "$BUNDLE_DIR/.env"; then
             sed -i "s|^TEXERA_SERVICE_LOG_LEVEL=.*|TEXERA_SERVICE_LOG_LEVEL=ERROR|" "$BUNDLE_DIR/.env"

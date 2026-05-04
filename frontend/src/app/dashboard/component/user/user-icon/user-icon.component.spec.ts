@@ -18,7 +18,7 @@
  */
 
 import { NO_ERRORS_SCHEMA } from "@angular/core";
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserIconComponent } from "./user-icon.component";
 import { UserService } from "../../../../common/service/user/user.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -32,18 +32,18 @@ describe("UserIconComponent", () => {
   let component: UserIconComponent;
   let fixture: ComponentFixture<UserIconComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [UserIconComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
       imports: [
+        UserIconComponent,
         RouterTestingModule.withRoutes([{ path: "home", component: AboutComponent }]),
         HttpClientTestingModule,
         NzDropDownModule,
       ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(UserIconComponent);

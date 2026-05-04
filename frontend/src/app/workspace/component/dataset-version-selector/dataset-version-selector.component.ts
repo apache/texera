@@ -22,11 +22,27 @@ import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DatasetSelectionModalComponent } from "../dataset-selection-modal/dataset-selection-modal.component";
+import { NgIf } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 @UntilDestroy()
 @Component({
   templateUrl: "dataset-version-selector.component.html",
-  standalone: false,
+  imports: [
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzInputDirective,
+    FormsModule,
+    ReactiveFormsModule,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+  ],
 })
 export class DatasetVersionSelectorComponent extends FieldType<FieldTypeConfig> {
   constructor(private modalService: NzModalService) {

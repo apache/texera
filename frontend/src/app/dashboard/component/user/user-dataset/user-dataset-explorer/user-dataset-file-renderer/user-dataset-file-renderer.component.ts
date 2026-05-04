@@ -25,6 +25,19 @@ import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
 import readXlsxFile from "read-excel-file";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
+import { NgStyle, NgIf, NgFor } from "@angular/common";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
+import {
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
+import { MarkdownComponent } from "ngx-markdown";
+import { NgxJsonViewerModule } from "ngx-json-viewer";
 
 export const MIME_TYPES = {
   JPEG: "image/jpeg",
@@ -74,7 +87,21 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   selector: "texera-user-dataset-file-renderer",
   templateUrl: "./user-dataset-file-renderer.component.html",
   styleUrls: ["./user-dataset-file-renderer.component.scss"],
-  standalone: false,
+  imports: [
+    NgStyle,
+    NgIf,
+    NzSpinComponent,
+    NzAlertComponent,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NgFor,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzTbodyComponent,
+    MarkdownComponent,
+    NgxJsonViewerModule,
+  ],
 })
 export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDestroy {
   private DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB

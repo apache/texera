@@ -275,7 +275,7 @@ Python packages:
   - pytest==7.4.0
   - pytest-reraise==2.1.2
   - pytest-timeout==2.2.0
-  - pytz==2026.1.post1
+  - pytz==2026.2
   - pyyaml==6.0.3
   - readerwriterlock==1.0.9
   - rich==14.3.4

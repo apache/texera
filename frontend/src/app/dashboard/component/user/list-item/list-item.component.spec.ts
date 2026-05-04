@@ -25,24 +25,24 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { RouterTestingModule } from "@angular/router/testing";
+import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-
+import type { Mocked } from "vitest";
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
-  let workflowPersistService: jasmine.SpyObj<WorkflowPersistService>;
+  let workflowPersistService: Mocked<WorkflowPersistService>;
 
   beforeEach(async () => {
-    const workflowPersistServiceSpy = jasmine.createSpyObj("WorkflowPersistService", [
-      "updateWorkflowName",
-      "updateWorkflowDescription",
-    ]);
+    const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
 
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, BrowserAnimationsModule],
-      declarations: [ListItemComponent],
+      imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: UserService, useClass: StubUserService },
         NzModalService,
         ...commonTestProviders,
       ],
@@ -51,56 +51,56 @@ describe("ListItemComponent", () => {
 
     fixture = TestBed.createComponent(ListItemComponent);
     component = fixture.componentInstance;
-    workflowPersistService = TestBed.inject(WorkflowPersistService) as jasmine.SpyObj<WorkflowPersistService>;
+    workflowPersistService = TestBed.inject(WorkflowPersistService) as unknown as Mocked<WorkflowPersistService>;
   });
 
   it("should update workflow name successfully", () => {
     const newName = "New Workflow Name";
     component.entry = { id: 1, name: "Old Name", type: "workflow" } as any;
-    workflowPersistService.updateWorkflowName.and.returnValue(of({} as Response));
+    workflowPersistService.updateWorkflowName.mockReturnValue(of({} as Response));
 
     component.confirmUpdateCustomName(newName);
 
     expect(workflowPersistService.updateWorkflowName).toHaveBeenCalledWith(1, newName);
     expect(component.entry.name).toBe(newName);
-    expect(component.editingName).toBeFalse();
+    expect(component.editingName).toBe(false);
   });
 
   it("should handle error when updating workflow name", () => {
     const newName = "New Workflow Name";
     component.entry = { id: 1, name: "Old Name", type: "workflow" } as any;
     component.originalName = "Old Name";
-    workflowPersistService.updateWorkflowName.and.returnValue(throwError(() => new Error("Error")));
+    workflowPersistService.updateWorkflowName.mockReturnValue(throwError(() => new Error("Error")));
 
     component.confirmUpdateCustomName(newName);
 
     expect(workflowPersistService.updateWorkflowName).toHaveBeenCalledWith(1, newName);
     expect(component.entry.name).toBe("Old Name");
-    expect(component.editingName).toBeFalse();
+    expect(component.editingName).toBe(false);
   });
 
   it("should update workflow description successfully", () => {
     const newDescription = "New Description";
     component.entry = { id: 1, description: "Old Description", type: "workflow" } as any;
-    workflowPersistService.updateWorkflowDescription.and.returnValue(of({} as Response));
+    workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));
 
     component.confirmUpdateCustomDescription(newDescription);
 
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe(newDescription);
-    expect(component.editingDescription).toBeFalse();
+    expect(component.editingDescription).toBe(false);
   });
 
   it("should handle error when updating workflow description", () => {
     const newDescription = "New Description";
     component.entry = { id: 1, description: "Old Description", type: "workflow" } as any;
     component.originalDescription = "Old Description";
-    workflowPersistService.updateWorkflowDescription.and.returnValue(throwError(() => new Error("Error")));
+    workflowPersistService.updateWorkflowDescription.mockReturnValue(throwError(() => new Error("Error")));
 
     component.confirmUpdateCustomDescription(newDescription);
 
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe("Old Description");
-    expect(component.editingDescription).toBeFalse();
+    expect(component.editingDescription).toBe(false);
   });
 });

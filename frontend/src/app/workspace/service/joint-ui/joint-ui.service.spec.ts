@@ -326,3 +326,10 @@
 //     expect(graph_link.attr('.tool-remove path/d')).toEqual(deleteButtonPath);
 //   });
 // });
+
+describe("JointUIService", () => {
+  // Pre-existing spec body is commented out. Placeholder keeps Vitest's
+  // discovery happy; rewriting the real tests against the new test
+  // runner is tracked in #4861.
+  it.todo("add unit tests for JointUIService");
+});

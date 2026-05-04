@@ -25,6 +25,14 @@ import { debounceTime, filter, first, takeUntil } from "rxjs/operators";
 import { Preset, PresetService } from "src/app/workspace/service/preset/preset.service";
 import { asType } from "../../util/assert";
 import { NzMessageService } from "ng-zorro-antd/message";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NgFor } from "@angular/common";
 
 /**
  * PresetWrapperComponent is a custom formly form field wrapper: https://formly.dev/guide/custom-formly-wrapper
@@ -52,7 +60,18 @@ export interface PresetKey {
 @Component({
   templateUrl: "./preset-wrapper.component.html",
   styleUrls: ["./preset-wrapper.component.scss"],
-  standalone: false,
+  imports: [
+    NzDropdownDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NgFor,
+    NzMenuItemComponent,
+  ],
 })
 export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDestroy {
   public searchResults: Preset[] = []; // the list of presets shown in the dropdown
