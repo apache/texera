@@ -132,9 +132,3 @@ import type { Mock } from "vitest";
 //     });
 //   });
 // });
-
-describe("UserConfigService", () => {
-  // Pre-existing spec body is commented out. Placeholder keeps Vitest's
-  // discovery happy; rewriting the real tests is tracked in #4880.
-  it.todo("add unit tests for UserConfigService");
-});
