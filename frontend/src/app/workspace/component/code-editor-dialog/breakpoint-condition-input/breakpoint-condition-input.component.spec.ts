@@ -34,8 +34,7 @@ describe("BreakpointConditionInputComponent", () => {
     mockUdfDebugService = { getCondition: vi.fn(), doUpdateBreakpointCondition: vi.fn() };
 
     await TestBed.configureTestingModule({
-      imports: [CommonModule, FormsModule],
-      declarations: [BreakpointConditionInputComponent],
+      imports: [BreakpointConditionInputComponent, CommonModule, FormsModule],
       providers: [{ provide: UdfDebugService, useValue: mockUdfDebugService }, ...commonTestProviders],
     }).compileComponents();
 

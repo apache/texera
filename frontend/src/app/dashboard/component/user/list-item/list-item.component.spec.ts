@@ -25,6 +25,9 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { RouterTestingModule } from "@angular/router/testing";
+import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 describe("ListItemComponent", () => {
@@ -36,10 +39,10 @@ describe("ListItemComponent", () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
 
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, BrowserAnimationsModule],
-      declarations: [ListItemComponent],
+      imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
+        { provide: UserService, useClass: StubUserService },
         NzModalService,
         ...commonTestProviders,
       ],

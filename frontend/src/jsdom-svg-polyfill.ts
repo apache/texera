@@ -139,3 +139,31 @@ class InertWebSocket {
   constructor(_url?: string, _protocols?: string | string[]) {}
 }
 (globalThis as unknown as { WebSocket: typeof InertWebSocket }).WebSocket = InertWebSocket;
+
+/**
+ * NgZorro's NzIconService dynamically fetches icon SVGs over HTTP from
+ * `/assets/...` when the icon isn't pre-registered. jsdom's XHR
+ * implementation rejects those requests with an `AggregateError`, and
+ * downstream the icon lookup re-throws as `IconNotFoundError`. Vitest
+ * catches both as unhandled errors, which CI treats as a hard failure
+ * (locally Vitest only reports them as non-fatal warnings).
+ *
+ * Stubbing every spec with `NzIconModule.forChild([...])` for every
+ * icon its template uses is impractical — there are dozens. Instead,
+ * suppress the two specific error patterns at the process level: they
+ * originate inside ngZorro's icon plumbing and don't affect the
+ * assertions specs actually make.
+ */
+function isBenignIconError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("[@ant-design/icons-angular]") ||
+    (err instanceof Error && err.name === "AggregateError" && /xhr-utils/.test(err.stack ?? ""))
+  );
+}
+process.on("uncaughtException", err => {
+  if (!isBenignIconError(err)) throw err;
+});
+process.on("unhandledRejection", reason => {
+  if (!isBenignIconError(reason)) throw reason;
+});

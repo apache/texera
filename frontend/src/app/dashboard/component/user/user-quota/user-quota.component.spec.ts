@@ -43,9 +43,8 @@ describe("UserQuotaComponent", () => {
     mockUserQuotaService.getExecutionQuota.mockReturnValue(of([]));
 
     TestBed.configureTestingModule({
-      declarations: [UserQuotaComponent],
       providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }, ...commonTestProviders],
-      imports: [HttpClientTestingModule],
+      imports: [UserQuotaComponent, HttpClientTestingModule],
       schemas: [NO_ERRORS_SCHEMA],
     });
 
