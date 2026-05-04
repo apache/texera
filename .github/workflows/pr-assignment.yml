@@ -112,7 +112,13 @@ jobs:
               context.payload.changes.body &&
               typeof context.payload.changes.body.from === 'string'
             ) {
-              const re = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi;
+              // GitHub also recognizes the colon form ("Closes: #123"), so
+              // allow an optional ":" between the keyword and the issue
+              // ref. Multiple refs on one line still need their own
+              // keyword each ("Closes #1, closes #2"), matching the
+              // `closingIssuesReferences` semantics — `Closes #1, #2`
+              // links only #1, so the diff treats only #1 as removed.
+              const re = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+#(\d+)/gi;
               const oldBody = context.payload.changes.body.from || '';
               const newBody = pr.body || '';
               const oldRefs = new Set([...oldBody.matchAll(re)].map((m) => Number(m[1])));
@@ -131,6 +137,53 @@ jobs:
               }
             } else if (context.payload.action === 'edited') {
               core.info(`Body unchanged on edit; skipping removal-detection.`);
+            }
+
+      - name: Unassign PR opener from linked issues on PR close without merge
+        # When a PR is closed without merging, the opener was added to
+        # linked issues by the "Sync PR opener" step on open/edit. Mirror
+        # the close: remove them so abandoned PRs do not leave stale
+        # assignees. The issue-triage workflow's unassigned handler then
+        # re-adds `triage` if no other assignees remain. Cross-repo refs
+        # are skipped, consistent with the assign side.
+        if: >-
+          github.event.action == 'closed'
+          && github.event.pull_request.merged == false
+          && github.event.pull_request.user.type != 'Bot'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const opener = pr.user.login;
+            core.info(`PR #${pr.number} closed without merge; unassigning ${opener} from linked issues.`);
+
+            const { repository: { pullRequest: prq } } = await github.graphql(`
+              query($owner: String!, $repo: String!, $pr: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    closingIssuesReferences(first: 50) {
+                      nodes { number repository { nameWithOwner } }
+                    }
+                  }
+                }
+              }`, { owner, repo, pr: pr.number });
+
+            const sameRepo = `${owner}/${repo}`;
+            const linked = prq.closingIssuesReferences.nodes
+              .filter((n) => n.repository.nameWithOwner === sameRepo)
+              .map((n) => n.number);
+            core.info(`Found ${linked.length} same-repo closing reference(s): ${linked.join(', ') || '(none)'}`);
+
+            for (const issue_number of linked) {
+              try {
+                await github.rest.issues.removeAssignees({
+                  owner, repo, issue_number, assignees: [opener],
+                });
+                core.info(`Unassigned ${opener} from issue #${issue_number}`);
+              } catch (e) {
+                core.warning(`removeAssignees on #${issue_number} failed: ${e.message}`);
+              }
             }
 
       - name: Credit issue assignees on PR merge
