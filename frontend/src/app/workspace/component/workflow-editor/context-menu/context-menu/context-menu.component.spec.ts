@@ -22,7 +22,7 @@ import { OperatorMetadataService } from "src/app/workspace/service/operator-meta
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 
 import { ContextMenuComponent } from "./context-menu.component";
-import { HttpClientModule } from "@angular/common/http";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
@@ -104,7 +104,6 @@ describe("ContextMenuComponent", () => {
     const validationWorkflowServiceSpy = { validateOperator: vi.fn() };
 
     await TestBed.configureTestingModule({
-      declarations: [ContextMenuComponent],
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: WorkflowActionService, useValue: workflowActionServiceSpy },
@@ -116,7 +115,8 @@ describe("ContextMenuComponent", () => {
         ...commonTestProviders,
       ],
       imports: [
-        HttpClientModule,
+        ContextMenuComponent,
+        HttpClientTestingModule,
         ReactiveFormsModule,
         BrowserAnimationsModule,
         NzDropDownModule,
