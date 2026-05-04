@@ -28,7 +28,7 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
-describe("ConsoleFrameComponent", () => {
+describe("ErrorFrameComponent", () => {
   let component: ErrorFrameComponent;
   let fixture: ComponentFixture<ErrorFrameComponent>;
 

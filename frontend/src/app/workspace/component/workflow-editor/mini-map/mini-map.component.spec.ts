@@ -20,7 +20,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { MiniMapComponent } from "./mini-map.component";
-import { WorkflowEditorComponent } from "../workflow-editor.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
@@ -46,7 +45,7 @@ describe("MiniMapComponent", () => {
         },
         ...commonTestProviders,
       ],
-      imports: [MiniMapComponent, WorkflowEditorComponent, HttpClientTestingModule, DragDropModule],
+      imports: [MiniMapComponent, HttpClientTestingModule, DragDropModule],
     }).compileComponents();
   });
 
