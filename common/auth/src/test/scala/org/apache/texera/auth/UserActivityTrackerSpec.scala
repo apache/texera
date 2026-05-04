@@ -107,4 +107,37 @@ class UserActivityTrackerSpec extends AnyFlatSpec with Matchers {
 
     recorder.calls.size shouldBe 0
   }
+
+  it should "evict cooldown entries older than 2 * writeInterval" in {
+    val recorder = new Recorder
+    val t0 = Instant.parse("2026-01-01T00:00:00Z")
+    val clock = new AtomicReference[Instant](t0)
+    val tracker = makeTracker(Duration.ofMinutes(5), recorder, clock)
+
+    tracker.markActive(1)
+    tracker.markActive(2)
+    tracker.cooldownSize shouldBe 2
+
+    // 9 minutes — under 2 * writeInterval (10), nothing evicted
+    clock.set(t0.plus(Duration.ofMinutes(9)))
+    tracker.evictStale()
+    tracker.cooldownSize shouldBe 2
+
+    // 11 minutes — past 2 * writeInterval, both entries evicted
+    clock.set(t0.plus(Duration.ofMinutes(11)))
+    tracker.evictStale()
+    tracker.cooldownSize shouldBe 0
+  }
+
+  it should "swallow upsertFn exceptions instead of propagating to the caller" in {
+    val t0 = Instant.parse("2026-01-01T00:00:00Z")
+    val clock = new AtomicReference[Instant](t0)
+    val throwing: (Integer, Instant) => Unit =
+      (_, _) => throw new RuntimeException("simulated DB outage")
+    val tracker =
+      new UserActivityTracker(Duration.ofMinutes(5), throwing, sameThread, () => clock.get())
+
+    // Must not throw — the wrapper catches NonFatal from upsertFn.
+    noException should be thrownBy tracker.markActive(42)
+  }
 }
