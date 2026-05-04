@@ -773,14 +773,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (resp: PvePackageResponse[]) => {
           this.pves = resp.map(pve => ({
             name: pve.pveName,
-            userPackages: pve.userPackages.map(pkgStr => {
-              const [name, version] = pkgStr.split("==");
-              return {
-                name: name.trim(),
-                operator: "==" as const,
-                version: (version ?? "").trim(),
-              };
-            }),
+            userPackages: this.parsePackageRows(pve.userPackages),
             newPackages: [],
             expanded: false,
             isInstalling: false,
@@ -943,15 +936,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: pkgs => {
-          env.userPackages = pkgs.map(pkg => {
-            const [name, version] = pkg.split("==");
-            return {
-              name: name.trim(),
-              operator: "==",
-              version: (version ?? "").trim(),
-            };
-          });
-
+          env.userPackages = env.userPackages = this.parsePackageRows(pkgs);
           this.cdr.detectChanges();
         },
         error: (e: unknown) => console.error("Failed to refresh user packages", e),
@@ -1040,6 +1025,17 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.runPveWebSocket(index, "install", "Installing user packages...\n", packageArray, () => {
       this.pves[index].newPackages = [];
       this.refreshUserPackages(index);
+    });
+  }
+
+  private parsePackageRows(packages: string[]): PveUserPackageRow[] {
+    return packages.map(pkgStr => {
+      const [name, version] = pkgStr.split("==");
+      return {
+        name: name.trim(),
+        operator: "==" as const,
+        version: (version ?? "").trim(),
+      };
     });
   }
 }
