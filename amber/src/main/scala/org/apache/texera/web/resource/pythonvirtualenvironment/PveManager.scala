@@ -72,6 +72,32 @@ object PveManager {
     Process(Seq(python, "-m", "pip", "freeze")).!!.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
   }
 
+  private def runPipInstall(
+                             python: String,
+                             args: Seq[String],
+                             queue: BlockingQueue[String]
+                           ): Int = {
+    Process(
+      Seq(
+        python,
+        "-u",
+        "-m",
+        "pip",
+        "install",
+        "--progress-bar",
+        "off",
+        "--no-input"
+      ) ++ args,
+      None,
+      pipEnv.toSeq: _*
+    ).!(
+      ProcessLogger(
+        out => queue.put(s"[pip] $out"),
+        err => queue.put(s"[pip][ERR] $err")
+      )
+    )
+  }
+
   /**
     * Creates a new PVE for a CU.
     *
@@ -131,27 +157,15 @@ object PveManager {
       s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath} and ${operatorRequirementsPath.toAbsolutePath}"
     )
 
-    val installReqCode = Process(
+    val installReqCode = runPipInstall(
+      python,
       Seq(
-        python,
-        "-u",
-        "-m",
-        "pip",
-        "install",
-        "--progress-bar",
-        "off",
         "-r",
         requirementsPath.toString,
         "-r",
         operatorRequirementsPath.toString
       ),
-      None,
-      envVars.toSeq: _*
-    ).!(
-      ProcessLogger(
-        out => queue.put(s"[pip] $out"),
-        err => queue.put(s"[pip][ERR] $err")
-      )
+      queue
     )
 
     queue.put(s"[PVE] requirements install finished with exit code $installReqCode")
@@ -270,25 +284,10 @@ object PveManager {
       if (trimmedPkg.nonEmpty) {
         queue.put(s"[PVE] Installing package: $trimmedPkg")
 
-        val code = Process(
-          Seq(
-            python,
-            "-u",
-            "-m",
-            "pip",
-            "install",
-            "--progress-bar",
-            "off",
-            "--no-input",
-            trimmedPkg
-          ),
-          None,
-          envVars.toSeq: _*
-        ).!(
-          ProcessLogger(
-            out => queue.put(s"[pip] $out"),
-            err => queue.put(s"[pip][ERR] $err")
-          )
+        val code = runPipInstall(
+          python,
+          Seq(trimmedPkg),
+          queue
         )
 
         queue.put(s"[pip] install($trimmedPkg) finished with exit code $code")

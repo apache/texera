@@ -846,6 +846,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
       .replace(/^(\[(?:PVE|pip|pve)\]\[ERR\].*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
 
+      .replace(
+        /^(\[PVE\] Skipped.*)$/gm,
+        '<span class="pip-exit err"><strong>$1</strong></span>'
+      )
+
       .replace(/\n/g, "<br/>");
   }
 
