@@ -143,9 +143,9 @@ jobs:
         # When a PR is closed without merging, the opener was added to
         # linked issues by the "Sync PR opener" step on open/edit. Mirror
         # the close: remove them so abandoned PRs do not leave stale
-        # assignees. The issue-triage workflow's unassigned handler then
-        # re-adds `triage` if no other assignees remain. Cross-repo refs
-        # are skipped, consistent with the assign side.
+        # assignees. With no other assignee the issue then drops back into
+        # the `is:open no:assignee` triage filter automatically. Cross-repo
+        # refs are skipped, consistent with the assign side.
         if: >-
           github.event.action == 'closed'
           && github.event.pull_request.merged == false
