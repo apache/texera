@@ -96,6 +96,7 @@
             "exclude": [
               "**/drag-drop.service.spec.ts",
               "**/app/common/formly/preset-wrapper/preset-wrapper.component.spec.ts",
+              "**/app/common/service/user/config/user-config.service.spec.ts",
               "**/app/dashboard/component/admin/execution/admin-execution.component.spec.ts",
               "**/app/dashboard/component/admin/settings/admin-settings.component.spec.ts",
               "**/app/dashboard/component/admin/user/admin-user.component.spec.ts",
