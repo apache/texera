@@ -98,7 +98,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # stop the data processing thread
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
-        self.context.statistics_manager.update_total_execution_time(time.time_ns())
         controller_interface = self._async_rpc_client.controller_stub()
         controller_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
@@ -126,11 +125,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self._process_ecm,
             )
 
+    @logger.catch(reraise=True)
+    @logger.catch(reraise=True)
+    @overrides
+    def run(self) -> None:
+        self.pre_start()
+        try:
+            while True:
+                idle_start = time.time_ns()
+                next_entry = self.interruptible_get()
+                self.context.statistics_manager.increase_idle_time(
+                    time.time_ns() - idle_start
+                )
+                self.receive(next_entry)
+        except StoppableQueueBlockingRunnable.InterruptRunnable:
+            logger.debug(f"{self.name}-interrupting")
+        finally:
+            self.post_stop()
+
     @overrides
     def pre_start(self) -> None:
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
         self.context.state_manager.transit_to(WorkerState.READY)
-        self.context.statistics_manager.initialize_worker_start_time(time.time_ns())
 
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
@@ -237,7 +253,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.increase_control_processing_time(
             end_time - start_time
         )
-        self.context.statistics_manager.update_total_execution_time(end_time)
 
     def _process_tuple(self, tuple_: Tuple) -> None:
         self.context.tuple_processing_manager.current_input_tuple = tuple_
@@ -439,7 +454,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.increase_data_processing_time(
             end_time - start_time
         )
-        self.context.statistics_manager.update_total_execution_time(end_time)
 
     def _check_and_report_debug_event(self) -> None:
         if self.context.debug_manager.has_debug_event():
