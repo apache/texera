@@ -48,7 +48,6 @@ describe("UserComputingUnitComponent", () => {
     );
 
     await TestBed.configureTestingModule({
-      declarations: [UserComputingUnitComponent],
       providers: [
         NzModalService,
         HttpClient,
@@ -57,7 +56,7 @@ describe("UserComputingUnitComponent", () => {
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         ...commonTestProviders,
       ],
-      imports: [NzCardModule],
+      imports: [UserComputingUnitComponent, NzCardModule],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 

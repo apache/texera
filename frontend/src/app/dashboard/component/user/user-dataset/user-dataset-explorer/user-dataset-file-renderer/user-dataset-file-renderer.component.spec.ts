@@ -30,8 +30,7 @@ describe("UserDatasetFileRendererComponent", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      declarations: [UserDatasetFileRendererComponent],
+      imports: [UserDatasetFileRendererComponent, HttpClientTestingModule],
       providers: [
         DatasetService,
         NotificationService,
