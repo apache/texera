@@ -585,7 +585,7 @@ class ComputingUnitManagingResource {
   }
 
   /**
-    * Return a fully populated [[DashboardWorkflowComputingUnit]] for the
+    * Return a fully populated [[org.apache.texera.service.resource.ComputingUnitManagingResource.DashboardWorkflowComputingUnit]] for the
     * specified `cuid`, identical to one row produced by /list.
     *
     * @param cuid the ID of the computing-unit to fetch

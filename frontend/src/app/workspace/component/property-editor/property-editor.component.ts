@@ -33,9 +33,18 @@ import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-fra
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
+import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
+import { NgClass, NgIf, NgComponentOutlet } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -48,7 +57,24 @@ import { PanelService } from "../../service/panel/panel.service";
   selector: "texera-property-editor",
   templateUrl: "property-editor.component.html",
   styleUrls: ["property-editor.component.scss"],
-  standalone: false,
+  imports: [
+    NzMenuDirective,
+    NgClass,
+    NgIf,
+    NzMenuItemComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzTooltipDirective,
+    CdkDrag,
+    NzResizableDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzMenuDividerDirective,
+    CdkDragHandle,
+    NgComponentOutlet,
+    NzResizeHandlesComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
   @ViewChild("contentWrapper") contentWrapperRef!: ElementRef;

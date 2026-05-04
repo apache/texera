@@ -26,5 +26,8 @@
   border-radius: 5px;
   margin: 16px;
   padding: 20px;
-  height: 350px;
+
+  ::ng-deep nz-form-item {
+    margin-bottom: 12px;
+  }
 }

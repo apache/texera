@@ -20,12 +20,16 @@ name := "amber"
 
 enablePlugins(JavaAppPackaging)
 
-// Ship LICENSE-binary, NOTICE-binary, DISCLAIMER-WIP, and the licenses/
+// Ship LICENSE-binary, NOTICE-binary, DISCLAIMER, and the licenses/
 // directory at the top of the Universal dist zip.
-// See project/AddMetaInfLicenseFiles.scala.
+// See project/AddMetaInfLicenseFiles.scala. The Universal zip is jar-only,
+// so we ship LICENSE-binary-java; the dockerfile merges in
+// LICENSE-binary-python at image build time for coordinator/runner.
 Universal / mappings := AddMetaInfLicenseFiles.distMappings(
   (Universal / mappings).value,
-  (ThisBuild / baseDirectory).value
+  (ThisBuild / baseDirectory).value,
+  baseDirectory.value / "LICENSE-binary-java",
+  baseDirectory.value / "NOTICE-binary"
 )
 
 semanticdbEnabled := true
@@ -49,6 +53,28 @@ concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
+
+// `amber/src/test/integration` holds Scala specs that exercise both
+// Scala and Python end-to-end (tagged @org.apache.texera.amber.tags.IntegrationTest).
+// Sits next to `src/test/scala` and `src/test/java`; a future `src/test/python`
+// can drop in the same way. Adding it to Test/unmanagedSourceDirectories means
+// scalafmtCheckAll / scalafixAll --check naturally cover these sources, and
+// the AMBER_TEST_FILTER env var below routes which tagged subset runs.
+Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "integration"
+
+// Test-filter switch driven by the AMBER_TEST_FILTER env var so the
+// amber and amber-integration CI jobs select disjoint subsets without
+// each invocation having to embed a `set Tests.Argument(...)` prefix.
+//   skip-integration : exclude @IntegrationTest-tagged specs (amber job)
+//   integration-only : include only @IntegrationTest-tagged specs (amber-integration job)
+//   (unset)          : run everything (default for local sbt)
+Test / testOptions ++= (sys.env.get("AMBER_TEST_FILTER") match {
+  case Some("skip-integration") =>
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.amber.tags.IntegrationTest"))
+  case Some("integration-only") =>
+    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.amber.tags.IntegrationTest"))
+  case _ => Nil
+})
 
 // Excluding some proto files:
 PB.generate / excludeFilter := "scalapb.proto"

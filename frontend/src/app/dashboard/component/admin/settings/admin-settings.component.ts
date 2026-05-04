@@ -23,13 +23,37 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SidebarTabs } from "../../../../common/type/gui-config";
 import { forkJoin } from "rxjs";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NgIf, DecimalPipe } from "@angular/common";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
+import { FormsModule } from "@angular/forms";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
 
 @UntilDestroy()
 @Component({
   selector: "texera-settings",
   templateUrl: "./admin-settings.component.html",
   styleUrls: ["./admin-settings.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NgIf,
+    NzIconDirective,
+    NzSwitchComponent,
+    FormsModule,
+    NzTooltipDirective,
+    NzInputNumberComponent,
+    DecimalPipe,
+  ],
 })
 export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;

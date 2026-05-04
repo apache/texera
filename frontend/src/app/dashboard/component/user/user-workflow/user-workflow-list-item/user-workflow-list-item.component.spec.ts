@@ -31,11 +31,10 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
-
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
   let fixture: ComponentFixture<UserWorkflowListItemComponent>;
-  const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
+  const fileSaverServiceSpy = { saveAs: vi.fn() } as any;
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [NzModalModule, HttpClientTestingModule, NzTooltipModule],
@@ -64,7 +63,7 @@ describe("UserWorkflowListItemComponent", () => {
   it("sends http request to backend to retrieve export json", () => {
     // Test the workflow download button.
     component.onClickDownloadWorkfllow();
-    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledOnceWith(
+    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledExactlyOnceWith(
       new Blob([JSON.stringify(testWorkflowEntries[0].workflow.workflow.content)], {
         type: "text/plain;charset=utf-8",
       }),
@@ -80,7 +79,7 @@ describe("UserWorkflowListItemComponent", () => {
       fixture.detectChanges();
       let editableDescriptionInput = fixture.debugElement.nativeElement.querySelector(".workflow-editable-description");
       expect(editableDescriptionInput).toBeTruthy();
-      spyOn(component, "confirmUpdateWorkflowCustomDescription");
+      vi.spyOn(component, "confirmUpdateWorkflowCustomDescription");
       sendInput(editableDescriptionInput, "dummy description added by focusing out the input element.").then(() => {
         fixture.detectChanges();
         editableDescriptionInput.dispatchEvent(new Event("focusout"));
@@ -100,7 +99,7 @@ describe("UserWorkflowListItemComponent", () => {
         ".workflow-editable-description"
       );
       expect(editableDescriptionInput1).toBeTruthy();
-      spyOn(component, "confirmUpdateWorkflowCustomDescription");
+      vi.spyOn(component, "confirmUpdateWorkflowCustomDescription");
       sendInput(editableDescriptionInput1, "dummy description added by focusing out the input element.").then(() => {
         fixture.detectChanges();
         editableDescriptionInput1.dispatchEvent(new Event("focusout"));

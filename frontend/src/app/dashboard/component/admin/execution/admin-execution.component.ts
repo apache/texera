@@ -21,11 +21,30 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
-import { NzTableFilterFn, NzTableQueryParams } from "ng-zorro-antd/table";
+import {
+  NzTableFilterFn,
+  NzTableQueryParams,
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzThAddOnComponent,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NgFor, NgIf, NgStyle } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
 
 export const NO_SORT = "NO_SORTING";
 
@@ -33,7 +52,26 @@ export const NO_SORT = "NO_SORTING";
 @Component({
   templateUrl: "./admin-execution.component.html",
   styleUrls: ["./admin-execution.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzThAddOnComponent,
+    NzTbodyComponent,
+    NgFor,
+    NgIf,
+    NgStyle,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzSpinComponent,
+  ],
 })
 export class AdminExecutionComponent implements OnInit, OnDestroy {
   listOfExecutions: ReadonlyArray<Execution> = [];

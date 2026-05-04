@@ -30,76 +30,68 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
+import type { Mocked } from "vitest";
 describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;
-  let workflowWebsocketServiceSpy: jasmine.SpyObj<WorkflowWebsocketService>;
-  let workflowActionServiceSpy: jasmine.SpyObj<WorkflowActionService>;
-  let notificationServiceSpy: jasmine.SpyObj<NotificationService>;
-  let executeWorkflowServiceSpy: jasmine.SpyObj<ExecuteWorkflowService>;
-  let workflowResultServiceSpy: jasmine.SpyObj<WorkflowResultService>;
-  let downloadServiceSpy: jasmine.SpyObj<DownloadService>;
-  let datasetServiceSpy: jasmine.SpyObj<DatasetService>;
+  let workflowWebsocketServiceSpy: Mocked<WorkflowWebsocketService>;
+  let workflowActionServiceSpy: Mocked<WorkflowActionService>;
+  let notificationServiceSpy: Mocked<NotificationService>;
+  let executeWorkflowServiceSpy: Mocked<ExecuteWorkflowService>;
+  let workflowResultServiceSpy: Mocked<WorkflowResultService>;
+  let downloadServiceSpy: Mocked<DownloadService>;
+  let datasetServiceSpy: Mocked<DatasetService>;
 
-  let jointGraphWrapperSpy: jasmine.SpyObj<any>;
-  let texeraGraphSpy: jasmine.SpyObj<any>;
+  let jointGraphWrapperSpy: any;
+  let texeraGraphSpy: any;
 
   beforeEach(() => {
     // Create spies for the required services
-    jointGraphWrapperSpy = jasmine.createSpyObj("JointGraphWrapper", [
-      "getCurrentHighlightedOperatorIDs",
-      "getJointOperatorHighlightStream",
-      "getJointOperatorUnhighlightStream",
-    ]);
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
-    jointGraphWrapperSpy.getJointOperatorHighlightStream.and.returnValue(of());
-    jointGraphWrapperSpy.getJointOperatorUnhighlightStream.and.returnValue(of());
+    jointGraphWrapperSpy = {
+      getCurrentHighlightedOperatorIDs: vi.fn(),
+      getJointOperatorHighlightStream: vi.fn(),
+      getJointOperatorUnhighlightStream: vi.fn(),
+    };
+    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
+    jointGraphWrapperSpy.getJointOperatorHighlightStream.mockReturnValue(of());
+    jointGraphWrapperSpy.getJointOperatorUnhighlightStream.mockReturnValue(of());
 
-    texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", [
-      "getAllOperators",
-      "getOperatorAddStream",
-      "getOperatorDeleteStream",
-      "getOperatorPropertyChangeStream",
-      "getLinkAddStream",
-      "getLinkDeleteStream",
-      "getDisabledOperatorsChangedStream",
-      "getAllLinks",
-    ]);
-    texeraGraphSpy.getAllOperators.and.returnValue([]);
-    texeraGraphSpy.getOperatorAddStream.and.returnValue(of());
-    texeraGraphSpy.getOperatorDeleteStream.and.returnValue(of());
-    texeraGraphSpy.getOperatorPropertyChangeStream.and.returnValue(of());
-    texeraGraphSpy.getLinkAddStream.and.returnValue(of());
-    texeraGraphSpy.getLinkDeleteStream.and.returnValue(of());
-    texeraGraphSpy.getDisabledOperatorsChangedStream.and.returnValue(of());
-    texeraGraphSpy.getAllLinks.and.returnValue([]);
+    texeraGraphSpy = {
+      getAllOperators: vi.fn(),
+      getOperatorAddStream: vi.fn(),
+      getOperatorDeleteStream: vi.fn(),
+      getOperatorPropertyChangeStream: vi.fn(),
+      getLinkAddStream: vi.fn(),
+      getLinkDeleteStream: vi.fn(),
+      getDisabledOperatorsChangedStream: vi.fn(),
+      getAllLinks: vi.fn(),
+    };
+    texeraGraphSpy.getAllOperators.mockReturnValue([]);
+    texeraGraphSpy.getOperatorAddStream.mockReturnValue(of());
+    texeraGraphSpy.getOperatorDeleteStream.mockReturnValue(of());
+    texeraGraphSpy.getOperatorPropertyChangeStream.mockReturnValue(of());
+    texeraGraphSpy.getLinkAddStream.mockReturnValue(of());
+    texeraGraphSpy.getLinkDeleteStream.mockReturnValue(of());
+    texeraGraphSpy.getDisabledOperatorsChangedStream.mockReturnValue(of());
+    texeraGraphSpy.getAllLinks.mockReturnValue([]);
 
-    const wsSpy = jasmine.createSpyObj("WorkflowWebsocketService", ["subscribeToEvent", "send"]);
-    wsSpy.subscribeToEvent.and.returnValue(of()); // Return an empty observable
-    const waSpy = jasmine.createSpyObj("WorkflowActionService", [
-      "getJointGraphWrapper",
-      "getTexeraGraph",
-      "getWorkflow",
-    ]);
-    waSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
-    waSpy.getTexeraGraph.and.returnValue(texeraGraphSpy);
-    waSpy.getWorkflow.and.returnValue({ wid: "workflow1", name: "Test Workflow" });
+    const wsSpy = { subscribeToEvent: vi.fn(), send: vi.fn() };
+    wsSpy.subscribeToEvent.mockReturnValue(of()); // Return an empty observable
+    const waSpy = { getJointGraphWrapper: vi.fn(), getTexeraGraph: vi.fn(), getWorkflow: vi.fn() };
+    waSpy.getJointGraphWrapper.mockReturnValue(jointGraphWrapperSpy);
+    waSpy.getTexeraGraph.mockReturnValue(texeraGraphSpy);
+    waSpy.getWorkflow.mockReturnValue({ wid: "workflow1", name: "Test Workflow" });
 
-    const ntSpy = jasmine.createSpyObj("NotificationService", ["success", "error", "loading"]);
-    const ewSpy = jasmine.createSpyObj("ExecuteWorkflowService", ["getExecutionStateStream", "getExecutionState"]);
-    ewSpy.getExecutionStateStream.and.returnValue(of({ previous: {}, current: { state: ExecutionState.Completed } }));
-    ewSpy.getExecutionState.and.returnValue({ state: ExecutionState.Completed });
+    const ntSpy = { success: vi.fn(), error: vi.fn(), loading: vi.fn() };
+    const ewSpy = { getExecutionStateStream: vi.fn(), getExecutionState: vi.fn() };
+    ewSpy.getExecutionStateStream.mockReturnValue(of({ previous: {}, current: { state: ExecutionState.Completed } }));
+    ewSpy.getExecutionState.mockReturnValue({ state: ExecutionState.Completed });
 
-    const wrSpy = jasmine.createSpyObj("WorkflowResultService", [
-      "hasAnyResult",
-      "getResultService",
-      "getPaginatedResultService",
-    ]);
-    const downloadSpy = jasmine.createSpyObj("DownloadService", ["downloadOperatorsResult"]);
-    downloadSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
+    const wrSpy = { hasAnyResult: vi.fn(), getResultService: vi.fn(), getPaginatedResultService: vi.fn() };
+    const downloadSpy = { downloadOperatorsResult: vi.fn() };
+    downloadSpy.downloadOperatorsResult.mockReturnValue(of(new Blob()));
 
-    const datasetSpy = jasmine.createSpyObj("DatasetService", ["retrieveAccessibleDatasets"]);
-    datasetSpy.retrieveAccessibleDatasets.and.returnValue(of([]));
+    const datasetSpy = { retrieveAccessibleDatasets: vi.fn() };
+    datasetSpy.retrieveAccessibleDatasets.mockReturnValue(of([]));
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
@@ -118,13 +110,15 @@ describe("WorkflowResultExportService", () => {
 
     // Inject the service and spies
     service = TestBed.inject(WorkflowResultExportService);
-    workflowWebsocketServiceSpy = TestBed.inject(WorkflowWebsocketService) as jasmine.SpyObj<WorkflowWebsocketService>;
-    workflowActionServiceSpy = TestBed.inject(WorkflowActionService) as jasmine.SpyObj<WorkflowActionService>;
-    notificationServiceSpy = TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>;
-    executeWorkflowServiceSpy = TestBed.inject(ExecuteWorkflowService) as jasmine.SpyObj<ExecuteWorkflowService>;
-    workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as jasmine.SpyObj<WorkflowResultService>;
-    downloadServiceSpy = TestBed.inject(DownloadService) as jasmine.SpyObj<DownloadService>;
-    datasetServiceSpy = TestBed.inject(DatasetService) as jasmine.SpyObj<DatasetService>;
+    workflowWebsocketServiceSpy = TestBed.inject(
+      WorkflowWebsocketService
+    ) as unknown as Mocked<WorkflowWebsocketService>;
+    workflowActionServiceSpy = TestBed.inject(WorkflowActionService) as unknown as Mocked<WorkflowActionService>;
+    notificationServiceSpy = TestBed.inject(NotificationService) as unknown as Mocked<NotificationService>;
+    executeWorkflowServiceSpy = TestBed.inject(ExecuteWorkflowService) as unknown as Mocked<ExecuteWorkflowService>;
+    workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as unknown as Mocked<WorkflowResultService>;
+    downloadServiceSpy = TestBed.inject(DownloadService) as unknown as Mocked<DownloadService>;
+    datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
   });
 
   it("should be created", () => {

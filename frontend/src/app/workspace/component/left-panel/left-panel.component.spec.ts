@@ -43,7 +43,7 @@ describe("LeftPanelComponent", () => {
     });
 
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, RouterTestingModule.withRoutes([])],
+      imports: [LeftPanelComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([])],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -51,19 +51,16 @@ describe("LeftPanelComponent", () => {
         },
         ...commonTestProviders,
       ],
-      declarations: [LeftPanelComponent],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 
-  beforeEach(fakeAsync(() => {
+  beforeEach(() => {
     fixture = TestBed.createComponent(LeftPanelComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-  }));
+  });
 
   it("should create", () => {
     expect(component).toBeTruthy();

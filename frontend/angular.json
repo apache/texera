@@ -64,6 +64,10 @@
                   "with": "src/environments/environment.prod.ts"
                 }
               ]
+            },
+            "test": {
+              "tsConfig": "src/tsconfig.test.json",
+              "main": "src/main.test.ts"
             }
           },
           "defaultConfiguration": ""
@@ -81,28 +85,34 @@
           }
         },
         "test": {
-          "builder": "@angular-builders/custom-webpack:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "assets": ["src/assets"],
-            "fileReplacements": [
-              {
-                "replace": "src/environments/environment.ts",
-                "with": "src/environments/environment.test.ts"
-              }
-            ],
-            "karmaConfig": "./karma.conf.js",
-            "main": "src/test.ts",
-            "polyfills": ["zone.js", "zone.js/testing"],
-            "styles": [
-              "node_modules/jointjs/css/layout.css",
-              "node_modules/jointjs/css/themes/material.css",
-              "node_modules/jointjs/css/themes/default.css",
-              "src/styles.scss"
-            ],
-            "customWebpackConfig": {
-              "path": "./custom-webpack.config.js"
-            },
-            "tsConfig": "src/tsconfig.spec.json"
+            "buildTarget": "gui:build:test",
+            "runner": "vitest",
+            "runnerConfig": "vitest.config.ts",
+            "tsConfig": "src/tsconfig.spec.json",
+            "include": ["**/*.spec.ts"],
+            "setupFiles": ["src/jsdom-svg-polyfill.ts"],
+            "exclude": [
+              "**/drag-drop.service.spec.ts",
+              "**/app/common/formly/preset-wrapper/preset-wrapper.component.spec.ts",
+              "**/app/common/service/user/config/user-config.service.spec.ts",
+              "**/app/dashboard/component/dashboard.component.spec.ts",
+              "**/app/dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component.spec.ts",
+              "**/app/dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component.spec.ts",
+              "**/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts",
+              "**/app/workspace/component/code-editor-dialog/code-debugger.component.spec.ts",
+              "**/app/workspace/component/code-editor-dialog/code-editor.component.spec.ts",
+              "**/app/workspace/component/codearea-custom-template/codearea-custom-template.component.spec.ts",
+              "**/app/workspace/component/left-panel/settings/settings.component.spec.ts",
+              "**/app/workspace/component/left-panel/time-travel/time-travel.component.spec.ts",
+              "**/app/workspace/component/left-panel/versions-list/versions-list.component.spec.ts",
+              "**/app/workspace/component/menu/menu.component.spec.ts",
+              "**/app/workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component.spec.ts",
+              "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
+              "**/app/workspace/component/workspace.component.spec.ts",
+              "**/app/workspace/service/preset/preset.service.spec.ts"
+            ]
           }
         }
       }

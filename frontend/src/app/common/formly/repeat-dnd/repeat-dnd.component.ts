@@ -18,14 +18,31 @@
  */
 
 import { Component } from "@angular/core";
-import { FieldArrayType } from "@ngx-formly/core";
-import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
+import { FieldArrayType, FormlyModule } from "@ngx-formly/core";
+import { CdkDragDrop, moveItemInArray, CdkDropList, CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
+import { NgFor } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 
 @Component({
   selector: "texera-formly-repeat-section-dnd",
   templateUrl: "./repeat-dnd.component.html",
   styleUrls: ["./repeat-dnd.component.css"],
-  standalone: false,
+  imports: [
+    CdkDropList,
+    NgFor,
+    CdkDrag,
+    CdkDragHandle,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    FormlyModule,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+  ],
 })
 export class FormlyRepeatDndComponent extends FieldArrayType {
   onDrop(event: CdkDragDrop<string[]>) {

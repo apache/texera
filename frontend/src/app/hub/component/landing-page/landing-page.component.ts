@@ -30,13 +30,14 @@ import {
   DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
+import { BrowseSectionComponent } from "../browse-section/browse-section.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-landing-page",
   templateUrl: "./landing-page.component.html",
   styleUrls: ["./landing-page.component.scss"],
-  standalone: false,
+  imports: [BrowseSectionComponent],
 })
 export class LandingPageComponent implements OnInit {
   public isLogin = this.userService.isLogin();
