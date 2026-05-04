@@ -28,7 +28,7 @@ from proto.org.apache.texera.amber.engine.architecture.worker import (
 
 class StatisticsManager:
     def __init__(self) -> None:
-
+        # Initialize metrics with default values
         self._input_tuple_metrics: DefaultDict[PortIdentity, TupleMetrics] = (
             defaultdict(lambda: (0, 0))
         )
