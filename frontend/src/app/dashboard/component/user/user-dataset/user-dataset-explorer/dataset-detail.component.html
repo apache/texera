@@ -153,15 +153,15 @@
               </button>
             </span>
 
-                      <span
-                        *ngIf="currentFileSize"
-                        class="file-size">
+            <span
+              *ngIf="currentFileSize"
+              class="file-size">
               <i
                 nz-icon
                 nzType="file"
                 nzTheme="outline"
                 class="icon-file"></i>
-                        {{ formatSize(currentFileSize) }}
+              {{ formatSize(currentFileSize) }}
             </span>
           </h3>
         </div>
