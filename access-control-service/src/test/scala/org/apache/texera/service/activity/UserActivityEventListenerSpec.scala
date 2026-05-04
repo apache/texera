@@ -54,74 +54,83 @@ class UserActivityEventListenerSpec extends AnyFlatSpec with Matchers {
     sc
   }
 
-  private def setup() = {
-    val recorded = new ConcurrentLinkedQueue[Integer]()
-    val listener = new UserActivityEventListener(uid => { recorded.add(uid); () })
-    val rel = listener.onRequest(mock(classOf[RequestEvent]))
-    (rel, recorded)
-  }
+  private def newRecorder(): ConcurrentLinkedQueue[Integer] = new ConcurrentLinkedQueue[Integer]()
+  private def trackTo(q: ConcurrentLinkedQueue[Integer]): Integer => Unit =
+    uid => { q.add(uid); () }
 
-  "UserActivityEventListener" should "invoke the tracker on RESOURCE_METHOD_FINISHED with a SessionUser principal" in {
-    val (rel, recorded) = setup()
-    rel.onEvent(
-      buildEvent(
-        RequestEvent.Type.RESOURCE_METHOD_FINISHED,
-        buildSecurityContext(sessionUser(42))
-      )
+  "UserActivityEventListener.handle" should "invoke the tracker on RESOURCE_METHOD_FINISHED with a SessionUser principal" in {
+    val recorded = newRecorder()
+    UserActivityEventListener.handle(
+      buildEvent(RequestEvent.Type.RESOURCE_METHOD_FINISHED, buildSecurityContext(sessionUser(42))),
+      trackTo(recorded)
     )
     recorded.size shouldBe 1
     recorded.peek() shouldBe 42
   }
 
   it should "ignore RequestEvent types other than RESOURCE_METHOD_FINISHED" in {
-    val (rel, recorded) = setup()
+    val recorded = newRecorder()
     val sc = buildSecurityContext(sessionUser(42))
-    rel.onEvent(buildEvent(RequestEvent.Type.START, sc))
-    rel.onEvent(buildEvent(RequestEvent.Type.RESOURCE_METHOD_START, sc))
-    rel.onEvent(buildEvent(RequestEvent.Type.FINISHED, sc))
+    UserActivityEventListener.handle(buildEvent(RequestEvent.Type.START, sc), trackTo(recorded))
+    UserActivityEventListener.handle(
+      buildEvent(RequestEvent.Type.RESOURCE_METHOD_START, sc),
+      trackTo(recorded)
+    )
+    UserActivityEventListener.handle(buildEvent(RequestEvent.Type.FINISHED, sc), trackTo(recorded))
     recorded.isEmpty shouldBe true
   }
 
   it should "ignore non-SessionUser principals" in {
-    val (rel, recorded) = setup()
-    val anon: Principal = new Principal {
-      override def getName: String = "anon"
-    }
-    rel.onEvent(
-      buildEvent(RequestEvent.Type.RESOURCE_METHOD_FINISHED, buildSecurityContext(anon))
+    val recorded = newRecorder()
+    val anon: Principal = new Principal { override def getName: String = "anon" }
+    UserActivityEventListener.handle(
+      buildEvent(RequestEvent.Type.RESOURCE_METHOD_FINISHED, buildSecurityContext(anon)),
+      trackTo(recorded)
     )
     recorded.isEmpty shouldBe true
   }
 
   it should "ignore SessionUser with null uid" in {
-    val (rel, recorded) = setup()
-    rel.onEvent(
+    val recorded = newRecorder()
+    UserActivityEventListener.handle(
       buildEvent(
         RequestEvent.Type.RESOURCE_METHOD_FINISHED,
         buildSecurityContext(sessionUser(null))
-      )
+      ),
+      trackTo(recorded)
     )
     recorded.isEmpty shouldBe true
   }
 
   it should "ignore null SecurityContext" in {
-    val (rel, recorded) = setup()
-    rel.onEvent(buildEvent(RequestEvent.Type.RESOURCE_METHOD_FINISHED, null))
+    val recorded = newRecorder()
+    UserActivityEventListener.handle(
+      buildEvent(RequestEvent.Type.RESOURCE_METHOD_FINISHED, null),
+      trackTo(recorded)
+    )
     recorded.isEmpty shouldBe true
   }
 
+  // Listener-level smoke tests: verify the SAM lambda + dispatch glue,
+  // not the per-event branching (which lives in `handle`).
+  "UserActivityEventListener" should "dispatch RequestEvent to the handle function" in {
+    val recorded = newRecorder()
+    val listener = new UserActivityEventListener(trackTo(recorded))
+    val rel = listener.onRequest(mock(classOf[RequestEvent]))
+    rel.onEvent(
+      buildEvent(RequestEvent.Type.RESOURCE_METHOD_FINISHED, buildSecurityContext(sessionUser(7)))
+    )
+    recorded.peek() shouldBe 7
+  }
+
   it should "no-op on ApplicationEvent (lifecycle hook unused)" in {
-    val recorded = new ConcurrentLinkedQueue[Integer]()
-    val listener = new UserActivityEventListener(uid => { recorded.add(uid); () })
-    val appEvent = mock(classOf[ApplicationEvent])
-    listener.onEvent(appEvent)
+    val recorded = newRecorder()
+    val listener = new UserActivityEventListener(trackTo(recorded))
+    listener.onEvent(mock(classOf[ApplicationEvent]))
     recorded.isEmpty shouldBe true
   }
 
   it should "construct with the default tracker without invoking it" in {
-    // Default-arg path: new UserActivityEventListener() resolves track to
-    // UserActivityTracker.markActive but does not call it (the listener
-    // only calls track when a matched SessionUser arrives).
     new UserActivityEventListener() should not be null
   }
 }
