@@ -251,7 +251,6 @@ object PveManager {
     }
 
     val metadataPath = cuidDir(cuid, pveName).resolve("user-packages.txt")
-    Files.createDirectories(metadataPath.getParent)
 
     var installedPackages =
       if (Files.exists(metadataPath)) {
