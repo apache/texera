@@ -53,9 +53,12 @@ class StatisticsManager:
             ],
             self._data_processing_time,
             self._control_processing_time,
-            self._total_execution_time
-            - self._data_processing_time
-            - self._control_processing_time,
+            max(
+                0,
+                self._total_execution_time
+                - self._data_processing_time
+                - self._control_processing_time,
+            ),
         )
 
     def increase_input_statistics(self, port_id: PortIdentity, size: int) -> None:
