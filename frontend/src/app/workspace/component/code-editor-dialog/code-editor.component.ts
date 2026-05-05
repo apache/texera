@@ -51,6 +51,13 @@ import { filter, switchMap } from "rxjs/operators";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./code-debugger.component";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
+import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NgFor, NgComponentOutlet, NgIf } from "@angular/common";
+import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 type MonacoEditor = monaco.editor.IStandaloneCodeEditor;
 
@@ -69,7 +76,19 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
   selector: "texera-code-editor",
   templateUrl: "code-editor.component.html",
   styleUrls: ["code-editor.component.scss"],
-  standalone: false,
+  imports: [
+    CdkDrag,
+    CdkDragHandle,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NgFor,
+    NgComponentOutlet,
+    NgIf,
+    AnnotationSuggestionComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;

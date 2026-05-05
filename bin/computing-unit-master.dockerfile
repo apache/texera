@@ -15,6 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Apache Texera is an effort undergoing incubation at The Apache Software
+# Foundation (ASF), sponsored by the Apache Incubator PMC. Incubation is
+# required of all newly accepted projects until a further review indicates
+# that the infrastructure, communications, and decision-making process have
+# stabilized in a manner consistent with other successful ASF projects.
+# While incubation status is not necessarily a reflection of the
+# completeness or stability of the code, it does indicate that the project
+# has yet to be fully endorsed by the ASF.
+
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
@@ -26,22 +35,34 @@ COPY amber/ amber/
 COPY project/ project/
 COPY build.sbt build.sbt
 
-# Update system and install dependencies
+# Update system and install dependencies. python3-minimal is needed by
+# bin/licensing/concat_license_binary.py below.
 RUN apt-get update && apt-get install -y \
     netcat \
     unzip \
     libpq-dev \
+    python3-minimal \
     && apt-get clean
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
-COPY LICENSE LICENSE-binary NOTICE NOTICE-binary DISCLAIMER ./
+COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
+COPY bin/licensing/ bin/licensing/
 
 RUN sbt clean WorkflowExecutionService/dist
 
 # Unzip the texera binary
 RUN unzip amber/target/universal/amber-*.zip -d amber/target/
+
+# Merge per-aspect LICENSE-binary files (java jars + python packages) into
+# a single LICENSE-binary-combined keyed by license group, for the runtime
+# image. Per-license-group merge keeps Scala/Java jars and Python packages
+# inside the same Apache-2.0 / MIT / BSD / ... section instead of stacking
+# the inputs end-to-end.
+RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined \
+        amber/LICENSE-binary-java \
+        amber/LICENSE-binary-python
 
 FROM eclipse-temurin:11-jdk-jammy AS runtime
 
@@ -74,8 +95,8 @@ COPY --from=build /texera/amber/src/main/python /texera/amber/src/main/python
 # bundled third-party contents of this image and ship as /texera/LICENSE
 # and /texera/NOTICE; licenses/ holds the per-license full texts referenced
 # by LICENSE-binary.
-COPY --from=build /texera/LICENSE-binary /texera/LICENSE
-COPY --from=build /texera/NOTICE-binary /texera/NOTICE
+COPY --from=build /texera/amber/LICENSE-binary-combined /texera/LICENSE
+COPY --from=build /texera/amber/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
 CMD ["bin/computing-unit-master"]

@@ -18,20 +18,22 @@
  */
 
 import { Component, OnInit } from "@angular/core";
-import { FormBuilder, FormGroup, Validators } from "@angular/forms";
+import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ExecutionMode } from "../../../../common/type/workflow";
+import { NzRadioGroupComponent, NzRadioComponent } from "ng-zorro-antd/radio";
+import { NgClass, NgIf } from "@angular/common";
 
 @UntilDestroy()
 @Component({
   selector: "texera-settings",
   templateUrl: "./settings.component.html",
   styleUrls: ["./settings.component.scss"],
-  standalone: false,
+  imports: [FormsModule, ReactiveFormsModule, NzRadioGroupComponent, NzRadioComponent, NgClass, NgIf],
 })
 export class SettingsComponent implements OnInit {
   settingsForm: FormGroup;

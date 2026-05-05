@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -45,7 +46,7 @@
 //   describe("Dictionary Service", () => {
 //     describe("Backend interface", () => {
 //       let httpMock: HttpTestingController;
-//       let dictEventSubjectNextSpy: jasmine.Spy;
+//       let dictEventSubjectNextSpy: Mock;
 
 //       beforeEach(() => {
 //         httpMock = TestBed.inject(HttpTestingController);
@@ -55,7 +56,7 @@
 //         // clear dict
 //         (dictionaryService as any).updateDict({});
 
-//         dictEventSubjectNextSpy = spyOn((dictionaryService as any).dictionaryChangedSubject, "next");
+//         dictEventSubjectNextSpy = vi.spyOn((dictionaryService as any).dictionaryChangedSubject, "next");
 //         dictEventSubjectNextSpy.calls.reset();
 //       });
 

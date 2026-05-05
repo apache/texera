@@ -29,13 +29,26 @@ import { Observable, of, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { UserService } from "../../../../common/service/user/user.service";
 import { DASHBOARD_SEARCH } from "../../../../app-routing.constant";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputGroupComponent, NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzAutocompleteTriggerDirective, NzAutocompleteComponent } from "ng-zorro-antd/auto-complete";
 
 @UntilDestroy()
 @Component({
   selector: "texera-search-bar",
   templateUrl: "./search-bar.component.html",
   styleUrls: ["./search-bar.component.scss"],
-  standalone: false,
+  imports: [
+    ɵNzTransitionPatchDirective,
+    NzSpaceCompactItemDirective,
+    NzInputGroupComponent,
+    NzInputDirective,
+    FormsModule,
+    NzAutocompleteTriggerDirective,
+    NzAutocompleteComponent,
+  ],
 })
 export class SearchBarComponent {
   private includePublic = true;

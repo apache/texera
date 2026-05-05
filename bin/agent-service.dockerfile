@@ -15,6 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Apache Texera is an effort undergoing incubation at The Apache Software
+# Foundation (ASF), sponsored by the Apache Incubator PMC. Incubation is
+# required of all newly accepted projects until a further review indicates
+# that the infrastructure, communications, and decision-making process have
+# stabilized in a manner consistent with other successful ASF projects.
+# While incubation status is not necessarily a reflection of the
+# completeness or stability of the code, it does indicate that the project
+# has yet to be fully endorsed by the ASF.
+
 FROM oven/bun:1-alpine
 
 WORKDIR /app
@@ -26,8 +35,8 @@ RUN bun install --frozen-lockfile --production
 COPY agent-service/src ./src
 COPY agent-service/tsconfig.json ./
 
-COPY LICENSE-binary ./LICENSE
-COPY NOTICE-binary ./NOTICE
+COPY agent-service/LICENSE-binary ./LICENSE
+COPY NOTICE ./NOTICE
 COPY DISCLAIMER ./DISCLAIMER
 COPY licenses ./licenses
 

@@ -27,6 +27,7 @@
   <img alt="Static Badge" src="https://img.shields.io/badge/Workflow_Versions-357K-blue">
   <img alt="Static Badge" src="https://img.shields.io/badge/Deployments-7-blue">
   <img alt="Static Badge" src="https://img.shields.io/badge/Largest_Deployment-100_nodes,_400_cores-green">
+  <a href="https://app.codecov.io/gh/apache/texera"><img alt="Coverage" src="https://img.shields.io/codecov/c/github/apache/texera/main?logo=codecov&label=coverage"></a>
 </p>
 
 Apache Texera (Incubating) is an open-source platform for human-AI collaborative data science using visual workflows. It enables human analysts to construct, execute, and refine data analysis tasks through an intuitive GUI, assisted by AI agents that understand natural-language instructions. Texera is well suited for a wide range of applications, including “AI for Science,” by making advanced AI and data science capabilities accessible to a broader community. It can run on a laptop for local use or be deployed in the cloud to support scalable processing of large datasets.

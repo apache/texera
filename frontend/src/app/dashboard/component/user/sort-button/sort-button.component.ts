@@ -19,12 +19,30 @@
 
 import { Component, EventEmitter, Output } from "@angular/core";
 import { SortMethod } from "../../../type/sort-method";
+import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 
 @Component({
   selector: "texera-sort-button",
   templateUrl: "./sort-button.component.html",
   styleUrls: ["./sort-button.component.scss"],
-  standalone: false,
+  imports: [
+    NzDropdownADirective,
+    NzDropdownDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
+  ],
 })
 export class SortButtonComponent {
   @Output()

@@ -23,7 +23,13 @@ import {
   DatasetFileNode,
   getRelativePathFromDatasetFileNode,
 } from "../../../../../../common/type/datasetVersionFileTree";
-import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
+import { ITreeOptions, TREE_ACTIONS, TreeModule } from "@ali-hm/angular-tree-component";
+import { NgIf } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"] as const;
 
@@ -32,7 +38,15 @@ const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"] as const;
   selector: "texera-user-dataset-version-filetree",
   templateUrl: "./user-dataset-version-filetree.component.html",
   styleUrls: ["./user-dataset-version-filetree.component.scss"],
-  standalone: false,
+  imports: [
+    TreeModule,
+    NgIf,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzTooltipDirective,
+  ],
 })
 export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   @Input()

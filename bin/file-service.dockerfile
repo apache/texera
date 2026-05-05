@@ -15,6 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Apache Texera is an effort undergoing incubation at The Apache Software
+# Foundation (ASF), sponsored by the Apache Incubator PMC. Incubation is
+# required of all newly accepted projects until a further review indicates
+# that the infrastructure, communications, and decision-making process have
+# stabilized in a manner consistent with other successful ASF projects.
+# While incubation status is not necessarily a reflection of the
+# completeness or stability of the code, it does indicate that the project
+# has yet to be fully endorsed by the ASF.
+
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
@@ -35,7 +44,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
-COPY LICENSE LICENSE-binary NOTICE NOTICE-binary DISCLAIMER ./
+COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
 
 RUN sbt clean FileService/dist
@@ -56,8 +65,8 @@ COPY --from=build /texera/file-service/src/main/resources /texera/file-service/s
 # bundled third-party contents of this image and ship as /texera/LICENSE
 # and /texera/NOTICE; licenses/ holds the per-license full texts referenced
 # by LICENSE-binary.
-COPY --from=build /texera/LICENSE-binary /texera/LICENSE
-COPY --from=build /texera/NOTICE-binary /texera/NOTICE
+COPY --from=build /texera/file-service/LICENSE-binary /texera/LICENSE
+COPY --from=build /texera/file-service/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
 CMD ["bin/file-service"]

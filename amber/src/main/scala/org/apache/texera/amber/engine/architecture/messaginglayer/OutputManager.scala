@@ -124,7 +124,8 @@ class OutputManager(
       : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
     mutable.HashMap()
 
-  private val storageUris: mutable.ArrayBuffer[URI] = mutable.ArrayBuffer()
+  private val stateWriters: mutable.HashMap[PortIdentity, BufferedItemWriter[Tuple]] =
+    mutable.HashMap()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
@@ -235,19 +236,7 @@ class OutputManager(
   }
 
   def saveStateToStorageIfNeeded(state: State): Unit = {
-    try {
-      storageUris.foreach { uri =>
-        val writer = DocumentFactory
-          .openDocument(State.uriFromResultUri(uri))
-          ._1
-          .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
-          .asInstanceOf[BufferedItemWriter[Tuple]]
-        writer.putOne(state.toTuple)
-        writer.close()
-      }
-    } catch {
-      case _: Exception => ()
-    }
+    stateWriters.values.foreach(_.putOne(state.toTuple))
   }
 
   /**
@@ -263,7 +252,7 @@ class OutputManager(
         writerThread.join()
       case None =>
     }
-
+    this.stateWriters.remove(outputPortId).foreach(_.close())
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
@@ -298,7 +287,6 @@ class OutputManager(
   }
 
   private def setupOutputStorageWriterThread(portId: PortIdentity, storageUri: URI): Unit = {
-    this.storageUris += storageUri
     val bufferedItemWriter = DocumentFactory
       .openDocument(storageUri)
       ._1
@@ -307,6 +295,16 @@ class OutputManager(
     val writerThread = new OutputPortResultWriterThread(bufferedItemWriter)
     this.outputPortResultWriterThreads(portId) = writerThread
     writerThread.start()
+
+    // The state document is provisioned alongside the result document
+    // by RegionExecutionCoordinator, so it is always present.
+    val stateWriter = DocumentFactory
+      .openDocument(State.uriFromResultUri(storageUri))
+      ._1
+      .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
+      .asInstanceOf[BufferedItemWriter[Tuple]]
+    stateWriter.open()
+    this.stateWriters(portId) = stateWriter
   }
 
 }

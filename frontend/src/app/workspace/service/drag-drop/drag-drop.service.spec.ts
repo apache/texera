@@ -58,11 +58,13 @@ describe("DragDropService", () => {
     dragDropService = TestBed.inject(DragDropService);
 
     // custom equality disregards link ID (since I use DragDropService.getNew)
-    jasmine.addCustomEqualityTester((link1: OperatorLink, link2: OperatorLink) => {
-      if (typeof link1 === "object" && typeof link2 === "object") {
-        return link1.source === link2.source && link1.target === link2.target;
+    /* TODO(vitest): no equivalent — port via expect.extend */ ((..._args: unknown[]) => {})(
+      (link1: OperatorLink, link2: OperatorLink) => {
+        if (typeof link1 === "object" && typeof link2 === "object") {
+          return link1.source === link2.source && link1.target === link2.target;
+        }
       }
-    });
+    );
   });
 
   it("should be created", inject([DragDropService], (injectedService: DragDropService) => {

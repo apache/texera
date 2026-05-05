@@ -19,12 +19,15 @@
 
 import { Component, Inject, Input, TemplateRef, ViewChild } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
 
 @Component({
   selector: "texera-registration-request-modal",
   templateUrl: "./registration-request-modal.component.html",
   styleUrls: ["./registration-request-modal.component.scss"],
-  standalone: false,
+  imports: [NzSpaceCompactItemDirective, NzInputDirective, FormsModule],
 })
 
 // Component for registration form modal

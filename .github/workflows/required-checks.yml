@@ -39,18 +39,19 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') }}
 
 jobs:
   # Precheck decides which downstream jobs run for this event:
   #   - On PR events, wait for the Pull Request Labeler workflow to finish so
   #     the labels it applies (frontend, docs, dev, ...) are available, then
   #     gate run_* outputs on those labels.
-  #   - run_frontend / run_scala / run_python / run_agent_service: gate the
-  #     main build stacks. Each labeler-applied label maps to the stacks it
-  #     requires (LABEL_STACKS below); the run set is the union across all
-  #     PR labels. Empty union (e.g. docs-only / dev-only PRs) skips every
-  #     stack. Push and workflow_dispatch events run every stack.
+  #   - run_frontend / run_amber / run_platform / run_python /
+  #     run_agent_service: gate the main build stacks. Each labeler-applied
+  #     label maps to the stacks it requires (LABEL_STACKS below); the run
+  #     set is the union across all PR labels. Empty union (e.g. docs-only
+  #     / dev-only PRs) skips every stack. Push and workflow_dispatch
+  #     events run every stack.
   #   - backport_targets: JSON array of release/* labels currently on the PR.
   #     Drives the backport matrix; empty array means no backport runs.
   precheck:
@@ -58,7 +59,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_frontend: ${{ steps.decide.outputs.run_frontend }}
-      run_scala: ${{ steps.decide.outputs.run_scala }}
+      run_amber: ${{ steps.decide.outputs.run_amber }}
+      run_amber_integration: ${{ steps.decide.outputs.run_amber_integration }}
+      run_platform: ${{ steps.decide.outputs.run_platform }}
       run_python: ${{ steps.decide.outputs.run_python }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
       backport_targets: ${{ steps.decide.outputs.backport_targets }}
@@ -113,31 +116,49 @@ jobs:
             // labeler matches lives under a component dir and is already
             // covered by that component's label.
             //
-            //   label                | frontend | scala | python | agent-service
-            //   ---------------------|----------|-------|--------|--------------
-            //   frontend             |    x     |       |        |
-            //   python               |          |   x   |   x    |
-            //   engine               |          |   x   |   x    |
-            //   service              |          |   x   |        |
-            //   agent-service        |          |       |        |     x
-            //   common               |          |   x   |        |
-            //   ddl-change           |          |   x   |        |
-            //   ci                   |    x     |   x   |   x    |     x
-            //   docs / dev / deps /  |          |       |        |
-            //   release/* / branch   |          |       |        |
+            //   label             | frontend | amber | amber-integ | platform | python | agent-service
+            //   ------------------|----------|-------|-------------|----------|--------|--------------
+            //   frontend          |    x     |       |             |          |        |
+            //   python            |          |       |      x      |          |   x    |
+            //   engine            |          |   x   |      x      |          |        |
+            //   amber-integration |          |       |      x      |          |        |
+            //   platform          |          |       |             |    x     |        |
+            //   agent-service     |          |       |             |          |        |     x
+            //   common            |          |   x   |      x      |    x     |        |  (root
+            //                                                                            scala
+            //                                                                            build/lint
+            //                                                                            config)
+            //   ddl-change        |          |   x   |      x      |    x     |        |
+            //   ci                |    x     |   x   |      x      |    x     |   x    |     x
+            //   docs / dev /      |          |       |             |          |        |
+            //   deps / release/   |          |       |             |          |        |
+            //   * / branch        |          |       |             |          |        |
+            //
+            // amber-integration runs the Scala tests tagged
+            // @org.apache.texera.amber.tags.IntegrationTest (e2e specs that
+            // spawn Python UDF workers). The labeler attaches `python` to
+            // any *.py change (including amber/src/main/python/**), so
+            // `engine` does not need to fire the python stack itself —
+            // pure-Python amber changes pick up `python` directly. The
+            // `amber-integration` label catches *IntegrationSpec.scala
+            // edits so a test-only change does not trigger the full
+            // Scala-only amber stack.
             const LABEL_STACKS = {
               frontend: ["frontend"],
-              python: ["scala", "python"],     // pyamber drives scala integration tests too
-              engine: ["scala", "python"],     // amber/** spans both
-              service: ["scala"],              // scala-side services; agent-service is its own label
+              python: ["amber-integration", "python"],
+              engine: ["amber", "amber-integration"],
+              "amber-integration": ["amber-integration"],
+              platform: ["platform"],
               "agent-service": ["agent-service"],
-              common: ["scala"],
-              "ddl-change": ["scala"],
-              ci: ["frontend", "scala", "python", "agent-service"],
+              common: ["amber", "amber-integration", "platform"],
+              "ddl-change": ["amber", "amber-integration", "platform"],
+              ci: ["frontend", "amber", "amber-integration", "platform", "python", "agent-service"],
             };
 
             let runFrontend = true;
-            let runScala = true;
+            let runAmber = true;
+            let runAmberIntegration = true;
+            let runPlatform = true;
             let runPython = true;
             let runAgentService = true;
 
@@ -149,7 +170,9 @@ jobs:
                 }
               }
               runFrontend = stacks.has("frontend");
-              runScala = stacks.has("scala");
+              runAmber = stacks.has("amber");
+              runAmberIntegration = stacks.has("amber-integration");
+              runPlatform = stacks.has("platform");
               runPython = stacks.has("python");
               runAgentService = stacks.has("agent-service");
               core.info(
@@ -158,7 +181,9 @@ jobs:
             }
 
             core.setOutput("run_frontend", runFrontend ? "true" : "false");
-            core.setOutput("run_scala", runScala ? "true" : "false");
+            core.setOutput("run_amber", runAmber ? "true" : "false");
+            core.setOutput("run_amber_integration", runAmberIntegration ? "true" : "false");
+            core.setOutput("run_platform", runPlatform ? "true" : "false");
             core.setOutput("run_python", runPython ? "true" : "false");
             core.setOutput("run_agent_service", runAgentService ? "true" : "false");
 
@@ -211,7 +236,9 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
-      run_scala: ${{ needs.precheck.outputs.run_scala == 'true' }}
+      run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
+      run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
+      run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_python: ${{ needs.precheck.outputs.run_python == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
     secrets: inherit
@@ -230,7 +257,9 @@ jobs:
       backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
       job_name_suffix: ""
       run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
-      run_scala: ${{ needs.precheck.outputs.run_scala == 'true' }}
+      run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
+      run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
+      run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_python: ${{ needs.precheck.outputs.run_python == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
     secrets: inherit

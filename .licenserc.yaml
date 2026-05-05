@@ -13,9 +13,13 @@ header:
     - 'DESCRIPTION'
     - 'DISCLAIMER'
     - 'LICENSE'
-    - 'LICENSE-binary'
     - 'NOTICE'
-    - 'NOTICE-binary'
+    # Per-module LICENSE-binary / NOTICE-binary describing the third-party
+    # content bundled in each module's binary artifact (Universal dist zip
+    # or Docker image). Plain-text manifests, not source files.
+    - '**/LICENSE-binary'
+    - '**/LICENSE-binary-*'
+    - '**/NOTICE-binary'
     - '.dockerignore'
     - '.gitattributes'
     - '.github/PULL_REQUEST_TEMPLATE'

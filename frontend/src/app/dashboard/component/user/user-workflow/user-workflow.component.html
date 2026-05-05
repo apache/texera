@@ -33,7 +33,7 @@
           nzTheme="outline"></i>
         <span>Create Workflow</span>
       </button>
-      <nz-button-group
+      <nz-space-compact
         class="utility-button-group"
         ngbDropdown>
         <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
@@ -131,7 +131,7 @@
             nzTheme="outline"
             nzType="minus-square"></i>
         </button>
-      </nz-button-group>
+      </nz-space-compact>
       <texera-filters
         [pid]="pid"
         #filters></texera-filters>
@@ -145,7 +145,8 @@
       name="search-input-box"
       nzMode="tags"
       nzPlaceHolder="Search all workflows"
-      [nzBorderless]="true"
+      nzVariant="borderless"
+      ]="true"
       [nzOpen]="false"
       ngDefaultControl
       [(ngModel)]="filters.masterFilterList"
