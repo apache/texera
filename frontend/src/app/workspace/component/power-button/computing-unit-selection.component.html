@@ -544,7 +544,7 @@
               <div class="field">
                 <input
                   nz-input
-                  [ngModel]="pkg.operator"
+                  [ngModel]="pkg.versionOp"
                   [disabled]="true" />
               </div>
 
@@ -575,7 +575,7 @@
                 <nz-select
                   nzPlaceHolder="Select"
                   nzCentered
-                  [(ngModel)]="pve.newPackages[i].operator">
+                  [(ngModel)]="pve.newPackages[i].versionOp">
                   <nz-option
                     nzValue="=="
                     nzLabel="=="></nz-option>

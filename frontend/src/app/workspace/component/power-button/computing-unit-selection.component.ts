@@ -79,7 +79,7 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
 
 type PveUserPackageRow = {
   name: string;
-  operator?: "==" | ">=" | "<=";
+  versionOp?: "==" | ">=" | "<=";
   version?: string;
 };
 
@@ -732,7 +732,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   addPackage(index: number): void {
     const env = this.pves[index];
-    env.newPackages.push({ name: "", version: "", operator: undefined });
+    env.newPackages.push({ name: "", version: "", versionOp: undefined });
   }
 
   addEnvironment(): void {
@@ -987,12 +987,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
           const packageName = pkg.name.trim().toLowerCase();
 
           if (systemPackageNames.has(packageName)) {
-            skippedMessages.push(`[PVE] Skipped ${pkg.name}: already installed as a system package.`);
+            this.notificationService.error(`Skipped ${pkg.name}: already installed as a system package.`)
             return false;
           }
 
           if (userPackageNames.has(packageName)) {
-            skippedMessages.push(`[PVE] Skipped ${pkg.name}: already installed in this environment.`);
+            this.notificationService.error(`Skipped ${pkg.name}: already installed in this environment.`)
             return false;
           }
 
@@ -1024,7 +1024,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       const [name, version] = pkgStr.split("==");
       return {
         name: name.trim(),
-        operator: "==" as const,
+        versionOp: "==" as const,
         version: (version ?? "").trim(),
       };
     });
