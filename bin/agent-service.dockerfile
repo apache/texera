@@ -43,7 +43,7 @@ COPY licenses ./licenses
 RUN addgroup -S -g 1001 texera \
  && adduser -S -u 1001 -G texera -h /app texera \
  && chown -R texera:texera /app
-USER 1001:1001
+USER texera
 
 EXPOSE 3001
 
