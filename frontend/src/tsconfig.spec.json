@@ -38,17 +38,6 @@
     "**/app/workspace/component/left-panel/time-travel/time-travel.component.spec.ts",
     "**/app/workspace/component/left-panel/versions-list/versions-list.component.spec.ts",
     "**/app/workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component.spec.ts",
-    "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
-
-    // Component templates rooted at <nz-list-item>: outside an <nz-list>
-    // host these throw `No provider found for NzListComponent`. Need a
-    // wrapper TestHostComponent that mounts them inside <nz-list>.
-    "**/app/dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component.spec.ts",
-    "**/app/dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component.spec.ts",
-    // user-workflow embeds the list-item above, cascading the same NzList host issue.
-    "**/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts",
-    // Dashboard renders <asl-google-signin-button> which dereferences fields on the
-    // SocialAuthService stub that our minimal mock doesn't provide.
-    "**/app/dashboard/component/dashboard.component.spec.ts"
+    "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"
   ]
 }
