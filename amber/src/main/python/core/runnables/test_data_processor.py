@@ -20,8 +20,9 @@ import sys
 import pytest
 
 from core.architecture.managers import Context
+from core.models import State
 from core.models.internal_queue import InternalQueue
-from core.models.internal_marker import StartChannel
+from core.models.internal_marker import EndChannel, StartChannel
 from core.runnables.data_processor import DataProcessor
 from proto.org.apache.texera.amber.engine.architecture.rpc import ConsoleMessageType
 
@@ -101,6 +102,72 @@ class TestPostSwitchContextChecks:
         data_processor._post_switch_context_checks()
         msgs = list(context.console_message_manager.get_messages(force_flush=True))
         assert msgs == []
+
+
+class _StubExecutor:
+    """
+    Records what `process_internal_marker` invokes on it so the test can
+    assert the StartChannel / EndChannel branches of `data_processor`
+    without standing up a real Operator.
+    """
+
+    def __init__(self):
+        self.calls = []
+
+    def produce_state_on_start(self, port_id):
+        self.calls.append(("produce_state_on_start", port_id))
+        return {"phase": "start"}
+
+    def produce_state_on_finish(self, port_id):
+        self.calls.append(("produce_state_on_finish", port_id))
+        return {"phase": "finish"}
+
+    def on_finish(self, port_id):
+        self.calls.append(("on_finish", port_id))
+        return iter([])
+
+
+class TestProcessInternalMarker:
+    @pytest.mark.timeout(2)
+    def test_start_channel_invokes_produce_state_on_start(
+        self, context, data_processor
+    ):
+        executor = _StubExecutor()
+        context.executor_manager.executor = executor
+
+        data_processor.process_internal_marker(StartChannel())
+
+        # StartChannel routes to produce_state_on_start with the current
+        # input port id (0 when no upstream is set), and the returned dict
+        # is wrapped into a State on the output slot.
+        assert executor.calls == [("produce_state_on_start", 0)]
+        out = context.state_processing_manager.current_output_state
+        assert isinstance(out, State)
+        assert out["phase"] == "start"
+        # `_executor_session` always switches once on exit.
+        assert data_processor.switch_calls == 1
+
+    @pytest.mark.timeout(2)
+    def test_end_channel_flushes_state_then_drains_on_finish(
+        self, context, data_processor
+    ):
+        executor = _StubExecutor()
+        context.executor_manager.executor = executor
+
+        data_processor.process_internal_marker(EndChannel())
+
+        # EndChannel must call produce_state_on_finish first, switch
+        # context to flush that state separately from the on_finish
+        # tuple stream, then drain on_finish. The session itself adds
+        # its own trailing switch on exit.
+        assert executor.calls == [
+            ("produce_state_on_finish", 0),
+            ("on_finish", 0),
+        ]
+        # 1 switch from the explicit flush + 1 from `_executor_session`
+        # exit. `_set_output_tuple` exits early on an empty iterator and
+        # does not switch.
+        assert data_processor.switch_calls == 2
 
 
 class TestExecutorSession:
