@@ -85,7 +85,7 @@ abstract class WorkflowActor(
   //
   // Akka related components:
   //
-  val actorService: AkkaActorService = new AkkaActorService(actorId, this.context)
+  val actorService: PekkoActorService = new PekkoActorService(actorId, this.context)
   actorService.getAvailableNodeAddressesFunc = () => {
     implicit val timeout: Timeout = 5.seconds
     Await
@@ -95,12 +95,12 @@ abstract class WorkflowActor(
       )
       .asInstanceOf[Array[Address]]
   }
-  val actorRefMappingService: AkkaActorRefMappingService = new AkkaActorRefMappingService(
+  val actorRefMappingService: PekkoActorRefMappingService = new PekkoActorRefMappingService(
     actorService
   )
   actorRefMappingService.registerActorRef(actorId, self)
-  val transferService: AkkaMessageTransferService =
-    new AkkaMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
+  val transferService: PekkoMessageTransferService =
+    new PekkoMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
 
   logger.info(s"worker replay log writing conf: $replayLogConfOpt")
 
