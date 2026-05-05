@@ -34,13 +34,34 @@ import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { map, tap } from "rxjs/operators";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
+import { NzSelectComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
 
 @UntilDestroy()
 @Component({
   selector: "texera-dataset-section",
   templateUrl: "user-dataset.component.html",
   styleUrls: ["user-dataset.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    FiltersComponent,
+    FiltersInstructionsComponent,
+    NzSelectComponent,
+    FormsModule,
+    SearchResultsComponent,
+  ],
 })
 export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;

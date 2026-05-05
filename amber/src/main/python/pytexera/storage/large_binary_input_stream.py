@@ -34,7 +34,7 @@ def _require_open(func):
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self._closed:
+        if self.closed:
             raise ValueError("I/O operation on closed stream")
         if self._underlying is None:
             self._lazy_init()
@@ -57,7 +57,6 @@ class LargeBinaryInputStream(IOBase):
             raise ValueError("largebinary cannot be None")
         self._large_binary = large_binary
         self._underlying: Optional[BinaryIO] = None
-        self._closed = False
 
     def _lazy_init(self):
         """Download from S3 on first read operation."""
@@ -87,23 +86,26 @@ class LargeBinaryInputStream(IOBase):
 
     def readable(self) -> bool:
         """Return True if the stream can be read from."""
-        return not self._closed
+        return not self.closed
 
     def seekable(self) -> bool:
         """Return False - this stream does not support seeking."""
         return False
 
-    @property
-    def closed(self) -> bool:
-        """Return True if the stream is closed."""
-        return self._closed
-
     def close(self) -> None:
-        """Close the stream and release resources."""
-        if not self._closed:
-            self._closed = True
+        """Close the stream and release resources.
+
+        Idempotent: subsequent calls (including IOBase's __del__-driven
+        finalize on Python 3.13+) are no-ops because IOBase tracks the
+        closed state via super().close() below.
+        """
+        if self.closed:
+            return
+        try:
             if self._underlying is not None:
                 self._underlying.close()
+        finally:
+            super().close()
 
     def __enter__(self):
         return self

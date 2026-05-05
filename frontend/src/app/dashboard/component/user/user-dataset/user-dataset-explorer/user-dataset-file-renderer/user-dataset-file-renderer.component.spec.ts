@@ -30,12 +30,11 @@ describe("UserDatasetFileRendererComponent", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      declarations: [UserDatasetFileRendererComponent],
+      imports: [UserDatasetFileRendererComponent, HttpClientTestingModule],
       providers: [
         DatasetService,
         NotificationService,
-        { provide: DomSanitizer, useValue: jasmine.createSpyObj("DomSanitizer", ["bypassSecurityTrustUrl"]) },
+        { provide: DomSanitizer, useValue: { bypassSecurityTrustUrl: vi.fn() } },
         ...commonTestProviders,
       ],
     });
@@ -46,12 +45,12 @@ describe("UserDatasetFileRendererComponent", () => {
   it("should return true for supported MIME type", () => {
     const supportedMimeType = "image/jpeg"; // Example of a supported MIME type
     const result = component.isPreviewSupported(supportedMimeType);
-    expect(result).toBeTrue();
+    expect(result).toBe(true);
   });
 
   it("should return false for unsupported MIME type", () => {
     const unsupportedMimeType = "application/unknown"; // Example of an unsupported MIME type
     const result = component.isPreviewSupported(unsupportedMimeType);
-    expect(result).toBeFalse();
+    expect(result).toBe(false);
   });
 });

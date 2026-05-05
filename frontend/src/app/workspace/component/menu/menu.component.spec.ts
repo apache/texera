@@ -97,7 +97,7 @@
 //   // it('should execute the workflow when run button is clicked', marbles((m) => {
 
 //   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   spyOn(httpClient, 'post').and.returnValue(
+//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
 //   //     Observable.of(mockExecutionResult)
 //   //   );
 
@@ -114,7 +114,7 @@
 //   // it('should show pause/resume button when the workflow execution begins and hide the button when execution ends', marbles((m) => {
 
 //   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   spyOn(httpClient, 'post').and.returnValue(
+//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
 //   //     Observable.of(mockExecutionResult)
 //   //   );
 
@@ -142,7 +142,7 @@
 //   // }));
 
 //   // it('should call pauseWorkflow function when isWorkflowPaused is false', () => {
-//   //   const pauseWorkflowSpy = spyOn(executeWorkFlowService, 'pauseWorkflow').and.callThrough();
+//   //   const pauseWorkflowSpy = vi.spyOn(executeWorkFlowService, 'pauseWorkflow');
 //   //   component.isWorkflowRunning = true;
 //   //   component.isWorkflowPaused = false;
 
@@ -153,7 +153,7 @@
 //   // });
 
 //   // it('should call resumeWorkflow function when isWorkflowPaused is true', () => {
-//   //   const resumeWorkflowSpy = spyOn(executeWorkFlowService, 'resumeWorkflow').and.callThrough();
+//   //   const resumeWorkflowSpy = vi.spyOn(executeWorkFlowService, 'resumeWorkflow');
 //   //   component.isWorkflowRunning = true;
 //   //   component.isWorkflowPaused = true;
 
@@ -166,12 +166,12 @@
 //   // it('should not call resumeWorkflow or pauseWorkflow if the workflow is not currently running', () => {
 
 //   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   spyOn(httpClient, 'post').and.returnValue(
+//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
 //   //     Observable.of(mockExecutionResult)
 //   //   );
 
-//   //   const pauseWorkflowSpy = spyOn(executeWorkFlowService, 'pauseWorkflow').and.callThrough();
-//   //   const resumeWorkflowSpy = spyOn(executeWorkFlowService, 'resumeWorkflow').and.callThrough();
+//   //   const pauseWorkflowSpy = vi.spyOn(executeWorkFlowService, 'pauseWorkflow');
+//   //   const resumeWorkflowSpy = vi.spyOn(executeWorkFlowService, 'resumeWorkflow');
 
 //   //   component.onButtonClick();
 //   //   expect(pauseWorkflowSpy).toHaveBeenCalledTimes(0);
@@ -180,11 +180,11 @@
 
 //   // it('should not call downloadExecutionResult if there is no valid execution result currently', () => {
 //   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   spyOn(httpClient, 'post').and.returnValue(
+//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
 //   //     Observable.of(mockExecutionResult)
 //   //   );
 
-//   //   const downloadExecutionSpy = spyOn(executeWorkFlowService, 'downloadWorkflowExecutionResult').and.callThrough();
+//   //   const downloadExecutionSpy = vi.spyOn(executeWorkFlowService, 'downloadWorkflowExecutionResult');
 
 //   //   component.onClickDownloadExecutionResult('txt');
 //   //   expect(downloadExecutionSpy).toHaveBeenCalledTimes(0);
@@ -196,7 +196,7 @@
 //   //     e: 0
 //   //   };
 
-//   //   spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').and.returnValue(
+//   //   vi.spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').mockReturnValue(
 //   //     m.hot(endMarbleString, endMarblevalues)
 //   //   );
 
@@ -217,7 +217,7 @@
 //   //     e: 1
 //   //   };
 
-//   //   spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').and.returnValue(
+//   //   vi.spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').mockReturnValue(
 //   //     m.hot(endMarbleString, endMarblevalues)
 //   //   );
 
@@ -318,7 +318,7 @@
 //   //   });
 
 //   //   it('should send workflowId to websocket when run button is clicked', () => {
-//   //     const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus').and.stub();
+//   //     const checkWorkflowSpy = vi.spyOn(workflowStatusService, 'checkStatus').and.stub();
 //   //     component.onButtonClick();
 //   //     expect(checkWorkflowSpy).toHaveBeenCalled();
 //   //   });

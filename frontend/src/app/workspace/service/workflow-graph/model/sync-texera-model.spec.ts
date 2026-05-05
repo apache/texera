@@ -156,7 +156,7 @@ describe("SyncTexeraModel", () => {
   //     const deleteOpMarbleValues = {
   //       d: getJointOperatorValue(mockScanPredicate.operatorID),
   //     };
-  //     spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+  //     vi.spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").mockReturnValue(
   //       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
   //     );
   //
@@ -209,7 +209,7 @@ describe("SyncTexeraModel", () => {
   //     const deleteOpMarbleValues = {
   //       d: getJointOperatorValue(mockScanPredicate.operatorID),
   //     };
-  //     spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+  //     vi.spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").mockReturnValue(
   //       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
   //     );
   //
@@ -267,7 +267,7 @@ describe("SyncTexeraModel", () => {
       };
       // mock delete the operator operation at the same time frame of jointJS deleting it
       //  but executed before the handler
-      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").mockReturnValue(
         m.hot(deleteOpMarbleString, deleteOpMarbleValues)
       );
 
@@ -307,7 +307,7 @@ describe("SyncTexeraModel", () => {
       const addLinkMarbleValues = {
         p: getJointLinkValue(mockScanResultLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellAddStream").mockReturnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
       );
 
@@ -355,7 +355,7 @@ describe("SyncTexeraModel", () => {
       const addLinkMarbleValues = {
         q: getIncompleteJointLink(mockScanResultLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellAddStream").mockReturnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
       );
 
@@ -397,7 +397,7 @@ describe("SyncTexeraModel", () => {
       const deleteLinkMarbleValues = {
         r: getJointLinkValue(mockScanResultLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").mockReturnValue(
         m.hot(deleteLinkMarbleString, deleteLinkMarbleValues)
       );
 
@@ -443,7 +443,7 @@ describe("SyncTexeraModel", () => {
       const addLinkMarbleValues = {
         q: getIncompleteJointLink(mockScanResultLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellAddStream").mockReturnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
       );
 
@@ -452,7 +452,7 @@ describe("SyncTexeraModel", () => {
       const deleteLinkMarbleValues = {
         r: getIncompleteJointLink(mockScanResultLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").mockReturnValue(
         m.hot(deleteLinkMarbleString, deleteLinkMarbleValues)
       );
 
@@ -497,7 +497,7 @@ describe("SyncTexeraModel", () => {
       const changeLinkMarbleValues = {
         q: getIncompleteJointLink(mockScanResultLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").mockReturnValue(
         m.hot(changeLinkMarbleString, changeLinkMarbleValues)
       );
 
@@ -544,7 +544,7 @@ describe("SyncTexeraModel", () => {
       const addLinkMarbleValues = {
         p: getJointLinkValue(mockScanResultLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellAddStream").mockReturnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
       );
 
@@ -560,7 +560,7 @@ describe("SyncTexeraModel", () => {
       const changeLinkMarbleValues = {
         t: getJointLinkValue(mockChangedLink),
       };
-      spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").and.returnValue(
+      vi.spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").mockReturnValue(
         m.hot(changeLinkMarbleString, changeLinkMarbleValues)
       );
 
@@ -625,7 +625,7 @@ describe("SyncTexeraModel", () => {
   //       s: getIncompleteJointLink(mockScanResultLink),
   //       t: getJointLinkValue(mockChangedLink),
   //     };
-  //     spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").and.returnValue(
+  //     vi.spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").mockReturnValue(
   //       m.hot(changeLinkMarbleString, changeLinkMarbleValues)
   //     );
   //
@@ -701,7 +701,7 @@ describe("SyncTexeraModel", () => {
   //     const deleteOperatorValue = {
   //       d: getJointOperatorValue(mockSentimentPredicate.operatorID),
   //     };
-  //     spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+  //     vi.spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").mockReturnValue(
   //       m.hot(deleteOperatorString, deleteOperatorValue)
   //     );
   //
@@ -715,7 +715,7 @@ describe("SyncTexeraModel", () => {
   //       h: getJointLinkValue(mockSentimentResultLink),
   //     };
   //
-  //     spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
+  //     vi.spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").mockReturnValue(
   //       m.hot(deleteLinkString, deleteLinkValue)
   //     );
   //

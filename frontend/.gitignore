@@ -9,6 +9,9 @@
 /out-tsc
 src/environments/version.ts
 
+# test coverage
+/coverage
+
 # dependencies
 /node_modules
 
