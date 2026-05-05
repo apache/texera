@@ -343,7 +343,7 @@ Dependencies under the BSD 2-Clause License
 --------------------------------------------------------------------------------
 
 Scala/Java jars:
-  - org.postgresql.postgresql-42.7.4.jar
+  - org.postgresql.postgresql-42.7.10.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Public License, Version 2.0 (some are dual
