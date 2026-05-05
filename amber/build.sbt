@@ -51,13 +51,6 @@ conflictManager := ConflictManager.latestRevision
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
-// Fork the test JVM and apply JDK 17+ --add-opens flags. Pekko's
-// dispatcher/mailbox/scheduler reflect into jdk.internal.misc and
-// other internals; without these the actor-system tests deadlock
-// under strong encapsulation. See project/JdkOptions.scala.
-Test / fork := true
-Test / javaOptions ++= JdkOptions.versionSpecificJavaOptions
-
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
 

@@ -19,6 +19,15 @@ ThisBuild / organization := "org.apache.texera"
 ThisBuild / version      := "1.1.0-incubating"
 ThisBuild / scalaVersion := "2.13.18"
 
+// Fork every subproject's test JVM and apply the JDK 17+ --add-opens
+// flags. Pekko's dispatcher/mailbox/scheduler reflect into
+// jdk.internal.misc and other internals, and Apache Arrow + Ehcache
+// SizeOf reflect into java.nio / java.lang / java.util. Without these
+// the actor-system and Arrow-using tests fail under JDK 17 strong
+// encapsulation. See project/JdkOptions.scala.
+ThisBuild / Test / fork := true
+ThisBuild / Test / javaOptions ++= JdkOptions.versionSpecificJavaOptions
+
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
 // JacocoPlugin defines a project-scoped default that overrides ThisBuild,
