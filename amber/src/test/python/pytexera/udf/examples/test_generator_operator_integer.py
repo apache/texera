@@ -16,26 +16,20 @@
 # under the License.
 
 import pytest
-from collections import deque
 
-from core.models.table import all_output_to_tuple
 from pytexera import Tuple
-from .echo_table_operator import EchoTableOperator
+from pytexera.udf.examples.generator_operator_integer import GeneratorOperatorInteger
 
 
-class TestEchoTableOperator:
+class TestEchoOperator:
     @pytest.fixture
-    def echo_table_operator(self):
-        return EchoTableOperator()
+    def generator_operator_integer(self):
+        return GeneratorOperatorInteger()
 
-    def test_echo_table_operator(self, echo_table_operator):
-        echo_table_operator.open()
-        tuple_ = Tuple({"test-1": "hello", "test-2": 10})
-        print(tuple_)
-        deque(echo_table_operator.process_tuple(tuple_, 0))
-        outputs = echo_table_operator.on_finish(0)
-        output_tuple = next(all_output_to_tuple(next(outputs)))
-        assert output_tuple == tuple_
-        with pytest.raises(StopIteration):
-            next(outputs)
-        echo_table_operator.close()
+    def test_generator_operator_integer(self, generator_operator_integer):
+        generator_operator_integer.open()
+        outputs = generator_operator_integer.produce()
+        for i in [1, 2, 3]:
+            output_tuple = Tuple(next(outputs))
+            assert output_tuple == Tuple({"test": i})
+        generator_operator_integer.close()

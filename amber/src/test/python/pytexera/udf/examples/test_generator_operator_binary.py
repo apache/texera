@@ -18,7 +18,7 @@
 import pytest
 
 from pytexera import Tuple
-from .generator_operator_binary import GeneratorOperatorBinary
+from pytexera.udf.examples.generator_operator_binary import GeneratorOperatorBinary
 
 
 class TestEchoOperator:

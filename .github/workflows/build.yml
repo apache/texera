@@ -505,7 +505,7 @@ jobs:
           PGPASSWORD: postgres
       - name: Lint with Ruff
         run: |
-          cd amber/src/main/python && ruff check . && ruff format --check .
+          cd amber && ruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python
       - name: Install dev dependencies
         # Test-only deps live in amber/dev-requirements.txt and are
         # installed after the LICENSE-binary snapshot above so they never
@@ -516,13 +516,13 @@ jobs:
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
       - name: Test with pytest
         run: |
-          cd amber/src/main/python && pytest --cov=. --cov-report=xml -sv
+          cd amber && pytest --cov=src/main/python --cov-report=xml -sv
       - name: Upload python coverage to Codecov
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./amber/src/main/python/coverage.xml
+          files: ./amber/coverage.xml
           flags: python
           fail_ci_if_error: false
 

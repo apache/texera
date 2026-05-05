@@ -25,3 +25,18 @@ ignore = ["F403", "F405", "E203"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+# Layout follows the Maven source-set convention used by Scala
+# (`src/main/scala` + `src/test/scala`): production code lives in
+# `src/main/python` and tests in `src/test/python`. Pytest is invoked
+# from `amber/`, so `pythonpath = ["src/main/python"]` keeps
+# `from core.x import y` and `from pytexera.x import y` working.
+[tool.pytest.ini_options]
+pythonpath = ["src/main/python"]
+testpaths = ["src/test/python"]
+# `importlib` import mode loads each test module by file path without
+# inserting it into a parent package, so `src/test/python` doesn't need
+# to mirror `src/main/python`'s __init__.py layout to avoid duplicate
+# package names. Required for src-style test layouts per the pytest
+# docs (https://docs.pytest.org/en/stable/explanation/goodpractices.html).
+addopts = "--import-mode=importlib"
