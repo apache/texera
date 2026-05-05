@@ -64,8 +64,9 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
-    assert(lines.asScala.nonEmpty, "At least one line must be configured")
-    val linesPart = lines.asScala
+    val configuredLines = Option(lines).getOrElse(new util.ArrayList[LineConfig]())
+    assert(configuredLines.asScala.nonEmpty, "At least one line must be configured")
+    val linesPart = configuredLines.asScala
       .map { lineConf =>
         val colorPart = if (lineConf.color != "") {
           pyb"line={'color':${lineConf.color}}, marker={'color':${lineConf.color}}, "

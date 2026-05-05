@@ -114,4 +114,16 @@ class LineChartOpDescSpec extends AnyFlatSpec with Matchers {
     op.lines = new util.ArrayList[LineConfig]()
     assertThrows[AssertionError](op.generatePythonCode())
   }
+
+  it should "raise AssertionError rather than NullPointerException when lines is set to null" in {
+    // `lines` is a public mutable field; Jackson deserializing an explicit JSON
+    // null or a caller assigning null can set it back to null even after the
+    // non-null default is in place.  `createPlotlyFigure` wraps `lines` in
+    // `Option(...).getOrElse(emptyList)` before asserting nonEmpty, so a null
+    // assignment produces the descriptive AssertionError rather than an NPE.
+    val op = configured
+    op.lines = null
+    val ex = intercept[AssertionError](op.generatePythonCode())
+    ex.getMessage should include("At least one line must be configured")
+  }
 }
