@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
-
 import pytest
 
 from core.architecture.managers import Context
@@ -35,9 +33,9 @@ def context():
 @pytest.fixture
 def data_processor(context, monkeypatch):
     """
-    DataProcessor with `_switch_context` swapped for a counter so the
-    `post_switch` checks can yield without blocking the test thread and the
-    test can assert exactly how many extra switches happened.
+    DataProcessor with `_switch_context` swapped for a counter so each test
+    can drive the synchronous parts of the per-call boilerplate without
+    blocking on the cross-thread handshake.
     """
     dp = DataProcessor(context)
     dp.switch_calls = 0
@@ -47,61 +45,6 @@ def data_processor(context, monkeypatch):
 
     monkeypatch.setattr(dp, "_switch_context", fake_switch)
     return dp
-
-
-def _capture_exc_info() -> tuple:
-    try:
-        raise RuntimeError("boom")
-    except RuntimeError:
-        return sys.exc_info()
-
-
-class TestPostSwitchContextChecks:
-    @pytest.mark.timeout(2)
-    def test_no_pending_exception_is_a_no_op(self, context, data_processor):
-        data_processor._post_switch_context_checks()
-
-        assert not context.exception_manager.has_exception()
-        assert (
-            list(context.console_message_manager.get_messages(force_flush=True)) == []
-        )
-        assert data_processor.switch_calls == 0
-
-    @pytest.mark.timeout(2)
-    def test_pending_exception_is_reported_with_one_extra_switch(
-        self, context, data_processor
-    ):
-        context.exception_manager.set_exception_info(_capture_exc_info())
-
-        data_processor._post_switch_context_checks()
-
-        msgs = list(context.console_message_manager.get_messages(force_flush=True))
-        assert len(msgs) == 1
-        msg = msgs[0]
-        assert msg.worker_id == "test-worker"
-        assert msg.msg_type == ConsoleMessageType.ERROR
-        assert "RuntimeError: boom" in msg.title
-        assert "RuntimeError: boom" in msg.message
-        # Exactly one extra switch — the yield that lets MainLoop wait
-        # for the resolution control message.
-        assert data_processor.switch_calls == 1
-
-    @pytest.mark.timeout(2)
-    def test_pending_exception_is_cleared_after_handling(self, context, data_processor):
-        context.exception_manager.set_exception_info(_capture_exc_info())
-
-        data_processor._post_switch_context_checks()
-
-        # Once handled, the post-switch path is idempotent: exception
-        # state is cleared and the next call adds no extra console
-        # message, so the worker doesn't re-pause on the same error.
-        assert not context.exception_manager.has_exception()
-        # Drain whatever the first call put in the buffer.
-        list(context.console_message_manager.get_messages(force_flush=True))
-
-        data_processor._post_switch_context_checks()
-        msgs = list(context.console_message_manager.get_messages(force_flush=True))
-        assert msgs == []
 
 
 class _StubExecutor:
@@ -172,21 +115,42 @@ class TestProcessInternalMarker:
 
 class TestExecutorSession:
     @pytest.mark.timeout(2)
-    def test_exception_inside_session_is_routed_to_exception_manager(
+    def test_exception_inside_session_is_reported_before_the_switch(
         self, context, data_processor
     ):
-        # A raise inside the `with _executor_session()` block must be
-        # swallowed and recorded on the exception_manager so that
-        # `_post_switch_context_checks` can surface it after the next
-        # switch. The session always switches back on exit.
+        # Order matters: MainLoop's _check_exception flushes pending
+        # console messages and then immediately enters EXCEPTION_PAUSE,
+        # so the stack trace must already be in the buffer at the moment
+        # _executor_session calls _switch_context. Capture the buffer
+        # state from inside the fake switch to pin that ordering.
+        seen_at_switch = []
+
+        def capturing_switch():
+            seen_at_switch.extend(
+                context.console_message_manager.get_messages(force_flush=True)
+            )
+            data_processor.switch_calls += 1
+
+        data_processor._switch_context = capturing_switch
+
         with data_processor._executor_session() as session:
             assert session is not None
             raise RuntimeError("boom-from-executor")
 
+        # Exception was routed into the manager so MainLoop's
+        # _check_exception can see it.
         assert context.exception_manager.has_exception()
         exc_info = context.exception_manager.get_exc_info()
         assert exc_info[0] is RuntimeError
         assert "boom-from-executor" in str(exc_info[1])
+        # And the stack-trace console message was queued *before* the
+        # finally-clause switch — without this, the worker would pause
+        # before ever sending the error to the controller.
+        assert len(seen_at_switch) == 1
+        msg = seen_at_switch[0]
+        assert msg.worker_id == "test-worker"
+        assert msg.msg_type == ConsoleMessageType.ERROR
+        assert "RuntimeError: boom-from-executor" in msg.title
         # Exit always switches back to MainLoop, even on the failure path.
         assert data_processor.switch_calls == 1
 
@@ -196,6 +160,9 @@ class TestExecutorSession:
             pass
 
         assert not context.exception_manager.has_exception()
+        assert (
+            list(context.console_message_manager.get_messages(force_flush=True)) == []
+        )
         # Even on the success path, the finally clause yields control
         # back to MainLoop exactly once.
         assert data_processor.switch_calls == 1
