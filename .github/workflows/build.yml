@@ -149,9 +149,6 @@ jobs:
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-      # Apache Arrow Java (java.nio) and Ehcache SizeOf (java.lang, java.util)
-      # reflect into java.base; JDK 17 strong encapsulation blocks them without --add-opens.
-      JDK_JAVA_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED
     services:
       postgres:
         image: postgres
@@ -270,9 +267,6 @@ jobs:
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-      # Apache Arrow Java (java.nio) and Ehcache SizeOf (java.lang, java.util)
-      # reflect into java.base; JDK 17 strong encapsulation blocks them without --add-opens.
-      JDK_JAVA_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED
     services:
       postgres:
         image: postgres
@@ -376,9 +370,6 @@ jobs:
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-      # Apache Arrow Java (java.nio) and Ehcache SizeOf (java.lang, java.util)
-      # reflect into java.base; JDK 17 strong encapsulation blocks them without --add-opens.
-      JDK_JAVA_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED
     services:
       # Each platform service transitively depends on DAO, which runs JOOQ
       # code generation at compile time and needs the live texera schema.
