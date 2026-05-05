@@ -67,6 +67,7 @@ export class AdminSettingsComponent implements OnInit {
     your_work_enabled: false,
     projects_enabled: false,
     workflows_enabled: false,
+    compute_enabled: false,
     datasets_enabled: false,
     quota_enabled: false,
     forum_enabled: false,

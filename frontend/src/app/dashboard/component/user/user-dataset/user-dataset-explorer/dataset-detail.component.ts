@@ -813,4 +813,17 @@ export class DatasetDetailComponent implements OnInit {
         },
       });
   }
+
+  async copyCurrentFilePath(): Promise<void> {
+    if (!this.currentDisplayedFileName) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this.currentDisplayedFileName);
+      this.notificationService.success("File path copied to clipboard");
+    } catch (error) {
+      this.notificationService.error("Failed to copy file path");
+    }
+  }
 }

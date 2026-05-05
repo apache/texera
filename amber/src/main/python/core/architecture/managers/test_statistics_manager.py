@@ -135,31 +135,13 @@ class TestStatisticsManagerExecutionTime:
         ):
             mgr.update_total_execution_time(999)
 
-    def test_idle_time_can_go_negative_when_processing_exceeds_total(self):
-        # Pin a real-but-questionable behavior: get_statistics computes
-        # idle_time = total_execution - data - control with NO clamp. If
-        # instrumentation overcounts (or update_total_execution_time was
-        # called early), idle goes negative. Filed as a Bug — see the
-        # accompanying issue. A future fix that floors at 0 must also
-        # update this test deliberately.
+    def test_idle_time_clamped_to_zero_when_processing_overshoots(self):
+        # When data+control exceed total_execution_time (e.g. update_total was
+        # called before all increase_* calls for that interval), idle_time is
+        # clamped to 0 and a warning is logged. It must never be negative.
         mgr = StatisticsManager()
         mgr.initialize_worker_start_time(1_000)
         mgr.update_total_execution_time(1_100)  # 100ns total
         mgr.increase_data_processing_time(80)
-        mgr.increase_control_processing_time(50)  # 130 > 100 total
-        stats = mgr.get_statistics()
-        assert stats.idle_time == -30
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Bug: idle_time goes negative when data+control processing time "
-        "overshoots total_execution_time. The fix should floor at 0 (or surface "
-        "the inconsistency); flips to XPASS when corrected.",
-    )
-    def test_idle_time_should_never_be_negative(self):
-        mgr = StatisticsManager()
-        mgr.initialize_worker_start_time(1_000)
-        mgr.update_total_execution_time(1_100)
-        mgr.increase_data_processing_time(80)
-        mgr.increase_control_processing_time(50)
-        assert mgr.get_statistics().idle_time >= 0
+        mgr.increase_control_processing_time(50)  # 130 > 100
+        assert mgr.get_statistics().idle_time == 0
