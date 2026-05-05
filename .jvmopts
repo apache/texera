@@ -1,0 +1,18 @@
+# JVM options for sbt's launcher script. Read by `sbt` from the build
+# root and applied to sbt's own JVM (which also runs the tests when
+# Test / fork := false, the default for this project).
+#
+# JDK 17+ --add-opens flags required by:
+#   - Apache Pekko (dispatcher / mailbox / scheduler use sun.misc.Unsafe
+#     via jdk.internal.misc, plus java.lang for virtual threads and
+#     sun.nio.ch for Aeron / NIO channels).
+#     https://github.com/apache/pekko/blob/main/project/JdkOptions.scala
+#   - Apache Arrow Java off-heap memory (java.nio).
+#     https://arrow.apache.org/java/main/install.html
+#   - Ehcache SizeOf reflection used by Tuple.inMemSize (java.lang +
+#     java.util). Refs discussion #4001.
+--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
+--add-opens=java.base/java.lang=ALL-UNNAMED
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
+--add-opens=java.base/java.util=ALL-UNNAMED
