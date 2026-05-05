@@ -18,6 +18,7 @@
 import os
 import sys
 import traceback
+from contextlib import contextmanager
 from loguru import logger
 from threading import Event
 from typing import Iterator, Optional
@@ -49,19 +50,18 @@ class DataProcessor(Runnable, Stoppable):
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.wait()
         self._running.set()
-        self._pre_loop_checks()
+        self._check_and_process_debug_command()
         while self._running.is_set():
             tpm = self._context.tuple_processing_manager
             spm = self._context.state_processing_manager
             has_marker = tpm.current_internal_marker is not None
             has_state = spm.current_input_state is not None
             has_tuple = tpm.current_input_tuple is not None
-            queued = has_marker + has_state + has_tuple
             # MainLoop is single-threaded and sets at most one of
             # current_internal_marker / current_input_state /
             # current_input_tuple per cycle before switching to here, so
             # exactly one slot must be populated on every iteration.
-            if queued != 1:
+            if has_marker + has_state + has_tuple != 1:
                 raise RuntimeError(
                     "DataProcessor expected exactly one queued input per "
                     f"iteration, got marker={has_marker}, state={has_state}, "
@@ -75,51 +75,23 @@ class DataProcessor(Runnable, Stoppable):
                 self.process_tuple()
 
     def process_internal_marker(self, internal_marker: InternalMarker) -> None:
-        try:
-            executor = self._context.executor_manager.executor
-            port_id = self._context.tuple_processing_manager.get_input_port_id()
-            with replace_print(
-                self._context.worker_id,
-                self._context.console_message_manager.print_buf,
-            ):
-                if isinstance(internal_marker, StartChannel):
-                    self._set_output_state(executor.produce_state_on_start(port_id))
-                elif isinstance(internal_marker, EndChannel):
-                    self._set_output_state(executor.produce_state_on_finish(port_id))
-                    self._switch_context()
-                    self._set_output_tuple(executor.on_finish(port_id))
-
-        except Exception as err:
-            logger.exception(err)
-            exc_info = sys.exc_info()
-            self._context.exception_manager.set_exception_info(exc_info)
-            self._report_exception(exc_info)
-
-        finally:
-            self._switch_context()
+        with self._executor_session() as (executor, port_id):
+            if isinstance(internal_marker, StartChannel):
+                self._set_output_state(executor.produce_state_on_start(port_id))
+            elif isinstance(internal_marker, EndChannel):
+                self._set_output_state(executor.produce_state_on_finish(port_id))
+                # Flush the state to MainLoop before producing tuples so the
+                # state and the tuple stream don't share a single switch.
+                self._switch_context()
+                self._set_output_tuple(executor.on_finish(port_id))
 
     def process_state(self, state: State) -> None:
         """
         Process an input marker by invoking appropriate state
         or tuple generation based on the marker type.
         """
-        try:
-            executor = self._context.executor_manager.executor
-            port_id = self._context.tuple_processing_manager.get_input_port_id()
-            with replace_print(
-                self._context.worker_id,
-                self._context.console_message_manager.print_buf,
-            ):
-                self._set_output_state(executor.process_state(state, port_id))
-
-        except Exception as err:
-            logger.exception(err)
-            exc_info = sys.exc_info()
-            self._context.exception_manager.set_exception_info(exc_info)
-            self._report_exception(exc_info)
-
-        finally:
-            self._switch_context()
+        with self._executor_session() as (executor, port_id):
+            self._set_output_state(executor.process_state(state, port_id))
 
     def process_tuple(self) -> None:
         """
@@ -127,24 +99,36 @@ class DataProcessor(Runnable, Stoppable):
         """
         finished_current = self._context.tuple_processing_manager.finished_current
         while not finished_current.is_set():
-            try:
-                executor = self._context.executor_manager.executor
-                port_id = self._context.tuple_processing_manager.get_input_port_id()
+            with self._executor_session() as (executor, port_id):
                 tuple_ = self._context.tuple_processing_manager.get_input_tuple()
-                with replace_print(
-                    self._context.worker_id,
-                    self._context.console_message_manager.print_buf,
-                ):
-                    self._set_output_tuple(executor.process_tuple(tuple_, port_id))
+                self._set_output_tuple(executor.process_tuple(tuple_, port_id))
 
-            except Exception as err:
-                logger.exception(err)
-                exc_info = sys.exc_info()
-                self._context.exception_manager.set_exception_info(exc_info)
-                self._report_exception(exc_info)
-
-            finally:
-                self._switch_context()
+    @contextmanager
+    def _executor_session(self):
+        """
+        Open one executor invocation: hand back (executor, port_id) under a
+        print-capture session, route any exception to the exception manager
+        and queue the stack trace as a console message, and always switch
+        back to MainLoop on exit. Reporting must happen *before* the
+        switch: MainLoop's post-switch hook flushes console messages and
+        then enters EXCEPTION_PAUSE, so anything queued after the switch
+        would arrive at the controller only after the worker resumes.
+        """
+        try:
+            executor = self._context.executor_manager.executor
+            port_id = self._context.tuple_processing_manager.get_input_port_id()
+            with replace_print(
+                self._context.worker_id,
+                self._context.console_message_manager.print_buf,
+            ):
+                yield executor, port_id
+        except Exception as err:
+            logger.exception(err)
+            exc_info = sys.exc_info()
+            self._context.exception_manager.set_exception_info(exc_info)
+            self._report_exception(exc_info)
+        finally:
+            self._switch_context()
 
     def _set_output_tuple(self, output_iterator: Iterator[Optional[TupleLike]]) -> None:
         """
@@ -179,7 +163,7 @@ class DataProcessor(Runnable, Stoppable):
         with self._context.tuple_processing_manager.context_switch_condition:
             self._context.tuple_processing_manager.context_switch_condition.notify()
             self._context.tuple_processing_manager.context_switch_condition.wait()
-        self._post_switch_context_checks()
+        self._check_and_process_debug_command()
 
     def _check_and_process_debug_command(self) -> None:
         """
@@ -190,17 +174,6 @@ class DataProcessor(Runnable, Stoppable):
             # This line will also trigger cmdloop in the debugger.
             # This line has no side effects on the current debugger state.
             self._context.debug_manager.debugger.set_trace()
-
-    def _post_switch_context_checks(self):
-        self._check_and_process_debug_command()
-
-    def _pre_loop_checks(self) -> None:
-        # Runs once after init and before the first task so that a debug
-        # command queued during worker setup fires before any
-        # tuple / state / marker is processed. Only the debug-command
-        # check is needed here -- no task has run yet, so there is no
-        # exception to surface.
-        self._check_and_process_debug_command()
 
     def _report_exception(self, exc_info: ExceptionInfo):
         tb = traceback.extract_tb(exc_info[2])
