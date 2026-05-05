@@ -182,9 +182,6 @@ class OutputManager:
             )
 
     def save_state_to_storage_if_needed(self, state: State, port_id=None) -> None:
-        # Buffer the state on each long-lived writer; the writer flushes
-        # itself when its buffer fills, and the remaining buffer is
-        # flushed in close_port_storage_writers.
         if port_id is None:
             writers = self._state_writers.values()
         elif port_id in self._state_writers:
