@@ -41,112 +41,87 @@ class TestSaveStateToStorageIfNeeded:
     def state(self):
         return State({"loop_counter": 1, "i": 2})
 
-    def _stub_document_factory(self, mock_factory):
-        document = MagicMock()
-        writer = MagicMock()
-        document.writer.return_value = writer
-        mock_factory.open_document.return_value = (document, MagicMock())
-        return document, writer
-
-    def test_no_storage_uris_is_a_noop(self, output_manager, state):
-        # save_state_to_storage_if_needed must not touch DocumentFactory when
-        # the worker has no provisioned output storage.
-        with patch(
-            "core.architecture.packaging.output_manager.DocumentFactory"
-        ) as mock_factory:
-            output_manager.save_state_to_storage_if_needed(state)
-            mock_factory.open_document.assert_not_called()
-            mock_factory.create_document.assert_not_called()
+    def test_no_state_writers_is_a_noop(self, output_manager, state):
+        # With no port set up, save_state_to_storage_if_needed must not
+        # touch any writer.
+        output_manager.save_state_to_storage_if_needed(state)  # no-op, no exception
 
     def test_unknown_port_id_is_a_noop(self, output_manager, state, port_a):
-        with patch(
-            "core.architecture.packaging.output_manager.DocumentFactory"
-        ) as mock_factory:
-            output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
-            mock_factory.open_document.assert_not_called()
+        output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
+        # No assertion needed -- the absence of any writer means nothing
+        # was attempted.
 
     def test_writes_to_every_port_when_port_id_omitted(
         self, output_manager, state, port_a, port_b
     ):
-        output_manager._storage_uris[port_a] = "vfs:///wf/0/exec/0/result/op-a"
-        output_manager._storage_uris[port_b] = "vfs:///wf/0/exec/0/result/op-b"
+        writer_a = MagicMock()
+        writer_b = MagicMock()
+        output_manager._state_writers[port_a] = writer_a
+        output_manager._state_writers[port_b] = writer_b
 
-        with patch(
-            "core.architecture.packaging.output_manager.DocumentFactory"
-        ) as mock_factory:
-            _, writer = self._stub_document_factory(mock_factory)
+        output_manager.save_state_to_storage_if_needed(state)
 
-            output_manager.save_state_to_storage_if_needed(state)
-
-            assert mock_factory.open_document.call_count == 2
-            opened_uris = {
-                call.args[0] for call in mock_factory.open_document.call_args_list
-            }
-            assert opened_uris == {
-                "vfs:///wf/0/exec/0/state/op-a",
-                "vfs:///wf/0/exec/0/state/op-b",
-            }
-            assert writer.put_one.call_count == 2
-            assert writer.close.call_count == 2
+        writer_a.put_one.assert_called_once()
+        writer_b.put_one.assert_called_once()
+        # Long-lived writers must NOT be closed per state -- otherwise
+        # we'd be back to one Iceberg snapshot per state.
+        writer_a.close.assert_not_called()
+        writer_b.close.assert_not_called()
 
     def test_writes_only_to_selected_port_when_port_id_specified(
         self, output_manager, state, port_a, port_b
     ):
-        output_manager._storage_uris[port_a] = "vfs:///wf/0/exec/0/result/op-a"
-        output_manager._storage_uris[port_b] = "vfs:///wf/0/exec/0/result/op-b"
+        writer_a = MagicMock()
+        writer_b = MagicMock()
+        output_manager._state_writers[port_a] = writer_a
+        output_manager._state_writers[port_b] = writer_b
+
+        output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
+
+        writer_a.put_one.assert_called_once()
+        writer_b.put_one.assert_not_called()
+
+    def test_state_writer_is_opened_at_port_setup(self, output_manager, port_a):
+        # set_up_port_storage_writer should open the result document AND
+        # the state document, then cache the state writer for reuse.
+        result_doc = MagicMock()
+        state_doc = MagicMock()
+        state_writer = MagicMock()
+        state_doc.writer.return_value = state_writer
 
         with patch(
             "core.architecture.packaging.output_manager.DocumentFactory"
         ) as mock_factory:
-            self._stub_document_factory(mock_factory)
-
-            output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
-
-            assert mock_factory.open_document.call_count == 1
-            assert (
-                mock_factory.open_document.call_args.args[0]
-                == "vfs:///wf/0/exec/0/state/op-a"
-            )
-
-    def test_creates_document_when_open_raises_value_error(
-        self, output_manager, state, port_a
-    ):
-        # The first time a state is saved, the state document does not yet
-        # exist; open_document raises ValueError and we must fall back to
-        # create_document so the state still gets written.
-        output_manager._storage_uris[port_a] = "vfs:///wf/0/exec/0/result/op-a"
-
-        with patch(
-            "core.architecture.packaging.output_manager.DocumentFactory"
-        ) as mock_factory:
-            mock_factory.open_document.side_effect = ValueError("not found")
-            created_document = MagicMock()
-            writer = MagicMock()
-            created_document.writer.return_value = writer
-            mock_factory.create_document.return_value = created_document
-
-            output_manager.save_state_to_storage_if_needed(state)
-
-            mock_factory.create_document.assert_called_once_with(
-                "vfs:///wf/0/exec/0/state/op-a", State.SCHEMA
-            )
-            writer.put_one.assert_called_once()
-            writer.close.assert_called_once()
-
-    def test_uri_is_recorded_when_storage_writer_is_set_up(
-        self, output_manager, port_a
-    ):
-        # set_up_port_storage_writer should populate _storage_uris so that a
-        # subsequent save_state_to_storage_if_needed can find the URI.
-        with patch(
-            "core.architecture.packaging.output_manager.DocumentFactory"
-        ) as mock_factory:
-            mock_factory.open_document.return_value = (MagicMock(), MagicMock())
+            mock_factory.open_document.side_effect = [
+                (result_doc, MagicMock()),
+                (state_doc, MagicMock()),
+            ]
 
             output_manager.set_up_port_storage_writer(
                 port_a, "vfs:///wf/0/exec/0/result/op-a"
             )
 
-            assert (
-                output_manager._storage_uris[port_a] == "vfs:///wf/0/exec/0/result/op-a"
-            )
+            opened = [c.args[0] for c in mock_factory.open_document.call_args_list]
+            assert opened == [
+                "vfs:///wf/0/exec/0/result/op-a",
+                "vfs:///wf/0/exec/0/state/op-a",
+            ]
+            state_writer.open.assert_called_once()
+            assert output_manager._state_writers[port_a] is state_writer
+
+    def test_close_port_storage_writers_flushes_state_writers(
+        self, output_manager, port_a, port_b
+    ):
+        # After the port completes, the long-lived state writer's buffer
+        # must be flushed and the writer closed (one Iceberg commit per
+        # port instead of one per state).
+        writer_a = MagicMock()
+        writer_b = MagicMock()
+        output_manager._state_writers[port_a] = writer_a
+        output_manager._state_writers[port_b] = writer_b
+
+        output_manager.close_port_storage_writers()
+
+        writer_a.close.assert_called_once()
+        writer_b.close.assert_called_once()
+        assert output_manager._state_writers == {}

@@ -17,7 +17,6 @@
 
 import threading
 import typing
-import uuid
 from collections import OrderedDict
 from itertools import chain
 from loguru import logger
@@ -88,7 +87,7 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
-        self._storage_uris: typing.Dict[PortIdentity, str] = dict()
+        self._state_writers: typing.Dict[PortIdentity, typing.Any] = dict()
 
     def is_missing_output_ports(self):
         """
@@ -127,9 +126,9 @@ class OutputManager:
     def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri: str):
         """
         Create a separate thread for saving output tuples of a port
-        to storage in batch.
+        to storage in batch, and open a long-lived buffered writer for
+        state materialization on the same port.
         """
-        self._storage_uris[port_id] = storage_uri
         document, _ = DocumentFactory.open_document(storage_uri)
         buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
         writer_queue = Queue()
@@ -147,6 +146,13 @@ class OutputManager:
             port_storage_writer,
             writer_thread,
         )
+
+        state_document, _ = DocumentFactory.open_document(
+            State.uri_from_result_uri(storage_uri)
+        )
+        state_writer = state_document.writer(str(get_worker_index(self.worker_id)))
+        state_writer.open()
+        self._state_writers[port_id] = state_writer
 
     def get_port(self, port_id=None) -> WorkerPort:
         return list(self._ports.values())[0]
@@ -176,22 +182,17 @@ class OutputManager:
             )
 
     def save_state_to_storage_if_needed(self, state: State, port_id=None) -> None:
+        # Buffer the state on each long-lived writer; the writer flushes
+        # itself when its buffer fills, and the remaining buffer is
+        # flushed in close_port_storage_writers.
         if port_id is None:
-            uris = self._storage_uris.values()
-        elif port_id in self._storage_uris:
-            uris = [self._storage_uris[port_id]]
+            writers = self._state_writers.values()
+        elif port_id in self._state_writers:
+            writers = [self._state_writers[port_id]]
         else:
             return
-
-        for uri in uris:
-            state_uri = State.uri_from_result_uri(uri)
-            try:
-                document = DocumentFactory.open_document(state_uri)[0]
-            except ValueError:
-                document = DocumentFactory.create_document(state_uri, State.SCHEMA)
-            writer = document.writer(str(uuid.uuid4()))
+        for writer in writers:
             writer.put_one(state.to_tuple())
-            writer.close()
 
     def close_port_storage_writers(self) -> None:
         """
@@ -206,6 +207,11 @@ class OutputManager:
         for _, _, writer_thread in self._port_storage_writers.values():
             # This blocking call will wait for all the writer to finish commit
             writer_thread.join()
+        # Close the long-lived state writers so the remaining buffered
+        # states are committed in a single Iceberg snapshot per port.
+        for state_writer in self._state_writers.values():
+            state_writer.close()
+        self._state_writers.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
