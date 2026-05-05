@@ -125,7 +125,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             if receiver == self.worker_actor_id:
                 yield self.tuples_to_data_frame(tuples)
 
-    def emit_state_with_filter(self, state: State) -> typing.Iterator[StateFrame]:
+    def emit_state_with_filter(self, state: State) -> typing.Iterator[DataPayload]:
         for receiver, payload in self.partitioner.flush_state(state):
             if receiver == self.worker_actor_id:
                 yield (
