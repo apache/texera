@@ -204,8 +204,6 @@ class OutputManager:
         for _, _, writer_thread in self._port_storage_writers.values():
             # This blocking call will wait for all the writer to finish commit
             writer_thread.join()
-        # Close the long-lived state writers so the remaining buffered
-        # states are committed in a single Iceberg snapshot per port.
         for state_writer in self._state_writers.values():
             state_writer.close()
         self._state_writers.clear()
