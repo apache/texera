@@ -166,25 +166,3 @@ class TestRunStateReadingBlock:
         assert [sf.payload.frame for sf in state_frames] == [state_a, state_b]
         assert runnable._finished is True
 
-    def test_missing_state_document_does_not_abort_run(self, runnable):
-        # The inner try is meant to swallow ValueError when no state document
-        # is provisioned; the outer run() should still finish cleanly.
-        result_doc = MagicMock()
-        result_doc.get.return_value = iter([])
-
-        with patch(
-            "core.storage.runnables.input_port_materialization_reader_runnable.DocumentFactory"
-        ) as mock_factory:
-            mock_factory.open_document.side_effect = [
-                (result_doc, runnable.tuple_schema),
-                ValueError("no storage"),
-            ]
-
-            runnable.run()
-
-        assert runnable._finished is True
-        # No StateFrames should have been emitted.
-        for call in runnable.queue.put.call_args_list:
-            element = call.args[0]
-            if isinstance(element, DataElement):
-                assert not isinstance(element.payload, StateFrame)

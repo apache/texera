@@ -112,22 +112,17 @@ class InputPortMaterializationReaderThread(
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
 
-      try {
-        val state_document =
-          DocumentFactory
-            .openDocument(State.uriFromResultUri(uri))
-            ._1
-            .asInstanceOf[VirtualDocument[Tuple]]
-        val stateReadIterator = state_document.get()
-
-        while (stateReadIterator.hasNext) {
-          val state = State.fromTuple(stateReadIterator.next())
-          inputMessageQueue.put(
-            FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, StateFrame(state)))
-          )
-        }
-      } catch {
-        case _: Exception =>
+      val stateDocument =
+        DocumentFactory
+          .openDocument(State.uriFromResultUri(uri))
+          ._1
+          .asInstanceOf[VirtualDocument[Tuple]]
+      val stateReadIterator = stateDocument.get()
+      while (stateReadIterator.hasNext) {
+        val state = State.fromTuple(stateReadIterator.next())
+        inputMessageQueue.put(
+          FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, StateFrame(state)))
+        )
       }
 
       emitECM(METHOD_END_CHANNEL, PORT_ALIGNMENT)

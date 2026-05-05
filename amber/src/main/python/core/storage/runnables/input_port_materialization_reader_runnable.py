@@ -148,18 +148,14 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
 
-            try:
-                state_document, _ = DocumentFactory.open_document(
-                    State.uri_from_result_uri(self.uri)
-                )
-                state_iterator = state_document.get()
-                for state in state_iterator:
-                    for state_frame in self.emit_state_with_filter(
-                        State.from_tuple(state)
-                    ):
-                        self.emit_payload(state_frame)
-            except ValueError:
-                pass
+            state_document, _ = DocumentFactory.open_document(
+                State.uri_from_result_uri(self.uri)
+            )
+            for state in state_document.get():
+                for state_frame in self.emit_state_with_filter(
+                    State.from_tuple(state)
+                ):
+                    self.emit_payload(state_frame)
 
             storage_iterator = self.materialization.get()
             # Iterate and process tuples.
