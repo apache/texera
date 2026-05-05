@@ -17,8 +17,8 @@
 
 import typing
 from loguru import logger
-from pyarrow import Table
 from typing import Union
+from pyarrow import Table
 
 from core.architecture.sendsemantics.broad_cast_partitioner import (
     BroadcastPartitioner,
@@ -34,7 +34,7 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, InternalQueue, DataFrame, DataPayload
+from core.models import Tuple, InternalQueue, DataFrame, DataPayload, State, StateFrame
 from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
@@ -125,6 +125,15 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             if receiver == self.worker_actor_id:
                 yield self.tuples_to_data_frame(tuples)
 
+    def emit_state_with_filter(self, state: State) -> typing.Iterator[DataPayload]:
+        for receiver, payload in self.partitioner.flush_state(state):
+            if receiver == self.worker_actor_id:
+                yield (
+                    StateFrame(payload)
+                    if isinstance(payload, State)
+                    else self.tuples_to_data_frame(payload)
+                )
+
     def run(self) -> None:
         """
         Main execution logic that reads tuples from the materialized storage and
@@ -138,8 +147,21 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 self.uri
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
-            storage_iterator = self.materialization.get()
 
+            try:
+                state_document, _ = DocumentFactory.open_document(
+                    State.uri_from_result_uri(self.uri)
+                )
+                state_iterator = state_document.get()
+                for state in state_iterator:
+                    for state_frame in self.emit_state_with_filter(
+                        State.from_tuple(state)
+                    ):
+                        self.emit_payload(state_frame)
+            except ValueError:
+                pass
+
+            storage_iterator = self.materialization.get()
             # Iterate and process tuples.
             for tup in storage_iterator:
                 if self._stopped:
