@@ -25,8 +25,14 @@ ThisBuild / scalaVersion := "2.13.18"
 // SizeOf reflect into java.nio / java.lang / java.util. Without these
 // the actor-system and Arrow-using tests fail under JDK 17 strong
 // encapsulation. See project/JdkOptions.scala.
+//
+// Pin the forked test JVM's working directory to the build root so
+// tests that read repo-root-relative paths (e.g. `sql/texera_ddl.sql`
+// from MockTexeraDB) keep working. Without this, sbt defaults the
+// forked JVM's CWD to the subproject directory.
 ThisBuild / Test / fork := true
 ThisBuild / Test / javaOptions ++= JdkOptions.versionSpecificJavaOptions
+ThisBuild / Test / baseDirectory := (ThisBuild / baseDirectory).value
 
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
