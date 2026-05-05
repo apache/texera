@@ -24,7 +24,7 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11 AS build
 
 # Set working directory
 WORKDIR /texera
@@ -64,7 +64,7 @@ RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined
         amber/LICENSE-binary-java \
         amber/LICENSE-binary-python
 
-FROM eclipse-temurin:11-jre-jammy AS runtime
+FROM eclipse-temurin:17-jre-jammy AS runtime
 
 WORKDIR /texera/amber
 
@@ -97,6 +97,9 @@ COPY --from=build /texera/amber/LICENSE-binary-combined /texera/LICENSE
 COPY --from=build /texera/amber/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
+
+ENV JDK_JAVA_OPTIONS="--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED"
+
 CMD ["bin/computing-unit-worker"]
 
 EXPOSE 8085

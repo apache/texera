@@ -66,7 +66,7 @@ merge.
 
 | Component | Version |
 | --- | --- |
-| Java | JDK 11 |
+| Java | JDK 17 |
 | Scala | 2.13 |
 | Python | 3.12 |
 | Node | 24 |
@@ -89,6 +89,14 @@ Tests that spawn Python workers need an interpreter path. Edit `python.path`
 in [`udf.conf`](common/config/src/main/resources/udf.conf) or
 `export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"` (env var overrides).
 Without it, `sbt` Python-integration tests fail to launch a worker.
+
+When running computing-unit master/worker outside their Docker images on
+JDK 17+, also `export JDK_JAVA_OPTIONS="--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED"`.
+Without it, [Apache Arrow Java](https://arrow.apache.org/java/main/install.html)
+(off-heap `java.nio` access) and Ehcache `SizeOf` used by `Tuple.inMemSize`
+(reflective `java.lang`/`java.util` access) hit `InaccessibleObjectException`
+under JDK 17 strong encapsulation
+(refs [discussion #4001](https://github.com/apache/texera/discussions/4001)).
 
 ### Branch and commit naming
 

@@ -144,11 +144,14 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        java-version: [11]
+        java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      # Apache Arrow Java (java.nio) and Ehcache SizeOf (java.lang, java.util)
+      # reflect into java.base; JDK 17 strong encapsulation blocks them without --add-opens.
+      JDK_JAVA_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED
     services:
       postgres:
         image: postgres
@@ -175,7 +178,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: "temurin"
-          java-version: 11
+          java-version: 17
       - name: Create Databases
         # Must run before any sbt compile step: the build's JOOQ source
         # generators connect to texera_db while compiling.
@@ -262,11 +265,14 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        java-version: [11]
+        java-version: [17]
     runs-on: ${{ matrix.os }}
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      # Apache Arrow Java (java.nio) and Ehcache SizeOf (java.lang, java.util)
+      # reflect into java.base; JDK 17 strong encapsulation blocks them without --add-opens.
+      JDK_JAVA_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED
     services:
       postgres:
         image: postgres
@@ -293,7 +299,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: "temurin"
-          java-version: 11
+          java-version: 17
       - name: Setup Python for Scala-Python integration tests
         uses: actions/setup-python@v6
         with:
@@ -370,6 +376,9 @@ jobs:
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      # Apache Arrow Java (java.nio) and Ehcache SizeOf (java.lang, java.util)
+      # reflect into java.base; JDK 17 strong encapsulation blocks them without --add-opens.
+      JDK_JAVA_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED
     services:
       # Each platform service transitively depends on DAO, which runs JOOQ
       # code generation at compile time and needs the live texera schema.
@@ -398,7 +407,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: "temurin"
-          java-version: 11
+          java-version: 17
       - name: Setup sbt launcher
         uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
       - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0

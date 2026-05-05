@@ -24,7 +24,7 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11 AS build
 
 # Set working directory
 WORKDIR /texera
@@ -52,7 +52,7 @@ RUN sbt clean FileService/dist
 # Unzip the texera binary
 RUN unzip file-service/target/universal/file-service-*.zip -d target/
 
-FROM eclipse-temurin:11-jre-jammy AS runtime
+FROM eclipse-temurin:17-jre-jammy AS runtime
 
 WORKDIR /texera
 

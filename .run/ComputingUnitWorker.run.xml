@@ -21,6 +21,9 @@ under the License.
     <option name="MAIN_CLASS_NAME" value="org.apache.texera.web.ComputingUnitWorker" />
     <module name="texera.amber" />
     <shortenClasspath name="ARGS_FILE" />
+    <envs>
+      <env name="JDK_JAVA_OPTIONS" value="--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED" />
+    </envs>
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="org.apache.texera.web.*" />
