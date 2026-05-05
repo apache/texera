@@ -23,6 +23,10 @@ import { User } from "../../../../common/type/user";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { DASHBOARD_ABOUT } from "../../../../app-routing.constant";
+import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 
 /**
  * UserIconComponent is used to control user system on the top right corner
@@ -34,7 +38,14 @@ import { DASHBOARD_ABOUT } from "../../../../app-routing.constant";
   selector: "texera-user-icon",
   templateUrl: "./user-icon.component.html",
   styleUrls: ["./user-icon.component.scss"],
-  standalone: false,
+  imports: [
+    UserAvatarComponent,
+    ɵNzTransitionPatchDirective,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
+  ],
 })
 export class UserIconComponent {
   public user: User | undefined;

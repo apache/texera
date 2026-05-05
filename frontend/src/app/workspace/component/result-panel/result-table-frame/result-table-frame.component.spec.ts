@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ResultTableFrameComponent } from "./result-table-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
@@ -31,10 +31,9 @@ describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
   let fixture: ComponentFixture<ResultTableFrameComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzModalModule],
-      declarations: [ResultTableFrameComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ResultTableFrameComponent, HttpClientTestingModule, NzModalModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -51,7 +50,7 @@ describe("ResultTableFrameComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultTableFrameComponent);

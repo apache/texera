@@ -19,8 +19,8 @@
 
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, Type, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
-import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
+import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
+import { CdkDragDrop, moveItemInArray, CdkDropList, CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
@@ -29,13 +29,40 @@ import { SettingsComponent } from "./settings/settings.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
+import { NgClass, NgIf, NgFor, NgComponentOutlet } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
   templateUrl: "left-panel.component.html",
   styleUrls: ["left-panel.component.scss"],
-  standalone: false,
+  imports: [
+    NzMenuDirective,
+    CdkDropList,
+    NgClass,
+    NgIf,
+    NzMenuItemComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzMenuDividerDirective,
+    NgFor,
+    CdkDrag,
+    NzTooltipDirective,
+    NzResizableDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    CdkDragHandle,
+    NgComponentOutlet,
+    NzResizeHandlesComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   @ViewChild("content") content!: ElementRef<HTMLDivElement>;

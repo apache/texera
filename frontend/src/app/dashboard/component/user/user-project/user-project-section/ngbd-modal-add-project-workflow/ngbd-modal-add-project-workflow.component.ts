@@ -25,13 +25,31 @@ import { DashboardWorkflow } from "../../../../../type/dashboard-workflow.interf
 import { UserProjectService } from "../../../../../service/user/project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import {
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
+import { NgFor, DatePipe } from "@angular/common";
+import { FormsModule } from "@angular/forms";
 
 @UntilDestroy()
 @Component({
   selector: "texera-add-project-workflow-modal",
   templateUrl: "./ngbd-modal-add-project-workflow.component.html",
   styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
-  standalone: false,
+  imports: [
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzTbodyComponent,
+    NgFor,
+    FormsModule,
+    DatePipe,
+  ],
 })
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   readonly projectId: number = inject(NZ_MODAL_DATA).projectId;

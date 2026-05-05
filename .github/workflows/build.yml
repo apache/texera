@@ -40,7 +40,15 @@ on:
         required: false
         type: boolean
         default: true
-      run_scala:
+      run_amber:
+        required: false
+        type: boolean
+        default: true
+      run_amber_integration:
+        required: false
+        type: boolean
+        default: true
+      run_platform:
         required: false
         type: boolean
         default: true
@@ -52,6 +60,12 @@ on:
         required: false
         type: boolean
         default: true
+      mode:
+        # PR (default) | nightly | release. Only "PR" passes
+        # --ignore-transitive-version to check_binary_deps.py.
+        required: false
+        type: string
+        default: PR
 
 env:
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -59,7 +73,6 @@ env:
 jobs:
   frontend:
     if: ${{ inputs.run_frontend }}
-    name: ${{ format('frontend{0} ({1}, 18)', inputs.job_name_suffix, matrix.os) }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -72,7 +85,7 @@ jobs:
           - os: windows-latest
             arch: x64
         node-version:
-          - 20.19.0
+          - 24.10.0
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v5
@@ -88,7 +101,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.arch }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: frontend/.yarn/cache
           key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
@@ -107,22 +120,27 @@ jobs:
         run: yarn --cwd frontend format:ci
       - name: Prod build
         run: yarn --cwd frontend run build:ci
-      - name: Check bundled npm packages against LICENSE-binary
+      - name: Check bundled npm packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
-        run: ./bin/licensing/check_binary_deps.py npm frontend/dist/3rdpartylicenses.json
+        run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} npm frontend/dist/3rdpartylicenses.json
       - name: Run frontend unit tests
-        run: yarn --cwd frontend run test:ci --code-coverage
+        run: yarn --cwd frontend run test:ci
       - name: Upload frontend coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/coverage/**/lcov.info
           flags: frontend
           fail_ci_if_error: false
 
-  scala:
-    if: ${{ inputs.run_scala }}
-    name: ${{ format('scala{0} ({1}, 11)', inputs.job_name_suffix, matrix.os) }}
+  amber:
+    # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
+    # scalafixAll --check) once on behalf of every Scala module, then builds
+    # and tests just the WorkflowExecutionService dist. Per-service builds
+    # and tests for the platform services live in the `platform` matrix
+    # below. License-binary checks are scoped to the amber dist.
+    if: ${{ inputs.run_amber }}
     strategy:
       matrix:
         os: [ubuntu-22.04]
@@ -158,12 +176,6 @@ jobs:
         with:
           distribution: "temurin"
           java-version: 11
-      - name: Setup Python for Scala tests
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-      - name: Show Python
-        run: python --version || python3 --version
       - name: Create Databases
         # Must run before any sbt compile step: the build's JOOQ source
         # generators connect to texera_db while compiling.
@@ -178,59 +190,32 @@ jobs:
       - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
-      - name: Lint and build distributable bundles
-        # Single sbt invocation runs scalafmt -> scalafix -> per-module dist
-        # in order; sbt exits at the first failing command (fail-fast). Each
-        # command is a separate sbt arg, not joined with ';', so a dist
-        # failure aborts the rest. scalafix triggers compile (and JOOQ
-        # codegen), which the dist commands then reuse incrementally.
+      - name: Lint and build amber distributable bundle
+        # Single sbt invocation: scalafmt -> scalafix -> amber dist.
+        # scalafmtCheckAll and scalafixAll cover every Scala module, so the
+        # platform matrix below skips them. scalafix triggers compile (and
+        # JOOQ codegen), which the dist command then reuses incrementally.
         run: |
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
-              ConfigService/dist \
-              AccessControlService/dist \
-              FileService/dist \
-              ComputingUnitManagingService/dist \
-              WorkflowCompilingService/dist \
               WorkflowExecutionService/dist
-      - name: Unzip dists and check binary licenses
-        # Unzips every service's dist bundle, runs the binding LICENSE-binary
-        # check, then runs the advisory per-dep audit. The audit always runs
-        # (mirroring the previous 'if: always()' on its own step) and never
-        # fails the step; the binding check's exit code drives the result.
+      - name: Unzip amber dist and check binary licenses
+        # Per-module LICENSE-binary files live at the repo root after #4668;
+        # the amber JVM dist is checked against amber/LICENSE-binary-java.
+        # The audit always runs (mirroring the previous 'if: always()' on its
+        # own step) and never fails the step; the binding check's exit code
+        # drives it.
         run: |
           set -euo pipefail
           mkdir -p /tmp/dists
-          for zip in \
-            config-service/target/universal/config-service-*.zip \
-            access-control-service/target/universal/access-control-service-*.zip \
-            file-service/target/universal/file-service-*.zip \
-            computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip \
-            workflow-compiling-service/target/universal/workflow-compiling-service-*.zip \
-            amber/target/universal/amber-*.zip; do
-              unzip -q "$zip" -d /tmp/dists/
-          done
-
-          lib_paths=(
-            /tmp/dists/config-service-*/lib
-            /tmp/dists/access-control-service-*/lib
-            /tmp/dists/file-service-*/lib
-            /tmp/dists/computing-unit-managing-service-*/lib
-            /tmp/dists/workflow-compiling-service-*/lib
-            /tmp/dists/amber-*/lib
-          )
+          unzip -q amber/target/universal/amber-*.zip -d /tmp/dists/
 
           check_exit=0
-          ./bin/licensing/check_binary_deps.py jar "${lib_paths[@]}" || check_exit=$?
-          ./bin/licensing/audit_jar_licenses.py "${lib_paths[@]}" || true
+          ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} jar \
+            --license-binary amber/LICENSE-binary-java \
+            /tmp/dists/amber-*/lib || check_exit=$?
+          ./bin/licensing/audit_jar_licenses.py /tmp/dists/amber-*/lib || true
           exit "$check_exit"
-      - name: Install dependencies
-        # Only the backend test step needs the python deps; install just
-        # before tests so a lint or dist failure does not pay for them.
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
       - name: Create texera_db_for_test_cases
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
@@ -239,21 +224,224 @@ jobs:
         run: |
           echo "api.version=1.52" >> ~/.docker-java.properties
           cat ~/.docker-java.properties
-      - name: Run backend tests
+      - name: Run amber and common module tests with coverage
         # 'jacoco' runs tests under sbt-jacoco's JVM agent and emits per-
         # module jacoco.xml that the codecov upload step picks up.
-        run: sbt jacoco
-      - name: Upload scala coverage to Codecov
+        # `WorkflowExecutionService/jacoco` only runs that project's
+        # Test config (sbt's `test` task does not transit dependsOn),
+        # so common modules' tests are listed explicitly here. Modules
+        # with no tests (Auth, Config) are skipped.
+        #
+        # AMBER_TEST_FILTER=skip-integration tells amber/build.sbt to
+        # exclude @org.apache.texera.amber.tags.IntegrationTest specs;
+        # those run in the amber-integration job below.
+        env:
+          AMBER_TEST_FILTER: skip-integration
+        run: |
+          sbt "DAO/jacoco" \
+              "PyBuilder/jacoco" \
+              "WorkflowCore/jacoco" \
+              "WorkflowOperator/jacoco" \
+              "WorkflowExecutionService/jacoco"
+      - name: Upload amber and common coverage to Codecov
         if: always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./**/target/scala-2.13/jacoco/report/jacoco.xml
-          flags: scala
+          flags: amber
+          fail_ci_if_error: false
+
+  amber-integration:
+    # Runs Scala tests tagged @org.apache.texera.amber.tags.IntegrationTest —
+    # currently the e2e specs that spawn Python UDF workers. Provisions
+    # Python deps that the lighter `amber` job no longer installs. Cross-
+    # cutting lints (scalafmt / scalafix) and the amber dist + binary
+    # license check stay in `amber`; this job is tests-only.
+    if: ${{ inputs.run_amber_integration }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+        java-version: [11]
+    runs-on: ${{ matrix.os }}
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 11
+      - name: Setup Python for Scala-Python integration tests
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Show Python
+        run: python --version || python3 --version
+      - name: Install Python dependencies
+        # The integration tests spawn Python UDF workers; install
+        # everything they need on the host. uv for speed; no licensing
+        # concerns because no dist is built here.
+        run: |
+          python -m pip install uv
+          if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Create texera_db_for_test_cases
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Lint and run amber integration tests
+        # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
+        # keep only @org.apache.texera.amber.tags.IntegrationTest
+        # specs. The Java @TagAnnotation makes the marker visible to
+        # ScalaTest's reflection, so `-n TAG` correctly narrows the
+        # run.
+        #
+        # scalafmtCheckAll + scalafixAll --check are run here as well
+        # because an integration-only PR fires only the
+        # `amber-integration` label; the amber job's own cross-cutting
+        # lint would not run, and the change would otherwise land
+        # unlinted. Costs ~30s when amber also runs, which is fine.
+        # No jacoco — these specs exercise code paths already covered
+        # by amber's unit-test coverage.
+        env:
+          AMBER_TEST_FILTER: integration-only
+        run: |
+          sbt scalafmtCheckAll \
+              "scalafixAll --check" \
+              "WorkflowExecutionService/test"
+
+  platform:
+    # Per-service build, test, and license check for the non-amber Scala
+    # services. Each matrix entry runs its own dist + test in isolation
+    # against per-module LICENSE-binary (#4668). scalafmt / scalafix already
+    # cover every module in the amber job above, so this matrix skips them.
+    if: ${{ inputs.run_platform }}
+    name: ${{ format('platform{0} ({1})', inputs.job_name_suffix, matrix.service) }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: config-service
+            sbt_project: ConfigService
+          - service: access-control-service
+            sbt_project: AccessControlService
+          - service: file-service
+            sbt_project: FileService
+          - service: computing-unit-managing-service
+            sbt_project: ComputingUnitManagingService
+          - service: workflow-compiling-service
+            sbt_project: WorkflowCompilingService
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    services:
+      # Each platform service transitively depends on DAO, which runs JOOQ
+      # code generation at compile time and needs the live texera schema.
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        working-directory: ${{ github.workspace }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 11
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+        with:
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Build dist and run ${{ matrix.service }} tests with coverage
+        # Single sbt invocation so dist + test share compiled state. Use
+        # `jacoco` so the codecov upload step has a report to pick up.
+        run: sbt "${{ matrix.sbt_project }}/dist" "${{ matrix.sbt_project }}/jacoco"
+      - name: Unzip ${{ matrix.service }} dist and check binary licenses
+        # Each platform service has its own LICENSE-binary at the repo root
+        # after #4668; check this service's dist against just its own file.
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dists
+          unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
+
+          check_exit=0
+          ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} jar \
+            --license-binary ${{ matrix.service }}/LICENSE-binary \
+            /tmp/dists/${{ matrix.service }}-*/lib || check_exit=$?
+          ./bin/licensing/audit_jar_licenses.py /tmp/dists/${{ matrix.service }}-*/lib || true
+          exit "$check_exit"
+      - name: Upload ${{ matrix.service }} coverage to Codecov
+        # Per-service flag so each matrix entry has its own Codecov view
+        # rather than being merged into one umbrella `platform` flag.
+        if: always()
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./${{ matrix.service }}/target/scala-2.13/jacoco/report/jacoco.xml
+          flags: ${{ matrix.service }}
           fail_ci_if_error: false
 
   python:
     if: ${{ inputs.run_python }}
-    name: ${{ format('python{0} ({1}, {2})', inputs.job_name_suffix, matrix.os, matrix.python-version) }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -284,18 +472,33 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Unit-test licensing scripts
+        # Stdlib only, no install needed. Runs on every matrix row (3.10 →
+        # 3.13) so the script's behavior is guarded across all supported
+        # Python versions before the license check itself runs (3.12 only).
+        run: python3 -m unittest discover -s bin/licensing -p "test_*.py" -v
       - name: Install dependencies
+        # 3.12 is the only leg that drives the binary-license check via
+        # pip-licenses. Keep stock pip there so the resolved versions
+        # match amber/LICENSE-binary-python (also generated with pip,
+        # tracking what the production image installs). Other legs use
+        # uv purely for install-speed.
         run: |
-          python -m pip install --upgrade pip
-          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
-          if [ "${{ matrix.python-version }}" = "3.12" ]; then pip install pip-licenses; fi
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then
+            python -m pip install --upgrade pip pip-licenses
+            install="pip install"
+          else
+            python -m pip install uv
+            install="uv pip install --system"
+          fi
+          if [ -f amber/requirements.txt ]; then $install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then $install -r amber/operator-requirements.txt; fi
       - name: Generate pip-licenses manifest
         if: matrix.python-version == '3.12'
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
-      - name: Check installed Python packages against LICENSE-binary
+      - name: Check installed Python packages against per-module LICENSE-binary files
         if: matrix.python-version == '3.12'
-        run: ./bin/licensing/check_binary_deps.py python /tmp/pip-licenses.csv
+        run: ./bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} python /tmp/pip-licenses.csv
       - name: Create iceberg catalog database
         run: psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
         env:
@@ -306,9 +509,11 @@ jobs:
       - name: Install dev dependencies
         # Test-only deps live in amber/dev-requirements.txt and are
         # installed after the LICENSE-binary snapshot above so they never
-        # appear in pip-licenses output. Packaging skips this file.
+        # appear in pip-licenses output. Packaging skips this file. uv
+        # is safe here regardless of leg because it runs post-snapshot.
         run: |
-          if [ -f amber/dev-requirements.txt ]; then pip install -r amber/dev-requirements.txt; fi
+          python -m pip install uv
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
       - name: Test with pytest
         run: |
           cd amber/src/main/python && pytest --cov=. --cov-report=xml -sv
@@ -316,6 +521,7 @@ jobs:
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./amber/src/main/python/coverage.xml
           flags: python
           fail_ci_if_error: false
@@ -353,9 +559,9 @@ jobs:
         run: |
           mkdir -p dist
           bun run bin/collect-licenses.ts > dist/3rdpartylicenses.json
-      - name: Check bundled agent-service packages against LICENSE-binary
+      - name: Check bundled agent-service packages against per-module LICENSE-binary files
         if: matrix.os == 'ubuntu-latest'
-        run: ../bin/licensing/check_binary_deps.py agent-npm dist/3rdpartylicenses.json
+        run: ../bin/licensing/check_binary_deps.py ${{ inputs.mode == 'PR' && '--ignore-transitive-version' || '' }} agent-npm dist/3rdpartylicenses.json
       - name: Install development dependencies
         run: bun install --frozen-lockfile
       - name: Lint with Prettier
@@ -368,6 +574,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./agent-service/coverage/lcov.info
           flags: agent-service
           fail_ci_if_error: false
