@@ -36,7 +36,7 @@ import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
-import { HubService } from "../../hub/service/hub.service";
+import { EntityType, HubService } from "../../hub/service/hub.service";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { WorkspaceComponent } from "./workspace.component";
 
@@ -74,7 +74,7 @@ describe("WorkspaceComponent", () => {
 
   function configureRoute(params: Record<string, any> = {}, queryParams: Record<string, any> = {}) {
     return {
-      snapshot: { params, queryParams, fragment: null },
+      snapshot: { params, queryParams, fragment: null as string | null },
     };
   }
 
@@ -227,6 +227,45 @@ describe("WorkspaceComponent", () => {
       expect(messageService.error).toHaveBeenCalledWith(expect.stringContaining("don't have access"));
       expect(component.isLoading).toBe(false);
     });
+
+    it("flags broken workflows via NotificationService.error but still loads them", async () => {
+      const brokenWorkflow = {
+        ...stubWorkflow,
+        content: {
+          ...stubWorkflow.content,
+          // link references operator IDs that aren't in `operators: []` → broken.
+          links: [{ source: { operatorID: "ghost-a" }, target: { operatorID: "ghost-b" } }],
+        },
+      } as unknown as Workflow;
+      await createFixture(configureRoute({ id: "42" }));
+      workflowPersistService.retrieveWorkflow.mockReturnValue(of(brokenWorkflow));
+      fixture.detectChanges();
+      expect(notificationService.error).toHaveBeenCalledWith(expect.stringContaining("broken"));
+      // Workflow still flows through reload — the error is informational, not blocking.
+      expect(workflowActionService.reloadWorkflow).toHaveBeenCalledWith(brokenWorkflow);
+    });
+
+    it("when URL fragment matches an element in the graph, highlights it", async () => {
+      const route = configureRoute({ id: "42" });
+      route.snapshot.fragment = "operator-1";
+      await createFixture(route);
+      stubGraph.hasElementWithID.mockReturnValue(true);
+      fixture.detectChanges();
+      expect(stubGraph.hasElementWithID).toHaveBeenCalledWith("operator-1");
+      expect(workflowActionService.highlightElements).toHaveBeenCalledWith(false, "operator-1");
+    });
+
+    it("when URL fragment does not match any element, surfaces an error and clears the fragment", async () => {
+      const route = configureRoute({ id: "42" });
+      route.snapshot.fragment = "stale-id";
+      await createFixture(route);
+      // Default mock already returns false, but state explicitly for clarity.
+      stubGraph.hasElementWithID.mockReturnValue(false);
+      fixture.detectChanges();
+      expect(notificationService.error).toHaveBeenCalledWith(expect.stringContaining("stale-id"));
+      // Two router.navigate calls: one preserving fragment, one clearing it.
+      expect(routerMock.navigate).toHaveBeenLastCalledWith([], { relativeTo: route });
+    });
   });
 
   describe("triggerCenter", () => {
@@ -244,6 +283,68 @@ describe("WorkspaceComponent", () => {
       component.registerAutoPersistWorkflow();
       component.registerAutoPersistWorkflow();
       expect(workflowActionService.workflowChanged).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("updateViewCount", () => {
+    it("posts a view event with the route's wid and the current user's uid", async () => {
+      const route = configureRoute({ id: "42" });
+      await createFixture(route);
+      fixture.detectChanges();
+      expect(hubService.postView).toHaveBeenCalledWith("42", 7, EntityType.Workflow);
+    });
+
+    it("falls back to uid=0 when no user is signed in", async () => {
+      const route = configureRoute({ id: "42" });
+      await createFixture(route);
+      userService.getCurrentUser.mockReturnValue(undefined);
+      // Re-trigger after mutating the mock; createFixture has already wired it.
+      component.updateViewCount();
+      expect(hubService.postView).toHaveBeenCalledWith("42", 0, EntityType.Workflow);
+    });
+  });
+
+  describe("onWIDChange", () => {
+    it("syncs writeAccess from metadata.readonly each time the metadata changes", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      expect(component.writeAccess).toBe(false); // default before any emission
+
+      workflowActionService.getWorkflowMetadata.mockReturnValue({ wid: 42, readonly: false });
+      metadataChangedSubject.next();
+      expect(component.writeAccess).toBe(true);
+
+      workflowActionService.getWorkflowMetadata.mockReturnValue({ wid: 42, readonly: true });
+      metadataChangedSubject.next();
+      expect(component.writeAccess).toBe(false);
+    });
+
+    it("ignores metadata emissions that have no wid yet", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      workflowActionService.getWorkflowMetadata.mockReturnValue({ wid: undefined, readonly: false });
+      metadataChangedSubject.next();
+      // writeAccess stays at its initial false — no metadata.wid means we don't know
+      // whether the workflow is editable yet.
+      expect(component.writeAccess).toBe(false);
+    });
+  });
+
+  describe("ngOnDestroy", () => {
+    it("persists the workflow on destroy when the user is signed in and persist is enabled", async () => {
+      await createFixture();
+      component.ngOnDestroy();
+      expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+    });
+
+    it("skips the persist call when the user is not signed in", async () => {
+      await createFixture();
+      userService.isLogin.mockReturnValue(false);
+      component.ngOnDestroy();
+      expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+      // Cleanup of the workflow state still happens regardless.
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
     });
   });
 
