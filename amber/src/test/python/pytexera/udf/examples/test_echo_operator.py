@@ -18,7 +18,7 @@
 import pytest
 
 from pytexera import Tuple
-from .echo_operator import EchoOperator
+from pytexera.udf.examples.echo_operator import EchoOperator
 
 
 class TestEchoOperator:

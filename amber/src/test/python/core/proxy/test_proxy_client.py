@@ -20,8 +20,8 @@ from pandas import DataFrame
 from pyarrow import ArrowNotImplementedError, Table
 from queue import Queue
 
-from .proxy_client import ProxyClient
-from .proxy_server import ProxyServer
+from core.proxy.proxy_client import ProxyClient
+from core.proxy.proxy_server import ProxyServer
 
 
 class TestProxyClient:

@@ -18,6 +18,7 @@
 import datetime
 import pytest
 import random
+import tempfile
 import uuid
 from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -36,7 +37,11 @@ from proto.org.apache.texera.amber.core import (
     PhysicalOpIdentity,
 )
 
-# Hardcoded storage config only for test purposes.
+# Hardcoded storage config only for test purposes. The iceberg warehouse
+# directory must be a writable absolute path; using `tempfile.mkdtemp()`
+# avoids depending on pytest's cwd (an earlier `"../../../../../../amber/
+# user-resources/..."` value silently relied on CWD = amber/src/main/python
+# and broke when the cwd moved up to amber/).
 StorageConfig.initialize(
     catalog_type="postgres",
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
@@ -46,7 +51,7 @@ StorageConfig.initialize(
     rest_catalog_warehouse_name="texera",
     table_result_namespace="operator-port-result",
     table_state_namespace="operator-port-state",
-    directory_path="../../../../../../amber/user-resources/workflow-results",
+    directory_path=tempfile.mkdtemp(prefix="texera-iceberg-warehouse-"),
     commit_batch_size=4096,
     s3_endpoint="http://localhost:9000",
     s3_region="us-east-1",
