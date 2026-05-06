@@ -89,6 +89,10 @@ class InputPortMaterializationReaderThread(
     // Notify the input port of start of input channel
     emitECM(METHOD_START_CHANNEL, NO_ALIGNMENT)
     try {
+      // States and tuples are persisted to separate tables, so the
+      // original interleaving is lost and replay has to pick an order:
+      // we replay states first because downstream operators typically
+      // need their state set up before they process the incoming tuples.
       val stateDocument =
         DocumentFactory
           .openDocument(State.uriFromResultUri(uri))

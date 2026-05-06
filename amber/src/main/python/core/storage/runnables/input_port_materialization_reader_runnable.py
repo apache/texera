@@ -148,6 +148,11 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
 
+            # States and tuples are persisted to separate tables, so
+            # the original interleaving is lost and replay has to pick
+            # an order: we replay states first because downstream
+            # operators typically need their state set up before they
+            # process the incoming tuples.
             state_document, _ = DocumentFactory.open_document(
                 State.uri_from_result_uri(self.uri)
             )
