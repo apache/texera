@@ -125,15 +125,6 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             if receiver == self.worker_actor_id:
                 yield self.tuples_to_data_frame(tuples)
 
-    def emit_state_with_filter(self, state: State) -> typing.Iterator[DataPayload]:
-        for receiver, payload in self.partitioner.flush_state(state):
-            if receiver == self.worker_actor_id:
-                yield (
-                    StateFrame(payload)
-                    if isinstance(payload, State)
-                    else self.tuples_to_data_frame(payload)
-                )
-
     def run(self) -> None:
         """
         Main execution logic that reads tuples from the materialized storage and
@@ -153,12 +144,16 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             # an order: we replay states first because downstream
             # operators typically need their state set up before they
             # process the incoming tuples.
+            #
+            # Every state is broadcast to every downstream worker -- no
+            # partitioner filtering here, unlike the tuple loop below.
+            # State is shared context (e.g. config / counters), not
+            # per-key data, so each worker needs the full set.
             state_document, _ = DocumentFactory.open_document(
                 State.uri_from_result_uri(self.uri)
             )
-            for state in state_document.get():
-                for state_frame in self.emit_state_with_filter(State.from_tuple(state)):
-                    self.emit_payload(state_frame)
+            for state_row in state_document.get():
+                self.emit_payload(StateFrame(State.from_tuple(state_row)))
 
             storage_iterator = self.materialization.get()
             # Iterate and process tuples.

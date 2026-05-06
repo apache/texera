@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.models import State, StateFrame, Tuple
+from core.models import State, StateFrame
 from core.models.internal_queue import DataElement
 from core.models.schema import Schema
 from core.storage.runnables.input_port_materialization_reader_runnable import (
@@ -31,79 +31,11 @@ from proto.org.apache.texera.amber.core import (
 )
 
 
-class TestEmitStateWithFilter:
-    """Cover the partitioner-filter logic for state payloads in
-    InputPortMaterializationReaderRunnable. These tests bypass __init__
-    so we don't need a real partitioner or storage URI.
-    """
-
-    @pytest.fixture
-    def me(self):
-        return ActorVirtualIdentity(name="me")
-
-    @pytest.fixture
-    def someone_else(self):
-        return ActorVirtualIdentity(name="other")
-
-    @pytest.fixture
-    def runnable(self, me):
-        # __new__ skips __init__ so we can wire only the fields we need.
-        instance = InputPortMaterializationReaderRunnable.__new__(
-            InputPortMaterializationReaderRunnable
-        )
-        instance.worker_actor_id = me
-        instance.partitioner = MagicMock()
-        instance.tuple_schema = Schema(raw_schema={"x": "INTEGER"})
-        return instance
-
-    def test_yields_state_frame_for_matching_receiver(self, runnable, me):
-        state = State({"k": 1})
-        runnable.partitioner.flush_state.return_value = [(me, state)]
-
-        frames = list(runnable.emit_state_with_filter(state))
-
-        assert len(frames) == 1
-        assert isinstance(frames[0], StateFrame)
-        assert frames[0].frame is state
-
-    def test_filters_out_non_matching_receivers(self, runnable, me, someone_else):
-        state = State({"k": 1})
-        runnable.partitioner.flush_state.return_value = [
-            (someone_else, state),
-            (me, state),
-            (someone_else, state),
-        ]
-
-        frames = list(runnable.emit_state_with_filter(state))
-
-        assert len(frames) == 1
-        assert isinstance(frames[0], StateFrame)
-
-    def test_yields_data_frame_for_non_state_payload(self, runnable, me):
-        # When the partitioner produces a tuple-batch payload (BroadcastPartitioner
-        # case), the runnable must convert it to a DataFrame instead of wrapping
-        # it as a StateFrame.
-        state = State({"k": 1})
-        tuples = [Tuple({"x": 7}, schema=runnable.tuple_schema)]
-        runnable.partitioner.flush_state.return_value = [(me, tuples)]
-
-        frames = list(runnable.emit_state_with_filter(state))
-
-        assert len(frames) == 1
-        # Should not be wrapped as a StateFrame.
-        assert not isinstance(frames[0], StateFrame)
-        assert frames[0].frame.num_rows == 1
-
-    def test_empty_partitioner_output_yields_nothing(self, runnable):
-        state = State({})
-        runnable.partitioner.flush_state.return_value = []
-
-        assert list(runnable.emit_state_with_filter(state)) == []
-
-
 class TestRunStateReadingBlock:
-    """Cover the inner try-block in run() that opens the state document and
-    emits its rows as StateFrames.
+    """Cover the state-reading block in run() that opens the state
+    document and emits its rows as StateFrames directly to the input
+    queue (no partitioner filtering -- state is broadcast to every
+    worker).
     """
 
     @pytest.fixture
@@ -127,12 +59,13 @@ class TestRunStateReadingBlock:
         instance.partitioner.flush.return_value = []
         return instance
 
-    def test_state_rows_are_emitted_as_state_frames(self, runnable, me):
+    def test_state_rows_are_emitted_as_state_frames(self, runnable):
         state_a = State({"loop_counter": 0})
         state_b = State({"loop_counter": 1})
 
         # The state document yields opaque tuples; from_tuple deserializes
-        # them. Patch from_tuple so we don't have to wire a real serialization.
+        # them. Patch from_tuple so we don't have to wire a real
+        # serialization.
         result_doc = MagicMock()
         result_doc.get.return_value = iter([])  # No materialized tuples.
         state_doc = MagicMock()
@@ -149,14 +82,13 @@ class TestRunStateReadingBlock:
                 (state_doc, None),
             ]
             mock_from_tuple.side_effect = [state_a, state_b]
-            runnable.partitioner.flush_state.side_effect = [
-                [(me, state_a)],
-                [(me, state_b)],
-            ]
 
             runnable.run()
 
         # Two StateFrames must have been put on the queue, in order.
+        # The state replay must NOT route through the partitioner --
+        # state is shared context, broadcast to every worker.
+        runnable.partitioner.flush_state.assert_not_called()
         state_frames = [
             call.args[0]
             for call in runnable.queue.put.call_args_list
