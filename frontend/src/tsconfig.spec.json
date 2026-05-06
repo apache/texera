@@ -11,11 +11,6 @@
   },
   "include": ["**/*.spec.ts", "**/*.d.ts", "vitest-globals.d.ts", "jsdom-svg-polyfill.ts"],
   "exclude": [
-    // jsdom polyfill is enough to instantiate jointjs but its zero-
-    // dimension fake matrices break the actual graph-geometry math
-    // these tests assert on. Real fix is Vitest browser mode (#4866).
-    "**/drag-drop.service.spec.ts",
-
     // Specs whose body is entirely commented out / placeholder — these
     // need real test cases written before they can be re-enabled.
     "**/app/common/formly/preset-wrapper/preset-wrapper.component.spec.ts",
@@ -25,19 +20,11 @@
     "**/app/workspace/component/workspace.component.spec.ts",
     "**/app/workspace/service/preset/preset.service.spec.ts",
 
-    // Specs that compile but fail at runtime against jsdom's gaps:
-    // monaco-editor needs CSS parsing + queryCommandSupported, jointjs
-    // needs real getScreenCTM, formly+nz fetches icons over HTTP. These
-    // belong under Vitest browser mode (#4866) and aren't an Angular
-    // standalone-migration issue any more.
-    "**/app/workspace/component/code-editor-dialog/code-debugger.component.spec.ts",
-    "**/app/workspace/component/code-editor-dialog/code-editor.component.spec.ts",
-    "**/app/workspace/component/codearea-custom-template/codearea-custom-template.component.spec.ts",
-    // time-travel & versions-list pull in `monaco-breakpoints` whose entry imports a `.css`
-    // file at runtime; Vitest can't transform that asset and crashes during module load.
-    "**/app/workspace/component/left-panel/time-travel/time-travel.component.spec.ts",
-    "**/app/workspace/component/left-panel/versions-list/versions-list.component.spec.ts",
-    "**/app/workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component.spec.ts",
+    // jointjs paper geometry: every test in this suite asserts on
+    // graph layout math (positions, link routing, hit testing) that
+    // depends on real getScreenCTM / getBBox. The jsdom polyfill
+    // returns identity-only stubs, so all assertions fail. Real fix is
+    // Vitest browser mode (#4866).
     "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"
   ]
 }
