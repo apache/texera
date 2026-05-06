@@ -54,9 +54,20 @@ class OutputPortResultWriterThread(
           case Right(_)    => internalStop = true
         }
       }
-      bufferedItemWriter.close()
     } catch {
       case NonFatal(e) => failure = Some(e)
+    } finally {
+      // close() runs even when the loop threw, so a putOne failure does
+      // not leak the underlying writer's file handles. If both legs fail,
+      // attach close()'s exception as suppressed on the original.
+      try bufferedItemWriter.close()
+      catch {
+        case NonFatal(e) =>
+          failure match {
+            case Some(orig) => orig.addSuppressed(e)
+            case None       => failure = Some(e)
+          }
+      }
     }
   }
 }
