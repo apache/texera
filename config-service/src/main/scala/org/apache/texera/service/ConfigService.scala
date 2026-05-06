@@ -26,7 +26,12 @@ import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, Substituting
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
-import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser, UnauthorizedExceptionMapper}
+import org.apache.texera.auth.{
+  JwtAuthFilter,
+  RequestLoggingFilter,
+  SessionUser,
+  UnauthorizedExceptionMapper
+}
 import org.apache.texera.config.DefaultsConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
