@@ -40,6 +40,11 @@ COPY NOTICE ./NOTICE
 COPY DISCLAIMER ./DISCLAIMER
 COPY licenses ./licenses
 
+RUN addgroup -S -g 1001 texera \
+ && adduser -S -u 1001 -G texera -h /app texera \
+ && chown -R texera:texera /app
+USER texera
+
 EXPOSE 3001
 
 CMD ["bun", "run", "src/server.ts"]

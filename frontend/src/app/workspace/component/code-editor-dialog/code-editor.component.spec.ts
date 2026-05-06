@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { CodeEditorComponent } from "./code-editor.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -31,9 +31,8 @@ describe("CodeEditorDialogComponent", () => {
   let fixture: ComponentFixture<CodeEditorComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [CodeEditorComponent],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
         {
@@ -42,11 +41,9 @@ describe("CodeEditorDialogComponent", () => {
         },
         ...commonTestProviders,
       ],
-      imports: [HttpClientTestingModule],
+      imports: [CodeEditorComponent, HttpClientTestingModule],
     }).compileComponents();
-  }));
 
-  beforeEach(() => {
     workflowActionService = TestBed.inject(WorkflowActionService);
     workflowActionService.addOperator(mockJavaUDFPredicate, mockPoint);
     workflowActionService.getJointGraphWrapper().highlightOperators(mockJavaUDFPredicate.operatorID);

@@ -201,7 +201,7 @@ class TestExpressionEvaluator:
                 expression="a",
                 value_ref="a",
                 value_str=(
-                    "<core.util.expression_evaluator.test_expression_evaluator."
+                    f"<{A.__module__}."
                     "TestExpressionEvaluator.test_evaluate_object_expression.<locals>.A"
                     f" object at {hex(id(a))}>"
                 ),

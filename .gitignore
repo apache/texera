@@ -52,6 +52,9 @@ __pycache__/
 *$py.class
 .ipynb_checkpoints
 .pytype/
+.coverage
+coverage.xml
+.pytest_cache/
 
 # Ignoring python generated files
 *.model

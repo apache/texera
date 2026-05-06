@@ -235,6 +235,11 @@ class OutputManager(
   /**
     * Singal the port storage writer to flush the remaining buffer and wait for commits to finish so that
     * the output port is properly completed. If the output port does not need storage, no action will be done.
+    *
+    * If the writer thread captured a failure (e.g., iceberg commit retries
+    * exhausted), re-throw it here so the DP thread surfaces a FatalError
+    * to the controller via pekko's supervisor strategy. Otherwise the worker
+    * would announce port completion as if the result was durably written.
     */
   def closeOutputStorageWriterIfNeeded(outputPortId: PortIdentity): Unit = {
     this.outputPortResultWriterThreads.get(outputPortId) match {
@@ -243,6 +248,7 @@ class OutputManager(
         writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
         // Blocking call
         writerThread.join()
+        writerThread.getFailure.foreach(throw _)
       case None =>
     }
 

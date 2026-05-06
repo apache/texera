@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { Component, ViewChild } from "@angular/core";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
 import { FileSaverService } from "../../../../service/user/file/file-saver.service";
@@ -26,34 +27,56 @@ import { StubWorkflowPersistService } from "../../../../../common/service/workfl
 import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { StubUserProjectService } from "../../../../service/user/project/stub-user-project.service";
+import { NzListComponent } from "ng-zorro-antd/list";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
+import { provideRouter } from "@angular/router";
+import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
+
+// UserWorkflowListItemComponent is rooted at <nz-list-item>; instantiating it
+// outside an <nz-list> host throws "No provider found for NzListComponent".
+@Component({
+  standalone: true,
+  imports: [NzListComponent, UserWorkflowListItemComponent],
+  template: `
+    <nz-list>
+      <texera-user-workflow-list-item
+        [entry]="entry"
+        [editable]="editable"></texera-user-workflow-list-item>
+    </nz-list>
+  `,
+})
+class TestHostComponent {
+  entry!: DashboardEntry;
+  editable = true;
+  @ViewChild(UserWorkflowListItemComponent, { static: true }) inner!: UserWorkflowListItemComponent;
+}
+
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
-  let fixture: ComponentFixture<UserWorkflowListItemComponent>;
+  let fixture: ComponentFixture<TestHostComponent>;
   const fileSaverServiceSpy = { saveAs: vi.fn() } as any;
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [NzModalModule, HttpClientTestingModule, NzTooltipModule],
-      declarations: [UserWorkflowListItemComponent, HighlightSearchTermsPipe],
+      imports: [TestHostComponent, NzModalModule, HttpClientTestingModule, NzTooltipModule],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
+        provideRouter([]),
         ...commonTestProviders,
       ],
     }).compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(UserWorkflowListItemComponent);
-    component = fixture.componentInstance;
-    component.entry = testWorkflowEntries[0];
-    component.editable = true;
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.componentInstance.entry = testWorkflowEntries[0];
+    fixture.componentInstance.editable = true;
     fixture.detectChanges();
+    component = fixture.componentInstance.inner;
   });
 
   it("should create", () => {

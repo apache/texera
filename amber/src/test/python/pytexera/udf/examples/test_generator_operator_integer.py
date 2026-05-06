@@ -18,17 +18,18 @@
 import pytest
 
 from pytexera import Tuple
-from .generator_operator_binary import GeneratorOperatorBinary
+from pytexera.udf.examples.generator_operator_integer import GeneratorOperatorInteger
 
 
 class TestEchoOperator:
     @pytest.fixture
-    def generator_operator_binary(self):
-        return GeneratorOperatorBinary()
+    def generator_operator_integer(self):
+        return GeneratorOperatorInteger()
 
-    def test_generator_operator_binary(self, generator_operator_binary):
-        generator_operator_binary.open()
-        outputs = generator_operator_binary.produce()
-        output_tuple = Tuple(next(outputs))
-        assert output_tuple == Tuple({"test": [1, 2, 3]})
-        generator_operator_binary.close()
+    def test_generator_operator_integer(self, generator_operator_integer):
+        generator_operator_integer.open()
+        outputs = generator_operator_integer.produce()
+        for i in [1, 2, 3]:
+            output_tuple = Tuple(next(outputs))
+            assert output_tuple == Tuple({"test": i})
+        generator_operator_integer.close()
