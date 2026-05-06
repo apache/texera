@@ -224,7 +224,7 @@ libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.4.13"
 libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.6"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
-libraryDependencies += "org.postgresql" % "postgresql" % "42.5.4"
+libraryDependencies += "org.postgresql" % "postgresql" % "42.7.10"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
