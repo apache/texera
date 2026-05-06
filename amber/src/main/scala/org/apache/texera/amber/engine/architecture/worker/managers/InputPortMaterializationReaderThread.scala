@@ -84,25 +84,25 @@ class InputPortMaterializationReaderThread(
 
   /**
     * Read from the materialization stoage, and mimcs the behavior of an upstream worker's output manager.
+    *
+    * States and tuples are persisted to separate tables, so the original
+    * interleaving is lost and replay has to pick an order: we replay states
+    * first because downstream operators typically need their state set up
+    * before they process the incoming tuples. Every state is broadcast to
+    * every downstream worker -- no partitioner filtering, unlike the tuple
+    * loop. State is shared context (e.g. config / counters), not per-key
+    * data, so each worker needs the full set.
     */
   override def run(): Unit = {
     // Notify the input port of start of input channel
     emitECM(METHOD_START_CHANNEL, NO_ALIGNMENT)
     try {
-      // States and tuples are persisted to separate tables, so the
-      // original interleaving is lost and replay has to pick an order:
-      // we replay states first because downstream operators typically
-      // need their state set up before they process the incoming tuples.
       val stateDocument =
         DocumentFactory
           .openDocument(State.uriFromResultUri(uri))
           ._1
           .asInstanceOf[VirtualDocument[Tuple]]
       val stateReadIterator = stateDocument.get()
-      // Every state is broadcast to every downstream worker -- no
-      // partitioner filtering here, unlike the tuple loop below. State
-      // is shared context (e.g. config / counters), not per-key data,
-      // so each worker needs the full set.
       while (stateReadIterator.hasNext) {
         val state = State.fromTuple(stateReadIterator.next())
         inputMessageQueue.put(

@@ -132,6 +132,14 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         emits an EndChannel ECM. Use the same partitioner implementation as that in
         output manager, where a tuple is batched by the partitioner and only
         selected as the input of this worker according to the partitioner.
+
+        States and tuples are persisted to separate tables, so the original
+        interleaving is lost and replay has to pick an order: we replay states
+        first because downstream operators typically need their state set up
+        before they process the incoming tuples. Every state is broadcast to
+        every downstream worker -- no partitioner filtering, unlike the tuple
+        loop. State is shared context (e.g. config / counters), not per-key
+        data, so each worker needs the full set.
         """
         try:
             self.materialization, self.tuple_schema = DocumentFactory.open_document(
@@ -139,16 +147,6 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
 
-            # States and tuples are persisted to separate tables, so
-            # the original interleaving is lost and replay has to pick
-            # an order: we replay states first because downstream
-            # operators typically need their state set up before they
-            # process the incoming tuples.
-            #
-            # Every state is broadcast to every downstream worker -- no
-            # partitioner filtering here, unlike the tuple loop below.
-            # State is shared context (e.g. config / counters), not
-            # per-key data, so each worker needs the full set.
             state_document, _ = DocumentFactory.open_document(
                 State.uri_from_result_uri(self.uri)
             )
