@@ -20,7 +20,7 @@ import pytest
 from collections import deque
 
 from pytexera import *
-from .count_batch_operator import CountBatchOperator
+from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 
 
 class TestCountBatchOperator:

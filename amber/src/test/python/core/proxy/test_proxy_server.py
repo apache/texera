@@ -18,7 +18,7 @@
 import pytest
 from pyarrow.flight import Action
 
-from .proxy_server import ProxyServer
+from core.proxy.proxy_server import ProxyServer
 
 
 class TestProxyServer:
