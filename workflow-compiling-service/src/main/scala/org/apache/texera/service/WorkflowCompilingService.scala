@@ -26,7 +26,7 @@ import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
+import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource, WorkflowToPythonResource}
 import org.eclipse.jetty.servlet.FilterHolder
 
 import java.nio.file.Path
@@ -63,6 +63,9 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
+
+    // register the workflow-to-python endpoint
+    environment.jersey.register(classOf[WorkflowToPythonResource])
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
