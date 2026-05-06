@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -57,7 +57,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
   let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(waitForAsync(() => {
+  beforeEach(async () => {
     TestBed.overrideComponent(OperatorPropertyEditFrameComponent, {
       set: {
         template:
@@ -65,8 +65,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       },
     });
 
-    TestBed.configureTestingModule({
-      declarations: [OperatorPropertyEditFrameComponent],
+    await TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
         {
@@ -78,6 +77,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
         ...commonTestProviders,
       ],
       imports: [
+        OperatorPropertyEditFrameComponent,
         BrowserAnimationsModule,
         FormsModule,
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
@@ -87,9 +87,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
-  }));
 
-  beforeEach(() => {
     fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
@@ -125,8 +123,9 @@ describe("OperatorPropertyEditFrameComponent", () => {
     // check HTML form are displayed
     const formTitleElement = fixture.debugElement.query(By.css(".texera-workspace-property-editor-title"));
     const jsonSchemaFormElement = fixture.debugElement.query(By.css(".texera-workspace-property-editor-form"));
-    // check the panel title
-    expect((formTitleElement.nativeElement as HTMLElement).innerText).toEqual(
+    // check the panel title (use textContent — jsdom doesn't compute the
+    // layout-dependent innerText getter, which returns undefined here)
+    expect((formTitleElement.nativeElement as HTMLElement).textContent?.trim()).toEqual(
       mockScanSourceSchema.additionalMetadata.userFriendlyName
     );
 
