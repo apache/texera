@@ -194,6 +194,10 @@ class OutputManager(
 
   def emitState(state: State): Unit = {
     networkOutputBuffers.foreach(kv => kv._2.sendState(state))
+    // Persist alongside emission so any caller that pushes state
+    // downstream (DataProcessor.processInputState, StartChannelHandler,
+    // EndChannelHandler) cannot silently skip materialization.
+    saveStateToStorageIfNeeded(state)
   }
 
   def addPort(portId: PortIdentity, schema: Schema, storageURIOption: Option[URI]): Unit = {
