@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -67,17 +67,10 @@ describe("SavedWorkflowSectionComponent", () => {
 
   let downloadServiceSpy: any;
 
-  beforeEach(waitForAsync(() => {
+  beforeEach(async () => {
     downloadServiceSpy = { downloadWorkflowsAsZip: vi.fn() } as any;
 
-    TestBed.configureTestingModule({
-      declarations: [
-        UserWorkflowComponent,
-        ShareAccessComponent,
-        FiltersComponent,
-        UserWorkflowListItemComponent,
-        SearchResultsComponent,
-      ],
+    await TestBed.configureTestingModule({
       providers: [
         NzModalService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
@@ -95,6 +88,11 @@ describe("SavedWorkflowSectionComponent", () => {
         ...commonTestProviders,
       ],
       imports: [
+        UserWorkflowComponent,
+        ShareAccessComponent,
+        FiltersComponent,
+        UserWorkflowListItemComponent,
+        SearchResultsComponent,
         FormsModule,
         RouterTestingModule,
         HttpClientTestingModule,
@@ -114,7 +112,7 @@ describe("SavedWorkflowSectionComponent", () => {
         NzButtonModule,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(UserWorkflowComponent);
