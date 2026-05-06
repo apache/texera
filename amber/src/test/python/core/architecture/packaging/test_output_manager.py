@@ -15,13 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from core.architecture.packaging.output_manager import OutputManager
 from core.models.state import State
+from core.storage.runnables.port_storage_writer import PortStorageWriterElement
 from proto.org.apache.texera.amber.core import PortIdentity
+
+
+def _stub_state_writer(output_manager, port_id):
+    """Inject a (queue, writer, thread) triple as if a port were set up."""
+    queue = MagicMock()
+    writer = MagicMock()
+    thread = MagicMock()
+    output_manager._port_state_writers[port_id] = (queue, writer, thread)
+    return queue, writer, thread
 
 
 class TestSaveStateToStorageIfNeeded:
@@ -44,84 +54,54 @@ class TestSaveStateToStorageIfNeeded:
     def test_no_state_writers_is_a_noop(self, output_manager, state):
         # With no port set up, save_state_to_storage_if_needed must not
         # touch any writer.
-        output_manager.save_state_to_storage_if_needed(state)  # no-op, no exception
+        output_manager.save_state_to_storage_if_needed(state)  # no-op
 
     def test_unknown_port_id_is_a_noop(self, output_manager, state, port_a):
         output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
         # No assertion needed -- the absence of any writer means nothing
         # was attempted.
 
-    def test_writes_to_every_port_when_port_id_omitted(
+    def test_enqueues_to_every_port_when_port_id_omitted(
         self, output_manager, state, port_a, port_b
     ):
-        writer_a = MagicMock()
-        writer_b = MagicMock()
-        output_manager._state_writers[port_a] = writer_a
-        output_manager._state_writers[port_b] = writer_b
+        queue_a, _, _ = _stub_state_writer(output_manager, port_a)
+        queue_b, _, _ = _stub_state_writer(output_manager, port_b)
 
         output_manager.save_state_to_storage_if_needed(state)
 
-        writer_a.put_one.assert_called_once()
-        writer_b.put_one.assert_called_once()
-        # Long-lived writers must NOT be closed per state -- otherwise
-        # we'd be back to one Iceberg snapshot per state.
-        writer_a.close.assert_not_called()
-        writer_b.close.assert_not_called()
+        # Each port's writer queue receives one PortStorageWriterElement.
+        # Critically, save is non-blocking -- the call must not invoke
+        # put_one / close on the buffered writer directly (those happen
+        # off-thread).
+        assert queue_a.put.call_count == 1
+        assert queue_b.put.call_count == 1
+        assert isinstance(queue_a.put.call_args.args[0], PortStorageWriterElement)
+        assert isinstance(queue_b.put.call_args.args[0], PortStorageWriterElement)
 
-    def test_writes_only_to_selected_port_when_port_id_specified(
+    def test_enqueues_only_to_selected_port_when_port_id_specified(
         self, output_manager, state, port_a, port_b
     ):
-        writer_a = MagicMock()
-        writer_b = MagicMock()
-        output_manager._state_writers[port_a] = writer_a
-        output_manager._state_writers[port_b] = writer_b
+        queue_a, _, _ = _stub_state_writer(output_manager, port_a)
+        queue_b, _, _ = _stub_state_writer(output_manager, port_b)
 
         output_manager.save_state_to_storage_if_needed(state, port_id=port_a)
 
-        writer_a.put_one.assert_called_once()
-        writer_b.put_one.assert_not_called()
+        assert queue_a.put.call_count == 1
+        queue_b.put.assert_not_called()
 
-    def test_state_writer_is_opened_at_port_setup(self, output_manager, port_a):
-        # set_up_port_storage_writer should open the result document AND
-        # the state document, then cache the state writer for reuse.
-        result_doc = MagicMock()
-        state_doc = MagicMock()
-        state_writer = MagicMock()
-        state_doc.writer.return_value = state_writer
-
-        with patch(
-            "core.architecture.packaging.output_manager.DocumentFactory"
-        ) as mock_factory:
-            mock_factory.open_document.side_effect = [
-                (result_doc, MagicMock()),
-                (state_doc, MagicMock()),
-            ]
-
-            output_manager.set_up_port_storage_writer(
-                port_a, "vfs:///wf/0/exec/0/result/op-a"
-            )
-
-            opened = [c.args[0] for c in mock_factory.open_document.call_args_list]
-            assert opened == [
-                "vfs:///wf/0/exec/0/result/op-a",
-                "vfs:///wf/0/exec/0/state/op-a",
-            ]
-            state_writer.open.assert_called_once()
-            assert output_manager._state_writers[port_a] is state_writer
-
-    def test_close_port_storage_writers_flushes_state_writers(
+    def test_close_port_storage_writers_stops_state_threads(
         self, output_manager, port_a, port_b
     ):
-        # After the port completes, the long-lived state writer's buffer
-        # must be flushed and the writer closed (one Iceberg commit per
-        # port instead of one per state).
-        writer_a = MagicMock()
-        writer_b = MagicMock()
-        output_manager._state_writers[port_a] = writer_a
-        output_manager._state_writers[port_b] = writer_b
+        # After the port completes, every state-writer thread must be
+        # stopped and joined so the buffered writer's close() (which
+        # flushes the final Iceberg commit) actually runs.
+        _, writer_a, thread_a = _stub_state_writer(output_manager, port_a)
+        _, writer_b, thread_b = _stub_state_writer(output_manager, port_b)
 
         output_manager.close_port_storage_writers()
 
-        writer_a.close.assert_called_once()
-        writer_b.close.assert_called_once()
-        assert output_manager._state_writers == {}
+        writer_a.stop.assert_called_once()
+        writer_b.stop.assert_called_once()
+        thread_a.join.assert_called_once()
+        thread_b.join.assert_called_once()
+        assert output_manager._port_state_writers == {}

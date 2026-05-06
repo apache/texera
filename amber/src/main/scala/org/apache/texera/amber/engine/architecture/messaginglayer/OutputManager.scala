@@ -124,7 +124,7 @@ class OutputManager(
       : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
     mutable.HashMap()
 
-  private val stateWriters: mutable.HashMap[PortIdentity, BufferedItemWriter[Tuple]] =
+  private val stateWriterThreads: mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
     mutable.HashMap()
 
   /**
@@ -236,8 +236,8 @@ class OutputManager(
     })
   }
 
-  def saveStateToStorageIfNeeded(state: State): Unit = {
-    stateWriters.values.foreach(_.putOne(state.toTuple))
+  private def saveStateToStorageIfNeeded(state: State): Unit = {
+    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple)))
   }
 
   /**
@@ -253,7 +253,10 @@ class OutputManager(
         writerThread.join()
       case None =>
     }
-    this.stateWriters.remove(outputPortId).foreach(_.close())
+    this.stateWriterThreads.remove(outputPortId).foreach { writerThread =>
+      writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
+      writerThread.join()
+    }
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
@@ -304,8 +307,9 @@ class OutputManager(
       ._1
       .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
       .asInstanceOf[BufferedItemWriter[Tuple]]
-    stateWriter.open()
-    this.stateWriters(portId) = stateWriter
+    val stateWriterThread = new OutputPortResultWriterThread(stateWriter)
+    this.stateWriterThreads(portId) = stateWriterThread
+    stateWriterThread.start()
   }
 
 }

@@ -87,7 +87,9 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
-        self._state_writers: typing.Dict[PortIdentity, typing.Any] = dict()
+        self._port_state_writers: typing.Dict[
+            PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
+        ] = dict()
 
     def is_missing_output_ports(self):
         """
@@ -150,9 +152,25 @@ class OutputManager:
         state_document, _ = DocumentFactory.open_document(
             State.uri_from_result_uri(storage_uri)
         )
-        state_writer = state_document.writer(str(get_worker_index(self.worker_id)))
-        state_writer.open()
-        self._state_writers[port_id] = state_writer
+        state_buffered_item_writer = state_document.writer(
+            str(get_worker_index(self.worker_id))
+        )
+        state_writer_queue = Queue()
+        state_port_writer = PortStorageWriter(
+            buffered_item_writer=state_buffered_item_writer,
+            queue=state_writer_queue,
+        )
+        state_writer_thread = threading.Thread(
+            target=state_port_writer.run,
+            daemon=True,
+            name=f"port_state_writer_thread_{port_id}",
+        )
+        state_writer_thread.start()
+        self._port_state_writers[port_id] = (
+            state_writer_queue,
+            state_port_writer,
+            state_writer_thread,
+        )
 
     def get_port(self, port_id=None) -> WorkerPort:
         return list(self._ports.values())[0]
@@ -182,14 +200,12 @@ class OutputManager:
             )
 
     def save_state_to_storage_if_needed(self, state: State, port_id=None) -> None:
+        element = PortStorageWriterElement(data_tuple=state.to_tuple())
         if port_id is None:
-            writers = self._state_writers.values()
-        elif port_id in self._state_writers:
-            writers = [self._state_writers[port_id]]
-        else:
-            return
-        for writer in writers:
-            writer.put_one(state.to_tuple())
+            for writer_queue, _, _ in self._port_state_writers.values():
+                writer_queue.put(element)
+        elif port_id in self._port_state_writers:
+            self._port_state_writers[port_id][0].put(element)
 
     def close_port_storage_writers(self) -> None:
         """
@@ -204,9 +220,11 @@ class OutputManager:
         for _, _, writer_thread in self._port_storage_writers.values():
             # This blocking call will wait for all the writer to finish commit
             writer_thread.join()
-        for state_writer in self._state_writers.values():
-            state_writer.close()
-        self._state_writers.clear()
+        for _, state_writer, _ in self._port_state_writers.values():
+            state_writer.stop()
+        for _, _, state_writer_thread in self._port_state_writers.values():
+            state_writer_thread.join()
+        self._port_state_writers.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
