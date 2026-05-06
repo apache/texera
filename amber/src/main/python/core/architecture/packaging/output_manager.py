@@ -200,6 +200,12 @@ class OutputManager:
             )
 
     def save_state_to_storage_if_needed(self, state: State, port_id=None) -> None:
+        # When port_id is omitted the same state row is fanned out to
+        # every output port's state table. This mirrors the
+        # broadcast-to-all-workers behavior on the emit side: state is
+        # shared context, not per-key data, so every downstream operator
+        # (and every worker reading the materialization) needs the full
+        # set.
         element = PortStorageWriterElement(data_tuple=state.to_tuple())
         if port_id is None:
             for writer_queue, _, _ in self._port_state_writers.values():

@@ -237,6 +237,11 @@ class OutputManager(
   }
 
   private def saveStateToStorageIfNeeded(state: State): Unit = {
+    // The same state row is fanned out to every output port's state
+    // table. This mirrors the broadcast-to-all-workers behavior on the
+    // emit side: state is shared context, not per-key data, so every
+    // downstream operator (and every worker reading the materialization)
+    // needs the full set.
     stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple)))
   }
 
