@@ -165,4 +165,3 @@ class TestRunStateReadingBlock:
         ]
         assert [sf.payload.frame for sf in state_frames] == [state_a, state_b]
         assert runnable._finished is True
-

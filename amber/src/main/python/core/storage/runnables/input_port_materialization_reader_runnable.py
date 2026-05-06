@@ -152,9 +152,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 State.uri_from_result_uri(self.uri)
             )
             for state in state_document.get():
-                for state_frame in self.emit_state_with_filter(
-                    State.from_tuple(state)
-                ):
+                for state_frame in self.emit_state_with_filter(State.from_tuple(state)):
                     self.emit_payload(state_frame)
 
             storage_iterator = self.materialization.get()
