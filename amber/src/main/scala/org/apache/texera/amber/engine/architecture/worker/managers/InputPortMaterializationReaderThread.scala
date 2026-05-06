@@ -99,6 +99,10 @@ class InputPortMaterializationReaderThread(
           ._1
           .asInstanceOf[VirtualDocument[Tuple]]
       val stateReadIterator = stateDocument.get()
+      // Every state is broadcast to every downstream worker -- no
+      // partitioner filtering here, unlike the tuple loop below. State
+      // is shared context (e.g. config / counters), not per-key data,
+      // so each worker needs the full set.
       while (stateReadIterator.hasNext) {
         val state = State.fromTuple(stateReadIterator.next())
         inputMessageQueue.put(
