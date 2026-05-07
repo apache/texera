@@ -67,10 +67,8 @@ github:
       required_status_checks:
         # strict means "Require branches to be up to date before merging".
         strict: true
-        # contexts are the names of checks that must pass
         contexts:
-          - Required Checks
-          - Check License Headers
+          - Build
           - Validate PR title
       required_pull_request_reviews:
         dismiss_stale_reviews: false

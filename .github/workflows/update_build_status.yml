@@ -1,0 +1,186 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Update build status workflow
+
+on:
+  workflow_run:
+    workflows: ["On pull request update"]
+    types: [completed]
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: Update build status
+    runs-on: ubuntu-latest
+    # workflow_run mode polls up to 60 min waiting for fork CI completion.
+    # Other modes (cron, workflow_dispatch) finish in seconds.
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      statuses: write
+    steps:
+      - name: "Update build status"
+        uses: actions/github-script@v8
+        env:
+          TRIGGER_EVENT: ${{ github.event_name }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const isLongPoll = process.env.TRIGGER_EVENT === 'workflow_run'
+            const maxIterations = isLongPoll ? 120 : 1   // 120 * 30s = 60 min
+            const sleepMs = 30000
+            const statusContext = 'Build'
+
+            console.log('=== update_build_status: ' + new Date().toISOString() + ' ===')
+            console.log('trigger=' + process.env.TRIGGER_EVENT + ' mode=' + (isLongPoll ? 'long-poll up to ' + maxIterations + ' iters' : 'single pass'))
+
+            // Map fork run state -> commit status state.
+            function runToStatusState(run) {
+              if (run.status !== 'completed') return 'pending'
+              if (run.conclusion === 'success') return 'success'
+              if (run.conclusion === 'cancelled') return 'error'
+              return 'failure'
+            }
+
+            // Find the most recent Build status for a SHA. /statuses/{sha}
+            // returns statuses in reverse chronological order; the first
+            // matching context is current.
+            async function getCurrentBuildStatus(sha) {
+              try {
+                const resp = await github.request('GET /repos/{owner}/{repo}/commits/{ref}/statuses', {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: sha,
+                  per_page: 100,
+                })
+                return resp.data.find(s => s.context === statusContext) || null
+              } catch (error) {
+                console.log('  -> failed to read current Build status: ' + error.message)
+                return null
+              }
+            }
+
+            // One pass over all open PRs. Returns { pendingCount, updateCount }
+            // — pendingCount is how many PRs are still in non-terminal state
+            // (used by the long-poll loop to decide whether to keep going).
+            async function syncOnce() {
+              const prsIter = github.paginate.iterator(
+                'GET /repos/{owner}/{repo}/pulls',
+                { owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 }
+              )
+              let prCount = 0
+              let updateCount = 0
+              let pendingCount = 0
+
+              for await (const prs of prsIter) {
+                for (const pr of prs.data) {
+                  prCount++
+                  if (!pr.head.repo) continue
+                  if (pr.head.repo.full_name === context.repo.owner + '/' + context.repo.repo) continue
+
+                  const current = await getCurrentBuildStatus(pr.head.sha)
+                  // Don't fight notify's deliberate non-fork failure decisions
+                  // (blocked branch, fork inaccessible). target_url for those
+                  // points at the PR or notify run — never at the fork run.
+                  if (current && current.state === 'failure') {
+                    const isForkTarget = current.target_url && current.target_url.includes('/' + pr.head.repo.full_name + '/actions/runs/')
+                    if (!isForkTarget) continue
+                  }
+                  if (current && current.state === 'success') {
+                    const isForkTarget = current.target_url && current.target_url.includes('/' + pr.head.repo.full_name + '/actions/runs/')
+                    if (isForkTarget) continue
+                  }
+
+                  let runs
+                  try {
+                    runs = await github.request(
+                      'GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs',
+                      {
+                        owner: pr.head.repo.owner.login,
+                        repo: pr.head.repo.name,
+                        workflow_id: 'fork-ci.yml',
+                        branch: pr.head.ref,
+                        per_page: 10,
+                      }
+                    )
+                  } catch (error) {
+                    console.log('  PR #' + pr.number + ': fork API error ' + error.message)
+                    pendingCount++
+                    continue
+                  }
+
+                  const matching = runs.data.workflow_runs.find(r => r.head_sha === pr.head.sha)
+                  if (!matching) {
+                    pendingCount++
+                    continue
+                  }
+
+                  const actions_url = 'https://github.com/' + pr.head.repo.full_name + '/actions/runs/' + matching.id
+                  const newState = runToStatusState(matching)
+                  const description = matching.status === 'completed'
+                    ? 'Fork CI run #' + matching.id + ' ' + matching.conclusion
+                    : 'Fork CI run #' + matching.id + ' ' + matching.status
+
+                  if (newState === 'pending') pendingCount++
+
+                  // Idempotency: only POST if state, target_url, or description
+                  // actually changed. Avoids history spam.
+                  if (current
+                      && current.state === newState
+                      && current.target_url === actions_url
+                      && current.description === description.slice(0, 140)) {
+                    continue
+                  }
+
+                  try {
+                    await github.rest.repos.createCommitStatus({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      sha: pr.head.sha,
+                      state: newState,
+                      context: statusContext,
+                      description: description.slice(0, 140),
+                      target_url: actions_url,
+                    })
+                    updateCount++
+                    console.log('  PR #' + pr.number + ' (' + pr.head.sha.substring(0, 8) + '): synced state=' + newState + ' target=' + actions_url)
+                  } catch (error) {
+                    console.error('  PR #' + pr.number + ': POST status FAILED ' + (error.status || '?') + ' ' + error.message)
+                  }
+                }
+              }
+              return { prCount, updateCount, pendingCount }
+            }
+
+            for (let iter = 0; iter < maxIterations; iter++) {
+              if (iter > 0) {
+                console.log('--- iter ' + (iter + 1) + '/' + maxIterations + ' (sleeping ' + (sleepMs / 1000) + 's) ---')
+                await new Promise(r => setTimeout(r, sleepMs))
+              } else {
+                console.log('--- iter 1/' + maxIterations + ' ---')
+              }
+              const { prCount, updateCount, pendingCount } = await syncOnce()
+              console.log('  scanned=' + prCount + ' updated=' + updateCount + ' pending=' + pendingCount)
+              if (pendingCount === 0) {
+                console.log('All PRs resolved; exiting after ' + (iter + 1) + ' iter(s)')
+                break
+              }
+            }
+            console.log('=== done ===')

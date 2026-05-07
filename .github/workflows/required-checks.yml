@@ -23,13 +23,6 @@ on:
       - 'ci-enable/**'
       - 'main'
       - 'release/**'
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - labeled
-      - unlabeled
   workflow_dispatch:
 
 permissions:
@@ -233,6 +226,18 @@ jobs:
 
   build:
     needs: precheck
+    # PR builds are owned by Fork CI: fork-ci.yml runs the full build matrix
+    # in the contributor's fork, and notify_test_workflow.yml /
+    # update_build_status.yml surface the result on the PR as the "Build"
+    # status check. Running build.yml here on pull_request would duplicate
+    # those builds (same code, same matrix) and double the project's runner
+    # minutes for no extra coverage.
+    #
+    # The base repo still runs the full build matrix for:
+    #   - push events to main / release/** (post-merge validation)
+    #   - push events to ci-enable/** (committers' escape hatch)
+    #   - workflow_dispatch (manual reruns)
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/build.yml
     with:
       run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}

@@ -1,0 +1,350 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: On pull request update
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  notify:
+    name: Notify test workflow
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      statuses: write
+      pull-requests: write
+    steps:
+      - name: "Notify test workflow"
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const statusContext = 'Build'
+            const pr = context.payload.pull_request
+            const head_sha = pr.head.sha
+            const head_ref = pr.head.ref
+            const headRepo = pr.head.repo ? pr.head.repo.full_name : null
+            const baseRepo = context.repo.owner + '/' + context.repo.repo
+
+            // Used as target_url for failure scenarios where there's no fork
+            // run to link to — the notify run's logs are the next-best
+            // explanation. Commit statuses honor target_url (unlike check_runs
+            // created via GITHUB_TOKEN, which silently overrides details_url).
+            const notifyRunUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId
+
+            console.log('=== Fork CI detection ===')
+            console.log('PR #' + pr.number + ': ' + (headRepo || '<deleted>') + ':' + head_ref + ' -> ' + baseRepo + ':' + pr.base.ref)
+            console.log('  head sha:  ' + head_sha)
+            console.log('  event:     ' + context.payload.action)
+            console.log('  notify run: ' + notifyRunUrl)
+
+            // Post the initial Build status as `pending` so the required
+            // status appears on the PR the moment notify starts. Every
+            // scenario below routes through setBuildStatus to update it
+            // in place.
+            async function setBuildStatus(state, description, target_url) {
+              const desc = (description || '').slice(0, 140)
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                  await github.rest.repos.createCommitStatus({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    sha: head_sha,
+                    state: state,
+                    context: statusContext,
+                    description: desc,
+                    target_url: target_url,
+                  })
+                  console.log('  -> Build status set: state=' + state + ' target_url=' + target_url)
+                  return
+                } catch (error) {
+                  if (attempt < 3) {
+                    const delay = 1000 * Math.pow(2, attempt - 1)
+                    console.error('  -> setBuildStatus attempt ' + attempt + '/3 failed: ' + error.message + '; retrying in ' + (delay / 1000) + 's')
+                    await new Promise(r => setTimeout(r, delay))
+                  } else {
+                    console.error('  -> FAILED to set Build status after 3 attempts: ' + error.message)
+                    core.setFailed('Could not set Build status after retries: ' + error.message)
+                  }
+                }
+              }
+            }
+
+            await setBuildStatus('pending', 'Detecting fork CI run for ' + head_sha.substring(0, 8), notifyRunUrl)
+
+            // Post a comment once per unique marker. Idempotent across re-runs
+            // of this workflow on the same PR (opened/reopened/synchronize).
+            async function postOnceComment(marker, body) {
+              try {
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  per_page: 100,
+                })
+                if (comments.some(c => c.body && c.body.includes(marker))) {
+                  console.log('  comment "' + marker + '" already on PR; not reposting')
+                  return
+                }
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: marker + '\n' + body,
+                })
+                console.log('  posted comment "' + marker + '"')
+              } catch (error) {
+                console.error('  failed to post comment "' + marker + '": ' + error.message)
+              }
+            }
+
+            // Failure scenarios: red ✗ Build status, with target_url pointing
+            // somewhere useful for the committer to dig in. The detailed
+            // explanation lives in the postOnceComment on the PR conversation.
+            async function failCheck(title, target_url) {
+              await setBuildStatus('failure', title, target_url || notifyRunUrl)
+              core.setFailed(title)
+            }
+
+            // Success scenario (non-fork PR): leaves the workflow green.
+            async function passCheck(title, target_url) {
+              await setBuildStatus('success', title, target_url || notifyRunUrl)
+            }
+
+            // Map the fork run's actual status onto the Build commit status:
+            //   completed/success    -> success
+            //   completed/cancelled  -> error    (yellow !)
+            //   completed/<other>    -> failure  (red x)
+            //   queued / in_progress -> pending  (yellow circle)
+            // target_url always goes to the fork CI run's actions page so the
+            // PR's Details link is one-click to the fork run.
+            async function linkCheck(run, actions_url) {
+              let state, description
+              if (run.status === 'completed') {
+                state = run.conclusion === 'success' ? 'success'
+                      : run.conclusion === 'cancelled' ? 'error'
+                      : 'failure'
+                description = 'Fork CI run #' + run.id + ' ' + run.conclusion
+              } else {
+                state = 'pending'
+                description = 'Fork CI run #' + run.id + ' ' + run.status
+              }
+              await setBuildStatus(state, description, actions_url)
+            }
+
+            // ----- scenario 1: fork repo gone ----------------------------------
+            if (!pr.head.repo) {
+              console.log('SCENARIO: head repo is null (fork deleted, made private, or otherwise inaccessible)')
+              await postOnceComment(
+                '<!-- fork-ci-no-head-repo -->',
+                ':no_entry: **Fork CI cannot run — your fork repository is not accessible.**\n' +
+                '\n' +
+                'GitHub returned `null` for this PR\'s head repository. That usually means one of:\n' +
+                '\n' +
+                '- The fork has been **deleted**\n' +
+                '- The fork has been **made private** (Fork CI only works on public forks)\n' +
+                '- The branch has been **force-removed**\n' +
+                '\n' +
+                'Without access to your fork, this workflow cannot detect any `fork-ci.yml` runs and the required `Build` status will stay failed.\n' +
+                '\n' +
+                '**To fix:** restore (or recreate) the public fork, push your branch back, then close and reopen this PR (or push a new commit) to retrigger detection.\n'
+              )
+              await failCheck('Fork repository not accessible', pr.html_url)
+              return
+            }
+
+            // ----- scenario 2: non-fork PR (branch in base repo) ---------------
+            if (headRepo === baseRepo) {
+              console.log('SCENARIO: non-fork PR (head repo == base repo)')
+              await postOnceComment(
+                '<!-- fork-ci-not-applicable -->',
+                ':information_source: **Fork CI is not applicable to this PR.**\n' +
+                '\n' +
+                'This PR is opened from a branch inside `' + baseRepo + '` itself, not from a fork. ' +
+                'Fork CI is the system that runs the full build matrix in *contributor forks* and surfaces the result on PRs to `apache/texera`. ' +
+                'Since there\'s no fork involved here, the `Build` status has been auto-passed.\n' +
+                '\n' +
+                'In-tree branches like this one are gated by the **Required Checks** status check (which runs builds directly in `' + baseRepo + '`).\n'
+              )
+              await passCheck(
+                'Fork CI not applicable (in-tree PR)',
+                context.serverUrl + '/' + baseRepo + '/actions/workflows/required-checks.yml'
+              )
+              return
+            }
+
+            // ----- scenario 3: blocked branch in fork --------------------------
+            // These branch patterns are listed in fork-ci.yml's `branches-ignore`,
+            // so no run will ever exist for them in the fork. We fail the status
+            // immediately with a specific, branch-aware explanation rather than
+            // burning 60s polling for a run that can't appear.
+            const BLOCKED_PATTERNS = [
+              {
+                label: 'main',
+                matches: ref => ref === 'main',
+                marker: '<!-- fork-ci-blocked-main -->',
+                why:
+                  'Fork CI **deliberately ignores pushes to `main` in forks** (see `branches-ignore` in `.github/workflows/fork-ci.yml`).\n' +
+                  '\n' +
+                  'The reason: every time you sync your fork from `apache/texera` upstream, the sync pushes new commits to your fork\'s `main`. ' +
+                  'Without this exclusion, every sync would burn your fork\'s GitHub Actions minutes rebuilding commits that already passed CI upstream — hundreds of minutes per week for active contributors.',
+                fix:
+                  '**Open this PR from a feature branch instead:**\n' +
+                  '\n' +
+                  '```bash\n' +
+                  'git checkout -b feat/your-change\n' +
+                  'git push origin feat/your-change\n' +
+                  '# close this PR and open a new one from feat/your-change -> ' + baseRepo + ':' + pr.base.ref + '\n' +
+                  '```\n' +
+                  '\n' +
+                  'See `AGENTS.md` (Branch and commit naming) for the conventional branch prefixes (`feat/`, `fix/`, `chore/`, `ci/`, `test/`).',
+              },
+              {
+                label: 'release/**',
+                matches: ref => ref.startsWith('release/'),
+                marker: '<!-- fork-ci-blocked-release -->',
+                why:
+                  'Fork CI ignores pushes to `release/**` in forks (see `branches-ignore` in `.github/workflows/fork-ci.yml`).\n' +
+                  '\n' +
+                  '`release/**` branches are reserved for `apache/texera`\'s backport coordination workflow — backports are driven by `release/<version>` *labels* on PRs, not by a fork branch with that name. Running fork CI on such a branch would conflict with the canonical release pipeline.',
+                fix:
+                  '**Open this PR from a normal feature branch.** If you need the change backported to a release line, after the PR is open add the `release/<version>` label — `required-checks.yml` will then run the backport matrix in `apache/texera`. See `AGENTS.md` (CI labels & gating) for details.',
+              },
+              {
+                label: 'ci-enable/**',
+                matches: ref => ref.startsWith('ci-enable/'),
+                marker: '<!-- fork-ci-blocked-ci-enable -->',
+                why:
+                  'Fork CI ignores pushes to `ci-enable/**` in forks (see `branches-ignore` in `.github/workflows/fork-ci.yml`).\n' +
+                  '\n' +
+                  '`ci-enable/**` is a special branch namespace **inside `apache/texera`** that committers use to run `required-checks.yml` directly on a push (without opening a PR). It\'s not a contributor branch — using it from a fork has no effect.',
+                fix:
+                  '**Open this PR from a normal feature branch** (`feat/...`, `fix/...`, etc.). If you\'re a committer who actually wants the `ci-enable/**` behavior, push the branch directly to `apache/texera` instead of going through a fork.',
+              },
+            ]
+
+            const blocked = BLOCKED_PATTERNS.find(p => p.matches(head_ref))
+            if (blocked) {
+              console.log('SCENARIO: head ref "' + head_ref + '" matches blocked pattern "' + blocked.label + '"')
+              await postOnceComment(
+                blocked.marker,
+                ':no_entry: **Fork CI cannot run on `' + head_ref + '` in your fork.**\n' +
+                '\n' +
+                '**Why:**\n' +
+                '\n' +
+                blocked.why + '\n' +
+                '\n' +
+                '**How to fix:**\n' +
+                '\n' +
+                blocked.fix + '\n' +
+                '\n' +
+                '---\n' +
+                '\n' +
+                'The required `Build` status will stay failed on this PR until you reopen it from an unblocked branch. The full `branches-ignore` list lives in `.github/workflows/fork-ci.yml`.\n'
+              )
+              await failCheck('Fork CI not allowed on ' + head_ref, pr.html_url)
+              return
+            }
+
+            // ----- scenario 4: detection ---------------------------------------
+            // Poll the fork for a fork-ci.yml run matching this PR's head SHA.
+            // GitHub Actions can take 10–30s+ to register a queued run, so a
+            // single 3s wait misses most runs. Poll up to ~60s and search the
+            // 10 most recent runs (not just the first) so a stale earlier run
+            // on the same branch can't shadow the right one.
+            console.log('SCENARIO: detecting fork-ci.yml run on ' + headRepo + ':' + head_ref + ' @ ' + head_sha)
+            const maxAttempts = 7
+            const delays = [3000, 7000, 10000, 10000, 10000, 10000, 10000]
+            let matchingRun = null
+            let lastSeenRuns = []
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              await new Promise(r => setTimeout(r, delays[attempt - 1]))
+
+              let runs
+              try {
+                runs = await github.request(
+                  'GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs',
+                  {
+                    owner: pr.head.repo.owner.login,
+                    repo: pr.head.repo.name,
+                    workflow_id: 'fork-ci.yml',
+                    branch: head_ref,
+                    per_page: 10,
+                  }
+                )
+              } catch (error) {
+                console.log('  attempt ' + attempt + '/' + maxAttempts + ': API error: ' + error.message)
+                continue
+              }
+
+              lastSeenRuns = runs.data.workflow_runs
+              console.log('  attempt ' + attempt + '/' + maxAttempts + ': ' + lastSeenRuns.length + ' fork-ci runs on ' + head_ref)
+              for (const r of lastSeenRuns) {
+                console.log('    run id=' + r.id + ' sha=' + r.head_sha + ' status=' + r.status + ' conclusion=' + r.conclusion)
+              }
+
+              matchingRun = lastSeenRuns.find(r => r.head_sha === head_sha)
+              if (matchingRun) {
+                console.log('  match: run id=' + matchingRun.id)
+                break
+              }
+              console.log('  no run matches PR head sha ' + head_sha + ' yet')
+            }
+
+            if (!matchingRun) {
+              console.log('SCENARIO: detection failed after ' + maxAttempts + ' attempts (' + lastSeenRuns.length + ' unrelated runs visible)')
+              const seenSummary = lastSeenRuns.length === 0
+                ? 'No `fork-ci.yml` runs on `' + head_ref + '` were visible at all — most likely cause is **GitHub Actions is disabled in your fork**.'
+                : '`fork-ci.yml` runs were visible on `' + head_ref + '`, but **none of them were for commit `' + head_sha + '`**. The most likely cause is that the run for the commit you pushed hasn\'t started yet, or the workflow file in your fork is out of date.'
+              await postOnceComment(
+                '<!-- fork-ci-detection-failed-' + head_sha.substring(0, 8) + ' -->',
+                ':warning: **Fork CI detection failed for `' + head_sha.substring(0, 8) + '`.**\n' +
+                '\n' +
+                seenSummary + '\n' +
+                '\n' +
+                '**Things to check:**\n' +
+                '\n' +
+                '1. **GitHub Actions enabled in your fork.** Visit the [Actions tab on `' + headRepo + '`](https://github.com/' + headRepo + '/actions) and click "I understand my workflows, go ahead and enable them" if Actions are disabled.\n' +
+                '2. **Your fork\'s `fork-ci.yml` is up to date.** If your fork was created before fork CI was added to `apache/texera`, sync your fork from upstream:\n' +
+                '   ```bash\n' +
+                '   git fetch upstream\n' +
+                '   git rebase upstream/main\n' +
+                '   git push origin ' + head_ref + ' --force-with-lease\n' +
+                '   ```\n' +
+                '3. **Retrigger detection.** After fixing the above, push an empty commit:\n' +
+                '   ```bash\n' +
+                '   git commit --allow-empty -m "retrigger fork CI"\n' +
+                '   git push\n' +
+                '   ```\n' +
+                '   The `synchronize` event will re-run this detection and `update_build_status.yml` will pick up the run on its next 5-minute poll.\n'
+              )
+              const forkActionsUrl = 'https://github.com/' + headRepo + '/actions'
+              await failCheck('Fork CI run not detected for ' + head_sha.substring(0, 8), forkActionsUrl)
+              return
+            }
+
+            // ----- scenario 5: detection success -------------------------------
+            // Found a matching fork CI run — set the Build status to mirror
+            // its current state with target_url pointing at the fork run.
+            // update_build_status.yml will keep updating it as the run
+            // progresses (workflow_run trigger fires immediately after this
+            // workflow completes; cron polls every 5 minutes after that).
+            const actions_url = 'https://github.com/' + headRepo + '/actions/runs/' + matchingRun.id
+            console.log('SCENARIO: detection success — fork run id=' + matchingRun.id + ' status=' + matchingRun.status + ' conclusion=' + matchingRun.conclusion)
+            await linkCheck(matchingRun, actions_url)

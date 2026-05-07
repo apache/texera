@@ -16,33 +16,75 @@
 
 name: Automatic email notification on DDL change
 
+# Triggered post-merge on push to main when sql/updates/** changes. Was
+# previously `pull_request: closed`, which queued for first-time-contributor
+# approval on every fork PR even though the job condition (`merged == true`)
+# meant it never actually ran on PR open. Push trigger fires only on actual
+# main-branch updates and needs no approval.
 on:
-  pull_request:
-    types:
-      - closed
+  push:
+    branches: [main]
+    paths:
+      - 'sql/updates/**'
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   notify:
-    if: >-
-      github.event.pull_request.merged == true && 
-      contains(github.event.pull_request.labels.*.name, 'ddl-change')
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve PR for this commit
+        id: pr
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pulls = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+            })
+            const pr = pulls.data[0]
+            if (!pr) {
+              console.log('No PR associated with ' + context.sha + '; skipping email')
+              core.setOutput('skip', 'true')
+              return
+            }
+            const hasLabel = pr.labels.some(l => l.name === 'ddl-change')
+            if (!hasLabel) {
+              console.log('PR #' + pr.number + ' has no ddl-change label; skipping email')
+              core.setOutput('skip', 'true')
+              return
+            }
+            core.setOutput('skip', 'false')
+            core.setOutput('number', String(pr.number))
+            core.setOutput('title', pr.title)
+            core.setOutput('html_url', pr.html_url)
+            core.setOutput('user', pr.user.login)
+
       - name: Checkout
+        if: steps.pr.outputs.skip == 'false'
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 2
           sparse-checkout: sql/updates/
 
-      - name: Get added file in sql/updates/
+      - name: Find added SQL update file
+        if: steps.pr.outputs.skip == 'false'
         id: get_sql_file
         run: |
-          FILE=$(git diff --name-only --diff-filter=A \
-            ${{ github.event.pull_request.base.sha }} \
-            ${{ github.event.pull_request.merge_commit_sha }} \
-            -- 'sql/updates/')
+          FILE=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'sql/updates/')
           echo "sql_file=$FILE" >> $GITHUB_OUTPUT
+
       - name: Send email
+        if: steps.pr.outputs.skip == 'false'
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
+          PR_URL: ${{ steps.pr.outputs.html_url }}
+          PR_USER: ${{ steps.pr.outputs.user }}
+          SQL_FILE: ${{ steps.get_sql_file.outputs.sql_file }}
         run: |
           curl --ssl-reqd \
             --url "smtps://smtp.gmail.com:465" \
@@ -57,6 +99,6 @@ jobs:
           Content-Type: text/html
 
           <p>Hi all,</p>
-          <p>We have merged PR #${{ github.event.pull_request.number }} (<a href="${{ github.event.pull_request.html_url }}">${{ github.event.pull_request.html_url }}</a>): ${{ github.event.pull_request.title }}. To incorporate the change, please apply ${{ steps.get_sql_file.outputs.sql_file }} to your local Postgres instance and run <code>sbt jooqGenerate</code> to generate jooq classes.</p>
-          <p>Best,<br>${{ github.event.pull_request.user.login }}</p>
+          <p>We have merged PR #${PR_NUMBER} (<a href="${PR_URL}">${PR_URL}</a>): ${PR_TITLE}. To incorporate the change, please apply ${SQL_FILE} to your local Postgres instance and run <code>sbt jooqGenerate</code> to generate jooq classes.</p>
+          <p>Best,<br>${PR_USER}</p>
           EOF

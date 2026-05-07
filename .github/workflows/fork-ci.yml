@@ -1,0 +1,99 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Fork CI — Apache Spark model
+#
+# Runs the full PR-gating suite in the contributor's fork on every branch
+# push. Mirrors what required-checks.yml runs in apache/texera on a
+# ci-enable/** push: build matrix + license headers, aggregated into a
+# single "fork-ci" result that notify_test_workflow.yml surfaces on the PR
+# as the "Build" commit status.
+#
+# This workflow is a no-op in the canonical apache/texera repository —
+# every job is guarded by (github.repository_owner != 'apache') so it
+# never consumes main-repo runner quota.
+#
+# Secrets (CODECOV_TOKEN, NX_CLOUD_ACCESS_TOKEN) are unavailable in forks
+# and degrade gracefully: Codecov uploads are skipped (fail_ci_if_error:
+# false) and NX Cloud remote caching is disabled; builds still pass.
+
+name: Fork CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - 'release/**'
+      - 'ci-enable/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository_owner != 'apache'
+    uses: ./.github/workflows/build.yml
+    with:
+      run_frontend: true
+      run_amber: true
+      run_amber_integration: true
+      run_platform: true
+      run_python: true
+      run_agent_service: true
+    secrets: inherit
+
+  check-headers:
+    name: Check License Headers
+    if: github.repository_owner != 'apache'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: apache/skywalking-eyes@5c5b974209f0de5d905f37deb69369068ebfc15c # v0.7.0
+
+  fork-ci:
+    # Aggregator job — its conclusion is what notify_test_workflow.yml
+    # mirrors as the PR's "Build" status. Mirrors required-checks.yml's
+    # final required-checks job. Runs even if upstream jobs failed so the
+    # aggregate result is always reported.
+    name: Fork CI
+    needs: [build, check-headers]
+    if: always() && github.repository_owner != 'apache'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all fork CI jobs succeeded or were skipped
+        run: |
+          declare -A results=(
+            [build]="${{ needs.build.result }}"
+            [check-headers]="${{ needs.check-headers.result }}"
+          )
+          failed=0
+          for job in "${!results[@]}"; do
+            r="${results[$job]}"
+            echo "${job}: ${r}"
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              failed=1
+            fi
+          done
+          if (( failed )); then
+            echo "::error::One or more fork CI jobs did not succeed."
+            exit 1
+          fi
+          echo "All fork CI jobs succeeded or were skipped."
