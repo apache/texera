@@ -20,8 +20,8 @@ from threading import Thread, Event
 
 from core.models.internal_queue import InternalQueue
 from core.runnables import MainLoop, NetworkReceiver, NetworkSender, Heartbeat
-from core.util.runnable.runnable import Runnable
-from core.util.stoppable.stoppable import Stoppable
+from core.util.runnable import Runnable
+from core.util.stoppable import Stoppable
 
 
 class PythonWorker(Runnable, Stoppable):

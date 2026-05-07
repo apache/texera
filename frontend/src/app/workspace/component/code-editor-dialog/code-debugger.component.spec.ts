@@ -51,7 +51,7 @@ describe("CodeDebuggerComponent", () => {
     mockUdfDebugService.getDebugState.mockReturnValue(debugState);
 
     await TestBed.configureTestingModule({
-      declarations: [CodeDebuggerComponent],
+      imports: [CodeDebuggerComponent],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
       providers: [
         { provide: WorkflowStatusService, useValue: mockWorkflowStatusService },
@@ -82,8 +82,13 @@ describe("CodeDebuggerComponent", () => {
   });
 
   it("should setup monaco breakpoint methods when state is Running", fakeAsync(() => {
-    const setupSpy = vi.spyOn(component, "setupMonacoBreakpointMethods");
-    const rerenderSpy = vi.spyOn(component, "rerenderExistingBreakpoints");
+    // Stub the real implementations: setupMonacoBreakpointMethods constructs
+    // a `MonacoBreakpoint` over a real monaco editor instance, which calls
+    // editor.onMouseMove / onMouseDown — APIs the test's minimal
+    // `monacoEditor` mock doesn't expose. The behavior under test is the
+    // state-machine wiring, not the breakpoint plumbing itself.
+    const setupSpy = vi.spyOn(component, "setupMonacoBreakpointMethods").mockImplementation(() => {});
+    const rerenderSpy = vi.spyOn(component, "rerenderExistingBreakpoints").mockImplementation(() => {});
 
     // Emit a Running state event
     statusUpdateStream.next({

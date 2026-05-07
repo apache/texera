@@ -39,7 +39,7 @@ from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
 from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import Stoppable, get_one_of
-from core.util.runnable.runnable import Runnable
+from core.util.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
