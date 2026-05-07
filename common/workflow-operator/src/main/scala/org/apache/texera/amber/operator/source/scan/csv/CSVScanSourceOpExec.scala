@@ -138,7 +138,7 @@ object CSVScanSourceOpExec {
   private[csv] def isColumnOverflow(e: TextParsingException, maxColumns: Int): Boolean =
     Option(e.getCause)
       .collect { case aioobe: ArrayIndexOutOfBoundsException => aioobe }
-      .exists(aioobe => aioobeIndex(aioobe).forall(_ == maxColumns))
+      .exists(aioobe => aioobeIndex(aioobe).exists(_ == maxColumns))
 
   private def aioobeIndex(aioobe: ArrayIndexOutOfBoundsException): Option[Int] = {
     val msg = Option(aioobe.getMessage).getOrElse("")
