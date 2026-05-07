@@ -149,4 +149,19 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
+  it should "return empty set when same tuples are used as both inputs (self-difference)" in {
+    opExec.open()
+    counter = 0
+    val tuples = (1 to 5).map(_ => tuple()).toList
+
+    tuples.foreach(t => opExec.processTuple(t, input1))
+    assert(opExec.onFinish(input1).isEmpty)
+
+    tuples.foreach(t => opExec.processTuple(t, input2))
+    val outputTuples = opExec.onFinish(input2).toSet
+    assert(outputTuples.isEmpty)
+
+    opExec.close()
+  }
+
 }

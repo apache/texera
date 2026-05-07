@@ -57,7 +57,7 @@ class DifferenceOpDesc extends LogicalOp {
       OperatorGroupConstants.SET_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), displayName = "left"),
-        InputPort(PortIdentity(1), displayName = "right")
+        InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity()))
       ),
       outputPorts = List(OutputPort(blocking = true))
     )
