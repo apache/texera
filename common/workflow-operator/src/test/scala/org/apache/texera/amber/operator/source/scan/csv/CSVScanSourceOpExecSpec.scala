@@ -95,6 +95,12 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec {
     assert(!CSVScanSourceOpExec.isColumnOverflow(withDifferentCause, maxColumns = 5))
   }
 
+  it should "ignore an AIOOBE whose message cannot be parsed as an index" in {
+    val unparseable = new ArrayIndexOutOfBoundsException("something went wrong")
+    val ex = new TextParsingException(null, "wrapper", unparseable)
+    assert(!CSVScanSourceOpExec.isColumnOverflow(ex, maxColumns = 5))
+  }
+
   "columnOverflowMessage" should "include the configured maximum so the user knows the current limit" in {
     val msg = CSVScanSourceOpExec.columnOverflowMessage(750)
     assert(msg.contains("750"))
