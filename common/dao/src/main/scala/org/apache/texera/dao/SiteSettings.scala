@@ -40,6 +40,9 @@ object SiteSettings {
   def getLong(key: String, default: => Long): Long =
     readAndParse(key, default)(_.toLong)
 
+  private[dao] def parseOrDefault[T](raw: Option[String], default: T)(parse: String => T): T =
+    raw.flatMap(s => Try(parse(s.trim)).toOption).getOrElse(default)
+
   private def readAndParse[T](key: String, default: => T)(parse: String => T): T =
     Try {
       val raw = SqlServer
@@ -49,6 +52,6 @@ object SiteSettings {
         .from(DSL.table(DSL.name("texera_db", "site_settings")))
         .where(DSL.field("key", classOf[String]).eq(key))
         .fetchOneInto(classOf[String])
-      Option(raw).map(s => parse(s.trim)).getOrElse(default)
+      parseOrDefault(Option(raw), default)(parse)
     }.getOrElse(default)
 }
