@@ -41,10 +41,6 @@ class State(dict):
     def from_tuple(cls, row: Tuple) -> "State":
         return cls.from_json(row[cls.CONTENT])
 
-    @staticmethod
-    def uri_from_result_uri(result_uri: str) -> str:
-        return result_uri.replace("/result", "/state")
-
 
 _TYPE_MARKER = "__texera_type__"
 _PAYLOAD_MARKER = "payload"

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-import java.net.URI
 import java.util.Base64
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -57,9 +56,6 @@ object State {
     )
 
   def fromTuple(row: Tuple): State = fromJson(row.getField[String](Content))
-
-  def uriFromResultUri(resultUri: URI): URI =
-    new URI(resultUri.toString.replace("/result", "/state"))
 
   private def toJsonValue(value: Any): Any =
     value match {

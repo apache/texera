@@ -22,7 +22,7 @@ package org.apache.texera.amber.engine.architecture.worker.managers
 import io.grpc.MethodDescriptor
 import org.apache.texera.amber.config.ApplicationConfig
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
@@ -99,7 +99,7 @@ class InputPortMaterializationReaderThread(
     try {
       val stateDocument =
         DocumentFactory
-          .openDocument(State.uriFromResultUri(uri))
+          .openDocument(VFSURIFactory.stateURI(uri))
           ._1
           .asInstanceOf[VirtualDocument[Tuple]]
       val stateReadIterator = stateDocument.get()
@@ -111,7 +111,7 @@ class InputPortMaterializationReaderThread(
       }
 
       val materialization: VirtualDocument[Tuple] = DocumentFactory
-        .openDocument(uri)
+        .openDocument(VFSURIFactory.resultURI(uri))
         ._1
         .asInstanceOf[VirtualDocument[Tuple]]
       val storageReadIterator = materialization.get()

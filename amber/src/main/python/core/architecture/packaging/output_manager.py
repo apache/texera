@@ -45,6 +45,7 @@ from core.models import Tuple, Schema, StateFrame
 from core.models.payload import DataPayload, DataFrame
 from core.models.state import State
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.storage.runnables.port_storage_writer import (
     PortStorageWriter,
     PortStorageWriterElement,
@@ -131,7 +132,9 @@ class OutputManager:
         to storage in batch, and open a long-lived buffered writer for
         state materialization on the same port.
         """
-        document, _ = DocumentFactory.open_document(storage_uri)
+        document, _ = DocumentFactory.open_document(
+            VFSURIFactory.result_uri(storage_uri)
+        )
         buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
         writer_queue = Queue()
         port_storage_writer = PortStorageWriter(
@@ -150,7 +153,7 @@ class OutputManager:
         )
 
         state_document, _ = DocumentFactory.open_document(
-            State.uri_from_result_uri(storage_uri)
+            VFSURIFactory.state_uri(storage_uri)
         )
         state_buffered_item_writer = state_document.writer(
             str(get_worker_index(self.worker_id))

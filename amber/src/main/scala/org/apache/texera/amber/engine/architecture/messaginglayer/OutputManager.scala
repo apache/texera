@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -295,9 +295,9 @@ class OutputManager(
     ports.head._1
   }
 
-  private def setupOutputStorageWriterThread(portId: PortIdentity, storageUri: URI): Unit = {
+  private def setupOutputStorageWriterThread(portId: PortIdentity, portBaseURI: URI): Unit = {
     val bufferedItemWriter = DocumentFactory
-      .openDocument(storageUri)
+      .openDocument(VFSURIFactory.resultURI(portBaseURI))
       ._1
       .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
       .asInstanceOf[BufferedItemWriter[Tuple]]
@@ -308,7 +308,7 @@ class OutputManager(
     // The state document is provisioned alongside the result document
     // by RegionExecutionCoordinator, so it is always present.
     val stateWriter = DocumentFactory
-      .openDocument(State.uriFromResultUri(storageUri))
+      .openDocument(VFSURIFactory.stateURI(portBaseURI))
       ._1
       .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
       .asInstanceOf[BufferedItemWriter[Tuple]]

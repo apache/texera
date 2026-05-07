@@ -83,17 +83,21 @@ class TestIcebergDocument:
         with a random operator id
         """
         operator_uuid = str(uuid.uuid4()).replace("-", "")
-        uri = VFSURIFactory.create_result_uri(
-            WorkflowIdentity(id=0),
-            ExecutionIdentity(id=0),
-            GlobalPortIdentity(
-                op_id=PhysicalOpIdentity(
-                    logical_op_id=OperatorIdentity(id=f"test_table_{operator_uuid}"),
-                    layer_name="main",
+        uri = VFSURIFactory.result_uri(
+            VFSURIFactory.create_port_base_uri(
+                WorkflowIdentity(id=0),
+                ExecutionIdentity(id=0),
+                GlobalPortIdentity(
+                    op_id=PhysicalOpIdentity(
+                        logical_op_id=OperatorIdentity(
+                            id=f"test_table_{operator_uuid}"
+                        ),
+                        layer_name="main",
+                    ),
+                    port_id=PortIdentity(id=0),
+                    input=False,
                 ),
-                port_id=PortIdentity(id=0),
-                input=False,
-            ),
+            )
         )
         DocumentFactory.create_document(uri, amber_schema)
         document, _ = DocumentFactory.open_document(uri)
@@ -327,7 +331,7 @@ class TestIcebergDocument:
 
     def test_state_materialization_round_trip(self):
         operator_uuid = str(uuid.uuid4()).replace("-", "")
-        result_uri = VFSURIFactory.create_result_uri(
+        base_uri = VFSURIFactory.create_port_base_uri(
             WorkflowIdentity(id=0),
             ExecutionIdentity(id=0),
             GlobalPortIdentity(
@@ -339,7 +343,7 @@ class TestIcebergDocument:
                 input=False,
             ),
         )
-        state_uri = State.uri_from_result_uri(result_uri)
+        state_uri = VFSURIFactory.state_uri(base_uri)
         DocumentFactory.create_document(state_uri, State.SCHEMA)
         document, _ = DocumentFactory.open_document(state_uri)
 
@@ -363,7 +367,7 @@ class TestIcebergDocument:
 
     def test_multiple_states_materialize_as_rows_in_one_table(self):
         operator_uuid = str(uuid.uuid4()).replace("-", "")
-        result_uri = VFSURIFactory.create_result_uri(
+        base_uri = VFSURIFactory.create_port_base_uri(
             WorkflowIdentity(id=0),
             ExecutionIdentity(id=0),
             GlobalPortIdentity(
@@ -377,7 +381,7 @@ class TestIcebergDocument:
                 input=False,
             ),
         )
-        state_uri = State.uri_from_result_uri(result_uri)
+        state_uri = VFSURIFactory.state_uri(base_uri)
         DocumentFactory.create_document(state_uri, State.SCHEMA)
         document, _ = DocumentFactory.open_document(state_uri)
 

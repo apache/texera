@@ -37,6 +37,7 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 from core.models import Tuple, InternalQueue, DataFrame, DataPayload, State, StateFrame
 from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
@@ -143,12 +144,12 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         """
         try:
             self.materialization, self.tuple_schema = DocumentFactory.open_document(
-                self.uri
+                VFSURIFactory.result_uri(self.uri)
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
 
             state_document, _ = DocumentFactory.open_document(
-                State.uri_from_result_uri(self.uri)
+                VFSURIFactory.state_uri(self.uri)
             )
             for state_row in state_document.get():
                 self.emit_payload(StateFrame(State.from_tuple(state_row)))
