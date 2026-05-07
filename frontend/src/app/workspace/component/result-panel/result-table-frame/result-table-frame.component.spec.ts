@@ -37,13 +37,7 @@ describe("ResultTableFrameComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [
-        ResultTableFrameComponent,
-        HttpClientTestingModule,
-        NzModalModule,
-        NzTableModule,
-        NoopAnimationsModule,
-      ],
+      imports: [ResultTableFrameComponent, HttpClientTestingModule, NzModalModule, NzTableModule, NoopAnimationsModule],
       providers: [
         {
           provide: OperatorMetadataService,
