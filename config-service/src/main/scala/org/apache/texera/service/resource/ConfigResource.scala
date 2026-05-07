@@ -23,7 +23,6 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{GET, Path, Produces}
 import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
-import org.apache.texera.dao.SiteSettings
 
 @Path("/config")
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -58,10 +57,7 @@ class ConfigResource {
       ),
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
-      "limitColumns" -> SiteSettings.getInt(
-        "result_table_columns_per_batch",
-        GuiConfig.guiWorkflowWorkspaceLimitColumns
-      ),
+      "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
       // flags from the auth.conf if needed
       "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
     )
