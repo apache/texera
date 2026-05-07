@@ -23,13 +23,15 @@ import { AfterContentInit, Component, Input } from "@angular/core";
 import { OperatorSchema } from "../../../../types/operator-schema.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Point } from "../../../../types/workflow-common.interface";
+import { CdkDropList, CdkDrag, CdkDragPreview } from "@angular/cdk/drag-drop";
+import { NgClass } from "@angular/common";
 
 @UntilDestroy()
 @Component({
   selector: "texera-operator-label",
   templateUrl: "operator-label.component.html",
   styleUrls: ["operator-label.component.scss"],
-  standalone: false,
+  imports: [CdkDropList, CdkDrag, NgClass, CdkDragPreview],
 })
 export class OperatorLabelComponent implements AfterContentInit {
   @Input() operator?: OperatorSchema;

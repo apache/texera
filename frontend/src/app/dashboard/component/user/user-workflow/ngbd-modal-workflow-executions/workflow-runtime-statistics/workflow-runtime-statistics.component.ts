@@ -22,6 +22,8 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "../../../../../type/workflow-runtime-statistics";
 import * as Plotly from "plotly.js-basic-dist-min";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { NgFor } from "@angular/common";
 
 const NANOSECONDS_TO_SECONDS = 1_000_000_000;
 
@@ -37,7 +39,7 @@ interface ChartData {
   selector: "texera-workflow-runtime-statistics",
   templateUrl: "./workflow-runtime-statistics.component.html",
   styleUrls: ["./workflow-runtime-statistics.component.scss"],
-  standalone: false,
+  imports: [NzTabsComponent, NgFor, NzTabComponent],
 })
 export class WorkflowRuntimeStatisticsComponent implements OnInit {
   readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;

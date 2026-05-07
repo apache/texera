@@ -16,3 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+describe("WorkflowExecutionsService", () => {
+  // This spec was created without test bodies. The placeholder below keeps
+  // Vitest's discovery happy so the file compiles cleanly; real tests for
+  // WorkflowExecutionsService are tracked in #4861.
+  it.todo("add unit tests for WorkflowExecutionsService");
+});

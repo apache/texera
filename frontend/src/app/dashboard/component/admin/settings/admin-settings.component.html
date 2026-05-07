@@ -191,6 +191,15 @@
       </div>
 
       <div class="submenu-item">
+        <span>Compute</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.compute_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
         <span>Quota</span>
         <nz-switch
           class="tab-switch"

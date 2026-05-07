@@ -80,16 +80,16 @@ describe("WorkflowWebsocketService", () => {
     try {
       service.openWebsocket(1, 1, 1);
       const firstStatusSubscription = (service as any).statusUpdateSubscription;
-      expect(firstStatusSubscription.closed).toBeFalse();
+      expect(firstStatusSubscription.closed).toBe(false);
 
       service.openWebsocket(1, 1, 1);
-      expect(firstStatusSubscription.closed).toBeTrue();
+      expect(firstStatusSubscription.closed).toBe(true);
 
       const secondStatusSubscription = (service as any).statusUpdateSubscription;
-      expect(secondStatusSubscription.closed).toBeFalse();
+      expect(secondStatusSubscription.closed).toBe(false);
 
       service.closeWebsocket();
-      expect(secondStatusSubscription.closed).toBeTrue();
+      expect(secondStatusSubscription.closed).toBe(true);
     } finally {
       window.WebSocket = originalWebSocket;
     }

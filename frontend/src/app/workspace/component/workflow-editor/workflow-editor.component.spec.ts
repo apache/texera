@@ -222,7 +222,7 @@ describe("WorkflowEditorComponent", () => {
     it("should try to highlight the operator when user mouse clicks on an operator", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       // install a spy on the highlight operator function and pass the call through
-      spyOn(jointGraphWrapper, "highlightOperators").and.callThrough();
+      vi.spyOn(jointGraphWrapper, "highlightOperators");
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
       // unhighlight the operator in case it's automatically highlighted
@@ -242,7 +242,7 @@ describe("WorkflowEditorComponent", () => {
 
     it("should highlight the commentBox when user clicks on a commentBox", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
+      vi.spyOn(jointGraphWrapper, "highlightCommentBoxes");
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
       const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
@@ -267,7 +267,7 @@ describe("WorkflowEditorComponent", () => {
           },
         ],
       });
-      spyOn(nzModalService, "create").and.returnValue(modalRef);
+      vi.spyOn(nzModalService, "create").mockReturnValue(modalRef);
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
@@ -386,7 +386,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // add a link from scan to sentiment
       workflowActionService.addLink(mockScanSentimentLink);
@@ -399,7 +399,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBe(false);
 
       // should not allow a link from scan 2 to sentiment anymore
       expect(
@@ -409,7 +409,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // should still allow a link from scan to view result
       expect(
@@ -419,7 +419,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // add a link from scan to view result
       workflowActionService.addLink(mockScanResultLink);
@@ -432,7 +432,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBe(false);
 
       // should not allow a link from sentiment to view result anymore
       expect(
@@ -442,7 +442,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
     });
 
     it("should validate operator connections with ports that allow multi-inputs correctly", () => {
@@ -470,7 +470,7 @@ describe("WorkflowEditorComponent", () => {
           mockUnionPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // should allow a link from sentiment to union
       expect(
@@ -480,7 +480,7 @@ describe("WorkflowEditorComponent", () => {
           mockUnionPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // add a link from scan to union
       const mockScanUnionLink: OperatorLink = {
@@ -504,7 +504,7 @@ describe("WorkflowEditorComponent", () => {
           mockUnionPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
     });
 
     it(
@@ -551,8 +551,8 @@ describe("WorkflowEditorComponent", () => {
 
     //   it('should display/hide operator status tooltip when cursor hovers/leaves an operator', () => {
     //     // install a spy on the highlight operator function and pass the call through
-    //     const showTooltipFunctionSpy = spyOn(jointUIService, 'showOperatorStatusToolTip').and.callThrough();
-    //     const hideTooltipFunctionSpy = spyOn(jointUIService, 'hideOperatorStatusToolTip').and.callThrough();
+    //     const showTooltipFunctionSpy = vi.spyOn(jointUIService, 'showOperatorStatusToolTip');
+    //     const hideTooltipFunctionSpy = vi.spyOn(jointUIService, 'hideOperatorStatusToolTip');
 
     //     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     //     // find the joint Cell View object of the operator element
@@ -586,7 +586,7 @@ describe("WorkflowEditorComponent", () => {
 
     //   it('should update operator status tooltip content when workflow-status.service emits processState', () => {
     //     // spy on key function, create simple workflow
-    //     const changeOperatorTooltipInfoSpy = spyOn(jointUIService, 'changeOperatorStatusTooltipInfo').and.callThrough();
+    //     const changeOperatorTooltipInfoSpy = vi.spyOn(jointUIService, 'changeOperatorStatusTooltipInfo');
     //     workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
     //     const tooltipView = component.getJointPaper().findViewByModel(
     //       JointUIService.getOperatorStatusTooltipElementID(mockScanPredicateForStatus.operatorID));
@@ -615,7 +615,7 @@ describe("WorkflowEditorComponent", () => {
 
     //   it('should change operator state when workflow-status.service emits processState', () => {
     //     // spy on key function, create simple workflow
-    //     const changeOperatorStatesSpy = spyOn(jointUIService, 'changeOperatorStates').and.callThrough();
+    //     const changeOperatorStatesSpy = vi.spyOn(jointUIService, 'changeOperatorStates');
     //     workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
     //     const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicateForStatus.operatorID);
 
@@ -902,9 +902,9 @@ describe("WorkflowEditorComponent", () => {
 
     //undo
     it("should undo action when user presses command + Z or control + Z", () => {
-      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(undoRedoService, "canUndo").and.returnValue(true);
-      let undoSpy = spyOn(undoRedoService, "undoAction");
+      vi.spyOn(workflowVersionService, "getDisplayParticularVersionStream").mockReturnValue(of(false));
+      vi.spyOn(undoRedoService, "canUndo").mockReturnValue(true);
+      let undoSpy = vi.spyOn(undoRedoService, "undoAction");
       fixture.detectChanges();
       const commandZEvent = new KeyboardEvent("keydown", { key: "Z", metaKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
@@ -921,9 +921,9 @@ describe("WorkflowEditorComponent", () => {
 
     //redo
     it("should redo action when user presses command/control + Y or command/control + shift + Z", () => {
-      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(undoRedoService, "canRedo").and.returnValue(true);
-      let redoSpy = spyOn(undoRedoService, "redoAction");
+      vi.spyOn(workflowVersionService, "getDisplayParticularVersionStream").mockReturnValue(of(false));
+      vi.spyOn(undoRedoService, "canRedo").mockReturnValue(true);
+      let redoSpy = vi.spyOn(undoRedoService, "redoAction");
       fixture.detectChanges();
       const commandYEvent = new KeyboardEvent("keydown", { key: "y", metaKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();

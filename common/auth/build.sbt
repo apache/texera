@@ -58,5 +58,6 @@ libraryDependencies ++= Seq(
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",                             // for jwt parser
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.0.0",                      // for JwtAuthFilter
   "jakarta.servlet" % "jakarta.servlet-api" % "5.0.0" % "provided",    // for RequestLoggingFilter
-  "org.eclipse.jetty" % "jetty-servlet" % "11.0.24" % "provided"       // for FilterHolder
+  "org.eclipse.jetty" % "jetty-servlet" % "11.0.24" % "provided",      // for FilterHolder
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test
 )

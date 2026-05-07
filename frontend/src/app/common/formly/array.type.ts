@@ -8,7 +8,13 @@
  */
 
 import { Component } from "@angular/core";
-import { FieldArrayType } from "@ngx-formly/core";
+import { FieldArrayType, FormlyModule } from "@ngx-formly/core";
+import { NgFor } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 @Component({
   template: `
@@ -47,6 +53,14 @@ import { FieldArrayType } from "@ngx-formly/core";
         nzType="plus"></span>
     </button>
   `,
-  standalone: false,
+  imports: [
+    NgFor,
+    FormlyModule,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+  ],
 })
 export class ArrayTypeComponent extends FieldArrayType {}

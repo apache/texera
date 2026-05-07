@@ -30,7 +30,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
-import { NzModalService } from "ng-zorro-antd/modal";
+import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -57,6 +57,25 @@ import {
   getJvmMemorySliderConfig,
 } from "../../../common/util/computing-unit.util";
 import { PvePackageResponse, WorkflowPveService } from "../../service/virtual-environment/virtual-environment.service";
+import { NgClass, NgIf, NgFor, DecimalPipe, TitleCasePipe } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzProgressComponent } from "ng-zorro-antd/progress";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { UserAvatarComponent } from "../../../dashboard/component/user/user-avatar/user-avatar.component";
+import { NzBadgeComponent } from "ng-zorro-antd/badge";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { FormsModule } from "@angular/forms";
+import { NzSliderComponent } from "ng-zorro-antd/slider";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
 type PveDraft = {
   name: string;
@@ -73,7 +92,38 @@ type PveDraft = {
   selector: "texera-computing-unit-selection",
   templateUrl: "./computing-unit-selection.component.html",
   styleUrls: ["./computing-unit-selection.component.scss"],
-  standalone: false,
+  imports: [
+    NgClass,
+    NgIf,
+    ɵNzTransitionPatchDirective,
+    NzPopoverDirective,
+    NzProgressComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzDropdownDirective,
+    UserAvatarComponent,
+    NzBadgeComponent,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NgFor,
+    NzMenuItemComponent,
+    NzInputDirective,
+    NzMenuDividerDirective,
+    NzModalComponent,
+    NzSelectComponent,
+    FormsModule,
+    NzOptionComponent,
+    NzSliderComponent,
+    NzAlertComponent,
+    NzModalContentDirective,
+    NzCollapseComponent,
+    NzCollapsePanelComponent,
+    DecimalPipe,
+    TitleCasePipe,
+  ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
   // variables for creating a virtual environment

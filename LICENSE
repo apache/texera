@@ -205,16 +205,15 @@ THIRD-PARTY DEPENDENCIES
 --------------------------------------------------------------------------------
 
 This product bundles source code and assets from third-party projects.
-See licenses/ for the full text of these licenses:
-  - licenses/LICENSE-MIT.txt
 
-MIT License (licenses/LICENSE-MIT.txt)
+MIT License
 --------------------------------------
 
 This product bundles code derived from mbknor-jackson-jsonschema:
   - common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/
   Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
   Source: https://github.com/mbknor/mbknor-jackson-jsonschema
+  License: MIT License (licenses-3rd-party-code/mbknor-jackson-jsonschema.txt)
 
 This product bundles code derived from Google Angular formly examples:
   - frontend/src/app/common/formly/array.type.ts
@@ -223,6 +222,7 @@ This product bundles code derived from Google Angular formly examples:
   - frontend/src/app/common/formly/null.type.ts
   Copyright (c) 2018 Google Inc. All Rights Reserved.
   Source: https://angular.io
+  License: MIT License (licenses-3rd-party-code/angular.md)
 
 This product bundles code derived from TypeFox monaco-languageclient:
   - pyright-language-service/src/main.ts
@@ -230,10 +230,11 @@ This product bundles code derived from TypeFox monaco-languageclient:
   - pyright-language-service/src/server-commons.ts
   Copyright (c) 2024 TypeFox and others.
   Source: https://github.com/TypeFox/monaco-languageclient
+  License: MIT License (licenses-3rd-party-code/monaco-languageclient.txt)
 
 This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-view-result.svg
   - frontend/src/assets/svg/operator-reuse-cache-valid.svg
   - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
   Source: https://www.svgrepo.com
-  License: MIT License
+  License: MIT License (licenses/LICENSE-MIT.txt)
