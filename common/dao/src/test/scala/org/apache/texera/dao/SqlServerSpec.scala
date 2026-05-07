@@ -25,11 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll}
 
-class SqlServerSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterAll
-    with MockTexeraDB {
+class SqlServerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll with MockTexeraDB {
 
   override def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
   override def afterAll(): Unit = shutdownDB()
@@ -101,7 +97,11 @@ class SqlServerSpec
   // DSLContext replacement that MockTexeraDB applies for its own queries.
   // -------------------------------------------------------------------------
 
-  private def buildPool(maxSize: Int = 5, minIdle: Int = 1, poolName: String = "spec-pool"): HikariDataSource = {
+  private def buildPool(
+      maxSize: Int = 5,
+      minIdle: Int = 1,
+      poolName: String = "spec-pool"
+  ): HikariDataSource = {
     // Use the default "postgres" database so no schema setup is needed.
     val jdbcUrl = getDBInstance.getJdbcUrl("postgres", "postgres")
     val cfg = new HikariConfig()
