@@ -226,18 +226,16 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * a process-wide singleton in v10; calling start() twice would throw, so we share
    * a single Promise across every CodeEditorComponent instance.
    */
-  private static ensureVscodeApiStarted(): Promise<void> {
+  private static async ensureVscodeApiStarted(): Promise<void> {
     if (CodeEditorComponent.apiWrapperStarted) {
-      return Promise.resolve();
+      return;
     }
-    if (!CodeEditorComponent.apiWrapperStartPromise) {
+    CodeEditorComponent.apiWrapperStartPromise ??= (async () => {
       const apiConfig: MonacoVscodeApiConfig = {
         $type: "extended",
         viewsConfig: { $type: "EditorService" },
         userConfiguration: {
-          json: JSON.stringify({
-            "workbench.colorTheme": "Default Dark Modern",
-          }),
+          json: JSON.stringify({ "workbench.colorTheme": "Default Dark Modern" }),
         },
         // Wire up the workers monaco-vscode-api spawns at runtime (editor,
         // extension host, textmate). The URL refs live in a sibling file that
@@ -247,31 +245,22 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         // package paths. Webpack 5 handles them correctly.
         monacoWorkerFactory: registerCodingameWorkers,
       };
-      const apiWrapper = new MonacoVscodeApiWrapper(apiConfig);
-      // Start the vscode-api FIRST, then load AND fully activate the default
-      // language extensions before resolving. Each extension's module exports a
-      // `whenReady()` that resolves after its TextMate grammar / configuration
-      // files are registered with the host — without waiting for it, the editor
-      // opens with the language detected as Python but every token rendered as
-      // the default `mtk1` class (no syntax colours).
-      //
-      // Dynamic `import(...)` (rather than top-level `import "@codingame/..."`)
-      // is required because Angular's `@angular/build:application` pipeline
-      // tree-shakes bare side-effect imports out of the dev bundle.
-      CodeEditorComponent.apiWrapperStartPromise = apiWrapper
-        .start()
-        .then(() =>
-          Promise.all([
-            import("@codingame/monaco-vscode-python-default-extension"),
-            import("@codingame/monaco-vscode-java-default-extension"),
-            import("@codingame/monaco-vscode-theme-defaults-default-extension"),
-          ])
-        )
-        .then(extensions => Promise.all(extensions.map(ext => ext.whenReady?.())))
-        .then(() => {
-          CodeEditorComponent.apiWrapperStarted = true;
-        });
-    }
+      await new MonacoVscodeApiWrapper(apiConfig).start();
+
+      // Load AND fully activate the default language extensions. Each module
+      // exports a `whenReady()` that resolves after its TextMate grammar /
+      // configuration files are registered with the host — without waiting,
+      // the editor opens with every token rendered as the default `mtk1`
+      // class (no syntax colours). Dynamic `import(...)` is used so the
+      // Angular build pipeline doesn't tree-shake the side-effect imports.
+      const extensions = await Promise.all([
+        import("@codingame/monaco-vscode-python-default-extension"),
+        import("@codingame/monaco-vscode-java-default-extension"),
+      ]);
+      await Promise.all(extensions.map(ext => ext.whenReady?.()));
+
+      CodeEditorComponent.apiWrapperStarted = true;
+    })();
     return CodeEditorComponent.apiWrapperStartPromise;
   }
 
@@ -389,14 +378,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       },
     };
 
-    from(
-      CodeEditorComponent.ensureVscodeApiStarted().then(() => {
-        this.editorApp = new EditorApp(editorAppConfig);
-        return this.editorApp.start(this.editorElement.nativeElement);
-      })
-    )
-      .pipe(untilDestroyed(this))
-      .subscribe();
+    const startDiffEditor = async () => {
+      await CodeEditorComponent.ensureVscodeApiStarted();
+      this.editorApp = new EditorApp(editorAppConfig);
+      await this.editorApp.start(this.editorElement.nativeElement);
+    };
+    from(startDiffEditor()).pipe(untilDestroyed(this)).subscribe();
   }
 
   private initCodeDebuggerComponent(editor: MonacoEditor) {
