@@ -20,6 +20,7 @@ import pandas
 import pickle
 import pyarrow
 import pytest
+import sys
 import time
 from threading import Thread
 
@@ -48,6 +49,8 @@ from proto.org.apache.texera.amber.core import (
     OpExecInitInfo,
     EmbeddedControlMessageIdentity,
 )
+from core.architecture.managers.pause_manager import PauseType
+from core.util.console_message.timestamp import current_time_in_local_timezone
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlRequest,
     AssignPortRequest,
@@ -65,6 +68,8 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
     WorkerStateResponse,
     EmbeddedControlMessageType,
     EmbeddedControlMessage,
+    ConsoleMessage,
+    ConsoleMessageType,
 )
 from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -1563,3 +1568,55 @@ class TestMainLoop:
             assert output_state["processed_marker"] == "executed"
 
         reraise()
+
+    @pytest.mark.timeout(2)
+    def test_console_message_rpc_fires_before_exception_pause(
+        self, main_loop, monkeypatch
+    ):
+        # Pin the controller-facing contract: when DataProcessor raises
+        # during an executor call, the stack-trace ConsoleMessage must
+        # reach the controller *before* the worker enters EXCEPTION_PAUSE
+        # — otherwise the UI sees a paused worker with no error to show
+        # until the user resumes. The DataProcessor side queues the
+        # message before the switch (covered by
+        # test_data_processor.TestExecutorSession); this test pins the
+        # MainLoop side: post-switch hook flushes RPCs first, pauses last.
+        events = []
+
+        monkeypatch.setattr(
+            main_loop,
+            "_send_console_message",
+            lambda msg: events.append(("rpc", msg)),
+        )
+        monkeypatch.setattr(
+            main_loop.context.pause_manager,
+            "pause",
+            lambda pause_type, change_state=True: events.append(("pause", pause_type)),
+        )
+
+        try:
+            raise RuntimeError("boom-from-executor")
+        except RuntimeError:
+            exc_info = sys.exc_info()
+        main_loop.context.exception_manager.set_exception_info(exc_info)
+        main_loop.context.console_message_manager.put_message(
+            ConsoleMessage(
+                worker_id="dummy_worker_id",
+                timestamp=current_time_in_local_timezone(),
+                msg_type=ConsoleMessageType.ERROR,
+                source="test:_capture_exc_info:0",
+                title="RuntimeError: boom-from-executor",
+                message="RuntimeError: boom-from-executor",
+            )
+        )
+
+        main_loop._post_switch_context_checks()
+
+        kinds = [e[0] for e in events]
+        assert kinds == ["rpc", "pause"], (
+            "console message must reach controller before pause; "
+            f"observed order: {kinds}"
+        )
+        assert events[0][1].msg_type == ConsoleMessageType.ERROR
+        assert "boom-from-executor" in events[0][1].title
+        assert events[1][1] is PauseType.EXCEPTION_PAUSE
