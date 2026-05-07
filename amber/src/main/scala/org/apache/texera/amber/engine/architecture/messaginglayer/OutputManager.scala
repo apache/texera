@@ -267,6 +267,7 @@ class OutputManager(
     this.stateWriterThreads.remove(outputPortId).foreach { writerThread =>
       writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
       writerThread.join()
+      writerThread.getFailure.foreach(throw _)
     }
   }
 
