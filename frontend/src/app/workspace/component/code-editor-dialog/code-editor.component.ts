@@ -42,19 +42,12 @@ import { FormControl } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 import * as monaco from "monaco-editor";
-import {
-  MonacoVscodeApiWrapper,
-  type MonacoVscodeApiConfig,
-  getEnhancedMonacoEnvironment,
-} from "monaco-languageclient/vscodeApiWrapper";
+import { MonacoVscodeApiWrapper, type MonacoVscodeApiConfig } from "monaco-languageclient/vscodeApiWrapper";
 import { LanguageClientWrapper, type LanguageClientConfig } from "monaco-languageclient/lcwrapper";
 import { EditorApp, type EditorAppConfig } from "monaco-languageclient/editorApp";
 import { registerCodingameWorkers } from "./codingame-worker-factory";
-// NOTE: the @codingame/monaco-vscode-*-default-extension packages are imported
-// dynamically inside `ensureVscodeApiStarted` below — see the comment there for
-// why static side-effect imports get tree-shaken in this project's build pipeline.
 import { isDefined } from "../../../common/util/predicate";
-import { filter, switchMap } from "rxjs/operators";
+import { filter } from "rxjs/operators";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./code-debugger.component";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
@@ -134,13 +127,15 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public codeDebuggerComponent!: Type<any> | null;
   public editorToPass!: MonacoEditor;
 
-  private generateLanguageTitle(language: string): string {
-    return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
-  }
+  private static readonly PYTHON_OPERATOR_TYPES: ReadonlySet<string> = new Set([
+    "PythonUDFV2",
+    "PythonUDFSourceV2",
+    "DualInputPortsPythonUDFV2",
+  ]);
 
   setLanguage(newLanguage: string) {
     this.language = newLanguage;
-    this.languageTitle = this.generateLanguageTitle(newLanguage);
+    this.languageTitle = `${newLanguage.charAt(0).toUpperCase()}${newLanguage.slice(1)} UDF`;
   }
 
   constructor(
@@ -153,16 +148,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
-
-    if (
-      operatorType === "PythonUDFV2" ||
-      operatorType === "PythonUDFSourceV2" ||
-      operatorType === "DualInputPortsPythonUDFV2"
-    ) {
-      this.setLanguage("python");
-    } else {
-      this.setLanguage("java");
-    }
+    this.setLanguage(CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType) ? "python" : "java");
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.title = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).customDisplayName;
     this.code = (
@@ -195,19 +181,14 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
     localStorage.setItem(this.currentOperatorId, this.containerElement.nativeElement.style.cssText);
 
-    if (isDefined(this.monacoBinding)) {
-      this.monacoBinding.destroy();
-    }
-
+    this.monacoBinding?.destroy();
     this.languageClientWrapper?.dispose().catch(() => {});
     this.languageClientWrapper = undefined;
     this.editorApp?.dispose().catch(() => {});
     this.editorApp = undefined;
 
-    if (isDefined(this.workflowVersionStreamSubject)) {
-      this.workflowVersionStreamSubject.next();
-      this.workflowVersionStreamSubject.complete();
-    }
+    this.workflowVersionStreamSubject.next();
+    this.workflowVersionStreamSubject.complete();
   }
 
   /**
@@ -215,13 +196,16 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * @param coeditor
    */
   public getCoeditorCursorStyles(coeditor: Coeditor) {
-    const textCSS =
-      "<style>" +
-      `.yRemoteSelection-${coeditor.clientId} { background-color: ${coeditor.color?.replace("0.8", "0.5")}}` +
-      `.yRemoteSelectionHead-${coeditor.clientId}::after { border-color: ${coeditor.color}}` +
-      `.yRemoteSelectionHead-${coeditor.clientId} { border-color: ${coeditor.color}}` +
-      "</style>";
-    return this.sanitizer.bypassSecurityTrustHtml(textCSS);
+    const id = coeditor.clientId;
+    const color = coeditor.color;
+    const selectionBg = color?.replace("0.8", "0.5");
+    return this.sanitizer.bypassSecurityTrustHtml(
+      `<style>` +
+        `.yRemoteSelection-${id} { background-color: ${selectionBg}}` +
+        `.yRemoteSelectionHead-${id}::after { border-color: ${color}}` +
+        `.yRemoteSelectionHead-${id} { border-color: ${color}}` +
+        `</style>`
+    );
   }
 
   private getFileSuffixByLanguage(language: string): string {
@@ -340,7 +324,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     from(startEditor())
       .pipe(
         timeout(LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS),
-        switchMap(editor => of(editor ?? this.editorApp?.getEditor())),
+        // Language-server connection may time out (or fail) — fall back to the editor
+        // that was already mounted before `languageClientWrapper.start()` was awaited.
         catchError(() => of(this.editorApp?.getEditor())),
         filter(isDefined),
         untilDestroyed(this)
@@ -586,21 +571,19 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       return;
     }
 
-    if (this.currentRange && this.currentSuggestion) {
-      const selection = new monaco.Selection(
-        this.currentRange.startLineNumber,
-        this.currentRange.startColumn,
-        this.currentRange.endLineNumber,
-        this.currentRange.endColumn
-      );
+    const selection = new monaco.Selection(
+      this.currentRange.startLineNumber,
+      this.currentRange.startColumn,
+      this.currentRange.endLineNumber,
+      this.currentRange.endColumn
+    );
+    this.insertTypeAnnotations(this.editorApp!.getEditor()!, selection, this.currentSuggestion);
 
-      this.insertTypeAnnotations(this.editorApp!.getEditor()!, selection, this.currentSuggestion);
-
-      // Only for "Add All Type Annotation"
-      if (this.isMultipleVariables && this.userResponseSubject) {
-        this.userResponseSubject.next();
-      }
+    // Only for "Add All Type Annotation"
+    if (this.isMultipleVariables && this.userResponseSubject) {
+      this.userResponseSubject.next();
     }
+
     // close the UI after adding the annotation
     this.showAnnotationSuggestion = false;
   }
