@@ -64,6 +64,16 @@
                   "with": "src/environments/environment.prod.ts"
                 }
               ]
+            },
+            "test": {
+              "tsConfig": "src/tsconfig.test.json",
+              "main": "src/main.test.ts",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/workspace/component/code-editor-dialog/codingame-worker-factory.ts",
+                  "with": "src/app/workspace/component/code-editor-dialog/codingame-worker-factory.stub.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": ""
@@ -80,25 +90,10 @@
             }
           }
         },
-        "build-test": {
-          "builder": "@angular/build:application",
-          "options": {
-            "outputPath": "dist",
-            "browser": "src/main.test.ts",
-            "tsConfig": "src/tsconfig.test.json",
-            "polyfills": ["zone.js"],
-            "fileReplacements": [
-              {
-                "replace": "src/app/workspace/component/code-editor-dialog/codingame-worker-factory.ts",
-                "with": "src/app/workspace/component/code-editor-dialog/codingame-worker-factory.stub.ts"
-              }
-            ]
-          }
-        },
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "buildTarget": "gui:build-test",
+            "buildTarget": "gui:build:test",
             "runner": "vitest",
             "runnerConfig": "vitest.config.ts",
             "tsConfig": "src/tsconfig.spec.json",
