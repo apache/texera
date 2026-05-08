@@ -43,7 +43,7 @@ from core.models.internal_queue import (
 )
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
-from core.util.runnable.runnable import Runnable
+from core.util.runnable import Runnable
 from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.org.apache.texera.amber.engine.common import (
     PythonControlMessage,

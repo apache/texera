@@ -106,6 +106,25 @@ if (docProto && typeof docProto.queryCommandSupported !== "function") {
 }
 
 /**
+ * jsdom doesn't implement `requestIdleCallback` / `cancelIdleCallback`
+ * (a Chrome-only API). Specs that pull in monaco-related modules
+ * crash at construction with `ReferenceError: requestIdleCallback is
+ * not defined`.
+ *
+ * Approximate with `setTimeout` so callbacks still fire. The deadline
+ * argument is a coarse stub — enough for callers that only read
+ * `didTimeout`.
+ */
+const idleGlobal = globalThis as unknown as Record<string, AnyFn | undefined>;
+if (typeof idleGlobal.requestIdleCallback !== "function") {
+  idleGlobal.requestIdleCallback = ((cb: (d: { didTimeout: boolean; timeRemaining: () => number }) => void) =>
+    setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 0)) as AnyFn;
+}
+if (typeof idleGlobal.cancelIdleCallback !== "function") {
+  idleGlobal.cancelIdleCallback = ((id: number) => clearTimeout(id)) as AnyFn;
+}
+
+/**
  * y-websocket schedules a reconnect timer the moment a service that uses
  * collaborative editing is constructed. When that timer fires AFTER vitest
  * has begun tearing down the jsdom window, jsdom's WebSocket implementation
