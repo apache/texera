@@ -30,60 +30,59 @@ import scala.jdk.CollectionConverters._
 class WorkflowToPythonTranslator extends LazyLogging {
 
   def translate(logicalPlan: LogicalPlan): String = {
-    val links = logicalPlan.links
-
     val incoming = mutable.Map[String, ArrayBuffer[String]]()
     val outgoing = mutable.Map[String, ArrayBuffer[String]]()
+
     logicalPlan.operators.foreach { op =>
-      incoming(op.operatorIdentifier.id) = ArrayBuffer.empty
-      outgoing(op.operatorIdentifier.id) = ArrayBuffer.empty
+      val id = op.operatorIdentifier.id
+      incoming(id) = ArrayBuffer.empty
+      outgoing(id) = ArrayBuffer.empty
     }
-    links.foreach { link =>
-      val src = link.fromOpId.id
-      val tgt = link.toOpId.id
-      outgoing(src) += tgt
-      incoming(tgt) += src
+
+    logicalPlan.links.foreach { link =>
+      outgoing(link.fromOpId.id) += link.toOpId.id
+      incoming(link.toOpId.id) += link.fromOpId.id
     }
 
     val outputVar = mutable.Map[String, String]()
     var varCounter = 1
-    val lines = ArrayBuffer[String]()
+    val script = ArrayBuffer[String]()
 
-    lines += "import pandas as pd"
-    lines += "import plotly.express as px"
-    lines += "import plotly.graph_objects as go"
-    lines += "import plotly.io"
-    lines += ""
+    script += "import pandas as pd"
+    script += "import plotly.express as px"
+    script += "import plotly.graph_objects as go"
+    script += "import plotly.io"
+    script += ""
 
     // getTopologicalOpIds() uses jgrapht internally — no need for a custom topo sort
     val topoOrder = logicalPlan.getTopologicalOpIds.asScala.toList
 
     for (opIdentity <- topoOrder) {
-      val op = logicalPlan.getOperator(opIdentity)
       val opId = opIdentity.id
+      val op = logicalPlan.getOperator(opIdentity)
       val displayName = op.operatorInfo.userFriendlyName
       val inVars = incoming(opId).map(outputVar).toList
       val outVar = s"df$varCounter"
       varCounter += 1
       outputVar(opId) = outVar
 
-      lines += s"# [$displayName]"
+      script += s"# [$displayName]"
 
       // Each operator is already the correct concrete subclass (e.g. BarChartOpDesc)
       // because Jackson uses @JsonSubTypes on LogicalOp to deserialize the pojo.
       op match {
         case gen: StandaloneCodeGenerator =>
-          lines += substituteVars(gen.generateStandaloneCode(), inVars, outVar)
+          script += substituteVars(gen.generateStandaloneCode(), inVars, outVar)
 
         case _ =>
           logger.warn(
             s"Operator '$displayName' does not implement StandaloneCodeGenerator. Skipping."
           )
-          lines += s"# TODO: '$displayName' is not yet supported by the translator."
-          lines += s"# $outVar = <output of $displayName>"
+          script += s"# TODO: '$displayName' is not yet supported by the translator."
+          script += s"# $outVar = <output of $displayName>"
       }
 
-      lines += ""
+      script += ""
     }
 
     val leafIds = topoOrder.map(_.id).filter(id => outgoing(id).isEmpty)
@@ -95,17 +94,17 @@ class WorkflowToPythonTranslator extends LazyLogging {
     }
 
     if (dataFrameLeaves.nonEmpty) {
-      lines += "# --- Output ---"
+      script += "# --- Output ---"
       for (opId <- dataFrameLeaves) {
         val varName = outputVar(opId)
         val displayName = logicalPlan.getOperator(opId).operatorInfo.userFriendlyName
-        lines += s"""print("\\n[$displayName] $varName:")"""
-        lines += s"print($varName.head())"
-        lines += ""
+        script += s"""print("\\n[$displayName] $varName:")"""
+        script += s"print($varName.head())"
+        script += ""
       }
     }
 
-    lines.mkString("\n")
+    script.mkString("\n")
   }
 
   // Replaces in1df/out1df placeholders with concrete variable names.
