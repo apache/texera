@@ -14,9 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# JVM options for sbt's launcher script. Read by `sbt` from the build
-# root and applied to sbt's own JVM (which also runs the tests when
-# Test / fork := false, the default for this project).
+# Single source of truth for JDK 17+ JVM flags. Consumed by:
+#   - sbt's launcher (own JVM, reads .jvmopts directly)
+#   - project/JdkOptions.scala -> Test / javaOptions (forked test JVMs,
+#     including sbt-jacoco's instrumented forks)
+#   - project/JdkOptions.scala -> Universal / javaOptions (bin/<svc>
+#     launchers in sbt-native-packager dists)
+#   - .run/*.xml (IntelliJ): VM_PARAMETERS = @$PROJECT_DIR$/.jvmopts
+#
+# Comment lines must use "# " (hash-space) so the JDK argfile parser
+# treats them as comments — see `man java`, "Argument Files".
 #
 # JDK 17+ --add-opens flags required by:
 #   - Apache Pekko (dispatcher / mailbox / scheduler use sun.misc.Unsafe
@@ -27,8 +34,11 @@
 #     https://arrow.apache.org/java/main/install.html
 #   - Ehcache SizeOf reflection used by Tuple.inMemSize (java.lang +
 #     java.util). Refs discussion #4001.
+#   - Pekko serializer reflecting on java.lang.invoke.SerializedLambda
+#     when serializing closures across the cluster.
 --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
 --add-opens=java.base/java.lang=ALL-UNNAMED
+--add-opens=java.base/java.lang.invoke=ALL-UNNAMED
 --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
 --add-opens=java.base/java.nio=ALL-UNNAMED
 --add-opens=java.base/java.util=ALL-UNNAMED
