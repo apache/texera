@@ -117,12 +117,16 @@ object PveManager {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
     // NOTE: These paths are derived from computing-unit-master.dockerfile.
-    // If requirements.txt location changes, update these paths.
+    // If requirements.txt or operator-requirements.txt locations change, update these paths.
     val requirementsPath =
       if (isLocal) Paths.get("amber", "requirements.txt")
       else Paths.get("/tmp", "requirements.txt")
 
-    if (!Files.exists(requirementsPath)) {
+    val operatorRequirementsPath =
+      if (isLocal) Paths.get("amber", "operator-requirements.txt")
+      else Paths.get("/tmp", "operator-requirements.txt")
+
+    if (!Files.exists(requirementsPath) || !Files.exists(operatorRequirementsPath)) {
       queue.put(s"[PVE][ERR] System requirements not found")
       return
     }
@@ -156,7 +160,9 @@ object PveManager {
       python,
       Seq(
         "-r",
-        requirementsPath.toString
+        requirementsPath.toString,
+        "-r",
+        operatorRequirementsPath.toString
       ),
       queue
     )
