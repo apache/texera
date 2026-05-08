@@ -19,7 +19,7 @@ import threading
 
 import pytest
 
-from core.util.thread.atomic import AtomicInteger
+from core.util.atomic import AtomicInteger
 
 
 class TestAtomicIntegerSingleThreaded:

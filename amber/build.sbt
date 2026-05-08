@@ -56,10 +56,10 @@ Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "
 
 // `amber/src/test/integration` holds Scala specs that exercise both
 // Scala and Python end-to-end (tagged @org.apache.texera.amber.tags.IntegrationTest).
-// Sits next to `src/test/scala` and `src/test/java`; a future `src/test/python`
-// can drop in the same way. Adding it to Test/unmanagedSourceDirectories means
-// scalafmtCheckAll / scalafixAll --check naturally cover these sources, and
-// the AMBER_TEST_FILTER env var below routes which tagged subset runs.
+// Sits next to `src/test/scala`, `src/test/java`, and `src/test/python`.
+// Adding it to Test/unmanagedSourceDirectories means scalafmtCheckAll /
+// scalafixAll --check naturally cover these sources, and the
+// AMBER_TEST_FILTER env var below routes which tagged subset runs.
 Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "integration"
 
 // Test-filter switch driven by the AMBER_TEST_FILTER env var so the
@@ -224,7 +224,7 @@ libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.4.13"
 libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.6"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
-libraryDependencies += "org.postgresql" % "postgresql" % "42.5.4"
+libraryDependencies += "org.postgresql" % "postgresql" % "42.7.10"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"

@@ -529,7 +529,7 @@ Scala/Java jars:
   - com.github.luben.zstd-jni-1.5.0-1.jar
   - dnsjava.dnsjava-2.1.7.jar
   - org.codehaus.woodstox.stax2-api-4.2.1.jar
-  - org.postgresql.postgresql-42.7.4.jar
+  - org.postgresql.postgresql-42.7.10.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Public License, Version 2.0 (some are dual

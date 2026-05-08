@@ -359,7 +359,7 @@ Dependencies under the MIT-CMU License
 --------------------------------------------------------------------------------
 
 Python packages:
-  - pillow==12.1.1
+  - pillow==12.2.0
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern
