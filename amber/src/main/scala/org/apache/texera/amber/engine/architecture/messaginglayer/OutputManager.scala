@@ -33,7 +33,7 @@ import org.apache.texera.amber.engine.architecture.messaginglayer.OutputManager.
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.texera.amber.engine.architecture.worker.managers.{
-  OutputPortResultWriterThread,
+  OutputPortStorageWriterThread,
   PortStorageWriterTerminateSignal
 }
 import org.apache.texera.amber.engine.common.AmberLogging
@@ -121,10 +121,10 @@ class OutputManager(
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
   private val outputPortResultWriterThreads
-      : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
+      : mutable.HashMap[PortIdentity, OutputPortStorageWriterThread] =
     mutable.HashMap()
 
-  private val stateWriterThreads: mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
+  private val stateWriterThreads: mutable.HashMap[PortIdentity, OutputPortStorageWriterThread] =
     mutable.HashMap()
 
   /**
@@ -308,7 +308,7 @@ class OutputManager(
       ._1
       .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
       .asInstanceOf[BufferedItemWriter[Tuple]]
-    val writerThread = new OutputPortResultWriterThread(bufferedItemWriter)
+    val writerThread = new OutputPortStorageWriterThread(bufferedItemWriter)
     this.outputPortResultWriterThreads(portId) = writerThread
     writerThread.start()
 
@@ -319,7 +319,7 @@ class OutputManager(
       ._1
       .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
       .asInstanceOf[BufferedItemWriter[Tuple]]
-    val stateWriterThread = new OutputPortResultWriterThread(stateWriter)
+    val stateWriterThread = new OutputPortStorageWriterThread(stateWriter)
     this.stateWriterThreads(portId) = stateWriterThread
     stateWriterThread.start()
   }

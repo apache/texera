@@ -29,7 +29,7 @@ import scala.util.control.NonFatal
 sealed trait TerminateSignal
 case object PortStorageWriterTerminateSignal extends TerminateSignal
 
-class OutputPortResultWriterThread(
+class OutputPortStorageWriterThread(
     bufferedItemWriter: BufferedItemWriter[Tuple]
 ) extends Thread {
 

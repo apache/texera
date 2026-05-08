@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend-mlc-v10",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [".claude/run-preview-worktree.js"],
+      "port": 4321
+    }
+  ]
+}

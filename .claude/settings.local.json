@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match \"youthful-ride|zealous-knuth\" -or $_.ExecutablePath -match \"youthful-ride|zealous-knuth\" } | Select-Object ProcessId, Name, CommandLine | Format-List)",
+      "PowerShell(Get-Process node,claude -ErrorAction SilentlyContinue)",
+      "mcp__Claude_Preview__preview_start",
+      "Read(//c/Users/linxi/IdeaProjects/texera-worktrees/chore-monaco-lsp-v10/frontend/**)",
+      "Bash(yarn ng *)",
+      "Bash(gh api *)",
+      "Bash(rm -f .claude/tmp_issue_body.md)",
+      "Bash(curl -sf http://localhost:4321 -o /dev/null)",
+      "Bash(curl -sf http://localhost:4321/main.js -o /dev/null)",
+      "Bash(curl -sf http://localhost:4321/ -o /dev/null)",
+      "Bash(curl -sfo /dev/null http://localhost:4321/main.js)",
+      "Bash(curl -sfo /dev/null http://localhost:4321/)"
+    ]
+  }
+}
