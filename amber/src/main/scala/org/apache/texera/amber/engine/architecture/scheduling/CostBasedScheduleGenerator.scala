@@ -237,7 +237,7 @@ class CostBasedScheduleGenerator(
                     s"the outout port $globalOutputPortId has not been assigned a URI yet."
                 )
               )
-              .storageURI
+              .storageURIBase
 
             // Group all available URIs of this input port together
             acc.updated(

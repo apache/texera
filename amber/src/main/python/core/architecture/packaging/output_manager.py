@@ -112,28 +112,29 @@ class OutputManager:
         self,
         port_id: PortIdentity,
         schema: Schema,
-        storage_uri: typing.Optional[str] = None,
+        storage_uri_base: typing.Optional[str] = None,
     ) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
             port_id.internal = False
 
-        if storage_uri is not None:
-            self.set_up_port_storage_writer(port_id, storage_uri)
+        if storage_uri_base is not None:
+            self.set_up_port_storage_writer(port_id, storage_uri_base)
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
 
-    def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri: str):
+    def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri_base: str):
         """
         Create a separate thread for saving output tuples of a port
         to storage in batch, and open a long-lived buffered writer for
-        state materialization on the same port.
+        state materialization on the same port. `storage_uri_base` is the
+        port's base URI; the result and state URIs are derived from it.
         """
         document, _ = DocumentFactory.open_document(
-            VFSURIFactory.result_uri(storage_uri)
+            VFSURIFactory.result_uri(storage_uri_base)
         )
         buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
         writer_queue = Queue()
@@ -153,7 +154,7 @@ class OutputManager:
         )
 
         state_document, _ = DocumentFactory.open_document(
-            VFSURIFactory.state_uri(storage_uri)
+            VFSURIFactory.state_uri(storage_uri_base)
         )
         state_buffered_item_writer = state_document.writer(
             str(get_worker_index(self.worker_id))

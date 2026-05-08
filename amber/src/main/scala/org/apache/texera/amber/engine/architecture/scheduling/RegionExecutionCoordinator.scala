@@ -466,7 +466,7 @@ class RegionExecutionCoordinator(
                               opId = physicalOp.id,
                               portId = outputPortId
                             ) =>
-                          cfg.storageURI.toString
+                          cfg.storageURIBase.toString
                       }
                       .getOrElse("")
                     Some(
@@ -569,7 +569,7 @@ class RegionExecutionCoordinator(
   ): Unit = {
     portConfigs.foreach {
       case (outputPortId, portConfig) =>
-        val portBaseURI = portConfig.storageURI
+        val portBaseURI = portConfig.storageURIBase
         val resultURI = VFSURIFactory.resultURI(portBaseURI)
         val stateURI = VFSURIFactory.stateURI(portBaseURI)
         val schemaOptional =

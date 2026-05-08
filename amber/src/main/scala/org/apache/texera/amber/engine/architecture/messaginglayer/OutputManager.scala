@@ -197,17 +197,17 @@ class OutputManager(
     saveStateToStorageIfNeeded(state)
   }
 
-  def addPort(portId: PortIdentity, schema: Schema, storageURIOption: Option[URI]): Unit = {
+  def addPort(portId: PortIdentity, schema: Schema, storageURIBaseOption: Option[URI]): Unit = {
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
       return
     }
     this.ports(portId) = WorkerPort(schema)
 
-    // if a storage URI is provided, set up a storage writer thread
-    storageURIOption match {
-      case Some(storageUri) => setupOutputStorageWriterThread(portId, storageUri)
-      case None             => // No need to add a writer
+    // if a storage URI base is provided, set up storage writer threads
+    storageURIBaseOption match {
+      case Some(portBaseURI) => setupOutputStorageWriterThread(portId, portBaseURI)
+      case None              => // No need to add a writer
     }
   }
 
