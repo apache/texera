@@ -20,39 +20,30 @@
 package org.apache.texera.amber.translator
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.compiler.model.LogicalPlanPojo
+import org.apache.texera.amber.compiler.model.LogicalPlan
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
 
 class WorkflowToPythonTranslator extends LazyLogging {
 
-  def translate(pojo: LogicalPlanPojo): String = {
-    // TODO: filter disabled operators
-    val activeOperators = pojo.operators
-    val links = pojo.links
-
-    val opIds = activeOperators.map(_.operatorIdentifier.id)
+  def translate(logicalPlan: LogicalPlan): String = {
+    val links = logicalPlan.links
 
     val incoming = mutable.Map[String, ArrayBuffer[String]]()
     val outgoing = mutable.Map[String, ArrayBuffer[String]]()
-    opIds.foreach { id =>
-      incoming(id) = ArrayBuffer.empty
-      outgoing(id) = ArrayBuffer.empty
+    logicalPlan.operators.foreach { op =>
+      incoming(op.operatorIdentifier.id) = ArrayBuffer.empty
+      outgoing(op.operatorIdentifier.id) = ArrayBuffer.empty
     }
     links.foreach { link =>
       val src = link.fromOpId.id
       val tgt = link.toOpId.id
-      // only wire links between active operators
-      if (incoming.contains(src) && outgoing.contains(tgt)) {
-        outgoing(src) += tgt
-        incoming(tgt) += src
-      }
+      outgoing(src) += tgt
+      incoming(tgt) += src
     }
-
-    val opById = activeOperators.map(op => op.operatorIdentifier.id -> op).toMap
-    val order = topoSort(opIds, outgoing)
 
     val outputVar = mutable.Map[String, String]()
     var varCounter = 1
@@ -64,8 +55,12 @@ class WorkflowToPythonTranslator extends LazyLogging {
     lines += "import plotly.io"
     lines += ""
 
-    for (opId <- order) {
-      val op = opById(opId)
+    // getTopologicalOpIds() uses jgrapht internally — no need for a custom topo sort
+    val topoOrder = logicalPlan.getTopologicalOpIds.asScala.toList
+
+    for (opIdentity <- topoOrder) {
+      val op = logicalPlan.getOperator(opIdentity)
+      val opId = opIdentity.id
       val displayName = op.operatorInfo.userFriendlyName
       val inVars = incoming(opId).map(outputVar).toList
       val outVar = s"df$varCounter"
@@ -91,9 +86,9 @@ class WorkflowToPythonTranslator extends LazyLogging {
       lines += ""
     }
 
-    val leafIds = order.filter(id => outgoing(id).isEmpty)
+    val leafIds = topoOrder.map(_.id).filter(id => outgoing(id).isEmpty)
     val dataFrameLeaves = leafIds.filter { id =>
-      opById(id) match {
+      logicalPlan.getOperator(id) match {
         case gen: StandaloneCodeGenerator => gen.producesDataFrame()
         case _                            => false
       }
@@ -103,7 +98,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
       lines += "# --- Output ---"
       for (opId <- dataFrameLeaves) {
         val varName = outputVar(opId)
-        val displayName = opById(opId).operatorInfo.userFriendlyName
+        val displayName = logicalPlan.getOperator(opId).operatorInfo.userFriendlyName
         lines += s"""print("\\n[$displayName] $varName:")"""
         lines += s"print($varName.head())"
         lines += ""
@@ -111,35 +106,6 @@ class WorkflowToPythonTranslator extends LazyLogging {
     }
 
     lines.mkString("\n")
-  }
-
-  private def topoSort(
-      opIds: List[String],
-      outgoing: mutable.Map[String, ArrayBuffer[String]]
-  ): List[String] = {
-    val inDegree = mutable.Map[String, Int]()
-    opIds.foreach(id => inDegree(id) = 0)
-    opIds.foreach(id => outgoing(id).foreach(tgt => inDegree(tgt) += 1))
-
-    val queue = mutable.Queue[String]()
-    opIds.filter(id => inDegree(id) == 0).foreach(queue.enqueue)
-
-    val order = ArrayBuffer[String]()
-    while (queue.nonEmpty) {
-      val curr = queue.dequeue()
-      order += curr
-      outgoing(curr).foreach { next =>
-        inDegree(next) -= 1
-        if (inDegree(next) == 0) queue.enqueue(next)
-      }
-    }
-
-    if (order.length != opIds.length)
-      throw new IllegalArgumentException(
-        "Workflow contains a cycle or disconnected operators."
-      )
-
-    order.toList
   }
 
   // Replaces in1df/out1df placeholders with concrete variable names.
