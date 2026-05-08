@@ -52,7 +52,7 @@
     "html2canvas": "1.4.1",
     "jointjs": "3.5.4",
     "jszip": "3.10.1",
-    "lodash-es": "4.17.21",
+    "lodash-es": "4.18.1",
     "marked": "17.0.1",
     "monaco-breakpoints": "0.2.0",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
@@ -86,7 +86,7 @@
   "resolutions": {
     "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
-    "webpack": "5.89.0",
+    "webpack": "5.104.1",
     "jschardet": "portal:./tools/jschardet-stub"
   },
   "devDependencies": {
@@ -134,11 +134,9 @@
     "prettier-eslint-cli": "8.0.1",
     "rxjs-marbles": "7.0.1",
     "sass": "1.71.1",
-    "style-loader": "3.3.4",
     "ts-proto": "2.2.0",
     "typescript": "5.9.3",
     "vitest": "4.0.8",
-    "webpack": "5.89.0",
     "webpack-bundle-analyzer": "4.5.0"
   },
   "browserslist": [
