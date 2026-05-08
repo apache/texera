@@ -5908,13 +5908,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/content-disposition@npm:0":
-  version: 0.5.9
-  resolution: "@types/content-disposition@npm:0.5.9"
-  checksum: 10c0/9fd520dae1a9c7b85909e59f548f905a670a6e2f83642f9734d1b05126f64ac8c8e2c282a663edf27d58bc34fbbacf46a4d4a95d3802b42106174a19a68175c8
-  languageName: node
-  linkType: hard
-
 "@types/d3-path@npm:^2":
   version: 2.0.4
   resolution: "@types/d3-path@npm:2.0.4"
@@ -8447,19 +8440,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"content-disposition@npm:0.5.4, content-disposition@npm:~0.5.4":
+"content-disposition@npm:^1.0.0":
+  version: 1.1.0
+  resolution: "content-disposition@npm:1.1.0"
+  checksum: 10c0/94e0aef65873e69330f5f187fbc44ebce593bdcb8013dd8a68b7d0f159ca089bd30db3f8095d829f81c341695b60a6085ee6e15e6d775c4a325b586cc8d91974
+  languageName: node
+  linkType: hard
+
+"content-disposition@npm:~0.5.4":
   version: 0.5.4
   resolution: "content-disposition@npm:0.5.4"
   dependencies:
     safe-buffer: "npm:5.2.1"
   checksum: 10c0/bac0316ebfeacb8f381b38285dc691c9939bf0a78b0b7c2d5758acadad242d04783cee5337ba7d12a565a19075af1b3c11c728e1e4946de73c6ff7ce45f3f1bb
-  languageName: node
-  linkType: hard
-
-"content-disposition@npm:^1.0.0":
-  version: 1.1.0
-  resolution: "content-disposition@npm:1.1.0"
-  checksum: 10c0/94e0aef65873e69330f5f187fbc44ebce593bdcb8013dd8a68b7d0f159ca089bd30db3f8095d829f81c341695b60a6085ee6e15e6d775c4a325b586cc8d91974
   languageName: node
   linkType: hard
 
@@ -10865,7 +10858,6 @@ __metadata:
     "@schematics/angular": "npm:21.2.8"
     "@types/backbone": "npm:1.4.15"
     "@types/concaveman": "npm:1.1.6"
-    "@types/content-disposition": "npm:0"
     "@types/d3-shape": "npm:2.1.2"
     "@types/dagre": "npm:0.7.47"
     "@types/file-saver": "npm:2.0.5"
@@ -10887,7 +10879,6 @@ __metadata:
     ajv: "npm:8.10.0"
     concaveman: "npm:2.0.0"
     concurrently: "npm:7.4.0"
-    content-disposition: "npm:0.5.4"
     d3-shape: "npm:2.1.0"
     dagre: "npm:0.8.5"
     eslint: "npm:8.57.0"
