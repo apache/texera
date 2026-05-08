@@ -83,7 +83,7 @@ class InputPortMaterializationReaderThread(
   def finished: Boolean = isFinished.get()
 
   /**
-    * Read from the materialization stoage, and mimcs the behavior of an upstream worker's output manager.
+    * Read from the materialization storage, and mimics the behavior of an upstream worker's output manager.
     *
     * States and tuples are persisted to separate tables, so the original
     * interleaving is lost and replay has to pick an order: we replay states
