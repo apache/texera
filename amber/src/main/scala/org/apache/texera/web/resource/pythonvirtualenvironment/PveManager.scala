@@ -153,7 +153,7 @@ object PveManager {
     }
 
     queue.put(
-      s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath}"
+      s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath} and operator requirements from ${operatorRequirementsPath.toAbsolutePath}"
     )
 
     val installReqCode = runPipInstall(
