@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
@@ -332,6 +333,44 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
+  }
+
+  "RegionPlanGenerator" should "generate a runnable schedule for csv->difference with both ports from same csv" in {
+    val csv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val diff = new DifferenceOpDesc()
+    val workflow = buildWorkflow(
+      List(csv, diff),
+      List(
+        LogicalLink(
+          csv.operatorIdentifier,
+          PortIdentity(),
+          diff.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          csv.operatorIdentifier,
+          PortIdentity(),
+          diff.operatorIdentifier,
+          PortIdentity(1)
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan
+    ).generate()
+
+    val levels = schedule.levelSets
+    // Self-link to both ports must be broken into multiple region levels via materialization,
+    // otherwise the upstream csv blocks waiting on the dependent right port and execution deadlocks.
+    assert(
+      levels.size > 1,
+      s"expected multiple region levels (csv + materialized read), got ${levels.size} levels"
+    )
+    val regionList = levels.values.flatten.toList
+    assert(regionList.nonEmpty, "scheduler must produce at least one region")
   }
 
 }

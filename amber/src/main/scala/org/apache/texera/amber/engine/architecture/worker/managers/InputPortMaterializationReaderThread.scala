@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   ChannelIdentity,
   EmbeddedControlMessageIdentity
 }
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.messaginglayer.OutputManager.toPartitioner
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
   NO_ALIGNMENT,
@@ -55,6 +56,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class InputPortMaterializationReaderThread(
     uri: URI,
+    portId: PortIdentity,
     inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement],
     workerActorId: ActorVirtualIdentity,
     partitioning: Partitioning
@@ -65,7 +67,7 @@ class InputPortMaterializationReaderThread(
   private lazy val channelId = {
     // A unique channel between this thread (dummy actor) and the worker actor.
     val fromActorId: ActorVirtualIdentity =
-      getFromActorIdForInputPortStorage(uri.toString, workerActorId)
+      getFromActorIdForInputPortStorage(uri.toString, portId, workerActorId)
     ChannelIdentity(fromActorId, workerActorId, isControl = false)
   }
   private val partitioner = toPartitioner(partitioning, workerActorId)

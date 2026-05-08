@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -152,12 +153,29 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
 
   // ----- getFromActorIdForInputPortStorage -----
 
-  "getFromActorIdForInputPortStorage" should "prefix MATERIALIZATION_READER_ to the storage URI plus actor name" in {
+  "getFromActorIdForInputPortStorage" should "prefix MATERIALIZATION_READER_ and include the destination port id" in {
     val toWorker = ActorVirtualIdentity("Worker:WF1-myOp-main-0")
     val virtualReader = VirtualIdentityUtils.getFromActorIdForInputPortStorage(
       "iceberg:/warehouse/x",
+      PortIdentity(0),
       toWorker
     )
-    virtualReader.name shouldBe "MATERIALIZATION_READER_iceberg:/warehouse/xWorker:WF1-myOp-main-0"
+    virtualReader.name shouldBe
+      "MATERIALIZATION_READER_iceberg:/warehouse/x_port0_Worker:WF1-myOp-main-0"
+  }
+
+  it should "produce distinct ids for the same uri+worker but different port ids" in {
+    val toWorker = ActorVirtualIdentity("Worker:WF1-myOp-main-0")
+    val left = VirtualIdentityUtils.getFromActorIdForInputPortStorage(
+      "iceberg:/warehouse/x",
+      PortIdentity(0),
+      toWorker
+    )
+    val right = VirtualIdentityUtils.getFromActorIdForInputPortStorage(
+      "iceberg:/warehouse/x",
+      PortIdentity(1),
+      toWorker
+    )
+    left should not be right
   }
 }

@@ -78,6 +78,7 @@ class InputManager(
       case (uri, partitioning) =>
         new InputPortMaterializationReaderThread(
           uri = uri,
+          portId = portId,
           inputMessageQueue = this.inputMessageQueue,
           workerActorId = this.actorId,
           partitioning = partitioning

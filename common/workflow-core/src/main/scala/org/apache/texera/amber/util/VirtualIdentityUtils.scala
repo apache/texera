@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
+import org.apache.texera.amber.core.workflow.PortIdentity
 
 import scala.util.matching.Regex
 
@@ -95,14 +96,26 @@ object VirtualIdentityUtils {
   /**
     * An input port materialization reader thread mimics the behavior of an upstream worker.
     * Each thread has a virtual actor id. This method creates such a virtual actor id.
-    * @param storageURIStr The materialization location to read from.
+    *
+    * The destination port id is part of the identity so that when one upstream URI feeds
+    * multiple input ports of the same downstream worker (e.g. a single source connected to
+    * both inputs of Difference), each (uri, port, worker) triple still produces a distinct
+    * channel, preventing FIFO sequence collisions and end-of-channel markers from being
+    * routed to the wrong port.
+    *
+    * @param storageURIStr   The materialization location to read from.
+    * @param toPortId        The downstream input port the reader feeds.
     * @param toWorkerActorId The worker actor that the thread belongs to.
-    * @return
     */
   def getFromActorIdForInputPortStorage(
       storageURIStr: String,
+      toPortId: PortIdentity,
       toWorkerActorId: ActorVirtualIdentity
   ): ActorVirtualIdentity = {
-    ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storageURIStr + toWorkerActorId.name)
+    ActorVirtualIdentity(
+      MATERIALIZATION_READER_ACTOR_PREFIX + storageURIStr +
+        s"_port${toPortId.id}${if (toPortId.internal) "i" else ""}_" +
+        toWorkerActorId.name
+    )
   }
 }
