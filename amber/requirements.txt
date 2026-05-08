@@ -48,3 +48,4 @@ tenacity==8.5.0
 SQLAlchemy==2.0.37
 pg8000==1.31.5
 pympler==1.1
+boto3==1.40.53

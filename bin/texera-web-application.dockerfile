@@ -101,6 +101,12 @@ COPY --from=build /texera/amber/LICENSE-binary-combined /texera/LICENSE
 COPY --from=build /texera/amber/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
+
+RUN groupadd --system --gid 1001 texera \
+ && useradd --system --uid 1001 --gid texera --home-dir /texera --no-create-home texera \
+ && chown -R texera:texera /texera /frontend
+USER texera
+
 CMD ["bin/texera-web-application"]
 
 EXPOSE 8080

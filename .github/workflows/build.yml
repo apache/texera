@@ -304,10 +304,17 @@ jobs:
         # The integration tests spawn Python UDF workers; install
         # everything they need on the host. uv for speed; no licensing
         # concerns because no dist is built here.
+        # --index-strategy unsafe-best-match makes uv consider every
+        # version on every index (pip's default) rather than stopping at
+        # the first index that lists a package. operator-requirements.txt
+        # adds the pytorch CPU index as an --extra-index-url, which
+        # mirrors a subset of common deps (e.g. pillow); without this
+        # flag a dependabot bump to a version not yet mirrored there
+        # fails to resolve even though PyPI has it.
         run: |
           python -m pip install uv
-          if [ -f amber/requirements.txt ]; then uv pip install --system -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then uv pip install --system -r amber/operator-requirements.txt; fi
+          if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
@@ -489,7 +496,8 @@ jobs:
             install="pip install"
           else
             python -m pip install uv
-            install="uv pip install --system"
+            # See amber-integration job for why --index-strategy is set.
+            install="uv pip install --system --index-strategy unsafe-best-match"
           fi
           if [ -f amber/requirements.txt ]; then $install -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then $install -r amber/operator-requirements.txt; fi
@@ -505,7 +513,7 @@ jobs:
           PGPASSWORD: postgres
       - name: Lint with Ruff
         run: |
-          cd amber/src/main/python && ruff check . && ruff format --check .
+          cd amber && ruff check src/main/python src/test/python && ruff format --check src/main/python src/test/python
       - name: Install dev dependencies
         # Test-only deps live in amber/dev-requirements.txt and are
         # installed after the LICENSE-binary snapshot above so they never
@@ -516,13 +524,13 @@ jobs:
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
       - name: Test with pytest
         run: |
-          cd amber/src/main/python && pytest --cov=. --cov-report=xml -sv
+          cd amber && pytest --cov=src/main/python --cov-report=xml -sv
       - name: Upload python coverage to Codecov
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./amber/src/main/python/coverage.xml
+          files: ./amber/coverage.xml
           flags: python
           fail_ci_if_error: false
 

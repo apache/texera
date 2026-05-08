@@ -60,3 +60,12 @@ coverage:
         # PRs on it: a 100%-patch policy blocks plenty of legitimate
         # refactors / config-only changes that have no tests to add.
         informational: true
+
+comment:
+  # `flag_management.default_rules.carryforward: true` above already
+  # backfills missing flags from main, but Codecov's default still
+  # hides those rows from the PR comment. Show them so a frontend-only
+  # or python-only PR's table lists every flag — fresh-data rows track
+  # the patch and carryforward'd rows render with `<ø>` to make their
+  # unchanged status obvious.
+  show_carryforward_flags: true
