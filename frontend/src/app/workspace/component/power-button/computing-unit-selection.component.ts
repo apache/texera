@@ -974,6 +974,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
   private installUserPackages(index: number): void {
     const env = this.pves[index];
 
+    const missingVersionPackage = env.newPackages?.find(
+      pkg => pkg.name?.trim() && (!pkg.versionOp?.trim() || !pkg.version?.trim())
+    );
+
+    if (missingVersionPackage) {
+      this.notificationService.error("Please specify an operator and version for each package.");
+      return;
+    }
+
     const systemPackageNames = new Set(this.systemPackages.map(pkg => pkg.name.trim().toLowerCase()));
 
     const userPackageNames = new Set(env.userPackages.map(pkg => pkg.name.trim().toLowerCase()));
@@ -987,18 +996,18 @@ export class ComputingUnitSelectionComponent implements OnInit {
           const packageName = pkg.name.trim().toLowerCase();
 
           if (systemPackageNames.has(packageName)) {
-            this.notificationService.error(`Skipped ${pkg.name}: already installed as a system package.`)
+            this.notificationService.error(`Skipped ${pkg.name}: already installed as a system package.`);
             return false;
           }
 
           if (userPackageNames.has(packageName)) {
-            this.notificationService.error(`Skipped ${pkg.name}: already installed in this environment.`)
+            this.notificationService.error(`Skipped ${pkg.name}: already installed in this environment.`);
             return false;
           }
 
           return true;
         })
-        .map(pkg => `${pkg.name.trim()}${pkg.version ? `==${pkg.version.trim()}` : ""}`) ?? [];
+        .map(pkg => `${pkg.name.trim()}${pkg.versionOp}${(pkg.version ?? "").trim()}`) ?? [];
 
     if (skippedMessages.length > 0) {
       this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}` + skippedMessages.join("\n") + "\n";
