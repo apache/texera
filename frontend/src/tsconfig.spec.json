@@ -18,7 +18,6 @@
     "**/app/workspace/component/left-panel/settings/settings.component.spec.ts",
     "**/app/workspace/component/menu/menu.component.spec.ts",
     "**/app/workspace/component/workspace.component.spec.ts",
-    "**/app/workspace/service/preset/preset.service.spec.ts",
 
     // jointjs paper geometry: every test in this suite asserts on
     // graph layout math (positions, link routing, hit testing) that
