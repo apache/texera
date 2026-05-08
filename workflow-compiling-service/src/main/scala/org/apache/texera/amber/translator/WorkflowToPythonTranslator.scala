@@ -68,10 +68,12 @@ class WorkflowToPythonTranslator extends LazyLogging {
 
       script += s"# [$displayName]"
 
-      // Each operator is already the correct concrete subclass (e.g. BarChartOpDesc)
-      // because Jackson uses @JsonSubTypes on LogicalOp to deserialize the pojo.
+      // Jackson deserializes each operator into its concrete subclass via @JsonSubTypes on LogicalOp,
+      // so the pattern match below will resolve to the correct descriptor (e.g. BarChartOpDesc).
       op match {
         case gen: StandaloneCodeGenerator =>
+          // generateStandaloneCode() returns a code block using in1df/out1df as placeholder
+          // variable names, which substituteVars() replaces with the actual assigned variable names.
           script += substituteVars(gen.generateStandaloneCode(), inVars, outVar)
 
         case _ =>
@@ -85,6 +87,8 @@ class WorkflowToPythonTranslator extends LazyLogging {
       script += ""
     }
 
+    // Print leaf operator outputs that produce DataFrames so the script
+    // gives visible output when run locally.
     val leafIds = topoOrder.map(_.id).filter(id => outgoing(id).isEmpty)
     val dataFrameLeaves = leafIds.filter { id =>
       logicalPlan.getOperator(id) match {
@@ -108,7 +112,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
   }
 
   // Replaces in1df/out1df placeholders with concrete variable names.
-  // Reverse index order prevents partial matches (e.g. in1df inside in10df).
+  // Substitutes in reverse index order to prevent partial matches (e.g. in1df inside in10df).
   private def substituteVars(code: String, inVars: List[String], outVar: String): String = {
     var result = code
 
