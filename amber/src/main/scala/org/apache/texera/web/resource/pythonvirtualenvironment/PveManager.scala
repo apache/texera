@@ -117,7 +117,7 @@ object PveManager {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
     // NOTE: These paths are derived from computing-unit-master.dockerfile.
-    // If requirements.txt or operator-requirements.txt locations change, update these paths.
+    // If requirements.txt location changes, update these paths.
     val requirementsPath =
       if (isLocal) Paths.get("amber", "requirements.txt")
       else Paths.get("/tmp", "requirements.txt")
