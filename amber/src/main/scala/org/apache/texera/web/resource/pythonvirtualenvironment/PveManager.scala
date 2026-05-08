@@ -122,11 +122,7 @@ object PveManager {
       if (isLocal) Paths.get("amber", "requirements.txt")
       else Paths.get("/tmp", "requirements.txt")
 
-    val operatorRequirementsPath =
-      if (isLocal) Paths.get("amber", "operator-requirements.txt")
-      else Paths.get("/tmp", "operator-requirements.txt")
-
-    if (!Files.exists(requirementsPath) || !Files.exists(operatorRequirementsPath)) {
+    if (!Files.exists(requirementsPath)) {
       queue.put(s"[PVE][ERR] System requirements not found")
       return
     }
@@ -153,16 +149,14 @@ object PveManager {
     }
 
     queue.put(
-      s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath} and ${operatorRequirementsPath.toAbsolutePath}"
+      s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath}"
     )
 
     val installReqCode = runPipInstall(
       python,
       Seq(
         "-r",
-        requirementsPath.toString,
-        "-r",
-        operatorRequirementsPath.toString
+        requirementsPath.toString
       ),
       queue
     )
