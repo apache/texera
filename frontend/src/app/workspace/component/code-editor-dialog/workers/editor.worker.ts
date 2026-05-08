@@ -17,10 +17,11 @@
  * under the License.
  */
 
-// Test-time replacement for ./codingame-worker-factory.ts (see angular.json
-// `gui:build-test`'s fileReplacements). The real file's `new URL("@codingame/...",
-// import.meta.url)` calls fail to resolve under esbuild — this stub keeps unit
-// tests buildable; tests don't instantiate the editor's Web Workers.
-export function registerCodingameWorkers(): void {
-  // no-op
-}
+// Worker entry — referenced via `new Worker(new URL('./editor.worker', import.meta.url))`
+// from code-editor.component.ts. The relative-path spec is what webpack 5 recognises
+// as a worker entry point (so it bundles the codingame dep tree into a chunk) and
+// what esbuild can resolve against the filesystem during the @angular/build:unit-test
+// spec pre-bundle. Inlining a `new URL("@codingame/...", import.meta.url)` directly in
+// the component would satisfy webpack but trip esbuild, which treats the spec as a
+// literal relative URL.
+import "@codingame/monaco-vscode-editor-api/esm/vs/editor/editor.worker.js";

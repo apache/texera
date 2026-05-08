@@ -8,6 +8,11 @@
   "angularCompilerOptions": {
     "fullTemplateTypeCheck": true
   },
-  "files": ["main.ts"],
+  "files": [
+    "main.ts",
+    "app/workspace/component/code-editor-dialog/workers/editor.worker.ts",
+    "app/workspace/component/code-editor-dialog/workers/extension-host.worker.ts",
+    "app/workspace/component/code-editor-dialog/workers/textmate.worker.ts"
+  ],
   "include": ["**/*.d.ts"]
 }

@@ -42,10 +42,13 @@ import { FormControl } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 import * as monaco from "monaco-editor";
-import { MonacoVscodeApiWrapper, type MonacoVscodeApiConfig } from "monaco-languageclient/vscodeApiWrapper";
+import {
+  MonacoVscodeApiWrapper,
+  type MonacoVscodeApiConfig,
+  getEnhancedMonacoEnvironment,
+} from "monaco-languageclient/vscodeApiWrapper";
 import { LanguageClientWrapper, type LanguageClientConfig } from "monaco-languageclient/lcwrapper";
 import { EditorApp, type EditorAppConfig } from "monaco-languageclient/editorApp";
-import { registerCodingameWorkers } from "./codingame-worker-factory";
 import { isDefined } from "../../../common/util/predicate";
 import { filter } from "rxjs/operators";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
@@ -238,12 +241,32 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           json: JSON.stringify({ "workbench.colorTheme": "Default Dark Modern" }),
         },
         // Wire up the workers monaco-vscode-api spawns at runtime (editor,
-        // extension host, textmate). The URL refs live in a sibling file that
-        // gets fileReplacements'd to a stub for the test pipeline — esbuild
-        // (used by @angular/build:unit-test) resolves `new URL(spec,
-        // import.meta.url)` literally and would otherwise fail on the codingame
-        // package paths. Webpack 5 handles them correctly.
-        monacoWorkerFactory: registerCodingameWorkers,
+        // extension host, textmate). Each `new Worker(new URL(...))` literal
+        // points at a thin trampoline in `./workers/` that just re-imports the
+        // codingame-shipped worker entry. Two reasons for the indirection:
+        //   1. webpack 5 only treats `new Worker(new URL("./relative", import.meta.url))`
+        //      as a worker entry point (so it bundles the dep tree into a chunk);
+        //      `new URL("@codingame/...", import.meta.url)` would just emit a
+        //      static asset whose own relative imports 404 at runtime.
+        //   2. the test pipeline (esbuild via @angular/build:unit-test) resolves
+        //      `new URL(spec, import.meta.url)` literally relative to the source
+        //      file, so the spec needs to point at a real on-disk file. The
+        //      trampolines satisfy both bundlers.
+        monacoWorkerFactory: () => {
+          const env = getEnhancedMonacoEnvironment();
+          env.getWorker = (_workerId: string, label: string): Worker => {
+            switch (label) {
+              case "editorWorkerService":
+                return new Worker(new URL("./workers/editor.worker", import.meta.url), { type: "module" });
+              case "extensionHostWorkerMain":
+                return new Worker(new URL("./workers/extension-host.worker", import.meta.url), { type: "module" });
+              case "TextMateWorker":
+                return new Worker(new URL("./workers/textmate.worker", import.meta.url), { type: "module" });
+              default:
+                throw new Error(`No worker configured for label: ${label}`);
+            }
+          };
+        },
       };
       await new MonacoVscodeApiWrapper(apiConfig).start();
 
