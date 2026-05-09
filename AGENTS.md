@@ -97,7 +97,7 @@ configs read it automatically; for raw `java` launches, pass it as an
 argfile: `java @.jvmopts -jar …`. If a future library version or a new
 code path triggers an `InaccessibleObjectException`, add the open to
 `.jvmopts`. [`project/JdkOptions.scala`](project/JdkOptions.scala)
-propagates it to forked test JVMs, sbt-native-packager dist launchers,
+will propagates the changed options to forked test JVMs, sbt-native-packager dist launchers,
 and IntelliJ.
 
 ### Branch and commit naming
