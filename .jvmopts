@@ -23,7 +23,7 @@
 #   - .run/*.xml (IntelliJ): VM_PARAMETERS = @$PROJECT_DIR$/.jvmopts
 #
 # Comment lines must use "# " (hash-space) so the JDK argfile parser
-# treats them as comments — see `man java`, "Argument Files".
+# treats them as comments. See `man java`, "Argument Files".
 #
 # JDK 17+ --add-opens flags required by:
 #   - Apache Pekko (dispatcher / mailbox / scheduler use sun.misc.Unsafe

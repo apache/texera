@@ -90,13 +90,16 @@ in [`udf.conf`](common/config/src/main/resources/udf.conf) or
 `export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"` (env var overrides).
 Without it, `sbt` Python-integration tests fail to launch a worker.
 
-When running computing-unit master/worker outside their Docker images on
-JDK 17+, also `export JDK_JAVA_OPTIONS="--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED"`.
-Without it, [Apache Arrow Java](https://arrow.apache.org/java/main/install.html)
-(off-heap `java.nio` access) and Ehcache `SizeOf` used by `Tuple.inMemSize`
-(reflective `java.lang`/`java.util` access) hit `InaccessibleObjectException`
-under JDK 17 strong encapsulation
-(refs [discussion #4001](https://github.com/apache/texera/discussions/4001)).
+JDK 17+ requires `--add-opens` flags for several runtime libraries:
+[Apache Arrow Java](https://arrow.apache.org/java/main/install.html)
+(off-heap memory), Ehcache `SizeOf` reflection used by `Tuple.inMemSize`
+(refs [discussion #4001](https://github.com/apache/texera/discussions/4001)),
+and Pekko Kryo serialization. [`.jvmopts`](.jvmopts) is the canonical
+list. sbt and the [`.run/`](.run) configs read it automatically; for
+raw `java` launches, pass it as an argfile: `java @.jvmopts -jar …`.
+Adding a missing open is a one-line edit there;
+[`project/JdkOptions.scala`](project/JdkOptions.scala) wires it through
+to forked test JVMs, dist launchers, and IntelliJ.
 
 ### Branch and commit naming
 

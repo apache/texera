@@ -21,20 +21,18 @@ import sbt._
 import scala.io.Source
 
 /**
- * Single source of truth for JDK 17+ JVM flags. Reads non-comment lines
- * from .jvmopts and exposes them as Seq[String], so the same flag list
- * reaches every JVM the build can launch:
- *   - sbt's own JVM           (sbt launcher reads .jvmopts directly)
- *   - forked test JVMs        (build.sbt -> Test / javaOptions)
- *   - sbt-native-packager     (build.sbt -> Universal / javaOptions, with
- *     bin/<svc> launchers      "-J" prefix per launcher convention)
- *   - IntelliJ Application    (.run/[svc].run.xml carries
- *     run configs               VM_PARAMETERS = @.jvmopts; JDK 9+
- *                               argfile expansion at JVM start)
+ * Reads JDK 17+ JVM flags from .jvmopts so every JVM the build
+ * launches shares one flag list. Consumers:
+ *   - sbt's own JVM (sbt launcher reads .jvmopts directly; no glue)
+ *   - forked test JVMs (build.sbt -> Test / javaOptions)
+ *   - sbt-native-packager bin/<svc> launchers
+ *     (build.sbt -> Universal / javaOptions; "-J" prefix per launcher)
+ *   - IntelliJ Application run configs
+ *     (.run/[svc].run.xml: VM_PARAMETERS = @.jvmopts; JDK 9+ argfile)
  *
- * Modeled after Pekko's project/JdkOptions.scala. The JDK version gate
- * keeps the build self-consistent on JDK 8 (where --add-opens does not
- * exist) even though Texera ships JDK 17 only.
+ * Modeled on Pekko's project/JdkOptions.scala. The JDK 8 gate is
+ * defensive: --add-opens does not exist before JDK 9, so jvmFlags
+ * stays empty there even though Texera ships JDK 17 only.
  */
 object JdkOptions {
 
