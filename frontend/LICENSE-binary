@@ -288,7 +288,7 @@ Angular / npm packages:
   - json-schema-traverse@1.0.0
   - jszip@3.10.1
   - lib0@0.2.117
-  - lodash@4.17.23
+  - lodash@4.18.1
   - lodash-es@4.18.1
   - marked@17.0.1
   - mobx@4.14.1
