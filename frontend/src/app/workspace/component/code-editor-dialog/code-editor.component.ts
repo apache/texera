@@ -585,20 +585,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     if (!this.showAnnotationSuggestion || !this.currentRange || !this.currentSuggestion) {
       return;
     }
-
-    const selection = new monaco.Selection(
-      this.currentRange.startLineNumber,
-      this.currentRange.startColumn,
-      this.currentRange.endLineNumber,
-      this.currentRange.endColumn
-    );
-    this.insertTypeAnnotations(this.editorApp!.getEditor()!, selection, this.currentSuggestion);
-
+    this.insertTypeAnnotations(this.editorApp!.getEditor()!, this.currentRange, this.currentSuggestion);
     // Only for "Add All Type Annotation"
     if (this.isMultipleVariables && this.userResponseSubject) {
       this.userResponseSubject.next();
     }
-
     // close the UI after adding the annotation
     this.showAnnotationSuggestion = false;
   }
@@ -616,12 +607,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  private insertTypeAnnotations(editor: MonacoEditor, selection: monaco.Selection, annotations: string) {
-    const endLineNumber = selection.endLineNumber;
-    const endColumn = selection.endColumn;
-    const insertPosition = new monaco.Position(endLineNumber, endColumn);
-    const insertOffset = editor.getModel()?.getOffsetAt(insertPosition) || 0;
-    this.code?.insert(insertOffset, annotations);
+  private insertTypeAnnotations(editor: MonacoEditor, range: monaco.Range, annotations: string) {
+    const offset = editor.getModel()?.getOffsetAt(new monaco.Position(range.endLineNumber, range.endColumn)) ?? 0;
+    this.code?.insert(offset, annotations);
   }
 
   @HostListener("window:resize")

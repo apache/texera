@@ -28,11 +28,17 @@
 // loader instead of Vite's transform pipeline — without the hook, every spec
 // that transitively loads the codingame v25 stack crashes with
 // `Unknown file extension ".css"`. Inline as a `data:` URL so we don't carry
-// a sidecar `.mjs`. Must run before any spec body imports the affected
-// packages; `module.register` needs Node 20.6+ (project pins Node ≥ 24).
+// a sidecar `.mjs`. Vitest re-evaluates this setup file once per spec file,
+// so we gate the registration with a `globalThis` flag — `module.register`
+// chains every call, and we don't want N hooks doing identical work for N
+// specs. Must run before any spec body imports the affected packages;
+// `module.register` needs Node 20.6+ (project pins Node ≥ 24).
 import { register as registerLoader } from "node:module";
 
-const cssLoaderHookSource = `
+const CSS_HOOK_FLAG = Symbol.for("texera.cssLoaderHookRegistered");
+const flagHolder = globalThis as Record<symbol, boolean | undefined>;
+if (!flagHolder[CSS_HOOK_FLAG]) {
+  const cssLoaderHookSource = `
 export function resolve(specifier, context, nextResolve) {
   if (specifier.endsWith(".css") || /\\.css(\\?|$)/.test(specifier)) {
     return { url: "data:text/javascript,export%20default%20%7B%7D%3B", shortCircuit: true, format: "module" };
@@ -40,7 +46,9 @@ export function resolve(specifier, context, nextResolve) {
   return nextResolve(specifier, context);
 }
 `;
-registerLoader(`data:text/javascript;charset=utf-8,${encodeURIComponent(cssLoaderHookSource)}`);
+  registerLoader(`data:text/javascript;charset=utf-8,${encodeURIComponent(cssLoaderHookSource)}`);
+  flagHolder[CSS_HOOK_FLAG] = true;
+}
 
 type AnyFn = (...args: unknown[]) => unknown;
 // Loose `globalThis` accessor — jsdom installs DOM globals here, but TS's
