@@ -203,11 +203,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     const color = coeditor.color;
     const selectionBg = color?.replace("0.8", "0.5");
     return this.sanitizer.bypassSecurityTrustHtml(
-      `<style>` +
+      "<style>" +
         `.yRemoteSelection-${id} { background-color: ${selectionBg}}` +
         `.yRemoteSelectionHead-${id}::after { border-color: ${color}}` +
         `.yRemoteSelectionHead-${id} { border-color: ${color}}` +
-        `</style>`
+        "</style>"
     );
   }
 
