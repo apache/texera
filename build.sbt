@@ -19,6 +19,11 @@ ThisBuild / organization := "org.apache.texera"
 ThisBuild / version      := "1.1.0-incubating"
 ThisBuild / scalaVersion := "2.13.18"
 
+// Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
+import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
+ThisBuild / Test / javaOptions ++=
+  JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
+
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
 // JacocoPlugin defines a project-scoped default that overrides ThisBuild,
@@ -30,13 +35,18 @@ lazy val coverageReportSettings = Seq(
     .withFormats(JacocoReportFormats.ScalaHTML, JacocoReportFormats.XML)
 )
 
+lazy val universalJvmFlagsSettings = Seq(
+  Universal / javaOptions ++=
+    JdkOptions.jvmFlags((ThisBuild / baseDirectory).value).map("-J" + _)
+)
+
 // Per-module ASF licensing: each jar's META-INF/LICENSE describes only what is in that jar.
 // Modules without vendored code get Apache 2.0 only; workflow-operator includes mbknor attribution.
 // See project/AddMetaInfLicenseFiles.scala.
 // Dist-producing modules additionally override Universal / mappings in their own
 // build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
-lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings
-lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings
+lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
 
 val jacksonVersion = "2.18.6"
 
