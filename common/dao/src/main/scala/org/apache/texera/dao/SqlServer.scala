@@ -88,6 +88,11 @@ object SqlServer {
     instance.get
   }
 
+  def clearInstance(): Unit = {
+    instance.foreach(_.close())
+    instance = None
+  }
+
   /**
     * A utility function for create a transaction block using given sql context
     * @param dsl the sql context
