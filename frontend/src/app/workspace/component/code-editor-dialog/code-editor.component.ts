@@ -33,7 +33,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import type { Text as YText } from "yjs";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { MonacoBinding } from "y-monaco";
-import { catchError, from, of, Subject, take, timeout } from "rxjs";
+import { from, Subject, take } from "rxjs";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
@@ -196,12 +196,25 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   /**
    * Specify the co-editor's cursor style. This step is missing from MonacoBinding.
+   *
+   * `coeditor.clientId` and `coeditor.color` come from yjs awareness state,
+   * which any peer can write to. Both are interpolated into a `<style>` tag
+   * passed through `bypassSecurityTrustHtml`, so anything that escapes the
+   * tag would land in the page as raw HTML. Validate both to a tight
+   * allow-list (digits-only id, hex / `rgb(a)` / `hsl(a)` colour) and bail
+   * out otherwise; nothing else should reach the sanitiser.
    * @param coeditor
    */
   public getCoeditorCursorStyles(coeditor: Coeditor) {
+    if (!CodeEditorComponent.SAFE_CLIENT_ID.test(coeditor.clientId)) {
+      return this.sanitizer.bypassSecurityTrustHtml("");
+    }
+    if (!coeditor.color || !CodeEditorComponent.SAFE_CSS_COLOR.test(coeditor.color)) {
+      return this.sanitizer.bypassSecurityTrustHtml("");
+    }
     const id = coeditor.clientId;
     const color = coeditor.color;
-    const selectionBg = color?.replace("0.8", "0.5");
+    const selectionBg = color.replace("0.8", "0.5");
     return this.sanitizer.bypassSecurityTrustHtml(
       "<style>" +
         `.yRemoteSelection-${id} { background-color: ${selectionBg}}` +
@@ -210,6 +223,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         "</style>"
     );
   }
+
+  // Allow-lists for the two awareness-derived values that flow into a `<style>`
+  // tag in `getCoeditorCursorStyles`. yjs serialises clientIDs as the decimal
+  // form of a 32-bit integer, and the colours we generate elsewhere only use
+  // these notations — anything outside these patterns is rejected.
+  private static readonly SAFE_CLIENT_ID = /^\d{1,10}$/;
+  private static readonly SAFE_CSS_COLOR = /^(?:#[0-9a-fA-F]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\))$/;
 
   private getFileSuffixByLanguage(language: string): string {
     switch (language.toLowerCase()) {
@@ -234,55 +254,66 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       return;
     }
     CodeEditorComponent.apiWrapperStartPromise ??= (async () => {
-      const apiConfig: MonacoVscodeApiConfig = {
-        $type: "extended",
-        viewsConfig: { $type: "EditorService" },
-        userConfiguration: {
-          json: JSON.stringify({ "workbench.colorTheme": "Default Dark Modern" }),
-        },
-        // Wire up the workers monaco-vscode-api spawns at runtime (editor,
-        // extension host, textmate). Each `new Worker(new URL(...))` literal
-        // points at a thin trampoline in `./workers/` that just re-imports the
-        // codingame-shipped worker entry. Two reasons for the indirection:
-        //   1. webpack 5 only treats `new Worker(new URL("./relative", import.meta.url))`
-        //      as a worker entry point (so it bundles the dep tree into a chunk);
-        //      `new URL("@codingame/...", import.meta.url)` would just emit a
-        //      static asset whose own relative imports 404 at runtime.
-        //   2. the test pipeline (esbuild via @angular/build:unit-test) resolves
-        //      `new URL(spec, import.meta.url)` literally relative to the source
-        //      file, so the spec needs to point at a real on-disk file. The
-        //      trampolines satisfy both bundlers.
-        monacoWorkerFactory: () => {
-          const env = getEnhancedMonacoEnvironment();
-          env.getWorker = (_workerId: string, label: string): Worker => {
-            switch (label) {
-              case "editorWorkerService":
-                return new Worker(new URL("./workers/editor.worker", import.meta.url), { type: "module" });
-              case "extensionHostWorkerMain":
-                return new Worker(new URL("./workers/extension-host.worker", import.meta.url), { type: "module" });
-              case "TextMateWorker":
-                return new Worker(new URL("./workers/textmate.worker", import.meta.url), { type: "module" });
-              default:
-                throw new Error(`No worker configured for label: ${label}`);
-            }
-          };
-        },
-      };
-      await new MonacoVscodeApiWrapper(apiConfig).start();
+      try {
+        const apiConfig: MonacoVscodeApiConfig = {
+          $type: "extended",
+          viewsConfig: { $type: "EditorService" },
+          userConfiguration: {
+            json: JSON.stringify({ "workbench.colorTheme": "Default Dark Modern" }),
+          },
+          // Wire up the workers monaco-vscode-api spawns at runtime (editor,
+          // extension host, textmate). Each `new Worker(new URL(...))` literal
+          // points at a thin trampoline in `./workers/` that just re-imports
+          // the codingame-shipped worker entry. Two reasons for the
+          // indirection:
+          //   1. webpack 5 only treats
+          //      `new Worker(new URL("./relative", import.meta.url))` as a
+          //      worker entry point (so it bundles the dep tree into a chunk);
+          //      `new URL("@codingame/...", import.meta.url)` would just emit
+          //      a static asset whose own relative imports 404 at runtime.
+          //   2. the test pipeline (esbuild via @angular/build:unit-test)
+          //      resolves `new URL(spec, import.meta.url)` literally relative
+          //      to the source file, so the spec needs to point at a real
+          //      on-disk file. The trampolines satisfy both bundlers.
+          monacoWorkerFactory: () => {
+            const env = getEnhancedMonacoEnvironment();
+            env.getWorker = (_workerId: string, label: string): Worker => {
+              switch (label) {
+                case "editorWorkerService":
+                  return new Worker(new URL("./workers/editor.worker", import.meta.url), { type: "module" });
+                case "extensionHostWorkerMain":
+                  return new Worker(new URL("./workers/extension-host.worker", import.meta.url), { type: "module" });
+                case "TextMateWorker":
+                  return new Worker(new URL("./workers/textmate.worker", import.meta.url), { type: "module" });
+                default:
+                  throw new Error(`No worker configured for label: ${label}`);
+              }
+            };
+          },
+        };
+        await new MonacoVscodeApiWrapper(apiConfig).start();
 
-      // Load AND fully activate the default language extensions. Each module
-      // exports a `whenReady()` that resolves after its TextMate grammar /
-      // configuration files are registered with the host — without waiting,
-      // the editor opens with every token rendered as the default `mtk1`
-      // class (no syntax colours). Dynamic `import(...)` is used so the
-      // Angular build pipeline doesn't tree-shake the side-effect imports.
-      const extensions = await Promise.all([
-        import("@codingame/monaco-vscode-python-default-extension"),
-        import("@codingame/monaco-vscode-java-default-extension"),
-      ]);
-      await Promise.all(extensions.map(ext => ext.whenReady?.()));
+        // Load AND fully activate the default language extensions. Each
+        // module exports a `whenReady()` that resolves after its TextMate
+        // grammar / configuration files are registered with the host —
+        // without waiting, the editor opens with every token rendered as
+        // the default `mtk1` class (no syntax colours). Dynamic `import(...)`
+        // is used so the Angular build pipeline doesn't tree-shake the
+        // side-effect imports.
+        const extensions = await Promise.all([
+          import("@codingame/monaco-vscode-python-default-extension"),
+          import("@codingame/monaco-vscode-java-default-extension"),
+        ]);
+        await Promise.all(extensions.map(ext => ext.whenReady?.()));
 
-      CodeEditorComponent.apiWrapperStarted = true;
+        CodeEditorComponent.apiWrapperStarted = true;
+      } catch (err) {
+        // Clear the cached promise so a later editor open can retry; without
+        // this the rejected promise would be returned forever and every
+        // subsequent open would fail with the same error.
+        CodeEditorComponent.apiWrapperStartPromise = undefined;
+        throw err;
+      }
     })();
     return CodeEditorComponent.apiWrapperStartPromise;
   }
@@ -312,36 +343,40 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       this.editorApp = new EditorApp(editorAppConfig);
       await this.editorApp.start(this.editorElement.nativeElement);
 
-      // optionally, configure python language client.
-      // it may fail if no valid connection is established, yet the failure would be ignored.
+      // Configure the python language client as a best-effort step — a
+      // missing or unreachable language server should not block the editor
+      // from being usable. The timeout / catch is scoped tightly around
+      // `languageClientWrapper.start()` so the editor mount above is always
+      // awaited to completion (codingame v25 first-load init can take
+      // multiple seconds and easily exceed the LSP timeout).
       if (this.language === "python") {
         const lcConfig: LanguageClientConfig = {
           languageId: this.language,
           connection: {
-            options: {
-              $type: "WebSocketUrl",
-              url: languageServerWebsocketUrl,
-            },
+            options: { $type: "WebSocketUrl", url: languageServerWebsocketUrl },
           },
-          clientOptions: {
-            documentSelector: [this.language],
-          },
+          clientOptions: { documentSelector: [this.language] },
         };
         this.languageClientWrapper = new LanguageClientWrapper(lcConfig);
-        await this.languageClientWrapper.start();
+        try {
+          await Promise.race([
+            this.languageClientWrapper.start(),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Language server connection timed out")),
+                LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS
+              )
+            ),
+          ]);
+        } catch {
+          // Editor stays usable without the LSP.
+        }
       }
       return this.editorApp.getEditor();
     };
 
     from(startEditor())
-      .pipe(
-        timeout(LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS),
-        // Language-server connection may time out (or fail) — fall back to the editor
-        // that was already mounted before `languageClientWrapper.start()` was awaited.
-        catchError(() => of(this.editorApp?.getEditor())),
-        filter(isDefined),
-        untilDestroyed(this)
-      )
+      .pipe(filter(isDefined), untilDestroyed(this))
       .subscribe((editor: MonacoEditor) => {
         editor.updateOptions({ readOnly: this.formControl.disabled });
         if (!this.code) {
