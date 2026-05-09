@@ -191,8 +191,12 @@ function isBenignIconError(err: unknown): boolean {
   );
 }
 process.on("uncaughtException", err => {
-  if (!isBenignIconError(err)) throw err;
+  if (isBenignIconError(err)) return;
+  // Re-throwing inside `uncaughtException` aborts the Node process, which
+  // crashes the Vitest worker mid-run and leaves the runner hanging.
+  console.error(err);
 });
 process.on("unhandledRejection", reason => {
-  if (!isBenignIconError(reason)) throw reason;
+  if (isBenignIconError(reason)) return;
+  console.error(reason);
 });
