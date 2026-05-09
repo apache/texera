@@ -19,7 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { of } from "rxjs";
+import { config, of } from "rxjs";
 import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { JointUIService } from "../joint-ui/joint-ui.service";
@@ -38,7 +38,7 @@ import { Preset, PresetService } from "./preset.service";
 // 'enable-presets' marker) throws before it can validate. Register the keyword
 // once as a no-op so the validation paths are exercisable in tests.
 const ajvInstance = (PresetService as any).ajv;
-if (!ajvInstance.RULES.keywords["enable-presets"]) {
+if (!ajvInstance.getKeyword("enable-presets")) {
   ajvInstance.addKeyword({ keyword: "enable-presets", schemaType: "boolean" });
 }
 
@@ -56,6 +56,22 @@ describe("PresetService", () => {
   };
   let presetService: PresetService;
   let workflowActionService: WorkflowActionService;
+
+  // RxJS 7 reports errors thrown from a subscribe `next` handler via
+  // `config.onUnhandledError` on a macrotask, not synchronously, so a
+  // try/catch around the call would not see them. Capture them explicitly.
+  const captureRxjsUnhandled = async (run: () => void) => {
+    const captured: unknown[] = [];
+    const previous = config.onUnhandledError;
+    config.onUnhandledError = err => captured.push(err);
+    try {
+      run();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    } finally {
+      config.onUnhandledError = previous;
+    }
+    return captured;
+  };
 
   const presetType = "operator";
   const presetTarget = mockPresetEnabledPredicate.operatorType;
@@ -159,37 +175,29 @@ describe("PresetService", () => {
       );
     });
 
-    it("createPreset does not write the preset back when it already exists", () => {
-      // The service throws inside an RxJS subscribe handler, so the throw is reported
-      // asynchronously and is not catchable with toThrow. Verify the no-op behaviorally.
+    it("createPreset does not write the preset back when it already exists", async () => {
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }])));
 
-      try {
-        presetService.createPreset(presetType, presetTarget, { presetProperty: "v1" });
-      } catch {
-        // swallow: the throw may surface synchronously depending on RxJS behavior, but
-        // we only care that no save happened.
-      }
+      const errors = await captureRxjsUnhandled(() =>
+        presetService.createPreset(presetType, presetTarget, { presetProperty: "v1" })
+      );
 
       expect(userConfigStub.set).not.toHaveBeenCalled();
       expect(userConfigStub.delete).not.toHaveBeenCalled();
+      expect(errors).toHaveLength(1);
+      expect((errors[0] as Error).message).toMatch(/already exists/);
     });
 
-    it("updatePreset does not write the preset back when the original preset is missing", () => {
+    it("updatePreset does not write the preset back when the original preset is missing", async () => {
       userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }])));
 
-      try {
-        presetService.updatePreset(
-          presetType,
-          presetTarget,
-          { presetProperty: "missing" },
-          { presetProperty: "v3" }
-        );
-      } catch {
-        // see createPreset note above.
-      }
+      const errors = await captureRxjsUnhandled(() =>
+        presetService.updatePreset(presetType, presetTarget, { presetProperty: "missing" }, { presetProperty: "v3" })
+      );
 
       expect(userConfigStub.set).not.toHaveBeenCalled();
+      expect(errors).toHaveLength(1);
+      expect((errors[0] as Error).message).toMatch(/doesn't exist/);
     });
 
     it("deletePreset removes the matching preset via savePresets", () => {
@@ -237,7 +245,7 @@ describe("PresetService", () => {
       // throws inside an rxjs map() — surface via the error subscriber, not toThrow.
       presetService.getPresets(presetType, presetTarget).subscribe({
         next: () => {},
-        error: e => (err = e),
+        error: (e: unknown) => (err = e),
       });
       expect(err).toBeInstanceOf(Error);
       expect((err as Error).message).toMatch(/formatted incorrectly/);
@@ -270,20 +278,18 @@ describe("PresetService", () => {
       ).toEqual({ presetProperty: "applied", normalProperty: "untouched" });
     });
 
-    it("does not change operator properties when an invalid preset is applied", () => {
-      // The handler throws on invalid presets, but RxJS subject error reporting is
-      // asynchronous, so we observe the no-side-effect outcome instead of toThrow.
-      try {
+    it("does not change operator properties when an invalid preset is applied", async () => {
+      const errors = await captureRxjsUnhandled(() =>
         presetService.applyPreset("operator", mockPresetEnabledPredicate.operatorID, {
           notAPresetProperty: "applied",
-        });
-      } catch {
-        // tolerate either sync or async error surfacing.
-      }
+        })
+      );
 
       expect(
         workflowActionService.getTexeraGraph().getOperator(mockPresetEnabledPredicate.operatorID).operatorProperties
       ).toEqual({ presetProperty: "before", normalProperty: "untouched" });
+      expect(errors).toHaveLength(1);
+      expect((errors[0] as Error).message).toMatch(/Error applying preset/);
     });
 
     it("ignores apply events targeting an operator that does not exist on the graph", () => {
@@ -302,15 +308,15 @@ describe("PresetService", () => {
     });
 
     it("rejects presets containing only properties that are not preset-enabled", () => {
-      expect(
-        presetService.isValidOperatorPreset({ wrongProperty: "x" }, mockPresetEnabledPredicate.operatorID)
-      ).toBe(false);
+      expect(presetService.isValidOperatorPreset({ wrongProperty: "x" }, mockPresetEnabledPredicate.operatorID)).toBe(
+        false
+      );
     });
 
     it("rejects presets with empty string values", () => {
-      expect(
-        presetService.isValidOperatorPreset({ presetProperty: "" }, mockPresetEnabledPredicate.operatorID)
-      ).toBe(false);
+      expect(presetService.isValidOperatorPreset({ presetProperty: "" }, mockPresetEnabledPredicate.operatorID)).toBe(
+        false
+      );
     });
 
     it("accepts presets that match the preset schema with non-empty values", () => {
@@ -411,9 +417,9 @@ describe("PresetService", () => {
       });
 
       it("returns the preset when properties cover all preset fields", () => {
-        expect(
-          PresetService.getOperatorPreset(mockPresetEnabledSchema.jsonSchema, { presetProperty: "v" })
-        ).toEqual({ presetProperty: "v" });
+        expect(PresetService.getOperatorPreset(mockPresetEnabledSchema.jsonSchema, { presetProperty: "v" })).toEqual({
+          presetProperty: "v",
+        });
       });
 
       it("strips non-preset properties when returning the preset", () => {
@@ -431,10 +437,13 @@ describe("PresetService", () => {
         expect(PresetService.filterOperatorPresetProperties(mockPresetEnabledSchema.jsonSchema, {})).toEqual({});
       });
 
-      it("filters out non-preset properties", () => {
+      it("filters out non-preset properties only when at least one preset property is present", () => {
+        // Ajv 8's removeAdditional traversal short-circuits when `required` fails,
+        // so an input that contains *only* non-preset keys is left untouched.
+        // The "+ extras" case below covers the normal stripping path.
         expect(
           PresetService.filterOperatorPresetProperties(mockPresetEnabledSchema.jsonSchema, { wrongProperty: "x" })
-        ).toEqual({});
+        ).toEqual({ wrongProperty: "x" });
       });
 
       it("keeps preset properties and strips extras", () => {
