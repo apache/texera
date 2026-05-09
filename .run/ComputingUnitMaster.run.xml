@@ -19,6 +19,7 @@ under the License.
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="ComputingUnitMaster" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="org.apache.texera.web.ComputingUnitMaster" />
+    <option name="VM_PARAMETERS" value="@$PROJECT_DIR$/.jvmopts" />
     <module name="texera.amber" />
     <shortenClasspath name="ARGS_FILE" />
     <extension name="coverage">
