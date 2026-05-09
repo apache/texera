@@ -185,7 +185,10 @@ describe("MenuComponent", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
       component.computingUnitStatus = ComputingUnitState.Running;
-      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => false, configurable: true });
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => false,
+        configurable: true,
+      });
 
       const behavior = component.getRunButtonBehavior();
 
@@ -340,7 +343,9 @@ describe("MenuComponent", () => {
       component.isWorkflowEmpty = false;
       component.computingUnitStatus = ComputingUnitState.Running;
       component.currentExecutionName = "exec-1";
-      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification").mockImplementation(() => {});
+      const executeSpy = vi
+        .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
+        .mockImplementation(() => {});
 
       component.runWorkflow();
 
