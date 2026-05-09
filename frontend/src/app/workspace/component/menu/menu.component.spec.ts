@@ -23,7 +23,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
-import { of, throwError } from "rxjs";
+import { BehaviorSubject, of, throwError } from "rxjs";
 
 import { MenuComponent } from "./menu.component";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -34,7 +34,7 @@ import { StubUserService } from "../../../common/service/user/stub-user.service"
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
+import { ValidationWorkflowService, ValidationOutput } from "../../service/validation/validation-workflow.service";
 import { PanelService } from "../../service/panel/panel.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -58,6 +58,7 @@ describe("MenuComponent", () => {
   let modalService: NzModalService;
   let notificationService: NotificationService;
   let location: Location;
+  let validationStream$: BehaviorSubject<ValidationOutput>;
 
   beforeEach(async () => {
     TestBed.overrideComponent(MenuComponent, {
@@ -82,8 +83,6 @@ describe("MenuComponent", () => {
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(MenuComponent);
-    component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
     validationWorkflowService = TestBed.inject(ValidationWorkflowService);
@@ -93,6 +92,14 @@ describe("MenuComponent", () => {
     modalService = TestBed.inject(NzModalService);
     notificationService = TestBed.inject(NotificationService);
     location = TestBed.inject(Location);
+
+    validationStream$ = new BehaviorSubject<ValidationOutput>({ errors: {}, workflowEmpty: false });
+    vi.spyOn(validationWorkflowService, "getWorkflowValidationErrorStream").mockReturnValue(
+      validationStream$.asObservable()
+    );
+
+    fixture = TestBed.createComponent(MenuComponent);
+    component = fixture.componentInstance;
     fixture.detectChanges();
     vi.mocked(saveAs).mockClear();
   });
@@ -213,10 +220,7 @@ describe("MenuComponent", () => {
   });
 
   it("re-applies run button behavior when the validation stream reports an empty workflow", () => {
-    (validationWorkflowService as any).workflowValidationErrorStream.next({
-      errors: {},
-      workflowEmpty: true,
-    });
+    validationStream$.next({ errors: {}, workflowEmpty: true });
 
     expect(component.isWorkflowEmpty).toBe(true);
     expect(component.runButtonText).toBe("Empty Workflow");
