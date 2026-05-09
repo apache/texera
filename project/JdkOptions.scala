@@ -21,14 +21,8 @@ import sbt._
 import scala.io.Source
 
 /**
- * Reads JDK 17+ JVM flags from .jvmopts so every JVM the build
- * launches shares one flag list. Consumers:
- *   - sbt's own JVM (sbt launcher reads .jvmopts directly; no glue)
- *   - forked test JVMs (build.sbt -> Test / javaOptions)
- *   - sbt-native-packager bin/<svc> launchers
- *     (build.sbt -> Universal / javaOptions; "-J" prefix per launcher)
- *   - IntelliJ Application run configs
- *     (.run/[svc].run.xml: VM_PARAMETERS = @.jvmopts; JDK 9+ argfile)
+ * This file reads JDK 17+ JVM flags from .jvmopts so every JVM the build
+ * launches shares one flag list.
  *
  * Modeled on Pekko's project/JdkOptions.scala. The JDK 8 gate is
  * defensive: --add-opens does not exist before JDK 9, so jvmFlags

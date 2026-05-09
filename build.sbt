@@ -19,17 +19,7 @@ ThisBuild / organization := "org.apache.texera"
 ThisBuild / version      := "1.1.0-incubating"
 ThisBuild / scalaVersion := "2.13.18"
 
-// Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches
-// sees the same list. Sbt propagates Test and Universal scopes
-// differently:
-//   - Test / javaOptions cascades from ThisBuild, so one line covers
-//     every project's forked test JVM (sbt-jacoco).
-//   - Universal / javaOptions does not cascade. JavaAppPackaging
-//     creates the Universal config per-project, so a ThisBuild setting
-//     silently no-ops. The flags live in asfLicensingSettings instead,
-//     which every project already applies. "-J" is the sbt-native-
-//     packager launcher prefix that marks an arg as JVM-side.
-// See project/JdkOptions.scala.
+// Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
 import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport.Universal
 ThisBuild / Test / javaOptions ++=
   JdkOptions.jvmFlags((ThisBuild / baseDirectory).value)
