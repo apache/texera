@@ -18,34 +18,23 @@
  */
 
 /**
- * jsdom doesn't implement the SVG geometry APIs (`SVGSVGElement#createSVGMatrix`,
- * `createSVGPoint`, `createSVGTransform`, `getScreenCTM`, `getCTM`,
- * `getBBox`). jointjs reaches into these during graph layout and crashes
- * the spec build with `TypeError: svgDocument.createSVGMatrix is not a
- * function` etc.
- *
- * The stubs below return identity-ish geometry: matrices/points behave like
- * the identity, bounding boxes report zero dimensions. That's enough for
- * jointjs construction code to not throw; specs that actually depend on
- * accurate geometry should run under Vitest browser mode rather than
- * jsdom (tracked in #4861), but the bulk of the texera specs only need
- * jointjs to instantiate cleanly.
+ * Test-environment polyfills + setup hooks for jsdom + the Angular
+ * `@angular/build:unit-test` builder. Pulled in via `setupFiles` in
+ * `angular.json`. Each block below targets a specific gap that surfaces
+ * when the codingame monaco-vscode-* v25 stack or jointjs runs under
+ * jsdom; comments next to each block say which one.
  */
 
-/**
- * Register a Node ESM loader hook so every transitive `.css` import resolves
- * to an empty module. Required because the Angular `@angular/build:unit-test`
- * builder pre-bundles spec files with `externalPackages: true`, which means
- * imports like `monaco-languageclient` reach Node's native ESM loader instead
- * of Vite's transform pipeline. Without the hook, every spec that transitively
- * loads the codingame v25 stack crashes with `Unknown file extension ".css"`.
- *
- * The hook source lives inline as a `data:` URL — `module.register` accepts
- * any module URL, and a data URL avoids carrying a separate `.mjs` sidecar
- * file. Done at the top of this file so the registration runs before any
- * spec body imports the affected packages. `module.register` requires Node
- * 20.6+; the project already mandates Node >= 24.
- */
+// ───────────────────────────────────────────────────────────────────────────
+// Node ESM loader hook so every transitive `.css` import resolves to an empty
+// module. The unit-test builder pre-bundles spec files with `externalPackages:
+// true`, so imports like `monaco-languageclient` reach Node's native ESM
+// loader instead of Vite's transform pipeline — without the hook, every spec
+// that transitively loads the codingame v25 stack crashes with
+// `Unknown file extension ".css"`. The hook source lives inline as a `data:`
+// URL so we don't carry a sidecar `.mjs`. Must run before any spec body
+// imports the affected packages; `module.register` needs Node 20.6+ (the
+// project pins Node ≥ 24).
 import { register as registerLoader } from "node:module";
 
 const cssLoaderHookSource = `
@@ -64,6 +53,14 @@ registerLoader(`data:text/javascript;charset=utf-8,${encodeURIComponent(cssLoade
 
 type AnyFn = (...args: unknown[]) => unknown;
 
+// ───────────────────────────────────────────────────────────────────────────
+// SVG geometry APIs (`SVGSVGElement#createSVGMatrix`, `createSVGPoint`,
+// `createSVGTransform`, `getScreenCTM`, `getCTM`, `getBBox`). jsdom doesn't
+// implement these and jointjs reaches into them during graph layout, so the
+// spec build crashes with `TypeError: svgDocument.createSVGMatrix is not a
+// function`. Stubs below return identity-ish geometry — enough for jointjs
+// construction code not to throw. Specs needing accurate geometry should
+// run under Vitest browser mode rather than jsdom (tracked in #4861).
 function fakeMatrix() {
   // Minimal SVGMatrix shape — just the methods jointjs touches.
   const m: Record<string, unknown> = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
@@ -156,14 +153,12 @@ if (!CSS_GLOBAL) {
   }
 }
 
-/**
- * jsdom's Document doesn't expose `adoptedStyleSheets` (it's a Constructable
- * Stylesheets feature). The codingame runtime pushes new sheets onto it.
- */
-const docProtoForCss = (globalThis as unknown as { Document?: { prototype: Record<string, unknown> } }).Document
-  ?.prototype;
-if (docProtoForCss && !("adoptedStyleSheets" in docProtoForCss)) {
-  Object.defineProperty(docProtoForCss, "adoptedStyleSheets", {
+// `Document.prototype` shims — jsdom is missing `adoptedStyleSheets` (used by
+// the codingame runtime to push Constructable Stylesheets at it) and the
+// legacy `queryCommandSupported` (probed by monaco-editor on init).
+const docProto = (globalThis as unknown as { Document?: { prototype: Record<string, unknown> } }).Document?.prototype;
+if (docProto && !("adoptedStyleSheets" in docProto)) {
+  Object.defineProperty(docProto, "adoptedStyleSheets", {
     configurable: true,
     get() {
       return (this as { __adoptedStyleSheets?: unknown[] }).__adoptedStyleSheets ?? [];
@@ -172,6 +167,9 @@ if (docProtoForCss && !("adoptedStyleSheets" in docProtoForCss)) {
       (this as { __adoptedStyleSheets?: unknown[] }).__adoptedStyleSheets = v;
     },
   });
+}
+if (docProto && typeof docProto.queryCommandSupported !== "function") {
+  (docProto as Record<string, unknown>).queryCommandSupported = (() => false) as AnyFn;
 }
 
 /**
@@ -225,26 +223,10 @@ if (winForMatchMedia.window && typeof winForMatchMedia.window.matchMedia !== "fu
   winForMatchMedia.window.matchMedia = matchMediaStub;
 }
 
-/**
- * jsdom doesn't implement the legacy `document.queryCommandSupported`,
- * which monaco-editor probes during initialization. Without it the
- * editor's setup throws even when no spec actually exercises monaco.
- */
-const docProto = (globalThis as unknown as { Document?: { prototype: Record<string, AnyFn> } }).Document?.prototype;
-if (docProto && typeof docProto.queryCommandSupported !== "function") {
-  docProto.queryCommandSupported = (() => false) as AnyFn;
-}
-
-/**
- * jsdom doesn't implement `requestIdleCallback` / `cancelIdleCallback`
- * (a Chrome-only API). Specs that pull in monaco-related modules
- * crash at construction with `ReferenceError: requestIdleCallback is
- * not defined`.
- *
- * Approximate with `setTimeout` so callbacks still fire. The deadline
- * argument is a coarse stub — enough for callers that only read
- * `didTimeout`.
- */
+// `requestIdleCallback` / `cancelIdleCallback` — Chrome-only APIs jsdom
+// doesn't ship; monaco-related modules crash at construction without them.
+// Approximate with `setTimeout`; the deadline arg is a coarse stub for
+// callers that only read `didTimeout`.
 const idleGlobal = globalThis as unknown as Record<string, AnyFn | undefined>;
 if (typeof idleGlobal.requestIdleCallback !== "function") {
   idleGlobal.requestIdleCallback = ((cb: (d: { didTimeout: boolean; timeRemaining: () => number }) => void) =>
