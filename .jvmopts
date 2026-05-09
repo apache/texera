@@ -36,9 +36,14 @@
 #     java.util). Refs discussion #4001.
 #   - Pekko serializer reflecting on java.lang.invoke.SerializedLambda
 #     when serializing closures across the cluster.
+#   - Kryo (via altoo pekko-kryo) reflecting on
+#     java.util.concurrent.atomic.AtomicBoolean#value (and the rest of
+#     the j.u.c.atomic family) when serializing controller / worker
+#     state for checkpoints.
 --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
 --add-opens=java.base/java.lang=ALL-UNNAMED
 --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
 --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
 --add-opens=java.base/java.nio=ALL-UNNAMED
 --add-opens=java.base/java.util=ALL-UNNAMED
+--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
