@@ -34,6 +34,7 @@ COPY common/ common/
 COPY file-service/ file-service/
 COPY project/ project/
 COPY build.sbt build.sbt
+COPY .jvmopts .jvmopts
 
 # Update system and install dependencies
 RUN apt-get update && apt-get install -y \

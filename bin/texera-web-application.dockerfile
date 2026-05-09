@@ -48,6 +48,7 @@ COPY common/ common/
 COPY amber/ amber/
 COPY project/ project/
 COPY build.sbt build.sbt
+COPY .jvmopts .jvmopts
 
 # Update system and install dependencies. python3-minimal is needed by
 # bin/licensing/concat_license_binary.py below.

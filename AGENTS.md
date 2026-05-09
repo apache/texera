@@ -90,16 +90,14 @@ in [`udf.conf`](common/config/src/main/resources/udf.conf) or
 `export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"` (env var overrides).
 Without it, `sbt` Python-integration tests fail to launch a worker.
 
-JDK 17+ requires `--add-opens` flags for several runtime libraries:
-[Apache Arrow Java](https://arrow.apache.org/java/main/install.html)
-(off-heap memory), Ehcache `SizeOf` reflection used by `Tuple.inMemSize`
-(refs [discussion #4001](https://github.com/apache/texera/discussions/4001)),
-and Pekko Kryo serialization. [`.jvmopts`](.jvmopts) is the canonical
-list. sbt and the [`.run/`](.run) configs read it automatically; for
-raw `java` launches, pass it as an argfile: `java @.jvmopts -jar …`.
-Adding a missing open is a one-line edit there;
-[`project/JdkOptions.scala`](project/JdkOptions.scala) wires it through
-to forked test JVMs, dist launchers, and IntelliJ.
+[`.jvmopts`](.jvmopts) holds every `--add-opens` flag Texera needs for
+JDK 17+, with each group annotated by its upstream source (Kryo,
+Apache Arrow, Apache Pekko). sbt's launcher and the [`.run/`](.run)
+configs read it automatically; for raw `java` launches, pass it as an
+argfile: `java @.jvmopts -jar …`. Adding a missing flag is a one-line
+edit there; [`project/JdkOptions.scala`](project/JdkOptions.scala)
+wires it through to forked test JVMs, sbt-native-packager dist
+launchers, and IntelliJ.
 
 ### Branch and commit naming
 
