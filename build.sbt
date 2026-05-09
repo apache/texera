@@ -51,9 +51,7 @@ lazy val ConfigService = (project in file("config-service"))
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
-      // Pin slf4j-api so HikariCP's transitive 2.0.17 doesn't bump the bundled jar
-      "org.slf4j" % "slf4j-api" % "2.0.12"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
@@ -62,8 +60,7 @@ lazy val AccessControlService = (project in file("access-control-service"))
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
-      "org.slf4j" % "slf4j-api" % "2.0.12"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
   .configs(Test)
@@ -87,8 +84,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
-      "org.slf4j" % "slf4j-api" % "2.0.16"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     )
   )
 lazy val FileService = (project in file("file-service"))
@@ -101,8 +97,7 @@ lazy val FileService = (project in file("file-service"))
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
-      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12",
-      "org.slf4j" % "slf4j-api" % "2.0.16"
+      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     )
   )
 
@@ -115,8 +110,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
-      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12",
-      "org.slf4j" % "slf4j-api" % "2.0.16"
+      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     )
   )
 
