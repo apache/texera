@@ -250,20 +250,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           userConfiguration: {
             json: JSON.stringify({ "workbench.colorTheme": "Default Dark Modern" }),
           },
-          // Wire up the workers monaco-vscode-api spawns at runtime (editor,
-          // extension host, textmate). Each `new Worker(new URL(...))` literal
-          // points at a thin trampoline in `./workers/` that just re-imports
-          // the codingame-shipped worker entry. Two reasons for the
-          // indirection:
-          //   1. webpack 5 only treats
-          //      `new Worker(new URL("./relative", import.meta.url))` as a
-          //      worker entry point (so it bundles the dep tree into a chunk);
-          //      `new URL("@codingame/...", import.meta.url)` would just emit
-          //      a static asset whose own relative imports 404 at runtime.
-          //   2. the test pipeline (esbuild via @angular/build:unit-test)
-          //      resolves `new URL(spec, import.meta.url)` literally relative
-          //      to the source file, so the spec needs to point at a real
-          //      on-disk file. The trampolines satisfy both bundlers.
+          // Wire workers via thin trampolines in `./workers/`. Webpack 5 only
+          // treats `new Worker(new URL("./relative", import.meta.url))` as a
+          // worker entry point and bundles the dep tree into a chunk; bare
+          // package URLs `new URL("@codingame/...", import.meta.url)` become
+          // static assets whose relative imports 404 at runtime. Esbuild
+          // (used by @angular/build:unit-test) also requires a real on-disk
+          // file for the URL spec — trampolines satisfy both bundlers.
           monacoWorkerFactory: () => {
             const env = getEnhancedMonacoEnvironment();
             env.getWorker = (_workerId: string, label: string): Worker => {
