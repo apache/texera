@@ -94,10 +94,11 @@ Without it, `sbt` Python-integration tests fail to launch a worker.
 JDK 17+, with each group annotated by its upstream source (Kryo,
 Apache Arrow, Apache Pekko). sbt's launcher and the [`.run/`](.run)
 configs read it automatically; for raw `java` launches, pass it as an
-argfile: `java @.jvmopts -jar …`. Adding a missing flag is a one-line
-edit there; [`project/JdkOptions.scala`](project/JdkOptions.scala)
-wires it through to forked test JVMs, sbt-native-packager dist
-launchers, and IntelliJ.
+argfile: `java @.jvmopts -jar …`. If a future library version or a new
+code path triggers an `InaccessibleObjectException`, add the open to
+`.jvmopts`. [`project/JdkOptions.scala`](project/JdkOptions.scala)
+propagates it to forked test JVMs, sbt-native-packager dist launchers,
+and IntelliJ.
 
 ### Branch and commit naming
 
