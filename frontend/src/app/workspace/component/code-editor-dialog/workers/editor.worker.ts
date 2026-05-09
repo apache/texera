@@ -17,11 +17,8 @@
  * under the License.
  */
 
-// Worker entry — referenced via `new Worker(new URL('./editor.worker', import.meta.url))`
-// from code-editor.component.ts. The relative-path spec is what webpack 5 recognises
-// as a worker entry point (so it bundles the codingame dep tree into a chunk) and
-// what esbuild can resolve against the filesystem during the @angular/build:unit-test
-// spec pre-bundle. Inlining a `new URL("@codingame/...", import.meta.url)` directly in
-// the component would satisfy webpack but trip esbuild, which treats the spec as a
-// literal relative URL.
+// Worker trampoline — re-exports the codingame-shipped editor worker so a
+// relative-path `new Worker(new URL(...))` in code-editor.component.ts pulls
+// the dep tree into a webpack worker chunk. See the `monacoWorkerFactory`
+// comment there for the full rationale.
 import "@codingame/monaco-vscode-editor-api/esm/vs/editor/editor.worker.js";

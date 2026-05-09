@@ -108,7 +108,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public language: string = "";
   public languageTitle: string = "";
 
-  private static apiWrapperStarted = false;
   private static apiWrapperStartPromise?: Promise<void>;
   private editorApp?: EditorApp;
   private languageClientWrapper?: LanguageClientWrapper;
@@ -232,16 +231,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private static readonly SAFE_CSS_COLOR = /^(?:#[0-9a-fA-F]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\))$/;
 
   private getFileSuffixByLanguage(language: string): string {
-    switch (language.toLowerCase()) {
-      case "python":
-        return ".py";
-      case "javascript":
-        return ".js";
-      case "java":
-        return ".java";
-      default:
-        return ".py";
-    }
+    // Only `python` and `java` ever flow through here — see the constructor's
+    // `setLanguage(...)` branch. Default to `.py` defensively.
+    return language === "java" ? ".java" : ".py";
   }
 
   /**
@@ -250,9 +242,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * a single Promise across every CodeEditorComponent instance.
    */
   private static async ensureVscodeApiStarted(): Promise<void> {
-    if (CodeEditorComponent.apiWrapperStarted) {
-      return;
-    }
     CodeEditorComponent.apiWrapperStartPromise ??= (async () => {
       try {
         const apiConfig: MonacoVscodeApiConfig = {
@@ -305,8 +294,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           import("@codingame/monaco-vscode-java-default-extension"),
         ]);
         await Promise.all(extensions.map(ext => ext.whenReady?.()));
-
-        CodeEditorComponent.apiWrapperStarted = true;
       } catch (err) {
         // Clear the cached promise so a later editor open can retry; without
         // this the rejected promise would be returned forever and every

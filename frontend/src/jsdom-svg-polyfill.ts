@@ -17,13 +17,10 @@
  * under the License.
  */
 
-/**
- * Test-environment polyfills + setup hooks for jsdom + the Angular
- * `@angular/build:unit-test` builder. Pulled in via `setupFiles` in
- * `angular.json`. Each block below targets a specific gap that surfaces
- * when the codingame monaco-vscode-* v25 stack or jointjs runs under
- * jsdom; comments next to each block say which one.
- */
+// Test-environment polyfills + setup hooks for jsdom + the Angular
+// `@angular/build:unit-test` builder. Pulled in via `setupFiles` in
+// `angular.json`. Each block below patches one specific gap that surfaces
+// when the codingame monaco-vscode-* v25 stack or jointjs runs under jsdom.
 
 // ───────────────────────────────────────────────────────────────────────────
 // Node ESM loader hook so every transitive `.css` import resolves to an empty
@@ -122,16 +119,10 @@ if (SVG_ELEMENT_GLOBAL?.prototype) {
   if (typeof proto.getBBox !== "function") proto.getBBox = fakeRect as AnyFn;
 }
 
-/**
- * jsdom doesn't implement the Constructable Stylesheets API
- * (`new CSSStyleSheet().replaceSync(...)`), which @codingame/monaco-vscode-api
- * v25's `css.js` runtime calls when registering CSS at module load time.
- * Without it, every spec that transitively imports monaco-languageclient
- * crashes at construction.
- *
- * Stub `CSSStyleSheet` with an inert constructor whose `replaceSync` is a
- * no-op. Specs don't visually render anything, so swallowing CSS is safe.
- */
+// Constructable Stylesheets API (`new CSSStyleSheet().replaceSync(...)`) —
+// jsdom doesn't ship it, but @codingame/monaco-vscode-api v25 calls it at
+// module load. Stub with an inert constructor; specs don't visually render
+// anything, so swallowing CSS is safe.
 const CSS_GLOBAL = (globalThis as unknown as { CSSStyleSheet?: { prototype: Record<string, AnyFn> } }).CSSStyleSheet;
 if (!CSS_GLOBAL) {
   class InertCSSStyleSheet {
@@ -172,17 +163,12 @@ if (docProto && typeof docProto.queryCommandSupported !== "function") {
   (docProto as Record<string, unknown>).queryCommandSupported = (() => false) as AnyFn;
 }
 
-/**
- * jsdom doesn't implement the `CSS` global namespace (`CSS.escape`,
- * `CSS.supports`). The codingame v25 theme service calls `CSS.escape(...)` to
- * sanitize icon class names. Without it, an idle-callback runner crashes the
- * worker with `TypeError: Cannot read properties of undefined (reading 'escape')`.
- *
- * Provide a minimal stub. The escape implementation mirrors the spec —
- * https://drafts.csswg.org/cssom/#serialize-an-identifier — but we only need
- * to handle the conservative case so `value === out` as often as possible
- * (otherwise a noisy `console.warn` fires every paint).
- */
+// `CSS` global namespace (`CSS.escape`, `CSS.supports`) — jsdom doesn't
+// ship it; the codingame v25 theme service calls `CSS.escape(...)` from an
+// idle-callback runner and crashes without the stub. The escape impl
+// mirrors the spec (https://drafts.csswg.org/cssom/#serialize-an-identifier)
+// just enough that `value === out` for the common case — otherwise a noisy
+// `console.warn` fires every paint.
 const cssGlobal = globalThis as unknown as { CSS?: { escape?: (value: string) => string; supports?: AnyFn } };
 if (!cssGlobal.CSS) {
   cssGlobal.CSS = {};
@@ -194,14 +180,9 @@ if (typeof cssGlobal.CSS.supports !== "function") {
   cssGlobal.CSS.supports = (() => false) as AnyFn;
 }
 
-/**
- * jsdom doesn't implement `window.matchMedia` (the CSS media query API).
- * The codingame v25 theme service calls it during a deferred idle callback
- * to detect dark/light preference, and jsdom raises
- * `TypeError: targetWindow.matchMedia is not a function`.
- *
- * Stub with an inert MediaQueryList that always reports no match.
- */
+// `window.matchMedia` — jsdom doesn't implement it; the codingame v25 theme
+// service calls it in a deferred idle callback to detect dark/light preference.
+// Stub returns an inert MediaQueryList that always reports no match.
 const winForMatchMedia = globalThis as unknown as {
   matchMedia?: AnyFn;
   window?: { matchMedia?: AnyFn };
@@ -236,21 +217,15 @@ if (typeof idleGlobal.cancelIdleCallback !== "function") {
   idleGlobal.cancelIdleCallback = ((id: number) => clearTimeout(id)) as AnyFn;
 }
 
-/**
- * y-websocket schedules a reconnect timer the moment a service that uses
- * collaborative editing is constructed. When that timer fires AFTER vitest
- * has begun tearing down the jsdom window, jsdom's WebSocket implementation
- * crashes during construction (`Cannot read properties of null (reading
- * '_cookieJar')` → `Invalid value used as weak map key`). Vitest catches
- * this as an unhandled error and fails the run even though every test
- * passed.
- *
- * Stub WebSocket with an inert no-op so the timer can fire without
- * touching jsdom. The collaborative-editing specs that actually exercise
- * WebSocket behaviour are excluded from the test suite (component specs +
- * the workflow-action suite is the only collaboration-touching active
- * spec). Real WebSocket testing belongs under Vitest browser mode.
- */
+// `WebSocket` — y-websocket schedules a reconnect timer the moment a
+// collaborative-editing service is constructed. When that timer fires AFTER
+// vitest has begun tearing down the jsdom window, jsdom's WebSocket
+// implementation crashes during construction (`Cannot read properties of null
+// (reading '_cookieJar')` → `Invalid value used as weak map key`) and vitest
+// fails the run even though every test passed. Stub with an inert no-op so
+// the timer can fire without touching jsdom; the only specs that genuinely
+// exercise WebSocket behaviour are already excluded from the suite. Real
+// WebSocket testing belongs under Vitest browser mode.
 class InertWebSocket {
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
@@ -281,20 +256,13 @@ class InertWebSocket {
 }
 (globalThis as unknown as { WebSocket: typeof InertWebSocket }).WebSocket = InertWebSocket;
 
-/**
- * NgZorro's NzIconService dynamically fetches icon SVGs over HTTP from
- * `/assets/...` when the icon isn't pre-registered. jsdom's XHR
- * implementation rejects those requests with an `AggregateError`, and
- * downstream the icon lookup re-throws as `IconNotFoundError`. Vitest
- * catches both as unhandled errors, which CI treats as a hard failure
- * (locally Vitest only reports them as non-fatal warnings).
- *
- * Stubbing every spec with `NzIconModule.forChild([...])` for every
- * icon its template uses is impractical — there are dozens. Instead,
- * suppress the two specific error patterns at the process level: they
- * originate inside ngZorro's icon plumbing and don't affect the
- * assertions specs actually make.
- */
+// Process-level error suppression for benign ngZorro icon / codingame
+// extension fetches. NzIconService fetches icon SVGs from `/assets/...` when
+// the icon isn't pre-registered; jsdom's XHR rejects with `AggregateError`
+// and the lookup re-throws as `IconNotFoundError`. Vitest catches both as
+// unhandled errors and CI treats that as a hard failure. Stubbing every
+// spec with `NzIconModule.forChild([...])` is impractical — there are
+// dozens of icons. Suppress just these two patterns at the process level.
 function isBenignIconError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   const stack = err instanceof Error ? err.stack ?? "" : "";
