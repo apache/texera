@@ -61,34 +61,24 @@ const installIfMissing = (proto: Record<string, AnyFn> | undefined, fns: Record<
 // function`. Stubs return identity-ish geometry — enough for jointjs to
 // instantiate. Specs needing accurate geometry should run under Vitest
 // browser mode rather than jsdom (tracked in #4861).
+// Method names are space-separated to keep the prettier-formatted source on
+// one line each; both stubs only need their named methods to exist as
+// callables, so the contents don't matter beyond returning the right shape.
+const MATRIX_METHODS =
+  "multiply inverse translate scale scaleNonUniform rotate rotateFromVector flipX flipY skewX skewY";
+const TRANSFORM_METHODS = "setMatrix setTranslate setScale setRotate setSkewX setSkewY";
 function fakeMatrix(): Record<string, unknown> {
   const m: Record<string, unknown> = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-  for (const fn of [
-    "multiply",
-    "inverse",
-    "translate",
-    "scale",
-    "scaleNonUniform",
-    "rotate",
-    "rotateFromVector",
-    "flipX",
-    "flipY",
-    "skewX",
-    "skewY",
-  ]) {
-    m[fn] = () => fakeMatrix();
-  }
+  for (const fn of MATRIX_METHODS.split(" ")) m[fn] = () => fakeMatrix();
   return m;
+}
+function fakeTransform(): Record<string, unknown> {
+  const t: Record<string, unknown> = { type: 0, matrix: fakeMatrix(), angle: 0 };
+  for (const fn of TRANSFORM_METHODS.split(" ")) t[fn] = () => undefined;
+  return t;
 }
 const fakePoint = (): Record<string, unknown> => ({ x: 0, y: 0, matrixTransform: () => fakePoint() });
 const fakeRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
-function fakeTransform() {
-  const t: Record<string, unknown> = { type: 0, matrix: fakeMatrix(), angle: 0 };
-  for (const fn of ["setMatrix", "setTranslate", "setScale", "setRotate", "setSkewX", "setSkewY"]) {
-    t[fn] = () => undefined;
-  }
-  return t;
-}
 installIfMissing(G.SVGSVGElement?.prototype, {
   createSVGMatrix: fakeMatrix as AnyFn,
   createSVGPoint: fakePoint as AnyFn,
@@ -108,14 +98,10 @@ installIfMissing(G.SVGGraphicsElement?.prototype, {
 if (!G.CSSStyleSheet) {
   G.CSSStyleSheet = class {
     cssRules: unknown[] = [];
-    replaceSync(): void {}
-    replace(): Promise<void> {
-      return Promise.resolve();
-    }
-    insertRule(): number {
-      return 0;
-    }
-    deleteRule(): void {}
+    replaceSync = () => undefined;
+    replace = () => Promise.resolve();
+    insertRule = () => 0;
+    deleteRule = () => undefined;
   };
 } else {
   installIfMissing(G.CSSStyleSheet.prototype, {
@@ -205,13 +191,11 @@ class InertWebSocket {
   onerror: AnyFn | null = null;
   onmessage: AnyFn | null = null;
   onclose: AnyFn | null = null;
-  send(): void {}
-  close(): void {}
-  addEventListener(): void {}
-  removeEventListener(): void {}
-  dispatchEvent(): boolean {
-    return false;
-  }
+  send = () => undefined;
+  close = () => undefined;
+  addEventListener = () => undefined;
+  removeEventListener = () => undefined;
+  dispatchEvent = () => false;
   constructor(_url?: string, _protocols?: string | string[]) {}
 }
 G.WebSocket = InertWebSocket;

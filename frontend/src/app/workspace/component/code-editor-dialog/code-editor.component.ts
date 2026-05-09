@@ -135,11 +135,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     "DualInputPortsPythonUDFV2",
   ]);
 
-  setLanguage(newLanguage: string) {
-    this.language = newLanguage;
-    this.languageTitle = `${newLanguage.charAt(0).toUpperCase()}${newLanguage.slice(1)} UDF`;
-  }
-
   constructor(
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
@@ -150,7 +145,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
-    this.setLanguage(CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType) ? "python" : "java");
+    this.language = CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType) ? "python" : "java";
+    this.languageTitle = `${this.language[0].toUpperCase()}${this.language.slice(1)} UDF`;
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.title = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).customDisplayName;
     this.code = (
@@ -230,12 +226,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private static readonly SAFE_CLIENT_ID = /^\d{1,10}$/;
   private static readonly SAFE_CSS_COLOR = /^(?:#[0-9a-fA-F]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\))$/;
 
-  private getFileSuffixByLanguage(language: string): string {
-    // Only `python` and `java` ever flow through here — see the constructor's
-    // `setLanguage(...)` branch. Default to `.py` defensively.
-    return language === "java" ? ".java" : ".py";
-  }
-
   /**
    * Lazily start the global monaco-vscode-api wrapper. The vscode API services are
    * a process-wide singleton in v10; calling start() twice would throw, so we share
@@ -303,7 +293,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * @private
    */
   private initializeMonacoEditor() {
-    const fileSuffix = this.getFileSuffixByLanguage(this.language);
+    const fileSuffix = this.language === "java" ? ".java" : ".py";
     const editorAppConfig: EditorAppConfig = {
       codeResources: {
         modified: {
@@ -393,7 +383,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private initializeDiffEditor(): void {
-    const fileSuffix = this.getFileSuffixByLanguage(this.language);
+    const fileSuffix = this.language === "java" ? ".java" : ".py";
     const latestVersionOperator = this.workflowActionService
       .getTempWorkflow()
       ?.content.operators?.find(({ operatorID }) => operatorID === this.currentOperatorId);
