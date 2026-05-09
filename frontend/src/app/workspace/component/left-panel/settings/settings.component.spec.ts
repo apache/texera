@@ -20,8 +20,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { of, throwError } from "rxjs";
+import { Observable, Subject, of, throwError } from "rxjs";
 
 import { SettingsComponent } from "./settings.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -29,13 +28,52 @@ import { WorkflowPersistService } from "../../../../common/service/workflow-pers
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ExecutionMode } from "../../../../common/type/workflow";
+import { ExecutionMode, Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+
+/**
+ * Minimal stand-in for WorkflowActionService covering only the surface
+ * SettingsComponent uses. Avoids constructing the real service (and its
+ * transitive OperatorMetadataService HTTP request) for these unit tests.
+ */
+class StubWorkflowActionService {
+  private settings: WorkflowSettings = {
+    dataTransferBatchSize: 100,
+    executionMode: ExecutionMode.PIPELINED,
+  };
+  private workflowChangedSubject = new Subject<unknown>();
+
+  getWorkflowSettings(): WorkflowSettings {
+    return this.settings;
+  }
+
+  getWorkflowContent(): WorkflowContent {
+    return { operators: [], operatorPositions: {}, links: [], commentBoxes: [], settings: this.settings };
+  }
+
+  getWorkflow(): Workflow {
+    return { content: this.getWorkflowContent() } as Workflow;
+  }
+
+  setWorkflowDataTransferBatchSize(size: number): void {
+    if (size > 0 && size != null) {
+      this.settings = { ...this.settings, dataTransferBatchSize: size };
+    }
+  }
+
+  updateExecutionMode(mode: ExecutionMode): void {
+    this.settings = { ...this.settings, executionMode: mode };
+  }
+
+  workflowChanged(): Observable<unknown> {
+    return this.workflowChangedSubject.asObservable();
+  }
+}
 
 describe("SettingsComponent", () => {
   let component: SettingsComponent;
   let fixture: ComponentFixture<SettingsComponent>;
-  let workflowActionService: WorkflowActionService;
+  let workflowActionService: StubWorkflowActionService;
   let userService: StubUserService;
   let workflowPersistSpy: { persistWorkflow: ReturnType<typeof vi.fn> };
   let notificationSpy: { error: ReturnType<typeof vi.fn> };
@@ -46,22 +84,16 @@ describe("SettingsComponent", () => {
 
     await TestBed.configureTestingModule({
       providers: [
-        WorkflowActionService,
+        { provide: WorkflowActionService, useClass: StubWorkflowActionService },
         { provide: UserService, useClass: StubUserService },
         { provide: WorkflowPersistService, useValue: workflowPersistSpy },
         { provide: NotificationService, useValue: notificationSpy },
         ...commonTestProviders,
       ],
-      imports: [
-        SettingsComponent,
-        BrowserAnimationsModule,
-        FormsModule,
-        ReactiveFormsModule,
-        HttpClientTestingModule,
-      ],
+      imports: [SettingsComponent, BrowserAnimationsModule, FormsModule, ReactiveFormsModule],
     }).compileComponents();
 
-    workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService = TestBed.inject(WorkflowActionService) as unknown as StubWorkflowActionService;
     userService = TestBed.inject(UserService) as unknown as StubUserService;
     fixture = TestBed.createComponent(SettingsComponent);
     component = fixture.componentInstance;
