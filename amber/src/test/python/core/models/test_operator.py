@@ -155,8 +155,6 @@ class TestIsSourceProperty:
         assert op.is_source is False
 
     def test_source_operator_subclass_reports_is_source_true(self):
-        # The class-level _internal_is_source = True on SourceOperator must
-        # propagate through the is_source property without name mangling.
         src = _ConcreteSource()
         assert src.is_source is True
 
