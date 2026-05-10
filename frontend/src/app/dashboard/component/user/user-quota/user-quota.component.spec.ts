@@ -24,10 +24,11 @@ import { UserQuotaService } from "../../../service/user/quota/user-quota.service
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { of } from "rxjs";
+import type { Mocked } from "vitest";
 describe("UserQuotaComponent", () => {
   let component: UserQuotaComponent;
   let fixture: ComponentFixture<UserQuotaComponent>;
-  let mockUserQuotaService: any;
+  let mockUserQuotaService: Mocked<UserQuotaService>;
 
   beforeEach(() => {
     mockUserQuotaService = {
@@ -36,7 +37,7 @@ describe("UserQuotaComponent", () => {
       getAccessWorkflows: vi.fn(),
       getExecutionQuota: vi.fn(),
       deleteExecutionCollection: vi.fn(),
-    };
+    } as unknown as Mocked<UserQuotaService>;
     mockUserQuotaService.getCreatedDatasets.mockReturnValue(of([]));
     mockUserQuotaService.getCreatedWorkflows.mockReturnValue(of([]));
     mockUserQuotaService.getAccessWorkflows.mockReturnValue(of([]));
