@@ -315,11 +315,13 @@ jobs:
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
           if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f sql/texera_ddl.sql
           psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
           psql -h localhost -U postgres -f sql/texera_lakefs.sql
+          psql -h localhost -U postgres -f sql/texera_lakekeeper.sql
         env:
           PGPASSWORD: postgres
       - name: Setup sbt launcher
@@ -331,6 +333,96 @@ jobs:
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio --network host \
+            -e MINIO_ROOT_USER=texera_minio \
+            -e MINIO_ROOT_PASSWORD=password \
+            minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+          for i in $(seq 1 3); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            echo "Waiting for MinIO... (attempt $i)"
+            sleep 1
+          done
+      - name: Start Lakekeeper
+        env:
+          LAKEKEEPER__PG_DATABASE_URL_READ: postgres://postgres:postgres@localhost:5432/texera_lakekeeper
+          LAKEKEEPER__PG_DATABASE_URL_WRITE: postgres://postgres:postgres@localhost:5432/texera_lakekeeper
+          LAKEKEEPER__PG_ENCRYPTION_KEY: texera_key
+        run: |
+          docker run --rm --network host \
+            -e LAKEKEEPER__PG_DATABASE_URL_READ \
+            -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
+            -e LAKEKEEPER__PG_ENCRYPTION_KEY \
+            vakamo/lakekeeper:v0.11.0 migrate
+          docker run -d --name lakekeeper --network host \
+            -e LAKEKEEPER__PG_DATABASE_URL_READ \
+            -e LAKEKEEPER__PG_DATABASE_URL_WRITE \
+            -e LAKEKEEPER__PG_ENCRYPTION_KEY \
+            -e LAKEKEEPER__METRICS_PORT=9091 \
+            vakamo/lakekeeper:v0.11.0 serve
+          for i in $(seq 1 3); do
+            docker exec lakekeeper /home/nonroot/lakekeeper healthcheck && break
+            echo "Waiting for Lakekeeper... (attempt $i)"
+            sleep 1
+          done
+          docker exec lakekeeper /home/nonroot/lakekeeper healthcheck || {
+            echo "Lakekeeper failed to start. Container logs:"
+            docker logs lakekeeper
+            exit 1
+          }
+      - name: Initialize Lakekeeper warehouse
+        # Pull defaults out of storage.conf so this step doesn't duplicate
+        # values that already live in the runtime config. Each scalar in
+        # storage.conf is followed by a `${?VAR}` env-override line whose
+        # name is globally unique, so anchoring grep on that override line
+        # selects the value unambiguously across nested scopes.
+        run: |
+          CONF=common/config/src/main/resources/storage.conf
+          extract() {
+            grep -B1 -F "\${?$1}" "$CONF" | head -1 | sed -E 's/.*"([^"]+)".*/\1/'
+          }
+          WAREHOUSE_NAME=$(extract STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME)
+          S3_BUCKET=$(extract STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET)
+          S3_ENDPOINT=$(extract STORAGE_S3_ENDPOINT)
+          S3_REGION=$(extract STORAGE_S3_REGION)
+          S3_USERNAME=$(extract STORAGE_S3_AUTH_USERNAME)
+          S3_PASSWORD=$(extract STORAGE_S3_AUTH_PASSWORD)
+          # Lakekeeper's management API lives on the same host as the
+          # catalog; strip the /catalog suffix off the catalog URI to get
+          # the base URL.
+          REST_URI=$(extract STORAGE_ICEBERG_CATALOG_REST_URI)
+          LAKEKEEPER_BASE=${REST_URI%/catalog}
+          LAKEKEEPER_BASE=${LAKEKEEPER_BASE%/}
+
+          docker run --rm --network host --entrypoint sh minio/mc -c \
+            "mc alias set minio $S3_ENDPOINT $S3_USERNAME $S3_PASSWORD && \
+             mc mb --ignore-existing minio/$S3_BUCKET"
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d '{"project-id":"00000000-0000-0000-0000-000000000000","project-name":"default"}' \
+            "$LAKEKEEPER_BASE/management/v1/project" || true
+          curl -sf -X POST -H 'Content-Type: application/json' -d @- \
+            "$LAKEKEEPER_BASE/management/v1/warehouse" <<EOF
+          {
+            "warehouse-name": "$WAREHOUSE_NAME",
+            "project-id": "00000000-0000-0000-0000-000000000000",
+            "storage-profile": {
+              "type": "s3",
+              "bucket": "$S3_BUCKET",
+              "region": "$S3_REGION",
+              "endpoint": "$S3_ENDPOINT",
+              "flavor": "s3-compat",
+              "path-style-access": true,
+              "sts-enabled": false
+            },
+            "storage-credential": {
+              "type": "s3",
+              "credential-type": "access-key",
+              "aws-access-key-id": "$S3_USERNAME",
+              "aws-secret-access-key": "$S3_PASSWORD"
+            }
+          }
+          EOF
       - name: Lint and run amber integration tests
         # AMBER_TEST_FILTER=integration-only tells amber/build.sbt to
         # keep only @org.apache.texera.amber.tags.IntegrationTest
@@ -351,6 +443,9 @@ jobs:
           sbt scalafmtCheckAll \
               "scalafixAll --check" \
               "WorkflowExecutionService/test"
+      - name: Run Python integration tests
+        run: |
+          cd amber && pytest -m integration -sv
 
   platform:
     # Per-service build, test, and license check for the non-amber Scala
@@ -524,7 +619,7 @@ jobs:
           if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
       - name: Test with pytest
         run: |
-          cd amber && pytest --cov=src/main/python --cov-report=xml -sv
+          cd amber && pytest -m "not integration" --cov=src/main/python --cov-report=xml -sv
       - name: Upload python coverage to Codecov
         if: matrix.python-version == '3.12' && always()
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
