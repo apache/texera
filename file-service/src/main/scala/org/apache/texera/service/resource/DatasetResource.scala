@@ -20,7 +20,7 @@
 package org.apache.texera.service.resource
 
 import io.dropwizard.auth.Auth
-import jakarta.annotation.security.RolesAllowed
+import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.amber.config.StorageConfig
@@ -2142,6 +2142,11 @@ class DatasetResource {
     */
   @GET
   @Path("/{did}/cover")
+  // Anonymous callers may read covers of public datasets; access checks
+  // below still gate everything else. JwtAuthFilter inspects @PermitAll
+  // to skip its eager 401 when no Bearer header is present, so the
+  // @Auth Optional[SessionUser] parameter is injected as empty.
+  @PermitAll
   def getDatasetCover(
       @PathParam("did") did: Integer,
       @Auth sessionUser: Optional[SessionUser]
