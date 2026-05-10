@@ -34,6 +34,7 @@ import { provideRouter } from "@angular/router";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 
 // UserWorkflowListItemComponent is rooted at <nz-list-item>; instantiating it
 // outside an <nz-list> host throws "No provider found for NzListComponent".
@@ -57,7 +58,7 @@ class TestHostComponent {
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
   let fixture: ComponentFixture<TestHostComponent>;
-  const fileSaverServiceSpy = { saveAs: vi.fn() } as any;
+  const fileSaverServiceSpy = { saveAs: vi.fn() } as unknown as Mocked<FileSaverService>;
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [TestHostComponent, NzModalModule, HttpClientTestingModule, NzTooltipModule],
