@@ -114,7 +114,7 @@ describe("PresetService", () => {
 
   describe("preset I/O", () => {
     it("emits an event on applyPresetStream when a preset is applied", () => {
-      const seen: any[] = [];
+      const seen: { type: string; target: string; preset: Preset }[] = [];
       const sub = presetService.applyPresetStream.subscribe(value => seen.push(value));
 
       const preset: Preset = { presetProperty: "applied" };
@@ -125,7 +125,7 @@ describe("PresetService", () => {
     });
 
     it("emits an event on savePresetsStream when presets are saved", () => {
-      const seen: any[] = [];
+      const seen: { type: string; target: string; presets: Preset[] }[] = [];
       const sub = presetService.savePresetsStream.subscribe(value => seen.push(value));
 
       const presets: Preset[] = [{ presetProperty: "v1" }];
