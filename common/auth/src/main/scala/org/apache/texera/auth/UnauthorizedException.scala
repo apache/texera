@@ -30,8 +30,19 @@ import jakarta.ws.rs.ext.{ExceptionMapper, Provider}
   * keeps unit tests for [[JwtAuthFilter]] independent of any Jersey
   * implementation. The companion [[UnauthorizedExceptionMapper]] converts
   * the exception to the actual HTTP response at the JAX-RS edge.
+  *
+  * Constructed with `writableStackTrace = false` because this exception is
+  * thrown on every unauthenticated request and the stack trace is never
+  * inspected — skipping `fillInStackTrace` avoids a per-request CPU hit on
+  * the auth hot path.
   */
-class UnauthorizedException(val challenge: String) extends RuntimeException(challenge)
+class UnauthorizedException(val challenge: String)
+    extends RuntimeException(
+      challenge,
+      /* cause = */ null,
+      /* enableSuppression = */ false,
+      /* writableStackTrace = */ false
+    )
 
 /** Maps [[UnauthorizedException]] to a `401` response with the carried
   * `WWW-Authenticate` challenge header.

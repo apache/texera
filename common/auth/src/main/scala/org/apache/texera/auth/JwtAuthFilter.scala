@@ -56,15 +56,14 @@ class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
   private var resourceInfo: ResourceInfo = _
 
   override def filter(requestContext: ContainerRequestContext): Unit = {
-    val authHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION)
+    val tokenOpt = extractBearerToken(requestContext.getHeaderString(HttpHeaders.AUTHORIZATION))
 
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+    if (tokenOpt.isEmpty) {
       if (isPermitAll) return
       throw new UnauthorizedException(JwtAuthFilter.BearerChallenge)
     }
 
-    val token = authHeader.substring(7) // Remove "Bearer " prefix
-    val userOpt = JwtParser.parseToken(token)
+    val userOpt = JwtParser.parseToken(tokenOpt.get)
     if (!userOpt.isPresent) {
       logger.warn("Invalid JWT: Unable to parse token")
       throw new UnauthorizedException(JwtAuthFilter.InvalidTokenChallenge)
@@ -86,6 +85,18 @@ class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
     val c = resourceInfo.getResourceClass
     (m != null && m.isAnnotationPresent(classOf[PermitAll])) ||
     (c != null && c.isAnnotationPresent(classOf[PermitAll]))
+  }
+
+  // RFC 7235 §2.1: auth-scheme is case-insensitive and the credentials
+  // follow after 1*SP. Tolerate surrounding whitespace and any
+  // capitalization of "Bearer" so that e.g. `authorization: bearer <jwt>`
+  // is accepted instead of being rejected as a malformed header.
+  private def extractBearerToken(authHeader: String): Option[String] = {
+    if (authHeader == null) return None
+    val parts = authHeader.trim.split("\\s+", 2)
+    if (parts.length != 2 || !parts(0).equalsIgnoreCase("Bearer")) return None
+    val token = parts(1).trim
+    if (token.isEmpty) None else Some(token)
   }
 }
 

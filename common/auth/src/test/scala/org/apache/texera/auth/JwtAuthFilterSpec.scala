@@ -236,4 +236,78 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
     val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
     thrown.challenge shouldBe JwtAuthFilter.BearerChallenge
   }
+
+  // -------------------- case-insensitive Bearer scheme --------------------
+
+  // RFC 7235 §2.1: auth-scheme is case-insensitive. The header parser must
+  // accept any capitalization of "Bearer" and tolerate surrounding /
+  // intra-header whitespace.
+  private def filterFor(authHeader: String): StubRequestContext = {
+    val filter = new JwtAuthFilter
+    withResourceInfo(
+      filter,
+      new StubResourceInfo(
+        methodOf(classOf[RequiredAuthResource], "secured"),
+        classOf[RequiredAuthResource]
+      )
+    )
+    val ctx = new StubRequestContext(authHeader)
+    filter.filter(ctx)
+    ctx
+  }
+
+  "JwtAuthFilter Bearer scheme parsing" should "accept lowercase 'bearer'" in {
+    val ctx = filterFor(s"bearer ${JwtAuth.jwtToken(buildClaims())}")
+    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+  }
+
+  it should "accept uppercase 'BEARER'" in {
+    val ctx = filterFor(s"BEARER ${JwtAuth.jwtToken(buildClaims())}")
+    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+  }
+
+  it should "accept mixed-case 'BeArEr'" in {
+    val ctx = filterFor(s"BeArEr ${JwtAuth.jwtToken(buildClaims())}")
+    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+  }
+
+  it should "tolerate leading whitespace before the scheme" in {
+    val ctx = filterFor(s"   Bearer ${JwtAuth.jwtToken(buildClaims())}")
+    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+  }
+
+  it should "tolerate multiple spaces between scheme and token" in {
+    val ctx = filterFor(s"Bearer   ${JwtAuth.jwtToken(buildClaims())}")
+    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+  }
+
+  it should "tolerate trailing whitespace after the token" in {
+    val ctx = filterFor(s"Bearer ${JwtAuth.jwtToken(buildClaims())}   ")
+    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+  }
+
+  it should "reject a Bearer header with no token" in {
+    val filter = new JwtAuthFilter
+    withResourceInfo(
+      filter,
+      new StubResourceInfo(
+        methodOf(classOf[RequiredAuthResource], "secured"),
+        classOf[RequiredAuthResource]
+      )
+    )
+    val ctx = new StubRequestContext("Bearer   ")
+    val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
+    thrown.challenge shouldBe JwtAuthFilter.BearerChallenge
+  }
+
+  // -------------------- exception is stack-trace-less --------------------
+
+  // UnauthorizedException is thrown on every unauthenticated request and the
+  // stack is never inspected. Ensure fillInStackTrace was suppressed so the
+  // auth hot path does not pay for stack capture.
+  "UnauthorizedException" should "carry no stack trace" in {
+    val e = new UnauthorizedException(JwtAuthFilter.BearerChallenge)
+    e.getStackTrace.length shouldBe 0
+    e.getMessage shouldBe JwtAuthFilter.BearerChallenge
+  }
 }
