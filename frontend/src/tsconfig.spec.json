@@ -13,7 +13,6 @@
   "exclude": [
     // Specs whose body is entirely commented out / placeholder — these
     // need real test cases written before they can be re-enabled.
-    "**/app/common/formly/preset-wrapper/preset-wrapper.component.spec.ts",
     "**/app/common/service/user/config/user-config.service.spec.ts",
     "**/app/workspace/component/workspace.component.spec.ts",
 
