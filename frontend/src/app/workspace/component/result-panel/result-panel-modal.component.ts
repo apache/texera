@@ -22,6 +22,7 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
+import { NgxJsonViewerModule } from "ngx-json-viewer";
 
 /**
  *
@@ -41,7 +42,7 @@ import { PanelResizeService } from "../../service/workflow-result/panel-resize/p
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
   styleUrls: ["./result-panel-model.component.scss"],
-  standalone: false,
+  imports: [NgxJsonViewerModule],
 })
 export class RowModalComponent implements OnChanges {
   // Index of current displayed row in currentResult

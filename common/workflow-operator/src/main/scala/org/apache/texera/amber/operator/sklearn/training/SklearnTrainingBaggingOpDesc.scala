@@ -21,5 +21,5 @@ package org.apache.texera.amber.operator.sklearn.training
 
 class SklearnTrainingBaggingOpDesc extends SklearnTrainingOpDesc {
   override def getImportStatements = "from sklearn.ensemble import BaggingClassifier"
-  override def getUserFriendlyModelName = "Training: Bagging Training"
+  override def getUserFriendlyModelName = "Training: Bagging"
 }

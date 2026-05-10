@@ -42,10 +42,11 @@ fi
 
 # --- Key directories ---
 FRONTEND_DIR="$TEXERA_HOME/frontend"
-AMBER_PY_DIR="$TEXERA_HOME/amber/src/main/python"
+AMBER_DIR="$TEXERA_HOME/amber"
 
 [[ -d "$FRONTEND_DIR" ]] || { tx_error "Frontend directory not found: $FRONTEND_DIR"; exit 1; }
-[[ -d "$AMBER_PY_DIR"  ]] || { tx_error "Amber Python directory not found: $AMBER_PY_DIR"; exit 1; }
+[[ -d "$AMBER_DIR/src/main/python"  ]] || { tx_error "Amber Python directory not found: $AMBER_DIR/src/main/python"; exit 1; }
+[[ -d "$AMBER_DIR/src/test/python"  ]] || { tx_error "Amber Python test directory not found: $AMBER_DIR/src/test/python"; exit 1; }
 
 # --- Argument parsing ---
 TARGET="${1:-all}"
@@ -95,14 +96,14 @@ fi
 
 # --- 3) Python formatting ---
 if $run_python; then
-  tx_info "Running ruff in amber/src/main/python..."
+  tx_info "Running ruff in amber/src/{main,test}/python..."
   if ! command -v ruff >/dev/null 2>&1; then
     tx_error "ruff not found. Install with: pip install ruff"
     exit 1
   fi
   (
-    cd "$AMBER_PY_DIR"
-    ruff format .
+    cd "$AMBER_DIR"
+    ruff format src/main/python src/test/python
   )
   tx_success "Python formatting completed."
 fi

@@ -75,8 +75,8 @@ describe("DynamicSchemaService", () => {
       transformer2: (op: OperatorPredicate, schema: OperatorSchema) => schema,
     };
 
-    const transformer1Spy = spyOn(testTransformers, "transformer1").and.callThrough();
-    const transformer2Spy = spyOn(testTransformers, "transformer2").and.callThrough();
+    const transformer1Spy = vi.spyOn(testTransformers, "transformer1");
+    const transformer2Spy = vi.spyOn(testTransformers, "transformer2");
 
     dynamicSchemaService.registerInitialSchemaTransformer(testTransformers.transformer1);
     dynamicSchemaService.registerInitialSchemaTransformer(testTransformers.transformer2);

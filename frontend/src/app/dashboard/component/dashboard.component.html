@@ -98,6 +98,7 @@
             <span>Datasets</span>
           </li>
           <li
+            *ngIf="sidebarTabs.compute_enabled"
             nz-menu-item
             nz-tooltip="Manage computing units"
             nzMatchRouter="true"

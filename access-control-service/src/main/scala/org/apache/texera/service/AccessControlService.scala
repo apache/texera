@@ -26,6 +26,7 @@ import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.auth.{JwtAuthFilter, RequestLoggingFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.service.activity.UserActivityEventListener
 import org.apache.texera.service.resource.{
   AccessControlResource,
   HealthCheckResource,
@@ -76,6 +77,12 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
+
+    // Record USER_LAST_ACTIVE_TIME on every matched, completed request.
+    // Lives only in this service because authenticated client sessions
+    // contact access-control-service often enough to capture activity
+    // with high recall.
+    environment.jersey.register(new UserActivityEventListener())
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)

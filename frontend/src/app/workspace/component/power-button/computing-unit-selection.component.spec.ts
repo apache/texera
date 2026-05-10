@@ -57,8 +57,8 @@ describe("PowerButtonComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ComputingUnitSelectionComponent], // Declare if not standalone
       imports: [
+        ComputingUnitSelectionComponent,
         HttpClientTestingModule, // Use TestingModule instead of HttpClientModule
         CommonModule,
         NzButtonModule,

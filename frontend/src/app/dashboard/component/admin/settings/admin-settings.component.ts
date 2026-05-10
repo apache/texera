@@ -20,16 +20,41 @@
 import { Component, OnInit } from "@angular/core";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SidebarTabs } from "../../../../common/type/gui-config";
 import { forkJoin } from "rxjs";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NgIf, DecimalPipe } from "@angular/common";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
+import { FormsModule } from "@angular/forms";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
 
 @UntilDestroy()
 @Component({
   selector: "texera-settings",
   templateUrl: "./admin-settings.component.html",
   styleUrls: ["./admin-settings.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NgIf,
+    NzIconDirective,
+    NzSwitchComponent,
+    FormsModule,
+    NzTooltipDirective,
+    NzInputNumberComponent,
+    DecimalPipe,
+  ],
 })
 export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
@@ -43,6 +68,7 @@ export class AdminSettingsComponent implements OnInit {
     your_work_enabled: false,
     projects_enabled: false,
     workflows_enabled: false,
+    compute_enabled: false,
     datasets_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
@@ -54,22 +80,29 @@ export class AdminSettingsComponent implements OnInit {
   maxConcurrentChunks: number = 10;
   chunkSizeMiB: number = 50;
 
+  csvMaxColumns: number = 512;
+
   // S3 Multipart Upload Constraints
   readonly MIN_PART_SIZE_MiB = 5; // 5 MiB minimum for parts (except last part)
   readonly MAX_PART_SIZE_MiB = 5120; // 5 GiB maximum per part (5 * 1024 MiB)
   readonly MAX_FILE_SIZE_MiB = 5242880; // 5 TiB maximum object size (5 * 1024 * 1024 MiB)
   readonly MAX_TOTAL_PARTS = 10000; // S3 maximum parts per upload
 
+  readonly MIN_CSV_MAX_COLUMNS = 1;
+  readonly MAX_CSV_MAX_COLUMNS = 100000;
+
   private readonly RELOAD_DELAY = 1000;
 
   constructor(
     private adminSettingsService: AdminSettingsService,
-    private message: NzMessageService
+    private message: NzMessageService,
+    private notificationService: NotificationService
   ) {}
   ngOnInit(): void {
     this.loadBranding();
     this.loadTabs();
     this.loadDatasetSettings();
+    this.loadCsvSettings();
   }
 
   private loadBranding(): void {
@@ -257,6 +290,33 @@ export class AdminSettingsComponent implements OnInit {
     ].forEach(setting => this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({}));
 
     this.message.info("Resetting dataset settings...");
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
+  }
+
+  private loadCsvSettings(): void {
+    this.adminSettingsService
+      .getSetting("csv_parser_max_columns")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.csvMaxColumns = parseInt(value) || 512));
+  }
+
+  saveCsvSettings(): void {
+    const saveRequests = [
+      this.adminSettingsService.updateSetting("csv_parser_max_columns", this.csvMaxColumns.toString()),
+    ];
+
+    forkJoin(saveRequests)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Result panel settings saved."),
+        error: () => this.notificationService.error("Could not save result panel settings."),
+      });
+  }
+
+  resetCsvSettings(): void {
+    this.adminSettingsService.resetSetting("csv_parser_max_columns").pipe(untilDestroyed(this)).subscribe({});
+
+    this.notificationService.info("Resetting result panel settings...");
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 }

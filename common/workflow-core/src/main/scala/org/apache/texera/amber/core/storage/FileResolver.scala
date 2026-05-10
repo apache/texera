@@ -44,7 +44,7 @@ object FileResolver {
     * Resolves a given fileName to either a file on the local file system or a dataset file.
     *
     * @param fileName the name of the file to resolve.
-    * @throws FileNotFoundException if the file cannot be resolved.
+    * @throws java.io.FileNotFoundException if the file cannot be resolved.
     * @return A URI pointing to the resolved file.
     */
   def resolve(fileName: String): URI = {
@@ -64,7 +64,7 @@ object FileResolver {
 
   /**
     * Attempts to resolve a local file path.
-    * @throws FileNotFoundException if the local file does not exist
+    * @throws java.io.FileNotFoundException if the local file does not exist
     * @param fileName the name of the file to check
     */
   private def localResolveFunc(fileName: String): URI = {
@@ -110,7 +110,7 @@ object FileResolver {
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
-    * @throws FileNotFoundException if the dataset file does not exist or cannot be created
+    * @throws java.io.FileNotFoundException if the dataset file does not exist or cannot be created
     */
   private def datasetResolveFunc(fileName: String): URI = {
     val (ownerEmail, datasetName, versionName, fileRelativePathSegments) =

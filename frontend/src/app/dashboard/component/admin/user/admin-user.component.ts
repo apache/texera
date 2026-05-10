@@ -19,7 +19,18 @@
 
 import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
+import {
+  NzTableFilterFn,
+  NzTableSortFn,
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzThAddOnComponent,
+  NzFilterTriggerComponent,
+  NzTbodyComponent,
+} from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { AdminUserService } from "../../../service/admin/user/admin-user.service";
@@ -28,12 +39,51 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { replaceOneImmutable } from "../../../../common/util/array-utils";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NgFor, NgClass, NgIf, DatePipe } from "@angular/common";
+import { UserAvatarComponent } from "../../user/user-avatar/user-avatar.component";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-user.component.html",
   styleUrls: ["./admin-user.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzThAddOnComponent,
+    NzFilterTriggerComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzSpaceCompactItemDirective,
+    NzInputDirective,
+    FormsModule,
+    NzButtonComponent,
+    NzWaveDirective,
+    NzTbodyComponent,
+    NgFor,
+    UserAvatarComponent,
+    NgClass,
+    NgIf,
+    NzSelectComponent,
+    NzOptionComponent,
+    NzTooltipDirective,
+    DatePipe,
+  ],
 })
 export class AdminUserComponent implements OnInit {
   userList: ReadonlyArray<User> = [];
