@@ -43,6 +43,10 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { saveAs } from "file-saver";
+import type { ModalOptions } from "ng-zorro-antd/modal";
+import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { WorkflowContent } from "../../../common/type/workflow";
+import type { Mocked } from "vitest";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
 
@@ -304,7 +308,7 @@ describe("MenuComponent", () => {
       component.computingUnitSelectionComponent = {
         newComputingUnitName: "",
         showAddComputeUnitModalVisible: vi.fn(),
-      } as any;
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
     });
 
     it("does nothing when the workflow is invalid", () => {
@@ -368,7 +372,12 @@ describe("MenuComponent", () => {
 
   describe("onClickExportWorkflow (save)", () => {
     it("serializes the workflow content as JSON and downloads it under the workflow name", () => {
-      const fakeContent = { operators: [{ operatorID: "op1" }], links: [], commentBoxes: [], settings: {} } as any;
+      const fakeContent = {
+        operators: [{ operatorID: "op1" }],
+        links: [],
+        commentBoxes: [],
+        settings: {},
+      } as unknown as WorkflowContent;
       vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue(fakeContent);
       component.currentWorkflowName = "my-workflow";
 
@@ -448,7 +457,7 @@ describe("MenuComponent", () => {
       await component.onClickOpenShareAccess();
 
       expect(createSpy).toHaveBeenCalledTimes(1);
-      const config = createSpy.mock.calls[0][0] as any;
+      const config = createSpy.mock.calls[0][0] as ModalOptions;
       expect(config.nzTitle).toBe("Share this workflow with others");
       expect(config.nzData).toEqual(
         expect.objectContaining({
@@ -484,7 +493,7 @@ describe("MenuComponent", () => {
 
   it("onClickEditDescription opens the markdown description modal seeded with the current description", () => {
     vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({
-      content: { operators: [], links: [], commentBoxes: [], settings: {} } as any,
+      content: { operators: [], links: [], commentBoxes: [], settings: {} } as unknown as WorkflowContent,
       name: "wf",
       description: "hello world",
       wid: 1,
@@ -503,7 +512,7 @@ describe("MenuComponent", () => {
     component.onClickEditDescription();
 
     expect(createSpy).toHaveBeenCalledTimes(1);
-    const config = createSpy.mock.calls[0][0] as any;
+    const config = createSpy.mock.calls[0][0] as ModalOptions;
     expect(config.nzTitle).toBe("Edit Workflow Description");
     expect(config.nzData).toEqual({ description: "hello world" });
   });
@@ -516,7 +525,7 @@ describe("MenuComponent", () => {
     component.onClickExportExecutionResult();
 
     expect(createSpy).toHaveBeenCalledTimes(1);
-    const config = createSpy.mock.calls[0][0] as any;
+    const config = createSpy.mock.calls[0][0] as ModalOptions;
     expect(config.nzTitle).toBe("Export All Operators Result");
     expect(config.nzData).toEqual(expect.objectContaining({ workflowName: "report-wf", sourceTriggered: "menu" }));
   });
