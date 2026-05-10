@@ -72,6 +72,9 @@ object VirtualIdentityUtils {
     workerId.name match {
       case workerNamePattern(_, _, _, idx) =>
         idx.toInt
+      case _ =>
+        // for special actorId such as SELF, CONTROLLER
+        -1
     }
   }
 

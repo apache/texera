@@ -99,16 +99,13 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     VirtualIdentityUtils.getWorkerIndex(actor) shouldBe 42
   }
 
-  it should "throw MatchError on non-worker actor names (current behavior)" in {
-    // getWorkerIndex pattern-matches on workerNamePattern with no fallback,
-    // so passing a special ActorVirtualIdentity like CONTROLLER or SELF
-    // yields scala.MatchError. Pinning this behavior here means a future
-    // change that adds a fallback (or a different exception) breaks this
-    // spec on purpose so the new contract is reviewed.
+  it should "fall back to -1 for non-worker actor names" in {
+    // Special ActorVirtualIdentity values like CONTROLLER or SELF do not
+    // match workerNamePattern. getWorkerIndex returns -1 as a sentinel
+    // rather than throwing scala.MatchError, mirroring the graceful
+    // handling in getPhysicalOpId and toShorterString.
     val controller = ActorVirtualIdentity("CONTROLLER")
-    assertThrows[scala.MatchError] {
-      VirtualIdentityUtils.getWorkerIndex(controller)
-    }
+    VirtualIdentityUtils.getWorkerIndex(controller) shouldBe -1
   }
 
   // ----- toShorterString -----
