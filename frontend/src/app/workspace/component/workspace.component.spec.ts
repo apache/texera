@@ -130,6 +130,10 @@ describe("WorkspaceComponent", () => {
     routerMock = { navigate: vi.fn() };
     locationMock = { go: vi.fn() };
 
+    // TODO(#5015): drop this template override once CodeEditorComponent's
+    // own spec is fixed. Real child rendering would let us assert
+    // editor-lifecycle wiring; today we stub the host element so the
+    // heavyweight children don't compile in the test build.
     TestBed.overrideComponent(WorkspaceComponent, {
       set: { template: '<div #codeEditor class="stub-host"></div>', imports: [], providers: [] },
     });
