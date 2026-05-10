@@ -96,7 +96,6 @@
             "exclude": [
               "**/app/common/formly/preset-wrapper/preset-wrapper.component.spec.ts",
               "**/app/common/service/user/config/user-config.service.spec.ts",
-              "**/app/workspace/component/menu/menu.component.spec.ts",
               "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
               "**/app/workspace/component/workspace.component.spec.ts"
             ]
