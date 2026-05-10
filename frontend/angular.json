@@ -98,6 +98,16 @@
               "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"
             ]
           }
+        },
+        "test-browser": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "gui:build:test",
+            "runner": "vitest",
+            "runnerConfig": "vitest.browser.config.ts",
+            "tsConfig": "src/tsconfig.spec.json",
+            "include": ["**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"]
+          }
         }
       }
     }
