@@ -61,7 +61,6 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
