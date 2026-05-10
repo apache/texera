@@ -78,19 +78,12 @@ object SqlServer {
   private var instance: Option[SqlServer] = None
 
   def initConnection(url: String, user: String, password: String): Unit = {
-    if (instance.isEmpty) {
-      val server = new SqlServer(url, user, password)
-      instance = Some(server)
-    }
+    instance.foreach(_.close())
+    instance = Some(new SqlServer(url, user, password))
   }
 
   def getInstance(): SqlServer = {
     instance.get
-  }
-
-  def clearInstance(): Unit = {
-    instance.foreach(_.close())
-    instance = None
   }
 
   /**
