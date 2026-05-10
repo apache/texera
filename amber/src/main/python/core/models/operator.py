@@ -74,7 +74,7 @@ class Operator(ABC):
     def decode_python_template(self, data: Union[str, bytes]) -> str:
         return self._get_template_decoder().decode(data)
 
-    __internal_is_source: bool = False
+    _internal_is_source: bool = False
 
     @property
     @overrides.final
@@ -85,12 +85,12 @@ class Operator(ABC):
 
         :return:
         """
-        return self.__internal_is_source
+        return self._internal_is_source
 
     @is_source.setter
     @overrides.final
     def is_source(self, value: bool) -> None:
-        self.__internal_is_source = value
+        self._internal_is_source = value
 
     def open(self) -> None:
         """
@@ -164,7 +164,7 @@ class TupleOperatorV2(Operator):
 
 
 class SourceOperator(TupleOperatorV2):
-    __internal_is_source = True
+    _internal_is_source = True
 
     @abstractmethod
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
@@ -267,7 +267,6 @@ class TableOperator(TupleOperatorV2):
 
     def __init__(self):
         super().__init__()
-        self.__internal_is_source: bool = False
         self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
 
     @overrides.final
