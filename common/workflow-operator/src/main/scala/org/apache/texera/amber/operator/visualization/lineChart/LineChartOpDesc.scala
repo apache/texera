@@ -45,7 +45,7 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
   var xLabel: EncodableString = ""
 
   @JsonProperty(value = "lines", required = true)
-  var lines: util.List[LineConfig] = _
+  var lines: util.List[LineConfig] = new util.ArrayList[LineConfig]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -64,6 +64,7 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(lines != null && !lines.isEmpty, "At least one line must be configured")
     val linesPart = lines.asScala
       .map { lineConf =>
         val colorPart = if (lineConf.color != "") {

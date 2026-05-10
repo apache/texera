@@ -11,47 +11,17 @@
   },
   "include": ["**/*.spec.ts", "**/*.d.ts", "vitest-globals.d.ts", "jsdom-svg-polyfill.ts"],
   "exclude": [
-    // jsdom polyfill is enough to instantiate jointjs but its zero-
-    // dimension fake matrices break the actual graph-geometry math
-    // these tests assert on. Real fix is Vitest browser mode (#4866).
-    "**/drag-drop.service.spec.ts",
-
-    // Component / service specs whose TestBed setups still need to be
-    // adapted to the standalone-component world. The migration sweep
-    // (PR #4862 + PR #4873) made the runtime resolution succeed, but
-    // each TestBed configures `declarations: [...]` plus selective
-    // module imports — that combo no longer matches what the new
-    // builder expects from a standalone-component graph. Tracked as
-    // follow-ups under #4861.
+    // Specs whose body is entirely commented out / placeholder — these
+    // need real test cases written before they can be re-enabled.
     "**/app/common/formly/preset-wrapper/preset-wrapper.component.spec.ts",
-    // user-config.service.spec.ts has its real cases commented out and only
-    // reflective placeholder comments remain — keep it excluded until the
-    // tests are actually rewritten.
     "**/app/common/service/user/config/user-config.service.spec.ts",
-    "**/app/dashboard/component/admin/execution/admin-execution.component.spec.ts",
-    "**/app/dashboard/component/admin/settings/admin-settings.component.spec.ts",
-    "**/app/dashboard/component/admin/user/admin-user.component.spec.ts",
-    "**/app/dashboard/component/dashboard.component.spec.ts",
-    "**/app/dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component.spec.ts",
-    "**/app/dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component.spec.ts",
-    "**/app/dashboard/component/user/user-workflow/user-workflow.component.spec.ts",
-    // monaco-editor + jsdom: missing CSS parser, queryCommandSupported, ProxyZone for nested fakeAsync.
-    "**/app/workspace/component/code-editor-dialog/code-debugger.component.spec.ts",
-    "**/app/workspace/component/code-editor-dialog/code-editor.component.spec.ts",
-    // monaco-editor CSS parsing fails under jsdom.
-    "**/app/workspace/component/codearea-custom-template/codearea-custom-template.component.spec.ts",
-    "**/app/workspace/component/left-panel/left-panel.component.spec.ts",
-    "**/app/workspace/component/left-panel/operator-menu/operator-label/operator-label.component.spec.ts",
-    "**/app/workspace/component/left-panel/operator-menu/operator-menu.component.spec.ts",
-    "**/app/workspace/component/left-panel/settings/settings.component.spec.ts",
-    "**/app/workspace/component/left-panel/time-travel/time-travel.component.spec.ts",
-    "**/app/workspace/component/left-panel/versions-list/versions-list.component.spec.ts",
-    "**/app/workspace/component/menu/menu.component.spec.ts",
-    // formly + nz registers `snippets-o` icon dynamically over HTTP, which jsdom rejects.
-    "**/app/workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component.spec.ts",
-    // jointjs paper math relies on real getScreenCTM, which jsdom returns as null.
-    "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts",
     "**/app/workspace/component/workspace.component.spec.ts",
-    "**/app/workspace/service/preset/preset.service.spec.ts"
+
+    // jointjs paper geometry: every test in this suite asserts on
+    // graph layout math (positions, link routing, hit testing) that
+    // depends on real getScreenCTM / getBBox. The jsdom polyfill
+    // returns identity-only stubs, so all assertions fail. Real fix is
+    // Vitest browser mode (#4866).
+    "**/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts"
   ]
 }

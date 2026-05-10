@@ -17,311 +17,507 @@
  * under the License.
  */
 
-// import { RouterTestingModule } from '@angular/router/testing';
-// import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-// import { By } from '@angular/platform-browser';
+import { DatePipe, Location } from "@angular/common";
+import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { RouterTestingModule } from "@angular/router/testing";
+import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
+import { BehaviorSubject, of, throwError } from "rxjs";
 
-// import { NavigationComponent } from './navigation.component';
-// import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
-// import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-// import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
-// import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
+import { MenuComponent } from "./menu.component";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { UserService } from "../../../common/service/user/user.service";
+import { StubUserService } from "../../../common/service/user/stub-user.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { ValidationWorkflowService, ValidationOutput } from "../../service/validation/validation-workflow.service";
+import { PanelService } from "../../service/panel/panel.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
+import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
+import { saveAs } from "file-saver";
 
-// import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
+vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
 
-// import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-// import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
-// import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+describe("MenuComponent", () => {
+  let component: MenuComponent;
+  let fixture: ComponentFixture<MenuComponent>;
+  let workflowActionService: WorkflowActionService;
+  let executeWorkflowService: ExecuteWorkflowService;
+  let validationWorkflowService: ValidationWorkflowService;
+  let panelService: PanelService;
+  let workflowVersionService: WorkflowVersionService;
+  let workflowPersistService: WorkflowPersistService;
+  let modalService: NzModalService;
+  let notificationService: NotificationService;
+  let location: Location;
+  let validationStream$: BehaviorSubject<ValidationOutput>;
 
-// import { Observable } from 'rxjs';
-// import { marbles } from 'rxjs-marbles';
-// import { HttpClient } from '@angular/common/http';
-// import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
-// import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-// import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-// import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
-// import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-// import { environment } from '../../../../environments/environment';
+  beforeEach(async () => {
+    TestBed.overrideComponent(MenuComponent, {
+      set: { template: "" },
+    });
 
-// class StubHttpClient {
+    await TestBed.configureTestingModule({
+      imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
+      providers: [
+        DatePipe,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        {
+          provide: ComputingUnitStatusService,
+          useValue: {
+            getSelectedComputingUnit: () => of(null),
+            getStatus: () => of(ComputingUnitState.NoComputingUnit),
+          },
+        },
+        { provide: UserService, useClass: StubUserService },
+        ...commonTestProviders,
+      ],
+      schemas: [NO_ERRORS_SCHEMA],
+    }).compileComponents();
 
-//   public post<T>(): Observable<string> { return Observable.of('a'); }
-//   public get<T>(): Observable<string> { return Observable.of('a'); }
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+    validationWorkflowService = TestBed.inject(ValidationWorkflowService);
+    panelService = TestBed.inject(PanelService);
+    workflowVersionService = TestBed.inject(WorkflowVersionService);
+    workflowPersistService = TestBed.inject(WorkflowPersistService);
+    modalService = TestBed.inject(NzModalService);
+    notificationService = TestBed.inject(NotificationService);
+    location = TestBed.inject(Location);
 
-// }
+    validationStream$ = new BehaviorSubject<ValidationOutput>({ errors: {}, workflowEmpty: false });
+    vi.spyOn(validationWorkflowService, "getWorkflowValidationErrorStream").mockReturnValue(
+      validationStream$.asObservable()
+    );
 
-// describe('NavigationComponent', () => {
-//   let component: NavigationComponent;
-//   let fixture: ComponentFixture<NavigationComponent>;
-//   let executeWorkFlowService: ExecuteWorkflowService;
-//   let workflowActionService: WorkflowActionService;
-//   let workflowStatusService: WorkflowStatusService;
-//   let undoRedoService: UndoRedoService;
-//   let validationWorkflowService: ValidationWorkflowService;
-//   beforeEach(async(() => {
-//     TestBed.configureTestingModule({
-//       declarations: [NavigationComponent],
-//       imports: [
-//         CustomNgMaterialModule,
-//         RouterTestingModule.withRoutes([]),
-//       ],
-//       providers: [
-//         WorkflowActionService,
-//         WorkflowUtilService,
-//         JointUIService,
-//         ExecuteWorkflowService,
-//         UndoRedoService,
-//         ValidationWorkflowService,
-//         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-//         { provide: HttpClient, useClass: StubHttpClient },
-//         WorkflowStatusService
-//       ]
-//     }).compileComponents();
-//   }));
+    fixture = TestBed.createComponent(MenuComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    vi.mocked(saveAs).mockClear();
+  });
 
-//   beforeEach(() => {
-//     fixture = TestBed.createComponent(NavigationComponent);
-//     component = fixture.componentInstance;
-//     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
-//     workflowActionService = TestBed.get(WorkflowActionService);
-//     workflowStatusService = TestBed.get(WorkflowStatusService);
-//     undoRedoService = TestBed.get(UndoRedoService);
-//     validationWorkflowService = TestBed.get(ValidationWorkflowService);
-//     fixture.detectChanges();
-//   });
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
 
-//   it('should create', () => {
-//     expect(component).toBeTruthy();
-//   });
+  describe("getRunButtonBehavior", () => {
+    it("returns 'Invalid Workflow' when the workflow is invalid", () => {
+      component.isWorkflowValid = false;
+      component.isWorkflowEmpty = false;
 
-//   // it('should execute the workflow when run button is clicked', marbles((m) => {
+      const behavior = component.getRunButtonBehavior();
 
-//   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
-//   //     Observable.of(mockExecutionResult)
-//   //   );
+      expect(behavior.text).toBe("Invalid Workflow");
+      expect(behavior.icon).toBe("warning");
+      expect(behavior.disable).toBe(true);
+    });
 
-//   //   const runButtonElement = fixture.debugElement.query(By.css('.texera-navigation-run-button'));
-//   //   m.hot('-e-').do(event => runButtonElement.triggerEventHandler('click', null)).subscribe();
+    it("returns 'Empty Workflow' when the workflow has no operators", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = true;
 
-//   //   const executionEndStream = executeWorkFlowService.getExecuteEndedStream().map(value => 'e');
+      const behavior = component.getRunButtonBehavior();
 
-//   //   const expectedStream = '-e-';
-//   //   m.expect(executionEndStream).toBeObservable(expectedStream);
+      expect(behavior.text).toBe("Empty Workflow");
+      expect(behavior.icon).toBe("info-circle");
+      expect(behavior.disable).toBe(true);
+    });
 
-//   // }));
+    it("returns 'Connect' when no computing unit is attached", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
 
-//   // it('should show pause/resume button when the workflow execution begins and hide the button when execution ends', marbles((m) => {
+      const behavior = component.getRunButtonBehavior();
 
-//   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
-//   //     Observable.of(mockExecutionResult)
-//   //   );
+      expect(behavior.text).toBe("Connect");
+      expect(behavior.icon).toBe("plus-circle");
+      expect(behavior.disable).toBe(false);
+    });
 
-//   //   expect(component.isWorkflowRunning).toBeFalsy();
-//   //   expect(component.isWorkflowPaused).toBeFalsy();
+    it("returns 'Run' when connected and execution is uninitialized", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Uninitialized;
 
-//   //   executeWorkFlowService.getExecuteStartedStream().subscribe(
-//   //     () => {
-//   //       fixture.detectChanges();
-//   //       expect(component.isWorkflowRunning).toBeTruthy();
-//   //       expect(component.isWorkflowPaused).toBeFalsy();
-//   //     }
-//   //   );
+      const behavior = component.getRunButtonBehavior();
 
-//   //   executeWorkFlowService.getExecuteEndedStream().subscribe(
-//   //     () => {
-//   //       fixture.detectChanges();
-//   //       expect(component.isWorkflowRunning).toBeFalsy();
-//   //       expect(component.isWorkflowPaused).toBeFalsy();
-//   //     }
-//   //   );
+      expect(behavior.text).toBe("Run");
+      expect(behavior.icon).toBe("play-circle");
+      expect(behavior.disable).toBe(false);
+    });
 
-//   //   m.hot('-e-').do(() => component.onButtonClick()).subscribe();
+    it("returns 'Pause' while a workflow is running", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Running;
 
-//   // }));
+      const pauseSpy = vi.spyOn(executeWorkflowService, "pauseWorkflow").mockImplementation(() => {});
+      const behavior = component.getRunButtonBehavior();
+      behavior.onClick();
 
-//   // it('should call pauseWorkflow function when isWorkflowPaused is false', () => {
-//   //   const pauseWorkflowSpy = vi.spyOn(executeWorkFlowService, 'pauseWorkflow');
-//   //   component.isWorkflowRunning = true;
-//   //   component.isWorkflowPaused = false;
+      expect(behavior.text).toBe("Pause");
+      expect(behavior.disable).toBe(false);
+      expect(pauseSpy).toHaveBeenCalled();
+    });
 
-//   //   (executeWorkFlowService as any).workflowExecutionID = 'MOCK_EXECUTION_ID';
+    it("returns 'Resume' when execution is paused", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Paused;
 
-//   //   component.onButtonClick();
-//   //   expect(pauseWorkflowSpy).toHaveBeenCalled();
-//   // });
+      const resumeSpy = vi.spyOn(executeWorkflowService, "resumeWorkflow").mockImplementation(() => {});
+      const behavior = component.getRunButtonBehavior();
+      behavior.onClick();
 
-//   // it('should call resumeWorkflow function when isWorkflowPaused is true', () => {
-//   //   const resumeWorkflowSpy = vi.spyOn(executeWorkFlowService, 'resumeWorkflow');
-//   //   component.isWorkflowRunning = true;
-//   //   component.isWorkflowPaused = true;
+      expect(behavior.text).toBe("Resume");
+      expect(resumeSpy).toHaveBeenCalled();
+    });
 
-//   //   (executeWorkFlowService as any).workflowExecutionID = 'MOCK_EXECUTION_ID';
+    it("returns 'Connecting' when a unit exists but the websocket is not connected", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => false,
+        configurable: true,
+      });
 
-//   //   component.onButtonClick();
-//   //   expect(resumeWorkflowSpy).toHaveBeenCalled();
-//   // });
+      const behavior = component.getRunButtonBehavior();
 
-//   // it('should not call resumeWorkflow or pauseWorkflow if the workflow is not currently running', () => {
+      expect(behavior.text).toBe("Connecting");
+      expect(behavior.disable).toBe(true);
+    });
+  });
 
-//   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
-//   //     Observable.of(mockExecutionResult)
-//   //   );
+  it("applyRunButtonBehavior copies the behavior onto the bound fields", () => {
+    const handler = () => {};
+    component.applyRunButtonBehavior({
+      text: "Custom",
+      icon: "custom-icon",
+      disable: true,
+      onClick: handler,
+    });
 
-//   //   const pauseWorkflowSpy = vi.spyOn(executeWorkFlowService, 'pauseWorkflow');
-//   //   const resumeWorkflowSpy = vi.spyOn(executeWorkFlowService, 'resumeWorkflow');
+    expect(component.runButtonText).toBe("Custom");
+    expect(component.runIcon).toBe("custom-icon");
+    expect(component.runDisable).toBe(true);
+    expect(component.onClickRunHandler).toBe(handler);
+  });
 
-//   //   component.onButtonClick();
-//   //   expect(pauseWorkflowSpy).toHaveBeenCalledTimes(0);
-//   //   expect(resumeWorkflowSpy).toHaveBeenCalledTimes(0);
-//   // });
+  it("re-applies run button behavior when the validation stream reports an empty workflow", () => {
+    validationStream$.next({ errors: {}, workflowEmpty: true });
 
-//   // it('should not call downloadExecutionResult if there is no valid execution result currently', () => {
-//   //   const httpClient: HttpClient = TestBed.get(HttpClient);
-//   //   vi.spyOn(httpClient, 'post').mockReturnValue(
-//   //     Observable.of(mockExecutionResult)
-//   //   );
+    expect(component.isWorkflowEmpty).toBe(true);
+    expect(component.runButtonText).toBe("Empty Workflow");
+    expect(component.runDisable).toBe(true);
+  });
 
-//   //   const downloadExecutionSpy = vi.spyOn(executeWorkFlowService, 'downloadWorkflowExecutionResult');
+  describe("hasOperators", () => {
+    it("returns false on an empty graph", () => {
+      expect(component.hasOperators()).toBe(false);
+    });
 
-//   //   component.onClickDownloadExecutionResult('txt');
-//   //   expect(downloadExecutionSpy).toHaveBeenCalledTimes(0);
-//   // });
+    it("returns true once an operator is added", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      expect(component.hasOperators()).toBe(true);
+    });
+  });
 
-//   // it('it should update isWorkflowPaused variable to true when 0 is returned from getExecutionPauseResumeStream', marbles((m) => {
-//   //   const endMarbleString = '-e-|';
-//   //   const endMarblevalues = {
-//   //     e: 0
-//   //   };
+  it("onClickAddCommentBox delegates to the workflow action service", () => {
+    const addCommentBoxSpy = vi.spyOn(workflowActionService, "addCommentBox");
 
-//   //   vi.spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').mockReturnValue(
-//   //     m.hot(endMarbleString, endMarblevalues)
-//   //   );
+    component.onClickAddCommentBox();
 
-//   //   const mockComponent = new NavigationComponent(executeWorkFlowService,
-//   //     workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
+    expect(addCommentBoxSpy).toHaveBeenCalledTimes(1);
+  });
 
-//   //   executeWorkFlowService.getExecutionPauseResumeStream()
-//   //     .subscribe({
-//   //       complete: () => {
-//   //         expect(mockComponent.isWorkflowPaused).toBeTruthy();
-//   //       }
-//   //     });
-//   // }));
+  it("onClickDeleteAllOperators removes every operator from the graph", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(1);
 
-//   // it('it should update isWorkflowPaused variable to false when 1 is returned from getExecutionPauseResumeStream', marbles((m) => {
-//   //   const endMarbleString = '-e-|';
-//   //   const endMarblevalues = {
-//   //     e: 1
-//   //   };
+    component.onClickDeleteAllOperators();
 
-//   //   vi.spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').mockReturnValue(
-//   //     m.hot(endMarbleString, endMarblevalues)
-//   //   );
+    expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
+  });
 
-//   //   const mockComponent = new NavigationComponent(executeWorkFlowService,
-//   //     workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
+  it("onClickAutoLayout is a no-op when there are no operators", () => {
+    const autoLayoutSpy = vi.spyOn(workflowActionService, "autoLayoutWorkflow");
 
-//   //   executeWorkFlowService.getExecutionPauseResumeStream()
-//   //     .subscribe({
-//   //       complete: () => {
-//   //         expect(mockComponent.isWorkflowPaused).toBeFalsy();
-//   //       }
-//   //     });
-//   // }));
+    component.onClickAutoLayout();
 
-//   it('should change zoom to be smaller when user click on the zoom out buttons', marbles((m) => {
-//      // expect initially the zoom ratio is 1;
-//    const originalZoomRatio = 1;
+    expect(autoLayoutSpy).not.toHaveBeenCalled();
+  });
 
-//    m.hot('-e-').do(() => component.onClickZoomOut()).subscribe();
-//    workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
-//      newRatio => {
-//        fixture.detectChanges();
-//        expect(newRatio).toBeLessThan(originalZoomRatio);
-//        expect(newRatio).toEqual(originalZoomRatio - JointGraphWrapper.ZOOM_CLICK_DIFF);
-//      }
-//    );
+  it("onClickAutoLayout invokes auto layout when operators are present", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    const autoLayoutSpy = vi.spyOn(workflowActionService, "autoLayoutWorkflow").mockImplementation(() => {});
 
-//   }));
+    component.onClickAutoLayout();
 
-//   it('should change zoom to be bigger when user click on the zoom in buttons', marbles((m) => {
+    expect(autoLayoutSpy).toHaveBeenCalledTimes(1);
+  });
 
-//     // expect initially the zoom ratio is 1;
-//     const originalZoomRatio = 1;
+  it("handleKill delegates to executeWorkflowService.killWorkflow", () => {
+    const killSpy = vi.spyOn(executeWorkflowService, "killWorkflow").mockImplementation(() => {});
 
-//     m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
-//     workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
-//       newRatio => {
-//         fixture.detectChanges();
-//         expect(newRatio).toBeGreaterThan(originalZoomRatio);
-//         expect(newRatio).toEqual(originalZoomRatio + JointGraphWrapper.ZOOM_CLICK_DIFF);
-//       }
-//     );
-//   }));
+    component.handleKill();
 
-//   it('should execute the zoom in function when the user click on the Zoom In button', marbles((m) => {
-//     m.hot('-e-').do(event => component.onClickZoomIn()).subscribe();
-//     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
-//     const expectedStream = '-e-';
-//     m.expect(zoomEndStream).toBeObservable(expectedStream);
-//   }));
+    expect(killSpy).toHaveBeenCalledTimes(1);
+  });
 
-//   it('should execute the zoom out function when the user click on the Zoom Out button', marbles((m) => {
-//     m.hot('-e-').do(event => component.onClickZoomOut()).subscribe();
-//     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
-//     const expectedStream = '-e-';
-//     m.expect(zoomEndStream).toBeObservable(expectedStream);
-//   }));
+  it("handleCheckpoint delegates to executeWorkflowService.takeGlobalCheckpoint", () => {
+    const checkpointSpy = vi.spyOn(executeWorkflowService, "takeGlobalCheckpoint").mockImplementation(() => {});
 
-//   it('should not increase zoom ratio when the user click on the zoom in button if zoom ratio already reaches maximum', marbles((m) => {
-//     workflowActionService.getJointGraphWrapper().setZoomProperty(JointGraphWrapper.ZOOM_MAXIMUM);
-//     m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
-//     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
-//     const expectedStream = '---';
-//     m.expect(zoomEndStream).toBeObservable(expectedStream);
-//   }));
+    component.handleCheckpoint();
 
-//   it('should not decrease zoom ratio when the user click on the zoom out button if zoom ratio already reaches minimum', marbles((m) => {
-//     workflowActionService.getJointGraphWrapper().setZoomProperty(JointGraphWrapper.ZOOM_MINIMUM);
-//     m.hot('-e-').do(() => component.onClickZoomOut()).subscribe();
-//     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
-//     const expectedStream = '---';
-//     m.expect(zoomEndStream).toBeObservable(expectedStream);
-//   }));
+    expect(checkpointSpy).toHaveBeenCalledTimes(1);
+  });
 
-//   it('should execute restore default when the user click on restore button', marbles((m) => {
-//     m.hot('-e-').do(event => component.onClickRestoreZoomOffsetDefaullt()).subscribe();
-//     const restoreEndStream = workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream().map(value => 'e');
-//     const expectStream = '-e-';
-//     m.expect(restoreEndStream).toBeObservable(expectStream);
-//   }));
+  it("onClickClosePanels and onClickResetPanels delegate to PanelService", () => {
+    const closeSpy = vi.spyOn(panelService, "closePanels").mockImplementation(() => {});
+    const resetSpy = vi.spyOn(panelService, "resetPanels").mockImplementation(() => {});
 
-//   it('should delete all operators on the graph when user clicks on the delete all button', marbles((m) => {
-//     m.hot('-e-').do(() => {
-//       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-//       component.onClickDeleteAllOperators();
-//     }).subscribe();
-//     expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
-//   }));
+    component.onClickClosePanels();
+    component.onClickResetPanels();
 
-//   // // TODO: this test case related to websocket is not stable, find out why and fix it
-//   // xdescribe('when executionStatus is enabled', () => {
-//   //   beforeAll(() => {
-//   //     environment.executionStatusEnabled = true;
-//   //   });
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(resetSpy).toHaveBeenCalledTimes(1);
+  });
 
-//   //   afterAll(() => {
-//   //     environment.executionStatusEnabled = false;
-//   //   });
+  describe("runWorkflow", () => {
+    beforeEach(() => {
+      component.computingUnitSelectionComponent = {
+        newComputingUnitName: "",
+        showAddComputeUnitModalVisible: vi.fn(),
+      } as any;
+    });
 
-//   //   it('should send workflowId to websocket when run button is clicked', () => {
-//   //     const checkWorkflowSpy = vi.spyOn(workflowStatusService, 'checkStatus').and.stub();
-//   //     component.onButtonClick();
-//   //     expect(checkWorkflowSpy).toHaveBeenCalled();
-//   //   });
-//   // });
+    it("does nothing when the workflow is invalid", () => {
+      component.isWorkflowValid = false;
+      component.isWorkflowEmpty = false;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
 
-// });
+      component.runWorkflow();
+
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the workflow is empty", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = true;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it("opens the add-computing-unit modal when no unit is connected", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      component.currentWorkflowName = "wf";
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(component.computingUnitSelectionComponent.newComputingUnitName).toBe("wf's Computing Unit");
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).toHaveBeenCalledTimes(1);
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it("submits the execution when connected", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.currentExecutionName = "exec-1";
+      const executeSpy = vi
+        .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
+        .mockImplementation(() => {});
+
+      component.runWorkflow();
+
+      expect(executeSpy).toHaveBeenCalledWith("exec-1", expect.any(Boolean));
+    });
+  });
+
+  it("onWorkflowNameChange forwards the new name to the workflow action service", () => {
+    const setNameSpy = vi.spyOn(workflowActionService, "setWorkflowName");
+    component.currentWorkflowName = "renamed";
+
+    component.onWorkflowNameChange();
+
+    expect(setNameSpy).toHaveBeenCalledWith("renamed");
+  });
+
+  describe("onClickExportWorkflow (save)", () => {
+    it("serializes the workflow content as JSON and downloads it under the workflow name", () => {
+      const fakeContent = { operators: [{ operatorID: "op1" }], links: [], commentBoxes: [], settings: {} } as any;
+      vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue(fakeContent);
+      component.currentWorkflowName = "my-workflow";
+
+      component.onClickExportWorkflow();
+
+      expect(saveAs).toHaveBeenCalledTimes(1);
+      const [blobArg, fileNameArg] = vi.mocked(saveAs).mock.calls[0] as [Blob, string];
+      expect(fileNameArg).toBe("my-workflow.json");
+      expect(blobArg).toBeInstanceOf(Blob);
+      expect(blobArg.type).toBe("text/plain;charset=utf-8");
+    });
+  });
+
+  describe("version history", () => {
+    it("onClickGetAllVersions delegates to workflowVersionService.displayWorkflowVersions", () => {
+      const displaySpy = vi.spyOn(workflowVersionService, "displayWorkflowVersions").mockImplementation(() => {});
+
+      component.onClickGetAllVersions();
+
+      expect(displaySpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("closeParticularVersionDisplay delegates to workflowVersionService", () => {
+      const closeSpy = vi.spyOn(workflowVersionService, "closeParticularVersionDisplay").mockImplementation(() => {});
+
+      component.closeParticularVersionDisplay();
+
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("revertToVersion reverts and then persists the workflow", () => {
+      const revertSpy = vi.spyOn(workflowVersionService, "revertToVersion").mockImplementation(() => {});
+      const persistSpy = vi
+        .spyOn(workflowPersistService, "persistWorkflow")
+        .mockReturnValue(of(workflowActionService.getWorkflow()));
+
+      component.revertToVersion();
+
+      expect(revertSpy).toHaveBeenCalledTimes(1);
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("cloneVersion notifies success and closes the version panel when cloning succeeds", () => {
+      vi.spyOn(workflowVersionService, "cloneWorkflowVersion").mockReturnValue(of(42));
+      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+      const closeSpy = vi.spyOn(workflowVersionService, "closeParticularVersionDisplay").mockImplementation(() => {});
+
+      component.cloneVersion();
+
+      expect(successSpy).toHaveBeenCalledTimes(1);
+      expect(successSpy.mock.calls[0][0]).toContain("42");
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("cloneVersion shows an error notification and does not close the panel when cloning fails", () => {
+      vi.spyOn(workflowVersionService, "cloneWorkflowVersion").mockReturnValue(throwError(() => new Error("boom")));
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+      const closeSpy = vi.spyOn(workflowVersionService, "closeParticularVersionDisplay").mockImplementation(() => {});
+
+      component.cloneVersion();
+
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(successSpy).not.toHaveBeenCalled();
+      expect(closeSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onClickOpenShareAccess (share)", () => {
+    it("looks up workflow owners and opens the share-access modal", async () => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of(["alice@example.com"]));
+      const fakeModalRef = { afterClose: of(undefined) } as unknown as NzModalRef;
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+      component.workflowId = 7;
+      component.writeAccess = true;
+
+      await component.onClickOpenShareAccess();
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      const config = createSpy.mock.calls[0][0] as any;
+      expect(config.nzTitle).toBe("Share this workflow with others");
+      expect(config.nzData).toEqual(
+        expect.objectContaining({
+          writeAccess: true,
+          type: "workflow",
+          id: 7,
+          allOwners: ["alice@example.com"],
+          inWorkspace: true,
+        })
+      );
+    });
+  });
+
+  it("onClickCreateNewWorkflow resets the graph and navigates back to root", () => {
+    const resetSpy = vi.spyOn(workflowActionService, "resetAsNewWorkflow").mockImplementation(() => {});
+    const goSpy = vi.spyOn(location, "go").mockImplementation(() => {});
+
+    component.onClickCreateNewWorkflow();
+
+    expect(resetSpy).toHaveBeenCalledTimes(1);
+    expect(goSpy).toHaveBeenCalledWith("/");
+  });
+
+  it("onClickRestoreZoomOffsetDefault delegates to the joint graph wrapper", () => {
+    const restoreSpy = vi
+      .spyOn(workflowActionService.getJointGraphWrapper(), "restoreDefaultZoomAndOffset")
+      .mockImplementation(() => {});
+
+    component.onClickRestoreZoomOffsetDefault();
+
+    expect(restoreSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("onClickEditDescription opens the markdown description modal seeded with the current description", () => {
+    vi.spyOn(workflowActionService, "getWorkflow").mockReturnValue({
+      content: { operators: [], links: [], commentBoxes: [], settings: {} } as any,
+      name: "wf",
+      description: "hello world",
+      wid: 1,
+      creationTime: undefined,
+      lastModifiedTime: undefined,
+      readonly: false,
+      isPublished: 0,
+    });
+    const fakeModalRef = {
+      afterClose: of(undefined),
+      getContentComponent: () => ({ descriptionChange: of() }),
+      close: vi.fn(),
+    } as unknown as NzModalRef;
+    const createSpy = vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+
+    component.onClickEditDescription();
+
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    const config = createSpy.mock.calls[0][0] as any;
+    expect(config.nzTitle).toBe("Edit Workflow Description");
+    expect(config.nzData).toEqual({ description: "hello world" });
+  });
+
+  it("onClickExportExecutionResult opens the result-exportation modal with the current workflow name", () => {
+    const fakeModalRef = { afterClose: of(undefined) } as unknown as NzModalRef;
+    const createSpy = vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
+    component.currentWorkflowName = "report-wf";
+
+    component.onClickExportExecutionResult();
+
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    const config = createSpy.mock.calls[0][0] as any;
+    expect(config.nzTitle).toBe("Export All Operators Result");
+    expect(config.nzData).toEqual(expect.objectContaining({ workflowName: "report-wf", sourceTriggered: "menu" }));
+  });
+});

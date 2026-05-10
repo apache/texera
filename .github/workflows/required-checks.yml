@@ -137,8 +137,8 @@ jobs:
             // amber-integration runs the Scala tests tagged
             // @org.apache.texera.amber.tags.IntegrationTest (e2e specs that
             // spawn Python UDF workers). The labeler attaches `python` to
-            // any *.py change (including amber/src/main/python/**), so
-            // `engine` does not need to fire the python stack itself —
+            // any *.py change (including amber/src/{main,test}/python/**),
+            // so `engine` does not need to fire the python stack itself —
             // pure-Python amber changes pick up `python` directly. The
             // `amber-integration` label catches *IntegrationSpec.scala
             // edits so a test-only change does not trigger the full
