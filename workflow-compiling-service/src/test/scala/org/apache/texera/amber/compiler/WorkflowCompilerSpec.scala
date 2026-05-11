@@ -20,9 +20,16 @@
 package org.apache.texera.amber.compiler
 
 import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import org.apache.texera.amber.operator.filter.{
+  ComparisonType,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
+import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
@@ -30,13 +37,15 @@ import org.scalatest.flatspec.AnyFlatSpec
 /**
   * Direct unit coverage for the editing-time [[WorkflowCompiler]].
   *
-  * The existing `WorkflowCompilationResourceSpec` only covers the REST happy
-  * path. The cases below exercise the *lenient-mode contract* the frontend
-  * depends on while a user is typing: per-operator errors accumulate into
-  * `operatorIdToError`, `compile` never throws, and `physicalPlan` is `None`
-  * whenever any error occurred. Bypassing the resource layer also sidesteps
-  * a separate NPE in response serialization (apache/texera#5021); these
-  * tests will keep passing once that bug is fixed.
+  * Owns *compiler-behavior* tests — schema propagation through multi-op
+  * chains, lenient-mode error accumulation, terminal-storage selection.
+  * `WorkflowCompilationResourceSpec` owns *resource-layer* tests — HTTP
+  * status, response type discriminator, JSON envelope. Drawing the line
+  * here keeps each spec focused on a single failure axis.
+  *
+  * Bypassing the resource layer also sidesteps a separate NPE in response
+  * serialization (apache/texera#5021); these compiler-level tests stay
+  * green once that bug is fixed.
   */
 class WorkflowCompilerSpec extends AnyFlatSpec {
 
@@ -62,6 +71,18 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val op = new ProjectionOpDesc()
     op.attributes = columns.map(name => new AttributeUnit(name, ""))
     op.isDrop = false
+    op
+  }
+
+  private def filterOp(predicates: FilterPredicate*): SpecializedFilterOpDesc = {
+    val op = new SpecializedFilterOpDesc
+    op.predicates = predicates.toList
+    op
+  }
+
+  private def limitOp(limit: Int): LimitOpDesc = {
+    val op = new LimitOpDesc
+    op.limit = limit
     op
   }
 
@@ -95,6 +116,76 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     // this is the property whose violation triggers the resource-level NPE.
     val projSchemas = result.operatorIdToOutputSchemas(proj.operatorIdentifier)
     assert(projSchemas.values.forall(s => s.isDefined && s.get != null))
+  }
+
+  it should "propagate schemas through a csv -> projection -> limit -> filter -> filter -> limit chain" in {
+    // Real-world editing-shape: source then filter/limit/project ops. Asserts
+    // the compiler threads schema through every link so the frontend sees the
+    // projected columns at every downstream port. Previously this lived in
+    // WorkflowCompilationResourceSpec as an HTTP test, but the property being
+    // pinned is compiler-level (schema propagation) — the REST envelope adds
+    // no signal.
+    val csv = csvOp(realCsvPath)
+    val proj = projectOp(List("Region", "Total Profit"))
+    val limit1 = limitOp(10)
+    val filter1 =
+      filterOp(new FilterPredicate("Total Profit", ComparisonType.GREATER_THAN, "10000"))
+    val filter2 = filterOp(new FilterPredicate("Region", ComparisonType.NOT_EQUAL_TO, "JPN"))
+    val limit2 = limitOp(5)
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      LogicalPlanPojo(
+        operators = List(csv, proj, limit1, filter1, filter2, limit2),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            proj.operatorIdentifier,
+            PortIdentity(0)
+          ),
+          LogicalLink(
+            proj.operatorIdentifier,
+            PortIdentity(0),
+            limit1.operatorIdentifier,
+            PortIdentity(0)
+          ),
+          LogicalLink(
+            limit1.operatorIdentifier,
+            PortIdentity(0),
+            filter1.operatorIdentifier,
+            PortIdentity(0)
+          ),
+          LogicalLink(
+            filter1.operatorIdentifier,
+            PortIdentity(0),
+            filter2.operatorIdentifier,
+            PortIdentity(0)
+          ),
+          LogicalLink(
+            filter2.operatorIdentifier,
+            PortIdentity(0),
+            limit2.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.physicalPlan.isDefined)
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    // Projection narrowed [Region, Country, ..., Total Profit] down to two
+    // columns; every downstream op should see exactly those two attributes.
+    val filter2Schemas = result.operatorIdToOutputSchemas(filter2.operatorIdentifier)
+    val outputAttrs = filter2Schemas(PortIdentity(0)).get.attributes
+    assert(
+      outputAttrs == List(
+        new Attribute("Region", AttributeType.STRING),
+        new Attribute("Total Profit", AttributeType.DOUBLE)
+      ),
+      s"projected schema should reach filter2 unchanged, got $outputAttrs"
+    )
   }
 
   // -------------------- lenient-mode error accumulation --------------------
