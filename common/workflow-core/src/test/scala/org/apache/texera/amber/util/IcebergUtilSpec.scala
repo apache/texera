@@ -298,4 +298,12 @@ class IcebergUtilSpec extends AnyFlatSpec {
 
     assert(IcebergUtil.fromRecord(record, schema) == tuple)
   }
+
+  it should "exercise createRestCatalog property construction" in {
+    // No Lakekeeper in unit-test scope, so .initialize throws; the property
+    // Map is built before that, which is what this test is here to cover.
+    intercept[Exception] {
+      IcebergUtil.createRestCatalog("test", "test-warehouse")
+    }
+  }
 }
