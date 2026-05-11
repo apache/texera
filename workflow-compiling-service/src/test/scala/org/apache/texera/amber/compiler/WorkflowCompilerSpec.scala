@@ -228,11 +228,11 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     assert(result.physicalPlan.isEmpty)
     assert(result.operatorIdToError.contains(broken.operatorIdentifier))
-    // FileResolver surfaces FileNotFoundException; pin a substring that's
-    // stable across vfs2 versions so a future logger-format change does not
-    // silently weaken this assertion.
+    // FileResolver surfaces FileNotFoundException for a missing local path;
+    // pin the "does not exist" substring from that contract rather than a
+    // different file-type error wording.
     assert(
-      result.operatorIdToError(broken.operatorIdentifier).message.contains("not a file"),
+      result.operatorIdToError(broken.operatorIdentifier).message.contains("does not exist"),
       s"unexpected message: ${result.operatorIdToError(broken.operatorIdentifier).message}"
     )
   }
