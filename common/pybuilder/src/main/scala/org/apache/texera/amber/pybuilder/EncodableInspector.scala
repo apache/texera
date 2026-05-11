@@ -22,10 +22,10 @@ package org.apache.texera.amber.pybuilder
 import scala.reflect.macros.blackbox
 
 /**
- * Macro-only helper: inspects argument trees / types / symbols to decide if a value is Encodable-marked.
- *
- * NOTE: This must be context-bound because Tree/Type/Annotation are from `c.universe`.
- */
+  * Macro-only helper: inspects argument trees / types / symbols to decide if a value is Encodable-marked.
+  *
+  * NOTE: This must be context-bound because Tree/Type/Annotation are from `c.universe`.
+  */
 final class EncodableInspector[C <: blackbox.Context](val c: C) {
 
   import c.universe._
@@ -49,10 +49,10 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
     "org.apache.texera.amber.pybuilder.EncodableStringAnnotation"
 
   /**
-   * If we are pointing at a getter/accessor, hop to its accessed field symbol when possible.
-   *
-   * Why: Many annotations are placed on constructor params/fields, but call sites see the accessor.
-   */
+    * If we are pointing at a getter/accessor, hop to its accessed field symbol when possible.
+    *
+    * Why: Many annotations are placed on constructor params/fields, but call sites see the accessor.
+    */
   private def safeAccessed(sym: Symbol): Symbol =
     sym match {
       case termAccessor: TermSymbol if termAccessor.isAccessor       => termAccessor.accessed
@@ -65,15 +65,15 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
     val annotationType = annotation.tree.tpe
     annotationType != null && (
       annotationType.typeSymbol.fullName == encodableStringAnnotationFqn ||
-        (annotationType <:< typeOf[EncodableStringAnnotation])
-      )
+      (annotationType <:< typeOf[EncodableStringAnnotation])
+    )
   }
 
   /**
-   * True if a [[Type]] carries @EncodableStringAnnotation as a TYPE_USE annotation (via [[java.lang.reflect.AnnotatedType]]).
-   *
-   * Walks common wrappers (existentials, refinements, type refs) to find nested annotations.
-   */
+    * True if a [[Type]] carries @EncodableStringAnnotation as a TYPE_USE annotation (via [[java.lang.reflect.AnnotatedType]]).
+    *
+    * Walks common wrappers (existentials, refinements, type refs) to find nested annotations.
+    */
   private def typeHasEncodableString(typeToCheck: Type): Boolean = {
     def loop(t: Type): Boolean = {
       if (t == null) false
@@ -101,17 +101,17 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
   }
 
   /**
-   * Checks @EncodableStringAnnotation on either:
-   *   - accessed symbol (field/param), or
-   *   - type (TYPE_USE), via [[java.lang.reflect.AnnotatedType]].
-   */
+    * Checks @EncodableStringAnnotation on either:
+    *   - accessed symbol (field/param), or
+    *   - type (TYPE_USE), via [[java.lang.reflect.AnnotatedType]].
+    */
   def treeHasEncodableString(tree: Tree): Boolean = {
     val rawSym = tree.symbol
     val symHasAnn =
       rawSym != null && rawSym != NoSymbol && {
         val accessed = safeAccessed(rawSym)
         accessed != null && accessed != NoSymbol &&
-          accessed.annotations.exists(annIsEncodableString)
+        accessed.annotations.exists(annIsEncodableString)
       }
 
     val methodReturnHasAnn =
@@ -123,7 +123,7 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
       })
 
     symHasAnn || methodReturnHasAnn ||
-      (tree.tpe != null && typeHasEncodableString(tree.tpe))
+    (tree.tpe != null && typeHasEncodableString(tree.tpe))
   }
 
   def isPythonTemplateBuilderArg(argExpr: c.Expr[Any]): Boolean = {
@@ -145,18 +145,18 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
       //  - treat already-wrapped EncodableStringRenderer as encodable
       //  - OR detect @EncodableStringAnnotation on symbol/type
       (tpe != null && (tpe.dealias.widen <:< encodableStringRendererTpe)) ||
-        treeHasEncodableString(argExpr.tree)
+      treeHasEncodableString(argExpr.tree)
     }
   }
 
   /**
-   * Wrap an argument expression as a [[PythonTemplateBuilder.StringRenderer]] AST node.
-   *
-   * Priority:
-   * 1) If it's already a StringRenderer, keep it (cast).
-   * 2) Else if Encodable-marked, wrap as EncodableStringRenderer.
-   * 3) Else wrap as PyLiteralStringRenderer.
-   */
+    * Wrap an argument expression as a [[PythonTemplateBuilder.StringRenderer]] AST node.
+    *
+    * Priority:
+    * 1) If it's already a StringRenderer, keep it (cast).
+    * 2) Else if Encodable-marked, wrap as EncodableStringRenderer.
+    * 3) Else wrap as PyLiteralStringRenderer.
+    */
   def wrapArg(argExpr: c.Expr[Any]): Tree = {
     val argTree = argExpr.tree
     val argType = argTree.tpe
