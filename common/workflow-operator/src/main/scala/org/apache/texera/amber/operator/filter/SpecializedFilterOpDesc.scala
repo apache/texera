@@ -23,10 +23,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SpecializedFilterOpDesc extends FilterOpDesc {
+class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(value = "predicates", required = true)
   @JsonPropertyDescription("multiple predicates in OR")
@@ -59,5 +60,37 @@ class SpecializedFilterOpDesc extends FilterOpDesc {
       List(OutputPort()),
       supportReconfiguration = true
     )
+  }
+
+  override def generateStandaloneCode(): String = {
+    if (predicates.isEmpty) return "out1df = in1df.copy()"
+    val conditions = predicates.map { p =>
+      val col = p.attribute
+      p.condition match {
+        case ComparisonType.IS_NULL     => s"""(in1df["$col"].isna())"""
+        case ComparisonType.IS_NOT_NULL => s"""(in1df["$col"].notna())"""
+        case other =>
+          val op = other.getName // returns "=", ">=", "<", etc. (see ComparisonType.java)
+          val pyOp = if (op == "=") "==" else op
+          s"""(in1df["$col"] $pyOp ${coerceValue(p.value)})"""
+      }
+    }
+    s"out1df = in1df[${conditions.mkString(" | ")}].reset_index(drop=True)"
+  }
+
+  // Try numeric coercion so generated code compares column values against the right type.
+  // Strings that don't parse fall through to a quoted string literal.
+  private def coerceValue(raw: String): String = {
+    try {
+      raw.toInt.toString
+    } catch {
+      case _: NumberFormatException =>
+        try {
+          raw.toDouble.toString
+        } catch {
+          case _: NumberFormatException =>
+            s""""${raw.replace("\"", "\\\"")}""""
+        }
+    }
   }
 }
