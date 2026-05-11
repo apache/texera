@@ -23,7 +23,6 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.RenderMode.{Encod
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   EncodableStringRenderer,
   PyLiteralStringRenderer,
-  PythonTemplateBuilderStringContext,
   fromInterpolated,
   wrapWithPythonDecoderExpr
 }
