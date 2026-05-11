@@ -765,6 +765,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getPVEs(): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -783,7 +784,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           }));
 
           this.workflowPveService
-            .getSystemPackages()
+            .getSystemPackages(isLocal)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: installedResp => {

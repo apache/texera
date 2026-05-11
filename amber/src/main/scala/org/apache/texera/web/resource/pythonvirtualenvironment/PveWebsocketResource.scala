@@ -64,7 +64,7 @@ class PveWebsocketResource {
                 .map(_.replace("\"", "").trim)
                 .filter(_.nonEmpty)
 
-            PveManager.installUserPackages(packages, cuid, queue, pveName)
+            PveManager.installUserPackages(packages, cuid, queue, pveName, isLocal)
 
           case _ =>
             queue.put(s"[ERR] Unknown action: $action")

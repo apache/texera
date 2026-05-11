@@ -80,7 +80,8 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
       List(packageSpec),
       testCuid,
       queue,
-      testPveName
+      testPveName,
+      isLocal = true
     )
 
     val logs = queueText()

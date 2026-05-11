@@ -49,7 +49,7 @@ export class WorkflowPveService {
     return params;
   }
 
-  getSystemPackages(): Observable<PackageResponse> {
+  getSystemPackages(isLocal: boolean): Observable<PackageResponse> {
     const params = this.buildBaseParams();
     return this.http.get<PackageResponse>("/pve/system", { params });
   }

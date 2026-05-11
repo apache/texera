@@ -1,0 +1,134 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This file is generated manually to track system packages used in PVEs.
+# NOTE: This file must be updated whenever requirements.txt or
+# operator-requirements.txt changes.
+
+aiobotocore==2.25.1
+aiohappyeyeballs==2.6.1
+aiohttp==3.13.5
+aioitertools==0.13.0
+aiosignal==1.4.0
+annotated-types==0.7.0
+appdirs==1.4.4
+asn1crypto==1.5.1
+attrs==26.1.0
+betterproto==2.0.0b7
+bidict==0.22.0
+boto3==1.40.53
+botocore==1.40.53
+cached-property==1.5.2
+cachetools==6.2.6
+certifi==2026.4.22
+charset-normalizer==3.4.7
+click==8.3.3
+contourpy==1.3.3
+cycler==0.12.1
+Deprecated==1.2.14
+filelock==3.29.0
+fonttools==4.62.1
+frozenlist==1.8.0
+fs==2.4.16
+fsspec==2025.9.0
+grpclib==0.4.9
+h2==4.3.0
+hf-xet==1.5.0
+hpack==4.1.0
+huggingface_hub==0.36.2
+hyperframe==6.1.0
+idna==3.14
+ImageIO==2.37.3
+iniconfig==1.1.1
+Jinja2==3.1.6
+jmespath==1.1.0
+joblib==1.5.3
+kiwisolver==1.5.0
+lazy-loader==0.5
+loguru==0.7.0
+markdown-it-py==4.2.0
+MarkupSafe==3.0.3
+matplotlib==3.10.9
+mdurl==0.1.2
+mmh3==5.2.1
+mpmath==1.3.0
+multidict==6.7.1
+networkx==3.6.1
+numpy==2.1.0
+overrides==7.4.0
+packaging==26.2
+pampy==0.3.0
+pandas==2.2.3
+pg8000==1.31.5
+pillow==12.2.0
+plotly==5.24.1
+pluggy==1.6.0
+praw==7.6.1
+prawcore==2.4.0
+propcache==0.5.2
+protobuf==7.34.1
+psutil==5.9.0
+pyarrow==21.0.0
+pybase64==1.3.2
+pydantic==2.13.4
+pydantic_core==2.46.4
+Pygments==2.20.0
+pyiceberg==0.11.1
+Pympler==1.1
+pyparsing==3.3.2
+pyroaring==1.1.0
+pytest==7.4.0
+pytest-reraise==2.1.2
+pytest-timeout==2.2.0
+python-dateutil==2.8.2
+pytz==2026.2
+PyYAML==6.0.3
+readerwriterlock==1.0.9
+regex==2026.5.9
+requests==2.34.0
+rich==14.3.4
+ruff==0.14.7
+s3fs==2025.9.0
+s3transfer==0.14.0
+safetensors==0.7.0
+scikit-image==0.25.2
+scikit-learn==1.5.0
+scipy==1.17.1
+scramp==1.4.8
+setuptools==80.10.2
+six==1.17.0
+SQLAlchemy==2.0.37
+strictyaml==1.7.3
+sympy==1.14.0
+tenacity==8.5.0
+threadpoolctl==3.6.0
+tifffile==2026.5.2
+tokenizers==0.22.2
+torch==2.8.0
+tqdm==4.67.3
+transformers==4.57.3
+typing-inspection==0.4.2
+typing_extensions==4.14.1
+tzdata==2026.2
+tzlocal==2.1
+update-checker==0.18.0
+urllib3==2.7.0
+websocket-client==1.9.0
+wordcloud==1.9.3
+wrapt==1.17.3
+yarl==1.23.0
+zstandard==0.25.0

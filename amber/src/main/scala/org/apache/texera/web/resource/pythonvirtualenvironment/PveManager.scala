@@ -67,9 +67,25 @@ object PveManager {
       "PIP_NO_INPUT" -> "1"
     )
 
-  def getSystemPackages(): Seq[String] = {
-    val python = PythonUtils.getPythonExecutable
-    Process(Seq(python, "-m", "pip", "freeze")).!!.split("\n").map(_.trim).filter(_.nonEmpty).toSeq
+  private def getSystemPath(isLocal: Boolean): Path = {
+    if (isLocal) {
+      Paths.get("amber", "system-requirements-lock.txt")
+    } else {
+      Paths.get("/tmp", "system-requirements-lock.txt")
+    }
+  }
+
+  def getSystemPackages(isLocal: Boolean): Seq[String] = {
+    if (!Files.exists(getSystemPath(isLocal))) {
+      Seq()
+    } else {
+      Files
+        .readAllLines(getSystemPath(isLocal))
+        .asScala
+        .map(_.trim)
+        .filter(line => line.nonEmpty && !line.startsWith("#"))
+        .toSeq
+    }
   }
 
   private def runPipInstall(
@@ -174,6 +190,17 @@ object PveManager {
       return
     }
 
+    val freezeCode = Process(
+      Seq(python, "-m", "pip", "freeze")
+    ).#>(getSystemPath(isLocal).toFile).!
+
+    queue.put(s"[PVE] system requirements lockfile generated with exit code $freezeCode")
+
+    if (freezeCode != 0) {
+      queue.put(s"[PVE][ERR] Failed to generate system requirements lockfile")
+      return
+    }
+
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
 
@@ -252,11 +279,11 @@ object PveManager {
       packages: List[String],
       cuid: Int,
       queue: BlockingQueue[String],
-      pveName: String
+      pveName: String,
+      isLocal: Boolean
   ): Unit = {
 
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
-    val envVars = pipEnv
 
     if (!Files.exists(Paths.get(python))) {
       queue.put(s"[PVE][ERR] Python executable not found for PVE: $python")
@@ -277,15 +304,42 @@ object PveManager {
         Set[String]()
       }
 
+    val systemPackages =
+      if (Files.exists(getSystemPath(isLocal))) {
+        Files
+          .readAllLines(getSystemPath(isLocal))
+          .asScala
+          .map(_.trim)
+          .filter(_.nonEmpty)
+          .map(line => line.split("==")(0).trim.toLowerCase)
+          .toSet
+      } else {
+        Set[String]()
+      }
+
     packages.foreach { pkg =>
       val trimmedPkg = pkg.trim
 
       if (trimmedPkg.nonEmpty) {
+
+        val userPackageName = trimmedPkg.split("==")(0).trim.toLowerCase
+
+        if (systemPackages.contains(userPackageName)) {
+          queue.put(
+            s"[PVE][ERR] $trimmedPkg is a system package and cannot be installed or modified by the user."
+          )
+          return
+        }
+
         queue.put(s"[PVE] Installing package: $trimmedPkg")
 
         val code = runPipInstall(
           python,
-          Seq(trimmedPkg),
+          Seq(
+            "--constraint",
+            getSystemPath(isLocal).toString,
+            trimmedPkg
+          ),
           queue
         )
 

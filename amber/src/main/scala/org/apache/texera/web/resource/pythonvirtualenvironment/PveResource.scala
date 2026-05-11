@@ -35,12 +35,19 @@ class PveResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
     try {
-      val systemPkgs = PveManager.getSystemPackages().toList.asJava
+
+      val isLocal = true
+
+      val systemPkgs =
+        PveManager.getSystemPackages(isLocal).toList.asJava
+
       Map("system" -> systemPkgs).asJava
     } catch {
       case e: Exception =>
         e.printStackTrace()
-        throw new InternalServerErrorException("Failed to get system packages.")
+        throw new InternalServerErrorException(
+          "Failed to get system packages."
+        )
     }
   }
 
