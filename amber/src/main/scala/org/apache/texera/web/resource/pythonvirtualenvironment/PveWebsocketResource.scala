@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
-  *  WebSocket endpoint for PVE creation and user pacakge installation that streams
+  *  WebSocket endpoint for PVE creation and user package installation that streams
   *  pip installation logs  to the frontend in real time. The environment setup runs
   *  asynchronously, and output is pushed to the client until completion.
   */

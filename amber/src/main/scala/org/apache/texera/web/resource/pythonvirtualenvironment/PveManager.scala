@@ -272,8 +272,9 @@ object PveManager {
     * Installs user requested Python packages into the PVE.
     *
     * 1. Executes pip install for each package
-    * 2. Updates user metadata file
-    * 3. Streams logs back via queue
+    * 2. Prevents conflicts with system dependencies.
+    * 3. Updates user metadata file
+    * 4. Streams logs back via queue
     */
   def installUserPackages(
       packages: List[String],
@@ -336,7 +337,7 @@ object PveManager {
         val code = runPipInstall(
           python,
           Seq(
-            "--constraint",
+            "--constraint", // check against system-requirements-lock
             getSystemPath(isLocal).toString,
             trimmedPkg
           ),
