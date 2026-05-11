@@ -67,7 +67,13 @@ This command will start docker containers that host the  Texera services, and pr
 If you don't want to have these examples pre-created, run the following command instead:
 ```bash
 docker compose up
-``` 
+```
+
+To enable the AI copilot panel, also pass your LLM provider key inline. For example, with Anthropic:
+```bash
+export ANTHROPIC_API_KEY=<your-api-key>
+docker compose --profile examples up
+```
 
 > If you see the error message like `unable to get image 'nginx:alpine': Cannot connect to the Docker daemon at unix:///Users/kunwoopark/.docker/run/docker.sock. Is the docker daemon running?`, please make sure Docker Desktop is installed and running
 
@@ -107,7 +113,7 @@ Same as the way you [launch Texera](#launch-texera).
 ### Uninstall
 To remove Texera and all its data, go to the installation folder and run:
 ```bash
-docker compose down -v
+docker compose --profile examples down -v
 ```
 > ⚠️ Warning: This will permanently delete all the data used by Texera.
 
@@ -175,8 +181,8 @@ PostgreSQL only runs the database initialization scripts on first startup (when 
 To resolve this, remove all existing volumes and start fresh:
 
 ```
-docker compose down -v
-docker compose up
+docker compose --profile examples down -v
+docker compose --profile examples up
 ```
 
-> ⚠️ Warning: `docker compose down -v` permanently deletes all Texera data.
+> ⚠️ Warning: `docker compose --profile examples down -v` permanently deletes all Texera data.
