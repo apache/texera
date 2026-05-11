@@ -25,7 +25,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -42,7 +42,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class BarChartOpDesc extends PythonOperatorDescriptor {
+class BarChartOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -154,4 +154,30 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
     finalCode.encode
   }
 
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val hasCategory = categoryColumn.nonEmpty && categoryColumn != "No Selection"
+    val colorArg = if (hasCategory) s""""$categoryColumn"""" else "None"
+    val patternArg = if (pattern.nonEmpty) s""""$pattern"""" else "None"
+
+    val barArgs =
+      if (horizontalOrientation)
+        s"""y="$fields", x="$value", color=$colorArg, pattern_shape=$patternArg, orientation='h'"""
+      else
+        s"""y="$value", x="$fields", color=$colorArg, pattern_shape=$patternArg"""
+
+    s"""in1df = in1df.dropna(subset=["$value", "$fields"])
+       |if not in1df.empty and "$fields" != "$value":
+       |    fig = go.Figure(px.bar(in1df, $barArgs))
+       |    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+       |    fig.write_html("output.html")
+       |    print("Bar chart saved to output.html")
+       |elif "$fields" == "$value":
+       |    print("Bar chart error: Fields should not have the same value.")
+       |elif in1df.empty:
+       |    print("Bar chart error: Table should not have any empty/null values or fields.")""".stripMargin
+  }
 }
