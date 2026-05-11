@@ -25,7 +25,9 @@ describe("AnnotationSuggestionComponent", () => {
   let fixture: ComponentFixture<AnnotationSuggestionComponent>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({}).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [AnnotationSuggestionComponent],
+    }).compileComponents();
     fixture = TestBed.createComponent(AnnotationSuggestionComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

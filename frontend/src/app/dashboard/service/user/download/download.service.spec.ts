@@ -62,6 +62,12 @@ describe("DownloadService", () => {
     httpMock = TestBed.inject(HttpTestingController);
   });
 
+  afterEach(() => {
+    // Catch any test that fires an HTTP request without flushing it; keeps
+    // the suite safe as more specs start using HttpTestingController.
+    httpMock.verify();
+  });
+
   // ─── downloadSingleFile ───────────────────────────────────────────────────
 
   it("downloads a single file and saves it under the basename of the path", async () => {
@@ -271,6 +277,5 @@ describe("DownloadService", () => {
 
     const map = await promise;
     expect(map).toEqual({ "op-1": ["my-dataset"], "op-2": [] });
-    httpMock.verify();
   });
 });

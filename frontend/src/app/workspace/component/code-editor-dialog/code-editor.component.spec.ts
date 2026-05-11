@@ -40,7 +40,12 @@ const PYTHON_OPERATOR_TYPES = ["PythonUDFV2", "PythonUDFSourceV2", "DualInputPor
 // them. Cloning the existing `PythonUDF` schema and renaming the
 // `operatorType` is the cheapest way to satisfy both `operatorTypeExists`
 // and the schema-driven joint element creation.
-const baseSchema = mockOperatorMetaData.operators.find(op => op.operatorType === "PythonUDF") ?? ({} as OperatorSchema);
+const baseSchema = mockOperatorMetaData.operators.find(op => op.operatorType === "PythonUDF");
+if (!baseSchema) {
+  throw new Error(
+    "CodeEditorComponent spec setup expected a PythonUDF schema in mockOperatorMetaData — fixture has drifted."
+  );
+}
 const synthesizeSchema = (operatorType: string): OperatorSchema => ({ ...baseSchema, operatorType });
 const augmentedSchemas: OperatorSchema[] = [
   ...mockOperatorMetaData.operators,
