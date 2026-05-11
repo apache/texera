@@ -159,15 +159,18 @@ lazy val WorkflowExecutionService = (project in file("amber"))
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
+    // common libraries
     DAO,
     Config,
+    Auth,
+    PyBuilder,
+    WorkflowCore,
+    WorkflowOperator,
+    // services
     ConfigService,
     AccessControlService,
-    Auth,
-    WorkflowCore,
     ComputingUnitManagingService,
     FileService,
-    WorkflowOperator,
     WorkflowCompilingService,
     WorkflowExecutionService
   )
