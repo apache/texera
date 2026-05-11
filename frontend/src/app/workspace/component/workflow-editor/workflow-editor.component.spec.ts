@@ -21,7 +21,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
@@ -74,10 +74,16 @@ describe("WorkflowEditorComponent", () => {
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let jointGraph: joint.dia.Graph;
 
-    beforeEach(waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [WorkflowEditorComponent, ContextMenuComponent],
-        imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule],
+    beforeEach(async () => {
+      await TestBed.configureTestingModule({
+        imports: [
+          RouterTestingModule,
+          HttpClientTestingModule,
+          NzModalModule,
+          NzDropDownModule,
+          WorkflowEditorComponent,
+          ContextMenuComponent,
+        ],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -97,7 +103,7 @@ describe("WorkflowEditorComponent", () => {
           ...commonTestProviders,
         ],
       }).compileComponents();
-    }));
+    });
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
@@ -174,10 +180,17 @@ describe("WorkflowEditorComponent", () => {
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
 
-    beforeEach(waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [WorkflowEditorComponent, NzModalCommentBoxComponent],
-        imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule, NoopAnimationsModule],
+    beforeEach(async () => {
+      await TestBed.configureTestingModule({
+        imports: [
+          RouterTestingModule,
+          HttpClientTestingModule,
+          NzModalModule,
+          NzDropDownModule,
+          NoopAnimationsModule,
+          WorkflowEditorComponent,
+          NzModalCommentBoxComponent,
+        ],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -202,7 +215,7 @@ describe("WorkflowEditorComponent", () => {
           ...commonTestProviders,
         ],
       }).compileComponents();
-    }));
+    });
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);

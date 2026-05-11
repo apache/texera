@@ -20,7 +20,11 @@
 package org.apache.texera.amber.pybuilder
 
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{EncodableStringRenderer, PyLiteralStringRenderer, PythonTemplateBuilderStringContext}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  EncodableStringRenderer,
+  PyLiteralStringRenderer,
+  PythonTemplateBuilderStringContext
+}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
@@ -235,7 +239,8 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
   }
 
   test("@StringUI lambda parameter triggers UI encoding") {
-    val uiToBuilder: (String @EncodableStringAnnotation) => PythonTemplateBuilder = uiText => pyb"$uiText"
+    val uiToBuilder: (String @EncodableStringAnnotation) => PythonTemplateBuilder =
+      uiText => pyb"$uiText"
     val builder = uiToBuilder("lambda")
     assert(builder.encode == decodeExpr("lambda"))
   }
@@ -243,7 +248,9 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
   test("@StringUI lambda param + map + mkString triggers UI encoding per element") {
     val rawItems = List("a", "b", "c")
     val joinedEncoded =
-      rawItems.map((uiItem: String @EncodableStringAnnotation) => pyb"$uiItem").mkString("[", ", ", "]")
+      rawItems
+        .map((uiItem: String @EncodableStringAnnotation) => pyb"$uiItem")
+        .mkString("[", ", ", "]")
     assert(joinedEncoded == s"[${rawItems.map(decodeExpr).mkString(", ")}]")
   }
 
@@ -256,7 +263,8 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
 
   test("Erasing List[String @StringUI] to List[String] drops UI encoding") {
     val uiItems: List[String @EncodableStringAnnotation] = List("erased")
-    val erased: List[String] = uiItems.map((uiItem: String @EncodableStringAnnotation) => (uiItem: String))
+    val erased: List[String] =
+      uiItems.map((uiItem: String @EncodableStringAnnotation) => (uiItem: String))
     val builder = pyb"${erased.head}"
     assert(builder.encode == "erased")
   }
@@ -410,7 +418,6 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
     )
   }
 
-
   test("PyString (EncodableString) glued to identifier on the left does not compile") {
     assertDoesNotCompile("""
       import org.apache.texera.amber.pybuilder.PythonTemplateBuilder._
@@ -433,11 +440,12 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
 
     // This is intentionally exhaustive over the implementation-defined "bad neighbor" set.
     // We assert only compile success/failure, not the specific error message.
-    badChars.zipWithIndex.foreach { case (ch, i) =>
-      val esc = scalaUnicodeEscape(ch)
+    badChars.zipWithIndex.foreach {
+      case (ch, i) =>
+        val esc = scalaUnicodeEscape(ch)
 
-      val leftAdj =
-        s"""
+        val leftAdj =
+          s"""
            |import org.apache.texera.amber.pybuilder.PythonTemplateBuilder._
            |import org.apache.texera.amber.pybuilder.PyStringTypes._
            |object UiBadLeft_$i {
@@ -446,8 +454,8 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
            |}
            |""".stripMargin
 
-      val rightAdj =
-        s"""
+        val rightAdj =
+          s"""
            |import org.apache.texera.amber.pybuilder.PythonTemplateBuilder._
            |import org.apache.texera.amber.pybuilder.PyStringTypes._
            |object UiBadRight_$i {
@@ -456,8 +464,8 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
            |}
            |""".stripMargin
 
-      assertToolboxDoesNotCompile(leftAdj)
-      assertToolboxDoesNotCompile(rightAdj)
+        assertToolboxDoesNotCompile(leftAdj)
+        assertToolboxDoesNotCompile(rightAdj)
     }
   }
 
@@ -500,7 +508,9 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
     assert(outer.encode == s"pre X=${decodeExpr("Z")} post")
   }
 
-  test("nested PythonTemplateBuilder without UI can appear inside python quotes (no runtime checks)") {
+  test(
+    "nested PythonTemplateBuilder without UI can appear inside python quotes (no runtime checks)"
+  ) {
     val inner = pyb"hello"
     val outer = pyb"print('$inner')"
     assert(outer.plain == "print('hello')")
@@ -530,7 +540,9 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
     }
   }
 
-  test("nested PythonTemplateBuilder containing UI after comment marker throws at runtime (with and without whitespace)") {
+  test(
+    "nested PythonTemplateBuilder containing UI after comment marker throws at runtime (with and without whitespace)"
+  ) {
     val inner = pyb"${EncodableStringRenderer("x")}"
     intercept[IllegalArgumentException] {
       pyb"foo # $inner"
@@ -548,7 +560,9 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
     intercept[IllegalArgumentException] { pyb"${inner}2" }
   }
 
-  test("runtime guard does NOT throw when nested builder has no UI, even in unsafe boundary contexts") {
+  test(
+    "runtime guard does NOT throw when nested builder has no UI, even in unsafe boundary contexts"
+  ) {
     val inner = pyb"hello"
     val outer1 = pyb"foo$inner"
     val outer2 = pyb"${inner}bar"
@@ -595,7 +609,9 @@ class PythonTemplateBuilderSpec extends AnyFunSuite {
     assert(builder.encode.contains("self.decode_python_template("))
   }
 
-  test("format(): nested PythonTemplateBuilder containing UI is allowed (no runtime false positive)") {
+  test(
+    "format(): nested PythonTemplateBuilder containing UI is allowed (no runtime false positive)"
+  ) {
     val workflowParam = "wf"
     val portParam = pyb"int (${PythonTemplateBuilder.EncodableStringRenderer("\\.")}),"
 
