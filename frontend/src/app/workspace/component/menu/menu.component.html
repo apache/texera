@@ -142,6 +142,15 @@
             nzType="download"></i>
         </button>
         <button
+          (click)="onClickExportAsPython()"
+          [disabled]="isTranslatingToPython"
+          nz-button
+          title="export as Python script">
+          <i
+            nz-icon
+            nzType="code"></i>
+        </button>
+        <button
           (click)="onClickEditDescription()"
           nz-button
           title="change description">

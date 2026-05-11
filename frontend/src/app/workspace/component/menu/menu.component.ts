@@ -48,6 +48,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
+import { WorkflowToPythonService } from "../../../dashboard/service/user/workflow-to-python/workflow-to-python.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
 import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
@@ -189,7 +190,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    private workflowToPythonService: WorkflowToPythonService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -644,6 +646,36 @@ export class MenuComponent implements OnInit, OnDestroy {
     };
     return false;
   };
+
+  public isTranslatingToPython = false;
+
+  public onClickExportAsPython(): void {
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+      this.validationWorkflowService.getValidTexeraGraph(),
+      undefined
+    );
+
+    this.isTranslatingToPython = true;
+    this.workflowToPythonService.convertToPython(logicalPlan).subscribe({
+      next: response => {
+        this.isTranslatingToPython = false;
+        if (response.type === "success") {
+          this.modalService.create({
+            nzTitle: "Workflow as Python Script",
+            nzContent: `<pre style="max-height:70vh;overflow:auto;white-space:pre-wrap">${response.pythonCode}</pre>`,
+            nzFooter: null,
+            nzWidth: 800,
+          });
+        } else {
+          this.notificationService.error(response.errorMessage ?? "Failed to translate workflow to Python.");
+        }
+      },
+      error: () => {
+        this.isTranslatingToPython = false;
+        this.notificationService.error("Request failed while translating workflow to Python.");
+      },
+    });
+  }
 
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();

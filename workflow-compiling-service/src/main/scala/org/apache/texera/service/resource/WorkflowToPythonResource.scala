@@ -24,7 +24,8 @@ import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
-import com.fasterxml.jackson.databind.JsonNode
+import org.apache.texera.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
+import org.apache.texera.amber.translator.WorkflowToPythonTranslator
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -49,15 +50,21 @@ case class WorkflowToPythonFailure(errorMessage: String) extends WorkflowToPytho
 @Path("/workflow-to-python")
 class WorkflowToPythonResource extends LazyLogging {
 
+  private val translator = new WorkflowToPythonTranslator()
+
   @POST
   @Path("")
   def convertWorkflowToPython(
-                               workflowJson: JsonNode
-                             ): WorkflowToPythonResponse = {
-    // TODO: plug in WorkflowToPythonTranslator when available
-    WorkflowToPythonSuccess(
-      """print("workflow-to-python endpoint works")"""
-    )
-// Placeholder, need to be replaced by error checking after the full implementation of translator is plugged in
+      logicalPlanPojo: LogicalPlanPojo
+  ): WorkflowToPythonResponse = {
+    try {
+      val logicalPlan = LogicalPlan(logicalPlanPojo)
+      val pythonCode = translator.translate(logicalPlan)
+      WorkflowToPythonSuccess(pythonCode)
+    } catch {
+      case e: Exception =>
+        logger.error("Failed to translate workflow to Python", e)
+        WorkflowToPythonFailure(e.getMessage)
+    }
   }
 }
