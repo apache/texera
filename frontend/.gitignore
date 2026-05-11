@@ -12,6 +12,9 @@ src/environments/version.ts
 # test coverage
 /coverage
 
+# vitest browser-mode snapshot baselines
+**/__screenshots__/
+
 # dependencies
 /node_modules
 

@@ -133,6 +133,10 @@ jobs:
           files: ./frontend/coverage/**/lcov.info
           flags: frontend
           fail_ci_if_error: false
+      - name: Install Playwright Chromium
+        run: yarn --cwd frontend playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
+      - name: Run frontend browser-mode tests
+        run: yarn --cwd frontend ng run gui:test-browser
 
   amber:
     # The amber job runs the cross-cutting Scala lints (scalafmtCheckAll,
