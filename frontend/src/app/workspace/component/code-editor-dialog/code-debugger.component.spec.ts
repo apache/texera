@@ -27,12 +27,15 @@ import * as Y from "yjs";
 import { BreakpointInfo } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
+import type { MonacoBreakpoint } from "monaco-breakpoints";
+import type * as monaco from "monaco-editor";
 describe("CodeDebuggerComponent", () => {
   let component: CodeDebuggerComponent;
   let fixture: ComponentFixture<CodeDebuggerComponent>;
 
-  let mockWorkflowStatusService: any;
-  let mockUdfDebugService: any;
+  let mockWorkflowStatusService: Mocked<WorkflowStatusService>;
+  let mockUdfDebugService: Mocked<UdfDebugService>;
 
   let statusUpdateStream: Subject<Record<string, OperatorStatistics>>;
   let debugState: Y.Map<BreakpointInfo>;
@@ -44,10 +47,13 @@ describe("CodeDebuggerComponent", () => {
     statusUpdateStream = new Subject<Record<string, OperatorStatistics>>();
     debugState = new Y.Map<BreakpointInfo>();
 
-    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() };
+    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
     mockWorkflowStatusService.getStatusUpdateStream.mockReturnValue(statusUpdateStream.asObservable());
 
-    mockUdfDebugService = { getDebugState: vi.fn(), doModifyBreakpoint: vi.fn() };
+    mockUdfDebugService = {
+      getDebugState: vi.fn(),
+      doModifyBreakpoint: vi.fn(),
+    } as unknown as Mocked<UdfDebugService>;
     mockUdfDebugService.getDebugState.mockReturnValue(debugState);
 
     await TestBed.configureTestingModule({
@@ -65,7 +71,7 @@ describe("CodeDebuggerComponent", () => {
 
     // Set required input properties
     component.currentOperatorId = operatorId;
-    component.monacoEditor = { dispose: vi.fn() } as any;
+    component.monacoEditor = { dispose: vi.fn() } as unknown as monaco.editor.IStandaloneCodeEditor;
 
     // Trigger change detection to ensure view updates
     fixture.detectChanges();
@@ -206,7 +212,7 @@ describe("CodeDebuggerComponent", () => {
         [1, "breakpoint1"],
         [2, "breakpoint2"],
       ]),
-    } as any;
+    } as unknown as MonacoBreakpoint;
 
     // Simulate a right click on line 1, it should switch to 1
     component["onMouseRightClick"](1);
