@@ -24,7 +24,7 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11 AS build
 
 # Set working directory
 WORKDIR /texera
@@ -34,6 +34,7 @@ COPY common/ common/
 COPY access-control-service/ access-control-service/
 COPY project/ project/
 COPY build.sbt build.sbt
+COPY .jvmopts .jvmopts
 
 # Update system and install dependencies
 RUN apt-get update && apt-get install -y \
@@ -52,7 +53,7 @@ RUN sbt clean AccessControlService/dist
 # Unzip the texera binary
 RUN unzip access-control-service/target/universal/access-control-service-*.zip -d target/
 
-FROM eclipse-temurin:11-jre-jammy AS runtime
+FROM eclipse-temurin:17-jre-jammy AS runtime
 
 WORKDIR /texera
 
@@ -69,6 +70,12 @@ COPY --from=build /texera/access-control-service/LICENSE-binary /texera/LICENSE
 COPY --from=build /texera/access-control-service/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
+
+RUN groupadd --system --gid 1001 texera \
+ && useradd --system --uid 1001 --gid texera --home-dir /texera --no-create-home texera \
+ && chown -R texera:texera /texera
+USER texera
+
 CMD ["bin/access-control-service"]
 
 EXPOSE 9096

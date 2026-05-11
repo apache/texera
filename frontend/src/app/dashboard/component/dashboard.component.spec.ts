@@ -19,13 +19,14 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
-import { ChangeDetectorRef, EventEmitter, NgZone, NO_ERRORS_SCHEMA } from "@angular/core";
+import { ChangeDetectorRef, EventEmitter, NgZone } from "@angular/core";
 import { By } from "@angular/platform-browser";
-import { of } from "rxjs";
+import { EMPTY, of } from "rxjs";
 
 import { UserService } from "../../common/service/user/user.service";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import {
   ActivatedRoute,
   ActivatedRouteSnapshot,
@@ -50,6 +51,7 @@ describe("DashboardComponent", () => {
   let cdrMock: Partial<ChangeDetectorRef>;
   let ngZoneMock: Partial<NgZone>;
   let socialAuthServiceMock: Partial<SocialAuthService>;
+  let adminSettingsServiceMock: Partial<AdminSettingsService>;
   let activatedRouteMock: Partial<ActivatedRoute>;
 
   const activatedRouteSnapshotMock: Partial<ActivatedRouteSnapshot> = {
@@ -105,7 +107,14 @@ describe("DashboardComponent", () => {
     };
 
     socialAuthServiceMock = {
-      authState: of(),
+      authState: EMPTY,
+      // GoogleSigninButtonDirective subscribes to initState in its constructor;
+      // EMPTY keeps the subscription open without triggering google.accounts.id.renderButton.
+      initState: EMPTY,
+    };
+
+    adminSettingsServiceMock = {
+      getSetting: vi.fn().mockReturnValue(EMPTY),
     };
 
     activatedRouteMock = {
@@ -113,8 +122,7 @@ describe("DashboardComponent", () => {
     };
 
     await TestBed.configureTestingModule({
-      declarations: [DashboardComponent],
-      imports: [HttpClientTestingModule],
+      imports: [DashboardComponent, HttpClientTestingModule],
       providers: [
         { provide: UserService, useValue: userServiceMock },
         { provide: Router, useValue: routerMock },
@@ -122,10 +130,10 @@ describe("DashboardComponent", () => {
         { provide: ChangeDetectorRef, useValue: cdrMock },
         { provide: NgZone, useValue: ngZoneMock },
         { provide: SocialAuthService, useValue: socialAuthServiceMock },
+        { provide: AdminSettingsService, useValue: adminSettingsServiceMock },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
         ...commonTestProviders,
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 

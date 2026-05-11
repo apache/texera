@@ -31,8 +31,6 @@ import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflo
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { TOKEN_KEY } from "../../../../common/service/user/auth.service";
 
-var contentDisposition = require("content-disposition");
-
 export const EXPORT_BASE_URL = "result/export";
 const IFRAME_TIMEOUT_MS = 10000;
 export const DOWNLOADABILITY_BASE_URL = "result/downloadability";
