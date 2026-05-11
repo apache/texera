@@ -501,7 +501,7 @@ Source files derived from third-party MIT-licensed projects:
 
 Scala/Java jars:
   - net.sourceforge.argparse4j.argparse4j-0.9.0.jar
-  - org.checkerframework.checker-qual-3.42.0.jar
+  - org.checkerframework.checker-qual-3.52.0.jar
   - org.codehaus.mojo.animal-sniffer-annotations-1.23.jar
   - org.projectlombok.lombok-1.18.24.jar
   - org.reactivestreams.reactive-streams-1.0.4.jar
