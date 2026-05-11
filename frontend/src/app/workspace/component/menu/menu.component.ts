@@ -98,7 +98,6 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
   styleUrls: ["menu.component.scss"],
   imports: [
     NgIf,
-    NzSpaceCompactItemDirective,
     NzButtonComponent,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
