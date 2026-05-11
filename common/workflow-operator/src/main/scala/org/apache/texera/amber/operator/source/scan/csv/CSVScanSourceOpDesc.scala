@@ -28,14 +28,16 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.{IOException, InputStreamReader}
 import java.net.URI
+import java.nio.file.Paths
 
-class CSVScanSourceOpDesc extends ScanSourceOpDesc {
+class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
@@ -125,4 +127,38 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   }
 
+  override def generateStandaloneCode(): String = {
+    // Strip to just the basename. The standalone script assumes the CSV
+    // lives in the same directory as the script (Texera's resolved URIs
+    // can't be used directly outside the system).
+    val rawPath = fileName.getOrElse("")
+    val basename = Paths.get(new URI(rawPath).getPath).getFileName.toString
+
+    val sep = customDelimiter.getOrElse(",")
+    // Texera's encoding enum uses values like UTF_8; pandas expects utf-8.
+    val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
+    val headerArg = if (hasHeader) "0" else "None"
+
+    val args = scala.collection.mutable.ArrayBuffer[String]()
+    args += s"""filepath_or_buffer="$basename""""
+    args += s"""sep="$sep""""
+    args += s"""encoding="$encoding""""
+    args += s"header=$headerArg"
+
+    offset.foreach { o =>
+      // With a header, skip offset rows after row 0; without, skip offset rows from the start.
+      if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
+      else args += s"skiprows=$o"
+    }
+    limit.foreach(l => args += s"nrows=$l")
+
+    val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
+
+    if (hasHeader) readCall
+    else {
+      // Match Texera's fallback column naming when there's no header
+      s"""$readCall
+         |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
+    }
+  }
 }
