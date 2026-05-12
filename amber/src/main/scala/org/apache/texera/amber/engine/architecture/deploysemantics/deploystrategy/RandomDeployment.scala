@@ -33,6 +33,9 @@ class RandomDeployment extends DeployStrategy {
   }
 
   override def next(): Address = {
+    if (available.isEmpty) {
+      throw new NoSuchElementException("no available addresses")
+    }
     available(util.Random.nextInt(available.length))
   }
 }
