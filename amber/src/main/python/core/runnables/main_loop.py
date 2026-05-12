@@ -118,7 +118,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
             or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
-            self._process_dcm(next_entry)
+            match(
+                next_entry,
+                DCMElement,
+                self._process_dcm,
+                ECMElement,
+                self._process_ecm,
+            )
 
     @overrides
     def pre_start(self) -> None:
@@ -186,7 +192,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def process_input_state(self) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
-        self._switch_context()
         if output_state is not None:
             for to, batch in self.context.output_manager.emit_state(output_state):
                 self._output_queue.put(
@@ -415,19 +420,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
             except Exception as err:
                 logger.exception(err)
-
-    def _scheduler_time_slot_event(self, time_slot_expired: bool) -> None:
-        """
-        The time slot for scheduling this worker has expired.
-        """
-        if time_slot_expired:
-            self.context.pause_manager.pause(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
-            )
-        else:
-            self.context.pause_manager.resume(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
-            )
 
     def _send_console_message(self, console_message: ConsoleMessage):
         self._async_rpc_client.controller_stub().console_message_triggered(

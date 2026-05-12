@@ -19,7 +19,6 @@
 
 import {
   ChangeDetectorRef,
-  Component,
   ElementRef,
   EventEmitter,
   Input,
@@ -28,6 +27,7 @@ import {
   SimpleChanges,
   ViewChild,
 } from "@angular/core";
+import { Component } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
@@ -52,12 +52,40 @@ import {
   DASHBOARD_USER_WORKSPACE,
 } from "../../../../app-routing.constant";
 import { isDefined } from "../../../../common/util/predicate";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { RouterLink } from "@angular/router";
+import { NgIf, NgClass } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { FormsModule } from "@angular/forms";
+import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 
 @UntilDestroy()
 @Component({
   selector: "texera-list-item",
   templateUrl: "./list-item.component.html",
   styleUrls: ["./list-item.component.scss"],
+  imports: [
+    NzCardComponent,
+    NzRowDirective,
+    RouterLink,
+    NzColDirective,
+    NgIf,
+    NgClass,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    FormsModule,
+    UserAvatarComponent,
+    NzWaveDirective,
+    NzPopconfirmDirective,
+  ],
 })
 export class ListItemComponent implements OnChanges {
   private owners: number[] = [];

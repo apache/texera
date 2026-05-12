@@ -16,7 +16,12 @@
 // under the License.
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.11.0")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.6")
+// Coverage instrumentation; emits jacoco.xml that Codecov consumes.
+// JaCoCo (vs scoverage) works on JVM bytecode, so it does not need a
+// per-Scala-version compiler plugin — scalac-scoverage-plugin only
+// publishes up to 2.13.16, but Texera builds on 2.13.18.
+addSbtPlugin("com.github.sbt" % "sbt-jacoco" % "3.5.0")
 // License reporting for dependency compliance auditing
 // See: https://github.com/sbt/sbt-license-report
 addSbtPlugin("com.github.sbt" % "sbt-license-report" % "1.7.0")
@@ -24,11 +29,11 @@ addSbtPlugin("com.github.sbt" % "sbt-license-report" % "1.7.0")
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.1"
 addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.11.1")
 // for scalapb code gen
-addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.5.0")
+addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.11.0")
 
 // JOOQ dependencies for code generation
 libraryDependencies ++= Seq(
   "org.jooq" % "jooq-codegen" % "3.16.23",
-  "com.typesafe" % "config" % "1.4.3",
+  "com.typesafe" % "config" % "1.4.6",
   "org.postgresql" % "postgresql" % "42.7.4"
 )

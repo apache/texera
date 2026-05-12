@@ -20,9 +20,6 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "dao"
-organization := "org.apache"
-version := "1.0.0"
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -177,5 +174,5 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.postgresql" % "postgresql" % "42.7.4",
+  "org.postgresql" % "postgresql" % "42.7.10",
 )

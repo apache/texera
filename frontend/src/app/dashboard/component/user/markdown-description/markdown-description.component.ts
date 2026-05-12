@@ -33,6 +33,15 @@ import {
 } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
+import { NgIf, NgFor } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 
 const COLLAPSED_HEIGHT_PX = 320;
 
@@ -62,9 +71,22 @@ const TOOLBAR = [
   selector: "texera-markdown-description",
   templateUrl: "./markdown-description.component.html",
   styleUrls: ["./markdown-description.component.scss"],
+  imports: [
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NgFor,
+    NzTooltipDirective,
+    NzInputDirective,
+    FormsModule,
+    NzWaveDirective,
+  ],
 })
 export class MarkdownDescriptionComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   private modalData = inject(NZ_MODAL_DATA, { optional: true });
+  private markdownRenderSequence = 0;
   private resizeObserver?: ResizeObserver;
 
   @Input() description = "";
@@ -140,8 +162,20 @@ export class MarkdownDescriptionComponent implements OnInit, OnChanges, AfterVie
   }
 
   renderMarkdown(text: string): void {
-    this.renderedDescription = text?.trim() ? this.markdownService.parse(text) : "";
-    this.scheduleOverflowCheck();
+    const currentRenderSequence = ++this.markdownRenderSequence;
+    if (!text?.trim()) {
+      this.renderedDescription = "";
+      this.scheduleOverflowCheck();
+      return;
+    }
+
+    Promise.resolve(this.markdownService.parse(text)).then(renderedDescription => {
+      if (currentRenderSequence !== this.markdownRenderSequence) {
+        return;
+      }
+      this.renderedDescription = renderedDescription;
+      this.scheduleOverflowCheck();
+    });
   }
 
   toggleViewMore(): void {

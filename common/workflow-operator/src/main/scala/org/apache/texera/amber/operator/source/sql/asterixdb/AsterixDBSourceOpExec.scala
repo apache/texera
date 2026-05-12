@@ -198,7 +198,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * ['hello', 'world'], {'mode':'all'}
     *
     * @param queryBuilder queryBuilder for concatenation
-    * @throws IllegalArgumentException if attribute does not support string based search
+    * @throws java.lang.IllegalArgumentException if attribute does not support string based search
     */
   @throws[IllegalArgumentException]
   def addFilterConditions(queryBuilder: StringBuilder): Unit = {

@@ -27,15 +27,22 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NgIf } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 @UntilDestroy()
 @Component({
   selector: "texera-context-menu",
   templateUrl: "./context-menu.component.html",
   styleUrls: ["./context-menu.component.scss"],
+  imports: [NzMenuDirective, NgIf, NzMenuItemComponent, ɵNzTransitionPatchDirective, NzIconDirective],
 })
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
+  public highlightedOperatorIds: readonly string[] = [];
+  public highlightedCommentBoxIds: readonly string[] = [];
 
   constructor(
     public workflowActionService: WorkflowActionService,
@@ -47,6 +54,12 @@ export class ContextMenuComponent {
     private validationWorkflowService: ValidationWorkflowService
   ) {
     this.registerWorkflowModifiableChangedHandler();
+    this.operatorMenuService.highlightedOperators$
+      .pipe(untilDestroyed(this))
+      .subscribe(ids => (this.highlightedOperatorIds = ids));
+    this.operatorMenuService.highlightedCommentBoxes$
+      .pipe(untilDestroyed(this))
+      .subscribe(ids => (this.highlightedCommentBoxIds = ids));
   }
 
   public canExecuteOperator(): boolean {

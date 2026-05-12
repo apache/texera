@@ -17,21 +17,12 @@
  * under the License.
  */
 
-import {
-  AfterViewChecked,
-  ChangeDetectorRef,
-  Component,
-  Input,
-  OnChanges,
-  OnDestroy,
-  OnInit,
-  SimpleChanges,
-} from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { Subject } from "rxjs";
-import { AbstractControl, FormGroup } from "@angular/forms";
-import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
+import { AbstractControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from "@ngx-formly/core";
 import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -54,7 +45,10 @@ import {
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
-import { TYPE_CASTING_OPERATOR_TYPE } from "../typecasting-display/type-casting-display.component";
+import {
+  TYPE_CASTING_OPERATOR_TYPE,
+  TypeCastingDisplayComponent,
+} from "../typecasting-display/type-casting-display.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -67,6 +61,15 @@ import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
 import { AttributeType, PortSchema } from "../../../types/workflow-compiling.interface";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { NgIf } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzFormDirective } from "ng-zorro-antd/form";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -91,8 +94,23 @@ Quill.register("modules/cursors", QuillCursors);
   selector: "texera-formly-form-frame",
   templateUrl: "./operator-property-edit-frame.component.html",
   styleUrls: ["./operator-property-edit-frame.component.scss"],
+  imports: [
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzTooltipDirective,
+    NzIconDirective,
+    NzPopoverDirective,
+    FormsModule,
+    NzFormDirective,
+    ReactiveFormsModule,
+    FormlyModule,
+    TypeCastingDisplayComponent,
+    NzWaveDirective,
+  ],
 })
-export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
+export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
 
   currentOperatorSchema?: OperatorSchema;
@@ -166,10 +184,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.rerenderEditorForm();
   }
 
-  ngAfterViewChecked(): void {
-    this.changeDetectorRef.detectChanges();
-  }
-
   ngOnInit(): void {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.registerOperatorSchemaChangeHandler();
@@ -241,7 +255,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // 1. the operator might be added not directly from the UI, which violates the precondition
     // 2. the schema might change, which specifies a new default value
     // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
-    this.ajv.validate(this.currentOperatorSchema, this.formData);
+    this.ajv.validate(this.currentOperatorSchema.jsonSchema, this.formData);
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
@@ -317,7 +331,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
       )
       .pipe(untilDestroyed(this))
-      .subscribe(operatorChanged => (this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
+      .subscribe(operatorChanged => {
+        this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   /**
@@ -449,8 +466,28 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
 
       // if the title is fileName, then change it to custom autocomplete input template
-      if (mappedField.key == "fileName") {
+      if (mappedField.key === "fileName") {
         mappedField.type = "inputautocomplete";
+      }
+
+      if (mappedField.key === "datasetVersionPath") {
+        mappedField.type = "datasetversionselector";
+      }
+
+      if (this.currentOperatorSchema?.operatorType === "FileScanOp" && mappedField.key === "outputFileName") {
+        mappedField.expressions = {
+          ...mappedField.expressions,
+          hide: (field: FormlyFieldConfig) => {
+            const model = field.model as { extract?: boolean; attributeType?: string } | undefined;
+            const attributeType = model?.attributeType;
+            return !(
+              model?.extract === true ||
+              attributeType === "single string" ||
+              attributeType === "binary" ||
+              attributeType === "large binary"
+            );
+          },
+        };
       }
 
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'

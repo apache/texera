@@ -16,7 +16,6 @@
 
 name: Feature Request
 description: Suggest a new feature or improvement.
-labels: ["triage"]
 type: "Feature"
 body:
   - type: markdown
@@ -39,20 +38,6 @@ body:
       label: Proposed Solution or Design
       description: Explain how you imagine this feature working. Include examples, diagrams, or pseudo-code if relevant.
       placeholder: Describe your proposed solution or design approach.
-    validations:
-      required: true
-
-  - type: dropdown
-    id: impact
-    attributes:
-      label: Impact / Priority
-      description: How important is this feature?
-      options:
-        - (P0)Critical – blocks existing use cases
-        - (P1)High – significantly improves user experience
-        - (P2)Medium – useful enhancement
-        - (P3)Low – nice to have
-      default: 2
     validations:
       required: true
 

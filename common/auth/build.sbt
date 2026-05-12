@@ -20,10 +20,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "auth"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -56,10 +53,11 @@ Compile / scalacOptions ++= Seq(
 
 // Core Dependencies
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.3",                                  // config reader
+  "com.typesafe" % "config" % "1.4.6",                                  // config reader
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",            // for LazyLogging
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",                             // for jwt parser
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.0.0",                      // for JwtAuthFilter
   "jakarta.servlet" % "jakarta.servlet-api" % "5.0.0" % "provided",    // for RequestLoggingFilter
-  "org.eclipse.jetty" % "jetty-servlet" % "11.0.24" % "provided"       // for FilterHolder
+  "org.eclipse.jetty" % "jetty-servlet" % "11.0.24" % "provided",      // for FilterHolder
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test
 )

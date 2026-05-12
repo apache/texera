@@ -22,10 +22,9 @@ package org.apache.texera.amber.operator.visualization.lineChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -46,7 +45,7 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
   var xLabel: EncodableString = ""
 
   @JsonProperty(value = "lines", required = true)
-  var lines: util.List[LineConfig] = _
+  var lines: util.List[LineConfig] = new util.ArrayList[LineConfig]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -54,19 +53,17 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
-    OperatorInfo(
+    OperatorInfo.forVisualization(
       "Line Chart",
       "View the result in line chart",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
+    assert(lines != null && !lines.isEmpty, "At least one line must be configured")
     val linesPart = lines.asScala
       .map { lineConf =>
         val colorPart = if (lineConf.color != "") {

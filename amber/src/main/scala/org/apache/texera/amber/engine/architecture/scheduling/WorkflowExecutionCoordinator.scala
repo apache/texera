@@ -23,31 +23,35 @@ import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService
+  PekkoActorRefMappingService,
+  PekkoActorService
 }
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
+import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
 class WorkflowExecutionCoordinator(
-    getNextRegions: () => Set[Region],
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
+
+  var schedule: Schedule = Schedule(Map.empty)
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
   private val regionExecutionCoordinators
       : mutable.HashMap[RegionIdentity, RegionExecutionCoordinator] =
     mutable.HashMap()
+  private val completionNotified: AtomicBoolean = new AtomicBoolean(false)
 
-  @transient var actorRefService: AkkaActorRefMappingService = _
+  @transient var actorRefService: PekkoActorRefMappingService = _
 
-  def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
+  def setupActorRefService(actorRefService: PekkoActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
   }
 
@@ -58,19 +62,20 @@ class WorkflowExecutionCoordinator(
     *
     * After the syncs, if there are no running region(s), it will start new regions (if available).
     */
-  def coordinateRegionExecutors(actorService: AkkaActorService): Future[Unit] = {
-    if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
-      // As this method is invoked by the completion of each port in a region, and regionExecutionCoordinator only
-      // lanuches each phase asynchronously, we need to let each current unfinished regionExecutionCoordinator
-      // sync its status and proceed with next phases if needed.
-      Future
-        .collect({
-          regionExecutionCoordinators.values
-            .filter(!_.isCompleted)
-            .map(_.syncStatusAndTransitionRegionExecutionPhase())
-            .toSeq
-        })
+  def coordinateRegionExecutors(actorService: PekkoActorService): Future[Unit] = {
+    val unfinishedRegionCoordinators =
+      regionExecutionCoordinators.values.filter(!_.isCompleted).toSeq
+
+    // Trigger sync for each unfinished region.
+    unfinishedRegionCoordinators.foreach(_.syncStatusAndTransitionRegionExecutionPhase())
+
+    // Wait only for region termination futures (kill path), then re-run coordination.
+    val terminationFutures = unfinishedRegionCoordinators.flatMap(_.getTerminationFutureOpt)
+    if (terminationFutures.nonEmpty) {
+      return Future
+        .collect(terminationFutures)
         .unit
+        .flatMap(_ => coordinateRegionExecutors(actorService))
     }
 
     if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
@@ -79,15 +84,28 @@ class WorkflowExecutionCoordinator(
     }
 
     // All existing regions are completed. Start the next region (if any).
+    val nextRegions = if (!schedule.hasNext) Set.empty[Region] else schedule.next()
+    if (nextRegions.isEmpty) {
+      if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
+        asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
+      }
+      return Future.Unit
+    }
+
+    executedRegions.append(nextRegions)
     Future
-      .collect({
-        val nextRegions = getNextRegions()
-        executedRegions.append(nextRegions)
+      .collect(
         nextRegions
           .map(region => {
-            workflowExecution.initRegionExecution(region)
+            val isRestart = workflowExecution.hasRegionExecution(region.id)
+            if (isRestart) {
+              workflowExecution.restartRegionExecution(region)
+            } else {
+              workflowExecution.initRegionExecution(region)
+            }
             regionExecutionCoordinators(region.id) = new RegionExecutionCoordinator(
               region,
+              isRestart,
               workflowExecution,
               asyncRPCClient,
               controllerConfig,
@@ -98,7 +116,7 @@ class WorkflowExecutionCoordinator(
           })
           .map(_.syncStatusAndTransitionRegionExecutionPhase())
           .toSeq
-      })
+      )
       .unit
   }
 
@@ -114,6 +132,10 @@ class WorkflowExecutionCoordinator(
     executedRegions.flatten
       .filterNot(region => workflowExecution.getRegionExecution(region.id).isCompleted)
       .toSet
+  }
+
+  def hasUnfinishedRegionCoordinators: Boolean = {
+    regionExecutionCoordinators.values.exists(!_.isCompleted)
   }
 
 }

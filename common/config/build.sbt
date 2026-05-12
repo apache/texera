@@ -18,10 +18,7 @@
 import scala.collection.Seq
 
 name := "config"
-organization := "org.apache"
-version := "1.0.0"
 
-scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
@@ -53,5 +50,5 @@ Compile / scalacOptions ++= Seq(
 
 // Core Dependencies
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.2" // For configuration management
+  "com.typesafe" % "config" % "1.4.6" // For configuration management
 )

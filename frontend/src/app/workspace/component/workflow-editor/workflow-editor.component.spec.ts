@@ -21,7 +21,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
@@ -56,9 +56,12 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 import * as jQuery from "jquery";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+
+const createJQueryEvent = (event: string, properties?: object): JQuery.Event =>
+  (jQuery as unknown as JQueryStatic).Event(event, properties);
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -71,10 +74,16 @@ describe("WorkflowEditorComponent", () => {
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let jointGraph: joint.dia.Graph;
 
-    beforeEach(waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [WorkflowEditorComponent, ContextMenuComponent],
-        imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule],
+    beforeEach(async () => {
+      await TestBed.configureTestingModule({
+        imports: [
+          RouterTestingModule,
+          HttpClientTestingModule,
+          NzModalModule,
+          NzDropDownModule,
+          WorkflowEditorComponent,
+          ContextMenuComponent,
+        ],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -94,7 +103,7 @@ describe("WorkflowEditorComponent", () => {
           ...commonTestProviders,
         ],
       }).compileComponents();
-    }));
+    });
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
@@ -171,10 +180,17 @@ describe("WorkflowEditorComponent", () => {
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
 
-    beforeEach(waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [WorkflowEditorComponent, NzModalCommentBoxComponent],
-        imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule, NoopAnimationsModule],
+    beforeEach(async () => {
+      await TestBed.configureTestingModule({
+        imports: [
+          RouterTestingModule,
+          HttpClientTestingModule,
+          NzModalModule,
+          NzDropDownModule,
+          NoopAnimationsModule,
+          WorkflowEditorComponent,
+          NzModalCommentBoxComponent,
+        ],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -199,7 +215,7 @@ describe("WorkflowEditorComponent", () => {
           ...commonTestProviders,
         ],
       }).compileComponents();
-    }));
+    });
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
@@ -219,7 +235,7 @@ describe("WorkflowEditorComponent", () => {
     it("should try to highlight the operator when user mouse clicks on an operator", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       // install a spy on the highlight operator function and pass the call through
-      spyOn(jointGraphWrapper, "highlightOperators").and.callThrough();
+      vi.spyOn(jointGraphWrapper, "highlightOperators");
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
       // unhighlight the operator in case it's automatically highlighted
@@ -239,7 +255,7 @@ describe("WorkflowEditorComponent", () => {
 
     it("should highlight the commentBox when user clicks on a commentBox", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
+      vi.spyOn(jointGraphWrapper, "highlightCommentBoxes");
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
       const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
@@ -264,7 +280,7 @@ describe("WorkflowEditorComponent", () => {
           },
         ],
       });
-      spyOn(nzModalService, "create").and.returnValue(modalRef);
+      vi.spyOn(nzModalService, "create").mockReturnValue(modalRef);
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
@@ -298,7 +314,7 @@ describe("WorkflowEditorComponent", () => {
 
       // trigger a click on the blank area using JointJS paper's jQuery element
       const point = component.paper.localToClientPoint(blankPoint);
-      const event = jQuery.Event("mousedown", {
+      const event = createJQueryEvent("mousedown", {
         clientX: point.x,
         clientY: point.y,
       });
@@ -383,7 +399,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // add a link from scan to sentiment
       workflowActionService.addLink(mockScanSentimentLink);
@@ -396,7 +412,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBe(false);
 
       // should not allow a link from scan 2 to sentiment anymore
       expect(
@@ -406,7 +422,7 @@ describe("WorkflowEditorComponent", () => {
           mockSentimentPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBe(true);
 
       // should still allow a link from scan to view result
       expect(
@@ -416,7 +432,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // add a link from scan to view result
       workflowActionService.addLink(mockScanResultLink);
@@ -429,7 +445,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBe(false);
 
       // should not allow a link from sentiment to view result anymore
       expect(
@@ -439,7 +455,7 @@ describe("WorkflowEditorComponent", () => {
           mockResultPredicate.operatorID,
           "input-0"
         )
-      ).toBeFalse();
+      ).toBe(true);
     });
 
     it("should validate operator connections with ports that allow multi-inputs correctly", () => {
@@ -467,7 +483,7 @@ describe("WorkflowEditorComponent", () => {
           mockUnionPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // should allow a link from sentiment to union
       expect(
@@ -477,7 +493,7 @@ describe("WorkflowEditorComponent", () => {
           mockUnionPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
 
       // add a link from scan to union
       const mockScanUnionLink: OperatorLink = {
@@ -501,7 +517,7 @@ describe("WorkflowEditorComponent", () => {
           mockUnionPredicate.operatorID,
           "input-0"
         )
-      ).toBeTrue();
+      ).toBe(true);
     });
 
     it(
@@ -548,8 +564,8 @@ describe("WorkflowEditorComponent", () => {
 
     //   it('should display/hide operator status tooltip when cursor hovers/leaves an operator', () => {
     //     // install a spy on the highlight operator function and pass the call through
-    //     const showTooltipFunctionSpy = spyOn(jointUIService, 'showOperatorStatusToolTip').and.callThrough();
-    //     const hideTooltipFunctionSpy = spyOn(jointUIService, 'hideOperatorStatusToolTip').and.callThrough();
+    //     const showTooltipFunctionSpy = vi.spyOn(jointUIService, 'showOperatorStatusToolTip');
+    //     const hideTooltipFunctionSpy = vi.spyOn(jointUIService, 'hideOperatorStatusToolTip');
 
     //     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     //     // find the joint Cell View object of the operator element
@@ -583,7 +599,7 @@ describe("WorkflowEditorComponent", () => {
 
     //   it('should update operator status tooltip content when workflow-status.service emits processState', () => {
     //     // spy on key function, create simple workflow
-    //     const changeOperatorTooltipInfoSpy = spyOn(jointUIService, 'changeOperatorStatusTooltipInfo').and.callThrough();
+    //     const changeOperatorTooltipInfoSpy = vi.spyOn(jointUIService, 'changeOperatorStatusTooltipInfo');
     //     workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
     //     const tooltipView = component.getJointPaper().findViewByModel(
     //       JointUIService.getOperatorStatusTooltipElementID(mockScanPredicateForStatus.operatorID));
@@ -612,7 +628,7 @@ describe("WorkflowEditorComponent", () => {
 
     //   it('should change operator state when workflow-status.service emits processState', () => {
     //     // spy on key function, create simple workflow
-    //     const changeOperatorStatesSpy = spyOn(jointUIService, 'changeOperatorStates').and.callThrough();
+    //     const changeOperatorStatesSpy = vi.spyOn(jointUIService, 'changeOperatorStates');
     //     workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
     //     const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicateForStatus.operatorID);
 
@@ -843,7 +859,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = createJQueryEvent("mousedown", { shiftKey: true });
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();
@@ -866,7 +882,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = createJQueryEvent("mousedown", { shiftKey: true });
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();
@@ -899,9 +915,9 @@ describe("WorkflowEditorComponent", () => {
 
     //undo
     it("should undo action when user presses command + Z or control + Z", () => {
-      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(undoRedoService, "canUndo").and.returnValue(true);
-      let undoSpy = spyOn(undoRedoService, "undoAction");
+      vi.spyOn(workflowVersionService, "getDisplayParticularVersionStream").mockReturnValue(of(false));
+      vi.spyOn(undoRedoService, "canUndo").mockReturnValue(true);
+      let undoSpy = vi.spyOn(undoRedoService, "undoAction");
       fixture.detectChanges();
       const commandZEvent = new KeyboardEvent("keydown", { key: "Z", metaKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();
@@ -918,9 +934,9 @@ describe("WorkflowEditorComponent", () => {
 
     //redo
     it("should redo action when user presses command/control + Y or command/control + shift + Z", () => {
-      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(undoRedoService, "canRedo").and.returnValue(true);
-      let redoSpy = spyOn(undoRedoService, "redoAction");
+      vi.spyOn(workflowVersionService, "getDisplayParticularVersionStream").mockReturnValue(of(false));
+      vi.spyOn(undoRedoService, "canRedo").mockReturnValue(true);
+      let redoSpy = vi.spyOn(undoRedoService, "redoAction");
       fixture.detectChanges();
       const commandYEvent = new KeyboardEvent("keydown", { key: "y", metaKey: true, shiftKey: false });
       (document.activeElement as HTMLElement)?.blur();

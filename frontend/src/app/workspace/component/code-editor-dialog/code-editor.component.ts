@@ -22,15 +22,15 @@ import {
   Component,
   ComponentRef,
   ElementRef,
+  HostListener,
   OnDestroy,
   Type,
   ViewChild,
-  HostListener,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { YText } from "yjs/dist/src/types/YText";
+import type { Text as YText } from "yjs";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { MonacoBinding } from "y-monaco";
 import { catchError, from, of, Subject, take, timeout } from "rxjs";
@@ -50,8 +50,16 @@ import { isDefined } from "../../../common/util/predicate";
 import { filter, switchMap } from "rxjs/operators";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./code-debugger.component";
-import { MonacoEditor } from "monaco-breakpoints/dist/types";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
+import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NgFor, NgComponentOutlet, NgIf } from "@angular/common";
+import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
+
+type MonacoEditor = monaco.editor.IStandaloneCodeEditor;
 
 export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
 
@@ -68,6 +76,19 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
   selector: "texera-code-editor",
   templateUrl: "code-editor.component.html",
   styleUrls: ["code-editor.component.scss"],
+  imports: [
+    CdkDrag,
+    CdkDragHandle,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NgFor,
+    NgComponentOutlet,
+    NgIf,
+    AnnotationSuggestionComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;

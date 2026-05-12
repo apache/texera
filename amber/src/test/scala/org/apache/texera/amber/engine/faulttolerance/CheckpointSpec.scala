@@ -59,7 +59,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   )
 
   override def beforeAll(): Unit = {
-    system = ActorSystem("CheckpointSpec", AmberRuntime.akkaConfig)
+    system = ActorSystem("CheckpointSpec", AmberRuntime.pekkoConfig)
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
@@ -83,6 +83,19 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     )
     val chkpt = new CheckpointState()
     chkpt.save(DP_STATE_KEY, dp)
+  }
+
+  "CheckpointState" should "fail loudly on an unknown key" in {
+    // Pin the documented contract precisely: load throws
+    // RuntimeException("no state saved for key = $key"). A bare
+    // `contains("unknown")` would still pass if the message ever drifts to
+    // something like "unknown checkpoint", silently weakening the assertion.
+    val chkpt = new CheckpointState()
+    assert(!chkpt.has("unknown"))
+    val ex = intercept[RuntimeException] {
+      chkpt.load[Any]("unknown")
+    }
+    assert(ex.getMessage == "no state saved for key = unknown")
   }
 
 //  "CSVScanOperator" should "be serializable" in {

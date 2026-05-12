@@ -115,7 +115,7 @@ object ArrowUtils extends LazyLogging {
     * Converts an ArrowType into an AttributeType.
     *
     * @param srcType the ArrowType to be converted.
-    * @throws AttributeTypeException if the type cannot be converted.
+    * @throws org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeException if the type cannot be converted.
     * @return An AttributeType.
     */
   @throws[AttributeTypeException]
@@ -259,7 +259,7 @@ object ArrowUtils extends LazyLogging {
     * Converts an AttributeType into an ArrowType (PrimitiveType).
     *
     * @param srcType The AttributeType to be converted.
-    * @throws AttributeTypeException if the type cannot be converted.
+    * @throws org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeException if the type cannot be converted.
     * @return A PrimitiveType, a type of ArrowType, does not handle complex data.
     */
   @throws[AttributeTypeException]

@@ -17,13 +17,15 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ResultTableFrameComponent } from "./result-table-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { NzTableModule } from "ng-zorro-antd/table";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
@@ -31,10 +33,11 @@ describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
   let fixture: ComponentFixture<ResultTableFrameComponent>;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, NzModalModule],
-      declarations: [ResultTableFrameComponent],
+  const GUI_CONFIG_LIMIT = 15;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ResultTableFrameComponent, HttpClientTestingModule, NzModalModule, NzTableModule, NoopAnimationsModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -44,16 +47,13 @@ describe("ResultTableFrameComponent", () => {
           provide: GuiConfigService,
           useValue: {
             env: {
-              limitColumns: 15,
+              limitColumns: GUI_CONFIG_LIMIT,
             },
           },
         },
         ...commonTestProviders,
       ],
     }).compileComponents();
-  }));
-
-  beforeEach(() => {
     fixture = TestBed.createComponent(ResultTableFrameComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -63,14 +63,14 @@ describe("ResultTableFrameComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result  ", () => {
+  it("currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result", () => {
     component.currentResult = [{ test: "property" }];
-    (component as any).setupResultTable([]);
+    (component as any).setupResultTable([], 0);
 
     expect(component.currentResult).toEqual([{ test: "property" }]);
   });
 
-  it("should set columnLimit from config", () => {
-    expect(component.columnLimit).toEqual(15);
+  it("should set columnLimit from gui-config", () => {
+    expect(component.columnLimit).toEqual(GUI_CONFIG_LIMIT);
   });
 });

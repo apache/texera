@@ -41,7 +41,7 @@ case class WorkflowExecution() {
     *
     * @param region The `Region` for which to initialize or retrieve the `RegionExecution`.
     * @return The `RegionExecution` associated with the given `Region`.
-    * @throws AssertionError if the `RegionExecution` has already been initialized.
+    * @throws java.lang.AssertionError if the `RegionExecution` has already been initialized.
     */
   def initRegionExecution(region: Region): RegionExecution = {
     // ensure the region execution hasn't been initialized already.
@@ -52,6 +52,18 @@ case class WorkflowExecution() {
     regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
   }
 
+  def restartRegionExecution(region: Region): RegionExecution = {
+    regionExecutions.get(region.id).foreach { existingRegionExecution =>
+      assert(
+        existingRegionExecution.isCompleted,
+        s"Cannot restart running RegionExecution of ${region.id}."
+      )
+    }
+    val regionExecution = RegionExecution(region)
+    regionExecutions.put(region.id, regionExecution)
+    regionExecution
+  }
+
   /**
     * Retrieves a specific `RegionExecution` by its identifier.
     *
@@ -59,6 +71,8 @@ case class WorkflowExecution() {
     * @return The `RegionExecution` associated with the specified `regionId`.
     */
   def getRegionExecution(regionId: RegionIdentity): RegionExecution = regionExecutions(regionId)
+
+  def hasRegionExecution(regionId: RegionIdentity): Boolean = regionExecutions.contains(regionId)
 
   /**
     * Retrieves all `RegionExecutions` that are currently in running state,
@@ -116,7 +130,7 @@ case class WorkflowExecution() {
     * @param physicalOpId The unique identifier of the physical operator for which the latest execution is
     *                     to be retrieved.
     * @return The latest `OperatorExecution` instance associated with the given physical operatorId.
-    * @throws NoSuchElementException if no `OperatorExecution` is found for the specified operatorId.
+    * @throws java.util.NoSuchElementException if no `OperatorExecution` is found for the specified operatorId.
     */
   def getLatestOperatorExecution(physicalOpId: PhysicalOpIdentity): OperatorExecution = {
     getLatestOperatorExecutionOption(physicalOpId).get

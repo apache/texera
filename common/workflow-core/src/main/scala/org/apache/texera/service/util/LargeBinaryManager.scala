@@ -48,7 +48,7 @@ object LargeBinaryManager extends LazyLogging {
   /**
     * Deletes all large binaries from the bucket.
     *
-    * @throws Exception if the deletion fails
+    * @throws java.lang.Exception if the deletion fails
     * @return Unit
     */
   def deleteAllObjects(): Unit = {

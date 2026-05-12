@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.common.actormessage.{Backpressure, CreditU
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
+import org.apache.texera.amber.config.PythonUtils
 
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
@@ -65,7 +66,6 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val pythonENVPath: String = UdfConfig.pythonPath.trim
   val RENVPath: String = UdfConfig.rPath.trim
 
   // Python process
@@ -168,19 +168,24 @@ class PythonWorkflowWorker(
   private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
+    // Set the Iceberg related arguments based on the catalog type.
+    val isPostgres = StorageConfig.icebergCatalogType == "postgres"
+    val isRest = StorageConfig.icebergCatalogType == "rest"
     pythonServerProcess = Process(
       Seq(
-        if (pythonENVPath.isEmpty) "python3"
-        else pythonENVPath, // add fall back in case of empty
+        PythonUtils.getPythonExecutable,
         "-u",
         udfEntryScriptPath,
         workerConfig.workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
         UdfConfig.pythonLogStreamHandlerLevel,
         RENVPath,
-        StorageConfig.icebergPostgresCatalogUriWithoutScheme,
-        StorageConfig.icebergPostgresCatalogUsername,
-        StorageConfig.icebergPostgresCatalogPassword,
+        StorageConfig.icebergCatalogType,
+        if (isPostgres) StorageConfig.icebergPostgresCatalogUriWithoutScheme else "",
+        if (isPostgres) StorageConfig.icebergPostgresCatalogUsername else "",
+        if (isPostgres) StorageConfig.icebergPostgresCatalogPassword else "",
+        if (isRest) StorageConfig.icebergRESTCatalogUri else "",
+        if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else "",
         StorageConfig.icebergTableResultNamespace,
         StorageConfig.fileStorageDirectoryPath.toString,
         StorageConfig.icebergTableCommitBatchSize.toString,

@@ -28,35 +28,32 @@ import { SearchService } from "../../../dashboard/service/user/search.service";
 import { isDefined } from "../../../common/util/predicate";
 import { firstValueFrom } from "rxjs";
 import { map } from "rxjs/operators";
+import { SortButtonComponent } from "../../../dashboard/component/user/sort-button/sort-button.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-hub-search",
   templateUrl: "./hub-search-result.component.html",
   styleUrls: ["./hub-search-result.component.scss"],
+  imports: [SortButtonComponent, FiltersComponent, SearchResultsComponent],
 })
 export class HubSearchResultComponent implements OnInit, AfterViewInit {
   public searchType: "dataset" | "workflow" = "workflow";
+  public searchKeywords: string[] = [];
   currentUid = this.userService.getCurrentUser()?.uid;
 
   private isLogin = false;
   private includePublic = true;
   private _searchResultsComponent?: SearchResultsComponent;
-  @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
-    if (this._searchResultsComponent) {
-      return this._searchResultsComponent;
-    }
-    throw new Error("Property cannot be accessed before it is initialized.");
+  @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent | undefined {
+    return this._searchResultsComponent;
   }
   set searchResultsComponent(value: SearchResultsComponent) {
     this._searchResultsComponent = value;
   }
   private _filters?: FiltersComponent;
-  @ViewChild(FiltersComponent) get filters(): FiltersComponent {
-    if (this._filters) {
-      return this._filters;
-    }
-    throw new Error("Property cannot be accessed before it is initialized.");
+  @ViewChild(FiltersComponent) get filters(): FiltersComponent | undefined {
+    return this._filters;
   }
   set filters(value: FiltersComponent) {
     value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.search() });
@@ -105,6 +102,9 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
    * todo: Integrate the search functions from different interfaces into a single method.
    */
   async search(forced: boolean = false): Promise<void> {
+    if (!this.filters || !this.searchResultsComponent) {
+      return;
+    }
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -115,6 +115,7 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
     }
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
+    this.searchKeywords = this.filters.getSearchKeywords();
     let filterParams = this.filters.getSearchFilterParameters();
     if (isDefined(this.pid)) {
       // force the project id in the search query to be the current pid.

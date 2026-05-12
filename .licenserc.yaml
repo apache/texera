@@ -12,9 +12,14 @@ header:
     - '**/*.jsonl'
     - 'DESCRIPTION'
     - 'DISCLAIMER'
-    - 'DISCLAIMER-WIP'
     - 'LICENSE'
     - 'NOTICE'
+    # Per-module LICENSE-binary / NOTICE-binary describing the third-party
+    # content bundled in each module's binary artifact (Universal dist zip
+    # or Docker image). Plain-text manifests, not source files.
+    - '**/LICENSE-binary'
+    - '**/LICENSE-binary-*'
+    - '**/NOTICE-binary'
     - '.dockerignore'
     - '.gitattributes'
     - '.github/PULL_REQUEST_TEMPLATE'
@@ -27,6 +32,9 @@ header:
     - '.licenserc.yaml'
     - 'frontend/.yarn/**'
     - 'amber/src/main/python/proto/**'
+    - '**/.env.example'
+    - '**/.prettierrc'
+    - '**/bun.lock'
     # Third-party code with MIT license - see LICENSE file for attribution
     - 'common/workflow-operator/src/main/scala/com/kjetland/**'
     # TypeFox monaco-languageclient derived files (MIT License)

@@ -64,7 +64,7 @@ class DummyOperatorExecutor extends OperatorExecutor {
 }
 
 class WorkerSpec
-    extends TestKit(ActorSystem("WorkerSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("WorkerSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll

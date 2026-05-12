@@ -17,32 +17,36 @@
  * under the License.
  */
 
+import { NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserQuotaComponent } from "./user-quota.component";
 import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-
+import { of } from "rxjs";
+import type { Mocked } from "vitest";
 describe("UserQuotaComponent", () => {
   let component: UserQuotaComponent;
   let fixture: ComponentFixture<UserQuotaComponent>;
-  let mockUserQuotaService: jasmine.SpyObj<UserQuotaService>;
+  let mockUserQuotaService: Mocked<UserQuotaService>;
 
   beforeEach(() => {
-    mockUserQuotaService = jasmine.createSpyObj("UserQuotaService", [
-      "getUploadedFiles",
-      "getCreatedDatasets",
-      "getCreatedWorkflows",
-      "getAccessFiles",
-      "getAccessWorkflows",
-      "getExecutionQuota",
-      "deleteExecutionCollection",
-    ]);
+    mockUserQuotaService = {
+      getCreatedDatasets: vi.fn(),
+      getCreatedWorkflows: vi.fn(),
+      getAccessWorkflows: vi.fn(),
+      getExecutionQuota: vi.fn(),
+      deleteExecutionCollection: vi.fn(),
+    } as unknown as Mocked<UserQuotaService>;
+    mockUserQuotaService.getCreatedDatasets.mockReturnValue(of([]));
+    mockUserQuotaService.getCreatedWorkflows.mockReturnValue(of([]));
+    mockUserQuotaService.getAccessWorkflows.mockReturnValue(of([]));
+    mockUserQuotaService.getExecutionQuota.mockReturnValue(of([]));
 
     TestBed.configureTestingModule({
-      declarations: [UserQuotaComponent],
       providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }, ...commonTestProviders],
-      imports: [HttpClientTestingModule],
+      imports: [UserQuotaComponent, HttpClientTestingModule],
+      schemas: [NO_ERRORS_SCHEMA],
     });
 
     fixture = TestBed.createComponent(UserQuotaComponent);
@@ -50,6 +54,7 @@ describe("UserQuotaComponent", () => {
   });
 
   it("should create", () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 });
