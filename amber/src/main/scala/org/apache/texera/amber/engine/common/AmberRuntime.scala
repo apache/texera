@@ -23,7 +23,7 @@ import org.apache.pekko.actor.{ActorSystem, Address, Cancellable, DeadLetter, Pr
 import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.texera.amber.clustering.ClusterListener
-import org.apache.texera.amber.config.AkkaConfig
+import org.apache.texera.amber.config.PekkoConfig
 import org.apache.texera.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 import java.io.{BufferedReader, InputStreamReader}
@@ -39,7 +39,7 @@ object AmberRuntime {
   def serde: Serialization = {
     if (_serde == null) {
       if (_actorSystem == null) {
-        _serde = SerializationExtension(ActorSystem("Amber", akkaConfig))
+        _serde = SerializationExtension(ActorSystem("Amber", pekkoConfig))
       } else {
         _serde = SerializationExtension(_actorSystem)
       }
@@ -83,13 +83,13 @@ object AmberRuntime {
         pekko.remote.artery.canonical.hostname = $localIpAddress
         pekko.cluster.seed-nodes = [ "pekko://Amber@$localIpAddress:2552" ]
         """)
-      .withFallback(akkaConfig)
+      .withFallback(pekkoConfig)
       .resolve()
     AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
     createAmberSystem(masterConfig)
   }
 
-  def akkaConfig: Config = AkkaConfig.akkaConfig
+  def pekkoConfig: Config = PekkoConfig.pekkoConfig
 
   private def createMasterAddress(addr: String): Address = Address("pekko", "Amber", addr, 2552)
 
@@ -105,7 +105,7 @@ object AmberRuntime {
         pekko.remote.artery.canonical.port = 0
         pekko.cluster.seed-nodes = [ "pekko://Amber@$addr:2552" ]
         """)
-      .withFallback(akkaConfig)
+      .withFallback(pekkoConfig)
       .resolve()
     AmberConfig.masterNodeAddr = createMasterAddress(addr)
     createAmberSystem(workerConfig)

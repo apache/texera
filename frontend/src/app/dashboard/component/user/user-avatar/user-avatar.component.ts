@@ -20,12 +20,16 @@
 import { Component, Input, OnChanges } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { Observable, of } from "rxjs";
+import { NgIf, AsyncPipe } from "@angular/common";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzAvatarComponent } from "ng-zorro-antd/avatar";
 
 @Component({
   selector: "texera-user-avatar",
   templateUrl: "./user-avatar.component.html",
   styleUrls: ["./user-avatar.component.scss"],
-  standalone: false,
+  imports: [NgIf, ɵNzTransitionPatchDirective, NzIconDirective, NzAvatarComponent, AsyncPipe],
 })
 
 /**

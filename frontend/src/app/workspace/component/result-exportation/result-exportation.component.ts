@@ -31,13 +31,54 @@ import { WorkflowResultService } from "../../service/workflow-result/workflow-re
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { UserDatasetVersionCreatorComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { NgIf, NgFor } from "@angular/common";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { FormsModule } from "@angular/forms";
+import { NzFormDirective, NzFormItemComponent, NzFormLabelComponent, NzFormControlComponent } from "ng-zorro-antd/form";
+import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import {
+  NzAutocompleteTriggerDirective,
+  NzAutocompleteComponent,
+  NzAutocompleteOptionComponent,
+} from "ng-zorro-antd/auto-complete";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzDividerComponent } from "ng-zorro-antd/divider";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 @UntilDestroy()
 @Component({
   selector: "texera-result-exportation-modal",
   templateUrl: "./result-exportation.component.html",
   styleUrls: ["./result-exportation.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzAlertComponent,
+    FormsModule,
+    NzFormDirective,
+    NzRowDirective,
+    NzColDirective,
+    NzFormItemComponent,
+    NzFormLabelComponent,
+    NzFormControlComponent,
+    NzSpaceCompactItemDirective,
+    NzSelectComponent,
+    NzOptionComponent,
+    NzInputDirective,
+    NzAutocompleteTriggerDirective,
+    NzAutocompleteComponent,
+    NgFor,
+    NzAutocompleteOptionComponent,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzDividerComponent,
+    NzIconDirective,
+  ],
 })
 export class ResultExportationComponent implements OnInit {
   /* Two sources can trigger this dialog, one from context-menu

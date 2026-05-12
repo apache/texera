@@ -21,17 +21,19 @@ meta:
   environment: github_rulesets
 
 github:
-  description: "Collaborative Machine-Learning-Centric Data Analytics Using Workflows"
-  homepage: https://texera.io/
+  description: "Human-AI Collaborative Data Science Using Visual Workflows"
+  homepage: https://texera.apache.org/
   labels:
-    - workflow
+    - human-ai-collaboration
+    - ai-agents 
+    - visual-workflows
     - data-science
-    - data
-    - machine-learning
+    - runtime-debugging
     - artificial-intelligence
+    - machine-learning
+    - interactive-engine
     - cloud-native
-    - data-analytics
-    - texera
+
 
   protected_tags:
     - "v*.*.*"
@@ -92,28 +94,14 @@ github:
             require_code_owner_review: false
             require_last_push_approval: false
             required_approving_review_count: 1
-            required_review_thread_resolution: false
+            required_review_thread_resolution: true
         - type: required_linear_history
         - type: required_status_checks
           parameters:
             strict_required_status_checks_policy: false
             do_not_enforce_on_create: false
             required_status_checks:
-              - context: frontend (ubuntu-latest, 18)
-                integration_id: -1
-              - context: frontend (windows-latest, 18)
-                integration_id: -1
-              - context: frontend (macos-latest, 18)
-                integration_id: -1
-              - context: scala (ubuntu-22.04, 11)
-                integration_id: -1
-              - context: python (ubuntu-latest, 3.10)
-                integration_id: -1
-              - context: python (ubuntu-latest, 3.11)
-                integration_id: -1
-              - context: python (ubuntu-latest, 3.12)
-                integration_id: -1
-              - context: python (ubuntu-latest, 3.13)
+              - context: Required Checks
                 integration_id: -1
               - context: Check License Headers
                 integration_id: -1
@@ -123,33 +111,7 @@ github:
         - actor_id: 4
           actor_type: RepositoryRole
           bypass_mode: always
-    - name: Release Branch Protection
-      type: branch
-      branches:
-        includes:
-          - release/*
-        excludes: []
-      restrict_deletion: true
-      restrict_force_push: true
-      required_linear_history: true
-      required_status_checks:
-        strict: true
-        contexts:
-          - frontend (ubuntu-latest, 18)
-          - frontend (windows-latest, 18)
-          - frontend (macos-latest, 18)
-          - scala (ubuntu-22.04, 11)
-          - python (ubuntu-latest, 3.10)
-          - python (ubuntu-latest, 3.11)
-          - python (ubuntu-latest, 3.12)
-          - python (ubuntu-latest, 3.13)
-          - Check License Headers
-          - Validate PR title
-      required_pull_request_reviews:
-        dismiss_stale_reviews: false
-        require_last_push_approval: false
-        require_code_owner_reviews: false
-        required_approving_review_count: 1
+
 notifications:
   commits:              commits@texera.apache.org
   issues:               notifications@texera.apache.org

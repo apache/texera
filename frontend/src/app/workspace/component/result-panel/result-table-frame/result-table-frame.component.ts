@@ -19,7 +19,16 @@
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
-import { NzTableQueryParams } from "ng-zorro-antd/table";
+import {
+  NzTableQueryParams,
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzTbodyComponent,
+  NzCellEllipsisDirective,
+} from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
@@ -31,6 +40,13 @@ import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { NgIf, NgFor, NgClass } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 /**
  * The Component will display the result in an excel table format,
@@ -45,7 +61,24 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
   selector: "texera-result-table-frame",
   templateUrl: "./result-table-frame.component.html",
   styleUrls: ["./result-table-frame.component.scss"],
-  standalone: false,
+  imports: [
+    NgIf,
+    NzSpaceCompactItemDirective,
+    NzInputDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NgFor,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NgClass,
+    NzTbodyComponent,
+    NzCellEllipsisDirective,
+  ],
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;

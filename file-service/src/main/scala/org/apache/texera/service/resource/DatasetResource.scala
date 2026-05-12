@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.storage.model.OnDataset
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SiteSettings
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -87,15 +88,8 @@ object DatasetResource {
       .getInstance()
       .createDSLContext()
 
-  private def singleFileUploadMaxBytes(ctx: DSLContext, defaultMiB: Long = 20L): Long = {
-    val limit = ctx
-      .select(DSL.field("value", classOf[String]))
-      .from(DSL.table(DSL.name("texera_db", "site_settings")))
-      .where(DSL.field("key", classOf[String]).eq("single_file_upload_max_size_mib"))
-      .fetchOneInto(classOf[String])
-    Try(Option(limit).getOrElse(defaultMiB.toString).trim.toLong)
-      .getOrElse(defaultMiB) * 1024L * 1024L
-  }
+  private def singleFileUploadMaxBytes(defaultMiB: Long = 20L): Long =
+    SiteSettings.getLong("single_file_upload_max_size_mib", defaultMiB) * 1024L * 1024L
 
   /**
     * Helper function to get the dataset from DB using did
@@ -208,6 +202,8 @@ object DatasetResource {
   )
 
   case class DatasetDescriptionModification(did: Integer, description: String)
+
+  case class DatasetNameModification(did: Integer, name: String)
 
   case class DatasetVersionRootFileNodesResponse(
       fileNodes: List[DatasetFileNode],
@@ -488,6 +484,29 @@ class DatasetResource {
       }
 
       dataset.setDescription(modificator.description)
+      datasetDao.update(dataset)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/name")
+  def updateDatasetName(
+      modificator: DatasetNameModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val uid = sessionUser.getUid
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val dataset = getDatasetByID(ctx, modificator.did)
+      if (!userHasWriteAccess(ctx, modificator.did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      dataset.setName(modificator.name)
       datasetDao.update(dataset)
       Response.ok().build()
     }
@@ -1334,7 +1353,7 @@ class DatasetResource {
     * - Cannot start with a hyphen.
     *
     * @param name The dataset name to validate.
-    * @throws IllegalArgumentException if the name is invalid.
+    * @throws java.lang.IllegalArgumentException if the name is invalid.
     */
   private def validateDatasetName(name: String): Unit = {
     val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
@@ -1552,7 +1571,7 @@ class DatasetResource {
       if (fileSizeBytesValue <= 0L) throw new BadRequestException("fileSizeBytes must be > 0")
       if (partSizeBytesValue <= 0L) throw new BadRequestException("partSizeBytes must be > 0")
 
-      val totalMaxBytes: Long = singleFileUploadMaxBytes(ctx)
+      val totalMaxBytes: Long = singleFileUploadMaxBytes()
       if (totalMaxBytes <= 0L) {
         throw new WebApplicationException(
           "singleFileUploadMaxBytes must be > 0",
@@ -1944,7 +1963,7 @@ class DatasetResource {
         )
       }
 
-      val maxBytes = singleFileUploadMaxBytes(ctx)
+      val maxBytes = singleFileUploadMaxBytes()
       val tooLarge = actualSizeBytes > maxBytes
 
       if (tooLarge) {

@@ -35,8 +35,8 @@ import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_WORKFLOW_ID
 }
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
+  PekkoActorRefMappingService,
+  PekkoActorService,
   WorkflowActor
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
@@ -78,8 +78,8 @@ object RegionCoordinatorTestSupport {
   )
 
   case class ControllerHarnessFixture(
-      actorService: AkkaActorService,
-      actorRefService: AkkaActorRefMappingService
+      actorService: PekkoActorService,
+      actorRefService: PekkoActorRefMappingService
   )
 
   /**
@@ -231,7 +231,7 @@ trait RegionCoordinatorTestSupport { self: TestKit =>
   }
 
   protected def registerLiveWorker(
-      actorRefService: AkkaActorRefMappingService,
+      actorRefService: PekkoActorRefMappingService,
       workerId: ActorVirtualIdentity
   ): ActorRef = {
     val workerRef = system.actorOf(Props(new IdleActor), s"worker-${System.nanoTime()}")

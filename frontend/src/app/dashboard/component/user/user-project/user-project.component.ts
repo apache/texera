@@ -25,13 +25,46 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UserService } from "../../../../common/service/user/user.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { PublicProjectComponent } from "./public-project/public-project.component";
+import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NgIf, NgFor } from "@angular/common";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { FormsModule } from "@angular/forms";
+import { NzListComponent } from "ng-zorro-antd/list";
+import { UserProjectListItemComponent } from "./user-project-list-item/user-project-list-item.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-project-list",
   templateUrl: "./user-project.component.html",
   styleUrls: ["./user-project.component.scss"],
-  standalone: false,
+  imports: [
+    NzCardComponent,
+    NzDropdownADirective,
+    NzDropdownDirective,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
+    NzTooltipDirective,
+    NgIf,
+    NzInputDirective,
+    FormsModule,
+    NzListComponent,
+    NgFor,
+    UserProjectListItemComponent,
+  ],
 })
 export class UserProjectComponent implements OnInit {
   // store list of projects / variables to create and edit projects

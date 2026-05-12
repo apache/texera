@@ -44,7 +44,7 @@ object VFSURIFactory {
     *
     * @param uri The VFS URI to parse.
     * @return A `VFSUriComponents` object with the extracted data.
-    * @throws IllegalArgumentException if the URI is malformed.
+    * @throws java.lang.IllegalArgumentException if the URI is malformed.
     */
   def decodeURI(uri: URI): (
       WorkflowIdentity,
@@ -135,7 +135,7 @@ object VFSURIFactory {
     * @param executionId    Execution identifier.
     * @param operatorId     Operator identifier.
     * @return A VFS URI
-    * @throws IllegalArgumentException if `resourceType` is `RESULT`, if `operatorId` is provided for
+    * @throws java.lang.IllegalArgumentException if `resourceType` is `RESULT`, if `operatorId` is provided for
     *                                  `RUNTIME_STATISTICS`, or if `operatorId` is not provided for `CONSOLE_MESSAGES`.
     */
   private def createNonResultVFSURI(

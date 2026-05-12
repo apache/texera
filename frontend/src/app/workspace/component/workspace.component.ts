@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Location } from "@angular/common";
+import { Location, NgIf } from "@angular/common";
 import {
   AfterViewInit,
   ChangeDetectorRef,
@@ -52,6 +52,15 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { ResultPanelComponent } from "./result-panel/result-panel.component";
+import { WorkflowEditorComponent } from "./workflow-editor/workflow-editor.component";
+import { MenuComponent } from "./menu/menu.component";
+import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component";
+import { LeftPanelComponent } from "./left-panel/left-panel.component";
+import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
+import { PropertyEditorComponent } from "./property-editor/property-editor.component";
+import { FormlyRepeatDndComponent } from "../../common/formly/repeat-dnd/repeat-dnd.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -64,7 +73,18 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ],
-  standalone: false,
+  imports: [
+    NzSpinComponent,
+    ResultPanelComponent,
+    WorkflowEditorComponent,
+    MenuComponent,
+    MiniMapComponent,
+    LeftPanelComponent,
+    NgIf,
+    AgentPanelComponent,
+    PropertyEditorComponent,
+    FormlyRepeatDndComponent,
+  ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;

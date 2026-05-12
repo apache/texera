@@ -27,13 +27,15 @@ import * as Y from "yjs";
 import { BreakpointInfo } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
-
+import type { Mocked } from "vitest";
+import type { MonacoBreakpoint } from "monaco-breakpoints";
+import type * as monaco from "monaco-editor";
 describe("CodeDebuggerComponent", () => {
   let component: CodeDebuggerComponent;
   let fixture: ComponentFixture<CodeDebuggerComponent>;
 
-  let mockWorkflowStatusService: jasmine.SpyObj<WorkflowStatusService>;
-  let mockUdfDebugService: jasmine.SpyObj<UdfDebugService>;
+  let mockWorkflowStatusService: Mocked<WorkflowStatusService>;
+  let mockUdfDebugService: Mocked<UdfDebugService>;
 
   let statusUpdateStream: Subject<Record<string, OperatorStatistics>>;
   let debugState: Y.Map<BreakpointInfo>;
@@ -45,14 +47,17 @@ describe("CodeDebuggerComponent", () => {
     statusUpdateStream = new Subject<Record<string, OperatorStatistics>>();
     debugState = new Y.Map<BreakpointInfo>();
 
-    mockWorkflowStatusService = jasmine.createSpyObj("WorkflowStatusService", ["getStatusUpdateStream"]);
-    mockWorkflowStatusService.getStatusUpdateStream.and.returnValue(statusUpdateStream.asObservable());
+    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
+    mockWorkflowStatusService.getStatusUpdateStream.mockReturnValue(statusUpdateStream.asObservable());
 
-    mockUdfDebugService = jasmine.createSpyObj("UdfDebugService", ["getDebugState", "doModifyBreakpoint"]);
-    mockUdfDebugService.getDebugState.and.returnValue(debugState);
+    mockUdfDebugService = {
+      getDebugState: vi.fn(),
+      doModifyBreakpoint: vi.fn(),
+    } as unknown as Mocked<UdfDebugService>;
+    mockUdfDebugService.getDebugState.mockReturnValue(debugState);
 
     await TestBed.configureTestingModule({
-      declarations: [CodeDebuggerComponent],
+      imports: [CodeDebuggerComponent],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
       providers: [
         { provide: WorkflowStatusService, useValue: mockWorkflowStatusService },
@@ -66,7 +71,7 @@ describe("CodeDebuggerComponent", () => {
 
     // Set required input properties
     component.currentOperatorId = operatorId;
-    component.monacoEditor = jasmine.createSpyObj("monacoEditor", ["dispose"]);
+    component.monacoEditor = { dispose: vi.fn() } as unknown as monaco.editor.IStandaloneCodeEditor;
 
     // Trigger change detection to ensure view updates
     fixture.detectChanges();
@@ -83,8 +88,13 @@ describe("CodeDebuggerComponent", () => {
   });
 
   it("should setup monaco breakpoint methods when state is Running", fakeAsync(() => {
-    const setupSpy = spyOn(component, "setupMonacoBreakpointMethods");
-    const rerenderSpy = spyOn(component, "rerenderExistingBreakpoints");
+    // Stub the real implementations: setupMonacoBreakpointMethods constructs
+    // a `MonacoBreakpoint` over a real monaco editor instance, which calls
+    // editor.onMouseMove / onMouseDown — APIs the test's minimal
+    // `monacoEditor` mock doesn't expose. The behavior under test is the
+    // state-machine wiring, not the breakpoint plumbing itself.
+    const setupSpy = vi.spyOn(component, "setupMonacoBreakpointMethods").mockImplementation(() => {});
+    const rerenderSpy = vi.spyOn(component, "rerenderExistingBreakpoints").mockImplementation(() => {});
 
     // Emit a Running state event
     statusUpdateStream.next({
@@ -156,7 +166,7 @@ describe("CodeDebuggerComponent", () => {
   }));
 
   it("should remove monaco breakpoint methods when state changes to Uninitialized", () => {
-    const removeSpy = spyOn(component, "removeMonacoBreakpointMethods");
+    const removeSpy = vi.spyOn(component, "removeMonacoBreakpointMethods");
 
     // Emit an Uninitialized state event
     statusUpdateStream.next({
@@ -202,7 +212,7 @@ describe("CodeDebuggerComponent", () => {
         [1, "breakpoint1"],
         [2, "breakpoint2"],
       ]),
-    } as any;
+    } as unknown as MonacoBreakpoint;
 
     // Simulate a right click on line 1, it should switch to 1
     component["onMouseRightClick"](1);

@@ -24,6 +24,11 @@ import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NgClass, NgIf } from "@angular/common";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -36,7 +41,14 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
   selector: "texera-codearea-custom-template",
   templateUrl: "codearea-custom-template.component.html",
   styleUrls: ["codearea-custom-template.component.scss"],
-  standalone: false,
+  imports: [
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NgClass,
+    NgIf,
+  ],
 })
 export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
   componentRef: ComponentRef<CodeEditorComponent> | undefined;

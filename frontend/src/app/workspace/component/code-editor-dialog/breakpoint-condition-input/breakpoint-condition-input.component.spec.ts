@@ -24,19 +24,22 @@ import { BreakpointConditionInputComponent } from "./breakpoint-condition-input.
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { SimpleChanges } from "@angular/core";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-
+import type { Mocked } from "vitest";
+import type { editor } from "monaco-editor";
 describe("BreakpointConditionInputComponent", () => {
   let component: BreakpointConditionInputComponent;
   let fixture: ComponentFixture<BreakpointConditionInputComponent>;
-  let mockUdfDebugService: jasmine.SpyObj<UdfDebugService>;
+  let mockUdfDebugService: Mocked<UdfDebugService>;
 
   beforeEach(async () => {
     // Create a mock UdfDebugService
-    mockUdfDebugService = jasmine.createSpyObj("UdfDebugService", ["getCondition", "doUpdateBreakpointCondition"]);
+    mockUdfDebugService = {
+      getCondition: vi.fn(),
+      doUpdateBreakpointCondition: vi.fn(),
+    } as unknown as Mocked<UdfDebugService>;
 
     await TestBed.configureTestingModule({
-      imports: [CommonModule, FormsModule],
-      declarations: [BreakpointConditionInputComponent],
+      imports: [BreakpointConditionInputComponent, CommonModule, FormsModule],
       providers: [{ provide: UdfDebugService, useValue: mockUdfDebugService }, ...commonTestProviders],
     }).compileComponents();
 
@@ -52,8 +55,8 @@ describe("BreakpointConditionInputComponent", () => {
       getBottomForLineNumber: () => 40,
       getScrollTop: () => 5,
       getScrollLeft: () => 0,
-      dispose: jasmine.createSpy("dispose"),
-    } as any;
+      dispose: vi.fn(),
+    } as unknown as editor.IStandaloneCodeEditor;
 
     // Set required inputs
     component.operatorId = "test-operator";
@@ -73,7 +76,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should update the condition when lineNum changes", () => {
-    mockUdfDebugService.getCondition.and.returnValue("existing condition");
+    mockUdfDebugService.getCondition.mockReturnValue("existing condition");
 
     const changes: SimpleChanges = {
       lineNum: {
@@ -90,7 +93,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should handle Enter key event and save the condition", () => {
-    const emitSpy = spyOn(component.closeEmitter, "emit");
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
     const event = new KeyboardEvent("keydown", { key: "Enter" });
 
     component.condition = " new condition ";
@@ -101,7 +104,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should not handle Enter key event if shift key is pressed", () => {
-    const emitSpy = spyOn(component.closeEmitter, "emit");
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
     const event = new KeyboardEvent("keydown", { key: "Enter", shiftKey: true });
 
     component.handleEvent(event);
@@ -111,7 +114,7 @@ describe("BreakpointConditionInputComponent", () => {
   });
 
   it("should emit close event on focusout", () => {
-    const emitSpy = spyOn(component.closeEmitter, "emit");
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
 
     component.handleEvent(); // Simulate focusout
 

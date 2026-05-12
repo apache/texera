@@ -22,11 +22,41 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PublicProjectService } from "../../../../service/user/public-project/public-project.service";
 import { PublicProject } from "../../../../type/dashboard-project.interface";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import {
+  NzTableComponent,
+  NzTheadComponent,
+  NzTrDirective,
+  NzTableCellDirective,
+  NzThMeasureDirective,
+  NzThSelectionComponent,
+  NzTbodyComponent,
+  NzTdAddOnComponent,
+} from "ng-zorro-antd/table";
+import { NgFor, DatePipe } from "@angular/common";
+import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 @UntilDestroy()
 @Component({
   templateUrl: "public-project.component.html",
-  standalone: false,
+  imports: [
+    NzTableComponent,
+    NzTheadComponent,
+    NzTrDirective,
+    NzTableCellDirective,
+    NzThMeasureDirective,
+    NzThSelectionComponent,
+    NzTbodyComponent,
+    NgFor,
+    NzTdAddOnComponent,
+    NzSpaceCompactItemDirective,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    DatePipe,
+  ],
 })
 export class PublicProjectComponent implements OnInit {
   readonly modal = inject(NzModalRef);

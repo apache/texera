@@ -23,8 +23,8 @@ import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService
+  PekkoActorRefMappingService,
+  PekkoActorService
 }
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
@@ -35,11 +35,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.mutable
 
 class WorkflowExecutionCoordinator(
-    getNextRegions: () => Set[Region],
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
+
+  var schedule: Schedule = Schedule(Map.empty)
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
@@ -48,9 +49,9 @@ class WorkflowExecutionCoordinator(
     mutable.HashMap()
   private val completionNotified: AtomicBoolean = new AtomicBoolean(false)
 
-  @transient var actorRefService: AkkaActorRefMappingService = _
+  @transient var actorRefService: PekkoActorRefMappingService = _
 
-  def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
+  def setupActorRefService(actorRefService: PekkoActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
   }
 
@@ -61,7 +62,7 @@ class WorkflowExecutionCoordinator(
     *
     * After the syncs, if there are no running region(s), it will start new regions (if available).
     */
-  def coordinateRegionExecutors(actorService: AkkaActorService): Future[Unit] = {
+  def coordinateRegionExecutors(actorService: PekkoActorService): Future[Unit] = {
     val unfinishedRegionCoordinators =
       regionExecutionCoordinators.values.filter(!_.isCompleted).toSeq
 
@@ -83,7 +84,7 @@ class WorkflowExecutionCoordinator(
     }
 
     // All existing regions are completed. Start the next region (if any).
-    val nextRegions = getNextRegions()
+    val nextRegions = if (!schedule.hasNext) Set.empty[Region] else schedule.next()
     if (nextRegions.isEmpty) {
       if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
         asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
