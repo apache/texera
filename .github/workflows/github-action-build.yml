@@ -27,6 +27,7 @@ on:
       - 'main'
       - 'release/**'
   pull_request:
+  merge_group:
   workflow_dispatch:
 
 concurrency:

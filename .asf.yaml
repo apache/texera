@@ -17,6 +17,9 @@
 
 # https://cwiki.apache.org/confluence/display/INFRA/Git+-+.asf.yaml+features
 
+meta:
+  environment: github_rulesets
+
 github:
   description: "Collaborative Machine-Learning-Centric Data Analytics Using Workflows"
   homepage: https://texera.io/
@@ -47,8 +50,8 @@ github:
     discussions: true
 
   pull_requests:
-    # allow auto-merge
-    allow_auto_merge: true
+    # disable auto-merge so PRs are queued manually
+    allow_auto_merge: false
     # enable updating head branches of pull requests
     allow_update_branch: true
     # auto-delete head branches after being merged
@@ -61,6 +64,65 @@ github:
     rebase:  false
 
   rulesets:
+    - name: Merge Queue
+      target: branch
+      source_type: Repository
+      source:
+      enforcement: active
+      conditions:
+        ref_name:
+          exclude: []
+          include:
+            - "~DEFAULT_BRANCH"
+      rules:
+        - type: deletion
+        - type: non_fast_forward
+        - type: merge_queue
+          parameters:
+            merge_method: SQUASH
+            max_entries_to_build: 5
+            min_entries_to_merge: 1
+            max_entries_to_merge: 5
+            min_entries_to_merge_wait_minutes: 5
+            grouping_strategy: ALLGREEN
+            check_response_timeout_minutes: 60
+        - type: pull_request
+          parameters:
+            dismiss_stale_reviews_on_push: false
+            require_code_owner_review: false
+            require_last_push_approval: false
+            required_approving_review_count: 1
+            required_review_thread_resolution: false
+        - type: required_linear_history
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            do_not_enforce_on_create: false
+            required_status_checks:
+              - context: frontend (ubuntu-latest, 18)
+                integration_id: -1
+              - context: frontend (windows-latest, 18)
+                integration_id: -1
+              - context: frontend (macos-latest, 18)
+                integration_id: -1
+              - context: scala (ubuntu-22.04, 11)
+                integration_id: -1
+              - context: python (ubuntu-latest, 3.10)
+                integration_id: -1
+              - context: python (ubuntu-latest, 3.11)
+                integration_id: -1
+              - context: python (ubuntu-latest, 3.12)
+                integration_id: -1
+              - context: python (ubuntu-latest, 3.13)
+                integration_id: -1
+              - context: Check License Headers
+                integration_id: -1
+              - context: Validate PR title
+                integration_id: -1
+      bypass_actors:
+        - actor_id: 4
+          actor_type: RepositoryRole
+          bypass_mode: always
     - name: Release Branch Protection
       type: branch
       branches:
@@ -88,30 +150,6 @@ github:
         require_last_push_approval: false
         require_code_owner_reviews: false
         required_approving_review_count: 1
-    
-  protected_branches:
-    main:
-      required_status_checks:
-        # strict means "Require branches to be up to date before merging".
-        strict: true
-        # contexts are the names of checks that must pass
-        contexts:
-          - frontend (ubuntu-latest, 18)
-          - frontend (windows-latest, 18)
-          - frontend (macos-latest, 18)
-          - scala (ubuntu-22.04, 11)
-          - python (ubuntu-latest, 3.10)
-          - python (ubuntu-latest, 3.11)
-          - python (ubuntu-latest, 3.12)
-          - python (ubuntu-latest, 3.13)
-          - Check License Headers
-          - Validate PR title
-      required_pull_request_reviews:
-        dismiss_stale_reviews: false
-        require_code_owner_reviews: false
-        required_approving_review_count: 1
-      required_linear_history: true
-
 notifications:
   commits:              commits@texera.apache.org
   issues:               notifications@texera.apache.org
