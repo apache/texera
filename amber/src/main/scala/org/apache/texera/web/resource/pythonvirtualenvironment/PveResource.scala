@@ -28,24 +28,32 @@ import java.util
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class PveResource {
   // --------------------------------------------------
-  // Get installed packages
+  // Get system packages
   // --------------------------------------------------
   @GET
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
     try {
-      val systemPkgs = PveManager.getSystemPackages().toList.asJava
+
+      // TODO: Support Kubernetes environment handling
+      val isLocal = true
+
+      val systemPkgs =
+        PveManager.getSystemPackages(isLocal).toList.asJava
+
       Map("system" -> systemPkgs).asJava
     } catch {
       case e: Exception =>
         e.printStackTrace()
-        throw new InternalServerErrorException("Failed to get system packages.")
+        throw new InternalServerErrorException(
+          "Failed to get system packages."
+        )
     }
   }
 
   // --------------------------------------------------
-  // Fetch PVEs
+  // Fetch PVEs and Installed User Packages
   // --------------------------------------------------
   @GET
   @Path("/pves")
@@ -54,9 +62,10 @@ class PveResource {
     try {
       PveManager
         .getEnvironments(cuid)
-        .map { pveName =>
+        .map { pve =>
           Map(
-            "pveName" -> pveName.asInstanceOf[Object]
+            "pveName" -> pve.pveName.asInstanceOf[Object],
+            "userPackages" -> pve.userPackages.asJava.asInstanceOf[Object]
           ).asJava
         }
         .asJava

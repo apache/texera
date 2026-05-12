@@ -18,12 +18,12 @@
 
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
+import { map } from "rxjs/operators";
 import { HttpClient, HttpParams } from "@angular/common/http";
 import { AuthService } from "../../../common/service/user/auth.service";
 
 export interface PackageResponse {
   system: string[];
-  user: string[];
 }
 
 export interface PvePackageResponse {
@@ -49,7 +49,7 @@ export class WorkflowPveService {
     return params;
   }
 
-  getSystemPackages(): Observable<PackageResponse> {
+  getSystemPackages(isLocal: boolean): Observable<PackageResponse> {
     const params = this.buildBaseParams();
     return this.http.get<PackageResponse>("/pve/system", { params });
   }
@@ -59,11 +59,15 @@ export class WorkflowPveService {
     return this.http.get<PvePackageResponse[]>("/pve/pves", { params });
   }
 
+  getUserPackages(cuid: number, pveName: string): Observable<string[]> {
+    return this.fetchPVEs(cuid).pipe(map(pves => pves.find(pve => pve.pveName === pveName)?.userPackages ?? []));
+  }
+
   deleteEnvironments(cuid: number) {
     return this.http.delete(`/pve/pves/${cuid}`);
   }
 
-  createPveWebSocketUrl(cuid: number, pveName: string, isLocal: boolean, packages: string[] = []): string {
+  getPveWebSocketUrl(cuid: number, pveName: string, isLocal: boolean, action: string, packages: string[] = []): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const query = encodeURIComponent(JSON.stringify(packages));
 
@@ -76,6 +80,7 @@ export class WorkflowPveService {
       `&cuid=${cuid}` +
       `&pveName=${encodeURIComponent(pveName)}` +
       `&isLocal=${isLocal}` +
+      `&action=${action}` +
       tokenParam
     );
   }
