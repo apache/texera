@@ -59,7 +59,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   )
 
   override def beforeAll(): Unit = {
-    system = ActorSystem("CheckpointSpec", AmberRuntime.akkaConfig)
+    system = ActorSystem("CheckpointSpec", AmberRuntime.pekkoConfig)
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
