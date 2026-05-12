@@ -480,7 +480,7 @@
             <div
               *ngFor="let pkg of systemPackages"
               class="package-row system-row">
-              <div class="package-inputs">
+              <div class="system-package-inputs">
                 <input
                   nz-input
                   class="system-input"
@@ -528,6 +528,95 @@
               [(ngModel)]="pve.name"
               [disabled]="pve.isLocked || pve.isInstalling" />
           </div>
+
+          <!-- USER PACKAGES -->
+          <div
+            *ngFor="let pkg of pve.userPackages; let i = index"
+            class="package-row">
+            <div class="user-package-inputs">
+              <div class="field">
+                <input
+                  nz-input
+                  [ngModel]="pkg.name"
+                  [disabled]="true" />
+              </div>
+
+              <div class="field">
+                <input
+                  nz-input
+                  [ngModel]="pkg.versionOp"
+                  [disabled]="true" />
+              </div>
+
+              <div class="field">
+                <input
+                  nz-input
+                  [ngModel]="pkg.version"
+                  [disabled]="true" />
+              </div>
+            </div>
+          </div>
+
+          <!-- NEW PACKAGES -->
+          <div class="new-packages-section">
+            <div
+              class="user-package-header-row"
+              *ngIf="pve.newPackages.length > 0">
+              <div class="package-column-label">Package</div>
+              <label style="visibility: hidden">Op</label>
+              <div class="package-column-label">Version</div>
+            </div>
+
+            <div
+              *ngFor="let pkg of pve.newPackages; let i = index"
+              class="package-row">
+              <div class="user-package-inputs">
+                <div class="field">
+                  <input
+                    nz-input
+                    placeholder="Package Name"
+                    [(ngModel)]="pve.newPackages[i].name" />
+                </div>
+
+                <div class="field operator operator-select">
+                  <nz-select
+                    nzPlaceHolder="Select"
+                    nzCentered
+                    [(ngModel)]="pve.newPackages[i].versionOp">
+                    <nz-option
+                      nzValue="=="
+                      nzLabel="=="></nz-option>
+                    <nz-option
+                      nzValue=">="
+                      nzLabel=">="></nz-option>
+                    <nz-option
+                      nzValue="<="
+                      nzLabel="<="></nz-option>
+                  </nz-select>
+                </div>
+
+                <div class="field">
+                  <input
+                    nz-input
+                    placeholder="Package Version"
+                    [(ngModel)]="pve.newPackages[i].version" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="add-btn">
+            <button
+              nz-button
+              nzType="primary"
+              nzShape="circle"
+              (click)="addPackage(envIndex)">
+              <i
+                nz-icon
+                nzType="plus"></i>
+            </button>
+          </div>
+
           <!-- Per-environment OK/Install button -->
           <div class="env-footer">
             <button
