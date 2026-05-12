@@ -193,4 +193,42 @@ class SqlServerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll wit
     // when a caller tries to borrow from a closed pool.
     assertThrows[Exception](ds.getConnection)
   }
+
+  // -------------------------------------------------------------------------
+  // SqlServer.close()
+  //
+  // The instance's private HikariDataSource is the only resource that needs
+  // explicit release; close() guards it against double-close. These tests
+  // construct a fresh SqlServer via initConnection (the only public entry
+  // point — the class constructor is private) and assert against the
+  // underlying pool via reflection, which avoids broadening the class API
+  // just to make this branch observable.
+  // -------------------------------------------------------------------------
+
+  private def datasourceOf(instance: SqlServer): HikariDataSource = {
+    val field = classOf[SqlServer].getDeclaredField("dataSource")
+    field.setAccessible(true)
+    field.get(instance).asInstanceOf[HikariDataSource]
+  }
+
+  "SqlServer.close" should "shut down the underlying HikariDataSource and be idempotent" in {
+    val jdbcUrl = getDBInstance.getJdbcUrl("postgres", "postgres")
+    // Replaces the singleton — initConnection internally calls close() on the
+    // prior instance, which is itself an exercise of the same path. The trait
+    // holds its own DSLContext separately, so other tests' database access is
+    // unaffected by this replacement.
+    SqlServer.initConnection(jdbcUrl, "postgres", "")
+    val instance = SqlServer.getInstance()
+    val ds = datasourceOf(instance)
+
+    ds.isClosed shouldBe false
+    instance.close()
+    ds.isClosed shouldBe true
+
+    // Second close() must take the `dataSource.isClosed` branch and return
+    // without throwing. Calling Hikari's close() twice would itself be safe
+    // today, but the guard is what this assertion pins.
+    noException should be thrownBy instance.close()
+    ds.isClosed shouldBe true
+  }
 }
