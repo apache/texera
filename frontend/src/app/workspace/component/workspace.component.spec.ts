@@ -18,7 +18,7 @@
  */
 
 import { Location } from "@angular/common";
-import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -130,12 +130,16 @@ describe("WorkspaceComponent", () => {
     routerMock = { navigate: vi.fn() };
     locationMock = { go: vi.fn() };
 
-    // TODO(#5015): drop this template override once CodeEditorComponent's
-    // own spec is fixed. Real child rendering would let us assert
-    // editor-lifecycle wiring; today we stub the host element so the
-    // heavyweight children don't compile in the test build.
+    // Replace the component imports with an empty list and rely on NO_ERRORS_SCHEMA
+    // so the heavyweight children (workflow editor, panels, menu, etc.) become
+    // unknown elements at compile time. The real template still renders, which
+    // means the `<ng-template #codeEditor>` outlet is wired up and the @ViewChild
+    // query in WorkspaceComponent resolves to a real ViewContainerRef. Children's
+    // own dependency trees never come into the test build, which keeps the spec
+    // hermetic without the previous `<div #codeEditor>` template stub. (See
+    // #5015 for why the previous template-override hack existed.)
     TestBed.overrideComponent(WorkspaceComponent, {
-      set: { template: '<div #codeEditor class="stub-host"></div>', imports: [], providers: [] },
+      set: { imports: [], providers: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] },
     });
 
     await TestBed.configureTestingModule({
@@ -168,6 +172,8 @@ describe("WorkspaceComponent", () => {
     // ngOnDestroy clears the ViewContainerRef bound to `#codeEditor`. Tests that
     // exercise individual methods skip change detection, so the @ViewChild query
     // is never resolved; assign a stub to keep TestBed teardown from throwing.
+    // Tests that exercise `fixture.detectChanges()` will overwrite this with
+    // the live ViewContainerRef during ngAfterViewInit.
     component.codeEditorViewRef = { clear: vi.fn() } as any;
   }
 
@@ -205,7 +211,12 @@ describe("WorkspaceComponent", () => {
       // retrieveWorkflow is consumed inside loadWorkflowWithId — keep it pending so
       // we can observe the pre-completion loading state.
       workflowPersistService.retrieveWorkflow.mockReturnValue(new Subject());
-      fixture.detectChanges();
+      // Drive the lifecycle hooks directly. Going through fixture.detectChanges()
+      // would re-render `[nzSpinning]="isLoading"` mid-cycle (isLoading flips from
+      // false to true inside ngAfterViewInit) and Angular's dev-mode stability
+      // check would throw NG0100.
+      component.ngOnInit();
+      component.ngAfterViewInit();
       expect(component.isLoading).toBe(true);
       expect(workflowActionService.disableWorkflowModification).toHaveBeenCalled();
     });
@@ -337,6 +348,7 @@ describe("WorkspaceComponent", () => {
   describe("ngOnDestroy", () => {
     it("persists the workflow on destroy when the user is signed in and persist is enabled", async () => {
       await createFixture();
+      fixture.detectChanges();
       component.ngOnDestroy();
       expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
       expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
@@ -344,6 +356,7 @@ describe("WorkspaceComponent", () => {
 
     it("skips the persist call when the user is not signed in", async () => {
       await createFixture();
+      fixture.detectChanges();
       userService.isLogin.mockReturnValue(false);
       component.ngOnDestroy();
       expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
@@ -357,6 +370,31 @@ describe("WorkspaceComponent", () => {
       await createFixture();
       // MockGuiConfigService defaults `copilotEnabled` to false.
       expect(component.copilotEnabled).toBe(false);
+    });
+  });
+
+  // Real-template rendering coverage — previously the spec replaced the entire
+  // template with `<div #codeEditor>` to keep the heavyweight children out of
+  // the test build, which meant editor lifecycle wiring went untested. With
+  // only the child IMPORTS now stripped (template intact), the real
+  // `<ng-template #codeEditor>` outlet renders and the @ViewChild query
+  // resolves to a live ViewContainerRef. See #5015.
+  describe("child rendering side effects", () => {
+    it("publishes the resolved ViewContainerRef to CodeEditorService.vc on view init", async () => {
+      await createFixture();
+      // Before view init nothing has been assigned. (The pre-fixture stub on
+      // codeEditorViewRef in createFixture only protects ngOnDestroy teardown
+      // — the service.vc should still be untouched.)
+      expect(codeEditorService.vc).toBeUndefined();
+      fixture.detectChanges();
+      // ngAfterViewInit should hand the live ViewContainerRef from the real
+      // <ng-template #codeEditor> through to CodeEditorService — and not the
+      // pre-test stub. Real ViewContainerRefs expose createEmbeddedView; the
+      // stub does not, so its presence proves the @ViewChild query resolved
+      // against the rendered template rather than the placeholder.
+      expect(codeEditorService.vc).toBeDefined();
+      expect(codeEditorService.vc).toBe(component.codeEditorViewRef);
+      expect(typeof codeEditorService.vc.createEmbeddedView).toBe("function");
     });
   });
 });
