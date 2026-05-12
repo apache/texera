@@ -239,7 +239,7 @@ hr {
   .ve-form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 5px;
   }
 
   .fieldRow {
@@ -270,10 +270,18 @@ hr {
     background: #ffffff;
   }
 
-  .package-inputs {
+  .system-package-inputs {
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    width: 100%;
+  }
+
+  .user-package-inputs {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 160px 1fr;
     gap: 14px;
     width: 100%;
   }
@@ -359,6 +367,24 @@ hr {
     overflow-y: auto;
     max-height: 220px;
     background: transparent;
+  }
+
+  .user-package-header-row .package-column-label {
+    font-weight: 600;
+  }
+
+  .new-packages-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .user-package-header-row {
+    display: grid;
+    grid-template-columns: 1fr 160px 1fr;
+    gap: 14px;
+    margin-bottom: 0;
+    padding: 0;
   }
 
   .system-header {
