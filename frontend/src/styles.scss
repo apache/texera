@@ -387,6 +387,17 @@ hr {
     padding: 0;
   }
 
+  .user-package-inputs button {
+    align-self: center;
+    justify-self: center;
+  }
+
+  .highlighted-btn {
+    background-color: #ff4d4f !important; /* Ant Design red */
+    border-color: #ff4d4f !important;
+    color: white !important;
+  }
+
   .system-header {
     display: flex;
     flex-direction: column;
