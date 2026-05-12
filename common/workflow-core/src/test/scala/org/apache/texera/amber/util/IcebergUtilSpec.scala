@@ -22,6 +22,7 @@ package org.apache.texera.amber.util
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil.toIcebergSchema
 import org.apache.iceberg.data.GenericRecord
+import org.apache.iceberg.exceptions.RESTException
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -299,11 +300,12 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(IcebergUtil.fromRecord(record, schema) == tuple)
   }
 
-  it should "exercise createRestCatalog property construction" in {
-    // No Lakekeeper in unit-test scope, so .initialize throws; the property
-    // Map is built before that, which is what this test is here to cover.
-    intercept[Exception] {
-      IcebergUtil.createRestCatalog("test", "test-warehouse")
+  it should "build REST catalog properties without S3 settings" in {
+    // Property Map is built before any network call. With or without
+    // Lakekeeper reachable, .initialize surfaces a RESTException — the
+    // failure is on the server side, not from Map composition.
+    intercept[RESTException] {
+      IcebergUtil.createRestCatalog("test", "non-existent-warehouse")
     }
   }
 }
