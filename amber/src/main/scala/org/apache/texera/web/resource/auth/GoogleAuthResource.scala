@@ -29,6 +29,7 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.response.TokenIssueResponse
+import org.apache.texera.web.model.http.response.GoogleAuthConfigResponse
 import org.apache.texera.web.resource.auth.GoogleAuthResource.userDao
 
 import java.util.Collections
@@ -48,10 +49,20 @@ object GoogleAuthResource {
 @Path("/auth/google")
 class GoogleAuthResource {
   final private lazy val clientId = UserSystemConfig.googleClientId
+  final private lazy val apiKey = UserSystemConfig.googleApiKey
 
   @GET
   @Path("/clientid")
   def getClientId: String = clientId
+
+  @GET
+  @Path("/config")
+  def getConfig: GoogleAuthConfigResponse = {
+    GoogleAuthConfigResponse(clientId, apiKey)
+  }
+
+  @Path("/drive")
+  def getDriveResource: GoogleDriveAuthResource = new GoogleDriveAuthResource()
 
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))
