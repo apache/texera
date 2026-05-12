@@ -349,3 +349,36 @@
     </button>
   </div>
 </nz-card>
+
+<nz-card nzTitle="Result Panel">
+  <div class="settings-row">
+    <span>Max Columns:</span>
+    <nz-input-number
+      [(ngModel)]="csvMaxColumns"
+      [nzMin]="MIN_CSV_MAX_COLUMNS"
+      [nzMax]="MAX_CSV_MAX_COLUMNS"
+      [nzStep]="100"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">
+    Maximum number of columns the CSV parser will accept per row. The Univocity parser default is 512. Increase this
+    value if your CSV files have more than 512 columns. (Range: {{ MIN_CSV_MAX_COLUMNS }} - {{ MAX_CSV_MAX_COLUMNS |
+    number }})
+  </div>
+
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="saveCsvSettings()">
+      Save
+    </button>
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetCsvSettings()">
+      Reset
+    </button>
+  </div>
+</nz-card>

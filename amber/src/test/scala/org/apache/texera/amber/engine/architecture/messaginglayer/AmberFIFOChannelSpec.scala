@@ -184,12 +184,13 @@ class AmberFIFOChannelSpec extends AnyFlatSpec {
   // PortId association
   // ---------------------------------------------------------------------------
 
-  "AmberFIFOChannel.getPortId" should "throw when no portId has been set" in {
+  "AmberFIFOChannel.getPortId" should "throw IllegalStateException with a descriptive message when no portId has been set" in {
     val ch = new AmberFIFOChannel(cid)
-    // Option.get on None
-    assertThrows[NoSuchElementException] {
+    val ex = intercept[IllegalStateException] {
       ch.getPortId
     }
+    assert(ex.getMessage.contains("portId has not been set"))
+    assert(ex.getMessage.contains(cid.toString))
   }
 
   it should "return the most recently configured portId" in {

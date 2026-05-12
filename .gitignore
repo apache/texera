@@ -52,6 +52,9 @@ __pycache__/
 *$py.class
 .ipynb_checkpoints
 .pytype/
+.coverage
+coverage.xml
+.pytest_cache/
 
 # Ignoring python generated files
 *.model
@@ -132,3 +135,6 @@ agent-service/.yarn/
 agent-service/.yarnrc.yml
 agent-service/yarn.lock
 agent-service/CLAUDE.md
+
+# Ignoring local Claude Code artifacts (settings, worktrees, scratch)
+.claude/
