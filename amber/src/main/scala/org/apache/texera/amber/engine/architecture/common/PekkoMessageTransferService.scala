@@ -30,9 +30,9 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
-class AkkaMessageTransferService(
-    actorService: AkkaActorService,
-    refService: AkkaActorRefMappingService,
+class PekkoMessageTransferService(
+    actorService: PekkoActorService,
+    refService: PekkoActorRefMappingService,
     handleBackpressure: Boolean => Unit
 ) extends AmberLogging {
 

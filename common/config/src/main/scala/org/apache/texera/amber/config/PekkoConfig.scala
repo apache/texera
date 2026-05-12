@@ -20,11 +20,11 @@ package org.apache.texera.amber.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-object AkkaConfig {
+object PekkoConfig {
 
   // Load configuration
   private val conf: Config = ConfigFactory.parseResources("cluster.conf").resolve()
 
   // Return the complete Pekko configuration with fallback to default application config
-  def akkaConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
+  def pekkoConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
 }

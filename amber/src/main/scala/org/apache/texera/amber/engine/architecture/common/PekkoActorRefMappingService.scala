@@ -33,7 +33,7 @@ import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import scala.collection.mutable
 
-class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLogging {
+class PekkoActorRefMappingService(actorService: PekkoActorService) extends AmberLogging {
 
   override def actorId: ActorVirtualIdentity = actorService.id
 

@@ -28,7 +28,7 @@ import org.apache.texera.amber.engine.common.FutureBijection._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext) {
+class PekkoActorService(val id: ActorVirtualIdentity, actorContext: ActorContext) {
 
   implicit def ec: ExecutionContext = actorContext.dispatcher
 
