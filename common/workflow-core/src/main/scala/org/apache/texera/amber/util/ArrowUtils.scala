@@ -45,6 +45,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
+  private val TexeraTypeMetadataKey = "texera_type"
 
   // Create a single allocator for the entire utility
   private val allocator: BufferAllocator = new RootAllocator()
@@ -104,7 +105,7 @@ object ArrowUtils extends LazyLogging {
     Schema(
       arrowSchema.getFields.asScala.map { field =>
         val taggedType = Option(field.getMetadata)
-          .flatMap(m => Option(m.get("texera_type")))
+          .flatMap(m => Option(m.get(TexeraTypeMetadataKey)))
           .collect {
             case "LARGE_BINARY" => AttributeType.LARGE_BINARY
             case "ANY"          => AttributeType.ANY
@@ -251,7 +252,7 @@ object ArrowUtils extends LazyLogging {
       }
       val metadata = if (metadataTag != null) {
         val map = new util.HashMap[String, String]()
-        map.put("texera_type", metadataTag)
+        map.put(TexeraTypeMetadataKey, metadataTag)
         map
       } else null
 
