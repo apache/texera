@@ -190,17 +190,6 @@ object PveManager {
       return
     }
 
-    val freezeCode = Process(
-      Seq(python, "-m", "pip", "freeze")
-    ).#>(getSystemPath(isLocal).toFile).!
-
-    queue.put(s"[PVE] system requirements lockfile generated with exit code $freezeCode")
-
-    if (freezeCode != 0) {
-      queue.put(s"[PVE][ERR] Failed to generate system requirements lockfile")
-      return
-    }
-
     queue.put(s"[PVE] Created new environment for cuid = $cuid")
   }
 
