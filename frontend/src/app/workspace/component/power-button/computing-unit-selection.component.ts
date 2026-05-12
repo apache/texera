@@ -77,8 +77,16 @@ import { NzSliderComponent } from "ng-zorro-antd/slider";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
+type PveUserPackageRow = {
+  name: string;
+  versionOp?: "==" | ">=" | "<=";
+  version?: string;
+};
+
 type PveDraft = {
   name: string;
+  userPackages: PveUserPackageRow[];
+  newPackages: PveUserPackageRow[];
   pipOutput: string;
   prettyPipOutput: string;
   expanded: boolean;
@@ -722,9 +730,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return index;
   }
 
+  addPackage(index: number): void {
+    const env = this.pves[index];
+    env.newPackages.push({ name: "", version: "", versionOp: undefined });
+  }
+
   addEnvironment(): void {
     this.pves.push({
       name: "",
+      userPackages: [],
+      newPackages: [],
       pipOutput: "",
       prettyPipOutput: "",
       expanded: true,
@@ -750,6 +765,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getPVEs(): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     this.workflowPveService
       .fetchPVEs(cuId)
@@ -758,6 +774,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (resp: PvePackageResponse[]) => {
           this.pves = resp.map(pve => ({
             name: pve.pveName,
+            userPackages: this.parsePackageRows(pve.userPackages),
+            newPackages: [],
             expanded: false,
             isInstalling: false,
             pipOutput: "",
@@ -766,7 +784,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           }));
 
           this.workflowPveService
-            .getSystemPackages()
+            .getSystemPackages(isLocal)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: installedResp => {
@@ -829,43 +847,34 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
       .replace(/^(\[(?:PVE|pip|pve)\]\[ERR\].*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
 
+      .replace(/^(\[PVE\] Skipped.*)$/gm, '<span class="pip-exit err"><strong>$1</strong></span>')
+
       .replace(/\n/g, "<br/>");
   }
 
-  createVirtualEnvironment(index: number): void {
+  private runPveWebSocket(
+    index: number,
+    action: "create" | "install",
+    initialMessage: string,
+    packages: string[] = [],
+    onDone?: () => void
+  ): void {
     const cuId = this.selectedComputingUnit!.computingUnit.cuid;
-
     const env = this.pves[index];
-
     const trimmedName = env.name.trim();
-
-    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
-      this.notificationService.error("Environment name must contain only letters and numbers.");
-      return;
-    }
-
-    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
-
-    if (duplicateExists) {
-      this.notificationService.error("An environment with this name already exists.");
-      return;
-    }
-
-    const packageArray: string[] = [];
+    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
 
     env.socket?.close();
 
-    const isLocal = this.selectedComputingUnit?.computingUnit.type === "local";
+    const websocketUrl = this.workflowPveService.getPveWebSocketUrl(cuId, trimmedName, isLocal, action, packages);
 
-    const websocketUrl = this.workflowPveService.createPveWebSocketUrl(cuId, trimmedName, isLocal, packageArray);
-    console.log("PVE websocketUrl", websocketUrl);
     const socket = new WebSocket(websocketUrl);
 
     this.pves[index] = {
       ...env,
       name: trimmedName,
       socket,
-      pipOutput: "Starting ...\n",
+      pipOutput: initialMessage,
       isInstalling: true,
       isLocked: true,
     };
@@ -874,8 +883,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.scrollToBottomOfPipModal(index);
 
     socket.onmessage = event => {
-      console.log("PVE WS received:", event.data);
-
       this.ngZone.run(() => {
         const currentEnv = this.pves[index];
 
@@ -888,19 +895,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           };
 
           socket.close();
-          this.workflowPveService
-            .getSystemPackages()
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              next: resp => {
-                this.systemPackages = resp.system.map(pkg => {
-                  const [name, version] = pkg.split("==");
-                  return { name: name.trim(), version: (version ?? "").trim() };
-                });
-                this.cdr.detectChanges();
-              },
-              error: (e: unknown) => console.error("Failed to refresh packages", e),
-            });
+          onDone?.();
 
           this.cdr.detectChanges();
           return;
@@ -917,9 +912,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       });
     };
 
-    socket.onerror = err => {
-      console.log("PVE WS error", err);
-
+    socket.onerror = () => {
       this.ngZone.run(() => {
         const currentEnv = this.pves[index];
 
@@ -936,13 +929,114 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.cdr.detectChanges();
       });
     };
+  }
 
-    socket.onclose = event => {
-      console.log("PVE WS closed", {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
+  private refreshUserPackages(index: number): void {
+    const env = this.pves[index];
+
+    this.workflowPveService
+      .getUserPackages(this.selectedComputingUnit!.computingUnit.cuid, env.name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: pkgs => {
+          env.userPackages = env.userPackages = this.parsePackageRows(pkgs);
+          this.cdr.detectChanges();
+        },
+        error: (e: unknown) => console.error("Failed to refresh user packages", e),
       });
-    };
+  }
+
+  createVirtualEnvironment(index: number): void {
+    const env = this.pves[index];
+    const trimmedName = env.name.trim();
+
+    if (!/^[a-zA-Z0-9]+$/.test(trimmedName)) {
+      this.notificationService.error("Environment name must contain only letters and numbers.");
+      return;
+    }
+
+    if (env.isLocked) {
+      this.installUserPackages(index);
+      return;
+    }
+
+    const duplicateExists = this.pves.some((pve, i) => i !== index && (pve.name ?? "").trim() === trimmedName);
+
+    if (duplicateExists) {
+      this.notificationService.error("An environment with this name already exists.");
+      return;
+    }
+
+    this.runPveWebSocket(index, "create", "Creating virtual environment...\n", [], () => {
+      this.installUserPackages(index);
+    });
+  }
+
+  private installUserPackages(index: number): void {
+    const env = this.pves[index];
+
+    const missingVersionPackage = env.newPackages?.find(
+      pkg => pkg.name?.trim() && (!pkg.versionOp?.trim() || !pkg.version?.trim())
+    );
+
+    if (missingVersionPackage) {
+      this.notificationService.error("Please specify an operator and version for each package.");
+      return;
+    }
+
+    const systemPackageNames = new Set(this.systemPackages.map(pkg => pkg.name.trim().toLowerCase()));
+
+    const userPackageNames = new Set(env.userPackages.map(pkg => pkg.name.trim().toLowerCase()));
+
+    const skippedMessages: string[] = [];
+
+    const packageArray =
+      env.newPackages
+        ?.filter(pkg => pkg.name?.trim())
+        .filter(pkg => {
+          const packageName = pkg.name.trim().toLowerCase();
+
+          if (systemPackageNames.has(packageName)) {
+            this.notificationService.error(`Skipped ${pkg.name}: already installed as a system package.`);
+            return false;
+          }
+
+          if (userPackageNames.has(packageName)) {
+            this.notificationService.error(`Skipped ${pkg.name}: already installed in this environment.`);
+            return false;
+          }
+
+          return true;
+        })
+        .map(pkg => `${pkg.name.trim()}${pkg.versionOp}${(pkg.version ?? "").trim()}`) ?? [];
+
+    if (skippedMessages.length > 0) {
+      this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}` + skippedMessages.join("\n") + "\n";
+
+      this.updatePrettyPipOutput(index);
+      this.scrollToBottomOfPipModal(index);
+    }
+
+    if (packageArray.length === 0) {
+      this.pves[index].newPackages = [];
+      this.refreshUserPackages(index);
+      return;
+    }
+
+    this.runPveWebSocket(index, "install", "Installing user packages...\n", packageArray, () => {
+      this.pves[index].newPackages = [];
+      this.refreshUserPackages(index);
+    });
+  }
+
+  private parsePackageRows(packages: string[]): PveUserPackageRow[] {
+    return packages.map(pkgStr => {
+      const [name, version] = pkgStr.split("==");
+      return {
+        name: name.trim(),
+        versionOp: "==" as const,
+        version: (version ?? "").trim(),
+      };
+    });
   }
 }
