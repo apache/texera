@@ -343,17 +343,17 @@ object PveManager {
   }
 
   /**
-   * Uninstalls a user-installed package from the PVE.
-   * 1. Prevents deletion of system packages
-   * 2. Updates user metadata upon success
-   * 3. Returns status messages
-   */
+    * Uninstalls a user-installed package from the PVE.
+    * 1. Prevents deletion of system packages
+    * 2. Updates user metadata upon success
+    * 3. Returns status messages
+    */
   def deletePackages(
-                      cuid: Int,
-                      packageName: String,
-                      pveName: String,
-                      isLocal: Boolean
-                    ): List[String] = {
+      cuid: Int,
+      packageName: String,
+      pveName: String,
+      isLocal: Boolean
+  ): List[String] = {
     val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
     val metadataPath = cuidDir(cuid, pveName).resolve("user-packages.txt")
 

@@ -1101,8 +1101,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe({
           next: messages => {
-            this.pves[index].pipOutput =
-              `${this.pves[index].pipOutput ?? ""}${messages.join("\n")}\n`;
+            this.pves[index].pipOutput = `${this.pves[index].pipOutput ?? ""}${messages.join("\n")}\n`;
 
             this.updatePrettyPipOutput(index);
             this.scrollToBottomOfPipModal(index);
