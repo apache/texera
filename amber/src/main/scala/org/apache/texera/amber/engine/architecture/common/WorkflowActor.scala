@@ -83,7 +83,7 @@ abstract class WorkflowActor(
     with AmberLogging {
 
   //
-  // Akka related components:
+  // Pekko related components:
   //
   val actorService: PekkoActorService = new PekkoActorService(actorId, this.context)
   actorService.getAvailableNodeAddressesFunc = () => {
