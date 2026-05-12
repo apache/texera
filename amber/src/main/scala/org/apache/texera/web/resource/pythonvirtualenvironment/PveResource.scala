@@ -36,6 +36,7 @@ class PveResource {
   def getSystemPackages: util.Map[String, util.List[String]] = {
     try {
 
+      // TODO: Support Kubernetes environment handling
       val isLocal = true
 
       val systemPkgs =

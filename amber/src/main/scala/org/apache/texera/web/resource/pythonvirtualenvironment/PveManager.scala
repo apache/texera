@@ -67,12 +67,24 @@ object PveManager {
       "PIP_NO_INPUT" -> "1"
     )
 
-  private def getSystemPath(isLocal: Boolean): Path = {
-    if (isLocal) {
-      Paths.get("amber", "system-requirements-lock.txt")
+  private def readPackageFile(path: Path): Seq[String] = {
+    if (Files.exists(path)) {
+      Files
+        .readAllLines(path)
+        .asScala
+        .map(_.trim)
+        .filter(_.nonEmpty)
+        .toSeq
     } else {
-      Paths.get("/tmp", "system-requirements-lock.txt")
+      Seq()
     }
+  }
+
+  private def getSystemPath(isLocal: Boolean): Path = {
+    Paths.get(
+      if (isLocal) "amber/system-requirements-lock.txt"
+      else "/tmp/system-requirements-lock.txt"
+    )
   }
 
   def getSystemPackages(isLocal: Boolean): Seq[String] = {
@@ -133,16 +145,12 @@ object PveManager {
     queue.put(s"[PVE] Creating new PVE for cuid: $cuid with name: $pveName")
 
     // NOTE: These paths are derived from computing-unit-master.dockerfile.
-    // If requirements.txt or operator-requirements.txt locations change, update these paths.
+    // If requirements.txt location changes, update these paths.
     val requirementsPath =
       if (isLocal) Paths.get("amber", "requirements.txt")
       else Paths.get("/tmp", "requirements.txt")
 
-    val operatorRequirementsPath =
-      if (isLocal) Paths.get("amber", "operator-requirements.txt")
-      else Paths.get("/tmp", "operator-requirements.txt")
-
-    if (!Files.exists(requirementsPath) || !Files.exists(operatorRequirementsPath)) {
+    if (!Files.exists(requirementsPath)) {
       queue.put(s"[PVE][ERR] System requirements not found")
       return
     }
@@ -169,16 +177,14 @@ object PveManager {
     }
 
     queue.put(
-      s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath} and operator requirements from ${operatorRequirementsPath.toAbsolutePath}"
+      s"[PVE] Installing requirements from ${requirementsPath.toAbsolutePath}"
     )
 
     val installReqCode = runPipInstall(
       python,
       Seq(
         "-r",
-        requirementsPath.toString,
-        "-r",
-        operatorRequirementsPath.toString
+        requirementsPath.toString
       ),
       queue
     )
@@ -213,17 +219,7 @@ object PveManager {
           val pveName = path.getFileName.toString
           val metadataPath = path.resolve("user-packages.txt")
 
-          val userPackages =
-            if (Files.exists(metadataPath)) {
-              Files
-                .readAllLines(metadataPath)
-                .asScala
-                .map(_.trim)
-                .filter(_.nonEmpty)
-                .toSeq
-            } else {
-              Seq()
-            }
+          val userPackages = readPackageFile(metadataPath)
 
           PvePackageResponse(
             pveName = pveName,
@@ -282,17 +278,7 @@ object PveManager {
 
     val metadataPath = cuidDir(cuid, pveName).resolve("user-packages.txt")
 
-    var installedPackages =
-      if (Files.exists(metadataPath)) {
-        Files
-          .readAllLines(metadataPath)
-          .asScala
-          .map(_.trim)
-          .filter(_.nonEmpty)
-          .toSet
-      } else {
-        Set[String]()
-      }
+    var installedPackages = readPackageFile(metadataPath).toSet
 
     val systemPackages =
       if (Files.exists(getSystemPath(isLocal))) {
@@ -300,7 +286,7 @@ object PveManager {
           .readAllLines(getSystemPath(isLocal))
           .asScala
           .map(_.trim)
-          .filter(_.nonEmpty)
+          .filter(line => line.nonEmpty && !line.startsWith("#"))
           .map(line => line.split("==")(0).trim.toLowerCase)
           .toSet
       } else {
