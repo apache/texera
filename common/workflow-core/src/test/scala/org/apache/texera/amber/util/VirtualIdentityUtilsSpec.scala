@@ -108,6 +108,8 @@ class VirtualIdentityUtilsSpec extends AnyFlatSpec with Matchers {
     // silently propagating a sentinel value.
     val controller = ActorVirtualIdentity("CONTROLLER")
     VirtualIdentityUtils.getWorkerIndex(controller) shouldBe None
+    val self = ActorVirtualIdentity("SELF")
+    VirtualIdentityUtils.getWorkerIndex(self) shouldBe None
   }
 
   // ----- toShorterString -----
