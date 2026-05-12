@@ -79,11 +79,10 @@ class Heartbeat(Runnable, Stoppable):
 
     def _check_heartbeat(self) -> bool:
         """
-        Attempt to connect to JVM on the specific port. If succeeds, it means the
-        socket is still available and the JVM is still alive. Otherwise, the JVM
-        might have been gone.
+        Attempt to connect to the JVM port. If connection failure, then JVM is dead, or if connection success 
+        then JVM is alive even if close() raises. Logs on connection failure and on close error.
 
-        :return: bool, indicating if the socket is available.
+        :return: bool, True if connect succeeded, False if connect failed.
         """
         try:
             temp_socket = socket.create_connection(
