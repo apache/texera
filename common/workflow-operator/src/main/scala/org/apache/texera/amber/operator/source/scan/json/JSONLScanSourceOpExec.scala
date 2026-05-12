@@ -23,8 +23,7 @@ import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseField
 import org.apache.texera.amber.core.tuple.TupleLike
-import org.apache.texera.amber.operator.source.scan.json.JSONUtil.JSONToMap
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.URI

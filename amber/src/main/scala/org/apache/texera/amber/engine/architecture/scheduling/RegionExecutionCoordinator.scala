@@ -26,8 +26,8 @@ import org.apache.texera.amber.core.storage.VFSURIFactory.decodeURI
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
+  PekkoActorRefMappingService,
+  PekkoActorService,
   ExecutorDeployment
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.{
@@ -95,8 +95,8 @@ class RegionExecutionCoordinator(
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
     controllerConfig: ControllerConfig,
-    actorService: AkkaActorService,
-    actorRefService: AkkaActorRefMappingService
+    actorService: PekkoActorService,
+    actorRefService: PekkoActorRefMappingService
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -374,7 +374,7 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-      actorService: AkkaActorService,
+      actorService: PekkoActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution

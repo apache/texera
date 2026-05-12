@@ -22,21 +22,21 @@ package org.apache.texera.amber.pybuilder
 import scala.reflect.macros.blackbox
 
 /**
- * Macro-only helper: validates boundaries for Encodable insertions.
- *
- * Compile-time: abort with good messages for direct Encodable args.
- * Runtime: for nested builders (unknown content at compile time), generate a check that throws if the builder contains Encodable chunks.
- */
+  * Macro-only helper: validates boundaries for Encodable insertions.
+  *
+  * Compile-time: abort with good messages for direct Encodable args.
+  * Runtime: for nested builders (unknown content at compile time), generate a check that throws if the builder contains Encodable chunks.
+  */
 final class BoundaryValidator[C <: blackbox.Context](val c: C) {
   import PythonLexerUtils._
   import c.universe._
 
   /**
-   * Centralized, templatized error messages (Option A).
-   *
-   * NOTE: This object lives inside the class so it can freely use string templates
-   * without any macro-context type gymnastics.
-   */
+    * Centralized, templatized error messages (Option A).
+    *
+    * NOTE: This object lives inside the class so it can freely use string templates
+    * without any macro-context type gymnastics.
+    */
   private object BoundaryErrors {
 
     // Provide a hint that can differ between compile-time and runtime wording.
@@ -76,19 +76,19 @@ final class BoundaryValidator[C <: blackbox.Context](val c: C) {
   }
 
   final case class CompileTimeContext(
-                                       leftPart: String,
-                                       rightPart: String,
-                                       prefixSource: String,
-                                       argIndex: Int,
-                                       errorPos: Position
-                                     )
+      leftPart: String,
+      rightPart: String,
+      prefixSource: String,
+      argIndex: Int,
+      errorPos: Position
+  )
 
   final case class RuntimeContext(
-                                   leftPart: String,
-                                   rightPart: String,
-                                   prefixSource: String,
-                                   argIndex: Int
-                                 )
+      leftPart: String,
+      rightPart: String,
+      prefixSource: String,
+      argIndex: Int
+  )
 
   def validateCompileTime(ctx: CompileTimeContext): Unit = {
     val prefixLine = lineTail(ctx.prefixSource)
@@ -130,11 +130,11 @@ final class BoundaryValidator[C <: blackbox.Context](val c: C) {
   }
 
   /**
-   * Generate runtime checks for nested PythonTemplateBuilder args.
-   *
-   * This is only emitted when the boundary context is unsafe. The runtime guard is:
-   *   if (arg.containsEncodableString) throw ...
-   */
+    * Generate runtime checks for nested PythonTemplateBuilder args.
+    *
+    * This is only emitted when the boundary context is unsafe. The runtime guard is:
+    *   if (arg.containsEncodableString) throw ...
+    */
   def runtimeChecksForNestedBuilder(ctx: RuntimeContext, argIdent: Tree): List[Tree] = {
     val prefixLine = lineTail(ctx.prefixSource)
     val argNum = ctx.argIndex + 1

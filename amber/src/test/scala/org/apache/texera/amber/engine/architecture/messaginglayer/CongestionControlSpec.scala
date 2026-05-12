@@ -214,7 +214,7 @@ class CongestionControlSpec extends AnyFlatSpec {
   }
 
   it should "return only the messages whose sentTime is older than resendTimeLimit" in {
-    // Cover the AkkaMessageTransferService.checkResend() retransmission path:
+    // Cover the PekkoMessageTransferService.checkResend() retransmission path:
     // the in-transit message that has been sitting past the 60s
     // resendTimeLimit must surface; the freshly-sent one must not.
     val cc = new CongestionControl()

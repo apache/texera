@@ -38,7 +38,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 class WorkflowExecutionCoordinatorSpec
-    extends TestKit(ActorSystem("WorkflowExecutionCoordinatorSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("WorkflowExecutionCoordinatorSpec", AmberRuntime.pekkoConfig))
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with RegionCoordinatorTestSupport {

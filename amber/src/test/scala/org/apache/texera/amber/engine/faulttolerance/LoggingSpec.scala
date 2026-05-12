@@ -61,7 +61,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import java.net.URI
 
 class LoggingSpec
-    extends TestKit(ActorSystem("LoggingSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("LoggingSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll

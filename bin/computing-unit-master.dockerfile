@@ -24,7 +24,7 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11 AS build
 
 # Set working directory
 WORKDIR /texera
@@ -34,6 +34,7 @@ COPY common/ common/
 COPY amber/ amber/
 COPY project/ project/
 COPY build.sbt build.sbt
+COPY .jvmopts .jvmopts
 
 # Update system and install dependencies. python3-minimal is needed by
 # bin/licensing/concat_license_binary.py below.
@@ -64,7 +65,7 @@ RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined
         amber/LICENSE-binary-java \
         amber/LICENSE-binary-python
 
-FROM eclipse-temurin:11-jdk-jammy AS runtime
+FROM eclipse-temurin:17-jdk-jammy AS runtime
 
 WORKDIR /texera/amber
 

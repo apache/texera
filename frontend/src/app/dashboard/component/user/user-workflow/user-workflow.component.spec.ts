@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -61,23 +61,17 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
   let fixture: ComponentFixture<UserWorkflowComponent>;
 
-  let downloadServiceSpy: any;
+  let downloadServiceSpy: Mocked<DownloadService>;
 
-  beforeEach(waitForAsync(() => {
-    downloadServiceSpy = { downloadWorkflowsAsZip: vi.fn() } as any;
+  beforeEach(async () => {
+    downloadServiceSpy = { downloadWorkflowsAsZip: vi.fn() } as unknown as Mocked<DownloadService>;
 
-    TestBed.configureTestingModule({
-      declarations: [
-        UserWorkflowComponent,
-        ShareAccessComponent,
-        FiltersComponent,
-        UserWorkflowListItemComponent,
-        SearchResultsComponent,
-      ],
+    await TestBed.configureTestingModule({
       providers: [
         NzModalService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
@@ -95,6 +89,11 @@ describe("SavedWorkflowSectionComponent", () => {
         ...commonTestProviders,
       ],
       imports: [
+        UserWorkflowComponent,
+        ShareAccessComponent,
+        FiltersComponent,
+        UserWorkflowListItemComponent,
+        SearchResultsComponent,
         FormsModule,
         RouterTestingModule,
         HttpClientTestingModule,
@@ -114,7 +113,7 @@ describe("SavedWorkflowSectionComponent", () => {
         NzButtonModule,
       ],
     }).compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(UserWorkflowComponent);
