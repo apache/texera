@@ -22,9 +22,9 @@ package org.apache.texera.amber.engine.architecture.controller
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
-  AkkaMessageTransferService,
+  PekkoActorRefMappingService,
+  PekkoActorService,
+  PekkoMessageTransferService,
   AmberProcessor
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
@@ -57,21 +57,21 @@ class ControllerProcessor(
     this.controllerTimerService = controllerTimerService
   }
 
-  @transient var transferService: AkkaMessageTransferService = _
+  @transient var transferService: PekkoMessageTransferService = _
 
-  def setupTransferService(transferService: AkkaMessageTransferService): Unit = {
+  def setupTransferService(transferService: PekkoMessageTransferService): Unit = {
     this.transferService = transferService
   }
 
-  @transient var actorService: AkkaActorService = _
+  @transient var actorService: PekkoActorService = _
 
-  def setupActorService(akkaActorService: AkkaActorService): Unit = {
-    this.actorService = akkaActorService
+  def setupActorService(pekkoActorService: PekkoActorService): Unit = {
+    this.actorService = pekkoActorService
   }
 
-  @transient var actorRefService: AkkaActorRefMappingService = _
+  @transient var actorRefService: PekkoActorRefMappingService = _
 
-  def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
+  def setupActorRefService(actorRefService: PekkoActorRefMappingService): Unit = {
     this.actorRefService = actorRefService
     this.workflowExecutionCoordinator.setupActorRefService(this.actorRefService)
   }

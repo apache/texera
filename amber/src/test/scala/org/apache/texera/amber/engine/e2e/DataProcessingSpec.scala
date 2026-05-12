@@ -55,7 +55,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
-    extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
