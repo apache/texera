@@ -89,8 +89,6 @@ class Heartbeat(Runnable, Stoppable):
             temp_socket = socket.create_connection(
                 (self._parsed_server_host, self._parsed_server_port), timeout=1
             )
-            #temp_socket.close()
-            #return True
         except Exception as e:
             logger.warning(f"Server is down with exception: {e}")
             return False
