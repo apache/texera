@@ -341,4 +341,97 @@ object PveManager {
       queue.put(s"[user-package] $pkg")
     }
   }
+
+  /**
+    * Uninstalls a user-installed package from the PVE.
+    * 1. Prevents deletion of system packages
+    * 2. Updates user metadata upon success
+    * 3. Returns status messages
+    */
+  def deletePackages(
+      cuid: Int,
+      packageName: String,
+      pveName: String,
+      isLocal: Boolean
+  ): List[String] = {
+    val python = pythonBinPath(cuid, pveName).toAbsolutePath.toString
+    val metadataPath = cuidDir(cuid, pveName).resolve("user-packages.txt")
+
+    if (!Files.exists(Paths.get(python))) {
+      val msg = s"[PVE][ERR] Python executable not found for PVE: $python"
+      println(msg)
+      return List(msg)
+    }
+
+    val trimmedPackageName = packageName.trim
+    val normalizedPackageName = trimmedPackageName.split("==")(0).trim.toLowerCase
+
+    val systemPackages =
+      if (Files.exists(getSystemPath(isLocal))) {
+        Files
+          .readAllLines(getSystemPath(isLocal))
+          .asScala
+          .map(_.trim)
+          .filter(line => line.nonEmpty && !line.startsWith("#"))
+          .map(line => line.split("==")(0).trim.toLowerCase)
+          .toSet
+      } else {
+        Set[String]()
+      }
+
+    if (systemPackages.contains(normalizedPackageName)) {
+      return List(
+        s"[PVE][ERR] $trimmedPackageName is a system package and cannot be deleted."
+      )
+    }
+
+    try {
+      val command = Process(
+        Seq(
+          python,
+          "-u",
+          "-m",
+          "pip",
+          "uninstall",
+          "-y",
+          trimmedPackageName
+        ),
+        None,
+        pipEnv.toSeq: _*
+      )
+
+      val output = scala.collection.mutable.ListBuffer[String]()
+
+      val exitCode = command.!(
+        ProcessLogger(
+          out => {
+            println(s"[pip] $out")
+            output += s"[pip] $out"
+          },
+          err => {
+            System.err.println(s"[pip][ERR] $err")
+            output += s"[pip][ERR] $err"
+          }
+        )
+      )
+
+      if (exitCode == 0) {
+        val updatedPackages = readPackageFile(metadataPath)
+          .filterNot(line => line.split("==")(0).trim.toLowerCase == normalizedPackageName)
+          .sorted
+
+        Files.write(metadataPath, updatedPackages.asJava)
+
+        output += s"[pip] uninstall($trimmedPackageName) finished with exit code $exitCode"
+        output += s"[PVE] Uninstalled $trimmedPackageName successfully"
+      } else {
+        output += s"[PVE][ERR] Failed to uninstall package: $trimmedPackageName"
+      }
+
+      output.toList
+    } catch {
+      case e: Exception =>
+        List(s"[PVE][ERR] Failed to delete package for cuid=$cuid: ${e.getMessage}")
+    }
+  }
 }
