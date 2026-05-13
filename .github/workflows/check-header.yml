@@ -22,6 +22,7 @@ on:
       - 'ci-enable/**'
       - 'main'
   pull_request:
+  merge_group:
   workflow_dispatch:
 
 jobs:
