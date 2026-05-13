@@ -107,10 +107,6 @@ github:
                 integration_id: -1
               - context: Validate PR title
                 integration_id: -1
-      bypass_actors:
-        - actor_id: 4
-          actor_type: RepositoryRole
-          bypass_mode: always
 
 notifications:
   commits:              commits@texera.apache.org
