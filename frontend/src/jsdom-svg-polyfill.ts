@@ -36,12 +36,26 @@
 import { register as registerLoader } from "node:module";
 
 const CSS_HOOK_FLAG = Symbol.for("texera.cssLoaderHookRegistered");
+const PROCESS_HANDLERS_FLAG = Symbol.for("texera.processErrorHandlersInstalled");
 const flagHolder = globalThis as Record<symbol, boolean | undefined>;
 if (!flagHolder[CSS_HOOK_FLAG]) {
+  // The hook's default export is a CSSStyleSheet-shaped stub rather than a
+  // bare `{}` — a few transitive consumers (codingame v25's
+  // `css-style-sheet` export form) read `.replaceSync` / `.cssRules` off
+  // the imported value, and a plain empty object would crash them.
+  const stubModule =
+    "const s = { cssRules: [] };" +
+    "s.replaceSync = () => {};" +
+    "s.replace = () => Promise.resolve();" +
+    "s.insertRule = () => 0;" +
+    "s.deleteRule = () => {};" +
+    "export default s;";
+  const stubUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(stubModule)}`;
   const cssLoaderHookSource = `
+const STUB_URL = ${JSON.stringify(stubUrl)};
 export function resolve(specifier, context, nextResolve) {
   if (specifier.endsWith(".css") || /\\.css(\\?|$)/.test(specifier)) {
-    return { url: "data:text/javascript,export%20default%20%7B%7D%3B", shortCircuit: true, format: "module" };
+    return { url: STUB_URL, shortCircuit: true, format: "module" };
   }
   return nextResolve(specifier, context);
 }
@@ -229,13 +243,21 @@ function isBenignIconError(err: unknown): boolean {
     /workbenchThemeService|monaco-vscode-theme|monaco-vscode-.*-default-extension/.test(stack)
   );
 }
-process.on("uncaughtException", err => {
-  if (isBenignIconError(err)) return;
-  // Re-throwing inside `uncaughtException` aborts the Node process, which
-  // crashes the Vitest worker mid-run and leaves the runner hanging.
-  console.error(err);
-});
-process.on("unhandledRejection", reason => {
-  if (isBenignIconError(reason)) return;
-  console.error(reason);
-});
+// Same gating pattern as the CSS loader hook above — vitest re-evaluates
+// this setup file once per spec file, and attaching fresh `process.on(...)`
+// handlers each time grows the listener chain (`MaxListenersExceededWarning`
+// after ~11 specs) and reruns the benign-error filter on every captured
+// rejection.
+if (!flagHolder[PROCESS_HANDLERS_FLAG]) {
+  process.on("uncaughtException", err => {
+    if (isBenignIconError(err)) return;
+    // Re-throwing inside `uncaughtException` aborts the Node process, which
+    // crashes the Vitest worker mid-run and leaves the runner hanging.
+    console.error(err);
+  });
+  process.on("unhandledRejection", reason => {
+    if (isBenignIconError(reason)) return;
+    console.error(reason);
+  });
+  flagHolder[PROCESS_HANDLERS_FLAG] = true;
+}
