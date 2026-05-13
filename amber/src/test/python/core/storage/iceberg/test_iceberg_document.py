@@ -86,7 +86,7 @@ class TestIcebergDocument:
             ExecutionIdentity(id=0),
             GlobalPortIdentity(
                 op_id=PhysicalOpIdentity(
-                    logical_op_id=OperatorIdentity(id=f"test_table_{operator_uuid}"),
+                    logical_op_id=OperatorIdentity(id=f"test-table-{operator_uuid}"),
                     layer_name="main",
                 ),
                 port_id=PortIdentity(id=0),
