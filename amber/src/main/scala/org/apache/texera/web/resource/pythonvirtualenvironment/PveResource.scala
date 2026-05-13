@@ -23,6 +23,9 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
 import java.util
+import javax.ws.rs.DELETE
+import javax.ws.rs.PathParam
+import javax.ws.rs.core.Response
 
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -84,5 +87,30 @@ class PveResource {
   @Path("/pves/{cuId}")
   def deleteEnvironments(@PathParam("cuId") cuid: Int): Unit = {
     PveManager.deleteEnvironments(cuid)
+  }
+
+  // --------------------------------------------------
+  // Delete User Installed Package
+  // --------------------------------------------------
+  @DELETE
+  @Path("/{cuid}/{pveName}/packages/{packageName}")
+  def deletePackage(
+      @PathParam("cuid") cuid: Int,
+      @PathParam("pveName") pveName: String,
+      @PathParam("packageName") packageName: String,
+      @QueryParam("isLocal") isLocal: Boolean
+  ): Response = {
+    val messages = PveManager.deletePackages(
+      cuid,
+      packageName,
+      pveName,
+      isLocal
+    )
+
+    if (messages.exists(_.contains("[PVE][ERR]"))) {
+      Response.status(Response.Status.BAD_REQUEST).entity(messages.asJava).build()
+    } else {
+      Response.ok(messages.asJava).build()
+    }
   }
 }

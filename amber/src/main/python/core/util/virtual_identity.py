@@ -42,12 +42,27 @@ def serialize_global_port_identity(obj: GlobalPortIdentity) -> str:
     Expected format:
     ``(logicalOpId=<logicalOpId>,layerName=<layerName>,
     portId=<portId.id>,isInternal=<portId.internal>,isInput=<input>)``
+
+    Raises ValueError if `logicalOpId` or `layerName` contains an underscore
+    (VFS URI parsing relies on the absence of '_'), or if `portId` is negative.
     """
     logical_op_id = obj.op_id.logical_op_id.id
     layer_name = obj.op_id.layer_name
     port_id = obj.port_id.id
     is_internal = obj.port_id.internal
     is_input_port = obj.input
+    if "_" in logical_op_id:
+        raise ValueError(
+            f"logicalOpId must not contain '_' "
+            f"(VFS URI parsing relies on this): {logical_op_id}"
+        )
+    if "_" in layer_name:
+        raise ValueError(
+            f"layerName must not contain '_' "
+            f"(VFS URI parsing relies on this): {layer_name}"
+        )
+    if port_id < 0:
+        raise ValueError(f"portId must be non-negative: {port_id}")
     return (
         f"(logicalOpId={logical_op_id},layerName={layer_name},portId={port_id},"
         f"isInternal={str(is_internal).lower()},isInput={str(is_input_port).lower()})"
@@ -72,6 +87,8 @@ def deserialize_global_port_identity(encoded_str: str) -> GlobalPortIdentity:
         match.groups()
     )
     port_id = int(port_id_str)
+    if port_id < 0:
+        raise ValueError(f"portId must be non-negative: {port_id}")
     is_internal = is_internal_str.lower() == "true"
     is_input_port = is_input_str.lower() == "true"
     op_id = PhysicalOpIdentity(
