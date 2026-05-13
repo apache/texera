@@ -68,36 +68,49 @@ from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
 )
 
 
-# Module-level: configure storage once with a tempdir warehouse and a
-# sqlite catalog that the test will inject below. This avoids requiring
-# the dev postgres/minio stack that the existing iceberg tests depend on.
+# Module-level scratch dir for the sqlite catalog + iceberg warehouse.
+# We don't initialize `StorageConfig` here: other test modules (e.g.
+# test_iceberg_document.py) also call `StorageConfig.initialize` at
+# import time, and the class rejects re-initialization with
+# RuntimeError. Whichever module gets collected first wins; we adopt
+# its namespaces below.
 _WAREHOUSE_DIR = tempfile.mkdtemp(prefix="texera-state-e2e-warehouse-")
-_RESULT_NAMESPACE = "operator-port-result-e2e"
-_STATE_NAMESPACE = "operator-port-state-e2e"
-StorageConfig.initialize(
-    catalog_type="postgres",  # value is ignored once we replace_instance below
-    postgres_uri_without_scheme="unused",
-    postgres_username="unused",
-    postgres_password="unused",
-    rest_catalog_uri="unused",
-    rest_catalog_warehouse_name="unused",
-    table_result_namespace=_RESULT_NAMESPACE,
-    table_state_namespace=_STATE_NAMESPACE,
-    directory_path=_WAREHOUSE_DIR,
-    commit_batch_size=4096,
-    s3_endpoint="unused",
-    s3_region="unused",
-    s3_auth_username="unused",
-    s3_auth_password="unused",
-)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def sqlite_iceberg_catalog():
     """Inject a sqlite-backed SqlCatalog so the test runs without external
-    iceberg infra. Module-scoped so all tests in this file share one
-    warehouse, and so namespace creation only happens once.
+    iceberg infra (postgres/minio).
+
+    Module-scoped so all tests in this file share one warehouse, and so
+    namespace creation only happens once. We save/restore the original
+    `IcebergCatalogInstance` singleton so other test modules that expect
+    a real postgres-backed catalog (e.g. test_iceberg_document.py) are
+    not affected by our replacement.
     """
+    # Some other test module may have initialized StorageConfig already
+    # (it has a single-init lock). If nothing has initialized it yet,
+    # do it here with arbitrary values -- we replace the catalog
+    # instance below so the postgres/rest fields are never exercised.
+    if not StorageConfig._initialized:
+        StorageConfig.initialize(
+            catalog_type="postgres",
+            postgres_uri_without_scheme="unused",
+            postgres_username="unused",
+            postgres_password="unused",
+            rest_catalog_uri="unused",
+            rest_catalog_warehouse_name="unused",
+            table_result_namespace="operator-port-result",
+            table_state_namespace="operator-port-state",
+            directory_path=_WAREHOUSE_DIR,
+            commit_batch_size=4096,
+            s3_endpoint="unused",
+            s3_region="unused",
+            s3_auth_username="unused",
+            s3_auth_password="unused",
+        )
+
+    original_instance = IcebergCatalogInstance._instance
     db_path = f"{_WAREHOUSE_DIR}/catalog.sqlite"
     catalog = SqlCatalog(
         "texera_iceberg_e2e",
@@ -106,10 +119,15 @@ def sqlite_iceberg_catalog():
             "warehouse": f"file://{_WAREHOUSE_DIR}",
         },
     )
-    catalog.create_namespace_if_not_exists(_RESULT_NAMESPACE)
-    catalog.create_namespace_if_not_exists(_STATE_NAMESPACE)
+    # Adopt whatever namespaces StorageConfig already has -- those are
+    # the ones DocumentFactory will route into.
+    catalog.create_namespace_if_not_exists(StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE)
+    catalog.create_namespace_if_not_exists(StorageConfig.ICEBERG_TABLE_STATE_NAMESPACE)
     IcebergCatalogInstance.replace_instance(catalog)
-    yield catalog
+    try:
+        yield catalog
+    finally:
+        IcebergCatalogInstance.replace_instance(original_instance)
 
 
 def _fresh_base_uri() -> str:
