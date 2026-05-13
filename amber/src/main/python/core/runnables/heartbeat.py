@@ -79,7 +79,7 @@ class Heartbeat(Runnable, Stoppable):
 
     def _check_heartbeat(self) -> bool:
         """
-        Attempt to connect to the JVM port. If connection failure, then JVM is dead, or if connection success 
+        Attempt to connect to the JVM port. If connection failure, then JVM is dead, or if connection success
         then JVM is alive even if close() raises. Logs on connection failure and on close error.
 
         :return: bool, True if connect succeeded, False if connect failed.
@@ -96,7 +96,7 @@ class Heartbeat(Runnable, Stoppable):
             temp_socket.close()
         except Exception as e:
             logger.warning(f"Failed to close socket: {e}")
-        
+
         return True
 
     @overrides
