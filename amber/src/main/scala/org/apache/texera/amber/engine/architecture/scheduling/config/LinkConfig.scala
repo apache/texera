@@ -72,10 +72,9 @@ case object LinkConfig {
       case BroadcastPartition() =>
         BroadcastPartitioning(
           dataTransferBatchSize,
-          fromWorkerIds.zip(toWorkerIds).map {
-            case (fromWorkerId, toWorkerId) =>
-              ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
-          }
+          fromWorkerIds.flatMap(fromId =>
+            toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
+          )
         )
 
       case UnknownPartition() =>
