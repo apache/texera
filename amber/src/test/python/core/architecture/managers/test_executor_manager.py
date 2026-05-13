@@ -255,6 +255,30 @@ class TestExecutorManager:
             )
         assert "SourceOperator API" in str(exc_info.value)
 
+    def test_close_when_sys_path_entry_already_removed(self):
+        # Exercise the except ValueError branch: if the tmp fs path has
+        # already been pulled out of sys.path by something else, close()
+        # should swallow the error and finish cleanly.
+        from pathlib import Path
+
+        manager = ExecutorManager()
+        root = Path(manager.fs.getsyspath("/"))
+        sys.path.remove(str(root))
+        manager.close()
+        assert str(root) not in sys.path
+
+    def test_close_when_fs_materialized_but_no_executor_loaded(self):
+        # Exercise the branch where self.fs was touched (so the early
+        # return is skipped) but operator_module_name is still None,
+        # meaning the sys.modules.pop branch must NOT execute.
+        from pathlib import Path
+
+        manager = ExecutorManager()
+        root = Path(manager.fs.getsyspath("/"))
+        assert manager.operator_module_name is None
+        manager.close()
+        assert str(root) not in sys.path
+
 
 REPLACEMENT_OPERATOR_CODE = """
 from pytexera import *
