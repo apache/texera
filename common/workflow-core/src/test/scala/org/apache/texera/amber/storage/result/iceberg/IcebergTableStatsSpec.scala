@@ -56,7 +56,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
     GlobalPortIdentity(
       PhysicalOpIdentity(
         logicalOpId =
-          OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
+          OperatorIdentity(s"test-table-${UUID.randomUUID().toString.replace("-", "")}"),
         layerName = "main"
       ),
       PortIdentity()
