@@ -32,6 +32,7 @@ import org.apache.texera.service.resource.{
   ComputingUnitManagingResource,
   HealthCheckResource
 }
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
@@ -69,6 +70,9 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
     environment.jersey.register(
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
+
+    // Enforce @RolesAllowed annotations on resource methods
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     environment.jersey().register(new ComputingUnitManagingResource)
     environment.jersey().register(new ComputingUnitAccessResource)
