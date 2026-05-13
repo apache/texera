@@ -23,6 +23,7 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { firstValueFrom, of, Subject } from "rxjs";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
 
@@ -40,10 +41,13 @@ describe("WorkflowResultService", () => {
 
 describe("OperatorPaginationResultService", () => {
   let service: OperatorPaginationResultService;
-  let mockWorkflowWebsocketService: any;
+  let mockWorkflowWebsocketService: Mocked<WorkflowWebsocketService>;
 
   beforeEach(() => {
-    mockWorkflowWebsocketService = { subscribeToEvent: vi.fn(), send: vi.fn() };
+    mockWorkflowWebsocketService = {
+      subscribeToEvent: vi.fn(),
+      send: vi.fn(),
+    } as unknown as Mocked<WorkflowWebsocketService>;
     mockWorkflowWebsocketService.subscribeToEvent.mockReturnValue(new Subject());
 
     service = new OperatorPaginationResultService("testOperator", mockWorkflowWebsocketService);

@@ -105,6 +105,21 @@ class TestSerializeGlobalPortIdentity:
         assert recovered.port_id.internal is True
         assert recovered.input is False
 
+    def test_rejects_underscore_in_logical_op_id(self):
+        # VFS-compatibility contract: serialized output must be
+        # underscore-free. Fail fast at the boundary on underscored input.
+        with pytest.raises(ValueError, match="logicalOpId must not contain"):
+            serialize_global_port_identity(_gpi(op_id="__DummyOperator"))
+
+    def test_rejects_underscore_in_layer_name(self):
+        with pytest.raises(ValueError, match="layerName must not contain"):
+            serialize_global_port_identity(_gpi(layer="main_source_0_op"))
+
+    def test_rejects_negative_port_id(self):
+        # Port ids are array indices and must be non-negative.
+        with pytest.raises(ValueError, match="portId must be non-negative"):
+            serialize_global_port_identity(_gpi(port=-1))
+
 
 class TestDeserializeGlobalPortIdentity:
     def test_parses_canonical_encoded_string(self):
@@ -135,6 +150,14 @@ class TestDeserializeGlobalPortIdentity:
         with pytest.raises(ValueError, match="Invalid GlobalPortIdentity format"):
             deserialize_global_port_identity(
                 "(logicalOpId=op,layerName=l,portId=0,isInternal=true)"
+            )
+
+    def test_raises_value_error_on_negative_port_id(self):
+        # Symmetric with the serializer: tampered URIs with a negative
+        # portId must be rejected on the way back in.
+        with pytest.raises(ValueError, match="portId must be non-negative"):
+            deserialize_global_port_identity(
+                "(logicalOpId=op,layerName=l,portId=-1,isInternal=false,isInput=true)"
             )
 
 

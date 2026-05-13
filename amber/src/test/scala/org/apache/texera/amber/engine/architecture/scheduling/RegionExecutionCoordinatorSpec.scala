@@ -24,7 +24,7 @@ import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.core.workflow.PhysicalOp
-import org.apache.texera.amber.engine.architecture.common.AkkaActorRefMappingService
+import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
 import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
 import org.apache.texera.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns._
@@ -51,7 +51,7 @@ import java.util.concurrent.atomic
   *    workers terminated, and allow the next region to start.
   */
 class RegionExecutionCoordinatorSpec
-    extends TestKit(ActorSystem("RegionExecutionCoordinatorSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("RegionExecutionCoordinatorSpec", AmberRuntime.pekkoConfig))
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with RegionCoordinatorTestSupport {
@@ -117,7 +117,7 @@ class RegionExecutionCoordinatorSpec
       region: Region,
       physicalOp: PhysicalOp,
       workerId: ActorVirtualIdentity,
-      actorRefService: AkkaActorRefMappingService
+      actorRefService: PekkoActorRefMappingService
   )
 
   private def createSingleRegionFixture(
