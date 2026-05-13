@@ -119,9 +119,7 @@ def _fresh_base_uri() -> str:
         ExecutionIdentity(id=0),
         GlobalPortIdentity(
             op_id=PhysicalOpIdentity(
-                logical_op_id=OperatorIdentity(
-                    id=f"e2e-{uuid.uuid4().hex}"
-                ),
+                logical_op_id=OperatorIdentity(id=f"e2e-{uuid.uuid4().hex}"),
                 layer_name="main",
             ),
             port_id=PortIdentity(id=0, internal=False),
@@ -145,9 +143,7 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
     DocumentFactory.create_document(
         VFSURIFactory.result_uri(base_uri), worker_schema_for_result
     )
-    DocumentFactory.create_document(
-        VFSURIFactory.state_uri(base_uri), State.SCHEMA
-    )
+    DocumentFactory.create_document(VFSURIFactory.state_uri(base_uri), State.SCHEMA)
 
     # 2. Producer side: spin up an OutputManager, set up real state +
     # result writer threads against the iceberg storage.
@@ -224,26 +220,18 @@ def test_state_table_persists_across_writer_close():
     base_uri = _fresh_base_uri()
     port_id = PortIdentity(id=0, internal=False)
 
-    DocumentFactory.create_document(
-        VFSURIFactory.result_uri(base_uri), State.SCHEMA
-    )
-    DocumentFactory.create_document(
-        VFSURIFactory.state_uri(base_uri), State.SCHEMA
-    )
+    DocumentFactory.create_document(VFSURIFactory.result_uri(base_uri), State.SCHEMA)
+    DocumentFactory.create_document(VFSURIFactory.state_uri(base_uri), State.SCHEMA)
 
     producer = OutputManager(worker_id="Worker:WF0-test-producer2-main-0")
-    producer.add_output_port(
-        port_id, schema=State.SCHEMA, storage_uri_base=base_uri
-    )
+    producer.add_output_port(port_id, schema=State.SCHEMA, storage_uri_base=base_uri)
 
     state = State({"flag": False, "checkpoint": 42})
     producer.save_state_to_storage_if_needed(state)
     producer.close_port_storage_writers()
 
     # Read directly from the iceberg state document, bypassing the reader.
-    state_document, _ = DocumentFactory.open_document(
-        VFSURIFactory.state_uri(base_uri)
-    )
+    state_document, _ = DocumentFactory.open_document(VFSURIFactory.state_uri(base_uri))
     rows = list(state_document.get())
     assert len(rows) == 1, (
         f"expected exactly one row in the iceberg state table after the "
