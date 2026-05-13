@@ -64,7 +64,38 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
     Files.exists(pythonPath) shouldBe true
     Files.exists(pipPath) shouldBe true
 
-    PveManager.getEnvironments(testCuid) should contain(testPveName)
+    PveManager.getEnvironments(testCuid).map(_.pveName) should contain(testPveName)
+  }
+
+  "PveManager" should "install a user package and list it for the PVE" in {
+    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+
+    val packageName = "colorama"
+    val packageVersion = "0.4.6"
+    val packageSpec = s"$packageName==$packageVersion"
+
+    queue.clear()
+
+    PveManager.installUserPackages(
+      List(packageSpec),
+      testCuid,
+      queue,
+      testPveName,
+      isLocal = true
+    )
+
+    val logs = queueText()
+
+    logs should not include "[PVE][ERR]"
+    logs should include(s"[PVE] Installing package: $packageSpec")
+    logs should include(s"[user-package] $packageSpec")
+
+    val pve = PveManager
+      .getEnvironments(testCuid)
+      .find(_.pveName == testPveName)
+
+    pve should not be empty
+    pve.get.userPackages should contain(packageSpec)
   }
 
   "PveManager" should "delete all PVEs for a computing unit" in {
