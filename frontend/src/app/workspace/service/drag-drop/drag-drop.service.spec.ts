@@ -81,11 +81,7 @@ describe("DragDropService", () => {
     expect(createdLink.target).toEqual(mockScanResultLink.target);
   });
 
-  // findClosestOperators consults real SVG geometry (getBBox / getScreenCTM).
-  // The jsdom polyfill returns identity matrices and zero-size boxes, so all
-  // operators report position (0,0) and the closest-N query yields []. Tracked
-  // for re-enable under Vitest browser mode in #4866.
-  it.skip("should find 3 input operatorPredicates and 3 output operatorPredicates for an operatorPredicate with 3 input / 3 output ports", () => {
+  it("should find 3 input operatorPredicates and 3 output operatorPredicates for an operatorPredicate with 3 input / 3 output ports", () => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const workflowUtilService: WorkflowUtilService = TestBed.inject(WorkflowUtilService);
 
@@ -95,10 +91,6 @@ describe("DragDropService", () => {
     const output1 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
     const output2 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
     const output3 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
-    const [inputOps, outputOps] = (dragDropService as any).findClosestOperators(
-      { x: 50, y: 0 },
-      mockMultiInputOutputPredicate
-    );
 
     workflowActionService.addOperator(input1, { x: 0, y: 0 });
     workflowActionService.addOperator(input2, { x: 0, y: 10 });
@@ -107,8 +99,20 @@ describe("DragDropService", () => {
     workflowActionService.addOperator(output2, { x: 100, y: 10 });
     workflowActionService.addOperator(output3, { x: 100, y: 20 });
 
-    expect(inputOps).toEqual([input1, input2, input3]);
-    expect(outputOps).toEqual([output1, output2, output3]);
+    // Probe at the centroid between the input and output columns. With the
+    // SUGGESTION_DISTANCE_THRESHOLD = 300, all 6 operators are in range; the
+    // 3 to the left are ranked as inputs, the 3 to the right as outputs.
+    // Order within each list is heap-internal and not guaranteed by the
+    // implementation — assert membership only.
+    const [inputOps, outputOps] = (dragDropService as any).findClosestOperators(
+      { x: 50, y: 0 },
+      mockMultiInputOutputPredicate
+    );
+
+    expect(inputOps).toHaveLength(3);
+    expect(inputOps).toEqual(expect.arrayContaining([input1, input2, input3]));
+    expect(outputOps).toHaveLength(3);
+    expect(outputOps).toEqual(expect.arrayContaining([output1, output2, output3]));
   });
 
   it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHighlights,newHighlights)"', async () => {
@@ -155,81 +159,95 @@ describe("DragDropService", () => {
     expect(inputOps).toEqual([]);
   });
 
-  // Same root cause as the skipped test above — link inference depends on
-  // findClosestOperators returning real geometry. Tracked in #4866.
-  it.skip(
-    "should update highlighting, add operator, and add links when an operator is dropped",
-    marbles(async () => {
-      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
-      const workflowUtilService: WorkflowUtilService = TestBed.inject(WorkflowUtilService);
-      workflowActionService.getJointGraphWrapper();
-      const operatorType = "MultiInputOutput";
-      const operator = mockMultiInputOutputPredicate;
-      const input1 = workflowUtilService.getNewOperatorPredicate("ScanSource");
-      const input2 = workflowUtilService.getNewOperatorPredicate("ScanSource");
-      const input3 = workflowUtilService.getNewOperatorPredicate("ScanSource");
-      const output1 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
-      const output2 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
-      const output3 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
-      const heightSortedInputs: OperatorPredicate[] = [input1, input2, input3];
-      const heightSortedOutputs: OperatorPredicate[] = [output1, output2, output3];
+  it("should add the dropped operator with links to suggested neighbors and unhighlight prior suggestions", async () => {
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+    const workflowUtilService: WorkflowUtilService = TestBed.inject(WorkflowUtilService);
+    const input1 = workflowUtilService.getNewOperatorPredicate("ScanSource");
+    const input2 = workflowUtilService.getNewOperatorPredicate("ScanSource");
+    const input3 = workflowUtilService.getNewOperatorPredicate("ScanSource");
+    const output1 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+    const output2 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+    const output3 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
 
-      // lists to be populated by observables/streams
-      const highlights: string[] = [];
-      const unhighlights: string[] = [];
-      const links: OperatorLink[] = [];
-      // expected end results of above lists
-      const expectedHighlights: OperatorPredicate[] = []; // expected empty
-      const expectedUnhighlights = [
-        input1.operatorID,
-        input2.operatorID,
-        input3.operatorID,
-        output1.operatorID,
-        output2.operatorID,
-        output3.operatorID,
-      ];
-      const expectedLinks: OperatorLink[] = []; // NOT EXPECTED EMPTY: populated below
+    // Real main jointjs paper attached to a hidden DOM host so coordinate
+    // transforms in `dragStarted` / mousemove / `dragDropped` resolve
+    // without stubs. jsdom doesn't compute layout, so the SVG polyfill's
+    // identity matrices collapse `pageToLocalPoint(x, y)` to (0, 0)
+    // regardless of input — that's why operators are placed at x=±100
+    // around the origin below.
+    const paperHost = document.createElement("div");
+    const flyingOpHost = document.createElement("div");
+    flyingOpHost.id = "flyingOP";
+    document.body.appendChild(paperHost);
+    document.body.appendChild(flyingOpHost);
+    try {
+      workflowActionService.getJointGraphWrapper().attachMainJointPaper({ el: paperHost });
 
-      // populate expected links.
-      heightSortedInputs.forEach(inputOperator => {
-        expectedLinks.push((dragDropService as any).getNewOperatorLink(inputOperator, operator, expectedLinks));
-      });
-      heightSortedOutputs.forEach(outputOperator => {
-        expectedLinks.push((dragDropService as any).getNewOperatorLink(operator, outputOperator, expectedLinks));
-      });
-
-      const timeout = new Promise(resolve => setTimeout(resolve, 500)); // await 500ms before checking expect(s), since observables are async
-
-      // add operators to graph
-      workflowActionService.addOperator(input1, { x: 0, y: 10 });
-      workflowActionService.addOperator(input2, { x: 0, y: 20 });
-      workflowActionService.addOperator(input3, { x: 0, y: 30 });
+      // Inputs at negative x and outputs at positive x so the (0, 0) drop
+      // point classifies them correctly via `findClosestOperators` (which
+      // compares operator x against mouse x).
+      workflowActionService.addOperator(input1, { x: -100, y: 10 });
+      workflowActionService.addOperator(input2, { x: -100, y: 20 });
+      workflowActionService.addOperator(input3, { x: -100, y: 30 });
       workflowActionService.addOperator(output1, { x: 100, y: 10 });
       workflowActionService.addOperator(output2, { x: 100, y: 20 });
       workflowActionService.addOperator(output3, { x: 100, y: 30 });
 
-      // subscribe to streams and push them to lists (in order to populate highlights,unhighlights,links)
-      dragDropService.getOperatorSuggestionHighlightStream().subscribe(operatorID => {
-        highlights.push(operatorID);
-      });
-      dragDropService.getOperatorSuggestionUnhighlightStream().subscribe(operatorID => {
-        unhighlights.push(operatorID);
-      });
+      const unhighlights: string[] = [];
+      dragDropService.getOperatorSuggestionUnhighlightStream().subscribe(id => unhighlights.push(id));
+      const links: OperatorLink[] = [];
       workflowActionService
         .getTexeraGraph()
         .getLinkAddStream()
-        .subscribe(link => {
-          links.push(link);
-        });
+        .subscribe(link => links.push(link));
 
-      dragDropService.dragStarted(operatorType);
-      dragDropService.dragDropped({ x: 1005, y: 1001 });
+      // dragStarted creates a fresh `op` of the given type and subscribes
+      // to window mousemove to populate suggestionInputs / suggestionOutputs.
+      dragDropService.dragStarted("MultiInputOutput");
+      const droppedOp = (dragDropService as any).op as OperatorPredicate;
 
-      // use 500 ms promise to wait for async events to finish executing
-      await timeout;
-      expect(highlights).toEqual(expectedHighlights as any);
-      expect(unhighlights).toEqual(expectedUnhighlights as any);
-      expect(links).toEqual(expectedLinks); // depends on custom jasmine equality comparison function, defined at top in beforeEach{...}
-    })
-  );
+      // Drive the suggestion pipeline. Any mousemove will do — jsdom's
+      // `pageToLocalPoint` collapses to (0, 0) regardless of the
+      // dispatched coordinates.
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 0, clientY: 0 }));
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      dragDropService.dragDropped({ x: 0, y: 0 });
+      // Tear down the window-level mousemove subscriptions installed by
+      // `dragStarted`. Without this the `first()` mouseup observer stays
+      // armed and a stray mousemove from a later spec re-enters this
+      // service's suggestion pipeline.
+      window.dispatchEvent(new MouseEvent("mouseup"));
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Each suggested operator should have been unhighlighted at drop time.
+      expect(unhighlights).toEqual(
+        expect.arrayContaining([
+          input1.operatorID,
+          input2.operatorID,
+          input3.operatorID,
+          output1.operatorID,
+          output2.operatorID,
+          output3.operatorID,
+        ])
+      );
+      expect(unhighlights).toHaveLength(6);
+
+      // 3 input→droppedOp links and 3 droppedOp→output links.
+      expect(links).toHaveLength(6);
+      const inputLinks = links.filter(l => l.target.operatorID === droppedOp.operatorID);
+      const outputLinks = links.filter(l => l.source.operatorID === droppedOp.operatorID);
+      expect(inputLinks.map(l => l.source.operatorID).sort()).toEqual(
+        [input1.operatorID, input2.operatorID, input3.operatorID].sort()
+      );
+      expect(outputLinks.map(l => l.target.operatorID).sort()).toEqual(
+        [output1.operatorID, output2.operatorID, output3.operatorID].sort()
+      );
+    } finally {
+      // Always clean up the DOM hosts even if an assertion above threw,
+      // so the JointJS papers don't leak into later specs.
+      document.body.removeChild(paperHost);
+      document.body.removeChild(flyingOpHost);
+    }
+  });
 });

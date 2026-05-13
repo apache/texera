@@ -38,7 +38,7 @@ object ExecutorDeployment {
 
   def createWorkers(
       op: PhysicalOp,
-      controllerActorService: AkkaActorService,
+      controllerActorService: PekkoActorService,
       operatorExecution: OperatorExecution,
       operatorConfig: OperatorConfig,
       stateRestoreConfig: Option[StateRestoreConfig],

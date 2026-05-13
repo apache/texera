@@ -61,14 +61,15 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import type { Mocked } from "vitest";
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
   let fixture: ComponentFixture<UserWorkflowComponent>;
 
-  let downloadServiceSpy: any;
+  let downloadServiceSpy: Mocked<DownloadService>;
 
   beforeEach(async () => {
-    downloadServiceSpy = { downloadWorkflowsAsZip: vi.fn() } as any;
+    downloadServiceSpy = { downloadWorkflowsAsZip: vi.fn() } as unknown as Mocked<DownloadService>;
 
     await TestBed.configureTestingModule({
       providers: [

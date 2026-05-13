@@ -59,6 +59,19 @@ module.exports = {
       },
     ],
   },
+  resolve: {
+    // css-loader emits relative imports (e.g. '../../../../../../../css-loader/
+    // dist/runtime/api.js') computed from the source CSS location. The codingame
+    // monaco-vscode-* packages live one namespace level deeper (under
+    // `node_modules/@codingame/...`) than css-loader assumes, so the emitted
+    // path lands at `node_modules/@codingame/css-loader/...` instead of
+    // `node_modules/css-loader/...`. Alias the missing leg back to the real
+    // install so webpack can resolve the runtime files.
+    alias: {
+      [nodeModule("@codingame/css-loader")]: nodeModule("css-loader"),
+      [nodeModule("@codingame/style-loader")]: nodeModule("style-loader"),
+    },
+  },
   plugins: [
     new LicenseWebpackPlugin({
       perChunkOutput: false,

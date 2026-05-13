@@ -30,6 +30,7 @@ import { StubUserService } from "../../../../common/service/user/stub-user.servi
 import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
+import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
@@ -56,7 +57,7 @@ describe("ListItemComponent", () => {
 
   it("should update workflow name successfully", () => {
     const newName = "New Workflow Name";
-    component.entry = { id: 1, name: "Old Name", type: "workflow" } as any;
+    component.entry = { id: 1, name: "Old Name", type: "workflow" } as unknown as DashboardEntry;
     workflowPersistService.updateWorkflowName.mockReturnValue(of({} as Response));
 
     component.confirmUpdateCustomName(newName);
@@ -68,7 +69,7 @@ describe("ListItemComponent", () => {
 
   it("should handle error when updating workflow name", () => {
     const newName = "New Workflow Name";
-    component.entry = { id: 1, name: "Old Name", type: "workflow" } as any;
+    component.entry = { id: 1, name: "Old Name", type: "workflow" } as unknown as DashboardEntry;
     component.originalName = "Old Name";
     workflowPersistService.updateWorkflowName.mockReturnValue(throwError(() => new Error("Error")));
 
@@ -81,7 +82,7 @@ describe("ListItemComponent", () => {
 
   it("should update workflow description successfully", () => {
     const newDescription = "New Description";
-    component.entry = { id: 1, description: "Old Description", type: "workflow" } as any;
+    component.entry = { id: 1, description: "Old Description", type: "workflow" } as unknown as DashboardEntry;
     workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));
 
     component.confirmUpdateCustomDescription(newDescription);
@@ -93,7 +94,7 @@ describe("ListItemComponent", () => {
 
   it("should handle error when updating workflow description", () => {
     const newDescription = "New Description";
-    component.entry = { id: 1, description: "Old Description", type: "workflow" } as any;
+    component.entry = { id: 1, description: "Old Description", type: "workflow" } as unknown as DashboardEntry;
     component.originalDescription = "Old Description";
     workflowPersistService.updateWorkflowDescription.mockReturnValue(throwError(() => new Error("Error")));
 

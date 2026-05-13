@@ -32,10 +32,11 @@ import { WorkflowComputingUnitManagingService } from "../../../../common/service
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { of } from "rxjs";
+import type { Mocked } from "vitest";
 describe("UserComputingUnitComponent", () => {
   let component: UserComputingUnitComponent;
   let fixture: ComponentFixture<UserComputingUnitComponent>;
-  let mockComputingUnitService: any;
+  let mockComputingUnitService: Mocked<WorkflowComputingUnitManagingService>;
 
   beforeEach(async () => {
     mockComputingUnitService = {
@@ -43,7 +44,7 @@ describe("UserComputingUnitComponent", () => {
       getComputingUnitLimitOptions: vi.fn(),
       createKubernetesBasedComputingUnit: vi.fn(),
       createLocalComputingUnit: vi.fn(),
-    } as any;
+    } as unknown as Mocked<WorkflowComputingUnitManagingService>;
     mockComputingUnitService.getComputingUnitTypes.mockReturnValue(of({ typeOptions: [] }));
     mockComputingUnitService.getComputingUnitLimitOptions.mockReturnValue(
       of({ cpuLimitOptions: [], memoryLimitOptions: [], gpuLimitOptions: [] })
