@@ -48,9 +48,7 @@ class TestExecutorManager:
         """Create a fresh ExecutorManager instance for each test."""
         manager = ExecutorManager()
         yield manager
-        # Cleanup: close the temp filesystem
-        if hasattr(manager, "_fs"):
-            manager.close()
+        manager.close()
 
     def _mock_r_plugin(self, executor_class_name, is_source):
         """
@@ -285,17 +283,7 @@ class SecondOperator(UDFOperatorV2):
 
 
 class TestUpdateExecutor:
-    """Test suite for ExecutorManager.update_executor.
-
-    Notes on test isolation: the existing TestExecutorManager fixture cannot
-    fully clean up the udf-vN modules it imports (its `hasattr(manager, "_fs")`
-    cleanup guard is buggy — the actual cached_property key is `fs`), so a
-    given udf-v1 module may already live in sys.modules with a path attached
-    to a previous test's tmp filesystem. These tests therefore avoid asserting
-    on attributes baked into a specific operator class and instead use
-    setattr/getattr-only semantics that hold regardless of which cached
-    module satisfies the import.
-    """
+    """Test suite for ExecutorManager.update_executor."""
 
     @pytest.fixture
     def initialized_manager(self):
