@@ -20,7 +20,7 @@
 package org.apache.texera.workflow
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.exc.MismatchedInputException
+import com.fasterxml.jackson.databind.exc.{MismatchedInputException, ValueInstantiationException}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -78,18 +78,56 @@ class LogicalLinkSpec extends AnyFlatSpec {
     assert(a != b)
   }
 
-  it should "consider a self-loop link well-formed (same fromOpId / toOpId, distinct ports)" in {
-    // Self-loops aren't structurally invalid at the LogicalLink level —
-    // higher layers reject cycles, but the data type allows fromOpId ==
-    // toOpId. Pin so a future == check on construction breaks this on
-    // purpose.
-    val selfLoop = LogicalLink(
-      OperatorIdentity("op-A"),
-      PortIdentity(0),
-      OperatorIdentity("op-A"),
-      PortIdentity(1)
-    )
-    assert(selfLoop.fromOpId == selfLoop.toOpId)
+  it should "reject a self-loop link (fromOpId == toOpId) regardless of port" in {
+    // The constructor rejects fromOpId == toOpId — a workflow edge whose
+    // source and sink are the same operator can never be schedulable, so
+    // we fail fast here rather than letting it travel through the planner.
+    val ex = intercept[IllegalArgumentException] {
+      LogicalLink(
+        OperatorIdentity("op-A"),
+        PortIdentity(0),
+        OperatorIdentity("op-A"),
+        PortIdentity(1)
+      )
+    }
+    assert(ex.getMessage.contains("self-loop"))
+  }
+
+  it should "reject a null fromOpId / toOpId in the primary constructor" in {
+    intercept[IllegalArgumentException] {
+      LogicalLink(null, PortIdentity(0), OperatorIdentity("op-B"), PortIdentity(1))
+    }
+    intercept[IllegalArgumentException] {
+      LogicalLink(OperatorIdentity("op-A"), PortIdentity(0), null, PortIdentity(1))
+    }
+  }
+
+  it should "reject an OperatorIdentity wrapping a null id in the primary constructor" in {
+    intercept[IllegalArgumentException] {
+      LogicalLink(
+        OperatorIdentity(null),
+        PortIdentity(0),
+        OperatorIdentity("op-B"),
+        PortIdentity(1)
+      )
+    }
+    intercept[IllegalArgumentException] {
+      LogicalLink(
+        OperatorIdentity("op-A"),
+        PortIdentity(0),
+        OperatorIdentity(null),
+        PortIdentity(1)
+      )
+    }
+  }
+
+  it should "reject an OperatorIdentity wrapping an empty id in the primary constructor" in {
+    intercept[IllegalArgumentException] {
+      LogicalLink(OperatorIdentity(""), PortIdentity(0), OperatorIdentity("op-B"), PortIdentity(1))
+    }
+    intercept[IllegalArgumentException] {
+      LogicalLink(OperatorIdentity("op-A"), PortIdentity(0), OperatorIdentity(""), PortIdentity(1))
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -122,13 +160,29 @@ class LogicalLinkSpec extends AnyFlatSpec {
     assert(link.toOpId == OperatorIdentity("my.op-2"))
   }
 
-  it should "accept the empty string as an op id (no validation in the data type)" in {
-    // Pin: the secondary constructor does not validate; an empty string
-    // wraps into `OperatorIdentity("")`. A future change adding non-empty
-    // validation should fail this test on purpose.
-    val link = new LogicalLink("", PortIdentity(0), "", PortIdentity(1))
-    assert(link.fromOpId == OperatorIdentity(""))
-    assert(link.toOpId == OperatorIdentity(""))
+  it should "reject the empty string as an op id via the @JsonCreator constructor" in {
+    intercept[IllegalArgumentException] {
+      new LogicalLink("", PortIdentity(0), "op-B", PortIdentity(1))
+    }
+    intercept[IllegalArgumentException] {
+      new LogicalLink("op-A", PortIdentity(0), "", PortIdentity(1))
+    }
+  }
+
+  it should "reject a null string op id via the @JsonCreator constructor" in {
+    intercept[IllegalArgumentException] {
+      new LogicalLink(null: String, PortIdentity(0), "op-B", PortIdentity(1))
+    }
+    intercept[IllegalArgumentException] {
+      new LogicalLink("op-A", PortIdentity(0), null: String, PortIdentity(1))
+    }
+  }
+
+  it should "reject a self-loop via the @JsonCreator constructor (same string op id)" in {
+    val ex = intercept[IllegalArgumentException] {
+      new LogicalLink("op-A", PortIdentity(0), "op-A", PortIdentity(1))
+    }
+    assert(ex.getMessage.contains("self-loop"))
   }
 
   // ---------------------------------------------------------------------------
@@ -192,15 +246,16 @@ class LogicalLinkSpec extends AnyFlatSpec {
   }
 
   it should "NOT round-trip through writeValueAsString (the @JsonCreator string overload is incompatible with the object-shape OperatorIdentity that writeValueAsString emits)" in {
-    // This is a real asymmetry worth pinning: production reads user-saved
-    // workflow JSON where `fromOpId`/`toOpId` are plain strings, but
-    // `objectMapper.writeValueAsString` writes OperatorIdentity as
-    // `{"id":"op-A"}` (the case-class object form). Re-reading that
-    // emitted JSON fails because Jackson dispatches on the @JsonCreator
-    // string-overload, which can't accept an object for fromOpId.
-    // A future fix that adds a third @JsonCreator (object overload) or
-    // a custom @JsonDeserialize on `fromOpId`/`toOpId` will turn this
-    // into a passing round-trip and break this assertion on purpose.
+    // Characterization of a real asymmetry tracked by
+    // https://github.com/apache/texera/issues/5042. Production reads
+    // user-saved workflow JSON where `fromOpId`/`toOpId` are plain
+    // strings, but `objectMapper.writeValueAsString` writes
+    // OperatorIdentity as `{"id":"op-A"}` (the case-class object form).
+    // Re-reading the emitted JSON fails because Jackson dispatches on the
+    // @JsonCreator string overload, which can't accept an object for
+    // fromOpId. When the issue is fixed (additional @JsonCreator object
+    // overload or a custom @JsonDeserialize), this test must flip to a
+    // passing round-trip assertion alongside the fix.
     val original = LogicalLink(
       OperatorIdentity("op-A"),
       PortIdentity(0),
@@ -221,20 +276,16 @@ class LogicalLinkSpec extends AnyFlatSpec {
     }
   }
 
-  it should "silently default missing string op-id fields to OperatorIdentity(null) (no validation in the @JsonCreator path)" in {
-    // Pin: omitting `fromOpId` / `toOpId` does not throw — Jackson invokes
-    // the @JsonCreator with `null` for the missing String args, and
-    // `OperatorIdentity(null)` is a perfectly constructable case-class
-    // instance. A future change adding a non-null check at construction
-    // time should fail this on purpose.
+  it should "reject missing string op-id fields when deserializing via Jackson" in {
+    // When `fromOpId` / `toOpId` are omitted, Jackson invokes the
+    // @JsonCreator with `null` for the missing String args. The primary
+    // constructor's `require` on non-null/non-empty ids then throws, and
+    // Jackson wraps it in `ValueInstantiationException` with the original
+    // `IllegalArgumentException` as the cause.
     val empty = objectMapper.createObjectNode()
-    val link = objectMapper.treeToValue(empty, classOf[LogicalLink])
-    assert(link.fromOpId.id == null)
-    assert(link.toOpId.id == null)
-    // PortIdentity fields default to null too (the @JsonCreator does not
-    // supply scalapb defaults for missing object fields — Jackson passes
-    // null for the typed PortIdentity arg).
-    assert(link.fromPortId == null)
-    assert(link.toPortId == null)
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(empty, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
   }
 }
