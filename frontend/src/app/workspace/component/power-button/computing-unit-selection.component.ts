@@ -744,13 +744,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     const version = pkg.version ?? "";
 
+    env.deletingPackages = env.deletingPackages.filter(p => !(p.name === pkg.name && p.version === version));
+
     if (pkg.deleteToggle) {
-      const exists = env.deletingPackages.some(p => p.name === pkg.name && (p.version ?? "") === version);
-      if (!exists) {
-        env.deletingPackages.push({ name: pkg.name, version });
-      }
-    } else {
-      env.deletingPackages = env.deletingPackages.filter(p => !(p.name === pkg.name && (p.version ?? "") === version));
+      env.deletingPackages.push({ name: pkg.name, version });
     }
   }
 
