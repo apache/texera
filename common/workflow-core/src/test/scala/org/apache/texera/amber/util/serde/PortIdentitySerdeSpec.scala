@@ -103,12 +103,22 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
     assert(GlobalPortIdentitySerde.deserializeFromString(p.serializeAsString) == p)
   }
 
-  it should "round-trip a negative port id" in {
-    // PortIdentity.id is a plain Int; negatives are technically permitted
-    // by the type. Pin the round-trip so a future tightening of the
-    // numeric regex (e.g. to `\\d+`) breaks this on purpose.
-    val p = globalPort(portIdValue = -1)
-    assert(GlobalPortIdentitySerde.deserializeFromString(p.serializeAsString) == p)
+  it should "throw IllegalArgumentException when serializing a negative port id" in {
+    // Port ids are array indices and must be non-negative; the serializer
+    // rejects negatives so corrupt data can't reach VFS URIs.
+    intercept[IllegalArgumentException] {
+      globalPort(portIdValue = -1).serializeAsString
+    }
+  }
+
+  it should "throw IllegalArgumentException when deserializing a negative port id" in {
+    // Symmetric: a hand-crafted string with a negative portId must be
+    // rejected by the deserializer too (so tampered URIs don't slip
+    // through).
+    val malformed = "(logicalOpId=op-A,layerName=main,portId=-1,isInternal=false,isInput=true)"
+    intercept[IllegalArgumentException] {
+      GlobalPortIdentitySerde.deserializeFromString(malformed)
+    }
   }
 
   it should "throw IllegalArgumentException when the input has the wrong field order" in {
@@ -185,28 +195,22 @@ class PortIdentitySerdeSpec extends AnyFlatSpec {
     assert(!formatChars.contains("_"), s"format characters must be underscore-free: $formatChars")
   }
 
-  it should "eventually produce an underscore-free output even for inputs that contain underscores (pendingUntilFixed)" in pendingUntilFixed {
-    // Documented contract on `GlobalPortIdentitySerde`: "does not include
-    // underscore '_' so that it does not interfere with our own VFS URI
-    // parsing." The implementation does NOT enforce this — inputs are
-    // interpolated verbatim. Both fields can carry underscores in real
-    // production data:
-    // - `logicalOpId`: e.g. `__DummyOperator` from `VirtualIdentityUtils`
-    // - `layerName`: e.g. `${layerName}_source_${portId}_...` constructed
-    //   by `SpecialPhysicalOpFactory`
-    // Cover BOTH so a partial fix that escapes only one of them flips
-    // pendingUntilFixed into a deliberate failure with the second
-    // assertion still red.
-    val withUnderscoreOpId = globalPort(logical = "__DummyOperator").serializeAsString
-    assert(
-      !withUnderscoreOpId.contains("_"),
-      s"serialized form must be underscore-free for op id: $withUnderscoreOpId"
-    )
-    val withUnderscoreLayer = globalPort(layer = "main_source_0_op").serializeAsString
-    assert(
-      !withUnderscoreLayer.contains("_"),
-      s"serialized form must be underscore-free for layer name: $withUnderscoreLayer"
-    )
+  it should "throw IllegalArgumentException when logicalOpId contains an underscore" in {
+    // Enforces the documented VFS-compatibility contract: the serialized
+    // form must be underscore-free. The serializer rejects underscored
+    // inputs at the boundary instead of silently emitting a string that
+    // would interfere with VFS URI parsing downstream.
+    intercept[IllegalArgumentException] {
+      globalPort(logical = "__DummyOperator").serializeAsString
+    }
+  }
+
+  it should "throw IllegalArgumentException when layerName contains an underscore" in {
+    // Both fields enforce the same invariant; cover them independently so
+    // a partial fix that only validates one surfaces as a test failure.
+    intercept[IllegalArgumentException] {
+      globalPort(layer = "main_source_0_op").serializeAsString
+    }
   }
 
   // ---------------------------------------------------------------------------
