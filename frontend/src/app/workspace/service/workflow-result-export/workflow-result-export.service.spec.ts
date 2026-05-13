@@ -31,6 +31,8 @@ import { DownloadService } from "src/app/dashboard/service/user/download/downloa
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
+import { JointGraphWrapper } from "../workflow-graph/model/joint-graph-wrapper";
+import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;
   let workflowWebsocketServiceSpy: Mocked<WorkflowWebsocketService>;
@@ -41,8 +43,8 @@ describe("WorkflowResultExportService", () => {
   let downloadServiceSpy: Mocked<DownloadService>;
   let datasetServiceSpy: Mocked<DatasetService>;
 
-  let jointGraphWrapperSpy: any;
-  let texeraGraphSpy: any;
+  let jointGraphWrapperSpy: Mocked<JointGraphWrapper>;
+  let texeraGraphSpy: Mocked<WorkflowGraph>;
 
   beforeEach(() => {
     // Create spies for the required services
@@ -50,7 +52,7 @@ describe("WorkflowResultExportService", () => {
       getCurrentHighlightedOperatorIDs: vi.fn(),
       getJointOperatorHighlightStream: vi.fn(),
       getJointOperatorUnhighlightStream: vi.fn(),
-    };
+    } as unknown as Mocked<JointGraphWrapper>;
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
     jointGraphWrapperSpy.getJointOperatorHighlightStream.mockReturnValue(of());
     jointGraphWrapperSpy.getJointOperatorUnhighlightStream.mockReturnValue(of());
@@ -64,7 +66,7 @@ describe("WorkflowResultExportService", () => {
       getLinkDeleteStream: vi.fn(),
       getDisabledOperatorsChangedStream: vi.fn(),
       getAllLinks: vi.fn(),
-    };
+    } as unknown as Mocked<WorkflowGraph>;
     texeraGraphSpy.getAllOperators.mockReturnValue([]);
     texeraGraphSpy.getOperatorAddStream.mockReturnValue(of());
     texeraGraphSpy.getOperatorDeleteStream.mockReturnValue(of());

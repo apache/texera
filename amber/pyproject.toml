@@ -40,3 +40,6 @@ testpaths = ["src/test/python"]
 # package names. Required for src-style test layouts per the pytest
 # docs (https://docs.pytest.org/en/stable/explanation/goodpractices.html).
 addopts = "--import-mode=importlib"
+markers = [
+    "integration: end-to-end test routed to the amber-integration CI job",
+]

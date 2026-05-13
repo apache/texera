@@ -66,7 +66,7 @@ merge.
 
 | Component | Version |
 | --- | --- |
-| Java | JDK 11 |
+| Java | JDK 17 |
 | Scala | 2.13 |
 | Python | 3.12 |
 | Node | 24 |
@@ -89,6 +89,16 @@ Tests that spawn Python workers need an interpreter path. Edit `python.path`
 in [`udf.conf`](common/config/src/main/resources/udf.conf) or
 `export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"` (env var overrides).
 Without it, `sbt` Python-integration tests fail to launch a worker.
+
+[`.jvmopts`](.jvmopts) holds every `--add-opens` flag Texera needs for
+JDK 17+, with each group annotated by its upstream source (Kryo,
+Apache Arrow, Apache Pekko). sbt's launcher and the [`.run/`](.run)
+configs read it automatically; for raw `java` launches, pass it as an
+argfile: `java @.jvmopts -jar …`. If a future library version or a new
+code path triggers an `InaccessibleObjectException`, add the open to
+`.jvmopts`. [`project/JdkOptions.scala`](project/JdkOptions.scala)
+will propagates the changed options to forked test JVMs, sbt-native-packager dist launchers,
+and IntelliJ.
 
 ### Branch and commit naming
 
