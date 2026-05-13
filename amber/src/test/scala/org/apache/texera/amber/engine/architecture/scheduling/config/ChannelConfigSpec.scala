@@ -138,27 +138,26 @@ class ChannelConfigSpec extends AnyFlatSpec with Matchers {
     endpoints(out) shouldBe List(("w1", "u1"), ("w2", "u2"), ("w3", "u3"))
   }
 
-  it should "truncate to the shorter list when from and to lengths differ (current behavior)" in {
-    // Pin: Scala List.zip drops the tail of the longer side. Callers are
-    // expected to enforce equal lengths upstream; an asymmetric input here
-    // silently loses pairings rather than raising. Documenting so a future
-    // tightening (e.g. require/asserting equal lengths) breaks this spec
-    // on purpose and forces the contract change to be reviewed.
-    val out = ChannelConfig.generateChannelConfigs(
-      List(w1, w2, w3),
-      List(u1, u2),
-      port,
-      OneToOnePartition()
-    )
-    endpoints(out) shouldBe List(("w1", "u1"), ("w2", "u2"))
-
-    val out2 = ChannelConfig.generateChannelConfigs(
-      List(w1),
-      List(u1, u2, u3),
-      port,
-      OneToOnePartition()
-    )
-    endpoints(out2) shouldBe List(("w1", "u1"))
+  it should "raise an AssertionError when from and to lengths differ" in {
+    // OneToOnePartition contractually pairs each sender with exactly one
+    // receiver, so mismatched lengths must fail loudly rather than silently
+    // truncating to the shorter side (which is what `List.zip` would do).
+    assertThrows[AssertionError] {
+      ChannelConfig.generateChannelConfigs(
+        List(w1, w2, w3),
+        List(u1, u2),
+        port,
+        OneToOnePartition()
+      )
+    }
+    assertThrows[AssertionError] {
+      ChannelConfig.generateChannelConfigs(
+        List(w1),
+        List(u1, u2, u3),
+        port,
+        OneToOnePartition()
+      )
+    }
   }
 
   // ----- empty inputs -----

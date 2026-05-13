@@ -131,8 +131,13 @@ object ArrowUtils extends LazyLogging {
           case 16 | 32 =>
             AttributeType.INTEGER
 
-          case 64 | _ =>
+          case 64 =>
             AttributeType.LONG
+
+          case other =>
+            throw new AttributeTypeUtils.AttributeTypeException(
+              s"Unsupported Int bit width: $other"
+            )
         }
       case _: ArrowType.Bool =>
         AttributeType.BOOLEAN
@@ -187,10 +192,15 @@ object ArrowUtils extends LazyLogging {
                 .asInstanceOf[IntVector]
                 .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
 
-            case 64 | _ =>
+            case 64 =>
               vector
                 .asInstanceOf[BigIntVector]
                 .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
+
+            case other =>
+              throw new AttributeTypeUtils.AttributeTypeException(
+                s"Unsupported Int bit width: $other"
+              )
           }
 
         case _: ArrowType.Bool =>

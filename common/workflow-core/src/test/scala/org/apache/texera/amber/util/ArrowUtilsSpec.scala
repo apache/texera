@@ -45,14 +45,16 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     ArrowUtils.toAttributeType(new ArrowType.Int(64, true)) shouldBe AttributeType.LONG
   }
 
-  it should "map non-standard Int bit-widths to LONG (current behavior)" in {
-    // Pin: the source code's match is `case 16 | 32 => INTEGER` then
-    // `case 64 | _ => LONG`. The trailing `_` makes the second arm a
-    // catch-all, so Int(8), Int(128) and any other width all surface as
-    // LONG. A future fix that distinguishes those widths will deliberately
-    // break this spec.
-    ArrowUtils.toAttributeType(new ArrowType.Int(8, true)) shouldBe AttributeType.LONG
-    ArrowUtils.toAttributeType(new ArrowType.Int(128, true)) shouldBe AttributeType.LONG
+  it should "throw AttributeTypeException for non-standard Int bit-widths" in {
+    // Only 16/32 (INTEGER) and 64 (LONG) are supported. Other widths used to
+    // be silently coerced to LONG by a `case 64 | _` catch-all; they now
+    // raise rather than masquerade as Int64.
+    assertThrows[AttributeTypeException] {
+      ArrowUtils.toAttributeType(new ArrowType.Int(8, true))
+    }
+    assertThrows[AttributeTypeException] {
+      ArrowUtils.toAttributeType(new ArrowType.Int(128, true))
+    }
   }
 
   it should "map Bool to BOOLEAN" in {
