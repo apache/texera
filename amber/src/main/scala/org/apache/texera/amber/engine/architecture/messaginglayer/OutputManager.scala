@@ -306,7 +306,16 @@ class OutputManager(
     val bufferedItemWriter = DocumentFactory
       .openDocument(VFSURIFactory.resultURI(portBaseURI))
       ._1
-      .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
+      .writer(
+        VirtualIdentityUtils
+          .getWorkerIndex(actorId)
+          .getOrElse(
+            throw new IllegalStateException(
+              s"Expected worker actor id for output storage writer, got: ${actorId.name}"
+            )
+          )
+          .toString
+      )
       .asInstanceOf[BufferedItemWriter[Tuple]]
     val writerThread = new OutputPortStorageWriterThread(bufferedItemWriter)
     this.outputPortResultWriterThreads(portId) = writerThread
