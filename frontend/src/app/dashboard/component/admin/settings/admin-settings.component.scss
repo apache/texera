@@ -91,6 +91,17 @@ details[open] .arrow {
   margin-bottom: 4px;
 }
 
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-with-unit .unit {
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
 .help-text-number {
   margin-left: 140px;
   font-size: 12px;
