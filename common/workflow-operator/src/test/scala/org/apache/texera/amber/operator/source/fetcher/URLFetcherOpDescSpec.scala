@@ -67,17 +67,16 @@ class URLFetcherOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttributes.head.getType shouldBe AttributeType.ANY
   }
 
-  it should "default to ANY when decodingMethod is left unset (current behavior)" in {
-    // Pin: `var decodingMethod: DecodingMethod = _` defaults to null.
-    // sourceSchema's branch is `if (decodingMethod == DecodingMethod.UTF_8)
-    // STRING else ANY`, so a null comparison falls through to ANY without
-    // raising. Documenting the current behavior so a future explicit-null
-    // check breaks this spec deliberately.
+  it should "fail loudly when decodingMethod is left unset rather than silently defaulting to ANY" in {
+    // `var decodingMethod: DecodingMethod = _` defaults to null. Without a
+    // guard, sourceSchema would fall through `if (decodingMethod ==
+    // DecodingMethod.UTF_8) ... else ANY` and silently produce an ANY column
+    // for a misconfigured operator. sourceSchema now requires a non-null
+    // decodingMethod and surfaces the misconfiguration as an
+    // IllegalArgumentException.
     val op = new URLFetcherOpDesc
     op.url = "https://example.test/data"
-    val schema = op.sourceSchema()
-    schema.getAttributes should have length 1
-    schema.getAttributes.head.getType shouldBe AttributeType.ANY
+    an[IllegalArgumentException] should be thrownBy op.sourceSchema()
   }
 
   "URLFetcherOpDesc.getPhysicalOp" should "wire the URLFetcherOpExec class name into the OpExecInitInfo" in {

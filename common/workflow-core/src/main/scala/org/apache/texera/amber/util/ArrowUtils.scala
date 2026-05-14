@@ -45,6 +45,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
+  private val TexeraTypeMetadataKey = "texera_type"
 
   // Create a single allocator for the entire utility
   private val allocator: BufferAllocator = new RootAllocator()
@@ -94,7 +95,8 @@ object ArrowUtils extends LazyLogging {
 
   /**
     * Converts an Arrow Schema into Texera Schema.
-    * Checks field metadata to detect LARGE_BINARY types.
+    * Checks field metadata to recover types that share an Arrow representation
+    * (LARGE_BINARY and ANY both ride on Utf8).
     *
     * @param arrowSchema The Arrow Schema to be converted.
     * @return A Texera Schema.
@@ -102,11 +104,14 @@ object ArrowUtils extends LazyLogging {
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema(
       arrowSchema.getFields.asScala.map { field =>
-        val isLargeBinary = Option(field.getMetadata)
-          .exists(m => m.containsKey("texera_type") && m.get("texera_type") == "LARGE_BINARY")
+        val taggedType = Option(field.getMetadata)
+          .flatMap(m => Option(m.get(TexeraTypeMetadataKey)))
+          .collect {
+            case "LARGE_BINARY" => AttributeType.LARGE_BINARY
+            case "ANY"          => AttributeType.ANY
+          }
 
-        val attributeType =
-          if (isLargeBinary) AttributeType.LARGE_BINARY else toAttributeType(field.getType)
+        val attributeType = taggedType.getOrElse(toAttributeType(field.getType))
         new Attribute(field.getName, attributeType)
       }.toList
     )
@@ -126,8 +131,13 @@ object ArrowUtils extends LazyLogging {
           case 16 | 32 =>
             AttributeType.INTEGER
 
-          case 64 | _ =>
+          case 64 =>
             AttributeType.LONG
+
+          case other =>
+            throw new AttributeTypeUtils.AttributeTypeException(
+              s"Unsupported Int bit width: $other"
+            )
         }
       case _: ArrowType.Bool =>
         AttributeType.BOOLEAN
@@ -182,10 +192,15 @@ object ArrowUtils extends LazyLogging {
                 .asInstanceOf[IntVector]
                 .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
 
-            case 64 | _ =>
+            case 64 =>
               vector
                 .asInstanceOf[BigIntVector]
                 .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
+
+            case other =>
+              throw new AttributeTypeUtils.AttributeTypeException(
+                s"Unsupported Int bit width: $other"
+              )
           }
 
         case _: ArrowType.Bool =>
@@ -232,16 +247,22 @@ object ArrowUtils extends LazyLogging {
 
   /**
     * Converts an Amber schema into Arrow schema.
-    * Stores AttributeType in field metadata to preserve LARGE_BINARY type information.
+    * Stores AttributeType in field metadata to preserve LARGE_BINARY and ANY,
+    * which both collapse onto Utf8 in Arrow.
     *
     * @param schema The Texera Schema.
     * @return An Arrow Schema.
     */
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
     val arrowFields = schema.getAttributes.map { attribute =>
-      val metadata = if (attribute.getType == AttributeType.LARGE_BINARY) {
+      val metadataTag = attribute.getType match {
+        case AttributeType.LARGE_BINARY => "LARGE_BINARY"
+        case AttributeType.ANY          => "ANY"
+        case _                          => null
+      }
+      val metadata = if (metadataTag != null) {
         val map = new util.HashMap[String, String]()
-        map.put("texera_type", "LARGE_BINARY")
+        map.put(TexeraTypeMetadataKey, metadataTag)
         map
       } else null
 

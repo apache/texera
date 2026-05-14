@@ -98,6 +98,47 @@ class PveResourceSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach 
     pve.get.userPackages should contain(packageSpec)
   }
 
+  "PveManager" should "delete a user package and remove it from the PVE package list" in {
+    PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
+
+    val packageName = "colorama"
+    val packageVersion = "0.4.6"
+    val packageSpec = s"$packageName==$packageVersion"
+
+    queue.clear()
+
+    PveManager.installUserPackages(
+      List(packageSpec),
+      testCuid,
+      queue,
+      testPveName,
+      isLocal = true
+    )
+
+    PveManager
+      .getEnvironments(testCuid)
+      .find(_.pveName == testPveName)
+      .get
+      .userPackages should contain(packageSpec)
+
+    val deleteLogs = PveManager.deletePackages(
+      testCuid,
+      packageName,
+      testPveName,
+      isLocal = true
+    )
+
+    deleteLogs.mkString("\n") should not include "[PVE][ERR]"
+    deleteLogs.mkString("\n") should include(s"[PVE] Uninstalled $packageName successfully")
+
+    val pve = PveManager
+      .getEnvironments(testCuid)
+      .find(_.pveName == testPveName)
+
+    pve should not be empty
+    pve.get.userPackages should not contain packageSpec
+  }
+
   "PveManager" should "delete all PVEs for a computing unit" in {
     PveManager.createNewPve(testCuid, queue, testPveName, isLocal = true)
 

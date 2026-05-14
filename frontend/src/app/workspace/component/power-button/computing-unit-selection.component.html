@@ -554,17 +554,31 @@
                   [ngModel]="pkg.version"
                   [disabled]="true" />
               </div>
+              <button
+                nz-button
+                nzType="default"
+                nzShape="circle"
+                nzDanger
+                [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
+                (click)="togglePackageDelete(envIndex, pkg)">
+                <i
+                  nz-icon
+                  nzType="delete"></i>
+              </button>
             </div>
           </div>
 
           <!-- NEW PACKAGES -->
           <div class="new-packages-section">
             <div
-              class="user-package-header-row"
+              class="package-row user-package-header-row"
               *ngIf="pve.newPackages.length > 0">
-              <div class="package-column-label">Package</div>
-              <label style="visibility: hidden">Op</label>
-              <div class="package-column-label">Version</div>
+              <div class="user-package-inputs">
+                <div class="package-column-label">Package</div>
+                <div></div>
+                <div class="package-column-label">Version</div>
+                <div></div>
+              </div>
             </div>
 
             <div
@@ -601,6 +615,17 @@
                     placeholder="Package Version"
                     [(ngModel)]="pve.newPackages[i].version" />
                 </div>
+                <button
+                  nz-button
+                  nzType="default"
+                  nzShape="circle"
+                  nzDanger
+                  [ngClass]="{ 'highlighted-btn': pkg.deleteToggle }"
+                  (click)="togglePackageDelete(envIndex, pkg)">
+                  <i
+                    nz-icon
+                    nzType="delete"></i>
+                </button>
               </div>
             </div>
           </div>
