@@ -113,6 +113,38 @@ lakefs:
           access_key_id: texera_minio
           secret_access_key: password
 
+lakekeeper:
+  enabled: true
+  postgresql:
+    enabled: false
+  internalOpenFGA: false
+  catalog:
+    replicas: 1
+    image:
+      repository: vakamo/lakekeeper
+      tag: v0.11.0
+      pullPolicy: IfNotPresent
+    service:
+      externalPort: 8181
+  externalDatabase:
+    type: postgres
+    host_read: texera-postgresql
+    host_write: texera-postgresql
+    port: 5432
+    database: texera_lakekeeper
+    user: postgres
+    password: root_password
+
+lakekeeperInit:
+  enabled: true
+  defaultProject:
+    id: "00000000-0000-0000-0000-000000000000"
+    name: default
+  warehouse:
+    name: texera
+    region: us-west-2
+    s3Bucket: texera-iceberg
+
 # Part2: configurations of Texera-related micro services
 texeraImages:
   pullPolicy: Always

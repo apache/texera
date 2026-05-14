@@ -36,7 +36,13 @@ trait InitializeExecutorHandler {
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
     dp.serializationManager.setOpInitialization(req)
-    val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
+    val workerIdx = VirtualIdentityUtils
+      .getWorkerIndex(actorId)
+      .getOrElse(
+        throw new IllegalStateException(
+          s"Expected worker actor id when initializing executor, got: ${actorId.name}"
+        )
+      )
     cachedTotalWorkerCount = req.totalWorkerCount
     setupExecutor(req.opExecInitInfo, workerIdx, cachedTotalWorkerCount)
     EmptyReturn()
