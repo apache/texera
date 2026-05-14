@@ -84,4 +84,14 @@ export class WorkflowPveService {
       tokenParam
     );
   }
+
+  getEnvironments(): Observable<string[]>{
+    let params = new HttpParams().set("cuid", this.requireCuid().toString());
+    const token = this.getAccessToken();
+    if (token) {
+      params = params.set("access-token", token);
+    }
+
+    return this.http.get<string[]>("/pve/environments", { params });
+  }
 }

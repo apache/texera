@@ -73,6 +73,13 @@ class PythonUDFOpDescV2 extends LogicalOp {
   var retainInputColumns: Boolean = Boolean.box(false)
 
   @JsonProperty
+  @JsonSchemaTitle("Virtual Environment")
+  @JsonPropertyDescription(
+    "Python Environment you would like this UDF to be executed within"
+  )
+  var envName: String = "";
+
+  @JsonProperty
   @JsonSchemaTitle("Extra output column(s)")
   @JsonPropertyDescription(
     "Name of the newly added output columns that the UDF will produce, if any"
@@ -140,6 +147,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+      .withPveName(envName.trim)
   }
 
   override def operatorInfo: OperatorInfo = {

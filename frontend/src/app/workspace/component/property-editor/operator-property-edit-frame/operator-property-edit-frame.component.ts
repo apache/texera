@@ -70,6 +70,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzFormDirective } from "ng-zorro-antd/form";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -173,8 +174,34 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private workflowPveService: WorkflowPveService
   ) {}
+
+  private patchPythonUdfEnvironmentSchema(
+    schema: CustomJSONSchema7,
+    environments: string[]
+  ): CustomJSONSchema7 {
+
+    const patchedSchema = cloneDeep(schema);
+
+    if (patchedSchema.properties && typeof patchedSchema.properties !== "boolean") {
+
+      const envOptions = ["Default", ...environments.filter(e => e !== "Default")];
+
+      if (!patchedSchema.properties["envName"]) {
+        patchedSchema.properties["envName"] = { type: "string" };
+      }
+
+      const envProperty = patchedSchema.properties["envName"] as CustomJSONSchema7;
+
+      envProperty.enum = envOptions;
+    }
+
+    console.log("patched env property", patchedSchema.properties?.["envName"]);
+
+    return patchedSchema;
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
@@ -248,6 +275,26 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
      * Prevent the form directly changes the value in the texera graph without going through workflow action service.
      */
     this.formData = cloneDeep(operator.operatorProperties);
+
+    const baseSchema = cloneDeep(this.currentOperatorSchema.jsonSchema);
+
+    console.log("current operator type", this.currentOperatorSchema.operatorType);
+
+    if (this.currentOperatorSchema.operatorType === "PythonUDFV2") {
+      this.workflowPveService.getEnvironments().pipe(untilDestroyed(this)).subscribe({
+        next: environments => {
+          const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, environments);
+          this.setFormlyFormBinding(patchedSchema);
+        },
+        error: err => {
+          console.log("getEnvironments failed:", err);
+          const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, []);
+          this.setFormlyFormBinding(patchedSchema);
+        },
+      });
+    } else {
+      this.setFormlyFormBinding(baseSchema);
+    }
 
     // use ajv to initialize the default value to data according to schema, see https://ajv.js.org/#assigning-defaults
     // WorkflowUtil service also makes sure that the default values are filled in when operator is added from the UI
