@@ -37,19 +37,33 @@ COPY build.sbt build.sbt
 COPY .jvmopts .jvmopts
 
 # Update system and install dependencies. python3-minimal is needed by
-# bin/licensing/concat_license_binary.py below.
+# bin/licensing/concat_license_binary.py below; python3-pip + curl are
+# for the protoc + betterproto[compiler] install below.
 RUN apt-get update && apt-get install -y \
     netcat \
     unzip \
+    curl \
     libpq-dev \
     python3-minimal \
+    python3-pip \
     && apt-get clean
+
+# protoc 3.19.4 (matches PB.protocVersion in amber/build.sbt) and the
+# betterproto plugin are required by the genPythonProto sbt task so the
+# generated amber/src/main/python/proto/ tree is populated before the
+# dist is packaged.
+RUN curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip \
+    && unzip -o /tmp/protoc.zip -d /usr/local \
+    && chmod +x /usr/local/bin/protoc \
+    && rm /tmp/protoc.zip \
+    && pip3 install --no-cache-dir 'betterproto[compiler]==2.0.0b7'
 
 # Add .git for runtime calls to jgit from OPversion
 COPY .git .git
 COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
 COPY bin/licensing/ bin/licensing/
+COPY bin/python-proto-gen.sh bin/python-proto-gen.sh
 
 RUN sbt clean WorkflowExecutionService/dist
 

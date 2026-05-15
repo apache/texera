@@ -17,6 +17,8 @@
 
 # assuming inside the pytexera executing Python ENV
 
+set -euo pipefail
+
 # dirs
 TEXERA_HOME="$(git rev-parse --show-toplevel)"
 AMBER_DIR="$TEXERA_HOME/amber"
@@ -27,6 +29,7 @@ CORE_DIR="$TEXERA_HOME/common/workflow-core"
 PROTOBUF_CORE_DIR="$CORE_DIR/src/main/protobuf"
 
 # proto-gen
+mkdir -p "$PYAMBER_DIR/proto"
 protoc --python_betterproto_out="$PYAMBER_DIR/proto" \
  -I="$PROTOBUF_AMBER_DIR" \
  -I="$PROTOBUF_CORE_DIR" \
