@@ -161,7 +161,6 @@ export class ContextMenuComponent {
    */
   public onCreateMacro(): void {
     const selected = Array.from(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
-    console.log("[macro] onCreateMacro selected=", selected);
     if (selected.length < 2) {
       return;
     }
@@ -170,27 +169,20 @@ export class ContextMenuComponent {
       return;
     }
     const built = this.macroService.buildMacroFromSelection(this.workflowActionService, selected, name);
-    console.log("[macro] built=", built);
     this.macroService
       .createMacro(built.request)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: detail => {
-          console.log("[macro] POST returned detail=", detail);
           try {
             this.swapSelectionWithMacroNode(detail, selected, built);
-            console.log("[macro] swap complete");
           } catch (e) {
-            console.error("[macro] swap threw:", e);
             this.notificationService.error(`Swap failed: ${(e as Error)?.message ?? e}`);
             return;
           }
           this.notificationService.success(`Macro "${detail.name}" created (wid=${detail.wid})`);
         },
-        error: err => {
-          console.error("[macro] POST failed:", err);
-          this.notificationService.error(`Failed to create macro: ${err?.message ?? err}`);
-        },
+        error: err => this.notificationService.error(`Failed to create macro: ${err?.message ?? err}`),
       });
   }
 
