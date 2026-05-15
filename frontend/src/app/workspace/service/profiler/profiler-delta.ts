@@ -291,6 +291,42 @@ function nullableDelta(a: number | null, b: number | null): number | null {
   return a - b;
 }
 
+/**
+ * Returns a bipolar intensity in [-1, 1] for the delta heatmap mode.
+ *   < 0 → operator improved (will be rendered green)
+ *   > 0 → operator regressed (will be rendered red)
+ *     0 → unchanged, missing baseline, or no comparable runtime
+ *
+ * Uses runtime as the comparison axis (most actionable metric). Magnitude is
+ * normalized by `maxAbsDeltaMs` so the hottest deltas saturate the gradient.
+ */
+export function computeDeltaIntensity(delta: OperatorDelta, maxAbsDeltaMs: number): number {
+  if (delta.matchStatus !== "matched") return 0;
+  const d = delta.runtimeMsDelta;
+  if (d === null || !Number.isFinite(d) || maxAbsDeltaMs <= 0) return 0;
+  // Treat "unchanged" (per direction heuristic) as zero so the canvas matches the side panel.
+  if (delta.direction === "unchanged") return 0;
+  const clamped = Math.max(-1, Math.min(1, d / maxAbsDeltaMs));
+  return clamped;
+}
+
+/**
+ * Computes the maximum absolute runtime delta across a set of operator deltas.
+ * Used to normalize per-operator intensities into [-1, 1] so the hottest change
+ * pegs the gradient and the rest scale proportionally.
+ */
+export function maxAbsRuntimeDelta(deltas: Readonly<Record<string, OperatorDelta>>): number {
+  let max = 0;
+  for (const id of Object.keys(deltas)) {
+    const d = deltas[id].runtimeMsDelta;
+    if (d !== null && Number.isFinite(d)) {
+      const abs = Math.abs(d);
+      if (abs > max) max = abs;
+    }
+  }
+  return max;
+}
+
 function deriveDirection(
   runtimeDelta: number | null,
   outputRowsDelta: number,

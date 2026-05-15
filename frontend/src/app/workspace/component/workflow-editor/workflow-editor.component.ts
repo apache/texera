@@ -28,8 +28,16 @@ import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import { ProfilerService } from "../../service/profiler/profiler.service";
-import { formatHoverHeadline, formatViewLabel } from "../../service/profiler/profiler-hover";
+import { ProfilerService, ProfilerState } from "../../service/profiler/profiler.service";
+import { formatDeltaHoverHeadline, formatHoverHeadline, formatViewLabel } from "../../service/profiler/profiler-hover";
+import {
+  ComparableOperator,
+  computeAllDeltas,
+  computeDeltaIntensity,
+  indexBaseline,
+  maxAbsRuntimeDelta,
+  statsToComparable,
+} from "../../service/profiler/profiler-delta";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
@@ -48,7 +56,7 @@ import concaveman from "concaveman";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { NgIf, AsyncPipe, DecimalPipe } from "@angular/common";
+import { NgIf, AsyncPipe, DecimalPipe, NgSwitch, NgSwitchCase } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -90,7 +98,7 @@ export const MAIN_CANVAS = {
   selector: "texera-workflow-editor",
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
-  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, AsyncPipe, DecimalPipe, AgentInteractionComponent],
+  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, NgSwitch, NgSwitchCase, AsyncPipe, DecimalPipe, AgentInteractionComponent],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
@@ -395,6 +403,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           return;
         }
         lastEnabled = true;
+
+        if (state.view === "delta") {
+          this.applyDeltaHeatmap(state, operators);
+          return;
+        }
+
         operators.forEach(op => {
           const entry = state.scores[op.operatorID];
           if (!entry) {
@@ -413,6 +427,47 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           );
         });
       });
+  }
+
+  /**
+   * Paints the canvas with green/red intensities based on per-operator runtime
+   * deltas against the loaded baseline. Falls back to default fills when no
+   * baseline is loaded.
+   */
+  private applyDeltaHeatmap(state: ProfilerState, operators: readonly OperatorPredicate[]): void {
+    if (!state.baseline) {
+      operators.forEach(op => this.jointUIService.resetOperatorHeatmap(this.paper, op));
+      return;
+    }
+    const baselineIndex = indexBaseline(state.baseline);
+    const currentMap: Record<string, ComparableOperator> = {};
+    for (const op of operators) {
+      const entry = state.scores[op.operatorID];
+      if (!entry) continue;
+      const displayName = op.customDisplayName?.trim() || op.operatorType || op.operatorID;
+      currentMap[op.operatorID] = statsToComparable({
+        operatorId: op.operatorID,
+        displayName,
+        operatorType: op.operatorType,
+        score: entry.score,
+        stats: entry.stats,
+      });
+    }
+    const deltas = computeAllDeltas(currentMap, baselineIndex);
+    const maxAbs = maxAbsRuntimeDelta(deltas);
+
+    operators.forEach(op => {
+      const delta = deltas[op.operatorID];
+      if (!delta) {
+        // operator has no entry on either side (not yet seen this run, no baseline)
+        this.jointUIService.resetOperatorHeatmap(this.paper, op);
+        return;
+      }
+      const intensity = computeDeltaIntensity(delta, maxAbs);
+      const model = this.paper.getModelById(op.operatorID);
+      if (!model) return;
+      model.attr("rect.body/fill", JointUIService.getDeltaHeatmapColor(intensity));
+    });
   }
 
   /**
@@ -444,10 +499,30 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           : undefined;
         const displayName = op?.customDisplayName?.trim() || op?.operatorType || opId;
 
+        // In delta view, headline shows the current-vs-baseline runtime gap (if any).
+        // In all other views, headline shows the view's primary metric.
+        let headline: string | undefined;
+        if (state.view === "delta" && state.baseline) {
+          const baselineOp = indexBaseline(state.baseline)[opId];
+          if (baselineOp) {
+            const currentRuntimeMs =
+              entry.stats.aggregatedDataProcessingTime && entry.stats.aggregatedDataProcessingTime > 0
+                ? entry.stats.aggregatedDataProcessingTime / 1_000_000
+                : null;
+            const runtimeMsDelta =
+              currentRuntimeMs !== null && baselineOp.runtimeMs !== null
+                ? currentRuntimeMs - baselineOp.runtimeMs
+                : null;
+            headline = formatDeltaHoverHeadline(runtimeMsDelta);
+          }
+        } else {
+          headline = formatHoverHeadline(state.view, entry.stats);
+        }
+
         this.profilerHover = {
           displayName,
           viewLabel: formatViewLabel(state.view),
-          headline: formatHoverHeadline(state.view, entry.stats),
+          headline,
           score: entry.score,
           x: clientX - wrapperRect.left + 12,
           y: clientY - wrapperRect.top + 12,

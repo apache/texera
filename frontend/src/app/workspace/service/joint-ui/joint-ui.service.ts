@@ -499,6 +499,24 @@ export class JointUIService {
   }
 
   /**
+   * Maps a bipolar delta intensity in [-1, 1] to a fill color.
+   *   intensity < 0 → green (operator improved)
+   *   intensity > 0 → red   (operator regressed)
+   *   intensity ≈ 0 → neutral pale gray (no signal)
+   *
+   * Saturation scales with magnitude so a small change is a soft tint and a
+   * large change saturates the color.
+   */
+  public static getDeltaHeatmapColor(intensity: number): string {
+    if (!Number.isFinite(intensity) || intensity === 0) return "#F0F0F0";
+    const clamped = Math.max(-1, Math.min(1, intensity));
+    const hue = clamped < 0 ? 120 : 0;
+    // Saturation scales with magnitude: |0| → 0% (gray), |1| → 70%
+    const saturation = Math.round(Math.abs(clamped) * 70);
+    return `hsl(${hue}, ${saturation}%, 60%)`;
+  }
+
+  /**
    * This method will change the operator's color based on the validation status
    *  valid  : default color
    *  invalid: red

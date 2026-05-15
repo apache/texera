@@ -477,6 +477,10 @@
                 <nz-option nzValue="runtime" nzLabel="Runtime"></nz-option>
                 <nz-option nzValue="throughput" nzLabel="Throughput"></nz-option>
                 <nz-option nzValue="io-imbalance" nzLabel="I/O imbalance"></nz-option>
+                <nz-option
+                  nzValue="delta"
+                  nzLabel="Δ vs baseline"
+                  [nzDisabled]="!profilerState.baseline"></nz-option>
               </nz-select>
             </div>
             <div

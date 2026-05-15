@@ -31,7 +31,7 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { ProfilerConfig, profilerConfigEquals, serializeProfilerConfig } from "./profiler-config";
 import { BaselineReport } from "./profiler-delta";
 
-export type ProfilerView = "runtime" | "throughput" | "io-imbalance";
+export type ProfilerView = "runtime" | "throughput" | "io-imbalance" | "delta";
 
 export interface ProfilerEntry {
   readonly score: number;
@@ -208,6 +208,13 @@ export class ProfilerService {
         const out = s.aggregatedOutputRowCount ?? 0;
         if (inp <= 0) return 0;
         return clamp(1 - out / inp, 0, 1);
+      }
+      case "delta": {
+        // Delta view paints the canvas using current-vs-baseline deltas (handled
+        // in the heatmap handler, not here). The side-panel "Heat score" still
+        // uses runtime so the number stays meaningful when this view is selected.
+        const t = s.aggregatedDataProcessingTime ?? 0;
+        return Number.isFinite(t) && t > 0 ? t : 0;
       }
     }
   }

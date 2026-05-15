@@ -58,7 +58,26 @@ export function formatHoverHeadline(view: ProfilerView, stats: OperatorStatistic
       const dropped = 1 - out / inp;
       return `${(dropped * 100).toFixed(0)}% dropped (${out.toLocaleString()} of ${inp.toLocaleString()})`;
     }
+    case "delta": {
+      // Delta view's headline is the current-vs-baseline runtime gap. The hover
+      // card doesn't have direct access to the baseline here, so the caller
+      // overrides the headline with `formatDeltaHoverHeadline` below. Returning
+      // undefined keeps the row collapsed by default.
+      return undefined;
+    }
   }
+}
+
+/**
+ * Headline for the hover card when the canvas is in delta view. Takes the
+ * already-computed runtime delta (ms) directly so this helper stays pure and
+ * doesn't need to re-derive math from baseline+current pairs.
+ */
+export function formatDeltaHoverHeadline(runtimeMsDelta: number | null): string | undefined {
+  if (runtimeMsDelta === null || !Number.isFinite(runtimeMsDelta)) return undefined;
+  const sign = runtimeMsDelta < 0 ? "−" : "+";
+  const abs = Math.abs(runtimeMsDelta);
+  return `${sign}${formatNumber(abs, abs >= 100 ? 0 : 1)} ms vs baseline`;
 }
 
 /**
@@ -73,6 +92,8 @@ export function formatViewLabel(view: ProfilerView): string {
       return "Throughput";
     case "io-imbalance":
       return "I/O imbalance";
+    case "delta":
+      return "Δ vs baseline";
   }
 }
 

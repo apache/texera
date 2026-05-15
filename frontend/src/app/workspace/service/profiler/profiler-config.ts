@@ -39,7 +39,7 @@ export interface ProfilerConfig {
 
 const DEFAULT_VIEW: ProfilerView = "runtime";
 const DEFAULT_HOT_THRESHOLD = 80;
-const VALID_VIEWS: ReadonlySet<string> = new Set<string>(["runtime", "throughput", "io-imbalance"]);
+const VALID_VIEWS: ReadonlySet<string> = new Set<string>(["runtime", "throughput", "io-imbalance", "delta"]);
 
 /**
  * Defensive parse of an unknown blob (e.g. a field on a freshly-loaded workflow

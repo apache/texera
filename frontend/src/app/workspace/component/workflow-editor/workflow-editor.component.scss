@@ -174,3 +174,19 @@
   font-family: ui-monospace, SFMono-Regular, monospace;
   color: #262626;
 }
+
+.profiler-legend-bar-delta {
+  background: linear-gradient(
+    to right,
+    hsl(120, 70%, 60%),
+    hsl(120, 0%, 90%),
+    hsl(0, 70%, 60%)
+  );
+}
+
+.profiler-legend-empty {
+  margin-top: 4px;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.45);
+}

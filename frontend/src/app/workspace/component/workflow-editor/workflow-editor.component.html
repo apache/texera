@@ -32,13 +32,36 @@
     class="profiler-legend"
     [class.profiler-legend-visible]="profilerState.enabled">
     <div class="profiler-legend-title">
-      Profiler — {{ profilerState.view === 'runtime' ? 'Runtime' : profilerState.view === 'throughput' ? 'Throughput' : 'I/O imbalance' }}
+      Profiler —
+      <ng-container [ngSwitch]="profilerState.view">
+        <span *ngSwitchCase="'runtime'">Runtime</span>
+        <span *ngSwitchCase="'throughput'">Throughput</span>
+        <span *ngSwitchCase="'io-imbalance'">I/O imbalance</span>
+        <span *ngSwitchCase="'delta'">Δ vs baseline</span>
+      </ng-container>
     </div>
-    <div class="profiler-legend-bar"></div>
-    <div class="profiler-legend-labels">
-      <span>cold</span>
-      <span>hot</span>
-    </div>
+    <ng-container *ngIf="profilerState.view !== 'delta'">
+      <div class="profiler-legend-bar"></div>
+      <div class="profiler-legend-labels">
+        <span>cold</span>
+        <span>hot</span>
+      </div>
+    </ng-container>
+    <ng-container *ngIf="profilerState.view === 'delta'">
+      <div
+        *ngIf="profilerState.baseline; else noBaselineHint"
+        class="profiler-legend-bar profiler-legend-bar-delta"></div>
+      <div
+        *ngIf="profilerState.baseline; else noBaselineLabels"
+        class="profiler-legend-labels">
+        <span>improved</span>
+        <span>regressed</span>
+      </div>
+      <ng-template #noBaselineHint>
+        <div class="profiler-legend-empty">No baseline loaded</div>
+      </ng-template>
+      <ng-template #noBaselineLabels></ng-template>
+    </ng-container>
   </div>
 
   <div

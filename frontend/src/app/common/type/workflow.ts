@@ -51,7 +51,7 @@ export interface WorkflowSettings {
 export interface WorkflowProfilerConfig
   extends Readonly<{
     enabled: boolean;
-    view: "runtime" | "throughput" | "io-imbalance";
+    view: "runtime" | "throughput" | "io-imbalance" | "delta";
     hotThresholdPercentile: number;
   }> {}
 

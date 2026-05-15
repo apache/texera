@@ -22,8 +22,10 @@ import {
   BaselineReport,
   ComparableOperator,
   computeAllDeltas,
+  computeDeltaIntensity,
   computeOperatorDelta,
   indexBaseline,
+  maxAbsRuntimeDelta,
   parseBaselineReport,
   statsToComparable,
 } from "./profiler-delta";
@@ -301,6 +303,88 @@ describe("statsToComparable", () => {
       stats: rawStats(),
     });
     expect(out.operatorType).toBeNull();
+  });
+});
+
+describe("maxAbsRuntimeDelta", () => {
+  it("returns 0 for an empty map", () => {
+    expect(maxAbsRuntimeDelta({})).toBe(0);
+  });
+
+  it("returns the largest absolute runtime delta, ignoring sign", () => {
+    const a = computeOperatorDelta("a", op({ operatorId: "a", runtimeMs: 100 }), op({ operatorId: "a", runtimeMs: 500 }));
+    const b = computeOperatorDelta("b", op({ operatorId: "b", runtimeMs: 700 }), op({ operatorId: "b", runtimeMs: 200 }));
+    expect(maxAbsRuntimeDelta({ a, b })).toBe(500); // both -400 and +500, max abs is 500
+  });
+
+  it("skips operators with null runtime delta", () => {
+    const a = computeOperatorDelta("a", op({ operatorId: "a" }), op({ operatorId: "a" }));
+    expect(maxAbsRuntimeDelta({ a })).toBe(0);
+  });
+});
+
+describe("computeDeltaIntensity", () => {
+  it("returns negative intensity for improved operators (lower runtime)", () => {
+    const d = computeOperatorDelta(
+      "a",
+      op({ operatorId: "a", runtimeMs: 500 }),
+      op({ operatorId: "a", runtimeMs: 1000 })
+    );
+    expect(computeDeltaIntensity(d, 500)).toBeLessThan(0);
+  });
+
+  it("returns positive intensity for regressed operators (higher runtime)", () => {
+    const d = computeOperatorDelta(
+      "a",
+      op({ operatorId: "a", runtimeMs: 1500 }),
+      op({ operatorId: "a", runtimeMs: 1000 })
+    );
+    expect(computeDeltaIntensity(d, 500)).toBeGreaterThan(0);
+  });
+
+  it("returns 0 for unchanged operators (within the 5% / 1ms band)", () => {
+    const d = computeOperatorDelta(
+      "a",
+      op({ operatorId: "a", runtimeMs: 1020 }),
+      op({ operatorId: "a", runtimeMs: 1000 })
+    );
+    // direction is "unchanged" for this 2% change
+    expect(computeDeltaIntensity(d, 100)).toBe(0);
+  });
+
+  it('returns 0 for "new-in-current" and "removed-since-baseline" operators', () => {
+    const newOp = computeOperatorDelta("a", op({ operatorId: "a", runtimeMs: 500 }), undefined);
+    const removedOp = computeOperatorDelta("a", undefined, op({ operatorId: "a", runtimeMs: 500 }));
+    expect(computeDeltaIntensity(newOp, 500)).toBe(0);
+    expect(computeDeltaIntensity(removedOp, 500)).toBe(0);
+  });
+
+  it("clamps intensity to [-1, 1]", () => {
+    const huge = computeOperatorDelta(
+      "a",
+      op({ operatorId: "a", runtimeMs: 10_000 }),
+      op({ operatorId: "a", runtimeMs: 1_000 })
+    );
+    // delta is +9000 ms; with maxAbs=1 we'd otherwise overshoot.
+    expect(computeDeltaIntensity(huge, 1)).toBe(1);
+  });
+
+  it("returns 0 when maxAbsDeltaMs is 0", () => {
+    const d = computeOperatorDelta(
+      "a",
+      op({ operatorId: "a", runtimeMs: 500 }),
+      op({ operatorId: "a", runtimeMs: 1000 })
+    );
+    expect(computeDeltaIntensity(d, 0)).toBe(0);
+  });
+
+  it("returns 0 when runtimeMsDelta is null (e.g. one side missing runtime)", () => {
+    const d = computeOperatorDelta(
+      "a",
+      op({ operatorId: "a", runtimeMs: null }),
+      op({ operatorId: "a", runtimeMs: 1000 })
+    );
+    expect(computeDeltaIntensity(d, 100)).toBe(0);
   });
 });
 
