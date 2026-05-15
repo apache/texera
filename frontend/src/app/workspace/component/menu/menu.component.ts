@@ -105,6 +105,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
+  @ViewChild("runButton") runButton?: ElementRef<HTMLButtonElement>;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -117,6 +118,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
+  private rocketAnimations: Animation[] = [];
 
   // Computing unit status variables
   private computingUnitStatusSubscription: Subscription = new Subscription();
@@ -211,6 +213,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.rocketAnimations.forEach(a => a.cancel());
+    this.rocketAnimations = [];
     this.workflowResultExportService.resetFlags();
     this.computingUnitStatusSubscription.unsubscribe();
   }
@@ -815,7 +819,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public onRunButtonClick(): void {
-    launchRocket(document.getElementById("run-button"));
+    const anim = launchRocket(this.runButton?.nativeElement ?? null);
+    if (anim) this.rocketAnimations.push(anim);
     this.onClickRunHandler();
   }
 

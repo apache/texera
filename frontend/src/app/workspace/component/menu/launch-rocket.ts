@@ -72,6 +72,6 @@ export function launchRocket(button: HTMLElement | null): Animation | null {
   });
   document.body.appendChild(rocket);
   const anim = rocket.animate(keyframes, { duration: ROCKET_DURATION_MS });
-  anim.onfinish = () => rocket.remove();
+  anim.onfinish = anim.oncancel = () => rocket.remove();
   return anim;
 }
