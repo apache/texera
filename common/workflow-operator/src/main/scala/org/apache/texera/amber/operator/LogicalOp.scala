@@ -60,6 +60,7 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrain
 }
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
+import org.apache.texera.amber.operator.macroOp.{MacroInputOp, MacroOpDesc, MacroOutputOp}
 import org.apache.texera.amber.operator.metadata.{OPVersion, OperatorInfo, PropertyNameConstants}
 import org.apache.texera.amber.operator.projection.ProjectionOpDesc
 import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
@@ -428,7 +429,10 @@ trait StateTransferFunc
       value = classOf[SklearnAdvancedSVRTrainerOpDesc],
       name = "SVRTrainer"
     ),
-    new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting")
+    new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting"),
+    new Type(value = classOf[MacroOpDesc], name = "Macro"),
+    new Type(value = classOf[MacroInputOp], name = "MacroInput"),
+    new Type(value = classOf[MacroOutputOp], name = "MacroOutput")
   )
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {

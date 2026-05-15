@@ -25,6 +25,7 @@ import org.apache.texera.amber.compiler.WorkflowCompiler.{
   collectOutputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap
 }
+import org.apache.texera.amber.compiler.macroOp.{MacroExpander, MacroRegistry}
 import org.apache.texera.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
@@ -122,7 +123,8 @@ case class WorkflowCompilationResult(
 )
 
 class WorkflowCompiler(
-    context: WorkflowContext
+    context: WorkflowContext,
+    macroRegistry: MacroRegistry = MacroRegistry.Empty
 ) extends LazyLogging {
 
   // function to expand logical plan to physical plan
@@ -205,12 +207,24 @@ class WorkflowCompiler(
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     var opIdToOutputSchema: Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]] = Map()
     // 1. convert the pojo to logical plan
-    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    val rawLogicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
-    // 2. resolve the file name in each scan source operator
+    // 2. expand any macro operators into a flat logical plan. Macros are a purely
+    // logical-plan-level abstraction; after this pass the rest of the pipeline never
+    // sees a MacroOpDesc / MacroInputOp / MacroOutputOp.
+    val logicalPlan: LogicalPlan =
+      try {
+        MacroExpander.expand(rawLogicalPlan, macroRegistry)
+      } catch {
+        case e: Throwable =>
+          errorList.append((OperatorIdentity("__macro_expander__"), e))
+          rawLogicalPlan
+      }
+
+    // 3. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(Some(errorList))
 
-    // 3. expand the logical plan to the physical plan
+    // 4. expand the logical plan to the physical plan
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
 
     // 4. collect the output schema for each logical op

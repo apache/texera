@@ -141,6 +141,11 @@ class WorkflowCompiler(
   def compile(
       logicalPlanPojo: LogicalPlanPojo
   ): Workflow = {
+    // TODO(macro-operators): macro expansion via MacroExpander needs to run here too
+    // before execution. The compiling-service compiler already does this; this path
+    // is used at execution time and must be plumbed in a later step. Until then,
+    // MacroOpDesc.getPhysicalPlan throws IllegalStateException, which surfaces as a
+    // loud compilation error rather than silently broken execution.
     // 1. convert the pojo to logical plan
     val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
