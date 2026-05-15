@@ -287,6 +287,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .subscribe(
         ({ detail }) => {
           const macroWorkflow = this.macroService.macroDetailToWorkflow(detail);
+          // Clear the canvas before reloading. Angular reuses WorkspaceComponent
+          // across route changes (no ngOnDestroy fires when going from
+          // `/workflow/:id` to `/workflow/:id/macro/:macroId`), so the parent
+          // workflow's operators+links are still on the JointJS paper —
+          // reloadWorkflow would otherwise hit "duplicate link" rejections in
+          // shared-model-change-handler.
+          this.workflowActionService.resetAsNewWorkflow();
           // Reuse the same shared-model setup as the parent workflow editor so
           // the YJS room / undo-redo stack are isolated to this macro.
           this.workflowActionService.setNewSharedModel(macroId, this.userService.getCurrentUser());
