@@ -126,12 +126,13 @@ class ProxyServer(FlightServerBase):
         self.register(name="heartbeat", action=ProxyServer.ack()(lambda: None))
 
         # register shutdown, this is the default action for the client to
-        # terminate the server.
+        # terminate the server. The handler itself is a no-op; do_action
+        # detects the "shutdown" action name and starts graceful_shutdown
+        # only after the "Bye bye!" Result has been yielded, so the reply
+        # is handed to gRPC before the listener is torn down.
         self.register(
             name="shutdown",
-            action=ProxyServer.ack(msg="Bye bye!")(
-                lambda: threading.Thread(target=self.graceful_shutdown).start()
-            ),
+            action=ProxyServer.ack(msg="Bye bye!")(lambda: None),
             description="Shut down this server.",
         )
 
@@ -251,6 +252,10 @@ class ProxyServer(FlightServerBase):
             else:
                 encoded = str(result).encode("utf-8")
             yield Result(py_buffer(encoded))
+
+            # For "shutdown", tear the server down only after the Result has been yielded
+            if action_name == "shutdown":
+                threading.Thread(target=self.graceful_shutdown).start()
         else:
             raise KeyError("Unknown action {!r}".format(action_name))
 
