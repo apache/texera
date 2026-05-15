@@ -32,6 +32,7 @@ class StorageConfig:
     ICEBERG_REST_CATALOG_URI = None
     ICEBERG_REST_CATALOG_WAREHOUSE_NAME = None
     ICEBERG_TABLE_RESULT_NAMESPACE = None
+    ICEBERG_TABLE_STATE_NAMESPACE = None
     ICEBERG_FILE_STORAGE_DIRECTORY_PATH = None
     ICEBERG_TABLE_COMMIT_BATCH_SIZE = None
 
@@ -51,6 +52,7 @@ class StorageConfig:
         rest_catalog_uri,
         rest_catalog_warehouse_name,
         table_result_namespace,
+        table_state_namespace,
         directory_path,
         commit_batch_size,
         s3_endpoint,
@@ -71,6 +73,7 @@ class StorageConfig:
         cls.ICEBERG_REST_CATALOG_WAREHOUSE_NAME = rest_catalog_warehouse_name
 
         cls.ICEBERG_TABLE_RESULT_NAMESPACE = table_result_namespace
+        cls.ICEBERG_TABLE_STATE_NAMESPACE = table_state_namespace
         cls.ICEBERG_FILE_STORAGE_DIRECTORY_PATH = directory_path
         cls.ICEBERG_TABLE_COMMIT_BATCH_SIZE = int(commit_batch_size)
 
