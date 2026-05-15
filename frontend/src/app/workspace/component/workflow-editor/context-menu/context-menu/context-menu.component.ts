@@ -31,8 +31,10 @@ import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { MacroService } from "src/app/workspace/service/macro/macro.service";
+import { MacroService, MacroDetail } from "src/app/workspace/service/macro/macro.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
+import { OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
 
 @UntilDestroy()
 @Component({
@@ -55,7 +57,8 @@ export class ContextMenuComponent {
     private modalService: NzModalService,
     private validationWorkflowService: ValidationWorkflowService,
     private macroService: MacroService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private workflowUtilService: WorkflowUtilService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -152,8 +155,9 @@ export class ContextMenuComponent {
    */
   /**
    * Bundles the highlighted operators into a new macro definition on the
-   * backend. The current selection is left on the canvas — the follow-up
-   * step will replace it with a MacroOpDesc node and rewire boundary links.
+   * backend, then replaces the selection on the canvas with a single MacroOp
+   * node that has the same external boundary (input/output ports rewired to
+   * whichever external operators were feeding / consuming the selection).
    */
   public onCreateMacro(): void {
     const selected = Array.from(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
@@ -164,15 +168,98 @@ export class ContextMenuComponent {
     if (!name) {
       return;
     }
-    const req = this.macroService.buildMacroCreateRequestFromSelection(this.workflowActionService, selected, name);
+    const built = this.macroService.buildMacroFromSelection(this.workflowActionService, selected, name);
     this.macroService
-      .createMacro(req)
+      .createMacro(built.request)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: detail =>
-          this.notificationService.success(`Macro "${detail.name}" created (wid=${detail.wid})`),
+        next: detail => {
+          this.swapSelectionWithMacroNode(detail, selected, built);
+          this.notificationService.success(`Macro "${detail.name}" created (wid=${detail.wid})`);
+        },
         error: err => this.notificationService.error(`Failed to create macro: ${err?.message ?? err}`),
       });
+  }
+
+  private swapSelectionWithMacroNode(
+    detail: MacroDetail,
+    selectedOpIDs: readonly string[],
+    built: {
+      incomingEdges: { externalOpId: string; externalPortID: string; macroPortIndex: number }[];
+      outgoingEdges: { externalOpId: string; externalPortID: string; macroPortIndex: number }[];
+      inputPortCount: number;
+      outputPortCount: number;
+    }
+  ): void {
+    const base = this.workflowUtilService.getNewOperatorPredicate("Macro");
+    const inputPorts = Array.from({ length: built.inputPortCount }, (_, i) => ({
+      portID: `input-${i}`,
+      displayName: `in-${i}`,
+      disallowMultiInputs: false,
+      isDynamicPort: false,
+      dependencies: [],
+    }));
+    const outputPorts = Array.from({ length: built.outputPortCount }, (_, i) => ({
+      portID: `output-${i}`,
+      displayName: `out-${i}`,
+      isDynamicPort: false,
+    }));
+    const macroPredicate: OperatorPredicate = {
+      ...base,
+      operatorProperties: {
+        macroId: detail.wid.toString(),
+        // TODO: backend should expose the pinned vid on MacroDetail; defaulting
+        // to 1 until then (DbMacroRegistry ignores version in v1 anyway).
+        macroVersion: 1,
+        linkMode: "LIVE",
+        inputPortCount: built.inputPortCount,
+        outputPortCount: built.outputPortCount,
+        displayName: detail.name,
+      },
+      inputPorts,
+      outputPorts,
+      customDisplayName: detail.name,
+    };
+
+    const jointWrapper = this.workflowActionService.getJointGraphWrapper();
+    const positions = selectedOpIDs
+      .map(id => {
+        try {
+          return jointWrapper.getElementPosition(id);
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((p): p is Point => !!p);
+    const centroid: Point =
+      positions.length > 0
+        ? {
+            x: positions.reduce((sum, p) => sum + p.x, 0) / positions.length,
+            y: positions.reduce((sum, p) => sum + p.y, 0) / positions.length,
+          }
+        : { x: 200, y: 200 };
+
+    this.workflowActionService.getTexeraGraph().bundleActions(() => {
+      // Order matters: add the macro node first so the rewired external links
+      // have a valid target/source. deleteOperatorsAndLinks then cleans up the
+      // old internal + boundary links automatically.
+      this.workflowActionService.addOperator(macroPredicate, centroid);
+      this.workflowActionService.deleteOperatorsAndLinks(Array.from(selectedOpIDs));
+      built.incomingEdges.forEach(edge =>
+        this.workflowActionService.addLink({
+          linkID: this.workflowUtilService.getLinkRandomUUID(),
+          source: { operatorID: edge.externalOpId, portID: edge.externalPortID },
+          target: { operatorID: macroPredicate.operatorID, portID: `input-${edge.macroPortIndex}` },
+        })
+      );
+      built.outgoingEdges.forEach(edge =>
+        this.workflowActionService.addLink({
+          linkID: this.workflowUtilService.getLinkRandomUUID(),
+          source: { operatorID: macroPredicate.operatorID, portID: `output-${edge.macroPortIndex}` },
+          target: { operatorID: edge.externalOpId, portID: edge.externalPortID },
+        })
+      );
+    });
   }
 
   public onClickExportHighlightedExecutionResult(): void {

@@ -113,7 +113,8 @@ export class MacroService {
 
   /**
    * Build a `MacroCreateRequest` from the operators the user has multi-selected
-   * on the parent canvas. Caller is responsible for sending it via `createMacro`.
+   * on the parent canvas, plus the boundary info the caller needs to swap the
+   * selection out for a single MacroOp node on the canvas.
    *
    * Boundary handling: for every link crossing the selection edge we add a
    * `MacroInput` / `MacroOutput` marker inside the body (one per unique inner
@@ -121,12 +122,22 @@ export class MacroService {
    * parent at compile time. Internal links (both endpoints inside the
    * selection) are passed through with port-ordinal IDs to match the
    * backend's PortIdentity shape.
+   *
+   * The returned `incomingEdges` / `outgoingEdges` describe each external link
+   * that needs to be re-pointed at the new MacroOp instance (one entry per
+   * link, where multiple external feeders can share the same `macroPortIndex`).
    */
-  public buildMacroCreateRequestFromSelection(
+  public buildMacroFromSelection(
     workflowActionService: WorkflowActionService,
     selectedOperatorIDs: readonly string[],
     name: string
-  ): MacroCreateRequest {
+  ): {
+    request: MacroCreateRequest;
+    incomingEdges: { externalOpId: string; externalPortID: string; macroPortIndex: number }[];
+    outgoingEdges: { externalOpId: string; externalPortID: string; macroPortIndex: number }[];
+    inputPortCount: number;
+    outputPortCount: number;
+  } {
     const graph = workflowActionService.getTexeraGraph();
     const selectedSet = new Set(selectedOperatorIDs);
 
@@ -178,6 +189,7 @@ export class MacroService {
         markerOpId: `MacroInput-operator-${this.uuid()}`,
         portIndex: idx,
         innerOpId,
+        innerPortID,
         innerPortIdx: inputPortOrdinal(innerOpId, innerPortID),
       };
     });
@@ -189,6 +201,7 @@ export class MacroService {
         markerOpId: `MacroOutput-operator-${this.uuid()}`,
         portIndex: idx,
         innerOpId,
+        innerPortID,
         innerPortIdx: outputPortOrdinal(innerOpId, innerPortID),
       };
     });
@@ -247,10 +260,36 @@ export class MacroService {
       outputs: portSpec.outputs,
     };
 
+    // Per-link rewire instructions. Several external links may share the same
+    // macroPortIndex when they all target the same inner port.
+    const inputIdxByInnerPort = new Map(
+      inputMarkers.map(m => [`${m.innerOpId}|${m.innerPortID}`, m.portIndex])
+    );
+    const outputIdxByInnerPort = new Map(
+      outputMarkers.map(m => [`${m.innerOpId}|${m.innerPortID}`, m.portIndex])
+    );
+
+    const incomingEdges = incoming.map(l => ({
+      externalOpId: l.srcOp,
+      externalPortID: l.srcPort,
+      macroPortIndex: inputIdxByInnerPort.get(`${l.dstOp}|${l.dstPort}`) as number,
+    }));
+    const outgoingEdges = outgoing.map(l => ({
+      externalOpId: l.dstOp,
+      externalPortID: l.dstPort,
+      macroPortIndex: outputIdxByInnerPort.get(`${l.srcOp}|${l.srcPort}`) as number,
+    }));
+
     return {
-      name,
-      content: JSON.stringify(body),
-      portSpec,
+      request: {
+        name,
+        content: JSON.stringify(body),
+        portSpec,
+      },
+      incomingEdges,
+      outgoingEdges,
+      inputPortCount: inputMarkers.length,
+      outputPortCount: outputMarkers.length,
     };
   }
 
