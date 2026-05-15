@@ -137,13 +137,12 @@ class TestGetPresignedUrl:
             with pytest.raises(RuntimeError, match=r"403.*forbidden"):
                 doc.get_presigned_url()
 
-    def test_returns_none_when_response_body_lacks_presigned_url_key(self, monkeypatch):
-        # Pins current behavior: a 200 with no "presignedUrl" key yields None
-        # rather than raising. read_file() will then call requests.get(None).
+    def test_raises_when_response_body_lacks_presigned_url_key(self, monkeypatch):
         doc = self._make_doc(monkeypatch)
         with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
             mock_get.return_value = make_response(200, body={"other": "value"})
-            assert doc.get_presigned_url() is None
+            with pytest.raises(RuntimeError, match="'presignedUrl' missing"):
+                doc.get_presigned_url()
 
 
 class TestReadFile:
