@@ -47,5 +47,6 @@ case object WorkerConfig {
 }
 
 case class WorkerConfig(
-    workerId: ActorVirtualIdentity
+    workerId: ActorVirtualIdentity,
+    pveName: String = ""
 )

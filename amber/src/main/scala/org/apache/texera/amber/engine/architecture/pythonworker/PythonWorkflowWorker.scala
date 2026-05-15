@@ -41,7 +41,7 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
 import org.apache.texera.amber.config.PythonUtils
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.sys.process.{BasicIO, Process}
 
@@ -66,6 +66,7 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
+  val pythonENVPath: String = UdfConfig.pythonPath.trim
   val RENVPath: String = UdfConfig.rPath.trim
 
   // Python process
@@ -165,15 +166,49 @@ class PythonWorkflowWorker(
     clientThreadExecutor.submit(pythonProxyClient)
   }
 
+  private def choosePythonBin(): String = {
+    val fallback =
+      if (pythonENVPath.trim.isEmpty || pythonENVPath.trim == "Default") "python3"
+      else pythonENVPath
+
+    val cuidOpt = sys.env.get("TEXERA_CUID").flatMap(s => scala.util.Try(s.toInt).toOption)
+    val pveName = workerConfig.pveName.trim
+
+    if (cuidOpt.isEmpty || pveName.isEmpty) {
+      return fallback
+    }
+
+    val candidate = Paths.get(
+      "/tmp/texera-pve/venvs",
+      cuidOpt.get.toString,
+      pveName,
+      "pve",
+      "bin",
+      "python"
+    )
+
+    if (Files.exists(candidate) && Files.isExecutable(candidate)) {
+      candidate.toString
+    } else {
+      fallback
+    }
+  }
+
   private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
+
+    val pythonBin: String = choosePythonBin()
+    logger.info(
+      s"[PythonWorkflowWorker] TEXERA_CUID=${sys.env
+        .get("TEXERA_CUID")} | pveName=${workerConfig.pveName} | pythonBin=$pythonBin"
+    )
     // Set the Iceberg related arguments based on the catalog type.
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
     val isRest = StorageConfig.icebergCatalogType == "rest"
     pythonServerProcess = Process(
       Seq(
-        PythonUtils.getPythonExecutable,
+        pythonBin,
         "-u",
         udfEntryScriptPath,
         workerConfig.workerId.name,

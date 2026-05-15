@@ -434,4 +434,26 @@ object PveManager {
         List(s"[PVE][ERR] Failed to delete package for cuid=$cuid: ${e.getMessage}")
     }
   }
+
+  def getPveNames(cuid: Int): List[String] = {
+
+    val cuPath = Paths.get("/tmp/texera-pve/venvs").resolve(cuid.toString)
+
+    if (!Files.exists(cuPath) || !Files.isDirectory(cuPath)) {
+      return List()
+    }
+
+    val stream = Files.list(cuPath)
+
+    try {
+      stream
+        .iterator()
+        .asScala
+        .filter(path => Files.isDirectory(path))
+        .map(path => path.getFileName.toString)
+        .toList
+    } finally {
+      stream.close()
+    }
+  }
 }
