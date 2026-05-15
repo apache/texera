@@ -445,8 +445,7 @@ function getOperatorResultSummaries(agent: TexeraAgent): Record<string, Operator
       inputTuples: info.inputTuples,
       outputTuples: info.outputTuples,
       inputPortShapes: info.inputPortShapes,
-      outputColumns:
-        info.result && info.result.length > 0 ? getVisibleResultHeaders(info.result[0]).length : undefined,
+      outputColumns: info.result && info.result.length > 0 ? getVisibleResultHeaders(info.result[0]).length : undefined,
       error: info.error,
       warnings: info.warnings,
       consoleLogCount: info.consoleLogs?.length,
