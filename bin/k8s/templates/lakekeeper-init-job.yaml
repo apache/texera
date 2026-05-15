@@ -1,0 +1,137 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+{{- if .Values.lakekeeperInit.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-lakekeeper-init
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ .Release.Name }}-lakekeeper-init
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: lakekeeper-init
+          image: alpine:3.19
+          env:
+            - name: STORAGE_S3_ENDPOINT
+              value: http://{{ .Release.Name }}-minio:9000
+            - name: STORAGE_S3_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-minio
+                  key: root-user
+            - name: STORAGE_S3_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-minio
+                  key: root-password
+            - name: STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET
+              value: {{ .Values.lakekeeperInit.warehouse.s3Bucket | quote }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_REGION
+              value: {{ .Values.lakekeeperInit.warehouse.region | quote }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME
+              value: {{ .Values.lakekeeperInit.warehouse.name | quote }}
+            - name: LAKEKEEPER_BASE_URI
+              value: http://{{ .Release.Name }}-lakekeeper:{{ .Values.lakekeeper.catalog.service.externalPort }}
+            - name: LAKEKEEPER_PROJECT_ID
+              value: {{ .Values.lakekeeperInit.defaultProject.id | quote }}
+            - name: LAKEKEEPER_PROJECT_NAME
+              value: {{ .Values.lakekeeperInit.defaultProject.name | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              apk add --no-cache curl ca-certificates wget
+              wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
+              chmod +x /usr/local/bin/mc
+
+              check_status() {
+                if [ "$1" -ge 200 ] && [ "$1" -lt 300 ]; then
+                  echo "Created $2 successfully (HTTP $1)."
+                elif [ "$1" -eq 409 ]; then
+                  echo "$2 already exists (HTTP 409). Treating as success."
+                else
+                  echo "Failed to create $2. HTTP Code: $1"
+                  echo "ERROR RESPONSE:"
+                  if [ -f /tmp/response.txt ]; then cat /tmp/response.txt; fi
+                  echo ""
+                  exit 1
+                fi
+              }
+
+              echo "Waiting for Lakekeeper health endpoint..."
+              until curl -s -f "${LAKEKEEPER_BASE_URI}/health" > /dev/null 2>&1; do
+                sleep 3
+              done
+
+              echo "Step 1: Initializing MinIO bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}'..."
+              mc alias set minio "${STORAGE_S3_ENDPOINT}" "${STORAGE_S3_AUTH_USERNAME}" "${STORAGE_S3_AUTH_PASSWORD}" || true
+              if mc ls minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET} > /dev/null 2>&1; then
+                echo "MinIO bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' already exists."
+              else
+                mc mb minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}
+                echo "MinIO bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' created successfully."
+              fi
+
+              echo "Step 2: Initializing default project..."
+              PROJECT_PAYLOAD="{\"project-id\":\"${LAKEKEEPER_PROJECT_ID}\",\"project-name\":\"${LAKEKEEPER_PROJECT_NAME}\"}"
+              PROJECT_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+                -X POST \
+                -H "Content-Type: application/json" \
+                -d "${PROJECT_PAYLOAD}" \
+                "${LAKEKEEPER_BASE_URI}/management/v1/project" || echo "000")
+              check_status "${PROJECT_CODE}" "Default Project"
+
+              echo "Step 3: Initializing warehouse '${STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME}'..."
+              CREATE_PAYLOAD=$(cat <<EOF
+              {
+                "warehouse-name": "${STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME}",
+                "project-id": "${LAKEKEEPER_PROJECT_ID}",
+                "storage-profile": {
+                  "type": "s3",
+                  "bucket": "${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}",
+                  "region": "${STORAGE_ICEBERG_CATALOG_REST_REGION}",
+                  "endpoint": "${STORAGE_S3_ENDPOINT}",
+                  "flavor": "s3-compat",
+                  "path-style-access": true,
+                  "sts-enabled": false
+                },
+                "storage-credential": {
+                  "type": "s3",
+                  "credential-type": "access-key",
+                  "aws-access-key-id": "${STORAGE_S3_AUTH_USERNAME}",
+                  "aws-secret-access-key": "${STORAGE_S3_AUTH_PASSWORD}"
+                }
+              }
+              EOF
+              )
+              WAREHOUSE_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+                -X POST \
+                -H "Content-Type: application/json" \
+                -d "${CREATE_PAYLOAD}" \
+                "${LAKEKEEPER_BASE_URI}/management/v1/warehouse" || echo "000")
+              check_status "${WAREHOUSE_CODE}" "Lakekeeper Warehouse"
+
+              echo "Lakekeeper initialization sequence completed successfully!"
+{{- end }}
