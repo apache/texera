@@ -73,3 +73,89 @@
     margin-bottom: 0;
   }
 }
+
+.profiler-section {
+  margin: 8px 16px;
+}
+
+.profiler-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profiler-metric-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.profiler-metric-label {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.profiler-metric-value {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.profiler-hints {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profiler-hints-title {
+  font-weight: 500;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.profiler-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profiler-hint-message {
+  flex: 1;
+}
+
+.profiler-hints-empty {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.profiler-baseline {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+}
+
+.profiler-baseline-title {
+  font-weight: 500;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.profiler-baseline-status {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.profiler-baseline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.profiler-baseline-row-label {
+  color: rgba(0, 0, 0, 0.55);
+}

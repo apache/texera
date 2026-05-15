@@ -28,6 +28,8 @@ import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
+import { ProfilerService } from "../../service/profiler/profiler.service";
+import { formatHoverHeadline, formatViewLabel } from "../../service/profiler/profiler-hover";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
@@ -46,7 +48,7 @@ import concaveman from "concaveman";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { NgIf } from "@angular/common";
+import { NgIf, AsyncPipe, DecimalPipe } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -88,7 +90,7 @@ export const MAIN_CANVAS = {
   selector: "texera-workflow-editor",
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
-  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, AgentInteractionComponent],
+  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, AsyncPipe, DecimalPipe, AgentInteractionComponent],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
@@ -106,6 +108,17 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     operatorId: string;
     displayName: string;
     position: { x: number; y: number };
+  } | null = null;
+
+  // Profiler hover-card state. Non-null while the cursor is over an operator that
+  // has a heat score AND profiling is enabled; null otherwise.
+  public profilerHover: {
+    displayName: string;
+    viewLabel: string;
+    headline?: string;
+    score: number;
+    x: number;
+    y: number;
   } | null = null;
 
   // Cached agent result summaries for port label display
@@ -128,7 +141,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private agentService: AgentService
+    private agentService: AgentService,
+    public profilerService: ProfilerService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -188,6 +202,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
+    this.handleProfilerHeatmap();
+    this.handleProfilerHover();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -358,6 +374,111 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             });
         }
       });
+  }
+
+  /**
+   * Subscribes to the profiler state stream and repaints operator bodies according to the
+   * computed heat scores. When profiling is disabled, restores each operator's default fill.
+   */
+  private handleProfilerHeatmap(): void {
+    let lastEnabled = false;
+    this.profilerService
+      .getStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(state => {
+        const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
+        if (!state.enabled) {
+          if (lastEnabled) {
+            operators.forEach(op => this.jointUIService.resetOperatorHeatmap(this.paper, op));
+          }
+          lastEnabled = false;
+          return;
+        }
+        lastEnabled = true;
+        operators.forEach(op => {
+          const entry = state.scores[op.operatorID];
+          if (!entry) {
+            this.jointUIService.resetOperatorHeatmap(this.paper, op);
+            return;
+          }
+          const measurableCost =
+            (entry.stats.aggregatedDataProcessingTime ?? 0) > 0 ||
+            (entry.stats.aggregatedOutputRowCount ?? 0) > 0;
+          this.jointUIService.changeOperatorHeatmap(
+            this.paper,
+            op.operatorID,
+            entry.score,
+            entry.state,
+            measurableCost
+          );
+        });
+      });
+  }
+
+  /**
+   * Subscribes to JointJS element hover events and surfaces a small floating card
+   * with the operator's display name, current-view headline metric, and heat score.
+   *
+   * Visibility rules:
+   *   - Card only appears when profiling is enabled AND the operator has an entry in scores.
+   *   - Card is non-interactive (pointer-events: none) so it never steals clicks.
+   *   - Card hides on mouseleave, on canvas pan/click, or when profiling is toggled off.
+   */
+  private handleProfilerHover(): void {
+    fromJointPaperEvent(this.paper, "element:mouseenter")
+      .pipe(untilDestroyed(this))
+      .subscribe(([cellView, evt]: any) => {
+        const opId = cellView?.model?.id?.toString();
+        if (!opId) return;
+        const state = this.profilerService.getState();
+        if (!state.enabled) return;
+        const entry = state.scores[opId];
+        if (!entry) return;
+
+        const wrapperRect = this.editorWrapper?.getBoundingClientRect();
+        if (!wrapperRect) return;
+        const clientX = evt?.clientX ?? 0;
+        const clientY = evt?.clientY ?? 0;
+        const op = this.workflowActionService.getTexeraGraph().hasOperator(opId)
+          ? this.workflowActionService.getTexeraGraph().getOperator(opId)
+          : undefined;
+        const displayName = op?.customDisplayName?.trim() || op?.operatorType || opId;
+
+        this.profilerHover = {
+          displayName,
+          viewLabel: formatViewLabel(state.view),
+          headline: formatHoverHeadline(state.view, entry.stats),
+          score: entry.score,
+          x: clientX - wrapperRect.left + 12,
+          y: clientY - wrapperRect.top + 12,
+        };
+        this.changeDetectorRef.detectChanges();
+      });
+
+    fromJointPaperEvent(this.paper, "element:mouseleave")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.clearProfilerHover());
+
+    fromJointPaperEvent(this.paper, "blank:pointerdown")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.clearProfilerHover());
+
+    // Hide when profiling is toggled off so the stale card doesn't linger.
+    this.profilerService
+      .getStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(state => {
+        if (!state.enabled && this.profilerHover) {
+          this.clearProfilerHover();
+        }
+      });
+  }
+
+  private clearProfilerHover(): void {
+    if (this.profilerHover) {
+      this.profilerHover = null;
+      this.changeDetectorRef.detectChanges();
+    }
   }
 
   private handleRegionEvents(): void {

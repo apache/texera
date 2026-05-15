@@ -27,6 +27,38 @@
     <texera-context-menu></texera-context-menu>
   </nz-dropdown-menu>
 
+  <div
+    *ngIf="(profilerService.getStateStream() | async) as profilerState"
+    class="profiler-legend"
+    [class.profiler-legend-visible]="profilerState.enabled">
+    <div class="profiler-legend-title">
+      Profiler — {{ profilerState.view === 'runtime' ? 'Runtime' : profilerState.view === 'throughput' ? 'Throughput' : 'I/O imbalance' }}
+    </div>
+    <div class="profiler-legend-bar"></div>
+    <div class="profiler-legend-labels">
+      <span>cold</span>
+      <span>hot</span>
+    </div>
+  </div>
+
+  <div
+    *ngIf="profilerHover"
+    class="profiler-hover-card"
+    [style.left.px]="profilerHover.x"
+    [style.top.px]="profilerHover.y">
+    <div class="profiler-hover-name">{{ profilerHover.displayName }}</div>
+    <div
+      *ngIf="profilerHover.headline"
+      class="profiler-hover-row">
+      <span class="profiler-hover-label">{{ profilerHover.viewLabel }}</span>
+      <span class="profiler-hover-value">{{ profilerHover.headline }}</span>
+    </div>
+    <div class="profiler-hover-row">
+      <span class="profiler-hover-label">Heat score</span>
+      <span class="profiler-hover-value">{{ profilerHover.score | number: '1.0-2' }}</span>
+    </div>
+  </div>
+
   <!-- Chat Popover for Operator -->
   <div
     class="chat-popover-container"

@@ -61,7 +61,7 @@ import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
 import { AttributeType, PortSchema } from "../../../types/workflow-compiling.interface";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { NgIf } from "@angular/common";
+import { NgIf, NgFor, DecimalPipe } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -70,6 +70,16 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzFormDirective } from "ng-zorro-antd/form";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { NzTagComponent } from "ng-zorro-antd/tag";
+import { ProfilerService } from "../../../service/profiler/profiler.service";
+import { Hint, computeHintsForOperator, HintContext } from "../../../service/profiler/profiler-hints";
+import {
+  computeOperatorDelta,
+  indexBaseline,
+  OperatorDelta,
+  statsToComparable,
+} from "../../../service/profiler/profiler-delta";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -96,6 +106,8 @@ Quill.register("modules/cursors", QuillCursors);
   styleUrls: ["./operator-property-edit-frame.component.scss"],
   imports: [
     NgIf,
+    NgFor,
+    DecimalPipe,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
     ɵNzTransitionPatchDirective,
@@ -108,6 +120,9 @@ Quill.register("modules/cursors", QuillCursors);
     FormlyModule,
     TypeCastingDisplayComponent,
     NzWaveDirective,
+    NzCollapseComponent,
+    NzCollapsePanelComponent,
+    NzTagComponent,
   ],
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
@@ -163,6 +178,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
 
+  // Profiler M2 fields
+  public profilerEnabled: boolean = false;
+  public profilerScore: number | undefined;
+  public profilerHints: readonly Hint[] = [];
+
+  // Profiler P6 — baseline comparison
+  public profilerBaselineLoaded: boolean = false;
+  public profilerBaselineDelta: OperatorDelta | undefined;
+
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -173,14 +197,19 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private profilerService: ProfilerService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
     if (!this.currentOperatorId) {
+      this.currentOperatorStatus = undefined;
+      this.refreshProfilerView();
       return;
     }
+    this.currentOperatorStatus = this.workflowStatusSerivce.getCurrentStatus()[this.currentOperatorId];
+    this.refreshProfilerView();
     this.rerenderEditorForm();
   }
 
@@ -205,8 +234,137 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .subscribe(update => {
         if (this.currentOperatorId) {
           this.currentOperatorStatus = update[this.currentOperatorId];
+          this.refreshProfilerView();
         }
       });
+
+    this.profilerService
+      .getStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.refreshProfilerView());
+  }
+
+  private refreshProfilerView(): void {
+    const opId = this.currentOperatorId;
+    const state = this.profilerService.getState();
+    this.profilerEnabled = state.enabled;
+    this.profilerBaselineLoaded = state.baseline !== undefined;
+    if (!opId) {
+      this.profilerScore = undefined;
+      this.profilerHints = [];
+      this.profilerBaselineDelta = undefined;
+      return;
+    }
+    const entry = state.scores[opId];
+    this.profilerScore = entry?.score;
+    this.profilerBaselineDelta = this.computeBaselineDeltaFor(opId, entry);
+
+    if (!state.enabled) {
+      this.profilerHints = [];
+      return;
+    }
+    const graph = this.workflowActionService.getTexeraGraph();
+    const stats: Record<string, OperatorStatistics> = {};
+    const scores: Record<string, number> = {};
+    for (const id of Object.keys(state.scores)) {
+      stats[id] = state.scores[id].stats;
+      scores[id] = state.scores[id].score;
+    }
+    const ctx: HintContext = {
+      stats,
+      scores,
+      hotThreshold: state.hotThresholdPercentile / 100,
+      operatorType: id => {
+        try {
+          return graph.getOperator(id)?.operatorType;
+        } catch {
+          return undefined;
+        }
+      },
+      displayName: id => {
+        try {
+          const op = graph.getOperator(id);
+          return op?.customDisplayName?.trim() || op?.operatorType || id;
+        } catch {
+          return id;
+        }
+      },
+      upstreamOps: id => {
+        try {
+          return graph.getInputLinksByOperatorId(id).map(l => l.source.operatorID);
+        } catch {
+          return [];
+        }
+      },
+      downstreamOps: id => {
+        try {
+          return graph.getOutputLinksByOperatorId(id).map(l => l.target.operatorID);
+        } catch {
+          return [];
+        }
+      },
+    };
+    this.profilerHints = computeHintsForOperator(opId, ctx);
+  }
+
+  /**
+   * Computes the per-operator delta against the loaded baseline (if any).
+   * Returns undefined when no baseline is loaded so the template can omit
+   * the section entirely. Handles the three match cases:
+   *   - operator in current + baseline -> matched delta
+   *   - operator in current but not baseline -> "new-in-current"
+   *   - operator in baseline but not current -> caller never selects these,
+   *     but the math handles it for completeness.
+   */
+  private computeBaselineDeltaFor(
+    opId: string,
+    entry: { score: number; stats: OperatorStatistics } | undefined
+  ): OperatorDelta | undefined {
+    const baseline = this.profilerService.getBaseline();
+    if (!baseline) return undefined;
+    const baselineIndex = indexBaseline(baseline);
+    const baselineOp = baselineIndex[opId];
+
+    let current = undefined;
+    if (entry) {
+      const op = this.workflowActionService.getTexeraGraph().hasOperator(opId)
+        ? this.workflowActionService.getTexeraGraph().getOperator(opId)
+        : undefined;
+      const displayName = op?.customDisplayName?.trim() || op?.operatorType || opId;
+      current = statsToComparable({
+        operatorId: opId,
+        displayName,
+        operatorType: op?.operatorType,
+        score: entry.score,
+        stats: entry.stats,
+      });
+    }
+
+    if (!current && !baselineOp) return undefined;
+    return computeOperatorDelta(opId, current, baselineOp);
+  }
+
+  // Template helpers — kept here to avoid template-side arithmetic.
+
+  public getProfilerRuntimeMs(s: OperatorStatistics | undefined): number | undefined {
+    const t = s?.aggregatedDataProcessingTime;
+    return t && t > 0 ? t / 1_000_000 : undefined;
+  }
+
+  public getProfilerThroughputRowsPerSec(s: OperatorStatistics | undefined): number | undefined {
+    const t = s?.aggregatedDataProcessingTime;
+    const out = s?.aggregatedOutputRowCount ?? 0;
+    if (!t || t <= 0 || out <= 0) return undefined;
+    return out / (t / 1_000_000_000);
+  }
+
+  public getProfilerIdleRatio(s: OperatorStatistics | undefined): number | undefined {
+    if (!s) return undefined;
+    const data = s.aggregatedDataProcessingTime ?? 0;
+    const ctrl = s.aggregatedControlProcessingTime ?? 0;
+    const idle = s.aggregatedIdleTime ?? 0;
+    const total = data + ctrl + idle;
+    return total > 0 ? idle / total : undefined;
   }
 
   async ngOnDestroy() {

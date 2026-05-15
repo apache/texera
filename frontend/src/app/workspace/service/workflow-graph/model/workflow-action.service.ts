@@ -22,6 +22,11 @@ import { Injectable } from "@angular/core";
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { ExecutionMode, Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
+import {
+  parseProfilerConfig,
+  profilerConfigEquals,
+  ProfilerConfig,
+} from "../../profiler/profiler-config";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
@@ -97,6 +102,12 @@ export class WorkflowActionService {
 
   private workflowSettings: WorkflowSettings;
   private workflowResetSubject = new Subject<void>();
+
+  // Per-workflow profiler config (UI heatmap/view/threshold). `undefined` means the
+  // current workflow has no override; consumers (ProfilerService) should fall back to
+  // user defaults stored in localStorage. Mirrors the workflowSettings field above.
+  private profilerConfig: ProfilerConfig | undefined = undefined;
+  private profilerConfigSubject = new BehaviorSubject<ProfilerConfig | undefined>(undefined);
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -647,6 +658,8 @@ export class WorkflowActionService {
 
       const workflowContent: WorkflowContent = workflow.content;
       this.workflowSettings = workflowContent.settings || this.getDefaultSettings();
+      const parsedProfilerCfg = parseProfilerConfig(workflowContent.profilerConfig);
+      this.applyProfilerConfig(parsedProfilerCfg);
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
@@ -763,7 +776,41 @@ export class WorkflowActionService {
       links,
       commentBoxes,
       settings,
+      ...(this.profilerConfig !== undefined ? { profilerConfig: this.profilerConfig } : {}),
     };
+  }
+
+  /**
+   * Returns the current per-workflow profiler config, or `undefined` if the
+   * workflow has no override. Consumers should fall back to per-user defaults
+   * (e.g. localStorage) when this returns undefined.
+   */
+  public getProfilerConfig(): ProfilerConfig | undefined {
+    return this.profilerConfig;
+  }
+
+  /**
+   * Stream of per-workflow profiler config changes. Late subscribers get the
+   * current value immediately (BehaviorSubject). Emits `undefined` when there
+   * is no per-workflow override.
+   */
+  public getProfilerConfigStream(): Observable<ProfilerConfig | undefined> {
+    return this.profilerConfigSubject.asObservable();
+  }
+
+  /**
+   * Overwrites the per-workflow profiler config. No-op when the new value is
+   * deep-equal to the current — this breaks any feedback loop with ProfilerService.
+   * Pass `undefined` to clear the override (workflow falls back to user defaults).
+   */
+  public setProfilerConfig(cfg: ProfilerConfig | undefined): void {
+    this.applyProfilerConfig(cfg);
+  }
+
+  private applyProfilerConfig(cfg: ProfilerConfig | undefined): void {
+    if (profilerConfigEquals(this.profilerConfig, cfg)) return;
+    this.profilerConfig = cfg;
+    this.profilerConfigSubject.next(cfg);
   }
 
   public getWorkflow(): Workflow {

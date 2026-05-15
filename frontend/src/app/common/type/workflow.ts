@@ -42,6 +42,19 @@ export interface WorkflowSettings {
  *
  */
 
+/**
+ * Per-workflow override for the runtime performance profiler (heatmap + hints).
+ * When present, takes precedence over the per-user `localStorage` defaults.
+ * Defined inline (not imported from the profiler service) to keep this common-layer
+ * type free of workspace-service dependencies.
+ */
+export interface WorkflowProfilerConfig
+  extends Readonly<{
+    enabled: boolean;
+    view: "runtime" | "throughput" | "io-imbalance";
+    hotThresholdPercentile: number;
+  }> {}
+
 export interface WorkflowContent
   extends Readonly<{
     operators: OperatorPredicate[];
@@ -49,6 +62,8 @@ export interface WorkflowContent
     links: OperatorLink[];
     commentBoxes: CommentBox[];
     settings: WorkflowSettings;
+    /** Optional per-workflow profiler config. Older workflows simply omit this key. */
+    profilerConfig?: WorkflowProfilerConfig;
   }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;

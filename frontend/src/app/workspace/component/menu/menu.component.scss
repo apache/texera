@@ -109,7 +109,7 @@ i {
 }
 
 [nz-button] {
-  width: 32px;
+  width: 40px;
   padding: 0;
 }
 
@@ -189,4 +189,12 @@ texera-coeditor-user-icon {
 
 ::ng-deep .layers-dropdown {
   user-select: none;
+}
+
+// Profiler popover buttons need to size to their labels (Markdown / JSON / Replace / Clear / etc.)
+// instead of being capped at 40px by the generic [nz-button] rule above.
+// Restoring ng-zorro's natural small-button width + the standard small-button horizontal padding.
+.profiler-popover-btn[nz-button] {
+  width: auto;
+  padding: 0 7px;
 }

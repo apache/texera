@@ -74,6 +74,16 @@ import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
+import { NzSliderComponent } from "ng-zorro-antd/slider";
+import { AsyncPipe } from "@angular/common";
+import { ProfilerService, ProfilerView } from "../../service/profiler/profiler.service";
+import {
+  buildReport,
+  formatFilenameTimestamp,
+  slugifyForFilename,
+} from "../../service/profiler/profiler-report";
+import { parseBaselineReport } from "../../service/profiler/profiler-delta";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -120,6 +130,10 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzSwitchComponent,
     NzBadgeComponent,
     NzTooltipDirective,
+    NzSelectComponent,
+    NzOptionComponent,
+    NzSliderComponent,
+    AsyncPipe,
     DatePipe,
     NzSpaceCompactComponent,
   ],
@@ -189,6 +203,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
+    public profilerService: ProfilerService,
     private router: Router
   ) {
     workflowWebsocketService
@@ -255,6 +270,138 @@ export class MenuComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.workflowResultExportService.resetFlags();
     this.computingUnitStatusSubscription.unsubscribe();
+  }
+
+  public profilerPopoverVisible = false;
+
+  public toggleProfilerPopover(): void {
+    this.profilerPopoverVisible = !this.profilerPopoverVisible;
+  }
+
+  public closeProfilerPopover(): void {
+    this.profilerPopoverVisible = false;
+  }
+
+  public toggleProfiling(enabled: boolean): void {
+    this.profilerService.setEnabled(enabled);
+  }
+
+  public setProfilerView(view: ProfilerView): void {
+    this.profilerService.setView(view);
+  }
+
+  public setProfilerHotThreshold(percentile: number): void {
+    this.profilerService.setHotThresholdPercentile(percentile);
+  }
+
+  /**
+   * Returns true when there's enough data to produce a meaningful profiler report —
+   * profiling must be enabled AND at least one operator has stats. The download buttons
+   * disable themselves otherwise so users never get an empty file.
+   */
+  public canDownloadProfilerReport(): boolean {
+    const state = this.profilerService.getState();
+    return state.enabled && Object.keys(state.scores).length > 0;
+  }
+
+  public downloadProfilerReport(format: "markdown" | "json"): void {
+    if (!this.canDownloadProfilerReport()) return;
+
+    const state = this.profilerService.getState();
+    const graph = this.workflowActionService.getTexeraGraph();
+    const generatedAt = new Date();
+
+    const report = buildReport({
+      workflowName: this.currentWorkflowName || DEFAULT_WORKFLOW_NAME,
+      executionName: this.currentExecutionName?.trim() || undefined,
+      generatedAt,
+      view: state.view,
+      hotThresholdPercentile: state.hotThresholdPercentile,
+      scores: state.scores,
+      operatorType: id => {
+        try {
+          return graph.getOperator(id)?.operatorType;
+        } catch {
+          return undefined;
+        }
+      },
+      displayName: id => {
+        try {
+          const op = graph.getOperator(id);
+          return op?.customDisplayName?.trim() || op?.operatorType || id;
+        } catch {
+          return id;
+        }
+      },
+      upstreamOps: id => {
+        try {
+          return graph.getInputLinksByOperatorId(id).map(l => l.source.operatorID);
+        } catch {
+          return [];
+        }
+      },
+      downstreamOps: id => {
+        try {
+          return graph.getOutputLinksByOperatorId(id).map(l => l.target.operatorID);
+        } catch {
+          return [];
+        }
+      },
+    });
+
+    const slug = slugifyForFilename(this.currentWorkflowName || DEFAULT_WORKFLOW_NAME);
+    const stamp = formatFilenameTimestamp(generatedAt);
+    if (format === "markdown") {
+      saveAs(
+        new Blob([report.markdown], { type: "text/markdown;charset=utf-8" }),
+        `profiler-report-${slug}-${stamp}.md`
+      );
+    } else {
+      saveAs(
+        new Blob([JSON.stringify(report.json, null, 2)], { type: "application/json" }),
+        `profiler-report-${slug}-${stamp}.json`
+      );
+    }
+  }
+
+  /**
+   * Handles the hidden file input's change event for the "Upload baseline"
+   * button. Parses the chosen file as a profiler JSON report and, on success,
+   * registers it as the comparison baseline on ProfilerService.
+   */
+  public onBaselineFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    // Reset the input value so selecting the same file twice still triggers change.
+    if (input) input.value = "";
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = parseBaselineReport(JSON.parse(reader.result as string));
+        if (!parsed) {
+          this.notificationService.error(
+            "That JSON doesn't look like a profiler report. Use a file downloaded via 'Download report → JSON'."
+          );
+          return;
+        }
+        this.profilerService.setBaseline(parsed);
+        this.notificationService.success(
+          `Baseline loaded: ${parsed.operators.length} operator${parsed.operators.length === 1 ? "" : "s"} from ${parsed.header.workflowName}.`
+        );
+      } catch {
+        this.notificationService.error("Could not parse the selected file as JSON.");
+      }
+    };
+    reader.onerror = () => {
+      this.notificationService.error("Failed to read the selected file.");
+    };
+    reader.readAsText(file);
+  }
+
+  public clearProfilerBaseline(): void {
+    this.profilerService.clearBaseline();
   }
 
   private subscribeToComputingUnitSelection(): void {

@@ -456,6 +456,49 @@ export class JointUIService {
   }
 
   /**
+   * Paints the operator body with a heatmap color based on a 0..1 cost score.
+   * Special states (Uninitialized/Ready, Running-with-no-data, Failed) get fixed colors per the profiler plan.
+   */
+  public changeOperatorHeatmap(
+    jointPaper: joint.dia.Paper,
+    operatorID: string,
+    score: number,
+    state: OperatorState,
+    hasMeasurableCost: boolean
+  ): void {
+    const model = jointPaper.getModelById(operatorID);
+    if (!model) return;
+    const fillColor = JointUIService.getHeatmapColor(score, state, hasMeasurableCost);
+    model.attr("rect.body/fill", fillColor);
+  }
+
+  /**
+   * Restores the operator body fill to its default (white / disabled gray).
+   */
+  public resetOperatorHeatmap(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
+    const model = jointPaper.getModelById(operator.operatorID);
+    if (!model) return;
+    model.attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
+  }
+
+  public static getHeatmapColor(score: number, state: OperatorState, hasMeasurableCost: boolean): string {
+    switch (state) {
+      case OperatorState.Uninitialized:
+      case OperatorState.Initializing:
+      case OperatorState.Ready:
+        return "#E0E0E0";
+      case OperatorState.Recovering:
+        return "#D6E9F8";
+    }
+    if (state === OperatorState.Running && !hasMeasurableCost) {
+      return "#D6E9F8";
+    }
+    const clamped = Math.max(0, Math.min(1, Number.isFinite(score) ? score : 0));
+    const hue = 120 - clamped * 120;
+    return `hsl(${hue}, 70%, 60%)`;
+  }
+
+  /**
    * This method will change the operator's color based on the validation status
    *  valid  : default color
    *  invalid: red

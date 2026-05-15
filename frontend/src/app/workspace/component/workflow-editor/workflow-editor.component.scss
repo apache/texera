@@ -93,3 +93,84 @@
     max-height: 480px;
   }
 }
+
+.profiler-legend {
+  display: none;
+  position: absolute;
+  bottom: 35px;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  width: 180px;
+  pointer-events: none;
+
+  &.profiler-legend-visible {
+    display: block;
+  }
+}
+
+.profiler-legend-title {
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.profiler-legend-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    hsl(120, 70%, 60%),
+    hsl(60, 70%, 60%),
+    hsl(0, 70%, 60%)
+  );
+}
+
+.profiler-legend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: #595959;
+}
+
+.profiler-hover-card {
+  position: absolute;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  min-width: 160px;
+  max-width: 280px;
+  pointer-events: none;
+}
+
+.profiler-hover-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #262626;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profiler-hover-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  line-height: 1.5;
+}
+
+.profiler-hover-label {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.profiler-hover-value {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: #262626;
+}

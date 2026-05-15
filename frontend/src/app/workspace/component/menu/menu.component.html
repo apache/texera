@@ -373,6 +373,24 @@
           Share
         </button>
         <button
+          (click)="toggleProfilerPopover()"
+          nz-popover
+          nzPopoverTitle="Profiler"
+          [nzPopoverTrigger]="null"
+          [(nzPopoverVisible)]="profilerPopoverVisible"
+          [nzPopoverContent]="profilerSettings"
+          nzPopoverPlacement="bottom"
+          nz-tooltip="Workflow performance profiler"
+          nzTooltipPlacement="bottom"
+          id="profiler-button"
+          nz-button
+          nzType="default">
+          <i
+            nz-icon
+            nzType="dashboard"
+            nzTheme="outline"></i>
+        </button>
+        <button
           (click)="handleKill()"
           [disabled]="
         executionState === ExecutionState.Uninitialized ||
@@ -430,6 +448,158 @@
                 nzCheckedChildren="On"
                 nzUnCheckedChildren="Off">
               </nz-switch>
+            </div>
+          </div>
+        </ng-template>
+        <ng-template #profilerSettings>
+          <div
+            *ngIf="profilerService.getStateStream() | async as profilerState"
+            style="display: flex; flex-direction: column; gap: 10px; min-width: 240px">
+            <div style="display: flex; align-items: center; gap: 10px; justify-content: space-between">
+              <span>Profiling Heatmap</span>
+              <nz-switch
+                [ngModel]="profilerState.enabled"
+                (ngModelChange)="toggleProfiling($event)"
+                nzCheckedChildren="On"
+                nzUnCheckedChildren="Off"
+                id="profiler-toggle">
+              </nz-switch>
+            </div>
+            <div
+              *ngIf="profilerState.enabled"
+              style="display: flex; align-items: center; gap: 10px; justify-content: space-between">
+              <span>View</span>
+              <nz-select
+                [ngModel]="profilerState.view"
+                (ngModelChange)="setProfilerView($event)"
+                style="min-width: 150px"
+                id="profiler-view-select">
+                <nz-option nzValue="runtime" nzLabel="Runtime"></nz-option>
+                <nz-option nzValue="throughput" nzLabel="Throughput"></nz-option>
+                <nz-option nzValue="io-imbalance" nzLabel="I/O imbalance"></nz-option>
+              </nz-select>
+            </div>
+            <div
+              *ngIf="profilerState.enabled"
+              style="display: flex; flex-direction: column; gap: 4px">
+              <span>Hot threshold (percentile): {{ profilerState.hotThresholdPercentile }}</span>
+              <nz-slider
+                [ngModel]="profilerState.hotThresholdPercentile"
+                (ngModelChange)="setProfilerHotThreshold($event)"
+                [nzMin]="0"
+                [nzMax]="100"
+                [nzStep]="5"
+                id="profiler-hot-threshold">
+              </nz-slider>
+            </div>
+            <div
+              *ngIf="profilerState.enabled"
+              style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #f0f0f0; padding-top: 8px">
+              <span>Compare to previous run</span>
+              <div *ngIf="!profilerState.baseline; else baselineLoadedBlock"
+                   style="display: flex; gap: 6px">
+                <button
+                  nz-button
+                  nzSize="small"
+                  nzType="default"
+                  class="profiler-popover-btn"
+                  nz-tooltip="Upload a profiler JSON report downloaded from a previous run"
+                  (click)="profilerBaselineFileInput.click()"
+                  id="profiler-upload-baseline">
+                  <i
+                    nz-icon
+                    nzType="upload"
+                    nzTheme="outline"></i>
+                  Upload baseline
+                </button>
+              </div>
+              <ng-template #baselineLoadedBlock>
+                <div style="display: flex; flex-direction: column; gap: 4px">
+                  <div style="font-size: 12px; color: rgba(0,0,0,0.55); line-height: 1.4">
+                    <div><strong>{{ profilerState.baseline?.header?.workflowName }}</strong></div>
+                    <div *ngIf="profilerState.baseline?.header?.executionName">
+                      Execution: {{ profilerState.baseline?.header?.executionName }}
+                    </div>
+                    <div>Generated: {{ profilerState.baseline?.header?.generatedAt }}</div>
+                    <div>{{ profilerState.baseline?.operators?.length }} operators</div>
+                  </div>
+                  <div style="display: flex; gap: 6px">
+                    <button
+                      nz-button
+                      nzSize="small"
+                      nzType="default"
+                      class="profiler-popover-btn"
+                      (click)="profilerBaselineFileInput.click()"
+                      id="profiler-replace-baseline">
+                      Replace
+                    </button>
+                    <button
+                      nz-button
+                      nzSize="small"
+                      nzType="default"
+                      nzDanger
+                      class="profiler-popover-btn"
+                      (click)="clearProfilerBaseline()"
+                      id="profiler-clear-baseline">
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </ng-template>
+              <input
+                #profilerBaselineFileInput
+                type="file"
+                accept="application/json,.json"
+                style="display: none"
+                (change)="onBaselineFileSelected($event)" />
+            </div>
+            <div
+              *ngIf="profilerState.enabled"
+              style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #f0f0f0; padding-top: 8px">
+              <span>Download report</span>
+              <div style="display: flex; gap: 6px">
+                <button
+                  nz-button
+                  nzSize="small"
+                  nzType="default"
+                  class="profiler-popover-btn"
+                  [disabled]="!canDownloadProfilerReport()"
+                  nz-tooltip="Human-readable markdown report"
+                  (click)="downloadProfilerReport('markdown')"
+                  id="profiler-download-md">
+                  <i
+                    nz-icon
+                    nzType="file-markdown"
+                    nzTheme="outline"></i>
+                  Markdown
+                </button>
+                <button
+                  nz-button
+                  nzSize="small"
+                  nzType="default"
+                  class="profiler-popover-btn"
+                  [disabled]="!canDownloadProfilerReport()"
+                  nz-tooltip="Machine-readable JSON report"
+                  (click)="downloadProfilerReport('json')"
+                  id="profiler-download-json">
+                  <i
+                    nz-icon
+                    nzType="file-text"
+                    nzTheme="outline"></i>
+                  JSON
+                </button>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; border-top: 1px solid #f0f0f0; padding-top: 8px">
+              <button
+                nz-button
+                nzSize="small"
+                nzType="default"
+                class="profiler-popover-btn"
+                (click)="closeProfilerPopover()"
+                id="profiler-close-button">
+                Close
+              </button>
             </div>
           </div>
         </ng-template>

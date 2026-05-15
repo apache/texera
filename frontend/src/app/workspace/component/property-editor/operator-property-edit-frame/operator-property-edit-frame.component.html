@@ -146,6 +146,145 @@
   Confirm Change
 </button>
 
+<nz-collapse
+  *ngIf="currentOperatorStatus"
+  class="profiler-section"
+  nzAccordion="false">
+  <nz-collapse-panel
+    [nzHeader]="profilerEnabled ? 'Profiler (live)' : 'Profiler'"
+    [nzActive]="profilerEnabled">
+    <div class="profiler-metrics">
+      <div
+        *ngIf="profilerScore !== undefined"
+        class="profiler-metric-row">
+        <span class="profiler-metric-label">Heat score</span>
+        <span class="profiler-metric-value">{{ profilerScore | number: '1.0-2' }}</span>
+      </div>
+      <div
+        *ngIf="getProfilerRuntimeMs(currentOperatorStatus) as ms"
+        class="profiler-metric-row">
+        <span class="profiler-metric-label">Runtime</span>
+        <span class="profiler-metric-value">{{ ms | number: '1.0-1' }} ms</span>
+      </div>
+      <div
+        *ngIf="getProfilerThroughputRowsPerSec(currentOperatorStatus) as tput"
+        class="profiler-metric-row">
+        <span class="profiler-metric-label">Throughput</span>
+        <span class="profiler-metric-value">{{ tput | number: '1.0-0' }} rows/s</span>
+      </div>
+      <div class="profiler-metric-row">
+        <span class="profiler-metric-label">Input rows</span>
+        <span class="profiler-metric-value">{{ currentOperatorStatus.aggregatedInputRowCount | number }}</span>
+      </div>
+      <div class="profiler-metric-row">
+        <span class="profiler-metric-label">Output rows</span>
+        <span class="profiler-metric-value">{{ currentOperatorStatus.aggregatedOutputRowCount | number }}</span>
+      </div>
+      <div
+        *ngIf="currentOperatorStatus.aggregatedInputSize as inSize"
+        class="profiler-metric-row">
+        <span class="profiler-metric-label">Input size (bytes)</span>
+        <span class="profiler-metric-value">{{ inSize | number }}</span>
+      </div>
+      <div
+        *ngIf="currentOperatorStatus.aggregatedOutputSize as outSize"
+        class="profiler-metric-row">
+        <span class="profiler-metric-label">Output size (bytes)</span>
+        <span class="profiler-metric-value">{{ outSize | number }}</span>
+      </div>
+      <div
+        *ngIf="currentOperatorStatus.numWorkers as workers"
+        class="profiler-metric-row">
+        <span class="profiler-metric-label">Workers</span>
+        <span class="profiler-metric-value">{{ workers }}</span>
+      </div>
+      <div
+        *ngIf="getProfilerIdleRatio(currentOperatorStatus) as idleRatio"
+        class="profiler-metric-row">
+        <span class="profiler-metric-label">Idle ratio</span>
+        <span class="profiler-metric-value">{{ idleRatio | number: '1.0-2' }}</span>
+      </div>
+    </div>
+    <div
+      *ngIf="profilerEnabled && profilerHints.length > 0"
+      class="profiler-hints">
+      <div class="profiler-hints-title">Optimization hints</div>
+      <div
+        *ngFor="let hint of profilerHints"
+        class="profiler-hint">
+        <nz-tag [nzColor]="hint.severity === 'warning' ? 'orange' : 'blue'">{{ hint.ruleId }}</nz-tag>
+        <span class="profiler-hint-message">{{ hint.message }}</span>
+      </div>
+    </div>
+    <div
+      *ngIf="profilerEnabled && profilerHints.length === 0"
+      class="profiler-hints-empty">
+      No optimization hints for this operator.
+    </div>
+    <div
+      *ngIf="profilerBaselineLoaded"
+      class="profiler-baseline">
+      <div class="profiler-baseline-title">Compared to baseline</div>
+      <ng-container *ngIf="profilerBaselineDelta; else baselineNoData">
+        <div
+          *ngIf="profilerBaselineDelta.matchStatus === 'new-in-current'"
+          class="profiler-baseline-status">
+          New operator in this run — not present in the baseline.
+        </div>
+        <div
+          *ngIf="profilerBaselineDelta.matchStatus === 'removed-since-baseline'"
+          class="profiler-baseline-status">
+          Removed since baseline — was present in the previous run only.
+        </div>
+        <ng-container *ngIf="profilerBaselineDelta.matchStatus === 'matched'">
+          <div class="profiler-baseline-row">
+            <nz-tag
+              [nzColor]="profilerBaselineDelta.direction === 'improved' ? 'green'
+                : profilerBaselineDelta.direction === 'regressed' ? 'red'
+                : profilerBaselineDelta.direction === 'unchanged' ? 'default' : 'default'">
+              {{ profilerBaselineDelta.direction }}
+            </nz-tag>
+            <span class="profiler-baseline-row-label">Direction</span>
+          </div>
+          <div
+            *ngIf="profilerBaselineDelta.runtimeMsDelta !== null"
+            class="profiler-metric-row">
+            <span class="profiler-metric-label">Runtime Δ</span>
+            <span class="profiler-metric-value">
+              {{ profilerBaselineDelta.runtimeMsDelta | number: '1.0-1' }} ms
+            </span>
+          </div>
+          <div
+            *ngIf="profilerBaselineDelta.throughputRowsPerSecDelta !== null"
+            class="profiler-metric-row">
+            <span class="profiler-metric-label">Throughput Δ</span>
+            <span class="profiler-metric-value">
+              {{ profilerBaselineDelta.throughputRowsPerSecDelta | number: '1.0-0' }} rows/s
+            </span>
+          </div>
+          <div class="profiler-metric-row">
+            <span class="profiler-metric-label">Output rows Δ</span>
+            <span class="profiler-metric-value">{{ profilerBaselineDelta.outputRowsDelta | number }}</span>
+          </div>
+          <div class="profiler-metric-row">
+            <span class="profiler-metric-label">Input rows Δ</span>
+            <span class="profiler-metric-value">{{ profilerBaselineDelta.inputRowsDelta | number }}</span>
+          </div>
+          <div
+            *ngIf="profilerBaselineDelta.scoreDelta !== null"
+            class="profiler-metric-row">
+            <span class="profiler-metric-label">Heat score Δ</span>
+            <span class="profiler-metric-value">{{ profilerBaselineDelta.scoreDelta | number: '1.0-2' }}</span>
+          </div>
+        </ng-container>
+      </ng-container>
+      <ng-template #baselineNoData>
+        <div class="profiler-baseline-status">No comparable data for this operator.</div>
+      </ng-template>
+    </div>
+  </nz-collapse-panel>
+</nz-collapse>
+
 <div class="operator-version">
   <span>Operator Version: {{ operatorVersion }}</span>
 </div>
