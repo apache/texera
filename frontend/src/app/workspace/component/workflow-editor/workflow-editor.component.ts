@@ -1426,11 +1426,57 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    */
   private handleCenterEvent(): void {
     const CENTER_OFFSET_RATIO = 0.15; // Offset ratio used to leave margin when centering
+    // Vertical space reserved on mobile for the chrome that overlays the
+    // canvas: the floating title/run card at the top, and the docked
+    // result panel at the bottom. Operators are centered in the remaining
+    // visible band so they don't sit under either.
+    const MOBILE_CARD_RESERVE_PX = 100;
+    const MOBILE_RESULT_PANEL_RATIO = 0.4; // matches `height: 40vh` in workspace.scss
     this.workflowActionService
       .getTexeraGraph()
       .getCenterEventStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+        if (isMobile) {
+          // True bounding-box centering: translate so the operators' bbox
+          // center maps to the visible canvas center (below the card).
+          const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
+          if (operators.length === 0) {
+            this.paper.translate(0, 0);
+            return;
+          }
+
+          const graph = this.workflowActionService.getJointGraphWrapper().jointGraph;
+          const cells = operators
+            .map(op => graph.getCell(op.operatorID))
+            .filter((cell): cell is joint.dia.Element => !!cell && cell.isElement());
+          if (cells.length === 0) {
+            this.paper.translate(0, 0);
+            return;
+          }
+          const bbox = graph.getCellsBBox(cells);
+          if (!bbox) {
+            this.paper.translate(0, 0);
+            return;
+          }
+
+          const bboxCenterX = bbox.x + bbox.width / 2;
+          const bboxCenterY = bbox.y + bbox.height / 2;
+
+          const viewportCenterX = this.editor.offsetWidth / 2;
+          const resultPanelPx = this.editor.offsetHeight * MOBILE_RESULT_PANEL_RATIO;
+          const visibleTop = MOBILE_CARD_RESERVE_PX;
+          const visibleBottom = this.editor.offsetHeight - resultPanelPx;
+          const viewportCenterY = (visibleTop + visibleBottom) / 2;
+
+          this.paper.translate(viewportCenterX - bboxCenterX, viewportCenterY - bboxCenterY);
+          return;
+        }
+
+        // Desktop: place the operators' top-left at a 15% offset from the
+        // top-left of the canvas (existing behavior).
         this.workflowActionService.calculateTopLeftOperatorPosition();
 
         const centerCoord = this.workflowActionService.getCenterPoint();

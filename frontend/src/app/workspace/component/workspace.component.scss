@@ -57,3 +57,283 @@ texera-workflow-editor {
 :host {
   user-select: none;
 }
+
+// ---------------------------------------------------------------------------
+// Mobile (<768px): the workflow editor is fundamentally a desktop UX —
+// JointJS canvas with operator drawer, property editor, results pane, agent
+// panel, and minimap that don't all fit on a phone. Hide them so the canvas
+// fills the screen; phone users pan/zoom to view a workflow but edit on
+// desktop. Native swipe-from-left navigates back.
+//
+// The menu stays mounted but is restyled into a small floating action area
+// at the bottom-right showing only the Run + Kill buttons, since launching
+// a workflow is the one editor action a phone user actually needs.
+// ---------------------------------------------------------------------------
+@media (max-width: 767px) {
+  texera-mini-map,
+  texera-left-panel,
+  texera-agent-panel,
+  texera-property-editor {
+    display: none;
+  }
+
+  // Result panel is always open, docked at the bottom of the viewport.
+  // The result-panel component is opened via TS (`openPanel()` on init)
+  // and its bound width/height/dragPosition are overridden here so the
+  // panel takes a fixed bottom band of the screen.
+  #result {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    z-index: 5;
+    pointer-events: auto;
+  }
+
+  :host ::ng-deep texera-result-panel {
+    // Constrain the result-panel host to the bottom 40% of the viewport
+    // instead of its desktop full-screen overlay.
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 40vh !important;
+  }
+
+  // Stretch the inner draggable container to fill that band and neutralize
+  // the cdkDrag transform (which would otherwise offset it off-screen).
+  :host ::ng-deep texera-result-panel #result-container {
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    transform: none !important;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  :host ::ng-deep texera-result-panel #content {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  // The floating open/close toggle ribbon on the right is desktop UX —
+  // hide it; mobile users always have the panel open.
+  :host ::ng-deep texera-result-panel #texera-workspace,
+  :host ::ng-deep texera-result-panel #result-buttons,
+  :host ::ng-deep texera-result-panel #panel-button,
+  :host ::ng-deep texera-result-panel nz-resize-handles {
+    display: none !important;
+  }
+
+  // Hide the left tab list inside the result panel — there's not enough
+  // horizontal room for it on a phone, and the panel renders the active
+  // tab's content full-width without it.
+  :host ::ng-deep texera-result-panel .result-content .ant-tabs-nav {
+    display: none !important;
+  }
+
+  // Let the active tab fill the space the tab list used to occupy.
+  :host ::ng-deep texera-result-panel .result-content .ant-tabs-content-holder {
+    margin-left: 0 !important;
+  }
+
+  // Strip the result-table-frame down to just headers + cell values.
+  // Desktop chrome we don't want on phones:
+  //   .column-search       — "Search Columns" input
+  //   .column-navigation   — Previous/Next Columns buttons
+  //   .custom-stats-row    — Min/Max/Non-Null sub-header row
+  //   .download-button     — per-cell cloud-download icon
+  :host ::ng-deep texera-result-panel .column-search,
+  :host ::ng-deep texera-result-panel .column-navigation,
+  :host ::ng-deep texera-result-panel .custom-stats-row,
+  :host ::ng-deep texera-result-panel .download-button {
+    display: none !important;
+  }
+
+  // Tighter table look: no outer border on the wrapper, lighter cell
+  // padding so more rows are visible in the 40vh band.
+  :host ::ng-deep texera-result-panel .ant-table-container {
+    border: none !important;
+  }
+
+  :host ::ng-deep texera-result-panel .ant-table-cell {
+    padding: 8px 12px !important;
+  }
+
+  texera-menu {
+    // Spans the top of the viewport as a thin "title + actions" bar:
+    // workflow name on the left, Run/Kill cluster on the right.
+    position: fixed;
+    inset: max(12px, env(safe-area-inset-top)) 12px auto 12px;
+    bottom: auto;
+    width: auto;
+    height: auto;
+    background: transparent;
+    z-index: 10;
+  }
+
+  :host ::ng-deep texera-menu {
+    // Title and Run/Kill buttons sit on one row inside a single app-style
+    // card.
+    #menu-container {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 10px 12px 10px 16px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 14px;
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.04),
+        0 8px 24px rgba(0, 0, 0, 0.08);
+      backdrop-filter: saturate(180%) blur(12px);
+      -webkit-backdrop-filter: saturate(180%) blur(12px);
+    }
+
+    #menu-content {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+      border: none;
+    }
+
+    // ----- Workflow name as page title (left side of the card) -----
+    #menu-user {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      border: none;
+    }
+
+    #menu-user > #metadata {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+    }
+
+    // Inside #metadata, hide everything except the <label> wrapping the
+    // workflow-name input (back/restore/clone buttons, version-info span,
+    // autosave-state span).
+    #menu-user #metadata > button,
+    #menu-user #metadata > span {
+      display: none;
+    }
+
+    #menu-user #metadata > label {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+    }
+
+    // Inside the label, hide the workflow-id avatar and the version-date
+    // fallback — keep just the editable workflow-name input.
+    #menu-user #metadata > label > nz-avatar,
+    #menu-user #metadata > label > span {
+      display: none;
+    }
+
+    // Match the workflow list page's .page-title style (26px / 700).
+    #menu-user input.workflow-name {
+      min-width: 0;
+      max-width: none;
+      width: 100%;
+      font-size: 26px;
+      font-weight: 700;
+      color: inherit;
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+
+      &:hover,
+      &:focus {
+        box-shadow: none;
+      }
+    }
+
+    // Hide the coeditor avatar list + user icon inside menu-user.
+    #menu-user > texera-coeditor-user-icon,
+    #menu-user > texera-user-icon {
+      display: none;
+    }
+
+    // ----- Hide the secondary menu rows entirely -----
+    #user-buttons,
+    #expanded-utilities,
+    #utilities-dropdown-button {
+      display: none;
+    }
+
+    // ----- Run + Kill cluster (right side) -----
+    #execution-buttons {
+      display: inline-flex;
+      gap: 8px;
+      background: transparent;
+      flex-shrink: 0;
+    }
+
+    #execution-buttons > texera-computing-unit-selection,
+    #execution-buttons > #texera-compute-unit-selection,
+    #execution-buttons > #share-button,
+    #execution-buttons > #checkpoint-button,
+    // The two trailing <div>s in #execution-buttons: the green/red
+    // connection-status badge and the H:mm:ss execution-duration timer.
+    // Neither has a class/id of its own — they're the only <div> children.
+    #execution-buttons > div {
+      display: none;
+    }
+
+    #run-button {
+      height: 40px;
+      padding: 0 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+
+      // The blue glow only reads as "primary action" when the button is
+      // actually clickable — drop it in disabled states.
+      &:not([disabled]) {
+        box-shadow: 0 4px 12px rgba(24, 144, 255, 0.35);
+      }
+    }
+
+    #execution-buttons > button[nzdanger],
+    #execution-buttons > button.ant-btn-dangerous {
+      height: 40px;
+      width: 40px;
+      padding: 0;
+      border-radius: 50%;
+
+      // Kill is only meaningful while a workflow is running. Hide it when
+      // disabled so the toolbar doesn't carry a dead grayed-out red FAB.
+      &[disabled] {
+        display: none;
+      }
+
+      &:not([disabled]) {
+        box-shadow: 0 4px 12px rgba(245, 34, 45, 0.35);
+      }
+    }
+  }
+}

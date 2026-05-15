@@ -413,3 +413,18 @@ hr {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Mobile (<768px): nz-popover content is rendered into a body-level CDK
+// overlay (.ant-popover), so component-scoped styles can't reach it. On
+// touch devices, tap-induced :hover fires the popover trigger — e.g. the
+// Run button's "Execution Settings" popover appears on every tap. Globally
+// suppress popovers on phones; they aren't usable on touch anyway.
+// !important is needed because ng-zorro sets display via inline style on
+// the overlay host.
+// ---------------------------------------------------------------------------
+@media (max-width: 767px) {
+  .ant-popover {
+    display: none !important;
+  }
+}

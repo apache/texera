@@ -35,13 +35,12 @@
       <p class="hero-tagline">Human–AI data science with visual workflows</p>
     </div>
 
-    <!-- Login card. Mobile: in-flow under the hero. Desktop: floats top-right. -->
-    <ng-container *ngIf="(isLogin$ | async) === false as isLogin">
-      <texera-local-login
-        *ngIf="this.config.env.localLogin"
-        class="login-container">
-      </texera-local-login>
-    </ng-container>
+    <!-- Login card. Always shown (even when logged in) so users on mobile
+         can sign in as a different account without finding a logout. -->
+    <texera-local-login
+      *ngIf="this.config.env.localLogin"
+      class="login-container">
+    </texera-local-login>
 
     <!-- About prose: visible on tablet+ only -->
     <div class="about-prose">

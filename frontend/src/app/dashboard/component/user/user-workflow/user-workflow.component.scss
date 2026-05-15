@@ -25,3 +25,45 @@
   right: 8px;
   top: 5px;
 }
+
+// ---------------------------------------------------------------------------
+// Mobile (<768px): the header row is too dense for a phone. Slim down the
+// title, collapse the "Create Workflow" button to its icon, let the utility
+// button group wrap, and replace the fixed-height grid with intrinsic sizing
+// so a wrapping toolbar doesn't clip into the list below.
+// ---------------------------------------------------------------------------
+@media (max-width: 767px) {
+  .section-container {
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .section-title {
+    .page-title {
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    // The whole header button row (Create + utility group + filters) is
+    // desktop-only on phones.
+    .button-group {
+      display: none;
+    }
+
+    // "Create Workflow" — keep the icon, drop the label.
+    .create-btn span:not([nz-icon]) {
+      display: none;
+    }
+
+    // Sort / upload / batch-select / download-zip / duplicate-many / delete-many
+    // / add-to-project / remove-from-project — all desktop-only.
+    .utility-button-group {
+      display: none;
+    }
+  }
+
+  .section-search-bar {
+    padding: 4px 12px;
+    margin-left: 0;
+  }
+}

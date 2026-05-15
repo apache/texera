@@ -66,3 +66,64 @@
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Mobile (<768px): strip the row down to "workflow name + last-modified time".
+// Avatar, inline edit buttons, description, created date, project labels and
+// action icons are desktop-only — they don't fit on a phone and the items
+// stop being tappable when they're crammed in. Management actions are
+// reachable from the workflow detail view.
+// ---------------------------------------------------------------------------
+@media (max-width: 767px) {
+  .workflow-list-item {
+    padding: 8px 0;
+    min-height: 56px;
+    margin-bottom: 4px;
+  }
+
+  .workflow-item-meta-title {
+    // Drop the inline edit / add-description icons next to the name.
+    button {
+      display: none;
+    }
+  }
+
+  .workflow-name {
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  // Hide the description row entirely (often empty, eats vertical space).
+  .workflow-item-meta-description {
+    display: none;
+  }
+
+  // Keep "Last Modified" only; the "Created" timestamp is rarely useful.
+  ::ng-deep .metadata-container {
+    font-size: 12px;
+    line-height: 1.3;
+
+    span:nth-child(2) {
+      display: none;
+    }
+  }
+
+  // Avatar (gray circle with workflow id) is pure noise on a phone.
+  ::ng-deep .ant-list-item-meta-avatar {
+    display: none;
+  }
+
+  // Hide project label chips on phones; tap into the workflow to see them.
+  .project-label-container {
+    display: none;
+  }
+
+  // Strip every per-row action button (share / duplicate / download / delete /
+  // executions). Mobile is a read+open surface; manage workflows on desktop.
+  ::ng-deep .ant-list-item-action {
+    display: none;
+  }
+}

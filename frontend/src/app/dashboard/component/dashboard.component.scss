@@ -119,3 +119,18 @@ nz-content {
   max-height: 100%;
   overflow: hidden;
 }
+
+// On phones, strip the web-app chrome so the content has the whole
+// viewport. Hides the top nav (search + sign-in) and the left sider
+// (Hub / About menu), and drops the inner-layout border that would
+// otherwise leave a 1px sliver where the sider used to sit.
+@media (max-width: 767px) {
+  #nav,
+  nz-sider {
+    display: none;
+  }
+
+  .page-content-layout {
+    border-left: none;
+  }
+}

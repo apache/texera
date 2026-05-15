@@ -236,6 +236,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // load the fetched workflow
           this.workflowActionService.reloadWorkflow(workflow);
           this.workflowActionService.enableWorkflowModification();
+
+          // On mobile the editor chrome (menu / panels / minimap / results) is
+          // hidden so the canvas fills the viewport; saved operator positions
+          // were chosen on a desktop viewport and end up off-screen. Trigger
+          // the existing center-on-operators flow once layout has settled.
+          if (window.matchMedia("(max-width: 767px)").matches) {
+            setTimeout(() => this.workflowActionService.getTexeraGraph().triggerCenterEvent(), 100);
+          }
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment

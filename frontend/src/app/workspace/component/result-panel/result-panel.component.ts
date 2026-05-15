@@ -149,6 +149,15 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         this.closePanel();
       }
     });
+
+    // On mobile, dock the result panel open at the bottom of the viewport.
+    // The constructor defaulted `width = 0` (closed); switching to an open
+    // state makes `*ngIf="width"` render the content. CSS in workspace.scss
+    // overrides the cdkDrag inline transform and the bound width/height so
+    // it stretches to a fixed bottom band.
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      this.openPanel();
+    }
   }
 
   @HostListener("window:beforeunload")
