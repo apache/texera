@@ -38,6 +38,9 @@ import {
   maxAbsRuntimeDelta,
   statsToComparable,
 } from "../../service/profiler/profiler-delta";
+import { ProfilerSuggestionsService } from "../../service/profiler/profiler-suggestions.service";
+import { Suggestion } from "../../service/profiler/profiler-suggestions";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
@@ -56,7 +59,9 @@ import concaveman from "concaveman";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { NgIf, AsyncPipe, DecimalPipe, NgSwitch, NgSwitchCase } from "@angular/common";
+import { NgIf, NgFor, AsyncPipe, DecimalPipe, NgSwitch, NgSwitchCase } from "@angular/common";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -98,7 +103,7 @@ export const MAIN_CANVAS = {
   selector: "texera-workflow-editor",
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
-  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, NgSwitch, NgSwitchCase, AsyncPipe, DecimalPipe, AgentInteractionComponent],
+  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, NgFor, NgSwitch, NgSwitchCase, AsyncPipe, DecimalPipe, NzTooltipModule, NzIconModule, AgentInteractionComponent],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
@@ -129,6 +134,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     y: number;
   } | null = null;
 
+  // Ghost optimization suggestions rendered as HTML overlays on top of the canvas.
+  // Each ghost is a "click to materialize" Filter insertion proposed by the profiler.
+  public profilerGhosts: ReadonlyArray<Suggestion & { x: number; y: number }> = [];
+  private lastSuggestions: readonly Suggestion[] = [];
+
   // Cached agent result summaries for port label display
 
   constructor(
@@ -150,7 +160,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private elementRef: ElementRef,
     private config: GuiConfigService,
     private agentService: AgentService,
-    public profilerService: ProfilerService
+    public profilerService: ProfilerService,
+    private profilerSuggestionsService: ProfilerSuggestionsService,
+    private workflowUtilService: WorkflowUtilService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -212,6 +224,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleProfilerHeatmap();
     this.handleProfilerHover();
+    this.handleProfilerSuggestions();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -554,6 +567,123 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       this.profilerHover = null;
       this.changeDetectorRef.detectChanges();
     }
+  }
+
+  /**
+   * Subscribes to the profiler suggestions stream and renders one HTML "ghost"
+   * overlay per suggestion. Ghosts are positioned at the midpoint of the edge they
+   * represent, in wrapper-relative pixel coordinates. Repositions on canvas pan/zoom
+   * so the ghosts stay anchored.
+   */
+  private handleProfilerSuggestions(): void {
+    this.profilerSuggestionsService
+      .getSuggestionsStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(suggestions => {
+        this.lastSuggestions = suggestions;
+        this.recomputeGhostPositions();
+      });
+
+    // JointJS emits `translate` / `scale` events when the user pans/zooms the canvas.
+    // Reposition ghosts on each so they remain anchored to their edges.
+    this.paper.on("translate", () => this.recomputeGhostPositions());
+    this.paper.on("scale", () => this.recomputeGhostPositions());
+  }
+
+  private recomputeGhostPositions(): void {
+    if (!this.editorWrapper) {
+      this.profilerGhosts = [];
+      return;
+    }
+    const wrapperRect = this.editorWrapper.getBoundingClientRect();
+    const positioned: Array<Suggestion & { x: number; y: number }> = [];
+    // Track per-edge occupancy so overlapping ghosts get a small vertical offset.
+    const edgeBucket = new Map<string, number>();
+    for (const s of this.lastSuggestions) {
+      const upElem = this.paper.getModelById(s.upstreamOpId);
+      const downElem = this.paper.getModelById(s.downstreamOpId);
+      if (!upElem || !downElem) continue;
+      const upBBox = (upElem as joint.dia.Element).getBBox();
+      const downBBox = (downElem as joint.dia.Element).getBBox();
+      const midPaperX = (upBBox.x + upBBox.width + downBBox.x) / 2;
+      const midPaperY = (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2;
+      const pagePoint = this.paper.localToPagePoint(midPaperX, midPaperY);
+      const edgeKey = `${s.upstreamOpId}->${s.downstreamOpId}`;
+      const stackIdx = edgeBucket.get(edgeKey) ?? 0;
+      edgeBucket.set(edgeKey, stackIdx + 1);
+      positioned.push({
+        ...s,
+        x: pagePoint.x - wrapperRect.left,
+        y: pagePoint.y - wrapperRect.top + stackIdx * 32,
+      });
+    }
+    this.profilerGhosts = positioned;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  /**
+   * Materializes a ghost into a real Filter operator wired between the two endpoints.
+   * Bundled so the whole structural edit is a single undo step.
+   */
+  public materializeSuggestion(ghost: Suggestion): void {
+    if (ghost.type !== "INSERT_FILTER") return;
+    const upElem = this.paper.getModelById(ghost.upstreamOpId);
+    const downElem = this.paper.getModelById(ghost.downstreamOpId);
+    if (!upElem || !downElem) {
+      this.profilerSuggestionsService.dismiss(ghost.id);
+      return;
+    }
+    const upBBox = (upElem as joint.dia.Element).getBBox();
+    const downBBox = (downElem as joint.dia.Element).getBBox();
+    const newPos = {
+      x: (upBBox.x + upBBox.width + downBBox.x) / 2 - 60,
+      y: (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2 - 30,
+    };
+
+    const newFilter = this.workflowUtilService.getNewOperatorPredicate("Filter");
+    const graph = this.workflowActionService.getTexeraGraph();
+    const existingLinks = graph
+      .getOutputLinksByOperatorId(ghost.upstreamOpId)
+      .filter(l => l.target.operatorID === ghost.downstreamOpId);
+
+    graph.bundleActions(() => {
+      this.workflowActionService.addOperator(newFilter, newPos);
+      if (existingLinks.length > 0) {
+        const linkToBreak = existingLinks[0];
+        const newInputPortId = newFilter.inputPorts[0]?.portID;
+        const newOutputPortId = newFilter.outputPorts[0]?.portID;
+        if (newInputPortId && newOutputPortId) {
+          this.workflowActionService.deleteLink(linkToBreak.source, linkToBreak.target);
+          this.workflowActionService.addLink({
+            linkID: this.workflowUtilService.getLinkRandomUUID(),
+            source: linkToBreak.source,
+            target: { operatorID: newFilter.operatorID, portID: newInputPortId },
+          });
+          this.workflowActionService.addLink({
+            linkID: this.workflowUtilService.getLinkRandomUUID(),
+            source: { operatorID: newFilter.operatorID, portID: newOutputPortId },
+            target: linkToBreak.target,
+          });
+        }
+      }
+    });
+
+    // Open the property panel on the new Filter so the user can configure its predicate.
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .setMultiSelectMode(false);
+    this.workflowActionService.getJointGraphWrapper().highlightOperators(newFilter.operatorID);
+
+    this.profilerSuggestionsService.dismiss(ghost.id);
+  }
+
+  public dismissSuggestion(ghost: Suggestion, event: MouseEvent): void {
+    event.stopPropagation();
+    this.profilerSuggestionsService.dismiss(ghost.id);
+  }
+
+  public trackGhostById(_index: number, ghost: Suggestion): string {
+    return ghost.id;
   }
 
   private handleRegionEvents(): void {

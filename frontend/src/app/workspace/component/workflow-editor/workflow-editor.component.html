@@ -65,6 +65,34 @@
   </div>
 
   <div
+    *ngFor="let ghost of profilerGhosts; trackBy: trackGhostById"
+    class="profiler-ghost"
+    [style.left.px]="ghost.x"
+    [style.top.px]="ghost.y"
+    [nz-tooltip]="ghost.reasonMessage"
+    nzTooltipPlacement="top">
+    <div
+      class="profiler-ghost-body"
+      (click)="materializeSuggestion(ghost)">
+      <i
+        nz-icon
+        nzType="filter"
+        nzTheme="outline"></i>
+      <span>+ Filter</span>
+    </div>
+    <button
+      class="profiler-ghost-dismiss"
+      (click)="dismissSuggestion(ghost, $event)"
+      nz-tooltip="Dismiss suggestion"
+      nzTooltipPlacement="top"
+      aria-label="Dismiss suggestion">
+      <i
+        nz-icon
+        nzType="close"></i>
+    </button>
+  </div>
+
+  <div
     *ngIf="profilerHover"
     class="profiler-hover-card"
     [style.left.px]="profilerHover.x"
