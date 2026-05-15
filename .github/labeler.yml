@@ -46,9 +46,9 @@ agent-service:
 
 engine:
   # Non-Python, non-integration parts of amber/. Pure Python changes
-  # under amber/src/main/python/** intentionally fall through to the
-  # `python` label (which the labeler also matches via **/*.py), so
-  # they only trigger the python + amber-integration stacks rather
+  # under amber/src/{main,test}/python/** intentionally fall through to
+  # the `python` label (which the labeler also matches via **/*.py),
+  # so they only trigger the python + amber-integration stacks rather
   # than the full Scala-only `amber` stack. Integration specs live
   # under amber/src/test/integration/** (added to sbt's Test sources
   # via amber/build.sbt) and are caught by the `amber-integration`
@@ -88,6 +88,8 @@ python:
   - changed-files:
       - any-glob-to-any-file:
           - 'amber/src/main/python/**'
+          - 'amber/src/test/python/**'
+          - 'amber/pyproject.toml'
           - '**/*.py'
           - '**/requirements.txt'
           - '**/*-requirements.txt'

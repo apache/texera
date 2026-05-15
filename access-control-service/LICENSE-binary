@@ -247,6 +247,7 @@ Scala/Java jars:
   - com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
   - com.typesafe.config-1.4.6.jar
   - com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar
+  - com.zaxxer.HikariCP-5.1.0.jar
   - io.dropwizard.dropwizard-auth-4.0.7.jar
   - io.dropwizard.dropwizard-configuration-4.0.7.jar
   - io.dropwizard.dropwizard-core-4.0.7.jar
@@ -324,7 +325,7 @@ Source files derived from third-party MIT-licensed projects:
 
 Scala/Java jars:
   - net.sourceforge.argparse4j.argparse4j-0.9.0.jar
-  - org.checkerframework.checker-qual-3.42.0.jar
+  - org.checkerframework.checker-qual-3.52.0.jar
   - org.slf4j.jul-to-slf4j-2.0.12.jar
   - org.slf4j.slf4j-api-2.0.12.jar
 
@@ -341,7 +342,7 @@ Dependencies under the BSD 2-Clause License
 --------------------------------------------------------------------------------
 
 Scala/Java jars:
-  - org.postgresql.postgresql-42.7.4.jar
+  - org.postgresql.postgresql-42.7.10.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Public License, Version 2.0 (some are dual

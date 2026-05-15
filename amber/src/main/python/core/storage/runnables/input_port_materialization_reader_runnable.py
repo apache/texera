@@ -37,8 +37,9 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 from core.models import Tuple, InternalQueue, DataFrame, DataPayload, State, StateFrame
 from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import Stoppable, get_one_of
-from core.util.runnable.runnable import Runnable
+from core.util.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
@@ -125,15 +126,6 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             if receiver == self.worker_actor_id:
                 yield self.tuples_to_data_frame(tuples)
 
-    def emit_state_with_filter(self, state: State) -> typing.Iterator[DataPayload]:
-        for receiver, payload in self.partitioner.flush_state(state):
-            if receiver == self.worker_actor_id:
-                yield (
-                    StateFrame(payload)
-                    if isinstance(payload, State)
-                    else self.tuples_to_data_frame(payload)
-                )
-
     def run(self) -> None:
         """
         Main execution logic that reads tuples from the materialized storage and
@@ -141,23 +133,32 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         emits an EndChannel ECM. Use the same partitioner implementation as that in
         output manager, where a tuple is batched by the partitioner and only
         selected as the input of this worker according to the partitioner.
+
+        States and tuples are persisted to separate tables, so the original
+        interleaving is lost and replay has to pick an order: we replay states
+        first because downstream operators typically need their state set up
+        before they process the incoming tuples. Every state is broadcast to
+        every downstream worker -- no partitioner filtering, unlike the tuple
+        loop. State is shared context (e.g. config / counters), not per-key
+        data, so each worker needs the full set.
         """
         try:
             self.materialization, self.tuple_schema = DocumentFactory.open_document(
-                self.uri
+                VFSURIFactory.result_uri(self.uri)
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
 
+            # State is broadcast to every downstream worker (no partitioner
+            # filtering, unlike the tuple loop) -- per the design comment
+            # above. Loop-specific: guard with try/except since the state
+            # document may not be provisioned on every materialization in
+            # this branch (the LoopEnd path open-or-creates it).
             try:
                 state_document, _ = DocumentFactory.open_document(
-                    State.uri_from_result_uri(self.uri)
+                    VFSURIFactory.state_uri(self.uri)
                 )
-                state_iterator = state_document.get()
-                for state in state_iterator:
-                    for state_frame in self.emit_state_with_filter(
-                        State.from_tuple(state)
-                    ):
-                        self.emit_payload(state_frame)
+                for state_row in state_document.get():
+                    self.emit_payload(StateFrame(State.from_tuple(state_row)))
             except ValueError:
                 pass
 

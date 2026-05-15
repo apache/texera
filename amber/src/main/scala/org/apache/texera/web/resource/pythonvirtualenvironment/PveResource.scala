@@ -23,29 +23,40 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters._
 import java.util
+import javax.ws.rs.DELETE
+import javax.ws.rs.PathParam
+import javax.ws.rs.core.Response
 
 @Path("/pve")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class PveResource {
   // --------------------------------------------------
-  // Get installed packages
+  // Get system packages
   // --------------------------------------------------
   @GET
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getSystemPackages: util.Map[String, util.List[String]] = {
     try {
-      val systemPkgs = PveManager.getSystemPackages().toList.asJava
+
+      // TODO: Support Kubernetes environment handling
+      val isLocal = true
+
+      val systemPkgs =
+        PveManager.getSystemPackages(isLocal).toList.asJava
+
       Map("system" -> systemPkgs).asJava
     } catch {
       case e: Exception =>
         e.printStackTrace()
-        throw new InternalServerErrorException("Failed to get system packages.")
+        throw new InternalServerErrorException(
+          "Failed to get system packages."
+        )
     }
   }
 
   // --------------------------------------------------
-  // Fetch PVEs
+  // Fetch PVEs and Installed User Packages
   // --------------------------------------------------
   @GET
   @Path("/pves")
@@ -54,9 +65,10 @@ class PveResource {
     try {
       PveManager
         .getEnvironments(cuid)
-        .map { pveName =>
+        .map { pve =>
           Map(
-            "pveName" -> pveName.asInstanceOf[Object]
+            "pveName" -> pve.pveName.asInstanceOf[Object],
+            "userPackages" -> pve.userPackages.asJava.asInstanceOf[Object]
           ).asJava
         }
         .asJava
@@ -75,5 +87,30 @@ class PveResource {
   @Path("/pves/{cuId}")
   def deleteEnvironments(@PathParam("cuId") cuid: Int): Unit = {
     PveManager.deleteEnvironments(cuid)
+  }
+
+  // --------------------------------------------------
+  // Delete User Installed Package
+  // --------------------------------------------------
+  @DELETE
+  @Path("/{cuid}/{pveName}/packages/{packageName}")
+  def deletePackage(
+      @PathParam("cuid") cuid: Int,
+      @PathParam("pveName") pveName: String,
+      @PathParam("packageName") packageName: String,
+      @QueryParam("isLocal") isLocal: Boolean
+  ): Response = {
+    val messages = PveManager.deletePackages(
+      cuid,
+      packageName,
+      pveName,
+      isLocal
+    )
+
+    if (messages.exists(_.contains("[PVE][ERR]"))) {
+      Response.status(Response.Status.BAD_REQUEST).entity(messages.asJava).build()
+    } else {
+      Response.ok(messages.asJava).build()
+    }
   }
 }

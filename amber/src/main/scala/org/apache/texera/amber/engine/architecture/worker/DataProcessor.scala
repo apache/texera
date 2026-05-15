@@ -125,8 +125,9 @@ class DataProcessor(
     try {
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
+        // emitState already persists the state via the per-port state
+        // writers, so no explicit save call is needed here.
         outputManager.emitState(outputState.get)
-        outputManager.saveStateToStorageIfNeeded(outputState.get)
       }
     } catch safely {
       case e =>

@@ -22,13 +22,13 @@ package org.apache.texera.amber.engine.architecture.scheduling
 import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.VFSURIFactory.decodeURI
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
+  PekkoActorRefMappingService,
+  PekkoActorService,
   ExecutorDeployment
 }
 import org.apache.texera.amber.engine.architecture.controller.execution.{
@@ -96,8 +96,8 @@ class RegionExecutionCoordinator(
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
     controllerConfig: ControllerConfig,
-    actorService: AkkaActorService,
-    actorRefService: AkkaActorRefMappingService
+    actorService: PekkoActorService,
+    actorRefService: PekkoActorRefMappingService
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -375,7 +375,7 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-      actorService: AkkaActorService,
+      actorService: PekkoActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution
@@ -466,7 +466,7 @@ class RegionExecutionCoordinator(
                               opId = physicalOp.id,
                               portId = outputPortId
                             ) =>
-                          cfg.storageURI.toString
+                          cfg.storageURIBase.toString
                       }
                       .getOrElse("")
                     Some(
@@ -569,35 +569,40 @@ class RegionExecutionCoordinator(
   ): Unit = {
     portConfigs.foreach {
       case (outputPortId, portConfig) =>
-        val storageUriToAdd = portConfig.storageURI
-        val stateUriToAdd = State.uriFromResultUri(storageUriToAdd)
-        val (_, eid, _, _) = decodeURI(storageUriToAdd)
+        val portBaseURI = portConfig.storageURIBase
+        val resultURI = VFSURIFactory.resultURI(portBaseURI)
+        val stateURI = VFSURIFactory.stateURI(portBaseURI)
         val schemaOptional =
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+        // LoopEnd operators may re-execute the region multiple times; on
+        // subsequent iterations the result/state documents already exist,
+        // so open-or-create instead of unconditional create to avoid
+        // clobbering existing data.
         if (region.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-"))) {
           try {
-            DocumentFactory.openDocument(storageUriToAdd)
+            DocumentFactory.openDocument(resultURI)
           } catch {
             case _: Exception =>
-              DocumentFactory.createDocument(storageUriToAdd, schema)
+              DocumentFactory.createDocument(resultURI, schema)
           }
           try {
-            DocumentFactory.openDocument(stateUriToAdd)
+            DocumentFactory.openDocument(stateURI)
           } catch {
             case _: Exception =>
-              DocumentFactory.createDocument(stateUriToAdd, State.schema)
+              DocumentFactory.createDocument(stateURI, State.schema)
           }
         } else {
-          DocumentFactory.createDocument(storageUriToAdd, schema)
-          DocumentFactory.createDocument(stateUriToAdd, State.schema)
+          DocumentFactory.createDocument(resultURI, schema)
+          DocumentFactory.createDocument(stateURI, State.schema)
         }
         if (!isRestart) {
+          val (_, eid, _, _) = decodeURI(resultURI)
           WorkflowExecutionsResource.insertOperatorPortResultUri(
             eid = eid,
             globalPortId = outputPortId,
-            uri = storageUriToAdd
+            uri = resultURI
           )
         }
     }

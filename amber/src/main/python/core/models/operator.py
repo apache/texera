@@ -164,7 +164,7 @@ class TupleOperatorV2(Operator):
 
 
 class SourceOperator(TupleOperatorV2):
-    __internal_is_source = True
+    _Operator__internal_is_source = True
 
     @abstractmethod
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
@@ -267,7 +267,7 @@ class TableOperator(TupleOperatorV2):
 
     def __init__(self):
         super().__init__()
-        self.__internal_is_source: bool = False
+        self._Operator__internal_is_source: bool = False
         self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
 
     @overrides.final

@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.WorkflowRuntimeException
-import org.apache.texera.amber.core.storage.VFSURIFactory.createResultURI
+import org.apache.texera.amber.core.storage.VFSURIFactory.createPortBaseURI
 import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.texera.amber.core.workflow.{
   GlobalPortIdentity,
@@ -331,7 +331,7 @@ class ExpansionGreedyScheduleGenerator(
 
   private def getStorageURIFromGlobalOutputPortId(outputPortId: GlobalPortIdentity) = {
     assert(!outputPortId.input)
-    createResultURI(
+    createPortBaseURI(
       workflowId = workflowContext.workflowId,
       executionId = workflowContext.executionId,
       globalPortId = outputPortId

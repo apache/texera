@@ -274,6 +274,7 @@ Scala/Java jars:
   - com.typesafe.play.play-functional_2.13-2.10.6.jar
   - com.typesafe.play.play-json_2.13-2.10.6.jar
   - com.typesafe.scala-logging.scala-logging_2.13-3.9.5.jar
+  - com.zaxxer.HikariCP-5.1.0.jar
   - commons-beanutils.commons-beanutils-1.9.4.jar
   - commons-cli.commons-cli-1.2.jar
   - commons-codec.commons-codec-1.17.1.jar
@@ -540,7 +541,7 @@ Scala/Java jars:
   - org.bouncycastle.bcpkix-jdk18on-1.78.1.jar
   - org.bouncycastle.bcprov-jdk18on-1.78.1.jar
   - org.bouncycastle.bcutil-jdk18on-1.78.1.jar
-  - org.checkerframework.checker-qual-3.42.0.jar
+  - org.checkerframework.checker-qual-3.52.0.jar
   - org.codehaus.mojo.animal-sniffer-annotations-1.23.jar
   - org.projectlombok.lombok-1.18.24.jar
   - org.reactivestreams.reactive-streams-1.0.4.jar
@@ -568,7 +569,7 @@ Scala/Java jars:
   - com.github.luben.zstd-jni-1.5.0-1.jar
   - dnsjava.dnsjava-2.1.7.jar
   - org.codehaus.woodstox.stax2-api-4.2.1.jar
-  - org.postgresql.postgresql-42.7.4.jar
+  - org.postgresql.postgresql-42.7.10.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the Eclipse Public License, Version 2.0 (some are dual

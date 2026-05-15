@@ -217,7 +217,7 @@ Python packages:
   - boto3==1.40.53
   - botocore==1.40.53
   - frozenlist==1.8.0
-  - hf-xet==1.4.3
+  - hf-xet==1.5.0
   - huggingface-hub==0.36.2
   - multidict==6.7.1
   - overrides==7.4.0
@@ -233,7 +233,7 @@ Python packages:
   - safetensors==0.7.0
   - tenacity==8.5.0
   - tokenizers==0.22.2
-  - transformers==4.57.3
+  - transformers==5.0.0rc3
   - tzdata==2026.2
   - websocket-client==1.9.0
   - yarl==1.23.0
@@ -244,7 +244,9 @@ Dependencies under the MIT License
 
 Python packages:
   - aioitertools==0.13.0
+  - annotated-doc==0.0.4
   - annotated-types==0.7.0
+  - anyio==4.13.0
   - appdirs==1.4.4
   - asn1crypto==1.5.1
   - attrs==26.1.0
@@ -256,20 +258,21 @@ Python packages:
   - fonttools==4.62.1
   - fs==2.4.16
   - greenlet==3.5.0
+  - h11==0.16.0
   - h2==4.3.0
   - hpack==4.1.0
   - hyperframe==6.1.0
   - iniconfig==1.1.1
   - jmespath==1.1.0
   - loguru==0.7.0
-  - markdown-it-py==4.0.0
+  - markdown-it-py==4.1.0
   - mdurl==0.1.2
   - mmh3==5.2.1
   - pampy==0.3.0
   - plotly==5.24.1
   - pluggy==1.6.0
-  - pydantic==2.13.3
-  - pydantic-core==2.46.3
+  - pydantic==2.13.4
+  - pydantic-core==2.46.4
   - pyparsing==3.3.2
   - pyroaring==1.1.0
   - pytest==7.4.0
@@ -284,6 +287,8 @@ Python packages:
   - six==1.17.0
   - sqlalchemy==2.0.37
   - strictyaml==1.7.3
+  - typer==0.25.1
+  - typer-slim==0.24.0
   - typing-inspection==0.4.2
   - tzlocal==2.1
   - urllib3==2.6.3
@@ -300,6 +305,8 @@ Python packages:
   - cycler==0.12.1
   - fsspec==2025.9.0
   - grpclib==0.4.9
+  - httpcore==1.0.9
+  - httpx==0.28.1
   - idna==3.13
   - jinja2==3.1.6
   - joblib==1.5.3
@@ -337,6 +344,13 @@ Python packages:
   - wrapt==1.17.3
 
 --------------------------------------------------------------------------------
+Dependencies under the ISC License
+--------------------------------------------------------------------------------
+
+Python packages:
+  - shellingham==1.5.4
+
+--------------------------------------------------------------------------------
 Dependencies under the Mozilla Public License, Version 2.0
 --------------------------------------------------------------------------------
 
@@ -359,7 +373,7 @@ Dependencies under the MIT-CMU License
 --------------------------------------------------------------------------------
 
 Python packages:
-  - pillow==12.1.1
+  - pillow==12.2.0
 
 Individual jars may contain their own META-INF/LICENSE and META-INF/NOTICE
 files that apply to their specific contents; those files continue to govern

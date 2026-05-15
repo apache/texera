@@ -52,6 +52,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   var deserde: (IcebergSchema, Record) => Tuple = _
   var catalog: Catalog = _
   val tableNamespace = "test_namespace"
+  var baseURI: URI = _
   var uri: URI = _
 
   override def beforeAll(): Unit = {
@@ -80,18 +81,19 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
-    uri = VFSURIFactory.createResultURI(
+    baseURI = VFSURIFactory.createPortBaseURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),
       GlobalPortIdentity(
         PhysicalOpIdentity(
           logicalOpId =
-            OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
+            OperatorIdentity(s"test-table-${UUID.randomUUID().toString.replace("-", "")}"),
           layerName = "main"
         ),
         PortIdentity()
       )
     )
+    uri = VFSURIFactory.resultURI(baseURI)
     DocumentFactory.createDocument(uri, amberSchema)
     super.beforeEach()
   }
@@ -143,7 +145,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   }
 
   it should "round trip materialized state documents" in {
-    val stateUri = State.uriFromResultUri(uri)
+    val stateUri = VFSURIFactory.stateURI(baseURI)
     DocumentFactory.createDocument(stateUri, State.schema)
     val stateDocument =
       DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]
@@ -172,7 +174,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   }
 
   it should "materialize multiple states as rows in one state table" in {
-    val stateUri = State.uriFromResultUri(uri)
+    val stateUri = VFSURIFactory.stateURI(baseURI)
     DocumentFactory.createDocument(stateUri, State.schema)
     val stateDocument =
       DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]

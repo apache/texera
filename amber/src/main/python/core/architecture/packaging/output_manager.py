@@ -45,6 +45,7 @@ from core.models import Tuple, Schema, StateFrame
 from core.models.payload import DataPayload, DataFrame
 from core.models.state import State
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.storage.runnables.port_storage_writer import (
     PortStorageWriter,
     PortStorageWriterElement,
@@ -87,7 +88,9 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
-        self._state_writers: typing.Dict[PortIdentity, typing.Any] = dict()
+        self._port_state_writers: typing.Dict[
+            PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
+        ] = dict()
 
     def is_missing_output_ports(self):
         """
@@ -109,27 +112,30 @@ class OutputManager:
         self,
         port_id: PortIdentity,
         schema: Schema,
-        storage_uri: typing.Optional[str] = None,
+        storage_uri_base: typing.Optional[str] = None,
     ) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
             port_id.internal = False
 
-        if storage_uri is not None:
-            self.set_up_port_storage_writer(port_id, storage_uri)
+        if storage_uri_base is not None:
+            self.set_up_port_storage_writer(port_id, storage_uri_base)
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
 
-    def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri: str):
+    def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri_base: str):
         """
         Create a separate thread for saving output tuples of a port
         to storage in batch, and open a long-lived buffered writer for
-        state materialization on the same port.
+        state materialization on the same port. `storage_uri_base` is the
+        port's base URI; the result and state URIs are derived from it.
         """
-        document, _ = DocumentFactory.open_document(storage_uri)
+        document, _ = DocumentFactory.open_document(
+            VFSURIFactory.result_uri(storage_uri_base)
+        )
         buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
         writer_queue = Queue()
         port_storage_writer = PortStorageWriter(
@@ -148,11 +154,27 @@ class OutputManager:
         )
 
         state_document, _ = DocumentFactory.open_document(
-            State.uri_from_result_uri(storage_uri)
+            VFSURIFactory.state_uri(storage_uri_base)
         )
-        state_writer = state_document.writer(str(get_worker_index(self.worker_id)))
-        state_writer.open()
-        self._state_writers[port_id] = state_writer
+        state_buffered_item_writer = state_document.writer(
+            str(get_worker_index(self.worker_id))
+        )
+        state_writer_queue = Queue()
+        state_port_writer = PortStorageWriter(
+            buffered_item_writer=state_buffered_item_writer,
+            queue=state_writer_queue,
+        )
+        state_writer_thread = threading.Thread(
+            target=state_port_writer.run,
+            daemon=True,
+            name=f"port_state_writer_thread_{port_id}",
+        )
+        state_writer_thread.start()
+        self._port_state_writers[port_id] = (
+            state_writer_queue,
+            state_port_writer,
+            state_writer_thread,
+        )
 
     def get_port(self, port_id=None) -> WorkerPort:
         return list(self._ports.values())[0]
@@ -182,24 +204,31 @@ class OutputManager:
             )
 
     def save_state_to_storage_if_needed(self, state: State, port_id=None) -> None:
-        # Buffer the state on each long-lived writer; the writer flushes
-        # itself when its buffer fills, and the remaining buffer is
-        # flushed in close_port_storage_writers.
+        # When port_id is omitted the same state row is fanned out to
+        # every output port's state table. This mirrors the
+        # broadcast-to-all-workers behavior on the emit side: state is
+        # shared context, not per-key data, so every downstream operator
+        # (and every worker reading the materialization) needs the full
+        # set.
+        element = PortStorageWriterElement(data_tuple=state.to_tuple())
         if port_id is None:
-            writers = self._state_writers.values()
-        elif port_id in self._state_writers:
-            writers = [self._state_writers[port_id]]
-        else:
-            return
-        for writer in writers:
-            writer.put_one(state.to_tuple())
+            for writer_queue, _, _ in self._port_state_writers.values():
+                writer_queue.put(element)
+        elif port_id in self._port_state_writers:
+            self._port_state_writers[port_id][0].put(element)
 
     def reset_loopend_storage(self) -> None:
         port_id = self.get_port_ids()[0]
-        storage_uri = self._storage_uris[port_id]
+        storage_uri_base = self._storage_uris[port_id]
         self.close_port_storage_writers()
-        DocumentFactory.create_document(storage_uri, self._ports[port_id].get_schema())
-        self.set_up_port_storage_writer(port_id, storage_uri)
+        DocumentFactory.create_document(
+            VFSURIFactory.result_uri(storage_uri_base),
+            self._ports[port_id].get_schema(),
+        )
+        DocumentFactory.create_document(
+            VFSURIFactory.state_uri(storage_uri_base), State.SCHEMA
+        )
+        self.set_up_port_storage_writer(port_id, storage_uri_base)
 
     def close_port_storage_writers(self) -> None:
         """
@@ -214,11 +243,11 @@ class OutputManager:
         for _, _, writer_thread in self._port_storage_writers.values():
             # This blocking call will wait for all the writer to finish commit
             writer_thread.join()
-        # Close the long-lived state writers so the remaining buffered
-        # states are committed in a single Iceberg snapshot per port.
-        for state_writer in self._state_writers.values():
-            state_writer.close()
-        self._state_writers.clear()
+        for _, state_writer, _ in self._port_state_writers.values():
+            state_writer.stop()
+        for _, _, state_writer_thread in self._port_state_writers.values():
+            state_writer_thread.join()
+        self._port_state_writers.clear()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
