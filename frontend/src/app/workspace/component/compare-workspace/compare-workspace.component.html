@@ -24,7 +24,7 @@
           (click)="selectOperator(op)">
           <span class="badge" [ngClass]="badgeClass(op)"></span>
           <div class="op-meta">
-            <div class="op-id">{{ op.operatorId }} <span class="port">·port {{ op.portId }}</span></div>
+            <div class="op-id">{{ displayOperatorName(op.operatorId) }} <span class="port">·port {{ op.portId }}</span></div>
             <div class="op-detail">{{ op.status }} · {{ rowCountDelta(op) }}</div>
           </div>
         </li>
@@ -51,7 +51,7 @@
           <div class="pagination">
             <button (click)="changePage(-1)" [disabled]="pageIndex === 0">Prev</button>
             <span>Page {{ pageIndex + 1 }}</span>
-            <button (click)="changePage(1)">Next</button>
+            <button (click)="changePage(1)" [disabled]="isLastPage()">Next</button>
           </div>
 
           <div class="side-by-side">

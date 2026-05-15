@@ -23,7 +23,10 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { WorkflowExecutionsService } from "../../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/type/workflow-version-entry";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ActivatedRoute, Router } from "@angular/router";
+import { Observable, of, throwError } from "rxjs";
+import { catchError, switchMap, take } from "rxjs/operators";
 import { NgIf, NgFor, NgClass, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
@@ -74,11 +77,13 @@ export class VersionsListComponent implements OnInit {
   public compareSelection = new Set<number>();
   public compareError: string | null = null;
   public compareLoading = false;
+  public compareStatus: string | null = null;
 
   constructor(
     private workflowActionService: WorkflowActionService,
     public workflowVersionService: WorkflowVersionService,
     private workflowExecutionsService: WorkflowExecutionsService,
+    private computingUnitStatusService: ComputingUnitStatusService,
     private router: Router,
     public route: ActivatedRoute
   ) {}
@@ -140,6 +145,7 @@ export class VersionsListComponent implements OnInit {
     this.compareMode = !this.compareMode;
     this.compareSelection.clear();
     this.compareError = null;
+    this.compareStatus = null;
   }
 
   isVersionSelectedForCompare(vid: number): boolean {
@@ -173,49 +179,92 @@ export class VersionsListComponent implements OnInit {
     const [vidA, vidB] = Array.from(this.compareSelection);
     this.compareLoading = true;
     this.compareError = null;
-    this.workflowExecutionsService
-      .retrieveWorkflowExecutions(wid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: executions => {
-          if (executions.length === 0) {
-            this.compareLoading = false;
-            this.compareError = "This workflow has no executions yet — run it at least twice to compare";
-            return;
-          }
-          // Prefer the latest execution whose vid exactly matches; otherwise fall back to the
-          // latest execution at or before the chosen version (closest prior run). Every save
-          // creates a new vid, but most versions don't have a dedicated run, so without this
-          // fallback comparing any "save without rerun" version always fails.
-          const resolve = (vid: number) => {
-            const exact = executions.filter(e => e.vId === vid);
-            if (exact.length) return exact.reduce((latest, cur) => (cur.eId > latest.eId ? cur : latest));
-            const prior = executions.filter(e => e.vId <= vid);
-            if (prior.length) return prior.reduce((latest, cur) => (cur.eId > latest.eId ? cur : latest));
-            return null;
-          };
-          const a = resolve(vidA);
-          const b = resolve(vidB);
+    this.compareStatus = "Resolving versions…";
+
+    // Resolve cuid once up front — needed if either version has to be auto-run.
+    this.computingUnitStatusService
+      .getSelectedComputingUnit()
+      .pipe(take(1), untilDestroyed(this))
+      .subscribe(unit => {
+        const cuid = unit?.computingUnit?.cuid;
+        if (!cuid) {
           this.compareLoading = false;
-          if (!a || !b) {
-            const missing = [!a ? vidA : null, !b ? vidB : null].filter(v => v !== null);
-            this.compareError =
-              `No execution exists at or before version(s): ${missing.join(", ")}. ` +
-              `Run one of those versions first.`;
-            return;
-          }
-          if (a.eId === b.eId) {
-            this.compareError =
-              "Both selected versions map to the same execution. " +
-              "Pick versions that span at least one separate run.";
-            return;
-          }
-          this.router.navigate(["/dashboard/user/workflow", wid, "compare", a.eId, b.eId]);
-        },
-        error: err => {
-          this.compareLoading = false;
-          this.compareError = err?.error?.message ?? err?.message ?? "Failed to load executions";
-        },
+          this.compareStatus = null;
+          this.compareError = "Select a computing unit before comparing versions";
+          return;
+        }
+
+        this.workflowExecutionsService
+          .retrieveWorkflowExecutions(wid)
+          .pipe(
+            switchMap(executions =>
+              // Sequential A then B: the sync endpoint shuts down any in-progress execution
+              // on the same workflow, so parallel auto-runs would cancel each other.
+              this.resolveEidForVersion(wid, cuid, vidA, executions, "A").pipe(
+                switchMap(eidA =>
+                  this.resolveEidForVersion(wid, cuid, vidB, executions, "B").pipe(
+                    switchMap(eidB => of({ eidA, eidB }))
+                  )
+                )
+              )
+            ),
+            untilDestroyed(this)
+          )
+          .subscribe({
+            next: ({ eidA, eidB }) => {
+              this.compareLoading = false;
+              this.compareStatus = null;
+              if (eidA === eidB) {
+                this.compareError =
+                  "Both selected versions resolved to the same execution. " +
+                  "Pick versions that span at least one separate run.";
+                return;
+              }
+              this.router.navigate(["/dashboard/user/workflow", wid, "compare", eidA, eidB]);
+            },
+            error: err => {
+              this.compareLoading = false;
+              this.compareStatus = null;
+              this.compareError = err?.message ?? "Compare failed";
+            },
+          });
       });
+  }
+
+  /**
+   * For a given version, return the eid of a completed execution at that exact vid, or
+   * trigger a fresh sync run of that version and return the resulting eid.
+   *
+   * status === 3 corresponds to ExecutionState.Completed in EXECUTION_STATUS_CODE.
+   */
+  private resolveEidForVersion(
+    wid: number,
+    cuid: number,
+    vid: number,
+    executions: ReadonlyArray<{ eId: number; vId: number; status: number }>,
+    label: "A" | "B"
+  ): Observable<number> {
+    const completed = executions
+      .filter(e => e.vId === vid && e.status === 3)
+      .reduce<{ eId: number; vId: number; status: number } | null>(
+        (latest, cur) => (latest === null || cur.eId > latest.eId ? cur : latest),
+        null
+      );
+    if (completed) {
+      return of(completed.eId);
+    }
+    this.compareStatus = `Running version ${vid} (side ${label})… this may take a while`;
+    return this.workflowExecutionsService.runWorkflowVersion(wid, cuid, vid).pipe(
+      switchMap(result => {
+        if (!result.success) {
+          const why = result.errors && result.errors.length ? result.errors.join("; ") : result.state;
+          return throwError(() => new Error(`Auto-run for version ${vid} (side ${label}) failed: ${why}`));
+        }
+        return of(result.eid);
+      }),
+      catchError(err =>
+        throwError(() => new Error(err?.error?.message ?? err?.message ?? `Auto-run failed for version ${vid}`))
+      )
+    );
   }
 }

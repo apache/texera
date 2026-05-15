@@ -844,7 +844,56 @@ class WorkflowExecutionsResource {
       )
     }
 
-    WorkflowExecutionCompareSummary(wid, eidA, eidB, enriched)
+    // Order operators by their position in the workflow content (which preserves the
+    // user's creation / DAG order), so the left rail reads source → sink instead of
+    // alphabetical-by-id. Build a union order: A's operators first in A's order, then
+    // any operators that only existed in B (appended in B's order).
+    val operatorOrder = buildOperatorOrder(wid, eidA, eidB)
+    val rank: String => Int = opId => operatorOrder.indexOf(opId) match {
+      case -1 => Int.MaxValue // unknown operators float to the bottom
+      case n  => n
+    }
+    val sorted = enriched.sortBy(e => (rank(e.operatorId), e.operatorId, e.portId))
+
+    WorkflowExecutionCompareSummary(wid, eidA, eidB, sorted)
+  }
+
+  /** Return the ordered list of operator IDs across both executions' workflow versions. */
+  private def buildOperatorOrder(wid: Integer, eidA: Integer, eidB: Integer): List[String] = {
+    def operatorIdsForExecution(eid: Integer): List[String] = {
+      try {
+        val vidOpt = context
+          .select(WORKFLOW_EXECUTIONS.VID)
+          .from(WORKFLOW_EXECUTIONS)
+          .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
+          .fetchOptionalInto(classOf[Integer])
+        if (!vidOpt.isPresent) return List.empty
+        val workflowDao =
+          new org.apache.texera.dao.jooq.generated.tables.daos.WorkflowDao(context.configuration())
+        val workflow = workflowDao.fetchOneByWid(wid)
+        if (workflow == null) return List.empty
+        val versions = WorkflowVersionResource.fetchSubsequentVersions(wid, vidOpt.get(), context)
+        val historical = WorkflowVersionResource.applyPatch(versions, workflow)
+        val content = historical.getContent
+        if (content == null || content.isEmpty) return List.empty
+        objectMapper
+          .readTree(content)
+          .path("operators")
+          .elements()
+          .asScala
+          .map(_.path("operatorID").asText(""))
+          .filter(_.nonEmpty)
+          .toList
+      } catch {
+        case _: Throwable => List.empty
+      }
+    }
+
+    val orderA = operatorIdsForExecution(eidA)
+    val orderB = operatorIdsForExecution(eidB)
+    val seen = scala.collection.mutable.LinkedHashSet[String]()
+    (orderA ++ orderB).foreach(seen.add)
+    seen.toList
   }
 
   /**

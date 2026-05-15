@@ -34,6 +34,7 @@
     (click)="runCompare()">
     Compare {{ compareSelection.size }}/2
   </button>
+  <span *ngIf="compareStatus" class="compare-status">{{ compareStatus }}</span>
   <span *ngIf="compareError" class="compare-error">{{ compareError }}</span>
 </div>
 

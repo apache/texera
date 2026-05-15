@@ -234,4 +234,26 @@ export class CompareWorkspaceComponent implements OnInit {
     if (removed.length) parts.push(`− ${removed.join(", ")}`);
     return parts.length ? parts.join("  ") : "schemas match";
   }
+
+  /**
+   * Operator IDs are of the form `{OperatorType}-operator-{uuid}`. Strip the suffix so the
+   * left rail just shows the operator type (e.g. "TextInput" instead of
+   * "TextInput-operator-bd06d395-…").
+   */
+  displayOperatorName(operatorId: string): string {
+    const idx = operatorId.indexOf("-operator-");
+    return idx > 0 ? operatorId.substring(0, idx) : operatorId;
+  }
+
+  /**
+   * True when the current page is the last page of results on both sides. Used to disable
+   * the Next button so the user can't page past the end into an empty view.
+   */
+  isLastPage(): boolean {
+    if (!this.pageA && !this.pageB) return true;
+    const totalA = this.pageA?.totalRowCount ?? 0;
+    const totalB = this.pageB?.totalRowCount ?? 0;
+    const maxTotal = Math.max(totalA, totalB);
+    return (this.pageIndex + 1) * this.pageSize >= maxTotal;
+  }
 }

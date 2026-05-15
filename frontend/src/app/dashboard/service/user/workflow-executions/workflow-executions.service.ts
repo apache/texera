@@ -26,6 +26,7 @@ import { WorkflowRuntimeStatistics } from "../../../type/workflow-runtime-statis
 import { ExecutionState } from "../../../../workspace/types/execute-workflow.interface";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
+export const SYNC_EXECUTION_API_BASE_URL = `${AppSettings.getApiEndpoint()}/execution`;
 
 @Injectable({
   providedIn: "root",
@@ -119,6 +120,26 @@ export class WorkflowExecutionsService {
       { params }
     );
   }
+
+  /**
+   * Run a historical workflow version end-to-end on the given computing unit and return
+   * the new execution's eid. Synchronous: the call blocks server-side until the workflow
+   * finishes (success or failure). Used by the compare-versions flow when a selected
+   * version has no completed execution to compare against.
+   */
+  runWorkflowVersion(wid: number, cuid: number, vid: number): Observable<SyncRunVersionResult> {
+    return this.http.post<SyncRunVersionResult>(
+      `${SYNC_EXECUTION_API_BASE_URL}/${wid}/${cuid}/run-version/${vid}`,
+      {}
+    );
+  }
+}
+
+export interface SyncRunVersionResult {
+  readonly success: boolean;
+  readonly state: string;
+  readonly errors?: ReadonlyArray<string>;
+  readonly eid: number;
 }
 
 export interface CompareAttributeMeta {
