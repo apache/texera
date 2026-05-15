@@ -50,16 +50,18 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
   var deserde: (IcebergSchema, Record) => Tuple = _
   var catalog: Catalog = _
   val tableNamespace = "test_namespace"
-  var uri: URI = VFSURIFactory.createResultURI(
-    WorkflowIdentity(0),
-    ExecutionIdentity(0),
-    GlobalPortIdentity(
-      PhysicalOpIdentity(
-        logicalOpId =
-          OperatorIdentity(s"test-table-${UUID.randomUUID().toString.replace("-", "")}"),
-        layerName = "main"
-      ),
-      PortIdentity()
+  var uri: URI = VFSURIFactory.resultURI(
+    VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId =
+            OperatorIdentity(s"test-table-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      )
     )
   )
 
