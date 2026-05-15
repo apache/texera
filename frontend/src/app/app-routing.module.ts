@@ -120,6 +120,13 @@ routes.push({
           component: WorkspaceComponent,
         },
         {
+          // Drill-down editor for a macro's body. `id` carries the parent
+          // workflow's wid so we can render breadcrumbs / route the user back;
+          // `macroId` is the actual definition being edited.
+          path: "workflow/:id/macro/:macroId",
+          component: WorkspaceComponent,
+        },
+        {
           path: "dataset",
           component: UserDatasetComponent,
         },

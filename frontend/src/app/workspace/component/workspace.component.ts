@@ -52,6 +52,7 @@ import { WorkflowCompilingService } from "../service/compile-workflow/workflow-c
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { MacroService } from "../service/macro/macro.service";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { ResultPanelComponent } from "./result-panel/result-panel.component";
 import { WorkflowEditorComponent } from "./workflow-editor/workflow-editor.component";
@@ -126,7 +127,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
     private config: GuiConfigService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private macroService: MacroService
   ) {}
 
   ngOnInit() {
@@ -274,8 +276,53 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       );
   }
 
+  loadMacroWithId(macroId: number): void {
+    this.isLoading = true;
+    this.workflowActionService.disableWorkflowModification();
+    forkJoin({
+      operatorMetadata: this.operatorMetadataService.getOperatorMetadata(),
+      detail: this.macroService.getMacro(macroId),
+    })
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        ({ detail }) => {
+          const macroWorkflow = this.macroService.macroDetailToWorkflow(detail);
+          // Reuse the same shared-model setup as the parent workflow editor so
+          // the YJS room / undo-redo stack are isolated to this macro.
+          this.workflowActionService.setNewSharedModel(macroId, this.userService.getCurrentUser());
+          this.workflowActionService.reloadWorkflow(macroWorkflow);
+          // Allow visual editing on the canvas, but persistWorkflow is already
+          // disabled above so changes won't accidentally land on /workflow/persist.
+          this.workflowActionService.enableWorkflowModification();
+          this.undoRedoService.clearUndoStack();
+          this.undoRedoService.clearRedoStack();
+          this.setLoadingState(false);
+          this.triggerCenter();
+        },
+        () => {
+          this.workflowActionService.resetAsNewWorkflow();
+          this.workflowActionService.enableWorkflowModification();
+          this.undoRedoService.clearUndoStack();
+          this.undoRedoService.clearRedoStack();
+          this.message.error("Couldn't load macro definition.");
+          this.setLoadingState(false);
+        }
+      );
+  }
+
   registerLoadOperatorMetadata() {
+    const macroId = this.route.snapshot.params.macroId;
     const wid = this.route.snapshot.params.id;
+    // /workflow/:id/macro/:macroId — load the macro body into the same canvas
+    // as a "drill-down" view. Read-only in v1 (no auto-persist back to the
+    // macro endpoint yet; that's the next slice).
+    if (macroId) {
+      this.isLoading = true;
+      this.workflowActionService.disableWorkflowModification();
+      this.workflowPersistService.setWorkflowPersistFlag(false);
+      this.loadMacroWithId(Number(macroId));
+      return;
+    }
     // load workflow with wid if presented in the URL
     if (wid) {
       // show loading spinner right away while waiting for workflow to load

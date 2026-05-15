@@ -21,8 +21,16 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
+import { ExecutionMode, Workflow, WorkflowContent } from "../../../common/type/workflow";
+import {
+  OperatorLink,
+  OperatorPredicate,
+  PortDescription,
+  Point,
+} from "../../types/workflow-common.interface";
 import { PortIdentity } from "../../types/execute-workflow.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { v4 as uuid } from "uuid";
 
 export const MACRO_BASE_URL = "macro";
 export const MACRO_CREATE_URL = MACRO_BASE_URL + "/create";
@@ -186,7 +194,7 @@ export class MacroService {
     const inputMarkers = incomingKeys.map((key, idx) => {
       const [innerOpId, innerPortID] = key.split("|");
       return {
-        markerOpId: `MacroInput-operator-${this.uuid()}`,
+        markerOpId: `MacroInput-operator-${uuid()}`,
         portIndex: idx,
         innerOpId,
         innerPortID,
@@ -198,7 +206,7 @@ export class MacroService {
     const outputMarkers = outgoingKeys.map((key, idx) => {
       const [innerOpId, innerPortID] = key.split("|");
       return {
-        markerOpId: `MacroOutput-operator-${this.uuid()}`,
+        markerOpId: `MacroOutput-operator-${uuid()}`,
         portIndex: idx,
         innerOpId,
         innerPortID,
@@ -293,14 +301,146 @@ export class MacroService {
     };
   }
 
-  private uuid(): string {
-    // Lightweight RFC4122-ish ID; the actions service uses crypto.randomUUID
-    // elsewhere but we don't have it imported here and don't need strict
-    // collision resistance for marker ops within a single macro body.
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
+  /**
+   * Adapt a backend `MacroDetail` (whose `content` is a serialized `MacroBody`)
+   * into a `Workflow`-shaped object the existing `reloadWorkflow` flow can
+   * consume. Used by the drill-down editor route.
+   *
+   * v1 caveats:
+   *  - operator positions are auto-laid-out (MacroInput on the left, regular
+   *    inner ops in the middle, MacroOutput on the right) because the body
+   *    doesn't carry positions yet.
+   *  - inner ops that came from the canvas already have `PortDescription`
+   *    ports; marker ops were authored with backend `PortIdentity` shape and
+   *    are normalized here.
+   */
+  public macroDetailToWorkflow(detail: MacroDetail): Workflow {
+    const body = JSON.parse(detail.content) as MacroBody;
+
+    const operators = body.operators.map(raw => this.normalizeBodyOperator(raw));
+    const operatorPositions = this.autoLayoutMacroBody(operators);
+    const links = body.links
+      .map(ml => this.macroLinkToOperatorLink(ml, operators))
+      .filter((l): l is OperatorLink => l !== null);
+
+    const content: WorkflowContent = {
+      operators,
+      operatorPositions,
+      links,
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
+    };
+
+    return {
+      wid: detail.wid,
+      name: detail.name,
+      description: detail.description,
+      creationTime: new Date(detail.creationTime).getTime(),
+      lastModifiedTime: new Date(detail.lastModifiedTime).getTime(),
+      isPublished: detail.isPublic ? 1 : 0,
+      readonly: detail.readonly,
+      content,
+    };
+  }
+
+  private normalizeBodyOperator(raw: unknown): OperatorPredicate {
+    const r = raw as Record<string, unknown>;
+    const {
+      operatorID,
+      operatorType,
+      operatorVersion,
+      inputPorts,
+      outputPorts,
+      ...rest
+    } = r as {
+      operatorID: string;
+      operatorType: string;
+      operatorVersion?: string;
+      inputPorts?: unknown[];
+      outputPorts?: unknown[];
+    } & Record<string, unknown>;
+
+    return {
+      operatorID,
+      operatorType,
+      operatorVersion: operatorVersion ?? "",
+      operatorProperties: rest,
+      inputPorts: this.normalizePortList(inputPorts ?? [], "input"),
+      outputPorts: this.normalizePortList(outputPorts ?? [], "output"),
+      showAdvanced: false,
+      isDisabled: false,
+      customDisplayName: typeof rest["displayName"] === "string" ? (rest["displayName"] as string) : undefined,
+      dynamicInputPorts: false,
+      dynamicOutputPorts: false,
+    };
+  }
+
+  private normalizePortList(ports: unknown[], dir: "input" | "output"): PortDescription[] {
+    return ports.map((raw, idx) => {
+      const p = raw as Record<string, unknown>;
+      // Already PortDescription-shaped (came from the canvas serialization).
+      if (typeof p?.["portID"] === "string") {
+        return p as unknown as PortDescription;
+      }
+      // Backend PortIdentity shape ({id: {id, internal}, displayName, ...}) —
+      // synthesize a portID using the ordinal.
+      const displayName = typeof p?.["displayName"] === "string" ? (p["displayName"] as string) : "";
+      const base: PortDescription = {
+        portID: `${dir}-${idx}`,
+        displayName,
+        disallowMultiInputs: false,
+        isDynamicPort: false,
+      };
+      return dir === "input" ? { ...base, dependencies: [] } : base;
     });
+  }
+
+  private macroLinkToOperatorLink(
+    ml: MacroBodyLink,
+    operators: OperatorPredicate[]
+  ): OperatorLink | null {
+    const fromOp = operators.find(o => o.operatorID === ml.fromOpId);
+    const toOp = operators.find(o => o.operatorID === ml.toOpId);
+    if (!fromOp || !toOp) return null;
+    const fromPortID = fromOp.outputPorts[ml.fromPortId.id]?.portID;
+    const toPortID = toOp.inputPorts[ml.toPortId.id]?.portID;
+    if (!fromPortID || !toPortID) return null;
+    return {
+      linkID: `macro-link-${uuid()}`,
+      source: { operatorID: ml.fromOpId, portID: fromPortID },
+      target: { operatorID: ml.toOpId, portID: toPortID },
+    };
+  }
+
+  /**
+   * Place MacroInput markers on the left, MacroOutput markers on the right,
+   * and everything else in a middle column. Sufficient for visual
+   * inspection; a proper layout pass is a follow-up.
+   */
+  private autoLayoutMacroBody(operators: OperatorPredicate[]): { [id: string]: Point } {
+    const xLeft = 100;
+    const xMiddle = 450;
+    const xRight = 800;
+    const ySpacing = 120;
+    const ySeen = { left: 0, middle: 0, right: 0 };
+    const positions: { [id: string]: Point } = {};
+    operators.forEach(op => {
+      let column: keyof typeof ySeen;
+      let x: number;
+      if (op.operatorType === "MacroInput") {
+        column = "left";
+        x = xLeft;
+      } else if (op.operatorType === "MacroOutput") {
+        column = "right";
+        x = xRight;
+      } else {
+        column = "middle";
+        x = xMiddle;
+      }
+      const y = 100 + ySeen[column] * ySpacing;
+      ySeen[column] += 1;
+      positions[op.operatorID] = { x, y };
+    });
+    return positions;
   }
 }
