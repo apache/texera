@@ -275,7 +275,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     const baseSchema = cloneDeep(this.currentOperatorSchema.jsonSchema);
 
-    if (this.currentOperatorSchema.operatorType === "PythonUDFV2") {
+    if (this.currentOperatorSchema.operatorType === "PythonUDFV2" || this.currentOperatorSchema.operatorType === "DualInputPortsPythonUDFV2" || this.currentOperatorSchema.operatorType === "PythonUDFSourceV2") {
       this.computingUnitStatusService
         .getSelectedComputingUnit()
         .pipe(

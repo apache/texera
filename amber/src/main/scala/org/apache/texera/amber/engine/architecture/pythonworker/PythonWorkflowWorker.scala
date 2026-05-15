@@ -173,7 +173,6 @@ class PythonWorkflowWorker(
     val cuidOpt = workerConfig.cuid
       .orElse(sys.env.get("TEXERA_CUID").flatMap(s => scala.util.Try(s.toInt).toOption))
     val pveName = workerConfig.pveName.trim
-    println("PVE RUNNING UDF: " + pveName)
 
     if (cuidOpt.isEmpty || pveName.isEmpty) {
       return fallback
