@@ -200,12 +200,6 @@ class PythonWorkflowWorker(
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
 
     val pythonBin: String = choosePythonBin()
-    logger.info(
-      s"[PythonWorkflowWorker] TEXERA_CUID=${sys.env
-        .get("TEXERA_CUID")} | pveName=${workerConfig.pveName} | pythonBin=$pythonBin"
-    )
-
-    println("PYTHON BIN: " + pythonBin)
 
     // Set the Iceberg related arguments based on the catalog type.
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
