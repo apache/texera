@@ -48,11 +48,18 @@ class AdminSettingsResource {
   @GET
   @Path("{key}")
   def getSetting(@PathParam("key") keyParam: String): AdminSettingsPojo = {
-    ctx
+    val stored = ctx
       .select(key, value)
       .from(siteSettings)
       .where(key.eq(keyParam))
       .fetchOneInto(classOf[AdminSettingsPojo])
+
+    if (stored != null) stored
+    else
+      DefaultsConfig.allDefaults
+        .get(keyParam)
+        .map(AdminSettingsPojo(keyParam, _))
+        .orNull
   }
 
   @PUT
