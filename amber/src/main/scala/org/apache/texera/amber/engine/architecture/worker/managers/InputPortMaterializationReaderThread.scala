@@ -140,7 +140,6 @@ class InputPortMaterializationReaderThread(
       }
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
-
       emitECM(METHOD_END_CHANNEL, PORT_ALIGNMENT)
       isFinished.set(true)
     } catch {
