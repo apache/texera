@@ -327,9 +327,32 @@
 //   });
 // });
 
+import { JointUIService } from "./joint-ui.service";
+
 describe("JointUIService", () => {
   // Pre-existing spec body is commented out. Placeholder keeps Vitest's
   // discovery happy; rewriting the real tests against the new test
   // runner is tracked in #4861.
   it.todo("add unit tests for JointUIService");
+
+  describe("truncateOperatorDisplayName", () => {
+    const max = JointUIService.MAX_OPERATOR_NAME_LENGTH;
+
+    it("returns the name unchanged when it is within the limit", () => {
+      const name = "a".repeat(max);
+      expect(JointUIService.truncateOperatorDisplayName(name)).toBe(name);
+    });
+
+    it("truncates and appends an ellipsis when the name exceeds the limit", () => {
+      const name = "a".repeat(max + 10);
+      const result = JointUIService.truncateOperatorDisplayName(name);
+      expect(result.length).toBe(max);
+      expect(result.endsWith("...")).toBe(true);
+      expect(result).toBe("a".repeat(max - 3) + "...");
+    });
+
+    it("returns an empty string unchanged", () => {
+      expect(JointUIService.truncateOperatorDisplayName("")).toBe("");
+    });
+  });
 });

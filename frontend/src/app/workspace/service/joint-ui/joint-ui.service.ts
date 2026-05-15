@@ -210,6 +210,14 @@ export class JointUIService {
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
+  public static readonly MAX_OPERATOR_NAME_LENGTH = 30;
+
+  public static truncateOperatorDisplayName(name: string): string {
+    if (name.length <= JointUIService.MAX_OPERATOR_NAME_LENGTH) {
+      return name;
+    }
+    return name.slice(0, JointUIService.MAX_OPERATOR_NAME_LENGTH - 3) + "...";
+  }
 
   private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
 
@@ -253,7 +261,9 @@ export class JointUIService {
       },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
-        operator.customDisplayName ?? operatorSchema.additionalMetadata.userFriendlyName,
+        JointUIService.truncateOperatorDisplayName(
+          operator.customDisplayName ?? operatorSchema.additionalMetadata.userFriendlyName
+        ),
         operatorSchema.operatorType,
         operatorSchema.additionalMetadata.userFriendlyName
       ),
@@ -503,7 +513,9 @@ export class JointUIService {
     jointPaper: joint.dia.Paper,
     displayName: string
   ): void {
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameClass}/text`, displayName);
+    jointPaper
+      .getModelById(operator.operatorID)
+      .attr(`.${operatorNameClass}/text`, JointUIService.truncateOperatorDisplayName(displayName));
   }
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
