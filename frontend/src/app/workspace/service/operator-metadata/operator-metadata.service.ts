@@ -22,7 +22,7 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { shareReplay } from "rxjs/operators";
+import { map, shareReplay } from "rxjs/operators";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
 
@@ -54,7 +54,57 @@ export class OperatorMetadataService {
 
   private operatorMetadataObservable = this.httpClient
     .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
-    .pipe(shareReplay(1));
+    .pipe(
+      map(metadata => OperatorMetadataService.sanitizeMetadata(metadata)),
+      shareReplay(1)
+    );
+
+  /**
+   * The backend's reflective JSON-schema generator emits `{"nullable": true}`
+   * for `Option[...]` fields whose inner type it can't enumerate
+   * (e.g. `Option[MacroBody]` on `MacroOpDesc`). Ajv strict-mode rejects
+   * `nullable` without a sibling `type`, which throws everywhere the schema
+   * gets compiled — validation, property editor, dynamic schema, the YJS
+   * shared-model handler, etc. Strip those orphan `nullable` flags as the
+   * metadata comes off the wire so downstream code never sees them.
+   *
+   * The proper long-term fix is to teach the generator to emit a real type
+   * (see project memory `project_macroopdesc_schema_ajv_bug.md`); this
+   * sanitizer is defense-in-depth.
+   */
+  private static sanitizeMetadata(metadata: OperatorMetadata): OperatorMetadata {
+    metadata.operators.forEach(op => OperatorMetadataService.sanitizeSchemaNode(op.jsonSchema));
+    return metadata;
+  }
+
+  private static sanitizeSchemaNode(node: unknown): void {
+    if (node === null || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      node.forEach(child => OperatorMetadataService.sanitizeSchemaNode(child));
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    if (obj["nullable"] === true && obj["type"] === undefined) {
+      delete obj["nullable"];
+    }
+    for (const key of ["properties", "definitions", "patternProperties"]) {
+      const dict = obj[key];
+      if (dict && typeof dict === "object" && !Array.isArray(dict)) {
+        for (const childKey of Object.keys(dict as Record<string, unknown>)) {
+          OperatorMetadataService.sanitizeSchemaNode((dict as Record<string, unknown>)[childKey]);
+        }
+      }
+    }
+    for (const key of ["items", "additionalProperties", "not"]) {
+      if (obj[key]) OperatorMetadataService.sanitizeSchemaNode(obj[key]);
+    }
+    for (const key of ["oneOf", "anyOf", "allOf"]) {
+      const arr = obj[key];
+      if (Array.isArray(arr)) {
+        arr.forEach(child => OperatorMetadataService.sanitizeSchemaNode(child));
+      }
+    }
+  }
 
   constructor(private httpClient: HttpClient) {
     this.getOperatorMetadata().subscribe(data => {
