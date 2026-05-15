@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.macroOp
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalPlan, PortIdentity}
@@ -30,6 +30,12 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 // `portIndex` of the macro: tuples coming into the macro at that port flow out of this
 // marker into the inner subgraph. MacroExpander consumes these markers when splicing
 // the body into the parent plan and drops them from the expanded plan.
+//
+// Ignore `inputPorts` / `outputPorts` on the wire: the marker's ports are always
+// derived from `portIndex` via `operatorInfo`, and earlier macro bodies were
+// persisted with backend-shaped `PortIdentity` entries that don't match
+// `PortDescription` (which would otherwise break MacroBody deserialization).
+@JsonIgnoreProperties(Array("inputPorts", "outputPorts"))
 class MacroInputOp extends LogicalOp {
 
   @JsonProperty(value = "portIndex", required = true)

@@ -214,6 +214,11 @@ export class MacroService {
       };
     });
 
+    // Marker ports follow the backend's `PortDescription` shape (portID string,
+    // disallowMultiInputs/isDynamicPort flags) so MacroBody parses cleanly when
+    // DbMacroRegistry deserializes `workflow.content`. The actual port wiring
+    // is derived from `portIndex` server-side via `operatorInfo`; these entries
+    // exist purely to keep Jackson happy.
     const markerOps: unknown[] = [
       ...inputMarkers.map(m => ({
         operatorID: m.markerOpId,
@@ -222,7 +227,9 @@ export class MacroService {
         portIndex: m.portIndex,
         displayName: "",
         inputPorts: [],
-        outputPorts: [{ id: { id: 0, internal: false }, displayName: "" }],
+        outputPorts: [
+          { portID: "output-0", displayName: "", disallowMultiInputs: false, isDynamicPort: false },
+        ],
       })),
       ...outputMarkers.map(m => ({
         operatorID: m.markerOpId,
@@ -230,7 +237,15 @@ export class MacroService {
         operatorVersion: "",
         portIndex: m.portIndex,
         displayName: "",
-        inputPorts: [{ id: { id: 0, internal: false }, displayName: "" }],
+        inputPorts: [
+          {
+            portID: "input-0",
+            displayName: "",
+            disallowMultiInputs: false,
+            isDynamicPort: false,
+            dependencies: [],
+          },
+        ],
         outputPorts: [],
       })),
     ];
