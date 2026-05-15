@@ -21,9 +21,12 @@ import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { WorkflowExecutionsService } from "../../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/type/workflow-version-entry";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { NgIf, NgFor, NgClass, DatePipe } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import {
   NzTableComponent,
   NzTheadComponent,
@@ -59,16 +62,24 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
     NzButtonComponent,
     ɵNzTransitionPatchDirective,
     DatePipe,
+    FormsModule,
+    NzCheckboxComponent,
   ],
 })
 export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
-  public versionTableHeaders: string[] = ["Version#", "Timestamp"];
+  public versionTableHeaders: string[] = ["", "Version#", "Timestamp"];
   public selectedRowIndex: number | null = null;
+  public compareMode = false;
+  public compareSelection = new Set<number>();
+  public compareError: string | null = null;
+  public compareLoading = false;
 
   constructor(
     private workflowActionService: WorkflowActionService,
     public workflowVersionService: WorkflowVersionService,
+    private workflowExecutionsService: WorkflowExecutionsService,
+    private router: Router,
     public route: ActivatedRoute
   ) {}
 
@@ -122,6 +133,89 @@ export class VersionsListComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
         this.workflowVersionService.displayParticularVersion(workflow, vid, displayedVersionId);
+      });
+  }
+
+  toggleCompareMode(): void {
+    this.compareMode = !this.compareMode;
+    this.compareSelection.clear();
+    this.compareError = null;
+  }
+
+  isVersionSelectedForCompare(vid: number): boolean {
+    return this.compareSelection.has(vid);
+  }
+
+  onCompareCheckChange(vid: number, checked: boolean): void {
+    if (checked) {
+      if (this.compareSelection.size >= 2) {
+        // drop the earliest-added entry to keep at most 2
+        const first = this.compareSelection.values().next().value;
+        if (first !== undefined) this.compareSelection.delete(first);
+      }
+      this.compareSelection.add(vid);
+    } else {
+      this.compareSelection.delete(vid);
+    }
+  }
+
+  canCompare(): boolean {
+    return this.compareSelection.size === 2 && !this.compareLoading;
+  }
+
+  runCompare(): void {
+    if (!this.canCompare()) return;
+    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+    if (!wid) {
+      this.compareError = "Save the workflow first to enable comparison";
+      return;
+    }
+    const [vidA, vidB] = Array.from(this.compareSelection);
+    this.compareLoading = true;
+    this.compareError = null;
+    this.workflowExecutionsService
+      .retrieveWorkflowExecutions(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: executions => {
+          if (executions.length === 0) {
+            this.compareLoading = false;
+            this.compareError = "This workflow has no executions yet — run it at least twice to compare";
+            return;
+          }
+          // Prefer the latest execution whose vid exactly matches; otherwise fall back to the
+          // latest execution at or before the chosen version (closest prior run). Every save
+          // creates a new vid, but most versions don't have a dedicated run, so without this
+          // fallback comparing any "save without rerun" version always fails.
+          const resolve = (vid: number) => {
+            const exact = executions.filter(e => e.vId === vid);
+            if (exact.length) return exact.reduce((latest, cur) => (cur.eId > latest.eId ? cur : latest));
+            const prior = executions.filter(e => e.vId <= vid);
+            if (prior.length) return prior.reduce((latest, cur) => (cur.eId > latest.eId ? cur : latest));
+            return null;
+          };
+          const a = resolve(vidA);
+          const b = resolve(vidB);
+          this.compareLoading = false;
+          if (!a || !b) {
+            const missing = [!a ? vidA : null, !b ? vidB : null].filter(v => v !== null);
+            this.compareError =
+              `No execution exists at or before version(s): ${missing.join(", ")}. ` +
+              `Run one of those versions first.`;
+            return;
+          }
+          if (a.eId === b.eId) {
+            this.compareError =
+              "Both selected versions map to the same execution. " +
+              "Pick versions that span at least one separate run.";
+            return;
+          }
+          this.router.navigate(["/dashboard/user/workflow", wid, "compare", a.eId, b.eId]);
+        },
+        error: err => {
+          this.compareLoading = false;
+          this.compareError = err?.error?.message ?? err?.message ?? "Failed to load executions";
+        },
       });
   }
 }

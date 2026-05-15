@@ -37,3 +37,18 @@
   font-size: 11px;
   padding: 0;
 }
+
+.version-toolbar {
+  padding: 4px 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
+.compare-error {
+  color: #c0392b;
+  font-size: 11px;
+  flex-basis: 100%;
+}

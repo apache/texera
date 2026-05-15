@@ -33,6 +33,7 @@ import org.apache.texera.amber.engine.architecture.logreplay.{ReplayDestination,
 import org.apache.texera.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.{JwtParser, SessionUser}
 import org.apache.texera.dao.SqlServer
@@ -509,6 +510,101 @@ object WorkflowExecutionsResource {
     urisOfEid.find(isMatchingExternalPortURI)
   }
 
+  /**
+    * Structural comparison of two executions' external output ports.
+    *
+    * Each entry is at (logicalOperatorId, externalOutputPortId) granularity. Status is
+    * `shared` when both executions produced a result for that key, `onlyInA` / `onlyInB`
+    * otherwise. Internal ports and input ports are excluded — only external output ports
+    * contribute, since those are the operator outputs surfaced to the user.
+    */
+  def compareOperatorPortStructure(
+      eidA: ExecutionIdentity,
+      eidB: ExecutionIdentity
+  ): List[OperatorPortComparisonEntry] = {
+    def loadEntries(eid: ExecutionIdentity): Map[(String, Int), String] = {
+      context
+        .select(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID, OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+        .from(OPERATOR_PORT_EXECUTIONS)
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .fetch()
+        .asScala
+        .iterator
+        .flatMap { record =>
+          val serialized = record.value1()
+          val uri = record.value2()
+          if (serialized == null || uri == null || uri.isEmpty) None
+          else {
+            scala.util
+              .Try(GlobalPortIdentitySerde.deserializeFromString(serialized))
+              .toOption
+              .filter(gpi => !gpi.input && !gpi.portId.internal)
+              .map(gpi => (gpi.opId.logicalOpId.id, gpi.portId.id) -> uri)
+          }
+        }
+        .toMap
+    }
+
+    val mapA = loadEntries(eidA)
+    val mapB = loadEntries(eidB)
+    val allKeys = (mapA.keySet ++ mapB.keySet).toList.sortBy { case (op, port) => (op, port) }
+
+    allKeys.map {
+      case key @ (opId, portId) =>
+        val a = mapA.get(key)
+        val b = mapB.get(key)
+        val status = (a.isDefined, b.isDefined) match {
+          case (true, true)  => "shared"
+          case (true, false) => "onlyInA"
+          case (false, true) => "onlyInB"
+          case _             => "missing"
+        }
+        OperatorPortComparisonEntry(
+          operatorId = opId,
+          portId = portId,
+          status = status,
+          resultUriA = a,
+          resultUriB = b
+        )
+    }
+  }
+
+  case class OperatorPortComparisonEntry(
+      operatorId: String,
+      portId: Int,
+      status: String, // "shared" | "onlyInA" | "onlyInB"
+      resultUriA: Option[String],
+      resultUriB: Option[String]
+  )
+
+  case class AttributeMeta(name: String, typeName: String)
+
+  case class OperatorPortCompareResult(
+      operatorId: String,
+      portId: Int,
+      status: String,
+      rowCountA: Option[Long],
+      rowCountB: Option[Long],
+      schemaA: List[AttributeMeta],
+      schemaB: List[AttributeMeta],
+      schemaMatches: Boolean
+  )
+
+  case class WorkflowExecutionCompareSummary(
+      wid: Integer,
+      eidA: Integer,
+      eidB: Integer,
+      operators: List[OperatorPortCompareResult]
+  )
+
+  case class ExecutionOperatorResultPage(
+      schema: List[AttributeMeta],
+      rows: List[com.fasterxml.jackson.databind.node.ObjectNode],
+      totalRowCount: Long,
+      pageIndex: Int,
+      pageSize: Int
+  )
+
   case class WorkflowExecutionEntry(
       eId: Integer,
       vId: Integer,
@@ -673,6 +769,150 @@ class WorkflowExecutionsResource {
           .getOrElse(Set.empty[Byte])
       getWorkflowExecutions(wid, context, statusCodes)
     }
+  }
+
+  /**
+    * Compare per-operator-port results between two executions of the same workflow.
+    *
+    * For each external output port that exists in either execution, returns the operator
+    * id, port id, status (`shared` / `onlyInA` / `onlyInB`), row counts, schemas, and a
+    * schemaMatches flag. Both executions must belong to the workflow `wid`.
+    */
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/{eidA}/compare/{eidB}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def compareTwoExecutions(
+      @PathParam("wid") wid: Integer,
+      @PathParam("eidA") eidA: Integer,
+      @PathParam("eidB") eidB: Integer,
+      @Auth sessionUser: SessionUser
+  ): WorkflowExecutionCompareSummary = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+
+    // Validate that both executions belong to this workflow.
+    val belongs = context
+      .select(WORKFLOW_EXECUTIONS.EID)
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+      .where(
+        WORKFLOW_VERSION.WID
+          .eq(wid)
+          .and(WORKFLOW_EXECUTIONS.EID.in(eidA, eidB))
+      )
+      .fetchInto(classOf[Integer])
+      .asScala
+      .toSet
+    if (!belongs.contains(eidA) || !belongs.contains(eidB)) {
+      throw new BadRequestException(s"Executions $eidA / $eidB do not both belong to workflow $wid")
+    }
+
+    val structure = compareOperatorPortStructure(
+      ExecutionIdentity(eidA.longValue()),
+      ExecutionIdentity(eidB.longValue())
+    )
+
+    def describe(uri: Option[String]): (Option[Long], List[AttributeMeta]) = {
+      uri match {
+        case None => (None, List.empty)
+        case Some(u) =>
+          try {
+            val (doc, schemaOption) = DocumentFactory.openDocument(URI.create(u))
+            val attrs = schemaOption
+              .map(_.getAttributes.map(a => AttributeMeta(a.getName, a.getType.name())))
+              .getOrElse(List.empty)
+            (Some(doc.getCount), attrs)
+          } catch {
+            case _: Throwable => (None, List.empty)
+          }
+      }
+    }
+
+    val enriched = structure.map { entry =>
+      val (countA, schemaA) = describe(entry.resultUriA)
+      val (countB, schemaB) = describe(entry.resultUriB)
+      OperatorPortCompareResult(
+        operatorId = entry.operatorId,
+        portId = entry.portId,
+        status = entry.status,
+        rowCountA = countA,
+        rowCountB = countB,
+        schemaA = schemaA,
+        schemaB = schemaB,
+        schemaMatches = entry.status == "shared" && schemaA == schemaB
+      )
+    }
+
+    WorkflowExecutionCompareSummary(wid, eidA, eidB, enriched)
+  }
+
+  /**
+    * Fetch a paginated page of rows from a specific operator's external output port for a
+    * past execution. Used by the workflow-compare feature to render results from arbitrary
+    * historical executions without an active websocket session.
+    */
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/{eid}/result/{opId}/{portId}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def retrieveExecutionResultPage(
+      @PathParam("wid") wid: Integer,
+      @PathParam("eid") eid: Integer,
+      @PathParam("opId") opId: String,
+      @PathParam("portId") portId: Integer,
+      @QueryParam("page") page: Integer,
+      @QueryParam("pageSize") pageSize: Integer,
+      @Auth sessionUser: SessionUser
+  ): ExecutionOperatorResultPage = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+
+    val pageIndex = Option(page).map(_.toInt).getOrElse(0).max(0)
+    val effectivePageSize = Option(pageSize).map(_.toInt).getOrElse(10).max(1).min(500)
+
+    val executionBelongs = context
+      .select(WORKFLOW_EXECUTIONS.EID)
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_EXECUTIONS.EID.eq(eid)))
+      .fetchOneInto(classOf[Integer])
+    if (executionBelongs == null) {
+      throw new BadRequestException(s"Execution $eid does not belong to workflow $wid")
+    }
+
+    val resultUriOpt = getResultUriByLogicalPortId(
+      ExecutionIdentity(eid.longValue()),
+      OperatorIdentity(opId),
+      PortIdentity(id = portId.toInt, internal = false)
+    )
+    val uri = resultUriOpt.getOrElse {
+      throw new NotFoundException(s"No result URI for op=$opId port=$portId in execution $eid")
+    }
+
+    val (document, schemaOption) = DocumentFactory.openDocument(uri)
+    val virtualDocument = document.asInstanceOf[
+      org.apache.texera.amber.core.storage.model.VirtualDocument[Tuple]
+    ]
+    val totalCount = virtualDocument.getCount
+    val from = pageIndex * effectivePageSize
+    val until = from + effectivePageSize
+    val pageTuples =
+      if (from >= totalCount) Iterable.empty[Tuple]
+      else virtualDocument.getRange(from, until.toInt, None).to(Iterable)
+
+    val rows = org.apache.texera.web.service.ExecutionResultService.convertTuplesToJson(pageTuples)
+    val schema = schemaOption
+      .map(_.getAttributes.map(a => AttributeMeta(a.getName, a.getType.name())))
+      .getOrElse(List.empty)
+
+    ExecutionOperatorResultPage(
+      schema = schema,
+      rows = rows,
+      totalRowCount = totalCount,
+      pageIndex = pageIndex,
+      pageSize = effectivePageSize
+    )
   }
 
   @GET

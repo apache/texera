@@ -17,6 +17,26 @@
  under the License.
 -->
 
+<div class="version-toolbar" *ngIf="versionsList">
+  <button
+    nz-button
+    nzSize="small"
+    [nzType]="compareMode ? 'primary' : 'default'"
+    (click)="toggleCompareMode()">
+    {{ compareMode ? "Exit compare" : "Compare versions" }}
+  </button>
+  <button
+    *ngIf="compareMode"
+    nz-button
+    nzSize="small"
+    nzType="primary"
+    [disabled]="!canCompare()"
+    (click)="runCompare()">
+    Compare {{ compareSelection.size }}/2
+  </button>
+  <span *ngIf="compareError" class="compare-error">{{ compareError }}</span>
+</div>
+
 <nz-table
   id="versions-list"
   nzSize="small"
@@ -39,6 +59,13 @@
       <tr
         *ngIf="(!row.importance && row.expand) || row.importance"
         [ngClass]="{'selected-row': selectedRowIndex === i}">
+        <td nzAlign="center">
+          <label
+            *ngIf="compareMode"
+            nz-checkbox
+            [ngModel]="isVersionSelectedForCompare(row.vId)"
+            (ngModelChange)="onCompareCheckChange(row.vId, $event)"></label>
+        </td>
         <td
           nzAlign="right"
           [nzShowExpand]="row.importance"

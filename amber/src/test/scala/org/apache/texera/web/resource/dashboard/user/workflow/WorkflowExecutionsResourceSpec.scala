@@ -216,4 +216,119 @@ class WorkflowExecutionsResourceSpec
     assert(rows.get(0).getResultUri == uri.toString)
   }
 
+  // --- compareOperatorPortStructure ---------------------------------------
+
+  private def insertExecutionForTestWorkflow(name: String): WorkflowExecutions = {
+    val execution = new WorkflowExecutions
+    execution.setVid(testVersion.getVid)
+    execution.setUid(testUser.getUid)
+    execution.setStatus(0.toByte)
+    execution.setResult("")
+    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    execution.setBookmarked(false)
+    execution.setName(name)
+    execution.setEnvironmentVersion("test-env-1.0")
+    workflowExecutionsDao.insert(execution)
+    execution
+  }
+
+  private def insertPortRow(
+      eid: Integer,
+      logicalOpId: String,
+      portId: Int,
+      internal: Boolean = false,
+      isInput: Boolean = false
+  ): GlobalPortIdentity = {
+    val gpi = GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity(logicalOpId), "main"),
+      PortIdentity(id = portId, internal = internal),
+      input = isInput
+    )
+    WorkflowExecutionsResource.insertOperatorPortResultUri(
+      ExecutionIdentity(eid.longValue()),
+      gpi,
+      URI.create(s"vfs:///wid/${testWorkflowWid}/eid/${eid}/op/${logicalOpId}/port/${portId}")
+    )
+    gpi
+  }
+
+  "WorkflowExecutionsResource.compareOperatorPortStructure" should
+    "classify ports as shared, onlyInA, or onlyInB by logical op id and external port id" in {
+    val execA = insertExecutionForTestWorkflow("execA")
+    val execB = insertExecutionForTestWorkflow("execB")
+
+    // shared operator with two external output ports
+    insertPortRow(execA.getEid, "op-shared", 0)
+    insertPortRow(execA.getEid, "op-shared", 1)
+    insertPortRow(execB.getEid, "op-shared", 0)
+    insertPortRow(execB.getEid, "op-shared", 1)
+
+    // only on A
+    insertPortRow(execA.getEid, "op-only-a", 0)
+
+    // only on B
+    insertPortRow(execB.getEid, "op-only-b", 0)
+
+    val entries = WorkflowExecutionsResource.compareOperatorPortStructure(
+      ExecutionIdentity(execA.getEid.longValue()),
+      ExecutionIdentity(execB.getEid.longValue())
+    )
+
+    // Granularity is (operator, external output port)
+    val keyed = entries.map(e => (e.operatorId, e.portId) -> e.status).toMap
+    assert(keyed.size == 4, s"expected 4 entries, got ${keyed.size}: $entries")
+    assert(keyed(("op-shared", 0)) == "shared")
+    assert(keyed(("op-shared", 1)) == "shared")
+    assert(keyed(("op-only-a", 0)) == "onlyInA")
+    assert(keyed(("op-only-b", 0)) == "onlyInB")
+
+    // shared entries carry both URIs; one-sided entries carry only their own
+    val sharedP0 = entries.find(e => e.operatorId == "op-shared" && e.portId == 0).get
+    assert(sharedP0.resultUriA.isDefined && sharedP0.resultUriB.isDefined)
+
+    val onlyA = entries.find(_.operatorId == "op-only-a").get
+    assert(onlyA.resultUriA.isDefined && onlyA.resultUriB.isEmpty)
+
+    val onlyB = entries.find(_.operatorId == "op-only-b").get
+    assert(onlyB.resultUriA.isEmpty && onlyB.resultUriB.isDefined)
+  }
+
+  it should "filter out internal ports and input ports" in {
+    val execA = insertExecutionForTestWorkflow("execA-filter")
+    val execB = insertExecutionForTestWorkflow("execB-filter")
+
+    // valid external output that should appear
+    insertPortRow(execA.getEid, "op-x", 0)
+    insertPortRow(execB.getEid, "op-x", 0)
+
+    // internal ports - should be ignored
+    insertPortRow(execA.getEid, "op-x", 5, internal = true)
+    insertPortRow(execB.getEid, "op-x", 5, internal = true)
+
+    // input ports - should be ignored
+    insertPortRow(execA.getEid, "op-x", 6, isInput = true)
+    insertPortRow(execB.getEid, "op-x", 6, isInput = true)
+
+    val entries = WorkflowExecutionsResource.compareOperatorPortStructure(
+      ExecutionIdentity(execA.getEid.longValue()),
+      ExecutionIdentity(execB.getEid.longValue())
+    )
+
+    assert(entries.size == 1, s"only the external output port should survive, got: $entries")
+    assert(entries.head.operatorId == "op-x" && entries.head.portId == 0)
+    assert(entries.head.status == "shared")
+  }
+
+  it should "return an empty list when neither execution has any port entries" in {
+    val execA = insertExecutionForTestWorkflow("execA-empty")
+    val execB = insertExecutionForTestWorkflow("execB-empty")
+
+    val entries = WorkflowExecutionsResource.compareOperatorPortStructure(
+      ExecutionIdentity(execA.getEid.longValue()),
+      ExecutionIdentity(execB.getEid.longValue())
+    )
+
+    assert(entries.isEmpty)
+  }
+
 }

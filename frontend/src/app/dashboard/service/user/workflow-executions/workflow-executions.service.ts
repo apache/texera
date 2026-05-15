@@ -91,4 +91,63 @@ export class WorkflowExecutionsService {
       params,
     });
   }
+
+  /**
+   * Side-by-side comparison summary for two executions of the same workflow.
+   */
+  compareTwoExecutions(wid: number, eidA: number, eidB: number): Observable<WorkflowExecutionCompareSummary> {
+    return this.http.get<WorkflowExecutionCompareSummary>(
+      `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/${eidA}/compare/${eidB}`
+    );
+  }
+
+  /**
+   * Fetch a paginated page of rows from a specific operator port's persisted result for a
+   * past execution. Powers the per-operator result panel of the workflow-compare view.
+   */
+  retrieveExecutionResultPage(
+    wid: number,
+    eid: number,
+    opId: string,
+    portId: number,
+    page: number,
+    pageSize: number
+  ): Observable<ExecutionOperatorResultPage> {
+    const params = new HttpParams().set("page", page.toString()).set("pageSize", pageSize.toString());
+    return this.http.get<ExecutionOperatorResultPage>(
+      `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/${eid}/result/${encodeURIComponent(opId)}/${portId}`,
+      { params }
+    );
+  }
+}
+
+export interface CompareAttributeMeta {
+  readonly name: string;
+  readonly typeName: string;
+}
+
+export interface OperatorPortCompareResult {
+  readonly operatorId: string;
+  readonly portId: number;
+  readonly status: "shared" | "onlyInA" | "onlyInB";
+  readonly rowCountA: number | null;
+  readonly rowCountB: number | null;
+  readonly schemaA: ReadonlyArray<CompareAttributeMeta>;
+  readonly schemaB: ReadonlyArray<CompareAttributeMeta>;
+  readonly schemaMatches: boolean;
+}
+
+export interface WorkflowExecutionCompareSummary {
+  readonly wid: number;
+  readonly eidA: number;
+  readonly eidB: number;
+  readonly operators: ReadonlyArray<OperatorPortCompareResult>;
+}
+
+export interface ExecutionOperatorResultPage {
+  readonly schema: ReadonlyArray<CompareAttributeMeta>;
+  readonly rows: ReadonlyArray<Record<string, unknown>>;
+  readonly totalRowCount: number;
+  readonly pageIndex: number;
+  readonly pageSize: number;
 }

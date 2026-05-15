@@ -26,6 +26,7 @@ import { UserProjectSectionComponent } from "./dashboard/component/user/user-pro
 import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
+import { CompareWorkspaceComponent } from "./workspace/component/compare-workspace/compare-workspace.component";
 import { AboutComponent } from "./hub/component/about/about.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
@@ -118,6 +119,10 @@ routes.push({
         {
           path: "workflow/:id",
           component: WorkspaceComponent,
+        },
+        {
+          path: "workflow/:wid/compare/:eidA/:eidB",
+          component: CompareWorkspaceComponent,
         },
         {
           path: "dataset",
