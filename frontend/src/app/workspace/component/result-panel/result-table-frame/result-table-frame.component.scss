@@ -21,6 +21,26 @@
   margin: 16px 0;
 }
 
+// Transient highlight applied to a source row when the user clicks
+// "Jump to source row" in the lineage modal. Cleared after a few seconds
+// by ResultTableFrameComponent's timer.
+:host ::ng-deep tr.lineage-highlighted-row > td {
+  background-color: #fff3a8;
+  animation: lineage-highlight-pulse 0.6s ease-out 2;
+}
+
+@keyframes lineage-highlight-pulse {
+  0% {
+    background-color: #fff3a8;
+  }
+  50% {
+    background-color: #ffd84d;
+  }
+  100% {
+    background-color: #fff3a8;
+  }
+}
+
 // make the pagination button to the left
 :host ::ng-deep .ant-table-pagination-right {
   justify-content: left;

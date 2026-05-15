@@ -36,6 +36,15 @@ import java.io.{IOException, InputStreamReader}
 import java.net.URI
 import java.nio.file.Paths
 
+object CSVScanSourceOpDesc {
+  // Hidden column emitted by CSV scan carrying the 1-indexed source row
+  // position within the parsed CSV body. The "__" prefix marks it as a
+  // lineage/internal field; downstream pass-through operators (Filter,
+  // Projection, Map) propagate it unchanged so a result row can be traced
+  // back to its origin in the source file.
+  val LineageOriginRowColumn: String = "__lineage_origin_row"
+}
+
 class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(defaultValue = ",")
@@ -48,6 +57,15 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
   @JsonSchemaTitle("Header")
   @JsonPropertyDescription("whether the CSV file contains a header line")
   var hasHeader: Boolean = true
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Track row-level lineage")
+  @JsonPropertyDescription(
+    "emit an extra __lineage_origin_row column tagging each output tuple " +
+      "with its 1-indexed source row in the parsed CSV body; lineage is " +
+      "propagated unchanged through pass-through operators (Filter, Sort)"
+  )
+  var trackLineage: Boolean = false
 
   fileTypeName = Option("CSV")
 
@@ -118,9 +136,13 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
           .getOrElse((1 to attributeTypeList.length).map(i => "column-" + i).toArray)
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
-    header.indices.foldLeft(Schema()) { (schema, i) =>
+    val dataSchema = header.indices.foldLeft(Schema()) { (schema, i) =>
       schema.add(header(i), attributeTypeList(i))
     }
+
+    if (trackLineage)
+      dataSchema.add(CSVScanSourceOpDesc.LineageOriginRowColumn, AttributeType.LONG)
+    else dataSchema
 
   }
 

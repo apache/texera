@@ -83,6 +83,16 @@
             nzWidth="widthPercent">
             {{ column.header }}
           </th>
+          <th
+            *ngIf="hasLineageColumn"
+            ngClass="header-size"
+            style="text-align: center; width: 70px"
+            nz-tooltip="Each row carries a lineage tag from its source. Click to trace it.">
+            <i
+              nz-icon
+              nzType="branches"></i>
+            Why?
+          </th>
         </tr>
         <tr
           *ngIf="tableStats && prevTableStats"
@@ -149,12 +159,14 @@
               </ng-container>
             </div>
           </th>
+          <th *ngIf="hasLineageColumn"></th>
         </tr>
       </thead>
       <tbody>
         <tr
           *ngFor="let row of basicTable.data; let i = index"
-          class="table-row-hover">
+          class="table-row-hover"
+          [class.lineage-highlighted-row]="i === highlightedRowIndex">
           <td
             *ngFor="let column of currentColumns; let columnIndex = index"
             class="table-cell"
@@ -170,6 +182,22 @@
               <i
                 nz-icon
                 nzType="cloud-download"></i>
+            </button>
+          </td>
+          <td
+            *ngIf="hasLineageColumn"
+            class="lineage-cell"
+            style="text-align: center; width: 70px">
+            <button
+              *ngIf="hasLineage(row)"
+              (click)="onWhyButtonClick(row); $event.stopPropagation()"
+              nz-button
+              nzType="link"
+              nz-tooltip="Show where this row came from"
+              title="Why is this row here?">
+              <i
+                nz-icon
+                nzType="question-circle"></i>
             </button>
           </td>
         </tr>

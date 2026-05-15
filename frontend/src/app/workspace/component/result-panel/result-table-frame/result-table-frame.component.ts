@@ -47,6 +47,11 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import {
+  LineageHighlightRequest,
+  LineageHighlightService,
+} from "../../../service/workflow-result/lineage-highlight.service";
 
 /**
  * The Component will display the result in an excel table format,
@@ -78,6 +83,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
     NgClass,
     NzTbodyComponent,
     NzCellEllipsisDirective,
+    NzTooltipDirective,
   ],
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
@@ -109,6 +115,27 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   widthPercent: string = "";
   isOperatorFinished: boolean = false;
 
+  /**
+   * 0-indexed row position (within the currently displayed page) that should be
+   * temporarily highlighted to satisfy a `LineageHighlightService` request. -1
+   * means no row is currently highlighted. Cleared after a few seconds.
+   */
+  highlightedRowIndex: number = -1;
+  private highlightClearTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * The `__lineage_origin_row` value we're trying to locate. We can't rely on
+   * positional math (page = floor(N/pageSize)) because the underlying Iceberg
+   * storage doesn't guarantee insertion order on read — page 9 row 5 might not
+   * be the row whose lineage value is 45. Instead, we navigate to a best-
+   * guess page, inspect the actual lineage values that come back, and iterate
+   * outward (binary-search-style) until we find the target row or exhaust the
+   * attempt budget.
+   */
+  private pendingHighlightSourceRow: number | null = null;
+  private highlightSearchAttempts = 0;
+  private highlightVisitedPages: Set<number> = new Set();
+  private static readonly HIGHLIGHT_MAX_ATTEMPTS = 15;
+
   constructor(
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
@@ -117,7 +144,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
-    private guiConfigService: GuiConfigService
+    private guiConfigService: GuiConfigService,
+    private lineageHighlightService: LineageHighlightService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -133,6 +161,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
       }
+      // If a lineage-highlight request was set before this component swapped in
+      // for the source operator, apply it now.
+      this.applyLineageHighlightIfApplicable(this.lineageHighlightService.getPending());
     }
   }
 
@@ -189,6 +220,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           }
         }
       });
+
+    // React to lineage "jump to source row" requests broadcast from elsewhere.
+    this.lineageHighlightService
+      .pendingHighlight()
+      .pipe(untilDestroyed(this))
+      .subscribe(req => this.applyLineageHighlightIfApplicable(req));
 
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
       this.panelHeight = size.height;
@@ -425,12 +462,20 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
     let columns: { columnKey: any; columnText: string }[];
 
-    const columnKeys = Object.keys(resultData[0]).filter(x => x !== "_id");
+    // Hide internal/lineage columns (anything prefixed with "__") from the visible
+    // table — they remain on the row object so per-row affordances (e.g. the "Why?"
+    // lineage button) can still access them.
+    const columnKeys = Object.keys(resultData[0]).filter(x => x !== "_id" && !x.startsWith("__"));
     columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);
     this.totalNumTuples = totalRowCount;
+
+    // If a "Jump to source row" request is waiting on this operator, resolve it
+    // now against the freshly loaded rows (Iceberg's read order isn't
+    // guaranteed, so we match by `__lineage_origin_row` value, not position).
+    this.resolvePendingHighlight();
   }
 
   /**
@@ -444,6 +489,253 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       header: col.columnText,
       getCell: (row: IndexableObject) => row[col.columnKey].toString(),
     }));
+  }
+
+  // Column name emitted by source operators when "Track row-level lineage" is on.
+  // Must stay in sync with CSVScanSourceOpDesc.LineageOriginRowColumn (Scala).
+  static readonly LINEAGE_ORIGIN_ROW_COLUMN = "__lineage_origin_row";
+
+  /**
+   * Whether the currently displayed result rows carry a lineage tag. Used to
+   * conditionally render the per-row "Why?" button in the template.
+   */
+  hasLineage(row: IndexableObject): boolean {
+    return row[ResultTableFrameComponent.LINEAGE_ORIGIN_ROW_COLUMN] !== undefined;
+  }
+
+  /**
+   * True when the currently displayed result rows carry a lineage tag. Used to
+   * decide whether to render the extra "Why?" table column at all.
+   */
+  get hasLineageColumn(): boolean {
+    return this.currentResult.length > 0 && this.hasLineage(this.currentResult[0]);
+  }
+
+  /**
+   * Walks upstream via input links (BFS) from the given operator and returns
+   * the closest ancestor that emits row-level lineage (currently, a
+   * `CSVFileScan` with `trackLineage` enabled). Returns `undefined` if no such
+   * source is reachable — for example because lineage was lost across a
+   * Projection or Python UDF, or because the user enabled the checkbox after
+   * the workflow was last run.
+   */
+  private findUpstreamLineageSource(operatorID: string): { id: string; sourceFile?: string } | undefined {
+    const graph = this.workflowActionService.getTexeraGraph();
+    const visited = new Set<string>();
+    const queue: string[] = [operatorID];
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const op = graph.getOperator(id);
+      if (op) {
+        const props = op.operatorProperties ?? {};
+        if (op.operatorType === "CSVFileScan" && props["trackLineage"] === true) {
+          return { id, sourceFile: props["fileName"] as string | undefined };
+        }
+      }
+      for (const link of graph.getInputLinksByOperatorId(id)) {
+        queue.push(link.source.operatorID);
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Apply a pending lineage-highlight request iff it targets *this* operator's
+   * result panel. Navigates to the page that *probably* contains the source row
+   * (based on emission-order math) and stores the lineage value so
+   * `setupResultTable` can find the actual row by matching its
+   * `__lineage_origin_row` field — Iceberg may not preserve insertion order on
+   * read, so positional navigation alone can land on the wrong row.
+   */
+  private applyLineageHighlightIfApplicable(req: LineageHighlightRequest | null): void {
+    if (!req || !this.operatorId || req.operatorID !== this.operatorId) return;
+    const rowOneIndexed = req.sourceRow;
+    if (!Number.isFinite(rowOneIndexed) || rowOneIndexed < 1) return;
+
+    // Fresh request: reset the iterative search state.
+    this.pendingHighlightSourceRow = rowOneIndexed;
+    this.highlightSearchAttempts = 0;
+    this.highlightVisitedPages = new Set();
+    this.lineageHighlightService.clear();
+
+    // Best-guess page from emission order; if Iceberg returns rows out of
+    // insertion order we'll iterate outward in resolvePendingHighlight.
+    // NOTE: don't pre-add the user's previous page to visitedPages — the search
+    // may legitimately need to walk back into it. Only pages actually inspected
+    // for the target value should be marked visited.
+    const targetPage = Math.floor((rowOneIndexed - 1) / this.pageSize) + 1;
+    if (this.currentPageIndex !== targetPage) {
+      this.currentPageIndex = targetPage;
+      this.changePaginatedResultData();
+    } else {
+      this.resolvePendingHighlight();
+    }
+  }
+
+  /**
+   * Searches the currently loaded page for the row whose `__lineage_origin_row`
+   * matches `pendingHighlightSourceRow`. If found, marks its index for the
+   * highlight class and schedules a clear timer. If not found, leaves the
+   * pending value in place — a subsequent page load (e.g. user-driven) can
+   * still resolve it. Called from `setupResultTable` after the table data is
+   * refreshed.
+   */
+  private resolvePendingHighlight(): void {
+    if (this.pendingHighlightSourceRow === null) return;
+    const target = this.pendingHighlightSourceRow;
+    const col = ResultTableFrameComponent.LINEAGE_ORIGIN_ROW_COLUMN;
+
+    const lineageVals: number[] = this.currentResult
+      .map(r => Number(r[col]))
+      .filter(v => Number.isFinite(v));
+    const idx = this.currentResult.findIndex(r => Number(r[col]) === target);
+
+    // Diagnostic — visible in DevTools Console.
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lineage] resolve attempt ${this.highlightSearchAttempts + 1}: ` +
+        `target=${target}, page=${this.currentPageIndex}, pageSize=${this.pageSize}, ` +
+        `matchIdx=${idx}, valsOnPage=`,
+      lineageVals
+    );
+
+    if (idx >= 0) {
+      this.highlightedRowIndex = idx;
+      this.pendingHighlightSourceRow = null;
+      if (this.highlightClearTimer) clearTimeout(this.highlightClearTimer);
+      this.highlightClearTimer = setTimeout(() => {
+        this.highlightedRowIndex = -1;
+        this.changeDetectorRef.detectChanges();
+      }, 6000);
+      this.changeDetectorRef.detectChanges();
+      return;
+    }
+
+    // Not on this page — pick the next page to fetch based on whether target
+    // is below or above the values we see. Caps at a few attempts to avoid
+    // hammering the backend if values are scattered chaotically.
+    this.highlightSearchAttempts++;
+    this.highlightVisitedPages.add(this.currentPageIndex);
+
+    if (lineageVals.length === 0) {
+      this.giveUpHighlight(target, "no lineage values found on this page");
+      return;
+    }
+    if (this.highlightSearchAttempts >= ResultTableFrameComponent.HIGHLIGHT_MAX_ATTEMPTS) {
+      this.giveUpHighlight(
+        target,
+        `gave up after ${this.highlightSearchAttempts} page fetches`
+      );
+      return;
+    }
+
+    const minVal = Math.min(...lineageVals);
+    const maxVal = Math.max(...lineageVals);
+    const totalPages = Math.max(1, Math.ceil(this.totalNumTuples / this.pageSize));
+
+    let nextPage: number;
+    if (target < minVal) {
+      const stepRows = Math.max(this.pageSize, minVal - target);
+      const stepPages = Math.max(1, Math.ceil(stepRows / this.pageSize));
+      nextPage = Math.max(1, this.currentPageIndex - stepPages);
+    } else if (target > maxVal) {
+      const stepRows = Math.max(this.pageSize, target - maxVal);
+      const stepPages = Math.max(1, Math.ceil(stepRows / this.pageSize));
+      nextPage = Math.min(totalPages, this.currentPageIndex + stepPages);
+    } else {
+      // Target is between min and max but not present — page is sparse w.r.t.
+      // lineage. Step one page in the direction of the side with more room.
+      nextPage =
+        target - minVal < maxVal - target
+          ? Math.max(1, this.currentPageIndex - 1)
+          : Math.min(totalPages, this.currentPageIndex + 1);
+    }
+
+    if (this.highlightVisitedPages.has(nextPage)) {
+      // Already tried — give up rather than loop.
+      this.giveUpHighlight(target, `would revisit page ${nextPage}`);
+      return;
+    }
+
+    this.currentPageIndex = nextPage;
+    this.changePaginatedResultData();
+  }
+
+  private giveUpHighlight(target: number, reason: string): void {
+    this.pendingHighlightSourceRow = null;
+    // eslint-disable-next-line no-console
+    console.warn(`[lineage] gave up locating source row ${target}: ${reason}`);
+    this.modalService.warning({
+      nzTitle: "Couldn't locate the source row",
+      nzContent:
+        `Tried up to ${this.highlightSearchAttempts} pages without finding a row ` +
+        `whose __lineage_origin_row equals ${target}. Iceberg's read order ` +
+        `made the search inconclusive. Last attempted page: ${this.currentPageIndex}.`,
+      nzOkText: "OK",
+    });
+  }
+
+  /**
+   * Opens a modal explaining where the selected row came from. If a lineage-
+   * emitting source operator can be located upstream, the modal also offers a
+   * "Jump to source row" action that selects that operator and asks its result
+   * panel to scroll to + highlight the originating row.
+   */
+  onWhyButtonClick(row: IndexableObject): void {
+    const lineageValue = row[ResultTableFrameComponent.LINEAGE_ORIGIN_ROW_COLUMN];
+    if (lineageValue === undefined || this.operatorId === undefined) return;
+    const sourceRowNum = Number(lineageValue);
+    if (!Number.isFinite(sourceRowNum)) return;
+
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(this.operatorId);
+    const opLabel = operator?.customDisplayName?.trim() || operator?.operatorType || "this operator";
+
+    const upstream = this.findUpstreamLineageSource(this.operatorId);
+    const sourceFile = upstream?.sourceFile;
+    const sourceLabel = sourceFile
+      ? sourceFile.split("/").pop() ?? sourceFile
+      : "the source operator";
+
+    const escape = (s: string) => s.replace(/[&<>"']/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
+    const footer: any[] = [
+      {
+        label: "Close",
+        onClick: () => modalRef.destroy(),
+      },
+    ];
+    if (upstream) {
+      footer.push({
+        label: "Jump to source row",
+        type: "primary",
+        onClick: () => {
+          this.workflowActionService.highlightOperators(false, upstream.id);
+          this.lineageHighlightService.requestHighlight(upstream.id, sourceRowNum);
+          modalRef.destroy();
+        },
+      });
+    }
+
+    const modalRef: NzModalRef = this.modalService.create({
+      nzTitle: "Why is this row here?",
+      nzContent: `
+        <div style="line-height: 1.6">
+          <p>This row of <b>${escape(opLabel)}</b> originated from
+          <b>row ${escape(String(sourceRowNum))}</b> of
+          <b>${escape(sourceLabel)}</b>.</p>
+          <p style="color:#888;font-size:12px;margin-top:12px">
+            The 1-indexed source position was carried through every
+            pass-through operator (Filter, Sort) in this workflow's pipeline.
+            Many-to-one operators (Join, Aggregate, GroupBy) and Python UDFs
+            do not propagate lineage in this version.
+          </p>
+        </div>`,
+      nzFooter: footer,
+      nzWidth: 520,
+    });
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {

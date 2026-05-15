@@ -160,4 +160,25 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(csvScanSourceOpDesc.customDelimiter.contains(","))
   }
 
+  it should "append __lineage_origin_row when trackLineage is enabled" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.trackLineage = true
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+
+    val schema: Schema = csvScanSourceOpDesc.sourceSchema()
+
+    // 14 inferred data columns + 1 lineage column
+    assert(schema.getAttributes.length == 15)
+    assert(schema.containsAttribute(CSVScanSourceOpDesc.LineageOriginRowColumn))
+    assert(
+      schema.getAttribute(CSVScanSourceOpDesc.LineageOriginRowColumn).getType == AttributeType.LONG
+    )
+    // lineage column must come last so it doesn't shift indices of user columns
+    assert(
+      schema.getAttributes.last.getName == CSVScanSourceOpDesc.LineageOriginRowColumn
+    )
+  }
+
 }

@@ -36,6 +36,13 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
   var nextRow: Array[String] = _
   var numRowGenerated = 0
   private val schema: Schema = desc.sourceSchema()
+  // When lineage tracking is on, `schema` carries an extra __lineage_origin_row
+  // column appended after the data columns. `dataSchema` is the column shape
+  // seen by AttributeTypeUtils.parseFields (must match the raw row's cell count);
+  // the lineage value is appended after parsing.
+  private val dataSchema: Schema =
+    if (desc.trackLineage) schema.remove(CSVScanSourceOpDesc.LineageOriginRowColumn)
+    else schema
 
   override def produceTuple(): Iterator[TupleLike] = {
 
@@ -60,11 +67,14 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
       .drop(desc.offset.getOrElse(0))
       .map(row => {
         try {
-          TupleLike(
-            ArraySeq.unsafeWrapArray(
-              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
-            ): _*
-          )
+          val parsed =
+            AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], dataSchema)
+          val fields: Array[Any] =
+            // 1-indexed source row within the parsed CSV body (post-header, post-offset
+            // applied transparently via the underlying parser's progress counter).
+            if (desc.trackLineage) parsed :+ numRowGenerated.toLong
+            else parsed
+          TupleLike(ArraySeq.unsafeWrapArray(fields): _*)
         } catch {
           case _: Throwable => null
         }
