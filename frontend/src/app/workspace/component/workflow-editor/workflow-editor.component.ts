@@ -570,16 +570,21 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.openCommentBox(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            // Macro nodes drill down into their body in a new editor route
-            // (`/workflow/:id/macro/:macroId`) instead of opening a result
-            // panel — that panel doesn't apply to a composite operator.
+            // Macro nodes drill down into their body via a route change. Use a
+            // hard navigation (window.location.href) instead of the Angular
+            // router so the WorkspaceComponent is destroyed and re-bootstrapped:
+            // the YJS shared-model + JointJS canvas retain enough cross-route
+            // state that an SPA navigation leaves stale operators/links behind
+            // (manifested as "duplicate link found" rejections and a
+            // half-rendered body). Page-reload is the only known-clean path
+            // until that lifecycle is properly untangled. Cost is a brief flash;
+            // worth it for predictable rendering.
             const op = this.workflowActionService.getTexeraGraph().getOperator(elementID);
             const macroId = op?.operatorProperties?.["macroId"];
             if (op?.operatorType === "Macro" && macroId) {
               const parentWid = this.route.snapshot.params.id ?? "";
-              this.router.navigateByUrl(
-                `/dashboard/user/workflow/${parentWid}/macro/${macroId}`
-              );
+              window.location.href =
+                `/dashboard/user/workflow/${parentWid}/macro/${macroId}`;
               return;
             }
             this.workflowActionService.openResultPanel();
