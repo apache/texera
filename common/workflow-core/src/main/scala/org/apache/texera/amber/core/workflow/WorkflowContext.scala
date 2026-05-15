@@ -35,7 +35,5 @@ class WorkflowContext(
     var workflowId: WorkflowIdentity = DEFAULT_WORKFLOW_ID,
     var executionId: ExecutionIdentity = DEFAULT_EXECUTION_ID,
     var workflowSettings: WorkflowSettings = DEFAULT_WORKFLOW_SETTINGS,
-    // The computing unit serving this workflow. Threaded through to WorkerConfig so the
-    // Python worker can locate its PVE without depending on a TEXERA_CUID env var.
     var cuid: Option[Int] = None
 )
