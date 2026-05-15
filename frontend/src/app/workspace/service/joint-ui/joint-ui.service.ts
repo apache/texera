@@ -232,6 +232,16 @@ export class JointUIService {
     return text.length * 7;
   }
 
+  // Split a string into grapheme clusters so truncation does not break
+  // surrogate pairs (emoji) or ZWJ sequences (e.g. family emoji, flags).
+  // Falls back to code-point iteration if Intl.Segmenter is unavailable.
+  private static splitGraphemes(name: string): string[] {
+    if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+      return Array.from(new Intl.Segmenter().segment(name), s => s.segment);
+    }
+    return Array.from(name);
+  }
+
   public static truncateOperatorDisplayName(
     name: string,
     measure: (text: string) => number = JointUIService.measureOperatorNameWidth
@@ -242,15 +252,16 @@ export class JointUIService {
     const ellipsis = "…";
     const prefixBudget = budget - measure(ellipsis);
     if (prefixBudget <= 0) return ellipsis;
-    // Binary-search the longest prefix that fits inside prefixBudget.
+    const graphemes = JointUIService.splitGraphemes(name);
+    // Binary-search the longest grapheme prefix that fits inside prefixBudget.
     let lo = 0;
-    let hi = name.length;
+    let hi = graphemes.length;
     while (lo < hi) {
       const mid = (lo + hi + 1) >>> 1;
-      if (measure(name.slice(0, mid)) <= prefixBudget) lo = mid;
+      if (measure(graphemes.slice(0, mid).join("")) <= prefixBudget) lo = mid;
       else hi = mid - 1;
     }
-    return name.slice(0, lo) + ellipsis;
+    return graphemes.slice(0, lo).join("") + ellipsis;
   }
 
   private operatorSchemas: ReadonlyArray<OperatorSchema> = [];

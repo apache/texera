@@ -359,5 +359,44 @@ describe("JointUIService", () => {
     it("returns an empty string unchanged", () => {
       expect(JointUIService.truncateOperatorDisplayName("", measure)).toBe("");
     });
+
+    it("truncates CJK characters at code-point boundaries", () => {
+      // CJK characters are each a single code point (UTF-16 length 1) — the
+      // 10-px measurer treats them like any other char. 19 chars fit in the
+      // 190-px prefix budget once the ellipsis is reserved.
+      const name = "你".repeat(charsThatFit + 5);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
+      expect(result).toBe("你".repeat(charsThatFit - 1) + "…");
+      expect(measure(result)).toBeLessThanOrEqual(budget);
+    });
+
+    it("truncates emoji at grapheme boundaries (no orphan surrogates)", () => {
+      // 🎉 is U+1F389, a single grapheme but a UTF-16 surrogate pair (length 2).
+      // With the 10-px-per-code-unit measurer each 🎉 costs 20 px.
+      const name = "🎉".repeat(20);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
+      // Prefix budget 190 / 20 px per emoji = 9 full emojis kept.
+      expect(result).toBe("🎉".repeat(9) + "…");
+      // Result must be re-iterable as the same set of grapheme clusters —
+      // i.e. no half-surrogate at the boundary.
+      const segments = Array.from(result);
+      expect(segments).toEqual([..."🎉".repeat(9), "…"]);
+    });
+
+    it("keeps a ZWJ grapheme cluster (family emoji) intact when truncating", () => {
+      // 👨‍👩‍👧‍👦 is one grapheme cluster but 11 UTF-16 code units (4 emojis joined
+      // by 3 ZWJ chars). With the 10-px measurer each family costs 110 px,
+      // so the 190-px prefix budget keeps exactly one family.
+      const name = "👨‍👩‍👧‍👦".repeat(5);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
+      // Skip the strict assertion if Intl.Segmenter isn't available; the
+      // code-point fallback would split the cluster, which we cannot avoid
+      // without the segmenter.
+      const hasSegmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function";
+      if (hasSegmenter) {
+        expect(result).toBe("👨‍👩‍👧‍👦" + "…");
+      }
+      expect(result.endsWith("…")).toBe(true);
+    });
   });
 });
