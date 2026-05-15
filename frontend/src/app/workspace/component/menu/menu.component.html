@@ -456,7 +456,16 @@
             *ngIf="profilerService.getStateStream() | async as profilerState"
             style="display: flex; flex-direction: column; gap: 10px; min-width: 240px">
             <div style="display: flex; align-items: center; gap: 10px; justify-content: space-between">
-              <span>Profiling Heatmap</span>
+              <span>
+                Profiling Heatmap
+                <i
+                  nz-icon
+                  nzType="info-circle"
+                  nzTheme="outline"
+                  nz-tooltip
+                  [nzTooltipTitle]="heatmapInfo"
+                  style="color: rgba(0, 0, 0, 0.45); margin-left: 4px; cursor: help"></i>
+              </span>
               <nz-switch
                 [ngModel]="profilerState.enabled"
                 (ngModelChange)="toggleProfiling($event)"
@@ -468,7 +477,16 @@
             <div
               *ngIf="profilerState.enabled"
               style="display: flex; align-items: center; gap: 10px; justify-content: space-between">
-              <span>View</span>
+              <span>
+                View
+                <i
+                  nz-icon
+                  nzType="info-circle"
+                  nzTheme="outline"
+                  nz-tooltip
+                  [nzTooltipTitle]="viewInfo"
+                  style="color: rgba(0, 0, 0, 0.45); margin-left: 4px; cursor: help"></i>
+              </span>
               <nz-select
                 [ngModel]="profilerState.view"
                 (ngModelChange)="setProfilerView($event)"
@@ -486,7 +504,16 @@
             <div
               *ngIf="profilerState.enabled"
               style="display: flex; flex-direction: column; gap: 4px">
-              <span>Hot threshold (percentile): {{ profilerState.hotThresholdPercentile }}</span>
+              <span>
+                Hot threshold (percentile): {{ profilerState.hotThresholdPercentile }}
+                <i
+                  nz-icon
+                  nzType="info-circle"
+                  nzTheme="outline"
+                  nz-tooltip
+                  [nzTooltipTitle]="thresholdInfo"
+                  style="color: rgba(0, 0, 0, 0.45); margin-left: 4px; cursor: help"></i>
+              </span>
               <nz-slider
                 [ngModel]="profilerState.hotThresholdPercentile"
                 (ngModelChange)="setProfilerHotThreshold($event)"
@@ -499,7 +526,16 @@
             <div
               *ngIf="profilerState.enabled"
               style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #f0f0f0; padding-top: 8px">
-              <span>Compare to previous run</span>
+              <span>
+                Compare to previous run
+                <i
+                  nz-icon
+                  nzType="info-circle"
+                  nzTheme="outline"
+                  nz-tooltip
+                  [nzTooltipTitle]="baselineInfo"
+                  style="color: rgba(0, 0, 0, 0.45); margin-left: 4px; cursor: help"></i>
+              </span>
               <div *ngIf="!profilerState.baseline; else baselineLoadedBlock"
                    style="display: flex; gap: 6px">
                 <button
@@ -606,6 +642,52 @@
               </button>
             </div>
           </div>
+
+          <!-- Help tooltip content templates (rendered only when hovered over their info icons) -->
+          <ng-template #heatmapInfo>
+            <div style="max-width: 280px; line-height: 1.45">
+              Turns on the bottleneck heatmap on the canvas: operators get colored by
+              cost (under the current <strong>View</strong>), and the side panel shows
+              detailed per-operator metrics and optimization hints.
+            </div>
+          </ng-template>
+
+          <ng-template #viewInfo>
+            <div style="max-width: 320px; line-height: 1.45">
+              Pick what the heatmap colors operators by:
+              <ul style="margin: 6px 0 0 18px; padding: 0">
+                <li><strong>Runtime</strong> — CPU time spent in the operator. Hottest = slowest to compute.</li>
+                <li><strong>Throughput</strong> — inverse of output rows. Hottest = slowest producer.</li>
+                <li><strong>I/O imbalance</strong> — fraction of input rows dropped. Hottest = drops the most input.</li>
+                <li><strong>Δ vs baseline</strong> — green/red by runtime change against an uploaded baseline. Available once a baseline is loaded (see <em>Compare to previous run</em> below).</li>
+              </ul>
+            </div>
+          </ng-template>
+
+          <ng-template #thresholdInfo>
+            <div style="max-width: 300px; line-height: 1.45">
+              An operator counts as "hot" when its normalized heat score is at or above this
+              percentile (0&nbsp;–&nbsp;100). Drives the <code>LOW_PARALLELISM_HOT_OP</code> hint,
+              which flags single-worker operators that are doing most of the workflow's work.
+              <br /><br />
+              <strong>Default:</strong> 80. <strong>Note:</strong> at 100, only the literal hottest
+              operator (score == 1.0) ever qualifies — practical max is around 95.
+            </div>
+          </ng-template>
+
+          <ng-template #baselineInfo>
+            <div style="max-width: 320px; line-height: 1.45">
+              Upload a previously-downloaded JSON profiler report to compare the current run
+              against it.
+              <br /><br />
+              Once a baseline is loaded:
+              <ul style="margin: 6px 0 0 18px; padding: 0">
+                <li>Each operator's property panel shows a <strong>"Compared to baseline"</strong> section with runtime / throughput / row deltas and an improved/regressed/unchanged tag.</li>
+                <li>The <strong>Δ vs baseline</strong> view in the dropdown unlocks, coloring the canvas green (improved) / red (regressed) instead of by absolute cost.</li>
+              </ul>
+              Use <strong>Download report → JSON</strong> on a previous run to produce the file.
+            </div>
+          </ng-template>
         </ng-template>
         <div style="margin-left: 5px">
           <nz-badge
