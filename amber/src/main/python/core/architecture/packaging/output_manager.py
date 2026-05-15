@@ -92,6 +92,12 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
+        # Track the port base URI per output port so loop-end operators can
+        # recreate the storage documents on each loop iteration via
+        # `reset_loopend_storage`. Without this, the reset path has no way
+        # to look up which iceberg tables to drop and re-provision.
+        self._storage_uris: typing.Dict[PortIdentity, str] = dict()
+
     def is_missing_output_ports(self):
         """
         This method is only used for ensuring correct region execution.
@@ -133,6 +139,9 @@ class OutputManager:
         state materialization on the same port. `storage_uri_base` is the
         port's base URI; the result and state URIs are derived from it.
         """
+        # Remember the base URI so `reset_loopend_storage` can re-provision
+        # this port's iceberg tables on subsequent loop iterations.
+        self._storage_uris[port_id] = storage_uri_base
         document, _ = DocumentFactory.open_document(
             VFSURIFactory.result_uri(storage_uri_base)
         )
