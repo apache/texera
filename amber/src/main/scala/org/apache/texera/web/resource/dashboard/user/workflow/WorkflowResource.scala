@@ -403,6 +403,15 @@ class WorkflowResource extends LazyLogging {
   ): WorkflowWithPrivilege = {
     if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       val workflow = workflowDao.fetchOneByWid(wid)
+      // Macros share the workflow table but their `content` is a MacroBody, not
+      // a LogicalPlanPojo — loading one via the workflow editor would crash the
+      // canvas (see workflow-check.ts). Fail fast until the drill-down editor
+      // route exists.
+      if (workflow != null && workflow.getKind == WorkflowKindEnum.MACRO) {
+        throw new NotFoundException(
+          s"Workflow $wid is a macro definition; use the macro editor route instead."
+        )
+      }
       WorkflowWithPrivilege(
         workflow.getName,
         workflow.getDescription,
