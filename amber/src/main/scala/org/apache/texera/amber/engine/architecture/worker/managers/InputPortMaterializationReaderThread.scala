@@ -97,25 +97,17 @@ class InputPortMaterializationReaderThread(
     // Notify the input port of start of input channel
     emitECM(METHOD_START_CHANNEL, NO_ALIGNMENT)
     try {
-      // Loop-specific: state document may not always be provisioned for
-      // a materialization in this branch, so guard the open(). Replay
-      // states before tuples so downstream operators have their state
-      // set up before processing the incoming tuples.
-      try {
-        val stateDocument =
-          DocumentFactory
-            .openDocument(VFSURIFactory.stateURI(uri))
-            ._1
-            .asInstanceOf[VirtualDocument[Tuple]]
-        val stateReadIterator = stateDocument.get()
-        while (stateReadIterator.hasNext) {
-          val state = State.fromTuple(stateReadIterator.next())
-          inputMessageQueue.put(
-            FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, StateFrame(state)))
-          )
-        }
-      } catch {
-        case _: Exception =>
+      val stateDocument =
+        DocumentFactory
+          .openDocument(VFSURIFactory.stateURI(uri))
+          ._1
+          .asInstanceOf[VirtualDocument[Tuple]]
+      val stateReadIterator = stateDocument.get()
+      while (stateReadIterator.hasNext) {
+        val state = State.fromTuple(stateReadIterator.next())
+        inputMessageQueue.put(
+          FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, StateFrame(state)))
+        )
       }
 
       val materialization: VirtualDocument[Tuple] = DocumentFactory
