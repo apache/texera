@@ -318,25 +318,42 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   registerLoadOperatorMetadata() {
-    const macroId = this.route.snapshot.params.macroId;
-    const wid = this.route.snapshot.params.id;
-    // /workflow/:id/macro/:macroId — load the macro body into the same canvas
-    // as a "drill-down" view. Read-only in v1 (no auto-persist back to the
-    // macro endpoint yet; that's the next slice).
-    if (macroId) {
-      this.isLoading = true;
-      this.workflowActionService.disableWorkflowModification();
-      this.workflowPersistService.setWorkflowPersistFlag(false);
-      this.loadMacroWithId(Number(macroId));
-      return;
-    }
-    // load workflow with wid if presented in the URL
-    if (wid) {
-      // show loading spinner right away while waiting for workflow to load
-      this.isLoading = true;
-      // temporarily disable modification to prevent editing an empty workflow before real data is loaded
-      this.workflowActionService.disableWorkflowModification();
-      this.loadWorkflowWithId(Number(wid));
+    // Angular reuses `WorkspaceComponent` across in-tab navigations between
+    // /workflow/:id and /workflow/:id/macro/:macroId. `route.snapshot.params`
+    // is frozen at component construction, so we subscribe to paramMap and
+    // re-route to the appropriate loader (workflow vs. macro drill-down) on
+    // every change. Each branch also resets the canvas first because
+    // `reloadWorkflow` would otherwise hit duplicate-link rejections in
+    // shared-model-change-handler from the previous view's leftovers.
+    let lastLoadedKey: string | null = null;
+    this.route.paramMap.pipe(untilDestroyed(this)).subscribe(params => {
+      const macroId = params.get("macroId");
+      const wid = params.get("id");
+      const key = macroId ? `macro:${macroId}` : wid ? `wid:${wid}` : "none";
+      if (key === lastLoadedKey) return;
+      lastLoadedKey = key;
+
+      if (macroId) {
+        this.isLoading = true;
+        this.workflowActionService.disableWorkflowModification();
+        this.workflowPersistService.setWorkflowPersistFlag(false);
+        this.loadMacroWithId(Number(macroId));
+        return;
+      }
+      if (wid) {
+        this.isLoading = true;
+        this.workflowActionService.disableWorkflowModification();
+        // Re-enable persist in case we just came back from a macro drill-down,
+        // which disables it.
+        this.workflowPersistService.setWorkflowPersistFlag(true);
+        this.loadWorkflowWithId(Number(wid));
+        return;
+      }
+    });
+
+    // Falls through to the empty-workflow init path below when no wid is
+    // present in the URL.
+    if (this.route.snapshot.params.id || this.route.snapshot.params.macroId) {
       return;
     }
 
