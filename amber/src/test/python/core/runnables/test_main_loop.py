@@ -1441,6 +1441,7 @@ class TestMainLoop:
         assert [s["value"] for s in saved_states] == [2, 42]
         assert all(s["port"] == 0 for s in saved_states)
 
+    @pytest.mark.timeout(2)
     def test_process_start_channel_persists_produce_state_on_start_output(
         self,
         main_loop,
