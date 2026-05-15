@@ -41,4 +41,8 @@ describe("AdminSettingsComponent", () => {
   it("should create", () => {
     expect(component).toBeTruthy();
   });
+
+  it("renders the MiB unit on the Dataset size inputs", () => {
+    expect(fixture.nativeElement.textContent).toContain("MiB");
+  });
 });
