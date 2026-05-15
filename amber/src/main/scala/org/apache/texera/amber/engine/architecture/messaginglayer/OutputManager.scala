@@ -303,19 +303,21 @@ class OutputManager(
   }
 
   private def setupOutputStorageWriterThread(portId: PortIdentity, portBaseURI: URI): Unit = {
+    // Worker index ends up in the iceberg file name; `.toString` on
+    // Option would leak "Some(...)" into the file name, so unwrap.
+    val workerIdx = VirtualIdentityUtils
+      .getWorkerIndex(actorId)
+      .getOrElse(
+        throw new IllegalStateException(
+          s"Expected worker actor id for output storage writer, got: ${actorId.name}"
+        )
+      )
+      .toString
+
     val bufferedItemWriter = DocumentFactory
       .openDocument(VFSURIFactory.resultURI(portBaseURI))
       ._1
-      .writer(
-        VirtualIdentityUtils
-          .getWorkerIndex(actorId)
-          .getOrElse(
-            throw new IllegalStateException(
-              s"Expected worker actor id for output storage writer, got: ${actorId.name}"
-            )
-          )
-          .toString
-      )
+      .writer(workerIdx)
       .asInstanceOf[BufferedItemWriter[Tuple]]
     val writerThread = new OutputPortStorageWriterThread(bufferedItemWriter)
     this.outputPortResultWriterThreads(portId) = writerThread
@@ -326,16 +328,7 @@ class OutputManager(
     val stateWriter = DocumentFactory
       .openDocument(VFSURIFactory.stateURI(portBaseURI))
       ._1
-      .writer(
-        VirtualIdentityUtils
-          .getWorkerIndex(actorId)
-          .getOrElse(
-            throw new IllegalStateException(
-              s"Expected worker actor id for output storage writer, got: ${actorId.name}"
-            )
-          )
-          .toString
-      )
+      .writer(workerIdx)
       .asInstanceOf[BufferedItemWriter[Tuple]]
     val stateWriterThread = new OutputPortStorageWriterThread(stateWriter)
     this.stateWriterThreads(portId) = stateWriterThread
