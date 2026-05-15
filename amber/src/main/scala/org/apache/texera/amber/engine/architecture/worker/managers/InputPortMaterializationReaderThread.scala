@@ -21,7 +21,8 @@ package org.apache.texera.amber.engine.architecture.worker.managers
 
 import io.grpc.MethodDescriptor
 import org.apache.texera.amber.config.ApplicationConfig
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
@@ -45,7 +46,11 @@ import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement
 }
-import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
+import org.apache.texera.amber.engine.common.ambermessage.{
+  DataFrame,
+  StateFrame,
+  WorkflowFIFOMessage
+}
 import org.apache.texera.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 
 import java.net.URI
@@ -78,14 +83,35 @@ class InputPortMaterializationReaderThread(
   def finished: Boolean = isFinished.get()
 
   /**
-    * Read from the materialization stoage, and mimcs the behavior of an upstream worker's output manager.
+    * Read from the materialization storage, and mimics the behavior of an upstream worker's output manager.
+    *
+    * States and tuples are persisted to separate tables, so the original
+    * interleaving is lost and replay has to pick an order: we replay states
+    * first because downstream operators typically need their state set up
+    * before they process the incoming tuples. Every state is broadcast to
+    * every downstream worker -- no partitioner filtering, unlike the tuple
+    * loop. State is shared context (e.g. config / counters), not per-key
+    * data, so each worker needs the full set.
     */
   override def run(): Unit = {
     // Notify the input port of start of input channel
     emitECM(METHOD_START_CHANNEL, NO_ALIGNMENT)
     try {
+      val stateDocument =
+        DocumentFactory
+          .openDocument(VFSURIFactory.stateURI(uri))
+          ._1
+          .asInstanceOf[VirtualDocument[Tuple]]
+      val stateReadIterator = stateDocument.get()
+      while (stateReadIterator.hasNext) {
+        val state = State.fromTuple(stateReadIterator.next())
+        inputMessageQueue.put(
+          FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, StateFrame(state)))
+        )
+      }
+
       val materialization: VirtualDocument[Tuple] = DocumentFactory
-        .openDocument(uri)
+        .openDocument(VFSURIFactory.resultURI(uri))
         ._1
         .asInstanceOf[VirtualDocument[Tuple]]
       val storageReadIterator = materialization.get()

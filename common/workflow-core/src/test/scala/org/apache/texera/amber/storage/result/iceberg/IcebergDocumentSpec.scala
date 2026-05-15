@@ -20,6 +20,7 @@
 package org.apache.texera.amber.storage.result.iceberg
 
 import org.apache.texera.amber.config.StorageConfig
+import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import org.apache.texera.amber.core.storage.{DocumentFactory, IcebergCatalogInstance, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
@@ -51,6 +52,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   var deserde: (IcebergSchema, Record) => Tuple = _
   var catalog: Catalog = _
   val tableNamespace = "test_namespace"
+  var baseURI: URI = _
   var uri: URI = _
 
   override def beforeAll(): Unit = {
@@ -79,7 +81,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
-    uri = VFSURIFactory.createResultURI(
+    baseURI = VFSURIFactory.createPortBaseURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),
       GlobalPortIdentity(
@@ -91,6 +93,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
         PortIdentity()
       )
     )
+    uri = VFSURIFactory.resultURI(baseURI)
     DocumentFactory.createDocument(uri, amberSchema)
     super.beforeEach()
   }
@@ -139,6 +142,84 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     } finally {
       IcebergCatalogInstance.replaceInstance(realCatalog)
     }
+  }
+
+  it should "round trip materialized state documents" in {
+    val stateUri = VFSURIFactory.stateURI(baseURI)
+    DocumentFactory.createDocument(stateUri, State.schema)
+    val stateDocument =
+      DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+    val state = State(
+      Map(
+        "loop_counter" -> 3,
+        "name" -> "outer-loop",
+        "payload" -> Array[Byte](0, 1, 2, 3),
+        "nested" -> Map("enabled" -> true, "values" -> List(1, 2, 3))
+      )
+    )
+
+    val writer = stateDocument.writer(UUID.randomUUID().toString)
+    writer.open()
+    writer.putOne(state.toTuple)
+    writer.close()
+
+    val storedRows = stateDocument.get().toList
+    assert(storedRows.length == 1)
+    val deserialized = State.fromTuple(storedRows.head).values
+    assert(deserialized("loop_counter") == 3L)
+    assert(deserialized("name") == "outer-loop")
+    assert(deserialized("payload").asInstanceOf[Array[Byte]].sameElements(Array[Byte](0, 1, 2, 3)))
+    assert(deserialized("nested").asInstanceOf[Map[String, Any]]("enabled") == true)
+    assert(deserialized("nested").asInstanceOf[Map[String, Any]]("values") == List(1L, 2L, 3L))
+  }
+
+  it should "materialize multiple states as rows in one state table" in {
+    val stateUri = VFSURIFactory.stateURI(baseURI)
+    DocumentFactory.createDocument(stateUri, State.schema)
+    val stateDocument =
+      DocumentFactory.openDocument(stateUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+    val states: List[State] = List(
+      State(Map("loop_counter" -> 0, "i" -> 1, "payload" -> Array[Byte](1, 2, 3))),
+      State(
+        Map(
+          "loop_counter" -> 1,
+          "i" -> 2,
+          "payload" -> Array[Byte](4, 5, 6),
+          "nested" -> Map("values" -> List(3, 4))
+        )
+      )
+    )
+
+    val writer = stateDocument.writer(UUID.randomUUID().toString)
+    writer.open()
+    states.foreach(state => writer.putOne(state.toTuple))
+    writer.close()
+
+    val deserializedStates =
+      stateDocument
+        .get()
+        .toList
+        .map(State.fromTuple)
+        .sortBy(_.values("loop_counter").asInstanceOf[Long])
+    assert(deserializedStates.length == states.length)
+    deserializedStates.zip(states).foreach {
+      case (actual, expected) =>
+        assert(
+          actual.values("loop_counter") == expected.values("loop_counter").asInstanceOf[Int].toLong
+        )
+        assert(actual.values("i") == expected.values("i").asInstanceOf[Int].toLong)
+        assert(
+          actual
+            .values("payload")
+            .asInstanceOf[Array[Byte]]
+            .sameElements(expected.values("payload").asInstanceOf[Array[Byte]])
+        )
+    }
+    assert(
+      deserializedStates(1)
+        .values("nested")
+        .asInstanceOf[Map[String, Any]]("values") == List(3L, 4L)
+    )
   }
 
   /** Returns a dynamic proxy for `realTable` that increments `counter` on every `refresh()` call. */
