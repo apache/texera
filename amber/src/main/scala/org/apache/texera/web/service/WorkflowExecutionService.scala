@@ -39,6 +39,7 @@ import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.apache.texera.web.{ComputingUnitMaster, SubscriptionManager, WebsocketInput}
 import org.apache.texera.workflow.WorkflowCompiler
+import org.apache.texera.workflow.macroOp.DbMacroRegistry
 
 import java.net.URI
 import scala.collection.mutable
@@ -105,7 +106,7 @@ class WorkflowExecutionService(
 
   def executeWorkflow(): Unit = {
     try {
-      workflow = new WorkflowCompiler(workflowContext)
+      workflow = new WorkflowCompiler(workflowContext, new DbMacroRegistry())
         .compile(request.logicalPlan)
     } catch {
       case err: Throwable =>

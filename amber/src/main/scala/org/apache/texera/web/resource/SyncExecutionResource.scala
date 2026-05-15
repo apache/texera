@@ -50,6 +50,7 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
 import org.apache.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
 import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
+import org.apache.texera.workflow.macroOp.DbMacroRegistry
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.service.{ExecutionResultService, WorkflowService}
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
@@ -894,7 +895,7 @@ class SyncExecutionResource extends LazyLogging {
   ): Map[String, String] = {
     try {
       val tempContext = new WorkflowContext(WorkflowIdentity(workflowId))
-      val compiler = new WorkflowCompiler(tempContext)
+      val compiler = new WorkflowCompiler(tempContext, new DbMacroRegistry())
       compiler.compile(logicalPlan)
       Map.empty
     } catch {

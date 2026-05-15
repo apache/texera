@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.controller.Workflow
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
+import org.apache.texera.workflow.macroOp.{MacroExpander, MacroRegistry}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -31,7 +32,8 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 class WorkflowCompiler(
-    context: WorkflowContext
+    context: WorkflowContext,
+    macroRegistry: MacroRegistry = MacroRegistry.Empty
 ) extends LazyLogging {
 
   /**
@@ -141,18 +143,18 @@ class WorkflowCompiler(
   def compile(
       logicalPlanPojo: LogicalPlanPojo
   ): Workflow = {
-    // TODO(macro-operators): macro expansion via MacroExpander needs to run here too
-    // before execution. The compiling-service compiler already does this; this path
-    // is used at execution time and must be plumbed in a later step. Until then,
-    // MacroOpDesc.getPhysicalPlan throws IllegalStateException, which surfaces as a
-    // loud compilation error rather than silently broken execution.
     // 1. convert the pojo to logical plan
-    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    val rawLogicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
-    // 2. resolve the file name in each scan source operator
+    // 2. expand any macro operators into a flat logical plan. Macros are a purely
+    // logical-plan-level abstraction; after this pass the rest of the pipeline
+    // never sees a MacroOpDesc / MacroInputOp / MacroOutputOp.
+    val logicalPlan: LogicalPlan = MacroExpander.expand(rawLogicalPlan, macroRegistry)
+
+    // 3. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(None)
 
-    // 3. expand the logical plan to the physical plan, and get a set of output ports that need storage
+    // 4. expand the logical plan to the physical plan, and get a set of output ports that need storage
     val (physicalPlan, outputPortsNeedingStorage) =
       expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 
