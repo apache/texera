@@ -42,6 +42,7 @@ from core.models.operator import LoopEndOperator, LoopStartOperator
 from core.models.state import State
 from core.runnables.data_processor import DataProcessor
 from core.storage.document_factory import DocumentFactory
+from core.storage.vfs_uri_factory import VFSURIFactory
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
@@ -97,8 +98,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_state["LoopStartId"] = self.context.worker_id.split("-", 1)[1].rsplit(
             "-main-0", 1
         )[0]
-        output_state["LoopStartStateURI"] = State.uri_from_result_uri(
-            self.context.input_manager.get_input_state_result_uri()
+        output_state["LoopStartStateURI"] = VFSURIFactory.state_uri(
+            self.context.input_manager.get_input_port_base_uri()
         )
 
     def _jump_to_loop_start(
