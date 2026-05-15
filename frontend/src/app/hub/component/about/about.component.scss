@@ -17,86 +17,172 @@
  * under the License.
  */
 
+// Breakpoints (mobile-first):
+//   default      : phone     ( <768px)
+//   md (≥768px)  : tablet+   - show full marketing prose
+//   lg (≥992px)  : desktop   - login card floats to the top right
+
 .about-page-container {
   overflow-y: auto;
   height: 100%;
-  padding: 0 133px;
+  padding: 16px;
+
+  @media (min-width: 768px) {
+    padding: 0 64px;
+  }
+  @media (min-width: 1200px) {
+    padding: 0 133px;
+  }
 }
 
 .content {
-  margin-top: 40px;
   max-width: 1600px;
   width: 100%;
   text-align: left;
+  margin-top: 0;
+
+  @media (min-width: 768px) {
+    margin-top: 40px;
+  }
 }
 
-.content > h1 {
-  font-size: 40px;
-  font-weight: bold;
-  margin: 0;
+// ---------------------------------------------------------------------------
+// Mobile-only hero (phone): peacock logo + tagline above the login card
+// ---------------------------------------------------------------------------
+.mobile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin: 24px 0 16px;
+
+  .hero-logo {
+    height: 64px;
+    width: auto;
+    object-fit: contain;
+  }
+
+  .hero-tagline {
+    margin: 12px 0 0;
+    font-size: 15px;
+    line-height: 1.4;
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  @media (min-width: 768px) {
+    display: none;
+  }
 }
 
-.content > h2 {
-  font-size: 28px;
-  font-weight: bold;
-  margin-top: 10px;
+// ---------------------------------------------------------------------------
+// Mobile-only condensed "learn more" link (phone)
+// ---------------------------------------------------------------------------
+.mobile-learn-more {
+  display: block;
+  text-align: center;
+  margin: 24px 0 32px;
+  font-size: 14px;
+  color: #007acc;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  @media (min-width: 768px) {
+    display: none;
+  }
 }
 
-.content > p {
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 1.8;
-  margin-bottom: 10px;
-}
-
-#logo {
-  height: 70px;
-  padding: 0;
-  margin-right: 14px;
-}
-
-.workflow-gui-screenshot {
-  width: 100%;
-  height: auto;
-}
-
+// ---------------------------------------------------------------------------
+// Login card.
+//   Mobile : block, in normal flow, full width.
+//   Desktop: floats absolutely top-right (original behavior).
+// ---------------------------------------------------------------------------
 .login-container {
-  position: absolute;
-  top: 130px;
-  right: 0;
-  max-width: 350px;
+  display: block;
   width: 100%;
-  background: white;
+  max-width: 420px;
+  margin: 0 auto;
+  background: transparent;
+
+  @media (min-width: 992px) {
+    position: absolute;
+    top: 130px;
+    right: 0;
+    max-width: 350px;
+    margin: 0;
+    background: white;
+  }
 }
 
-.text-content {
-  width: 70%;
-  font-size: 16px;
-  line-height: 1.8;
-  font-weight: 400;
-}
+// ---------------------------------------------------------------------------
+// About prose (the long marketing copy + screenshot).
+// Hidden on phones, fully visible on tablet+. Phones get the condensed
+// "Learn more about Texera →" link instead.
+// ---------------------------------------------------------------------------
+.about-prose {
+  display: none;
 
-.learn-more-section {
-  margin-top: 10px;
-  text-align: left;
+  @media (min-width: 768px) {
+    display: block;
+  }
+
+  h1.about-title {
+    font-size: 40px;
+    font-weight: bold;
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 28px;
+    font-weight: bold;
+    margin-top: 10px;
+  }
 
   p {
     font-size: 16px;
+    font-weight: 400;
     line-height: 1.8;
     margin-bottom: 10px;
+  }
+
+  .text-content {
+    width: 70%;
+    font-size: 16px;
+    line-height: 1.8;
+    font-weight: 400;
+  }
+
+  .workflow-gui-screenshot {
+    width: 100%;
+    height: auto;
+  }
+
+  .learn-more-section {
+    margin-top: 10px;
+    text-align: left;
+
+    p {
+      font-size: 16px;
+      line-height: 1.8;
+      margin-bottom: 10px;
+    }
 
     a {
       color: #007acc;
       text-decoration: none;
-    }
 
-    a:hover {
-      text-decoration: underline;
-    }
-
-    img {
-      margin-left: 5px;
-      vertical-align: middle;
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
+}
+
+// Legacy logo selector (no current users — preserved for backwards compat).
+#logo {
+  height: 70px;
+  padding: 0;
+  margin-right: 14px;
 }

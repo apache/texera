@@ -17,17 +17,61 @@
  * under the License.
  */
 
-.login-form-button {
-  width: 100%;
+// App-style login card: soft shadow + rounded corners instead of a
+// heavy black border. Touch targets sized for fingers, not cursors.
+.form {
+  margin: 8px 0;
+  padding: 24px 20px 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.08);
+
+  ::ng-deep {
+    // Tabs ("Sign In" / "Sign Up") — larger, full-width row, no underline ink bar offset
+    .ant-tabs-nav {
+      margin: 0 0 16px;
+    }
+
+    .ant-tabs-tab {
+      padding: 10px 0;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    nz-form-item {
+      margin-bottom: 14px;
+    }
+
+    // Inputs: 16px font size prevents iOS auto-zoom-on-focus.
+    // 44pt min height = Apple HIG touch target.
+    .ant-input-affix-wrapper {
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .ant-input {
+      font-size: 16px;
+      min-height: 24px;
+    }
+
+    .ant-input-prefix .anticon {
+      font-size: 18px;
+      margin-right: 8px;
+    }
+  }
 }
 
-.form {
-  border: 2px solid black;
-  border-radius: 5px;
-  margin: 16px;
-  padding: 20px;
+.login-form-button {
+  width: 100%;
+  height: 44px;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 10px;
+}
 
-  ::ng-deep nz-form-item {
-    margin-bottom: 12px;
-  }
+.login-form-margin {
+  margin-top: 4px;
 }
