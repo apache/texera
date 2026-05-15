@@ -71,6 +71,9 @@ import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzFormDirective } from "ng-zorro-antd/form";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { of } from "rxjs";
+import { switchMap, take } from "rxjs/operators";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -175,18 +178,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
     private config: GuiConfigService,
-    private workflowPveService: WorkflowPveService
+    private workflowPveService: WorkflowPveService,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {}
 
-  private patchPythonUdfEnvironmentSchema(
-    schema: CustomJSONSchema7,
-    environments: string[]
-  ): CustomJSONSchema7 {
-
+  private patchPythonUdfEnvironmentSchema(schema: CustomJSONSchema7, environments: string[]): CustomJSONSchema7 {
     const patchedSchema = cloneDeep(schema);
 
     if (patchedSchema.properties && typeof patchedSchema.properties !== "boolean") {
-
       const envOptions = ["Default", ...environments.filter(e => e !== "Default")];
 
       if (!patchedSchema.properties["envName"]) {
@@ -281,17 +280,27 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     console.log("current operator type", this.currentOperatorSchema.operatorType);
 
     if (this.currentOperatorSchema.operatorType === "PythonUDFV2") {
-      this.workflowPveService.getEnvironments().pipe(untilDestroyed(this)).subscribe({
-        next: environments => {
-          const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, environments);
-          this.setFormlyFormBinding(patchedSchema);
-        },
-        error: err => {
-          console.log("getEnvironments failed:", err);
-          const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, []);
-          this.setFormlyFormBinding(patchedSchema);
-        },
-      });
+      this.computingUnitStatusService
+        .getSelectedComputingUnit()
+        .pipe(
+          take(1),
+          switchMap(unit => {
+            const cuid = unit?.computingUnit?.cuid;
+            return cuid !== undefined ? this.workflowPveService.getPveNames(cuid) : of<string[]>([]);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe({
+          next: (environments: string[]) => {
+            const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, environments);
+            this.setFormlyFormBinding(patchedSchema);
+          },
+          error: (err: unknown) => {
+            console.log("getEnvironments failed:", err);
+            const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, []);
+            this.setFormlyFormBinding(patchedSchema);
+          },
+        });
     } else {
       this.setFormlyFormBinding(baseSchema);
     }

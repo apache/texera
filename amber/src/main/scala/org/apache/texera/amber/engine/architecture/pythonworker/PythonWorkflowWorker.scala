@@ -39,7 +39,6 @@ import org.apache.texera.amber.engine.common.actormessage.{Backpressure, CreditU
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
-import org.apache.texera.amber.config.PythonUtils
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.{ExecutorService, Executors}
@@ -171,8 +170,13 @@ class PythonWorkflowWorker(
       if (pythonENVPath.trim.isEmpty || pythonENVPath.trim == "Default") "python3"
       else pythonENVPath
 
-    val cuidOpt = sys.env.get("TEXERA_CUID").flatMap(s => scala.util.Try(s.toInt).toOption)
+    // Prefer the cuid threaded through WorkerConfig (set from the user's selected
+    // computing unit). Fall back to the TEXERA_CUID env var for k8s / docker deployments
+    // where the pod env carries the cuid instead.
+    val cuidOpt = workerConfig.cuid
+      .orElse(sys.env.get("TEXERA_CUID").flatMap(s => scala.util.Try(s.toInt).toOption))
     val pveName = workerConfig.pveName.trim
+    println("PVE RUNNING UDF: " + pveName)
 
     if (cuidOpt.isEmpty || pveName.isEmpty) {
       return fallback
@@ -203,6 +207,9 @@ class PythonWorkflowWorker(
       s"[PythonWorkflowWorker] TEXERA_CUID=${sys.env
         .get("TEXERA_CUID")} | pveName=${workerConfig.pveName} | pythonBin=$pythonBin"
     )
+
+    println("PYTHON BIN: " + pythonBin)
+
     // Set the Iceberg related arguments based on the catalog type.
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
     val isRest = StorageConfig.icebergCatalogType == "rest"

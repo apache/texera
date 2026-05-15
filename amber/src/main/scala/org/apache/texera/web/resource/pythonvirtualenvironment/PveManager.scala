@@ -162,7 +162,14 @@ object PveManager {
 
     Files.createDirectories(venvDirPath.getParent)
 
-    val createCode = Process(Seq(createVenvPython, "-m", "venv", venvDirPath.toString)).!(
+    // --system-site-packages lets the PVE reuse the system Python's already-installed
+    // texera runtime (numpy, pandas, pyarrow, etc.) instead of duplicating them. Each PVE
+    // physically holds only the user-added packages, shrinking from ~825MB to a few MB and
+    // making worker startup match system-Python latency. User-installed packages still
+    // take precedence over system ones via the venv's path order.
+    val createCode = Process(
+      Seq(createVenvPython, "-m", "venv", "--system-site-packages", venvDirPath.toString)
+    ).!(
       ProcessLogger(
         out => queue.put(s"[pve] $out"),
         err => queue.put(s"[pve][ERR] $err")

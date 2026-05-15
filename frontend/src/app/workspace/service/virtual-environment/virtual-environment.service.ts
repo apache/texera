@@ -94,13 +94,8 @@ export class WorkflowPveService {
     );
   }
 
-  getEnvironments(): Observable<string[]>{
-    let params = new HttpParams().set("cuid", this.requireCuid().toString());
-    const token = this.getAccessToken();
-    if (token) {
-      params = params.set("access-token", token);
-    }
-
+  getPveNames(cuid: number): Observable<string[]> {
+    const params = this.buildBaseParams().set("cuid", cuid.toString());
     return this.http.get<string[]>("/pve/environments", { params });
   }
 }

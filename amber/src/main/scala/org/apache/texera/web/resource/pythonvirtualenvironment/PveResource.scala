@@ -95,11 +95,11 @@ class PveResource {
   @DELETE
   @Path("/{cuid}/{pveName}/packages/{packageName}")
   def deletePackage(
-                     @PathParam("cuid") cuid: Int,
-                     @PathParam("pveName") pveName: String,
-                     @PathParam("packageName") packageName: String,
-                     @QueryParam("isLocal") isLocal: Boolean
-                   ): Response = {
+      @PathParam("cuid") cuid: Int,
+      @PathParam("pveName") pveName: String,
+      @PathParam("packageName") packageName: String,
+      @QueryParam("isLocal") isLocal: Boolean
+  ): Response = {
     val messages = PveManager.deletePackages(
       cuid,
       packageName,
@@ -113,7 +113,6 @@ class PveResource {
       Response.ok(messages.asJava).build()
     }
   }
-
 
   // --------------------------------------------------
   // Get list of existing environments for a CU
