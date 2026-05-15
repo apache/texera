@@ -126,10 +126,7 @@ class ProxyServer(FlightServerBase):
         self.register(name="heartbeat", action=ProxyServer.ack()(lambda: None))
 
         # register shutdown, this is the default action for the client to
-        # terminate the server. The handler itself is a no-op; do_action
-        # detects the "shutdown" action name and starts graceful_shutdown
-        # only after the "Bye bye!" Result has been yielded, so the reply
-        # is handed to gRPC before the listener is torn down.
+        # terminate the server after the "Bye bye!" Result has been yielded.
         self.register(
             name="shutdown",
             action=ProxyServer.ack(msg="Bye bye!")(lambda: None),
