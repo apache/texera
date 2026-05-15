@@ -144,6 +144,31 @@ class TestGetPresignedUrl:
             with pytest.raises(RuntimeError, match="'presignedUrl' missing"):
                 doc.get_presigned_url()
 
+    def test_raises_when_response_body_is_not_valid_json(self, monkeypatch):
+        doc = self._make_doc(monkeypatch)
+        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+            response = MagicMock()
+            response.status_code = 200
+            response.json.side_effect = ValueError("Expecting value")
+            response.text = "<html>not json</html>"
+            mock_get.return_value = response
+            with pytest.raises(RuntimeError, match="invalid JSON response"):
+                doc.get_presigned_url()
+
+    def test_raises_when_presigned_url_is_empty_string(self, monkeypatch):
+        doc = self._make_doc(monkeypatch)
+        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+            mock_get.return_value = make_response(200, body={"presignedUrl": ""})
+            with pytest.raises(RuntimeError, match="'presignedUrl' missing"):
+                doc.get_presigned_url()
+
+    def test_raises_when_presigned_url_is_not_a_string(self, monkeypatch):
+        doc = self._make_doc(monkeypatch)
+        with patch("pytexera.storage.dataset_file_document.requests.get") as mock_get:
+            mock_get.return_value = make_response(200, body={"presignedUrl": None})
+            with pytest.raises(RuntimeError, match="'presignedUrl' missing"):
+                doc.get_presigned_url()
+
 
 class TestReadFile:
     def _make_doc(self, monkeypatch):
