@@ -31,6 +31,8 @@ import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { MacroService } from "src/app/workspace/service/macro/macro.service";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -51,7 +53,9 @@ export class ContextMenuComponent {
     protected config: GuiConfigService,
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
-    private validationWorkflowService: ValidationWorkflowService
+    private validationWorkflowService: ValidationWorkflowService,
+    private macroService: MacroService,
+    private notificationService: NotificationService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -146,6 +150,31 @@ export class ContextMenuComponent {
    * This is the handler for the execution result export button for only highlighted operators.
    *
    */
+  /**
+   * Bundles the highlighted operators into a new macro definition on the
+   * backend. The current selection is left on the canvas — the follow-up
+   * step will replace it with a MacroOpDesc node and rewire boundary links.
+   */
+  public onCreateMacro(): void {
+    const selected = Array.from(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
+    if (selected.length < 2) {
+      return;
+    }
+    const name = window.prompt("Macro name", `macro-${Date.now()}`);
+    if (!name) {
+      return;
+    }
+    const req = this.macroService.buildMacroCreateRequestFromSelection(this.workflowActionService, selected, name);
+    this.macroService
+      .createMacro(req)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: detail =>
+          this.notificationService.success(`Macro "${detail.name}" created (wid=${detail.wid})`),
+        error: err => this.notificationService.error(`Failed to create macro: ${err?.message ?? err}`),
+      });
+  }
+
   public onClickExportHighlightedExecutionResult(): void {
     this.modalService.create({
       nzTitle: "Export Highlighted Operators Result",
