@@ -80,8 +80,7 @@ class DatasetFileDocument:
             payload = response.json()
         except ValueError as e:
             raise RuntimeError(
-                f"Failed to get presigned URL: invalid JSON response: "
-                f"{response.text}"
+                f"Failed to get presigned URL: invalid JSON response: {response.text}"
             ) from e
 
         presigned_url = payload.get("presignedUrl")
