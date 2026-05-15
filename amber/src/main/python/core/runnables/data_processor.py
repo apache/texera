@@ -15,9 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import os
 import sys
+import threading
 import traceback
+import urllib.error
+import urllib.request
 from contextlib import contextmanager
 from loguru import logger
 from threading import Event
@@ -37,10 +41,59 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 )
 
 
+_UDF_COPILOT_SAMPLE_ENDPOINT = os.environ.get(
+    "UDF_COPILOT_SAMPLE_ENDPOINT",
+    "http://localhost:3001/api/udf-copilot/sample-capture",
+)
+
+
+def _post_sample_row_async(worker_id: str, row: dict) -> None:
+    """
+    Fire-and-forget POST of the first tuple to the UDF Copilot agent-service.
+    Runs on a daemon thread so it never blocks the worker's tuple loop.
+    Swallows every error — this is a best-effort diagnostic feed for the AI,
+    not part of the data pipeline.
+    """
+    def _send():
+        try:
+            payload = json.dumps({"workerId": worker_id, "row": row}).encode("utf-8")
+            req = urllib.request.Request(
+                _UDF_COPILOT_SAMPLE_ENDPOINT,
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=1.0):
+                pass
+        except (urllib.error.URLError, OSError, ValueError):
+            # agent-service not running, network blip, etc. — silently ignore.
+            pass
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
+def _tuple_to_json_safe_dict(tuple_) -> dict:
+    """Convert a pytexera Tuple to a JSON-serializable dict, stringifying any
+    non-primitive values (datetime, decimal, etc.)."""
+    out = {}
+    try:
+        for k, v in tuple_.as_dict().items():
+            if v is None or isinstance(v, (str, int, float, bool)):
+                out[k] = v
+            else:
+                out[k] = str(v)
+    except Exception:
+        pass
+    return out
+
+
 class DataProcessor(Runnable, Stoppable):
     def __init__(self, context: Context):
         self._running = Event()
         self._context = context
+        # First input tuple per (worker, port) is shipped to the AI Copilot
+        # service. We only need one sample row, so flip the flag after sending.
+        self._udf_copilot_sample_sent = False
 
     def run(self) -> None:
         """
@@ -101,6 +154,15 @@ class DataProcessor(Runnable, Stoppable):
         while not finished_current.is_set():
             with self._executor_session() as (executor, port_id):
                 tuple_ = self._context.tuple_processing_manager.get_input_tuple()
+                # First tuple per worker: ship it (asynchronously, never
+                # blocking) to the UDF Copilot agent-service so the AI can see
+                # real upstream data when suggesting / fixing code.
+                if not self._udf_copilot_sample_sent:
+                    self._udf_copilot_sample_sent = True
+                    _post_sample_row_async(
+                        self._context.worker_id,
+                        _tuple_to_json_safe_dict(tuple_),
+                    )
                 self._set_output_tuple(executor.process_tuple(tuple_, port_id))
 
     @contextmanager

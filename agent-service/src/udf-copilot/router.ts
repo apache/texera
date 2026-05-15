@@ -17,6 +17,16 @@ const log = createLogger("UdfCopilot");
 
 const DEFAULT_MODEL = "claude-haiku-4.5";
 
+/**
+ * In-memory sample-row store keyed by workerId. Filled by Texera's Python
+ * worker on the first tuple it processes (see data_processor.py). Read by the
+ * frontend via GET /sample-row?workerId=... when building UDF context.
+ *
+ * Entries are kept until process restart — small (one row per worker) and the
+ * worker IDs are stable across re-runs, so successive runs just overwrite.
+ */
+const sampleRowStore = new Map<string, Record<string, unknown>>();
+
 function createModel(modelType: string) {
   const config = getBackendConfig();
   const openai = createOpenAI({
@@ -166,6 +176,39 @@ export const udfCopilotRouter = new Elysia({ prefix: "/udf-copilot" })
     set.status = 500;
     return { error: message };
   })
+
+  // ── 0a. Texera Python worker pushes the first tuple it sees ───────────────
+  .post(
+    "/sample-capture",
+    ({ body }) => {
+      const { workerId, row } = body as { workerId: string; row: Record<string, unknown> };
+      if (!workerId || !row) {
+        return { ok: false };
+      }
+      sampleRowStore.set(workerId, row);
+      log.info({ workerId, keys: Object.keys(row).slice(0, 8) }, "captured sample row from python worker");
+      return { ok: true };
+    },
+    {
+      body: t.Object({
+        workerId: t.String(),
+        row: t.Record(t.String(), t.Any()),
+      }),
+    }
+  )
+
+  // ── 0b. Frontend pulls sample row by workerId ─────────────────────────────
+  .get(
+    "/sample-row",
+    ({ query }) => {
+      const workerId = (query as { workerId?: string }).workerId;
+      if (!workerId) return { row: null };
+      return { row: sampleRowStore.get(workerId) ?? null };
+    },
+    {
+      query: t.Object({ workerId: t.Optional(t.String()) }),
+    }
+  )
 
   // ── 1. Schema-aware ghost text ──────────────────────────────────────────────
   .post(
@@ -337,6 +380,114 @@ Output the new code that replaces the selection:`;
         selectedCode: t.String(),
         allCode: t.Optional(t.String()),
         instruction: t.String(),
+        context: t.Optional(UdfContextSchema),
+        modelType: t.Optional(t.String()),
+      }),
+    }
+  )
+
+  // ── 5. Schema sync — AI infers outputColumns + retainInputColumns ──────────
+  .post(
+    "/sync-schema",
+    async ({ body }) => {
+      const { code, context, currentOutputColumns, currentRetainInputColumns, modelType } =
+        body as any;
+      const ctx = context as UdfContext | undefined;
+
+      const system =
+        baseSystem(ctx) +
+        `
+
+## Task: Infer the correct property-panel schema for this Python UDF
+
+You are analyzing a Python UDF to determine the correct values for two
+properties in the operator panel that affect how rows flow out of the UDF:
+
+- \`retainInputColumns\`: boolean — if true, upstream columns pass through
+  automatically and \`outputColumns\` lists only ADDITIONS/replacements.
+  If false, \`outputColumns\` must enumerate EVERY column the UDF produces.
+- \`outputColumns\`: array of \`{ attributeName, attributeType }\`. Types
+  must be one of: "string" | "integer" | "double" | "boolean" | "long" |
+  "timestamp" | "binary".
+
+### Decision rules (in priority order)
+
+1. If the code's only mutation of \`tuple_\` is field ASSIGNMENT
+   (\`tuple_["x"] = ...\`), and it eventually \`yield tuple_\`:
+   → \`retainInputColumns=true\`, \`outputColumns\` = the assigned columns
+   that aren't already in upstream.
+
+2. If the code drops/renames an upstream column (e.g. \`del tuple_["x"]\`
+   or builds a new dict via \`yield {"a": ..., "b": ...}\` without including
+   all upstream columns):
+   → \`retainInputColumns=false\`, \`outputColumns\` = full list of every
+   column the yielded shape actually has, in order.
+
+3. If the code yields a pandas DataFrame (Table API) constructed from
+   scratch (e.g. \`yield pd.DataFrame({...})\`):
+   → \`retainInputColumns=false\`, \`outputColumns\` = the DataFrame's
+   columns in order.
+
+4. If the code yields \`tuple_\` unmodified, or you can't tell:
+   → \`retainInputColumns=true\`, \`outputColumns=[]\` (no changes).
+
+### Output
+
+Output ONLY a JSON object, no commentary, no fences:
+
+\`\`\`
+{
+  "retainInputColumns": true,
+  "outputColumns": [
+    { "attributeName": "...", "attributeType": "..." }
+  ],
+  "explanation": "one short sentence on WHY"
+}
+\`\`\``;
+
+      const user = `### Current UDF code
+\`\`\`python
+${code ?? ""}
+\`\`\`
+
+### Currently declared outputColumns
+${JSON.stringify(currentOutputColumns ?? [], null, 2)}
+
+### Current retainInputColumns
+${currentRetainInputColumns ?? true}
+
+Output the recommended schema as JSON.`;
+
+      const result = await generateText({
+        model: createModel(modelType || DEFAULT_MODEL),
+        system,
+        messages: [{ role: "user", content: user }],
+        temperature: 0.1,
+      });
+
+      // Extract the JSON block out of whatever the model returned.
+      const raw = (result.text ?? "").trim();
+      let parsed: { retainInputColumns?: boolean; outputColumns?: any[]; explanation?: string } = {};
+      try {
+        const fenced = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+        const jsonText = fenced ? fenced[1] : raw;
+        parsed = JSON.parse(jsonText);
+      } catch (e) {
+        log.warn({ raw, err: e }, "sync-schema: failed to parse model JSON");
+      }
+
+      return {
+        retainInputColumns:
+          typeof parsed.retainInputColumns === "boolean" ? parsed.retainInputColumns : true,
+        outputColumns: Array.isArray(parsed.outputColumns) ? parsed.outputColumns : [],
+        explanation: parsed.explanation ?? "",
+      };
+    },
+    {
+      body: t.Object({
+        code: t.String(),
+        currentOutputColumns: t.Optional(t.Array(t.Any())),
+        currentRetainInputColumns: t.Optional(t.Boolean()),
         context: t.Optional(UdfContextSchema),
         modelType: t.Optional(t.String()),
       }),

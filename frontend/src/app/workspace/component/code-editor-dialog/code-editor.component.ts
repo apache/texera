@@ -42,6 +42,7 @@ import { FormControl, FormsModule } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
 import { UdfContext, UdfCopilotService } from "../../service/udf-copilot/udf-copilot.service";
 import { UdfCopilotPanelComponent } from "./udf-copilot-panel.component";
+import { UdfContextPanelComponent } from "./udf-context-panel.component";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 import { MonacoEditorLanguageClientWrapper, UserConfig } from "monaco-editor-wrapper";
 import * as monaco from "monaco-editor";
@@ -91,6 +92,7 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
     AnnotationSuggestionComponent,
     FormlyRepeatDndComponent,
     UdfCopilotPanelComponent,
+    UdfContextPanelComponent,
     FormsModule,
   ],
 })
@@ -130,6 +132,30 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public editorToPass!: MonacoEditor;
 
   public showCopilotPanel: boolean = false;
+  public showContextPanel: boolean = false;
+
+  // Auto-detected differences between what the UDF code writes
+  // (`tuple_["x"] = ...`) and what's declared in Extra Output Columns:
+  //   - add:    code writes a column not declared and not in upstream
+  //   - remove: declared column not written in code anymore
+  //   - update: declared with one type but code writes a different type
+  public schemaActions: {
+    kind: "add" | "remove" | "update";
+    name: string;
+    type?: string;
+    oldType?: string;
+  }[] = [];
+  private schemaScanTimer?: number;
+
+  // AI-driven schema recommendation (from /sync-schema endpoint). When set,
+  // the banner shows the AI's full schema replacement instead of (or in
+  // addition to) the regex-based actions.
+  public aiSchemaSuggestion?: {
+    retainInputColumns: boolean;
+    outputColumns: { attributeName: string; attributeType: string }[];
+    explanation: string;
+  };
+  public aiSchemaLoading = false;
 
   // Cmd+K rewrite overlay state
   public showRewriteOverlay: boolean = false;
@@ -217,6 +243,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       } catch {}
     }
     this.udfCopilotDisposables = [];
+
+    if (this.schemaScanTimer !== undefined) {
+      window.clearTimeout(this.schemaScanTimer);
+      this.schemaScanTimer = undefined;
+    }
 
     this.editorWrapper.dispose(true);
 
@@ -381,6 +412,17 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     // Warm the upstream sample-row cache so chat / Cmd+K / fix all see a real
     // data row in context by the time the user actually invokes them.
     this.udfCopilotService.prefetchUpstreamSample(this.currentOperatorId);
+
+    // Watch the Y-text for schema mismatches between code and the property
+    // panel. Debounce 500ms so we don't scan on every keystroke.
+    if (this.code) {
+      const scan = () => {
+        if (this.schemaScanTimer !== undefined) window.clearTimeout(this.schemaScanTimer);
+        this.schemaScanTimer = window.setTimeout(() => this.scanSchemaMismatches(), 500);
+      };
+      this.code.observe(scan);
+      this.scanSchemaMismatches(); // initial scan
+    }
 
     // If "Fix with AI" was clicked before the editor opened, consume the
     // pending fix now and auto-open the overlay. consumePendingFix clears the
@@ -613,6 +655,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             const oldLen = this.code.length;
             this.code.delete(0, oldLen);
             this.code.insert(0, res.newCode);
+            this.formatAfterAccept();
           }
         },
         error: () => {
@@ -736,6 +779,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       const oldLen = this.code.length;
       this.code.delete(0, oldLen);
       this.code.insert(0, this.rewriteNewCode);
+      this.formatAfterAccept();
       this.cancelRewrite();
       return;
     }
@@ -754,10 +798,20 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
     const startOffset = model.getOffsetAt(this.rewriteSelection.getStartPosition());
     const endOffset = model.getOffsetAt(this.rewriteSelection.getEndPosition());
-    this.code.delete(startOffset, endOffset - startOffset);
-    if (this.rewriteNewCode) {
-      this.code.insert(startOffset, this.rewriteNewCode);
+
+    // Re-indent the AI's output to match the indent of the original selection.
+    // Only applied when the selection starts at column 1 (i.e. covers full
+    // lines) — for mid-line selections the AI's output is inserted verbatim.
+    let toInsert = this.rewriteNewCode;
+    if (toInsert && this.rewriteSelection.startColumn === 1) {
+      toInsert = this.reindentToMatch(this.rewriteOldCode, toInsert);
     }
+
+    this.code.delete(startOffset, endOffset - startOffset);
+    if (toInsert) {
+      this.code.insert(startOffset, toInsert);
+    }
+    this.formatAfterAccept();
     this.cancelRewrite();
   }
 
@@ -1016,6 +1070,211 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     setTimeout(() => this.editorWrapper.getEditor()?.layout(), 0);
   }
 
+  public toggleContextPanel(): void {
+    this.showContextPanel = !this.showContextPanel;
+    setTimeout(() => this.editorWrapper.getEditor()?.layout(), 0);
+  }
+
+  /**
+   * Scan the UDF code for `tuple_["col"] = value` writes and compare against
+   * what's declared in Extra Output Columns (plus what flows in from upstream).
+   * Computes a list of add/remove/update actions to bring them in sync.
+   */
+  private scanSchemaMismatches(): void {
+    if (!this.code || this.language !== "python") {
+      this.schemaActions = [];
+      return;
+    }
+    const text = this.code.toString();
+    const writes = new Map<string, string>();
+    // Scan line by line so we can skip commented-out lines (a real "delete"
+    // of a column write often takes the form of commenting it out, not
+    // removing the text entirely).
+    for (const rawLine of text.split("\n")) {
+      // Strip inline trailing comments (`# ...`) but keep the code part.
+      // Conservative: only strip when # is preceded by whitespace, to avoid
+      // breaking things like `tuple_["#col"] = 1`.
+      const codeOnly = rawLine.replace(/\s+#.*$/, "");
+      // Skip pure-comment lines.
+      if (/^\s*#/.test(codeOnly)) continue;
+      // Require `=` NOT followed by another `=` so `tuple_["x"] == 1`
+      // (comparison) doesn't get flagged as a write.
+      const m = codeOnly.match(/tuple_\[["']([^"']+)["']\]\s*=(?!=)\s*(.+)/);
+      if (m) writes.set(m[1], this.inferAttributeType(m[2].trim()));
+    }
+
+    // Currently declared extra-output columns from the property panel.
+    let declared = new Map<string, string>();
+    try {
+      const op = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      const out = (op?.operatorProperties as any)?.outputColumns ?? [];
+      declared = new Map(
+        out
+          .filter((c: any) => c?.attributeName)
+          .map((c: any) => [c.attributeName, c.attributeType ?? "string"])
+      );
+    } catch {}
+
+    // Upstream-inherited columns flow through automatically — writing one of
+    // these doesn't require declaring it.
+    let upstream = new Set<string>();
+    try {
+      const ctx = this.udfCopilotService.buildContext(this.currentOperatorId);
+      upstream = new Set((ctx.upstreamSchema ?? []).map(c => c.name));
+    } catch {}
+
+    const actions: typeof this.schemaActions = [];
+
+    // ADD: written in code, neither declared nor upstream.
+    for (const [name, type] of writes) {
+      if (!declared.has(name) && !upstream.has(name)) {
+        actions.push({ kind: "add", name, type });
+      }
+    }
+
+    // REMOVE: declared but no longer written in code (and not flowing from
+    // upstream — those are inherited anyway).
+    for (const [name] of declared) {
+      if (!writes.has(name) && !upstream.has(name)) {
+        actions.push({ kind: "remove", name });
+      }
+    }
+
+    // UPDATE: declared AND written, but types disagree. Type inference from
+    // a literal RHS is best-effort, so this is a suggestion not a guarantee.
+    for (const [name, codeType] of writes) {
+      if (declared.has(name) && declared.get(name) !== codeType) {
+        actions.push({ kind: "update", name, type: codeType, oldType: declared.get(name) });
+      }
+    }
+
+    this.schemaActions = actions;
+  }
+
+  private inferAttributeType(rhs: string): string {
+    const t = rhs.trim();
+    if (/^['"]/.test(t)) return "string";
+    if (/^(True|False)\b/.test(t)) return "boolean";
+    if (/^-?\d+\.\d/.test(t)) return "double";
+    if (/^-?\d+(?:[^.\d]|$)/.test(t)) return "integer";
+    if (/^(str|float|int|bool)\s*\(/.test(t)) {
+      if (t.startsWith("str")) return "string";
+      if (t.startsWith("float")) return "double";
+      if (t.startsWith("int")) return "integer";
+      if (t.startsWith("bool")) return "boolean";
+    }
+    return "string";
+  }
+
+  /** Apply every pending add/remove/update to the operator's outputColumns. */
+  public applySchemaActions(): void {
+    if (this.schemaActions.length === 0) return;
+    try {
+      const op = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      const existing = ((op?.operatorProperties as any)?.outputColumns ?? []) as {
+        attributeName: string;
+        attributeType: string;
+      }[];
+
+      const removeNames = new Set(
+        this.schemaActions.filter(a => a.kind === "remove").map(a => a.name)
+      );
+      const typeUpdates = new Map(
+        this.schemaActions.filter(a => a.kind === "update").map(a => [a.name, a.type!])
+      );
+      const adds = this.schemaActions
+        .filter(a => a.kind === "add")
+        .map(a => ({ attributeName: a.name, attributeType: a.type! }));
+
+      const kept = existing
+        .filter(c => !removeNames.has(c.attributeName))
+        .map(c =>
+          typeUpdates.has(c.attributeName)
+            ? { attributeName: c.attributeName, attributeType: typeUpdates.get(c.attributeName)! }
+            : c
+        );
+
+      const updated = {
+        ...(op?.operatorProperties ?? {}),
+        outputColumns: [...kept, ...adds],
+      };
+      this.workflowActionService.setOperatorProperty(this.currentOperatorId, updated);
+      this.schemaActions = [];
+    } catch {
+      // best-effort: leave the banner up so the user can retry
+    }
+  }
+
+  public dismissSchemaBanner(): void {
+    this.schemaActions = [];
+    this.aiSchemaSuggestion = undefined;
+  }
+
+  /**
+   * Ask the AI to analyze the UDF code + current property values and propose
+   * the correct outputColumns + retainInputColumns. Surfaces nuances that
+   * the regex scan can't (dropping upstream columns, restructured yields,
+   * Table API DataFrames built from scratch, etc.).
+   */
+  public analyzeSchemaWithAI(): void {
+    if (this.aiSchemaLoading) return;
+    const editor = this.editorWrapper.getEditor();
+    const code = editor?.getModel()?.getValue() ?? "";
+    if (!code) return;
+
+    let currentOutputColumns: { attributeName: string; attributeType: string }[] = [];
+    let currentRetainInputColumns = true;
+    try {
+      const op = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      const props = (op?.operatorProperties as any) ?? {};
+      currentOutputColumns = props.outputColumns ?? [];
+      if (typeof props.retainInputColumns === "boolean") {
+        currentRetainInputColumns = props.retainInputColumns;
+      }
+    } catch {}
+
+    const context = this.udfCopilotService.buildContext(this.currentOperatorId);
+    this.aiSchemaLoading = true;
+
+    this.udfCopilotService
+      .syncSchema({ code, currentOutputColumns, currentRetainInputColumns, context })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: res => {
+          this.aiSchemaSuggestion = res;
+          this.aiSchemaLoading = false;
+        },
+        error: () => {
+          this.aiSchemaLoading = false;
+        },
+      });
+  }
+
+  /** Apply the AI's suggested outputColumns + retainInputColumns. */
+  public applyAiSchemaSuggestion(): void {
+    if (!this.aiSchemaSuggestion) return;
+    try {
+      const op = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      const updated = {
+        ...(op?.operatorProperties ?? {}),
+        outputColumns: this.aiSchemaSuggestion.outputColumns,
+        retainInputColumns: this.aiSchemaSuggestion.retainInputColumns,
+      };
+      this.workflowActionService.setOperatorProperty(this.currentOperatorId, updated);
+      this.aiSchemaSuggestion = undefined;
+      this.schemaActions = [];
+    } catch {
+      // leave the suggestion visible so the user can retry
+    }
+  }
+
+  /** UI helper — short prefix glyph per action kind. */
+  public actionGlyph(kind: "add" | "remove" | "update"): string {
+    if (kind === "add") return "+";
+    if (kind === "remove") return "−";
+    return "~";
+  }
+
   // Stable function references so Angular doesn't see the panel's inputs
   // changing on every change-detection tick. Bound as arrow-function fields.
   public readonly copilotCodeProvider = (): string => {
@@ -1044,5 +1303,85 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     const oldLen = this.code.length;
     this.code.delete(0, oldLen);
     this.code.insert(0, newCode);
+    this.formatAfterAccept();
+  }
+
+  /**
+   * Best-effort formatting after AI-generated code lands in the editor.
+   * Step 1: normalize leading tabs to 4 spaces (Python rejects mixed indent
+   *         at runtime; this is the cheap reliable fix).
+   * Step 2: trigger Monaco's formatDocument — no-op if no formatter is
+   *         registered for Python, otherwise applies the language server's
+   *         own formatter.
+   */
+  private formatAfterAccept(): void {
+    if (this.code) {
+      const text = this.code.toString();
+      const normalized = text
+        .split("\n")
+        .map(line => {
+          const m = line.match(/^([\t ]*)(.*)$/);
+          if (!m) return line;
+          const leading = m[1].replace(/\t/g, "    ");
+          return leading + m[2];
+        })
+        .join("\n");
+      if (normalized !== text) {
+        this.code.delete(0, this.code.length);
+        this.code.insert(0, normalized);
+      }
+    }
+
+    setTimeout(() => {
+      try {
+        this.editorWrapper.getEditor()?.getAction("editor.action.formatDocument")?.run();
+      } catch {
+        // Pyright may not register a formatter — that's fine, ignore.
+      }
+    }, 100);
+  }
+
+  /**
+   * Re-indent `newCode` so its first non-empty line has the same leading
+   * indent as `oldCode`'s first non-empty line. Preserves relative indent
+   * within `newCode` by applying a uniform delta to every non-empty line.
+   *
+   * Solves the Cmd+K rewrite case where the AI returns code that's
+   * "logically right" but unindented relative to where it gets pasted.
+   */
+  private reindentToMatch(oldCode: string, newCode: string): string {
+    const indentOf = (s: string): number => {
+      const first = s.split("\n").find(l => l.trim() !== "");
+      if (!first) return 0;
+      const m = first.match(/^( *)/);
+      return m ? m[1].length : 0;
+    };
+    const minIndentOf = (s: string): number => {
+      let min = Infinity;
+      for (const line of s.split("\n")) {
+        if (line.trim() === "") continue;
+        const m = line.match(/^( *)/);
+        const w = m ? m[1].length : 0;
+        if (w < min) min = w;
+      }
+      return isFinite(min) ? min : 0;
+    };
+
+    const targetIndent = indentOf(oldCode);
+    const sourceMin = minIndentOf(newCode);
+    const delta = targetIndent - sourceMin;
+    if (delta === 0) return newCode;
+
+    return newCode
+      .split("\n")
+      .map(line => {
+        if (line.trim() === "") return line;
+        if (delta > 0) return " ".repeat(delta) + line;
+        // delta < 0 — remove up to |delta| leading spaces.
+        const m = line.match(/^( *)/);
+        const take = Math.min(-delta, m ? m[1].length : 0);
+        return line.slice(take);
+      })
+      .join("\n");
   }
 }

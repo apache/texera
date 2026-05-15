@@ -24,6 +24,7 @@ import { take } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 
 const UDF_COPILOT_BASE = "/api/udf-copilot";
 
@@ -46,6 +47,12 @@ export interface ChatMessage {
 
 @Injectable({ providedIn: "root" })
 export class UdfCopilotService {
+  // Operators we still need to fetch sample data for. An entry stays in this
+  // set until selectPage(1, 5) returns a non-empty page. The result-initiate
+  // stream re-tries when the backend finally tags an operator as paginated
+  // (typically only sinks).
+  private pendingSampleFetches = new Set<string>();
+
   // One-shot pending fix: stores error message per operator. Consumed by
   // CodeEditorComponent on startup to auto-open the fix overlay. Necessary
   // because the editor may not exist when "Fix with AI" is clicked.
@@ -122,13 +129,16 @@ export class UdfCopilotService {
     private http: HttpClient,
     private workflowActionService: WorkflowActionService,
     private workflowCompilingService: WorkflowCompilingService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
-    // Drop the cache on any result update so we don't serve stale rows after
-    // a re-run.
-    this.workflowResultService.getResultUpdateStream().subscribe(() => {
-      this.sampleRowCache.clear();
-      this.sampleFetchInFlight.clear();
+    // The backend only registers a paginated result service for some
+    // operators (typically sinks). When that registration finally happens,
+    // resultInitiateStream fires — we re-attempt the fetch then.
+    this.workflowResultService.getResultInitiateStream().subscribe(operatorId => {
+      if (this.pendingSampleFetches.has(operatorId) && !this.sampleRowCache.has(operatorId)) {
+        this.fetchPaginatedSampleAsync(operatorId);
+      }
     });
   }
 
@@ -172,20 +182,107 @@ export class UdfCopilotService {
       const sample = this.getUpstreamSampleRow(upstreamId);
       if (sample) ctx.sampleRow = sample;
     }
+    // Fallback — if upstream sample isn't available (sources typically don't
+    // get paginated), try ANY cached operator's row and filter to upstream
+    // columns. Order of preference: the UDF itself (if it ran), the
+    // immediate downstream, then anything else. Values are right; only the
+    // origin of the row differs.
+    if (!ctx.sampleRow && ctx.upstreamSchema) {
+      const candidates: string[] = [
+        operatorId, // the UDF's own output usually retains input columns
+        this.getDownstreamOperatorId(operatorId) ?? "",
+        ...Array.from(this.sampleRowCache.keys()),
+      ].filter(Boolean);
+
+      for (const candidateId of candidates) {
+        const candidateRow = this.sampleRowCache.get(candidateId);
+        if (!candidateRow) continue;
+        const filtered: Record<string, unknown> = {};
+        for (const col of ctx.upstreamSchema) {
+          if (col.name in candidateRow) filtered[col.name] = candidateRow[col.name];
+        }
+        if (Object.keys(filtered).length > 0) {
+          ctx.sampleRow = filtered;
+          break;
+        }
+      }
+    }
 
     return ctx;
+  }
+
+  private getDownstreamOperatorId(udfOperatorId: string): string | undefined {
+    try {
+      const outLinks = this.workflowActionService
+        .getTexeraGraph()
+        .getOutputLinksByOperatorId?.(udfOperatorId) ?? [];
+      return outLinks[0]?.target?.operatorID;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
    * Warm the sample-row cache for the upstream of `udfOperatorId`. Call this
    * when the UDF editor opens / panel toggles — by the time the user sends a
    * message the row is usually back.
+   *
+   * Always kicks off a fresh fetch (bypassing the cache) so re-runs eventually
+   * overwrite stale rows. The in-flight guard prevents duplicate concurrent
+   * requests.
+   */
+  /**
+   * Warm the sample-row cache when the UDF editor opens. Two paths:
+   *   1. Worker-side capture — the Texera Python worker POSTs the first
+   *      tuple it sees to agent-service. We pull it back by workerId here.
+   *      Works for ANY workflow shape since it doesn't depend on backend
+   *      pagination tagging.
+   *   2. Paginated-service fallback — for operators the backend already
+   *      paginates (sinks). Filtered to upstream-schema columns in
+   *      buildContext().
    */
   prefetchUpstreamSample(udfOperatorId: string): void {
     const upstreamId = this.getUpstreamOperatorId(udfOperatorId);
     if (!upstreamId) return;
-    // touch via the lookup; will trigger async fetch if cache is empty
-    this.getUpstreamSampleRow(upstreamId);
+
+    // Primary path: pull from agent-service by the UDF's worker IDs. The
+    // Python worker captured the first input tuple — that's our upstream
+    // sample, served back via HTTP.
+    const workerIds = this.executeWorkflowService.getWorkerIds(udfOperatorId) ?? [];
+    for (const wid of workerIds) {
+      this.fetchCapturedSampleByWorkerId(wid, upstreamId);
+    }
+
+    // Fallback path: standard paginated fetch for sinks/etc.
+    const downstreamId = this.getDownstreamOperatorId(udfOperatorId);
+    const sources = [upstreamId, udfOperatorId];
+    if (downstreamId) sources.push(downstreamId);
+    for (const id of sources) {
+      if (this.sampleRowCache.has(id)) continue;
+      this.pendingSampleFetches.add(id);
+      this.fetchPaginatedSampleAsync(id);
+    }
+  }
+
+  /**
+   * Fetch a sample row that the Python worker shipped to agent-service.
+   * Stores under `upstreamId` so buildContext() finds it via the regular
+   * cache lookup path.
+   */
+  private fetchCapturedSampleByWorkerId(workerId: string, upstreamId: string): void {
+    this.http
+      .get<{ row: Record<string, unknown> | null }>(
+        `${UDF_COPILOT_BASE}/sample-row?workerId=${encodeURIComponent(workerId)}`
+      )
+      .pipe(take(1))
+      .subscribe({
+        next: res => {
+          if (res?.row && !this.sampleRowCache.has(upstreamId)) {
+            this.sampleRowCache.set(upstreamId, this.truncateRow(res.row));
+          }
+        },
+        error: () => {},
+      });
   }
 
   private getUpstreamOperatorId(udfOperatorId: string): string | undefined {
@@ -203,7 +300,8 @@ export class UdfCopilotService {
     const cached = this.sampleRowCache.get(upstreamId);
     if (cached) return cached;
 
-    // Try the viz-style synchronous snapshot first.
+    // Try the viz-style synchronous snapshot (works for visualization
+    // operators that hold their result client-side).
     try {
       const snapshot = this.workflowResultService.getResultService(upstreamId)?.getCurrentResultSnapshot();
       if (snapshot && snapshot.length > 0) {
@@ -213,23 +311,24 @@ export class UdfCopilotService {
       }
     } catch {}
 
-    // Otherwise kick off a paginated fetch in the background. Cache populates
-    // when the WS response lands; the next buildContext call will see it.
+    // Otherwise kick off a paginated fetch in the background. The cache
+    // populates whenever the response lands; the next buildContext sees it.
     this.fetchPaginatedSampleAsync(upstreamId);
     return undefined;
   }
 
+  /**
+   * Fetch one page from an operator's paginated result service. Only succeeds
+   * if WorkflowResultService has already spun up a service for this
+   * operatorId (driven by the backend marking it as paginated — usually only
+   * sinks). For non-paginated operators this is a no-op; the result-initiate
+   * subscription will re-try if the operator gets paginated later.
+   */
   private fetchPaginatedSampleAsync(operatorId: string): void {
     if (this.sampleFetchInFlight.has(operatorId)) return;
-    let paginated;
-    try {
-      paginated = this.workflowResultService.getPaginatedResultService(operatorId);
-    } catch {
-      return;
-    }
+    const paginated = this.workflowResultService.getPaginatedResultService(operatorId);
     if (!paginated) return;
     this.sampleFetchInFlight.add(operatorId);
-
     paginated
       .selectPage(1, 5)
       .pipe(take(1))
@@ -238,6 +337,7 @@ export class UdfCopilotService {
           const first = page?.table?.[0];
           if (first) {
             this.sampleRowCache.set(operatorId, this.truncateRow(first as Record<string, unknown>));
+            this.pendingSampleFetches.delete(operatorId);
           }
           this.sampleFetchInFlight.delete(operatorId);
         },
@@ -309,5 +409,23 @@ export class UdfCopilotService {
     modelType?: string;
   }): Observable<{ newCode: string; explanation: string }> {
     return this.http.post<{ newCode: string; explanation: string }>(`${UDF_COPILOT_BASE}/fix`, req);
+  }
+
+  syncSchema(req: {
+    code: string;
+    currentOutputColumns?: { attributeName: string; attributeType: string }[];
+    currentRetainInputColumns?: boolean;
+    context?: UdfContext;
+    modelType?: string;
+  }): Observable<{
+    retainInputColumns: boolean;
+    outputColumns: { attributeName: string; attributeType: string }[];
+    explanation: string;
+  }> {
+    return this.http.post<{
+      retainInputColumns: boolean;
+      outputColumns: { attributeName: string; attributeType: string }[];
+      explanation: string;
+    }>(`${UDF_COPILOT_BASE}/sync-schema`, req);
   }
 }

@@ -54,11 +54,128 @@
         nz-icon
         nzType="robot"></span>
     </button>
+    <button
+      *ngIf="language === 'python'"
+      nz-button
+      nzType="text"
+      nzSize="large"
+      nzShape="circle"
+      class="copilot-toggle"
+      [class.active]="showContextPanel"
+      (click)="toggleContextPanel()"
+      title="Dataflow Context (upstream schema + sample data)">
+      <span
+        nz-icon
+        nzType="database"></span>
+    </button>
+    <button
+      *ngIf="language === 'python'"
+      nz-button
+      nzType="text"
+      nzSize="large"
+      nzShape="circle"
+      class="copilot-toggle"
+      [disabled]="aiSchemaLoading"
+      (click)="analyzeSchemaWithAI()"
+      title="Analyze schema with AI — infers outputColumns + retainInputColumns from your code">
+      <span
+        nz-icon
+        [nzType]="aiSchemaLoading ? 'loading' : 'audit'"></span>
+    </button>
   </h5>
+  <div
+    *ngIf="(schemaActions.length > 0 || aiSchemaSuggestion || aiSchemaLoading) && language === 'python'"
+    class="undeclared-banner">
+    <ng-container *ngIf="!aiSchemaSuggestion && !aiSchemaLoading">
+      <span nz-icon nzType="warning"></span>
+      <strong>{{ schemaActions.length }}</strong>
+      schema mismatch<span *ngIf="schemaActions.length > 1">es</span>
+      between code and <em>Extra Output Columns</em>:
+      <span class="undeclared-cols">
+        <span
+          *ngFor="let a of schemaActions"
+          class="undeclared-col-tag"
+          [class.action-add]="a.kind === 'add'"
+          [class.action-remove]="a.kind === 'remove'"
+          [class.action-update]="a.kind === 'update'"
+          [title]="a.kind === 'update' ? 'type: ' + a.oldType + ' → ' + a.type : (a.kind === 'add' ? 'add as ' + a.type : 'remove from property panel')">
+          {{ actionGlyph(a.kind) }} {{ a.name }}<span *ngIf="a.kind === 'add'">:{{ a.type }}</span><span *ngIf="a.kind === 'update'">: {{ a.oldType }}→{{ a.type }}</span>
+        </span>
+      </span>
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        (click)="applySchemaActions()">
+        Sync (regex)
+      </button>
+      <button
+        nz-button
+        nzSize="small"
+        (click)="analyzeSchemaWithAI()">
+        <span nz-icon nzType="robot"></span>
+        Analyze with AI
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        class="dismiss-btn"
+        (click)="dismissSchemaBanner()">
+        <span nz-icon nzType="close"></span>
+      </button>
+    </ng-container>
+
+    <ng-container *ngIf="aiSchemaLoading">
+      <span nz-icon nzType="loading"></span>
+      AI analyzing schema…
+    </ng-container>
+
+    <ng-container *ngIf="aiSchemaSuggestion && !aiSchemaLoading">
+      <span nz-icon nzType="robot"></span>
+      <strong>AI suggestion:</strong>
+      <span class="ai-explanation">{{ aiSchemaSuggestion.explanation }}</span>
+      <span class="ai-schema-summary">
+        <span class="ai-prop-tag">
+          retainInputColumns: <strong>{{ aiSchemaSuggestion.retainInputColumns }}</strong>
+        </span>
+        <span class="ai-prop-tag">
+          outputColumns:
+          <span
+            *ngFor="let c of aiSchemaSuggestion.outputColumns"
+            class="undeclared-col-tag action-add">
+            {{ c.attributeName }}:{{ c.attributeType }}
+          </span>
+          <span *ngIf="aiSchemaSuggestion.outputColumns.length === 0">(none)</span>
+        </span>
+      </span>
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        (click)="applyAiSchemaSuggestion()">
+        Apply AI suggestion
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        class="dismiss-btn"
+        (click)="dismissSchemaBanner()">
+        <span nz-icon nzType="close"></span>
+      </button>
+    </ng-container>
+  </div>
   <div class="editor-body">
     <div
       #editor
       id="code-editor"></div>
+    <texera-udf-context-panel
+      *ngIf="showContextPanel"
+      class="context-side"
+      [getContext]="copilotContextProvider"
+      (closed)="toggleContextPanel()">
+    </texera-udf-context-panel>
     <texera-udf-copilot-panel
       *ngIf="showCopilotPanel"
       class="copilot-side"

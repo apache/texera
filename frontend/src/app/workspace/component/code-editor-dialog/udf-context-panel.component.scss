@@ -1,0 +1,183 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #1e1e1e;
+  color: #ddd;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  border-left: 1px solid #333;
+}
+
+.context-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.context-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #333;
+  font-weight: 600;
+
+  .context-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  button {
+    color: #aaa !important;
+  }
+}
+
+.context-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 10px;
+  min-height: 0;
+}
+
+.context-empty {
+  color: #888;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+
+.context-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #888;
+  margin-bottom: 4px;
+  margin-top: 8px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+
+  .context-section-count {
+    color: #555;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+}
+
+.context-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+
+  th,
+  td {
+    text-align: left;
+    padding: 3px 6px;
+    border-bottom: 1px solid #2a2a2a;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  th {
+    font-weight: 600;
+    color: #888;
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom-color: #333;
+  }
+
+  .col-name {
+    color: #82aaff;
+  }
+
+  .col-type {
+    color: #c792ea;
+    font-size: 10px;
+  }
+
+  .col-sample {
+    color: #c3e88d;
+  }
+}
+
+.sample-hint {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: #3a2e1e;
+  border-left: 2px solid #d2a;
+  color: #ccc;
+  font-style: italic;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &.loading {
+    background: #1e2a3a;
+    border-left-color: #5aa;
+    color: #aac;
+  }
+
+  .refetch-btn {
+    margin-left: auto;
+    color: #aaa !important;
+    font-size: 11px;
+  }
+}
+
+.downstream-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #333;
+
+  .downstream-cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .downstream-tag {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+    color: #c3e88d;
+  }
+}

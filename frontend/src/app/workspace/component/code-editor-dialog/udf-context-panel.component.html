@@ -1,0 +1,77 @@
+<div class="context-panel">
+  <div class="context-header">
+    <span class="context-title">
+      <span nz-icon nzType="database"></span>
+      Dataflow Context
+    </span>
+    <button
+      nz-button
+      nzType="text"
+      nzSize="small"
+      (click)="close()"
+      title="Close">
+      <span nz-icon nzType="close"></span>
+    </button>
+  </div>
+
+  <div class="context-body">
+    <div
+      *ngIf="!hasSchema"
+      class="context-empty">
+      <span nz-icon nzType="info-circle"></span>
+      No upstream schema yet. Connect &amp; compile an upstream operator.
+    </div>
+
+    <div *ngIf="hasSchema">
+      <div class="context-section-label">
+        Upstream columns
+        <span class="context-section-count">({{ context.upstreamSchema!.length }})</span>
+      </div>
+      <table class="context-table">
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Type</th>
+            <th *ngIf="hasSample">Sample</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let col of context.upstreamSchema">
+            <td class="col-name">{{ col.name }}</td>
+            <td class="col-type">{{ col.type }}</td>
+            <td
+              *ngIf="hasSample"
+              class="col-sample"
+              [title]="sampleValueFor(col.name)">
+              {{ sampleValueFor(col.name) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div
+        *ngIf="!hasSample"
+        class="sample-hint">
+        <span nz-icon nzType="info-circle"></span>
+        No sample row yet — run the workflow once. The Python worker ships
+        the first incoming tuple to the AI service automatically.
+      </div>
+
+      <div
+        *ngIf="context.downstreamSchema?.length"
+        class="downstream-section">
+        <div class="context-section-label">
+          Downstream expects
+          <span class="context-section-count">({{ context.downstreamSchema!.length }})</span>
+        </div>
+        <div class="downstream-cols">
+          <span
+            *ngFor="let col of context.downstreamSchema"
+            class="downstream-tag">
+            {{ col.name }}:{{ col.type }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

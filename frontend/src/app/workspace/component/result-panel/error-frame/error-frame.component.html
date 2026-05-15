@@ -38,6 +38,17 @@
       [nzDisabled]="false"
       [nzExtra]="extraTpl">
       <ng-template #extraTpl>
+        <button
+          *ngIf="isPythonUDFError(error)"
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          nzDanger
+          style="margin-right: 8px"
+          (click)="$event.stopPropagation(); onFixWithAI(error)">
+          <span nz-icon nzType="tool"></span>
+          Fix with AI
+        </button>
         <span
           class="goto-operator-icon"
           *ngIf="error.operatorId !== 'unknown operator' && operatorId !== error.operatorId"
@@ -47,17 +58,6 @@
           (click)="$event.stopPropagation(); onClickGotoButton(error.operatorId)"></span>
       </ng-template>
       <p class="error-message">{{ error.details }}</p>
-      <button
-        *ngIf="isPythonUDFError(error)"
-        nz-button
-        nzType="primary"
-        nzSize="small"
-        nzDanger
-        style="margin-top: 8px"
-        (click)="onFixWithAI(error)">
-        <span nz-icon nzType="tool"></span>
-        Fix with AI
-      </button>
     </nz-collapse-panel>
   </nz-collapse>
 </div>
