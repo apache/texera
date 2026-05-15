@@ -1,0 +1,85 @@
+<div class="copilot-panel">
+  <div class="copilot-header">
+    <span class="copilot-title">
+      <span nz-icon nzType="robot"></span>
+      UDF Copilot
+    </span>
+    <div class="copilot-header-actions">
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="clear()"
+        title="Clear conversation">
+        <span nz-icon nzType="reload"></span>
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="close()"
+        title="Close">
+        <span nz-icon nzType="close"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="copilot-messages">
+    <div
+      *ngIf="rows.length === 0"
+      class="copilot-empty">
+      Ask anything about this UDF — column names, vectorization, tests, errors.
+      <br />
+      <small>
+        I can see the upstream schema:
+        <code *ngIf="contextHint.upstreamSchema?.length">
+          {{ contextHint.upstreamSchema!.length }} columns
+        </code>
+        <code *ngIf="!contextHint.upstreamSchema?.length">
+          (not yet — connect &amp; compile an upstream operator first)
+        </code>
+      </small>
+    </div>
+
+    <div
+      *ngFor="let row of rows"
+      class="copilot-row"
+      [class.user]="row.role === 'user'"
+      [class.assistant]="row.role === 'assistant'">
+      <div class="copilot-bubble">
+        <div class="copilot-content">{{ row.content }}</div>
+        <button
+          *ngIf="row.suggestedCode"
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          class="copilot-apply"
+          (click)="onApply(row.suggestedCode)">
+          Apply to editor
+        </button>
+      </div>
+    </div>
+
+    <div
+      *ngIf="loading"
+      class="copilot-row assistant">
+      <div class="copilot-bubble loading">Thinking…</div>
+    </div>
+  </div>
+
+  <div class="copilot-input">
+    <textarea
+      [(ngModel)]="input"
+      (keydown)="onKeyDown($event)"
+      placeholder="Ask… (Cmd/Ctrl+Enter to send)"
+      rows="3"></textarea>
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="small"
+      [disabled]="loading || !input.trim()"
+      (click)="send()">
+      Send
+    </button>
+  </div>
+</div>

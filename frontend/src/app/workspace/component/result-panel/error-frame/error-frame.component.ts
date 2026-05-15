@@ -23,8 +23,10 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { UdfCopilotService } from "../../../service/udf-copilot/udf-copilot.service";
 import { NgIf, NgFor, KeyValuePipe } from "@angular/common";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 
@@ -38,6 +40,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
     NgFor,
     NzCollapseComponent,
     NzCollapsePanelComponent,
+    NzButtonComponent,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
     KeyValuePipe,
@@ -51,7 +54,8 @@ export class ErrorFrameComponent implements OnInit {
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowActionService: WorkflowActionService,
-    private workflowCompilingService: WorkflowCompilingService
+    private workflowCompilingService: WorkflowCompilingService,
+    private udfCopilotService: UdfCopilotService
   ) {}
 
   ngOnInit(): void {
@@ -60,6 +64,26 @@ export class ErrorFrameComponent implements OnInit {
 
   onClickGotoButton(target: string) {
     this.workflowActionService.highlightOperators(false, target);
+  }
+
+  isPythonUDFError(error: WorkflowFatalError): boolean {
+    if (error.operatorId === "unknown operator") return false;
+    try {
+      const op = this.workflowActionService.getTexeraGraph().getOperator(error.operatorId);
+      return (
+        op?.operatorType === "PythonUDFV2" ||
+        op?.operatorType === "PythonUDFSourceV2" ||
+        op?.operatorType === "DualInputPortsPythonUDFV2"
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  onFixWithAI(error: WorkflowFatalError): void {
+    const msg = error.details ? `${error.message}\n\n${error.details}` : error.message;
+    this.udfCopilotService.requestFixAndOpen(error.operatorId, msg);
+    this.workflowActionService.highlightOperators(false, error.operatorId);
   }
 
   renderError(): void {

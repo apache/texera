@@ -22,7 +22,7 @@ import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 const PYTHON_UDF_OPERATOR_TYPES = ["PythonUDFV2"];
 const R_UDF_OPERATOR_TYPES = ["RUDF"];
 
-const PYTHON_UDF_INSTRUCTIONS = `## Python UDF Guide
+export const PYTHON_UDF_INSTRUCTIONS = `## Python UDF Guide
 
 Python UDF operators run user-defined Python code. There are 2 APIs to process data:
 
@@ -83,7 +83,11 @@ class ProcessTableOperator(UDFTableOperator):
 
 - DO NOT change the class name (ProcessTupleOperator or ProcessTableOperator).
 - Import packages explicitly (pandas, numpy, etc.).
-- Tuple is a Python dict. Access fields with tuple_["field"] ONLY (no .get/.set/.values).
+- **Tuple is NOT a Python dict.** Access fields with \`tuple_["field"]\` for reads and writes ONLY. Dict-style methods like \`.items()\`, \`.keys()\`, \`.values()\`, \`.get()\` DO NOT exist on Tuple and will raise AttributeError.
+  - To iterate fields: \`for name, value in tuple_.as_key_value_pairs():\` (preferred) or \`for name in tuple_.get_field_names(): value = tuple_[name]\`.
+  - To convert to a real dict: \`tuple_.as_dict()\` returns an OrderedDict.
+  - To convert to a pandas Series: \`tuple_.as_series()\`.
+  - \`len(tuple_)\` and \`name in tuple_\` work as expected.
 - Table is a pandas DataFrame.
 - Use yield to return results.
 - Handle None values carefully.

@@ -21,6 +21,7 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
+import { udfCopilotRouter } from "./udf-copilot/router";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
@@ -484,6 +485,7 @@ export function buildApp() {
           timestamp: new Date().toISOString(),
         }))
         .use(agentsRouter)
+        .use(udfCopilotRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {

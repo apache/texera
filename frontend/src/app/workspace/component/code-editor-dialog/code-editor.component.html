@@ -40,10 +40,34 @@
         nz-icon
         nzType="close"></span>
     </button>
+    <button
+      *ngIf="language === 'python'"
+      nz-button
+      nzType="text"
+      nzSize="large"
+      nzShape="circle"
+      class="copilot-toggle"
+      [class.active]="showCopilotPanel"
+      (click)="toggleCopilotPanel()"
+      title="UDF Copilot (chat with schema context)">
+      <span
+        nz-icon
+        nzType="robot"></span>
+    </button>
   </h5>
-  <div
-    #editor
-    id="code-editor"></div>
+  <div class="editor-body">
+    <div
+      #editor
+      id="code-editor"></div>
+    <texera-udf-copilot-panel
+      *ngIf="showCopilotPanel"
+      class="copilot-side"
+      [getCode]="copilotCodeProvider"
+      [getContext]="copilotContextProvider"
+      (apply)="applyCopilotCode($event)"
+      (closed)="toggleCopilotPanel()">
+    </texera-udf-copilot-panel>
+  </div>
   <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
@@ -62,3 +86,79 @@
   (accept)="acceptCurrentAnnotation()"
   (decline)="rejectCurrentAnnotation()">
 </texera-annotation-suggestion>
+
+<div
+  *ngIf="showRewriteOverlay"
+  class="rewrite-overlay"
+  [style.top.px]="rewriteOverlayTop"
+  [style.left.px]="rewriteOverlayLeft">
+  <div class="rewrite-header">
+    <span nz-icon [nzType]="rewriteMode === 'fix' ? 'tool' : 'edit'"></span>
+    {{ rewriteMode === 'fix' ? 'Fix Error with AI' : 'Rewrite selection' }}
+    <button
+      nz-button
+      nzType="text"
+      nzSize="small"
+      class="rewrite-close"
+      (click)="cancelRewrite()">
+      <span nz-icon nzType="close"></span>
+    </button>
+  </div>
+
+  <div
+    *ngIf="rewriteState === 'prompt'"
+    class="rewrite-body">
+    <textarea
+      [(ngModel)]="rewriteInstruction"
+      (keydown)="onRewriteKeyDown($event)"
+      [placeholder]="rewriteMode === 'fix' ? 'Paste the error message or describe the bug… (Enter to submit, Esc to cancel)' : 'Describe the change… (Enter to submit, Esc to cancel)'"
+      rows="2"
+      autofocus></textarea>
+    <div class="rewrite-actions">
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        [disabled]="!rewriteInstruction.trim()"
+        (click)="submitRewrite()">
+        {{ rewriteMode === 'fix' ? 'Fix' : 'Rewrite' }}
+      </button>
+    </div>
+  </div>
+
+  <div
+    *ngIf="rewriteState === 'loading'"
+    class="rewrite-body rewrite-loading">
+    Generating…
+  </div>
+
+  <div
+    *ngIf="rewriteState === 'preview'"
+    class="rewrite-body">
+    <div class="rewrite-diff">
+      <ng-container *ngIf="rewriteMode !== 'fix'">
+        <div class="rewrite-diff-label">Replacing:</div>
+        <pre class="rewrite-old">{{ rewriteOldCode }}</pre>
+      </ng-container>
+      <div class="rewrite-diff-label">{{ rewriteMode === 'fix' ? 'Fixed code:' : 'With:' }}</div>
+      <pre
+        class="rewrite-new"
+        [class.empty]="!rewriteNewCode">{{ rewriteNewCode || '(empty — accepting will delete the selection)' }}</pre>
+    </div>
+    <div class="rewrite-actions">
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        (click)="acceptRewrite()">
+        Accept
+      </button>
+      <button
+        nz-button
+        nzSize="small"
+        (click)="cancelRewrite()">
+        Reject
+      </button>
+    </div>
+  </div>
+</div>

@@ -30,7 +30,7 @@ services:
     command: server --console-address ":9001" /data
     # The lines below are recommended to mount a host path in order to persist your data even if the container is removed.
     volumes:
-      - minio_data:/data
+      - /Users/wangmeng/Desktop/texeraData/minio:/data
 
   postgres:
     image: postgres:15
@@ -47,7 +47,7 @@ services:
       start_period: 5s
     # Ditto
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /Users/wangmeng/Desktop/texeraData/postgres:/var/lib/postgresql/data
 
   lakefs:
     image: treeverse/lakefs:1.51

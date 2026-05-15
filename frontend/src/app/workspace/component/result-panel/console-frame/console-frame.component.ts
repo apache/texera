@@ -29,6 +29,7 @@ import { isDefined } from "../../../../common/util/predicate";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
+import { UdfCopilotService } from "../../../service/udf-copilot/udf-copilot.service";
 import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
@@ -116,7 +117,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     private workflowConsoleService: WorkflowConsoleService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private notificationService: NotificationService,
-    private udfDebugService: UdfDebugService
+    private udfDebugService: UdfDebugService,
+    private udfCopilotService: UdfCopilotService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -243,5 +245,10 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   getMessageLabel(message: ConsoleMessage): string {
     return this.labelMapping.get(message.msgType.name) ?? "";
+  }
+
+  onFixWithAI(entry: ConsoleMessage): void {
+    const errorMessage = entry.message ? `${entry.title}\n${entry.message}` : entry.title;
+    this.udfCopilotService.requestFixAndOpen(this.operatorId, errorMessage);
   }
 }

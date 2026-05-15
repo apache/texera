@@ -101,6 +101,17 @@
               <div class="collapse-message-header">{{ entry.title }}</div>
             </ng-template>
             <div class="console-message">{{ entry.message }}</div>
+            <button
+              *ngIf="entry.msgType.name === 'ERROR'"
+              nz-button
+              nzType="primary"
+              nzDanger
+              nzSize="small"
+              style="margin-top: 8px"
+              (click)="onFixWithAI(entry)">
+              <span nz-icon nzType="tool"></span>
+              Fix with AI
+            </button>
           </nz-collapse-panel>
         </nz-collapse>
         <div

@@ -38,8 +38,10 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
-import { FormControl } from "@angular/forms";
+import { FormControl, FormsModule } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
+import { UdfContext, UdfCopilotService } from "../../service/udf-copilot/udf-copilot.service";
+import { UdfCopilotPanelComponent } from "./udf-copilot-panel.component";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 import { MonacoEditorLanguageClientWrapper, UserConfig } from "monaco-editor-wrapper";
 import * as monaco from "monaco-editor";
@@ -88,6 +90,8 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
     NgIf,
     AnnotationSuggestionComponent,
     FormlyRepeatDndComponent,
+    UdfCopilotPanelComponent,
+    FormsModule,
   ],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
@@ -107,6 +111,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private editorWrapper: MonacoEditorLanguageClientWrapper = new MonacoEditorLanguageClientWrapper();
   private monacoBinding?: MonacoBinding;
+  private udfCopilotDisposables: monaco.IDisposable[] = [];
 
   // Boolean to determine whether the suggestion UI should be shown
   public showAnnotationSuggestion: boolean = false;
@@ -124,6 +129,20 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public codeDebuggerComponent!: Type<any> | null;
   public editorToPass!: MonacoEditor;
 
+  public showCopilotPanel: boolean = false;
+
+  // Cmd+K rewrite overlay state
+  public showRewriteOverlay: boolean = false;
+  public rewriteMode: "rewrite" | "fix" = "rewrite";
+  public rewriteState: "prompt" | "loading" | "preview" = "prompt";
+  public rewriteInstruction: string = "";
+  public rewriteNewCode: string = "";
+  public rewriteOldCode: string = "";
+  public rewriteOverlayTop: number = 0;
+  public rewriteOverlayLeft: number = 0;
+  private rewriteSelection: monaco.Selection | undefined;
+  private pendingFix?: { errorMessage: string; range: monaco.Range };
+
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
   }
@@ -139,7 +158,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
     private aiAssistantService: AIAssistantService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private udfCopilotService: UdfCopilotService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -190,6 +210,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     if (isDefined(this.monacoBinding)) {
       this.monacoBinding.destroy();
     }
+
+    for (const d of this.udfCopilotDisposables) {
+      try {
+        d.dispose();
+      } catch {}
+    }
+    this.udfCopilotDisposables = [];
 
     this.editorWrapper.dispose(true);
 
@@ -293,6 +320,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
         );
         this.setupAIAssistantActions(editor);
+        this.setupUdfCopilot(editor);
         this.initCodeDebuggerComponent(editor);
       });
   }
@@ -337,6 +365,420 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private initCodeDebuggerComponent(editor: MonacoEditor) {
     this.codeDebuggerComponent = CodeDebuggerComponent;
     this.editorToPass = editor;
+  }
+
+  /**
+   * Register the UDF Copilot integrations on this editor instance.
+   *
+   * Currently registers schema-aware inline completions (ghost text). Must be
+   * called from inside the editorWrapper.getEditor() subscribe callback —
+   * monaco-editor-wrapper can recreate the editor on language-server reconnect,
+   * and any disposables we hold from a previous instance would be stale.
+   */
+  private setupUdfCopilot(editor: MonacoEditor) {
+    if (this.language !== "python") return;
+
+    // Warm the upstream sample-row cache so chat / Cmd+K / fix all see a real
+    // data row in context by the time the user actually invokes them.
+    this.udfCopilotService.prefetchUpstreamSample(this.currentOperatorId);
+
+    // If "Fix with AI" was clicked before the editor opened, consume the
+    // pending fix now and auto-open the overlay. consumePendingFix clears the
+    // stored message so re-opening the editor later does NOT re-trigger this.
+    const pendingError = this.udfCopilotService.consumePendingFix(this.currentOperatorId);
+    if (pendingError) {
+      setTimeout(() => {
+        this.openRewriteOverlay(editor, "fix");
+        this.rewriteInstruction = pendingError;
+      }, 150);
+    }
+
+    // If the editor is already open when "Fix with AI" is clicked, handle it live.
+    this.udfCopilotService.fixTrigger$
+      .pipe(
+        filter(ev => ev.operatorId === this.currentOperatorId),
+        untilDestroyed(this)
+      )
+      .subscribe(ev => {
+        // Drop the one-shot — we're handling this live, no need to replay later.
+        this.udfCopilotService.consumePendingFix(this.currentOperatorId);
+        this.openRewriteOverlay(editor, "fix");
+        this.rewriteInstruction = ev.errorMessage;
+      });
+
+    const PREFIX_MAX = 4000;
+    const SUFFIX_MAX = 1000;
+    const COMPLETION_DEBOUNCE_MS = 250;
+
+    const disposable = monaco.languages.registerInlineCompletionsProvider("python", {
+      provideInlineCompletions: async (model, position, _ctx, token) => {
+        if (token.isCancellationRequested) return { items: [] };
+
+        // Defer to the column-name dropdown when the cursor is inside a
+        // bracket-string accessor — that has its own provider with all columns.
+        const lineUpToCursor = model
+          .getLineContent(position.lineNumber)
+          .slice(0, position.column - 1);
+        if (/\[\s*['"][^'"]*$/.test(lineUpToCursor)) return { items: [] };
+
+        const offset = model.getOffsetAt(position);
+        const fullText = model.getValue();
+        const prefix = fullText.slice(Math.max(0, offset - PREFIX_MAX), offset);
+        const suffix = fullText.slice(offset, Math.min(fullText.length, offset + SUFFIX_MAX));
+
+        // Debounce per-invocation: skip the backend call if Monaco cancels us
+        // before the delay elapses. Each invocation owns its own timer, so
+        // earlier in-flight invocations don't share state with later ones.
+        const debounced = await new Promise<boolean>(resolve => {
+          const timer = setTimeout(() => resolve(true), COMPLETION_DEBOUNCE_MS);
+          token.onCancellationRequested(() => {
+            clearTimeout(timer);
+            resolve(false);
+          });
+        });
+        if (!debounced || token.isCancellationRequested) return { items: [] };
+
+        try {
+          const context = this.udfCopilotService.buildContext(this.currentOperatorId);
+          const res = await this.udfCopilotService.completeAsync({ prefix, suffix, context });
+          if (token.isCancellationRequested) return { items: [] };
+          const text = (res.text ?? "").replace(/\r/g, "");
+          if (!text) return { items: [] };
+
+          return {
+            items: [
+              {
+                insertText: text,
+                range: new monaco.Range(
+                  position.lineNumber,
+                  position.column,
+                  position.lineNumber,
+                  position.column
+                ),
+              },
+            ],
+          };
+        } catch {
+          return { items: [] };
+        }
+      },
+      freeInlineCompletions: () => {
+        // Nothing to free — items are plain objects.
+      },
+    });
+
+    this.udfCopilotDisposables.push(disposable);
+
+    // Schema-aware column-name completion: when the cursor sits inside a
+    // bracket-string accessor (tuple_["..."] / df["..."] / etc.), drop down
+    // every upstream column as a completion item. Local & instant — no LLM.
+    const columnCompletion = monaco.languages.registerCompletionItemProvider("python", {
+      triggerCharacters: ['"', "'", "["],
+      provideCompletionItems: (model, position) => {
+        const lineUpToCursor = model
+          .getLineContent(position.lineNumber)
+          .slice(0, position.column - 1);
+        const m = lineUpToCursor.match(/\[\s*['"]([^'"]*)$/);
+        if (!m) return { suggestions: [] };
+
+        const ctx = this.udfCopilotService.buildContext(this.currentOperatorId);
+        const cols = ctx.upstreamSchema ?? [];
+        if (cols.length === 0) return { suggestions: [] };
+
+        const partial = m[1];
+        const replaceRange = new monaco.Range(
+          position.lineNumber,
+          position.column - partial.length,
+          position.lineNumber,
+          position.column
+        );
+
+        return {
+          suggestions: cols.map(col => ({
+            label: col.name,
+            kind: monaco.languages.CompletionItemKind.Field,
+            insertText: col.name,
+            detail: col.type,
+            documentation: `Upstream column (${col.type})`,
+            range: replaceRange,
+            sortText: `0_${col.name}`,
+          })),
+        };
+      },
+    });
+    this.udfCopilotDisposables.push(columnCompletion);
+
+    // Cmd+K (Ctrl+K on win/linux) inline rewrite.
+    const cmdK = editor.addAction({
+      id: "udf-copilot-rewrite",
+      label: "UDF Copilot: Rewrite Selection (Cmd+K)",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+      contextMenuGroupId: "1_modification",
+      contextMenuOrder: 1.05,
+      run: () => this.openRewriteOverlay(editor, "rewrite"),
+    });
+    this.udfCopilotDisposables.push(cmdK);
+
+    // Always-visible "Fix Error with AI" — user pastes the error message;
+    // does not depend on Pyright markers being present.
+    const fixFromError = editor.addAction({
+      id: "udf-copilot-fix-from-error",
+      label: "UDF Copilot: Fix Error with AI",
+      contextMenuGroupId: "1_modification",
+      contextMenuOrder: 1.06,
+      run: () => this.openRewriteOverlay(editor, "fix"),
+    });
+    this.udfCopilotDisposables.push(fixFromError);
+
+    // Quick Fix on pyright markers — registered as a hidden action (no
+    // contextMenuGroupId) invoked by the code-action provider's command.
+    const fixAction = editor.addAction({
+      id: "udf-copilot-fix-action",
+      label: "UDF Copilot: Quick Fix (from marker)",
+      run: () => this.runPendingFix(),
+    });
+    this.udfCopilotDisposables.push(fixAction);
+
+    const codeActionProvider = monaco.languages.registerCodeActionProvider("python", {
+      provideCodeActions: (_model, _range, context) => {
+        const errorMarkers = context.markers.filter(
+          m =>
+            m.severity === monaco.MarkerSeverity.Error ||
+            m.severity === monaco.MarkerSeverity.Warning
+        );
+        if (errorMarkers.length === 0) {
+          return { actions: [], dispose: () => {} };
+        }
+        const marker = errorMarkers[0];
+        // Stash so the editor action can read it; provideCodeActions is sync,
+        // but the action runs async later.
+        this.pendingFix = {
+          errorMessage: marker.message,
+          range: new monaco.Range(
+            marker.startLineNumber,
+            marker.startColumn,
+            marker.endLineNumber,
+            marker.endColumn
+          ),
+        };
+        const previewMsg = marker.message.length > 50 ? marker.message.slice(0, 50) + "…" : marker.message;
+        return {
+          actions: [
+            {
+              title: `UDF Copilot: Fix "${previewMsg}"`,
+              kind: "quickfix",
+              diagnostics: errorMarkers,
+              isPreferred: true,
+              command: {
+                id: "udf-copilot-fix-action",
+                title: "Fix with UDF Copilot",
+              },
+            },
+          ],
+          dispose: () => {},
+        };
+      },
+    });
+    this.udfCopilotDisposables.push(codeActionProvider);
+  }
+
+  private runPendingFix(): void {
+    if (!this.pendingFix) return;
+    const { errorMessage, range } = this.pendingFix;
+    this.pendingFix = undefined;
+
+    const editor = this.editorWrapper.getEditor();
+    const model = editor?.getModel();
+    if (!model || !this.code) return;
+
+    const code = model.getValue();
+    const context = this.udfCopilotService.buildContext(this.currentOperatorId);
+
+    this.udfCopilotService
+      .fix({
+        errorMessage,
+        code,
+        range: {
+          startLine: range.startLineNumber,
+          startColumn: range.startColumn,
+          endLine: range.endLineNumber,
+          endColumn: range.endColumn,
+        },
+        context,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: res => {
+          if (res.newCode && this.code) {
+            const oldLen = this.code.length;
+            this.code.delete(0, oldLen);
+            this.code.insert(0, res.newCode);
+          }
+        },
+        error: () => {
+          // silently swallow — Quick Fix is best-effort
+        },
+      });
+  }
+
+  /**
+   * Open the rewrite/fix overlay near the current selection.
+   * mode='rewrite' (Cmd+K): transforms selected code per instruction.
+   * mode='fix': user describes the error; AI replaces the full file.
+   */
+  private openRewriteOverlay(editor: MonacoEditor, mode: "rewrite" | "fix" = "rewrite"): void {
+    const model = editor.getModel();
+    if (!model) return;
+
+    let selection = editor.getSelection();
+    if (!selection || selection.isEmpty()) {
+      const pos = editor.getPosition();
+      if (pos) {
+        const lineLen = model.getLineMaxColumn(pos.lineNumber);
+        selection = new monaco.Selection(pos.lineNumber, 1, pos.lineNumber, lineLen);
+      } else if (mode === "fix") {
+        // Editor lost focus (e.g. user clicked result panel). Fix mode doesn't
+        // use the selection, so fall back to line 1.
+        selection = new monaco.Selection(1, 1, 1, 1);
+      } else {
+        return;
+      }
+    }
+
+    this.rewriteMode = mode;
+    this.rewriteSelection = selection;
+    this.rewriteOldCode = model.getValueInRange(selection);
+    this.rewriteInstruction = "";
+    this.rewriteNewCode = "";
+    this.rewriteState = "prompt";
+
+    const editorRect = this.editorElement?.nativeElement?.getBoundingClientRect();
+    const visiblePos = editor.getScrolledVisiblePosition(selection.getStartPosition());
+    if (visiblePos && editorRect) {
+      this.rewriteOverlayTop = editorRect.top + visiblePos.top + 20;
+      this.rewriteOverlayLeft = editorRect.left + 12;
+    } else if (editorRect) {
+      // Editor lost focus (e.g. triggered from result panel) — anchor to top of editor.
+      this.rewriteOverlayTop = editorRect.top + 40;
+      this.rewriteOverlayLeft = editorRect.left + 12;
+    }
+
+    this.showRewriteOverlay = true;
+  }
+
+  public submitRewrite(): void {
+    const instruction = this.rewriteInstruction.trim();
+    if (!instruction || this.rewriteState === "loading") return;
+
+    const editor = this.editorWrapper.getEditor();
+    const allCode = editor?.getModel()?.getValue() ?? "";
+    const context = this.udfCopilotService.buildContext(this.currentOperatorId);
+
+    this.rewriteState = "loading";
+
+    const handleResult = (newCode: string) => {
+      const trimmed = (newCode ?? "").trim();
+      // Fix mode replaces the whole file — empty is almost certainly the AI
+      // giving up, not a request to clear everything.
+      if (!trimmed && this.rewriteMode === "fix") {
+        this.rewriteInstruction =
+          (this.rewriteInstruction ? this.rewriteInstruction + "\n\n" : "") +
+          "(AI returned no code. Try rephrasing.)";
+        this.rewriteState = "prompt";
+        return;
+      }
+      // Rewrite mode: empty is a legitimate "delete the selection" outcome.
+      this.rewriteNewCode = trimmed;
+      this.rewriteState = "preview";
+    };
+
+    if (this.rewriteMode === "fix") {
+      this.udfCopilotService
+        .fix({ errorMessage: instruction, code: allCode, context })
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: res => handleResult(res.newCode),
+          error: () => {
+            this.rewriteState = "prompt";
+          },
+        });
+    } else {
+      this.udfCopilotService
+        .rewrite({
+          selectedCode: this.rewriteOldCode,
+          allCode,
+          instruction,
+          context,
+        })
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: res => handleResult(res.newCode),
+          error: () => {
+            this.rewriteState = "prompt";
+          },
+        });
+    }
+  }
+
+  public acceptRewrite(): void {
+    if (!this.code) {
+      this.cancelRewrite();
+      return;
+    }
+
+    if (this.rewriteMode === "fix") {
+      // Fix mode replaces the entire file. Empty here is treated as an error
+      // upstream (we never enter preview), so this is always non-empty.
+      if (!this.rewriteNewCode) {
+        this.cancelRewrite();
+        return;
+      }
+      const oldLen = this.code.length;
+      this.code.delete(0, oldLen);
+      this.code.insert(0, this.rewriteNewCode);
+      this.cancelRewrite();
+      return;
+    }
+
+    // Rewrite mode — empty newCode is a legitimate "delete the selection".
+    if (!this.rewriteSelection) {
+      this.cancelRewrite();
+      return;
+    }
+    const editor = this.editorWrapper.getEditor();
+    const model = editor?.getModel();
+    if (!model) {
+      this.cancelRewrite();
+      return;
+    }
+
+    const startOffset = model.getOffsetAt(this.rewriteSelection.getStartPosition());
+    const endOffset = model.getOffsetAt(this.rewriteSelection.getEndPosition());
+    this.code.delete(startOffset, endOffset - startOffset);
+    if (this.rewriteNewCode) {
+      this.code.insert(startOffset, this.rewriteNewCode);
+    }
+    this.cancelRewrite();
+  }
+
+  public cancelRewrite(): void {
+    this.showRewriteOverlay = false;
+    this.rewriteMode = "rewrite";
+    this.rewriteState = "prompt";
+    this.rewriteInstruction = "";
+    this.rewriteNewCode = "";
+    this.rewriteOldCode = "";
+    this.rewriteSelection = undefined;
+  }
+
+  public onRewriteKeyDown(ev: KeyboardEvent): void {
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      this.submitRewrite();
+    } else if (ev.key === "Escape") {
+      ev.preventDefault();
+      this.cancelRewrite();
+    }
   }
 
   private setupAIAssistantActions(editor: MonacoEditor) {
@@ -566,5 +1008,41 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
   onFocus() {
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
+  }
+
+  public toggleCopilotPanel(): void {
+    this.showCopilotPanel = !this.showCopilotPanel;
+    // Monaco needs an explicit layout() after its container width changes.
+    setTimeout(() => this.editorWrapper.getEditor()?.layout(), 0);
+  }
+
+  // Stable function references so Angular doesn't see the panel's inputs
+  // changing on every change-detection tick. Bound as arrow-function fields.
+  public readonly copilotCodeProvider = (): string => {
+    try {
+      return this.editorWrapper.getEditor()?.getModel()?.getValue() ?? "";
+    } catch {
+      return "";
+    }
+  };
+
+  public readonly copilotContextProvider = (): UdfContext => {
+    try {
+      return this.udfCopilotService.buildContext(this.currentOperatorId);
+    } catch {
+      return {};
+    }
+  };
+
+  /**
+   * Apply assistant-suggested code by atomically replacing the full Y-text
+   * buffer. Going through Y-text (not editor.executeEdits) is required so
+   * co-editors and the Monaco model stay in sync.
+   */
+  public applyCopilotCode(newCode: string): void {
+    if (!this.code) return;
+    const oldLen = this.code.length;
+    this.code.delete(0, oldLen);
+    this.code.insert(0, newCode);
   }
 }

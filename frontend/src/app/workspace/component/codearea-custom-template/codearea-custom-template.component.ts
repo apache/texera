@@ -24,6 +24,8 @@ import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { UdfCopilotService } from "../../service/udf-copilot/udf-copilot.service";
+import { filter } from "rxjs/operators";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -59,7 +61,8 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
     private coeditorPresenceService: CoeditorPresenceService,
     private codeEditorService: CodeEditorService,
     private changeDetectorRef: ChangeDetectorRef,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private udfCopilotService: UdfCopilotService
   ) {
     super();
     this.coeditorPresenceService
@@ -80,6 +83,28 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
       .subscribe(isOpen => {
         this.isEditorOpen = isOpen;
         this.changeDetectorRef.detectChanges();
+      });
+
+    // Catch the case where "Fix with AI" was clicked before this component was
+    // created (operator wasn't selected yet — the request is replayed via the
+    // one-shot openRequests set).
+    if (this.udfCopilotService.shouldOpenEditorForFix(this.operatorID)) {
+      this.openEditor();
+    }
+
+    // Catch the case where this component is already mounted (operator is
+    // currently selected) but the editor is closed.
+    this.udfCopilotService.openEditor$
+      .pipe(
+        filter(ev => ev.operatorId === this.operatorID),
+        untilDestroyed(this)
+      )
+      .subscribe(() => {
+        // Drop the matching one-shot entry — we're handling it live.
+        this.udfCopilotService.shouldOpenEditorForFix(this.operatorID);
+        if (!this.isEditorOpen) {
+          this.openEditor();
+        }
       });
   }
 
