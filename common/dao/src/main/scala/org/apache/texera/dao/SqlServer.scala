@@ -19,12 +19,15 @@
 
 package org.apache.texera.dao
 
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, SQLDialect}
-import org.postgresql.ds.PGSimpleDataSource
 
 /**
   * SqlServer class that manages a connection to a PostgreSQL database using jOOQ.
+  *
+  * Uses a HikariCP connection pool so that every jOOQ query borrows a pre-authenticated
+  * connection from the pool rather than opening a new TCP + SCRAM handshake each time.
   *
   * WARNING: Do not cache the DSLContext returned by `createDSLContext()` in a val or lazy val.
   * During testing, `MockTexeraDB` replaces the SqlServer instance between test classes.
@@ -32,25 +35,42 @@ import org.postgresql.ds.PGSimpleDataSource
   * causing "Connection refused" errors when tests run together.
   * Use `def` to ensure the connection is looked up each time.
   *
-  * @param url The database connection URL.
-  * @param user The username for authenticating with the database.
+  * @param url      The JDBC connection URL.
+  * @param user     The username for authenticating with the database.
   * @param password The password for authenticating with the database.
   */
 class SqlServer private (url: String, user: String, password: String) {
   val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES
-  private val dataSource: PGSimpleDataSource = new PGSimpleDataSource()
-  var context: DSLContext = {
-    dataSource.setUrl(url)
-    dataSource.setUser(user)
-    dataSource.setPassword(password)
-    dataSource.setConnectTimeout(5)
-    DSL.using(dataSource, SQL_DIALECT)
+
+  private val hikariConfig: HikariConfig = {
+    val cfg = new HikariConfig()
+    cfg.setJdbcUrl(url)
+    cfg.setUsername(user)
+    cfg.setPassword(password)
+    cfg.setPoolName("texera-hikari")
+    cfg.setMaximumPoolSize(10)
+    cfg.setMinimumIdle(2)
+    // How long a caller waits for a connection before throwing (ms)
+    cfg.setConnectionTimeout(30000)
+    // How long an idle connection stays in the pool before being retired (ms)
+    cfg.setIdleTimeout(600000)
+    // Maximum lifetime of any connection in the pool (ms); must be < PostgreSQL's idle timeout
+    cfg.setMaxLifetime(1800000)
+    cfg
   }
+
+  private val dataSource: HikariDataSource = new HikariDataSource(hikariConfig)
+
+  var context: DSLContext = DSL.using(dataSource, SQL_DIALECT)
 
   def createDSLContext(): DSLContext = context
 
   def replaceDSLContext(newContext: DSLContext): Unit = {
     context = newContext
+  }
+
+  def close(): Unit = {
+    if (!dataSource.isClosed) dataSource.close()
   }
 }
 
@@ -58,18 +78,12 @@ object SqlServer {
   private var instance: Option[SqlServer] = None
 
   def initConnection(url: String, user: String, password: String): Unit = {
-    if (instance.isEmpty) {
-      val server = new SqlServer(url, user, password)
-      instance = Some(server)
-    }
+    instance.foreach(_.close())
+    instance = Some(new SqlServer(url, user, password))
   }
 
   def getInstance(): SqlServer = {
     instance.get
-  }
-
-  def clearInstance(): Unit = {
-    instance = None
   }
 
   /**

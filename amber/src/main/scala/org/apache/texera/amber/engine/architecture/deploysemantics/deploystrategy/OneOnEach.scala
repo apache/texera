@@ -31,6 +31,7 @@ class OneOnEach extends DeployStrategy {
 
   override def initialize(available: Array[Address]): Unit = {
     this.available = available
+    this.index = 0
   }
 
   override def next(): Address = {
