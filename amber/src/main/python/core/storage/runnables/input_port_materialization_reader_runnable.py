@@ -17,8 +17,8 @@
 
 import typing
 from loguru import logger
-from typing import Union
 from pyarrow import Table
+from typing import Union
 
 from core.architecture.sendsemantics.broad_cast_partitioner import (
     BroadcastPartitioner,
