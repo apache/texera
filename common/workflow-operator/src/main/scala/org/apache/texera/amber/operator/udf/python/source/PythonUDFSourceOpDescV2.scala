@@ -49,12 +49,12 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
   @JsonPropertyDescription("Specify how many parallel workers to launch")
   var workers: Int = 1
 
-  @JsonProperty
+  @JsonProperty(defaultValue = "Default")
   @JsonSchemaTitle("Virtual Environment")
   @JsonPropertyDescription(
     "Python Environment you would like this UDF to be executed within"
   )
-  var envName: String = "";
+  var envName: String = "Default"
 
   @JsonProperty()
   @JsonSchemaTitle("Columns")

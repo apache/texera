@@ -72,12 +72,12 @@ class PythonUDFOpDescV2 extends LogicalOp {
   @JsonPropertyDescription("Keep the original input columns?")
   var retainInputColumns: Boolean = Boolean.box(false)
 
-  @JsonProperty
+  @JsonProperty(defaultValue = "Default")
   @JsonSchemaTitle("Virtual Environment")
   @JsonPropertyDescription(
     "Python Environment you would like this UDF to be executed within"
   )
-  var envName: String = "";
+  var envName: String = "Default"
 
   @JsonProperty
   @JsonSchemaTitle("Extra output column(s)")
