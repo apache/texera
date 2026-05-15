@@ -347,8 +347,8 @@ describe("JointUIService", () => {
       const name = "a".repeat(max + 10);
       const result = JointUIService.truncateOperatorDisplayName(name);
       expect(result.length).toBe(max);
-      expect(result.endsWith("...")).toBe(true);
-      expect(result).toBe("a".repeat(max - 3) + "...");
+      expect(result.endsWith("…")).toBe(true);
+      expect(result).toBe("a".repeat(max - 1) + "…");
     });
 
     it("returns an empty string unchanged", () => {

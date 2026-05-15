@@ -216,7 +216,7 @@ export class JointUIService {
     if (name.length <= JointUIService.MAX_OPERATOR_NAME_LENGTH) {
       return name;
     }
-    return name.slice(0, JointUIService.MAX_OPERATOR_NAME_LENGTH - 3) + "...";
+    return name.slice(0, JointUIService.MAX_OPERATOR_NAME_LENGTH - 1) + "…";
   }
 
   private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
