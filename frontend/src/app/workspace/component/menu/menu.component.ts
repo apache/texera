@@ -84,6 +84,8 @@ import {
   slugifyForFilename,
 } from "../../service/profiler/profiler-report";
 import { parseBaselineReport } from "../../service/profiler/profiler-delta";
+import { ProfilerSuggestionsService } from "../../service/profiler/profiler-suggestions.service";
+import { Suggestion } from "../../service/profiler/profiler-suggestions";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -204,6 +206,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
     public profilerService: ProfilerService,
+    public profilerSuggestionsService: ProfilerSuggestionsService,
     private router: Router
   ) {
     workflowWebsocketService
@@ -243,6 +246,18 @@ export class MenuComponent implements OnInit, OnDestroy {
       .subscribe(event => {
         this.executionState = event.current.state;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // "Run now" prompt (from profiler-suggestions) routes through the same handler
+    // the Run button uses, so execution name / computing-unit / email-notif config
+    // is identical. No-op if the Run button is currently disabled.
+    this.profilerSuggestionsService
+      .getWorkflowRunRequestStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (!this.runDisable) {
+          this.onClickRunHandler();
+        }
       });
 
     // set the map of operatorStatusMap
@@ -288,6 +303,29 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public setProfilerView(view: ProfilerView): void {
     this.profilerService.setView(view);
+  }
+
+  /** Apply a suggestion from the popover list — routes through the service so the
+   *  workflow-editor component performs the actual canvas mutation. */
+  public applySuggestion(s: Suggestion): void {
+    this.profilerSuggestionsService.requestMaterialize(s);
+  }
+
+  /** Dismiss a suggestion from the popover list. */
+  public dismissSuggestionFromList(s: Suggestion): void {
+    this.profilerSuggestionsService.dismiss(s.id);
+  }
+
+  /** Short label for one suggestion row — used in the popover list. */
+  public suggestionShortLabel(s: Suggestion): string {
+    if (s.type === "INSERT_FILTER") {
+      return `Insert Filter on edge`;
+    }
+    return `Bump workers → ${s.proposedWorkers}`;
+  }
+
+  public trackSuggestionById(_index: number, s: Suggestion): string {
+    return s.id;
   }
 
   public setProfilerHotThreshold(percentile: number): void {

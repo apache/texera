@@ -65,8 +65,40 @@
   </div>
 
   <div
+    *ngIf="profilerRunPrompt"
+    class="profiler-run-prompt"
+    role="status"
+    aria-live="polite">
+    <i
+      nz-icon
+      nzType="thunderbolt"
+      nzTheme="outline"
+      class="profiler-run-prompt-icon"></i>
+    <span class="profiler-run-prompt-message">{{ profilerRunPrompt.message }}</span>
+    <button
+      class="profiler-run-prompt-button"
+      (click)="triggerRunFromPrompt()"
+      nz-button
+      nzSize="small"
+      nzType="primary">
+      Run now
+    </button>
+    <button
+      class="profiler-run-prompt-dismiss"
+      (click)="dismissRunPrompt()"
+      nz-tooltip="Dismiss"
+      nzTooltipPlacement="bottom"
+      aria-label="Dismiss prompt">
+      <i
+        nz-icon
+        nzType="close"></i>
+    </button>
+  </div>
+
+  <div
     *ngFor="let ghost of profilerGhosts; trackBy: trackGhostById"
     class="profiler-ghost"
+    [class.profiler-ghost-bump-workers]="ghost.type === 'BUMP_WORKERS'"
     [style.left.px]="ghost.x"
     [style.top.px]="ghost.y"
     [nz-tooltip]="ghost.reasonMessage"
@@ -74,11 +106,20 @@
     <div
       class="profiler-ghost-body"
       (click)="materializeSuggestion(ghost)">
-      <i
-        nz-icon
-        nzType="filter"
-        nzTheme="outline"></i>
-      <span>+ Filter</span>
+      <ng-container *ngIf="ghost.type === 'INSERT_FILTER'">
+        <i
+          nz-icon
+          nzType="filter"
+          nzTheme="outline"></i>
+        <span>+ Filter</span>
+      </ng-container>
+      <ng-container *ngIf="ghost.type === 'BUMP_WORKERS'">
+        <i
+          nz-icon
+          nzType="thunderbolt"
+          nzTheme="outline"></i>
+        <span>+ workers ({{ ghost.proposedWorkers }})</span>
+      </ng-container>
     </div>
     <button
       class="profiler-ghost-dismiss"

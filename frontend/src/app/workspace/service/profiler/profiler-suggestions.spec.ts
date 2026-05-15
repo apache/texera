@@ -19,7 +19,18 @@
 
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { HintContext } from "./profiler-hints";
-import { computeSuggestions, edgeSuggestionId } from "./profiler-suggestions";
+import {
+  BUMP_WORKERS_TARGET,
+  bumpWorkersSuggestionId,
+  computeSuggestions,
+  edgeSuggestionId,
+  InsertFilterSuggestion,
+  Suggestion,
+} from "./profiler-suggestions";
+
+function inserts(suggestions: readonly Suggestion[]): InsertFilterSuggestion[] {
+  return suggestions.filter((s): s is InsertFilterSuggestion => s.type === "INSERT_FILTER");
+}
 
 function stat(partial: Partial<OperatorStatistics> = {}): OperatorStatistics {
   return {
@@ -64,7 +75,7 @@ describe("computeSuggestions — SCAN_FULL_TABLE_NO_FILTER", () => {
       types: { scan: "CSVScan", agg: "Aggregate" },
       downstreams: { scan: ["agg"] },
     });
-    const out = computeSuggestions(ctx);
+    const out = inserts(computeSuggestions(ctx));
     expect(out).toHaveLength(1);
     expect(out[0].upstreamOpId).toBe("scan");
     expect(out[0].downstreamOpId).toBe("agg");
@@ -104,7 +115,7 @@ describe("computeSuggestions — SCAN_FULL_TABLE_NO_FILTER", () => {
       downstreams: { scan: ["flt", "agg"] },
     });
     // First downstream is Filter — skip — pick Aggregate.
-    const out = computeSuggestions(ctx);
+    const out = inserts(computeSuggestions(ctx));
     expect(out).toHaveLength(1);
     expect(out[0].downstreamOpId).toBe("agg");
   });
@@ -119,7 +130,7 @@ describe("computeSuggestions — UPSTREAM_OVERPRODUCTION", () => {
       },
       upstreams: { downstream: ["src"] },
     });
-    const out = computeSuggestions(ctx);
+    const out = inserts(computeSuggestions(ctx));
     expect(out).toHaveLength(1);
     expect(out[0].upstreamOpId).toBe("src");
     expect(out[0].downstreamOpId).toBe("downstream");
@@ -163,12 +174,12 @@ describe("computeSuggestions — JOIN_HIGH_FANIN_LOW_FANOUT", () => {
       types: { join: "HashJoin", leftIn: "CSVScan", rightIn: "CSVScan" },
       upstreams: { join: ["leftIn", "rightIn"] },
     });
-    const out = computeSuggestions(ctx);
-    expect(out.find(s => s.reasonRuleId === "JOIN_HIGH_FANIN_LOW_FANOUT")).toBeDefined();
-    const joinSug = out.find(s => s.reasonRuleId === "JOIN_HIGH_FANIN_LOW_FANOUT")!;
+    const out = inserts(computeSuggestions(ctx));
+    const joinSug = out.find(s => s.reasonRuleId === "JOIN_HIGH_FANIN_LOW_FANOUT");
+    expect(joinSug).toBeDefined();
     // Should target the fattest input (leftIn with 10k > rightIn with 100)
-    expect(joinSug.upstreamOpId).toBe("leftIn");
-    expect(joinSug.downstreamOpId).toBe("join");
+    expect(joinSug!.upstreamOpId).toBe("leftIn");
+    expect(joinSug!.downstreamOpId).toBe("join");
   });
 
   it("does not fire when join keeps >=5% of input", () => {
@@ -246,8 +257,86 @@ describe("computeSuggestions — dedup + dismissed + ordering", () => {
     });
     // SCAN_FULL_TABLE_NO_FILTER still fires; the downstream agg doesn't need a stats entry
     // to be the target of a ghost — it just needs to exist as an operator.
-    const out = computeSuggestions(ctx);
+    const out = inserts(computeSuggestions(ctx));
     expect(out).toHaveLength(1);
     expect(out[0].downstreamOpId).toBe("agg");
+  });
+});
+
+describe("computeSuggestions — LOW_PARALLELISM_HOT_OP (BUMP_WORKERS)", () => {
+  it("creates a BUMP_WORKERS suggestion when a hot operator has 1 worker", () => {
+    const ctx = buildCtx({
+      stats: { hot: stat({ numWorkers: 1 }) },
+      scores: { hot: 0.95 },
+      hotThreshold: 0.8,
+    });
+    const out = computeSuggestions(ctx);
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe("BUMP_WORKERS");
+    expect(out[0].id).toBe(bumpWorkersSuggestionId("hot"));
+    if (out[0].type === "BUMP_WORKERS") {
+      expect(out[0].operatorId).toBe("hot");
+      expect(out[0].currentWorkers).toBe(1);
+      expect(out[0].proposedWorkers).toBe(BUMP_WORKERS_TARGET);
+      expect(out[0].reasonRuleId).toBe("LOW_PARALLELISM_HOT_OP");
+    }
+  });
+
+  it("does NOT fire when the operator is not hot enough", () => {
+    const ctx = buildCtx({
+      stats: { warm: stat({ numWorkers: 1 }) },
+      scores: { warm: 0.4 },
+      hotThreshold: 0.8,
+    });
+    expect(computeSuggestions(ctx)).toHaveLength(0);
+  });
+
+  it("does NOT fire when the operator already has >1 workers", () => {
+    const ctx = buildCtx({
+      stats: { hot: stat({ numWorkers: 4 }) },
+      scores: { hot: 1.0 },
+      hotThreshold: 0.8,
+    });
+    expect(computeSuggestions(ctx)).toHaveLength(0);
+  });
+
+  it("uses display name in the reason message", () => {
+    const ctx = buildCtx({
+      stats: { hot: stat({ numWorkers: 1 }) },
+      scores: { hot: 1.0 },
+      hotThreshold: 0.8,
+      displayNames: { hot: "Tweet Enricher" },
+    });
+    const out = computeSuggestions(ctx);
+    expect(out[0].reasonMessage).toContain("Tweet Enricher");
+  });
+
+  it("can be dismissed by id", () => {
+    const ctx = buildCtx({
+      stats: { hot: stat({ numWorkers: 1 }) },
+      scores: { hot: 1.0 },
+      hotThreshold: 0.8,
+    });
+    const dismissed = new Set<string>([bumpWorkersSuggestionId("hot")]);
+    expect(computeSuggestions(ctx, dismissed)).toHaveLength(0);
+  });
+
+  it("coexists with an INSERT_FILTER suggestion on the same hot operator", () => {
+    // A hot single-worker scan with no downstream filter should produce BOTH:
+    //   - INSERT_FILTER ghost on the scan→agg edge
+    //   - BUMP_WORKERS ghost on the scan operator
+    const ctx = buildCtx({
+      stats: {
+        scan: stat({ aggregatedOutputRowCount: 5_000_000, numWorkers: 1 }),
+        agg: stat({}),
+      },
+      scores: { scan: 1.0 },
+      hotThreshold: 0.8,
+      types: { scan: "CSVScan", agg: "Aggregate" },
+      downstreams: { scan: ["agg"] },
+    });
+    const out = computeSuggestions(ctx);
+    const types = out.map(s => s.type).sort();
+    expect(types).toEqual(["BUMP_WORKERS", "INSERT_FILTER"]);
   });
 });

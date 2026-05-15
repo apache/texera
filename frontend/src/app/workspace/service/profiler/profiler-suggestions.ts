@@ -29,11 +29,12 @@
 import type { HintContext } from "./profiler-hints";
 
 export type SuggestionId = string;
-export type SuggestionType = "INSERT_FILTER";
+export type SuggestionType = "INSERT_FILTER" | "BUMP_WORKERS";
 export type SuggestionReason =
   | "SCAN_FULL_TABLE_NO_FILTER"
   | "UPSTREAM_OVERPRODUCTION"
-  | "JOIN_HIGH_FANIN_LOW_FANOUT";
+  | "JOIN_HIGH_FANIN_LOW_FANOUT"
+  | "LOW_PARALLELISM_HOT_OP";
 
 export interface InsertFilterSuggestion {
   readonly id: SuggestionId;
@@ -45,7 +46,29 @@ export interface InsertFilterSuggestion {
   readonly reasonMessage: string;
 }
 
-export type Suggestion = InsertFilterSuggestion;
+/**
+ * Proposes increasing the worker count on a hot single-worker operator.
+ * Mirrors the LOW_PARALLELISM_HOT_OP hint rule: fires when an operator's
+ * normalized score is at/above the hot threshold AND it's running with <= 1 worker.
+ */
+export interface BumpWorkersSuggestion {
+  readonly id: SuggestionId;
+  readonly type: "BUMP_WORKERS";
+  readonly operatorId: string;
+  readonly currentWorkers: number;
+  readonly proposedWorkers: number;
+  readonly reasonRuleId: "LOW_PARALLELISM_HOT_OP";
+  readonly reasonMessage: string;
+}
+
+export type Suggestion = InsertFilterSuggestion | BumpWorkersSuggestion;
+
+/**
+ * Default target worker count for the bump-workers suggestion. Picked to be a
+ * meaningful jump (4× over the current 1-worker state) but conservative enough
+ * to not over-allocate. Users can adjust in the property panel after clicking.
+ */
+export const BUMP_WORKERS_TARGET = 4;
 
 // Thresholds — kept in sync with `profiler-hints.ts`. Duplicated rather than imported
 // so this module remains independent of hint internals; if a threshold changes,
@@ -74,6 +97,7 @@ export function computeSuggestions(
     pushIfDefined(out, scanNoFilterSuggestion(opId, ctx));
     pushIfDefined(out, upstreamOverproductionSuggestion(opId, ctx));
     pushIfDefined(out, joinHighFaninLowFanoutSuggestion(opId, ctx));
+    pushIfDefined(out, bumpWorkersSuggestion(opId, ctx));
   }
 
   const result: Suggestion[] = [];
@@ -87,6 +111,11 @@ export function computeSuggestions(
 /** Build a stable suggestion id for an edge. */
 export function edgeSuggestionId(upstreamOpId: string, downstreamOpId: string): SuggestionId {
   return `INSERT_FILTER:${upstreamOpId}->${downstreamOpId}`;
+}
+
+/** Build a stable suggestion id for an operator-attached bump-workers ghost. */
+export function bumpWorkersSuggestionId(operatorId: string): SuggestionId {
+  return `BUMP_WORKERS:${operatorId}`;
 }
 
 function pushIfDefined(out: Map<string, Suggestion>, s: Suggestion | undefined): void {
@@ -160,6 +189,30 @@ function upstreamOverproductionSuggestion(opId: string, ctx: HintContext): Sugge
  * input that contributed the most rows. The intuition: filter the biggest side
  * before the join to reduce shuffle.
  */
+/**
+ * LOW_PARALLELISM_HOT_OP → operator-attached "bump workers" suggestion.
+ * Fires when the operator's normalized score is at/above the hot threshold
+ * AND it's running with <= 1 worker. Mirrors the existing hint rule's
+ * conditions so the canvas suggestion stays consistent with the side panel.
+ */
+function bumpWorkersSuggestion(opId: string, ctx: HintContext): Suggestion | undefined {
+  const s = ctx.stats[opId];
+  if (!s) return undefined;
+  const score = ctx.scores[opId] ?? 0;
+  if (score < ctx.hotThreshold) return undefined;
+  const currentWorkers = s.numWorkers ?? 1;
+  if (currentWorkers > 1) return undefined;
+  return {
+    id: bumpWorkersSuggestionId(opId),
+    type: "BUMP_WORKERS",
+    operatorId: opId,
+    currentWorkers,
+    proposedWorkers: BUMP_WORKERS_TARGET,
+    reasonRuleId: "LOW_PARALLELISM_HOT_OP",
+    reasonMessage: `Hot operator '${ctx.displayName(opId)}' is running with ${currentWorkers} worker. Increasing to ${BUMP_WORKERS_TARGET} workers may improve runtime proportionally.`,
+  };
+}
+
 function joinHighFaninLowFanoutSuggestion(opId: string, ctx: HintContext): Suggestion | undefined {
   const s = ctx.stats[opId];
   if (!s) return undefined;

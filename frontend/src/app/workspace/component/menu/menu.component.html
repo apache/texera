@@ -454,7 +454,7 @@
         <ng-template #profilerSettings>
           <div
             *ngIf="profilerService.getStateStream() | async as profilerState"
-            style="display: flex; flex-direction: column; gap: 10px; min-width: 240px">
+            style="display: flex; flex-direction: column; gap: 10px; width: 340px; max-width: calc(100vw - 32px); box-sizing: border-box">
             <div style="display: flex; align-items: center; gap: 10px; justify-content: space-between">
               <span>
                 Profiling Heatmap
@@ -522,6 +522,70 @@
                 [nzStep]="5"
                 id="profiler-hot-threshold">
               </nz-slider>
+            </div>
+            <div
+              *ngIf="profilerState.enabled && (profilerSuggestionsService.getSuggestionsStream() | async) as suggestions"
+              class="profiler-suggestions-section">
+              <span>
+                Suggestions ({{ suggestions.length }})
+                <i
+                  nz-icon
+                  nzType="info-circle"
+                  nzTheme="outline"
+                  nz-tooltip
+                  [nzTooltipTitle]="suggestionsListInfo"
+                  style="color: rgba(0, 0, 0, 0.45); margin-left: 4px; cursor: help"></i>
+              </span>
+              <div
+                *ngIf="suggestions.length === 0"
+                class="profiler-suggestions-empty">
+                No suggestions for this run.
+              </div>
+              <ul
+                *ngIf="suggestions.length > 0"
+                class="profiler-suggestions-list">
+                <li
+                  *ngFor="let s of suggestions; trackBy: trackSuggestionById"
+                  class="profiler-suggestions-item">
+                  <div class="profiler-suggestions-item-icon">
+                    <i
+                      nz-icon
+                      [nzType]="s.type === 'INSERT_FILTER' ? 'filter' : 'thunderbolt'"
+                      nzTheme="outline"></i>
+                  </div>
+                  <div class="profiler-suggestions-item-text">
+                    <div class="profiler-suggestions-item-title">{{ suggestionShortLabel(s) }}</div>
+                    <div
+                      class="profiler-suggestions-item-reason"
+                      [nz-tooltip]="s.reasonMessage"
+                      nzTooltipPlacement="right">
+                      {{ s.reasonMessage }}
+                    </div>
+                  </div>
+                  <div class="profiler-suggestions-item-actions">
+                    <button
+                      nz-button
+                      nzSize="small"
+                      nzType="primary"
+                      class="profiler-popover-btn"
+                      nz-tooltip="Apply this suggestion"
+                      (click)="applySuggestion(s)">
+                      Apply
+                    </button>
+                    <button
+                      nz-button
+                      nzSize="small"
+                      nzType="default"
+                      class="profiler-popover-btn"
+                      nz-tooltip="Dismiss this suggestion"
+                      (click)="dismissSuggestionFromList(s)">
+                      <i
+                        nz-icon
+                        nzType="close"></i>
+                    </button>
+                  </div>
+                </li>
+              </ul>
             </div>
             <div
               *ngIf="profilerState.enabled"
@@ -686,6 +750,17 @@
                 <li>The <strong>Δ vs baseline</strong> view in the dropdown unlocks, coloring the canvas green (improved) / red (regressed) instead of by absolute cost.</li>
               </ul>
               Use <strong>Download report → JSON</strong> on a previous run to produce the file.
+            </div>
+          </ng-template>
+
+          <ng-template #suggestionsListInfo>
+            <div style="max-width: 320px; line-height: 1.45">
+              All actionable suggestions for the current run. Mirrors the dashed "ghost"
+              elements on the canvas — useful when ghosts are off-screen on a large workflow.
+              <br /><br />
+              <strong>Apply</strong> performs the same action as clicking a ghost (inserts a
+              Filter on the edge, or bumps the operator's worker count). <strong>×</strong>
+              dismisses the suggestion for this session.
             </div>
           </ng-template>
         </ng-template>

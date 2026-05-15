@@ -41,6 +41,7 @@ import {
 import { ProfilerSuggestionsService } from "../../service/profiler/profiler-suggestions.service";
 import { Suggestion } from "../../service/profiler/profiler-suggestions";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
@@ -139,6 +140,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   public profilerGhosts: ReadonlyArray<Suggestion & { x: number; y: number }> = [];
   private lastSuggestions: readonly Suggestion[] = [];
 
+  /**
+   * After materializing a suggestion, this floating prompt at the top of the canvas
+   * invites the user to re-run the workflow (the natural next step after a structural
+   * change). Null when no prompt is showing. Auto-dismisses after a few seconds.
+   */
+  public profilerRunPrompt: { message: string } | null = null;
+  private profilerRunPromptTimeoutId?: number;
+
   // Cached agent result summaries for port label display
 
   constructor(
@@ -162,7 +171,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private agentService: AgentService,
     public profilerService: ProfilerService,
     private profilerSuggestionsService: ProfilerSuggestionsService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private workflowCompilingService: WorkflowCompilingService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -584,6 +594,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         this.recomputeGhostPositions();
       });
 
+    // The menu popover's "Apply" buttons fire materialize requests through the service
+    // (instead of depending on this editor component directly). Subscribe and route them
+    // through the same materialize logic the canvas ghost click uses.
+    this.profilerSuggestionsService
+      .getMaterializeRequestStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(s => this.materializeSuggestion(s));
+
     // JointJS emits `translate` / `scale` events when the user pans/zooms the canvas.
     // Reposition ghosts on each so they remain anchored to their edges.
     this.paper.on("translate", () => this.recomputeGhostPositions());
@@ -597,36 +615,81 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     }
     const wrapperRect = this.editorWrapper.getBoundingClientRect();
     const positioned: Array<Suggestion & { x: number; y: number }> = [];
-    // Track per-edge occupancy so overlapping ghosts get a small vertical offset.
-    const edgeBucket = new Map<string, number>();
+    // Track per-anchor occupancy so overlapping ghosts get a small vertical offset.
+    const anchorBucket = new Map<string, number>();
     for (const s of this.lastSuggestions) {
-      const upElem = this.paper.getModelById(s.upstreamOpId);
-      const downElem = this.paper.getModelById(s.downstreamOpId);
-      if (!upElem || !downElem) continue;
-      const upBBox = (upElem as joint.dia.Element).getBBox();
-      const downBBox = (downElem as joint.dia.Element).getBBox();
-      const midPaperX = (upBBox.x + upBBox.width + downBBox.x) / 2;
-      const midPaperY = (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2;
-      const pagePoint = this.paper.localToPagePoint(midPaperX, midPaperY);
-      const edgeKey = `${s.upstreamOpId}->${s.downstreamOpId}`;
-      const stackIdx = edgeBucket.get(edgeKey) ?? 0;
-      edgeBucket.set(edgeKey, stackIdx + 1);
-      positioned.push({
-        ...s,
-        x: pagePoint.x - wrapperRect.left,
-        y: pagePoint.y - wrapperRect.top + stackIdx * 32,
-      });
+      const placed = this.computeGhostPosition(s, wrapperRect, anchorBucket);
+      if (placed) positioned.push(placed);
     }
     this.profilerGhosts = positioned;
     this.changeDetectorRef.detectChanges();
   }
 
   /**
-   * Materializes a ghost into a real Filter operator wired between the two endpoints.
-   * Bundled so the whole structural edit is a single undo step.
+   * Computes wrapper-relative pixel coordinates for a single suggestion. Branches
+   * on suggestion type so edge ghosts (INSERT_FILTER) sit at edge midpoints and
+   * operator-attached ghosts (BUMP_WORKERS) sit above their operator. Returns
+   * undefined when the referenced operator(s) are no longer on the canvas.
+   */
+  private computeGhostPosition(
+    s: Suggestion,
+    wrapperRect: DOMRect,
+    anchorBucket: Map<string, number>
+  ): (Suggestion & { x: number; y: number }) | undefined {
+    if (s.type === "INSERT_FILTER") {
+      const upElem = this.paper.getModelById(s.upstreamOpId);
+      const downElem = this.paper.getModelById(s.downstreamOpId);
+      if (!upElem || !downElem) return undefined;
+      const upBBox = (upElem as joint.dia.Element).getBBox();
+      const downBBox = (downElem as joint.dia.Element).getBBox();
+      const midPaperX = (upBBox.x + upBBox.width + downBBox.x) / 2;
+      const midPaperY = (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2;
+      const pagePoint = this.paper.localToPagePoint(midPaperX, midPaperY);
+      const anchorKey = `edge:${s.upstreamOpId}->${s.downstreamOpId}`;
+      const stackIdx = anchorBucket.get(anchorKey) ?? 0;
+      anchorBucket.set(anchorKey, stackIdx + 1);
+      return {
+        ...s,
+        x: pagePoint.x - wrapperRect.left,
+        y: pagePoint.y - wrapperRect.top + stackIdx * 32,
+      };
+    }
+    // BUMP_WORKERS: anchor above the operator.
+    const opElem = this.paper.getModelById(s.operatorId);
+    if (!opElem) return undefined;
+    const bbox = (opElem as joint.dia.Element).getBBox();
+    const paperX = bbox.x + bbox.width / 2;
+    const paperY = bbox.y - 24; // 24px above the operator's top edge
+    const pagePoint = this.paper.localToPagePoint(paperX, paperY);
+    const anchorKey = `op:${s.operatorId}`;
+    const stackIdx = anchorBucket.get(anchorKey) ?? 0;
+    anchorBucket.set(anchorKey, stackIdx + 1);
+    return {
+      ...s,
+      x: pagePoint.x - wrapperRect.left,
+      y: pagePoint.y - wrapperRect.top - stackIdx * 32,
+    };
+  }
+
+  /**
+   * Applies a ghost suggestion to the canvas. Branches on the suggestion type:
+   *   - INSERT_FILTER → inserts a Filter operator on the upstream→downstream edge.
+   *   - BUMP_WORKERS  → sets the operator's `workers` property to the proposed value.
+   * In both cases, after the change we highlight the affected operator so the
+   * property panel opens for the user to fine-tune.
    */
   public materializeSuggestion(ghost: Suggestion): void {
-    if (ghost.type !== "INSERT_FILTER") return;
+    if (ghost.type === "INSERT_FILTER") {
+      this.materializeInsertFilter(ghost);
+      return;
+    }
+    if (ghost.type === "BUMP_WORKERS") {
+      this.materializeBumpWorkers(ghost);
+      return;
+    }
+  }
+
+  private materializeInsertFilter(ghost: Extract<Suggestion, { type: "INSERT_FILTER" }>): void {
     const upElem = this.paper.getModelById(ghost.upstreamOpId);
     const downElem = this.paper.getModelById(ghost.downstreamOpId);
     if (!upElem || !downElem) {
@@ -640,7 +703,23 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       y: (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2 - 30,
     };
 
-    const newFilter = this.workflowUtilService.getNewOperatorPredicate("Filter");
+    // Pre-populate the Filter with a starter predicate on the first upstream column,
+    // condition `is not null` (a safe no-op the user will immediately edit). This makes
+    // the property panel look "ready" instead of an empty form. We can't infer the
+    // actual filter values without sample data or AI — that's covered by Phase 3
+    // (agent integration) of the suggestions plan.
+    const firstColumn = this.firstUpstreamColumnName(ghost.upstreamOpId);
+    const newFilterBase = this.workflowUtilService.getNewOperatorPredicate("Filter");
+    const newFilter: OperatorPredicate = firstColumn
+      ? {
+          ...newFilterBase,
+          operatorProperties: {
+            ...newFilterBase.operatorProperties,
+            predicates: [{ attribute: firstColumn, condition: "is not null", value: "" }],
+          },
+        }
+      : newFilterBase;
+
     const graph = this.workflowActionService.getTexeraGraph();
     const existingLinks = graph
       .getOutputLinksByOperatorId(ghost.upstreamOpId)
@@ -669,12 +748,50 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     });
 
     // Open the property panel on the new Filter so the user can configure its predicate.
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .setMultiSelectMode(false);
+    this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(false);
     this.workflowActionService.getJointGraphWrapper().highlightOperators(newFilter.operatorID);
 
     this.profilerSuggestionsService.dismiss(ghost.id);
+    this.showRunPrompt(ghost);
+  }
+
+  /**
+   * Picks the first column name from the upstream operator's output schema, or
+   * `undefined` if the schema isn't available (e.g. workflow hasn't been compiled
+   * yet). Used to seed a sensible default predicate when materializing a Filter ghost.
+   */
+  private firstUpstreamColumnName(upstreamOpId: string): string | undefined {
+    const outputMap = this.workflowCompilingService.getOperatorOutputSchemaMap(upstreamOpId);
+    if (!outputMap) return undefined;
+    for (const portKey of Object.keys(outputMap)) {
+      const portSchema = outputMap[portKey];
+      if (portSchema && portSchema.length > 0) {
+        return portSchema[0].attributeName;
+      }
+    }
+    return undefined;
+  }
+
+  private materializeBumpWorkers(ghost: Extract<Suggestion, { type: "BUMP_WORKERS" }>): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (!graph.hasOperator(ghost.operatorId)) {
+      this.profilerSuggestionsService.dismiss(ghost.id);
+      return;
+    }
+    const op = graph.getOperator(ghost.operatorId);
+    // Merge: preserve all other properties, override `workers`.
+    const newProperties = {
+      ...(op.operatorProperties ?? {}),
+      workers: ghost.proposedWorkers,
+    };
+    this.workflowActionService.setOperatorProperty(ghost.operatorId, newProperties);
+
+    // Open the property panel on the bumped operator so the user can verify / fine-tune.
+    this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(false);
+    this.workflowActionService.getJointGraphWrapper().highlightOperators(ghost.operatorId);
+
+    this.profilerSuggestionsService.dismiss(ghost.id);
+    this.showRunPrompt(ghost);
   }
 
   public dismissSuggestion(ghost: Suggestion, event: MouseEvent): void {
@@ -684,6 +801,43 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   public trackGhostById(_index: number, ghost: Suggestion): string {
     return ghost.id;
+  }
+
+  /**
+   * Briefly surface a "Run now" prompt at the top of the canvas after the user
+   * materializes a suggestion. Auto-dismisses after 10 seconds; the user can also
+   * click ×. The Run button itself stays the canonical way to execute — this is just
+   * a one-click shortcut so the user doesn't have to chase the toolbar after applying.
+   */
+  private showRunPrompt(suggestion: Suggestion): void {
+    const message =
+      suggestion.type === "INSERT_FILTER"
+        ? "Filter inserted — re-run to see how the workflow performs with the change?"
+        : "Worker count updated — re-run to see how the workflow performs with the change?";
+    this.profilerRunPrompt = { message };
+    if (this.profilerRunPromptTimeoutId !== undefined) {
+      window.clearTimeout(this.profilerRunPromptTimeoutId);
+    }
+    this.profilerRunPromptTimeoutId = window.setTimeout(() => {
+      this.profilerRunPrompt = null;
+      this.profilerRunPromptTimeoutId = undefined;
+      this.changeDetectorRef.detectChanges();
+    }, 10000);
+    this.changeDetectorRef.detectChanges();
+  }
+
+  public triggerRunFromPrompt(): void {
+    this.profilerSuggestionsService.requestWorkflowRun();
+    this.dismissRunPrompt();
+  }
+
+  public dismissRunPrompt(): void {
+    this.profilerRunPrompt = null;
+    if (this.profilerRunPromptTimeoutId !== undefined) {
+      window.clearTimeout(this.profilerRunPromptTimeoutId);
+      this.profilerRunPromptTimeoutId = undefined;
+    }
+    this.changeDetectorRef.detectChanges();
   }
 
   private handleRegionEvents(): void {

@@ -18,7 +18,7 @@
  */
 
 import "zone.js/testing";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, Subject } from "rxjs";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { ProfilerEntry, ProfilerState } from "./profiler.service";
 import { ProfilerSuggestionsService } from "./profiler-suggestions.service";
@@ -76,7 +76,38 @@ class StubGraph {
 }
 class StubWorkflowActionService {
   public graph = new StubGraph();
+  public metadata: { wid: number | undefined } = { wid: undefined };
+  public metadataChange$ = new Subject<{ wid: number | undefined }>();
   public getTexeraGraph() { return this.graph; }
+  public getWorkflowMetadata() { return this.metadata; }
+  public workflowMetaDataChanged() { return this.metadataChange$.asObservable(); }
+
+  /** Test helper to simulate workflow load / switch. */
+  public emitWorkflow(wid: number | undefined): void {
+    this.metadata = { wid };
+    this.metadataChange$.next(this.metadata);
+  }
+}
+
+/**
+ * Install an in-memory localStorage mock so the service's persistence path is
+ * exercisable under Vitest (which ships only a partial Storage implementation).
+ */
+function installLocalStorageMock(): void {
+  const store: Record<string, string> = {};
+  const mock: Storage = {
+    get length() { return Object.keys(store).length; },
+    clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+    getItem: (k: string) => (k in store ? store[k] : null),
+    key: (i: number) => Object.keys(store)[i] ?? null,
+    removeItem: (k: string) => { delete store[k]; },
+    setItem: (k: string, v: string) => { store[k] = String(v); },
+  };
+  Object.defineProperty(globalThis, "localStorage", {
+    value: mock,
+    configurable: true,
+    writable: true,
+  });
 }
 
 describe("ProfilerSuggestionsService", () => {
@@ -85,6 +116,7 @@ describe("ProfilerSuggestionsService", () => {
   let service: ProfilerSuggestionsService;
 
   beforeEach(() => {
+    installLocalStorageMock();
     profiler = new StubProfilerService();
     action = new StubWorkflowActionService();
     service = new ProfilerSuggestionsService(profiler as any, action as any);
@@ -136,10 +168,14 @@ describe("ProfilerSuggestionsService", () => {
     const emissions = collect();
     const last = emissions[emissions.length - 1];
     expect(last).toHaveLength(1);
-    expect(last[0].upstreamOpId).toBe("scan");
-    expect(last[0].downstreamOpId).toBe("agg");
-    expect(last[0].reasonRuleId).toBe("SCAN_FULL_TABLE_NO_FILTER");
-    expect(last[0].id).toBe(edgeSuggestionId("scan", "agg"));
+    const first = last[0];
+    expect(first.type).toBe("INSERT_FILTER");
+    if (first.type === "INSERT_FILTER") {
+      expect(first.upstreamOpId).toBe("scan");
+      expect(first.downstreamOpId).toBe("agg");
+      expect(first.reasonRuleId).toBe("SCAN_FULL_TABLE_NO_FILTER");
+      expect(first.id).toBe(edgeSuggestionId("scan", "agg"));
+    }
   });
 
   it("filters out dismissed suggestions", () => {
@@ -168,5 +204,137 @@ describe("ProfilerSuggestionsService", () => {
 
     service.clearDismissed();
     expect(emissions[emissions.length - 1]).toHaveLength(1);
+  });
+
+  it("requestWorkflowRun publishes on the run-request stream", () => {
+    let received = 0;
+    service.getWorkflowRunRequestStream().subscribe(() => received++);
+    service.requestWorkflowRun();
+    service.requestWorkflowRun();
+    expect(received).toBe(2);
+  });
+
+  it("requestMaterialize publishes on the materialize-request stream", () => {
+    setScoresAndGraph(
+      { scan: stat({ aggregatedOutputRowCount: 5_000_000 }) },
+      { scan: "CSVScan", agg: "Aggregate" },
+      [{ source: { operatorID: "scan" }, target: { operatorID: "agg" } }]
+    );
+    const received: Suggestion[] = [];
+    service.getMaterializeRequestStream().subscribe(s => received.push(s));
+
+    // Construct a synthetic INSERT_FILTER suggestion (same shape pure engine would produce).
+    const synthetic: Suggestion = {
+      id: edgeSuggestionId("scan", "agg"),
+      type: "INSERT_FILTER",
+      upstreamOpId: "scan",
+      downstreamOpId: "agg",
+      reasonRuleId: "SCAN_FULL_TABLE_NO_FILTER",
+      reasonMessage: "x",
+    };
+    service.requestMaterialize(synthetic);
+    expect(received).toHaveLength(1);
+    expect(received[0].id).toBe(edgeSuggestionId("scan", "agg"));
+  });
+
+  describe("per-workflow persistence", () => {
+    it("persists dismissed ids to localStorage under the current workflow id", () => {
+      action.emitWorkflow(42);
+      setScoresAndGraph(
+        { scan: stat({ aggregatedOutputRowCount: 5_000_000 }) },
+        { scan: "CSVScan", agg: "Aggregate" },
+        [{ source: { operatorID: "scan" }, target: { operatorID: "agg" } }]
+      );
+      service.dismiss(edgeSuggestionId("scan", "agg"));
+      const raw = localStorage.getItem("texera.profiler.dismissedSuggestions.42");
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!)).toEqual([edgeSuggestionId("scan", "agg")]);
+    });
+
+    it("hydrates dismissed ids from localStorage when a workflow is loaded", () => {
+      localStorage.setItem(
+        "texera.profiler.dismissedSuggestions.7",
+        JSON.stringify([edgeSuggestionId("scan", "agg")])
+      );
+      setScoresAndGraph(
+        { scan: stat({ aggregatedOutputRowCount: 5_000_000 }) },
+        { scan: "CSVScan", agg: "Aggregate" },
+        [{ source: { operatorID: "scan" }, target: { operatorID: "agg" } }]
+      );
+      const emissions = collect();
+      // Pre-workflow-load: dismissals are empty, so suggestion shows up.
+      expect(emissions[emissions.length - 1]).toHaveLength(1);
+
+      action.emitWorkflow(7);
+      // After hydrating workflow 7's dismissals: suggestion is filtered out.
+      expect(emissions[emissions.length - 1]).toHaveLength(0);
+    });
+
+    it("swaps dismissed-set when the workflow id changes", () => {
+      localStorage.setItem(
+        "texera.profiler.dismissedSuggestions.1",
+        JSON.stringify([edgeSuggestionId("scan", "agg")])
+      );
+      // Workflow 2 has no stored dismissals.
+      setScoresAndGraph(
+        { scan: stat({ aggregatedOutputRowCount: 5_000_000 }) },
+        { scan: "CSVScan", agg: "Aggregate" },
+        [{ source: { operatorID: "scan" }, target: { operatorID: "agg" } }]
+      );
+      const emissions = collect();
+
+      action.emitWorkflow(1);
+      expect(emissions[emissions.length - 1]).toHaveLength(0); // dismissed in wf 1
+
+      action.emitWorkflow(2);
+      expect(emissions[emissions.length - 1]).toHaveLength(1); // visible in wf 2
+    });
+
+    it("does NOT persist when no workflow id is loaded (session-only)", () => {
+      // No emitWorkflow — wid stays undefined.
+      setScoresAndGraph(
+        { scan: stat({ aggregatedOutputRowCount: 5_000_000 }) },
+        { scan: "CSVScan", agg: "Aggregate" },
+        [{ source: { operatorID: "scan" }, target: { operatorID: "agg" } }]
+      );
+      service.dismiss(edgeSuggestionId("scan", "agg"));
+      // No keys should have been written.
+      let foundProfilerKey = false;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith("texera.profiler.dismissedSuggestions.")) {
+          foundProfilerKey = true;
+          break;
+        }
+      }
+      expect(foundProfilerKey).toBe(false);
+    });
+
+    it("recovers gracefully from corrupt persisted JSON", () => {
+      localStorage.setItem("texera.profiler.dismissedSuggestions.9", "not valid json {");
+      setScoresAndGraph(
+        { scan: stat({ aggregatedOutputRowCount: 5_000_000 }) },
+        { scan: "CSVScan", agg: "Aggregate" },
+        [{ source: { operatorID: "scan" }, target: { operatorID: "agg" } }]
+      );
+      const emissions = collect();
+      action.emitWorkflow(9);
+      // Bad JSON → fall back to empty set → suggestion is visible.
+      expect(emissions[emissions.length - 1]).toHaveLength(1);
+    });
+
+    it("clearDismissed wipes the persisted entry too", () => {
+      action.emitWorkflow(11);
+      setScoresAndGraph(
+        { scan: stat({ aggregatedOutputRowCount: 5_000_000 }) },
+        { scan: "CSVScan", agg: "Aggregate" },
+        [{ source: { operatorID: "scan" }, target: { operatorID: "agg" } }]
+      );
+      service.dismiss(edgeSuggestionId("scan", "agg"));
+      expect(JSON.parse(localStorage.getItem("texera.profiler.dismissedSuggestions.11")!)).toHaveLength(1);
+
+      service.clearDismissed();
+      expect(JSON.parse(localStorage.getItem("texera.profiler.dismissedSuggestions.11")!)).toEqual([]);
+    });
   });
 });
