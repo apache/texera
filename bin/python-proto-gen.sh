@@ -28,9 +28,12 @@ PROTOBUF_AMBER_DIR="$AMBER_DIR/src/main/protobuf"
 CORE_DIR="$TEXERA_HOME/common/workflow-core"
 PROTOBUF_CORE_DIR="$CORE_DIR/src/main/protobuf"
 
+PROTOC_INCLUDE_DIR="$(dirname "$(dirname "$(command -v protoc)")")/include"
+
 # proto-gen
 mkdir -p "$PYAMBER_DIR/proto"
 protoc --python_betterproto_out="$PYAMBER_DIR/proto" \
+ -I="$PROTOC_INCLUDE_DIR" \
  -I="$PROTOBUF_AMBER_DIR" \
  -I="$PROTOBUF_CORE_DIR" \
  $(find "$PROTOBUF_AMBER_DIR" -iname "*.proto") \
