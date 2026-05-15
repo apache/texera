@@ -578,23 +578,14 @@ class RegionExecutionCoordinator(
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
         // LoopEnd operators may re-execute the region multiple times; on
         // subsequent iterations the result/state documents already exist,
-        // so open-or-create instead of unconditional create to avoid
-        // clobbering existing data.
-        if (region.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-"))) {
-          try {
-            DocumentFactory.openDocument(resultURI)
-          } catch {
-            case _: Exception =>
-              DocumentFactory.createDocument(resultURI, schema)
-          }
-          try {
-            DocumentFactory.openDocument(stateURI)
-          } catch {
-            case _: Exception =>
-              DocumentFactory.createDocument(stateURI, State.schema)
-          }
-        } else {
+        // and `createDocument` (overrideIfExists=true) would clobber them.
+        // Skip the create call when the document is already there.
+        val isLoopEndRegion =
+          region.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-"))
+        if (!isLoopEndRegion || !DocumentFactory.documentExists(resultURI)) {
           DocumentFactory.createDocument(resultURI, schema)
+        }
+        if (!isLoopEndRegion || !DocumentFactory.documentExists(stateURI)) {
           DocumentFactory.createDocument(stateURI, State.schema)
         }
         if (!isRestart) {
