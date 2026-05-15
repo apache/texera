@@ -130,14 +130,10 @@ describe("WorkspaceComponent", () => {
     routerMock = { navigate: vi.fn() };
     locationMock = { go: vi.fn() };
 
-    // Replace the component imports with an empty list and rely on NO_ERRORS_SCHEMA
-    // so the heavyweight children (workflow editor, panels, menu, etc.) become
-    // unknown elements at compile time. The real template still renders, which
-    // means the `<ng-template #codeEditor>` outlet is wired up and the @ViewChild
-    // query in WorkspaceComponent resolves to a real ViewContainerRef. Children's
-    // own dependency trees never come into the test build, which keeps the spec
-    // hermetic without the previous `<div #codeEditor>` template stub. (See
-    // #5015 for why the previous template-override hack existed.)
+    // Drop the standalone component's child imports and allow unknown elements via
+    // CUSTOM_ELEMENTS_SCHEMA. The template still renders, so `<ng-template #codeEditor>`
+    // is wired up and the @ViewChild query resolves to a real ViewContainerRef, while
+    // the children's transitive dependencies stay out of the test build.
     TestBed.overrideComponent(WorkspaceComponent, {
       set: { imports: [], providers: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] },
     });
@@ -373,12 +369,9 @@ describe("WorkspaceComponent", () => {
     });
   });
 
-  // Real-template rendering coverage — previously the spec replaced the entire
-  // template with `<div #codeEditor>` to keep the heavyweight children out of
-  // the test build, which meant editor lifecycle wiring went untested. With
-  // only the child IMPORTS now stripped (template intact), the real
-  // `<ng-template #codeEditor>` outlet renders and the @ViewChild query
-  // resolves to a live ViewContainerRef. See #5015.
+  // Exercises the rendered template: the `<ng-template #codeEditor>` outlet is
+  // present, so the @ViewChild query resolves to a live ViewContainerRef and
+  // ngAfterViewInit can publish it to CodeEditorService.
   describe("child rendering side effects", () => {
     it("publishes the resolved ViewContainerRef to CodeEditorService.vc on view init", async () => {
       await createFixture();
@@ -387,12 +380,9 @@ describe("WorkspaceComponent", () => {
       // — the service.vc should still be untouched.)
       expect(codeEditorService.vc).toBeUndefined();
       fixture.detectChanges();
-      // ngAfterViewInit should hand the live ViewContainerRef from the real
-      // <ng-template #codeEditor> through to CodeEditorService — and not the
-      // pre-test stub. Real ViewContainerRefs expose createEmbeddedView; the
-      // stub does not, so its presence proves the @ViewChild query resolved
-      // against the rendered template rather than the placeholder.
-      expect(codeEditorService.vc).toBeDefined();
+      // createEmbeddedView is present on a real ViewContainerRef but not on the
+      // pre-fixture stub, so checking it distinguishes the resolved query from
+      // the placeholder.
       expect(codeEditorService.vc).toBe(component.codeEditorViewRef);
       expect(typeof codeEditorService.vc.createEmbeddedView).toBe("function");
     });
