@@ -398,5 +398,77 @@ describe("JointUIService", () => {
       }
       expect(result.endsWith("…")).toBe(true);
     });
+
+    it("falls back to code-point iteration when Intl.Segmenter is unavailable", () => {
+      const intlAsAny = Intl as unknown as { Segmenter?: typeof Intl.Segmenter };
+      const original = intlAsAny.Segmenter;
+      delete intlAsAny.Segmenter;
+      try {
+        // Surrogate-pair safety still holds via Array.from.
+        const result = JointUIService.truncateOperatorDisplayName("🎉".repeat(20), measure);
+        expect(result).toBe("🎉".repeat(9) + "…");
+      } finally {
+        intlAsAny.Segmenter = original;
+      }
+    });
+
+    it("uses the default canvas-based measurer when no measurer is injected", () => {
+      // Stub getContext → null so the default measurer routes through the
+      // fallback path (avoids jsdom's "Not implemented" warning spam from
+      // the dozens of measurer calls the binary search makes).
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      (HTMLCanvasElement.prototype as unknown as { getContext: () => null }).getContext = () => null;
+      (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+      try {
+        const result = JointUIService.truncateOperatorDisplayName("a".repeat(100));
+        expect(result.endsWith("…")).toBe(true);
+        expect(result.length).toBeLessThan(100);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+        (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+      }
+    });
+  });
+
+  describe("measureOperatorNameWidth", () => {
+    // Static cache lives on the class; reset it between tests so each one
+    // starts from a clean slate and re-enters getMeasureContext.
+    const resetCache = () => {
+      (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+    };
+    beforeEach(resetCache);
+    afterEach(resetCache);
+
+    it("falls back to a per-char approximation when no canvas 2D context is available", () => {
+      // Stub the prototype to return null explicitly — this mirrors the
+      // production behavior in environments that don't support canvas, and
+      // avoids jsdom's "Not implemented: getContext" warning spam.
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      (HTMLCanvasElement.prototype as unknown as { getContext: () => null }).getContext = () => null;
+      try {
+        expect(JointUIService.measureOperatorNameWidth("")).toBe(0);
+        expect(JointUIService.measureOperatorNameWidth("hello")).toBe("hello".length * 7);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+      }
+    });
+
+    it("uses Canvas measureText when a 2D context is available, and caches it", () => {
+      const measureSpy = vi.fn((s: string) => ({ width: s.length * 12 }));
+      const fakeCtx = { font: "", measureText: measureSpy } as unknown as CanvasRenderingContext2D;
+      const getContextSpy = vi.fn(() => fakeCtx);
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      // Stub only on the prototype; restored in finally.
+      (HTMLCanvasElement.prototype as unknown as { getContext: typeof getContextSpy }).getContext = getContextSpy;
+      try {
+        expect(JointUIService.measureOperatorNameWidth("hello")).toBe(5 * 12);
+        // Second call hits the cached-ctx branch — should not create another canvas.
+        expect(JointUIService.measureOperatorNameWidth("hi")).toBe(2 * 12);
+        expect(getContextSpy).toHaveBeenCalledTimes(1);
+        expect(measureSpy).toHaveBeenCalledTimes(2);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+      }
+    });
   });
 });

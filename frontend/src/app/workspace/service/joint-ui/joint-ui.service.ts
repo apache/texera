@@ -251,7 +251,6 @@ export class JointUIService {
     if (measure(name) <= budget) return name;
     const ellipsis = "…";
     const prefixBudget = budget - measure(ellipsis);
-    if (prefixBudget <= 0) return ellipsis;
     const graphemes = JointUIService.splitGraphemes(name);
     // Binary-search the longest grapheme prefix that fits inside prefixBudget.
     let lo = 0;
