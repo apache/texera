@@ -277,8 +277,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     const baseSchema = cloneDeep(this.currentOperatorSchema.jsonSchema);
 
-    console.log("current operator type", this.currentOperatorSchema.operatorType);
-
     if (this.currentOperatorSchema.operatorType === "PythonUDFV2") {
       this.computingUnitStatusService
         .getSelectedComputingUnit()
@@ -296,7 +294,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             this.setFormlyFormBinding(patchedSchema);
           },
           error: (err: unknown) => {
-            console.log("getEnvironments failed:", err);
             const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, []);
             this.setFormlyFormBinding(patchedSchema);
           },
