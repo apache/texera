@@ -204,7 +204,12 @@ export class ContextMenuComponent {
       outputPortCount: number;
     }
   ): void {
-    const base = this.workflowUtilService.getNewOperatorPredicate("Macro");
+    // Construct the predicate manually rather than going through
+    // WorkflowUtilService.getNewOperatorPredicate("Macro"): that path runs the
+    // schema through Ajv, and MacroOpDesc's generated schema is currently
+    // Ajv-invalid (Option[MacroBody] / Option[MacroFusion] produce
+    // `"nullable": true` without a sibling `"type"`). We override every field
+    // anyway, so the schema-default route adds no value here.
     const inputPorts = Array.from({ length: built.inputPortCount }, (_, i) => ({
       portID: `input-${i}`,
       displayName: `in-${i}`,
@@ -219,7 +224,9 @@ export class ContextMenuComponent {
       isDynamicPort: false,
     }));
     const macroPredicate: OperatorPredicate = {
-      ...base,
+      operatorID: `Macro-operator-${this.workflowUtilService.getOperatorRandomUUID()}`,
+      operatorType: "Macro",
+      operatorVersion: "",
       operatorProperties: {
         macroId: detail.wid.toString(),
         // TODO: backend should expose the pinned vid on MacroDetail; defaulting
@@ -232,7 +239,11 @@ export class ContextMenuComponent {
       },
       inputPorts,
       outputPorts,
+      showAdvanced: false,
+      isDisabled: false,
       customDisplayName: detail.name,
+      dynamicInputPorts: false,
+      dynamicOutputPorts: false,
     };
 
     const jointWrapper = this.workflowActionService.getJointGraphWrapper();
