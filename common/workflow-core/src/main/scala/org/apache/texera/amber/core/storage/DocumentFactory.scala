@@ -72,6 +72,7 @@ object DocumentFactory {
           case RESULT             => StorageConfig.icebergTableResultNamespace
           case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
           case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
+          case STATE              => StorageConfig.icebergTableStateNamespace
           case _ =>
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }
@@ -119,6 +120,7 @@ object DocumentFactory {
           case RESULT             => StorageConfig.icebergTableResultNamespace
           case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
           case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
+          case STATE              => StorageConfig.icebergTableStateNamespace
           case _ =>
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }

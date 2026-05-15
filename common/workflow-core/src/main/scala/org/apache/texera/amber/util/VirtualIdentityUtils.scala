@@ -68,10 +68,13 @@ object VirtualIdentityUtils {
     }
   }
 
-  def getWorkerIndex(workerId: ActorVirtualIdentity): Int = {
+  def getWorkerIndex(workerId: ActorVirtualIdentity): Option[Int] = {
     workerId.name match {
       case workerNamePattern(_, _, _, idx) =>
-        idx.toInt
+        Some(idx.toInt)
+      case _ =>
+        // for special actorId such as SELF, CONTROLLER
+        None
     }
   }
 
