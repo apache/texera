@@ -187,6 +187,7 @@ class PythonWorkflowWorker(
         if (isRest) StorageConfig.icebergRESTCatalogUri else "",
         if (isRest) StorageConfig.icebergRESTCatalogWarehouseName else "",
         StorageConfig.icebergTableResultNamespace,
+        StorageConfig.icebergTableStateNamespace,
         StorageConfig.fileStorageDirectoryPath.toString,
         StorageConfig.icebergTableCommitBatchSize.toString,
         StorageConfig.s3Endpoint,
