@@ -17,7 +17,7 @@
  under the License.
 -->
 
-<!-- Docked Button -->
+<!-- Docked Button (disabled — opening is now handled by the floating assistant button) -->
 <button
   id="agent-docked-button"
   nz-button
@@ -25,7 +25,7 @@
   nzShape="circle"
   nzSize="large"
   (click)="openPanel()"
-  *ngIf="!width"
+  *ngIf="false"
   nz-tooltip
   nzTooltipPlacement="left"
   nzTooltipTitle="AI Agents">

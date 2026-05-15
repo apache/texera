@@ -25,6 +25,13 @@
   }
 }
 
+.agent-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
 .agent-button {
   width: 56px;
   height: 56px;
@@ -56,15 +63,114 @@
   }
 }
 
+.agent-button-secondary {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #722ed1, #9254de);
+  cursor: pointer;
+
+  .agent-icon {
+    font-size: 20px;
+  }
+}
+
 .agent-panel {
-  width: 360px;
-  height: min(520px, calc(100vh - 112px));
+  // Positioned relative to .floating-agent so the panel naturally moves with the
+  // dragged button. Direction is flipped via .panel-opens-down / .panel-opens-right.
+  position: absolute;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+
+  // Default anchor: above the button, right-aligned (panel extends left).
+  bottom: calc(100% + 12px);
+  right: 0;
+
+  // Round inner corners so children don't poke through the rounded panel border.
+  > .panel-header {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+  }
+}
+
+// Flip below the button when there's no room above.
+.floating-agent.panel-opens-down .agent-panel {
+  bottom: auto;
+  top: calc(100% + 12px);
+}
+
+// Flip to the right side of the button when there's no room to the left.
+.floating-agent.panel-opens-right .agent-panel {
+  right: auto;
+  left: 0;
+}
+
+// Custom resize handles — positioned absolutely along the panel's free edges.
+// Each handle is an invisible overlay that captures pointerdown for resizing.
+.resize-handle {
+  position: absolute;
+  z-index: 10;
+  user-select: none;
+  touch-action: none;
+}
+
+.resize-handle-left,
+.resize-handle-right {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+.resize-handle-left {
+  left: -3px;
+}
+.resize-handle-right {
+  right: -3px;
+}
+
+.resize-handle-top,
+.resize-handle-bottom {
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+.resize-handle-top {
+  top: -3px;
+}
+.resize-handle-bottom {
+  bottom: -3px;
+}
+
+.resize-handle-topLeft,
+.resize-handle-topRight,
+.resize-handle-bottomLeft,
+.resize-handle-bottomRight {
+  width: 14px;
+  height: 14px;
+  z-index: 11;
+}
+.resize-handle-topLeft {
+  top: -3px;
+  left: -3px;
+  cursor: nwse-resize;
+}
+.resize-handle-topRight {
+  top: -3px;
+  right: -3px;
+  cursor: nesw-resize;
+}
+.resize-handle-bottomLeft {
+  bottom: -3px;
+  left: -3px;
+  cursor: nesw-resize;
+}
+.resize-handle-bottomRight {
+  bottom: -3px;
+  right: -3px;
+  cursor: nwse-resize;
 }
 
 .panel-header {

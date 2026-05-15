@@ -2,220 +2,249 @@
   <div
     class="floating-agent"
     [class.open]="isOpen"
+    [class.panel-opens-down]="panelOpensDown"
+    [class.panel-opens-right]="panelOpensRight"
     cdkDrag
     cdkDragBoundary="body"
     [cdkDragFreeDragPosition]="dragPosition"
     (cdkDragEnded)="onDragEnded($event)">
     <div
-      *ngIf="isOpen"
+      [hidden]="!isOpen"
       class="agent-panel"
+      [style.width.px]="panelWidth"
+      [style.height.px]="panelHeight"
       (click)="$event.stopPropagation()"
       (wheel)="$event.stopPropagation()">
-      <div
-        class="panel-header"
-        cdkDragHandle>
-        <span class="panel-title">
-          <i
-            nz-icon
-            nzType="robot"
-            nzTheme="outline"></i>
-          Texera Assistant
-        </span>
-        <div class="panel-header-actions">
-          <button
-            nz-button
-            nzType="text"
-            nzSize="small"
-            (click)="toggleSettings($event)"
-            [class.active]="isSettingsOpen"
-            aria-label="Settings">
-            <i
-              nz-icon
-              nzType="setting"></i>
-          </button>
-          <button
-            nz-button
-            nzType="text"
-            nzSize="small"
-            (click)="closePanel()"
-            aria-label="Close">
-            <i
-              nz-icon
-              nzType="close"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Settings Panel -->
-      <div
-        *ngIf="isSettingsOpen"
-        class="settings-panel">
-        <div class="settings-header">
-          <span class="settings-title">Notification Settings</span>
-          <span class="settings-subtitle">Toggle notification types on/off</span>
-        </div>
-        <ng-container *ngIf="settings$ | async as settings">
-          <div class="settings-section">
-            <div class="settings-section-title">Workflow Runs</div>
-            <div class="settings-row">
-              <span class="settings-label">Successful runs</span>
-              <nz-switch
-                [ngModel]="settings.runSuccess"
-                (ngModelChange)="updateSetting('runSuccess', $event)"
-                nzSize="small"></nz-switch>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Failed runs</span>
-              <nz-switch
-                [ngModel]="settings.runFailure"
-                (ngModelChange)="updateSetting('runFailure', $event)"
-                nzSize="small"></nz-switch>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Killed runs</span>
-              <nz-switch
-                [ngModel]="settings.runKilled"
-                (ngModelChange)="updateSetting('runKilled', $event)"
-                nzSize="small"></nz-switch>
-            </div>
-          </div>
-          <nz-divider class="settings-divider"></nz-divider>
-          <div class="settings-section">
-            <div class="settings-section-title">Social</div>
-            <div class="settings-row">
-              <span class="settings-label">Workflow likes</span>
-              <nz-switch
-                [ngModel]="settings.workflowLikes"
-                (ngModelChange)="updateSetting('workflowLikes', $event)"
-                nzSize="small"></nz-switch>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Workflow clones</span>
-              <nz-switch
-                [ngModel]="settings.workflowClones"
-                (ngModelChange)="updateSetting('workflowClones', $event)"
-                nzSize="small"></nz-switch>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Dataset likes</span>
-              <nz-switch
-                [ngModel]="settings.datasetLikes"
-                (ngModelChange)="updateSetting('datasetLikes', $event)"
-                nzSize="small"></nz-switch>
-            </div>
-          </div>
-          <ng-container *ngIf="isAdmin">
-            <nz-divider class="settings-divider"></nz-divider>
-            <div class="settings-section">
-              <div class="settings-section-title">Admin</div>
-              <div class="settings-row">
-                <span class="settings-label">User approval requests</span>
-                <nz-switch
-                  [ngModel]="settings.adminRequests"
-                  (ngModelChange)="updateSetting('adminRequests', $event)"
-                  nzSize="small"></nz-switch>
-              </div>
-            </div>
-          </ng-container>
-        </ng-container>
-      </div>
-
-      <nz-tabs
-        *ngIf="!isSettingsOpen"
-        nzSize="small"
-        class="panel-tabs">
-        <!-- Notification Tab -->
-        <nz-tab [nzTitle]="notificationTitle">
-          <ng-template #notificationTitle>
-            <span class="tab-title">
-              Notifications
-              <nz-badge
-                *ngIf="(unreadNotifications$ | async) as unreadCount"
-                [nzCount]="unreadCount"
-                [nzStandalone]="true"></nz-badge>
-            </span>
-          </ng-template>
-          <ng-template nz-tab>
-            <ng-container
-              *ngTemplateOutlet="
-                notificationList;
-                context: { $implicit: notifications$ | async }
-              "></ng-container>
-          </ng-template>
-        </nz-tab>
-
-        <!-- Workflows Tab -->
-        <nz-tab [nzTitle]="workflowsTitle">
-          <ng-template #workflowsTitle>
-            <span class="tab-title">Workflows</span>
-          </ng-template>
-          <ng-template nz-tab>
-            <ng-container
-              *ngTemplateOutlet="
-                workflowsList;
-                context: { $implicit: sessionWorkflows$ | async }
-              "></ng-container>
-          </ng-template>
-        </nz-tab>
-
-        <!-- Requests Tab (Admin Only) -->
-        <nz-tab
-          *ngIf="isAdmin"
-          [nzTitle]="requestsTitle">
-          <ng-template #requestsTitle>
-            <span class="tab-title">
-              Requests
-              <nz-badge
-                *ngIf="(unreadAdmin$ | async) as adminCount"
-                [nzCount]="adminCount"
-                [nzStandalone]="true"></nz-badge>
-            </span>
-          </ng-template>
-          <ng-template nz-tab>
-            <ng-container
-              *ngTemplateOutlet="
-                notificationList;
-                context: { $implicit: admin$ | async }
-              "></ng-container>
-          </ng-template>
-        </nz-tab>
-      </nz-tabs>
-    </div>
-
-    <button
-      class="agent-button"
-      cdkDragHandle
-      (click)="togglePanel()"
-      aria-label="Texera Assistant">
-      <nz-badge
-        [nzCount]="(unreadTotal$ | async) ?? 0"
-        [nzOverflowCount]="99">
+    <div class="panel-header">
+      <span class="panel-title">
         <i
           nz-icon
           nzType="robot"
+          nzTheme="outline"></i>
+        Texera Assistant
+      </span>
+      <div class="panel-header-actions">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="toggleSettings($event)"
+          [class.active]="isSettingsOpen"
+          aria-label="Settings">
+          <i
+            nz-icon
+            nzType="setting"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="closePanel()"
+          aria-label="Close">
+          <i
+            nz-icon
+            nzType="close"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div
+      *ngIf="isSettingsOpen"
+      class="settings-panel">
+      <div class="settings-header">
+        <span class="settings-title">Notification Settings</span>
+        <span class="settings-subtitle">Toggle notification types on/off</span>
+      </div>
+      <ng-container *ngIf="settings$ | async as settings">
+        <div class="settings-section">
+          <div class="settings-section-title">Workflow Runs</div>
+          <div class="settings-row">
+            <span class="settings-label">Successful runs</span>
+            <nz-switch
+              [ngModel]="settings.runSuccess"
+              (ngModelChange)="updateSetting('runSuccess', $event)"
+              nzSize="small"></nz-switch>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Failed runs</span>
+            <nz-switch
+              [ngModel]="settings.runFailure"
+              (ngModelChange)="updateSetting('runFailure', $event)"
+              nzSize="small"></nz-switch>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Killed runs</span>
+            <nz-switch
+              [ngModel]="settings.runKilled"
+              (ngModelChange)="updateSetting('runKilled', $event)"
+              nzSize="small"></nz-switch>
+          </div>
+        </div>
+        <nz-divider class="settings-divider"></nz-divider>
+        <div class="settings-section">
+          <div class="settings-section-title">Social</div>
+          <div class="settings-row">
+            <span class="settings-label">Workflow likes</span>
+            <nz-switch
+              [ngModel]="settings.workflowLikes"
+              (ngModelChange)="updateSetting('workflowLikes', $event)"
+              nzSize="small"></nz-switch>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Workflow clones</span>
+            <nz-switch
+              [ngModel]="settings.workflowClones"
+              (ngModelChange)="updateSetting('workflowClones', $event)"
+              nzSize="small"></nz-switch>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Dataset likes</span>
+            <nz-switch
+              [ngModel]="settings.datasetLikes"
+              (ngModelChange)="updateSetting('datasetLikes', $event)"
+              nzSize="small"></nz-switch>
+          </div>
+        </div>
+        <ng-container *ngIf="isAdmin">
+          <nz-divider class="settings-divider"></nz-divider>
+          <div class="settings-section">
+            <div class="settings-section-title">Admin</div>
+            <div class="settings-row">
+              <span class="settings-label">User approval requests</span>
+              <nz-switch
+                [ngModel]="settings.adminRequests"
+                (ngModelChange)="updateSetting('adminRequests', $event)"
+                nzSize="small"></nz-switch>
+            </div>
+          </div>
+        </ng-container>
+      </ng-container>
+    </div>
+
+    <nz-tabs
+      *ngIf="!isSettingsOpen"
+      nzSize="small"
+      class="panel-tabs">
+      <!-- Notification Tab -->
+      <nz-tab [nzTitle]="notificationTitle">
+        <ng-template #notificationTitle>
+          <span class="tab-title">
+            Notifications
+            <nz-badge
+              *ngIf="(unreadNotifications$ | async) as unreadCount"
+              [nzCount]="unreadCount"
+              [nzStandalone]="true"></nz-badge>
+          </span>
+        </ng-template>
+        <ng-template nz-tab>
+          <ng-container
+            *ngTemplateOutlet="
+              notificationList;
+              context: { $implicit: notifications$ | async, clearKind: 'notifications' }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
+
+      <!-- Workflows Tab -->
+      <nz-tab [nzTitle]="workflowsTitle">
+        <ng-template #workflowsTitle>
+          <span class="tab-title">Workflows</span>
+        </ng-template>
+        <ng-template nz-tab>
+          <ng-container
+            *ngTemplateOutlet="
+              workflowsList;
+              context: { $implicit: sessionWorkflows$ | async }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
+
+      <!-- Requests Tab (Admin Only) -->
+      <nz-tab
+        *ngIf="isAdmin"
+        [nzTitle]="requestsTitle">
+        <ng-template #requestsTitle>
+          <span class="tab-title">
+            Requests
+            <nz-badge
+              *ngIf="(unreadAdmin$ | async) as adminCount"
+              [nzCount]="adminCount"
+              [nzStandalone]="true"></nz-badge>
+          </span>
+        </ng-template>
+        <ng-template nz-tab>
+          <ng-container
+            *ngTemplateOutlet="
+              notificationList;
+              context: { $implicit: admin$ | async, clearKind: 'requests' }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
+    </nz-tabs>
+
+    <!-- Custom resize handles. Direction is chosen based on which edges are anchored
+         (see panelResizeHandles getter). Each handle starts a pointer-tracked resize. -->
+    <div
+      *ngFor="let direction of panelResizeHandles"
+      class="resize-handle"
+      [class]="'resize-handle resize-handle-' + direction"
+      (mousedown)="startResize(direction, $event)"></div>
+    </div>
+
+    <div class="agent-buttons">
+      <button
+        *ngIf="isOnWorkflowPage && !isAgentPanelOpen"
+        class="agent-button agent-button-secondary"
+        nz-tooltip
+        nzTooltipTitle="Open AI Agent Builder"
+        nzTooltipPlacement="left"
+        (click)="openAgentPanel($event)"
+        aria-label="Open Agent Builder">
+        <i
+          nz-icon
+          nzType="experiment"
           nzTheme="outline"
           class="agent-icon"></i>
-      </nz-badge>
-    </button>
+      </button>
+      <button
+        *ngIf="!isOpen"
+        class="agent-button"
+        cdkDragHandle
+        (click)="togglePanel()"
+        aria-label="Texera Assistant">
+        <nz-badge
+          [nzCount]="(unreadTotal$ | async) ?? 0"
+          [nzOverflowCount]="99">
+          <i
+            nz-icon
+            nzType="robot"
+            nzTheme="outline"
+            class="agent-icon"></i>
+        </nz-badge>
+      </button>
+    </div>
   </div>
 
   <!-- Notifications Template -->
   <ng-template
     #notificationList
-    let-list>
-    <div
-      class="notification-list"
-      *ngIf="list && list.length > 0; else emptyNotifications">
+    let-list
+    let-clearKind="clearKind">
+    <div class="notification-list">
       <div class="list-toolbar">
         <button
           nz-button
           nzType="link"
           nzSize="small"
-          (click)="clearAllNotifications($event)">
+          [disabled]="!list || list.length === 0"
+          (click)="clearByKind(clearKind, $event)">
           Clear
         </button>
       </div>
-      <div class="notification-scroll">
+      <div
+        *ngIf="list && list.length > 0; else emptyNotifications"
+        class="notification-scroll">
         <div
           *ngFor="let n of list"
           class="notification-item"
@@ -267,10 +296,20 @@
   <ng-template
     #workflowsList
     let-list>
-    <div
-      class="workflows-list"
-      *ngIf="list && list.length > 0; else emptyWorkflows">
-      <div class="workflows-scroll">
+    <div class="workflows-list">
+      <div class="list-toolbar">
+        <button
+          nz-button
+          nzType="link"
+          nzSize="small"
+          [disabled]="!list || list.length === 0"
+          (click)="clearSessionWorkflows($event)">
+          Clear
+        </button>
+      </div>
+      <div
+        *ngIf="list && list.length > 0; else emptyWorkflows"
+        class="workflows-scroll">
         <div
           *ngFor="let w of list"
           class="workflow-item">

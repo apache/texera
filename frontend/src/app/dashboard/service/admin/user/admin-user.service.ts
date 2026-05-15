@@ -37,6 +37,8 @@ export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
 export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
 export const USER_QUOTA_SIZE = `${USER_BASE_URL}/user_quota_size`;
 export const USER_DELETE_EXECUTION_COLLECTION = `${USER_BASE_URL}/deleteCollection`;
+export const USER_MARK_REQUESTS_VIEWED_URL = `${USER_BASE_URL}/mark-requests-viewed`;
+export const USER_MARK_ALL_REQUESTS_VIEWED_URL = `${USER_BASE_URL}/mark-all-requests-viewed`;
 
 @Injectable({
   providedIn: "root",
@@ -93,5 +95,21 @@ export class AdminUserService {
 
   public deleteExecutionCollection(eid: number): Observable<void> {
     return this.http.delete<void>(`${USER_DELETE_EXECUTION_COLLECTION}/${eid.toString()}`);
+  }
+
+  /**
+   * Mark the given pending user requests as viewed so the admin assistant
+   * stops re-surfacing them as new notifications.
+   */
+  public markRequestsViewed(uids: ReadonlyArray<number>): Observable<void> {
+    return this.http.post<void>(USER_MARK_REQUESTS_VIEWED_URL, { uids });
+  }
+
+  /**
+   * Mark every currently-pending (INACTIVE) user request as viewed in one DB
+   * transaction. Used by the assistant's "Clear all requests" action.
+   */
+  public markAllRequestsViewed(): Observable<void> {
+    return this.http.post<void>(USER_MARK_ALL_REQUESTS_VIEWED_URL, {});
   }
 }

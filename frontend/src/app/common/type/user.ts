@@ -48,6 +48,8 @@ export interface User
     accountCreation?: Second;
     affiliation?: string;
     joiningReason: string;
+    /** True once an admin has acknowledged this user's join request via the assistant. */
+    requestViewed?: boolean;
   }> {}
 
 export interface File

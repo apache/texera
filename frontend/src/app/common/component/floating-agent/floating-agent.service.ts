@@ -81,6 +81,8 @@ export interface AgentNotification {
 const MAX_NOTIFICATIONS = 100;
 const STORAGE_KEY = "texera-floating-agent-notifications";
 const SETTINGS_STORAGE_KEY = "texera-floating-agent-settings";
+const DISMISSED_KEYS_STORAGE_KEY = "texera-floating-agent-dismissed-keys";
+const MAX_DISMISSED_KEYS = 500;
 
 @Injectable({ providedIn: "root" })
 export class FloatingAgentService {
@@ -106,6 +108,20 @@ export class FloatingAgentService {
     return this.notifications$.pipe(map(list => list.filter(n => n.category === category)));
   }
 
+  /** Synchronous snapshot — use for one-off lookups, not in templates. */
+  public peekByCategory(category: AgentNotificationCategory): AgentNotification[] {
+    return this.notificationsSubject.value.filter(n => n.category === category);
+  }
+
+  /** Remove notifications matching a predicate. Used to clean up stale entries when
+   *  the underlying state changes (e.g., admin request marked viewed elsewhere). */
+  public removeWhere(predicate: (n: AgentNotification) => boolean): void {
+    const filtered = this.notificationsSubject.value.filter(n => !predicate(n));
+    if (filtered.length === this.notificationsSubject.value.length) return;
+    this.notificationsSubject.next(filtered);
+    this.persist();
+  }
+
   public getSettings(): AgentNotificationSettings {
     return this.settingsSubject.value;
   }
@@ -126,6 +142,13 @@ export class FloatingAgentService {
     if (notification.type && !this.isTypeEnabled(notification.type)) {
       return;
     }
+    // Filter out notifications the user has previously dismissed via Clear.
+    // The signature is built from semantic identity (e.g., wid+state for runs,
+    // entity+action for social, uid for admin) — see signatureFor().
+    const signature = FloatingAgentService.signatureFor(notification);
+    if (signature && this.isDismissed(signature)) {
+      return;
+    }
     const entry: AgentNotification = {
       ...notification,
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -137,6 +160,78 @@ export class FloatingAgentService {
     this.persist();
   }
 
+  /**
+   * Build a semantic signature for a notification so we can recognize the
+   * "same" event across reloads/HMR. Returns undefined when the notification
+   * has no stable identity (in which case dismissal can't apply).
+   */
+  public static signatureFor(
+    n: Pick<AgentNotification, "category" | "type" | "meta">
+  ): string | undefined {
+    const meta = n.meta as Record<string, unknown> | undefined;
+    if (n.category === "run") {
+      // Use the workflow id + the run's notification type (runSuccess/runFailure/runKilled).
+      const wid = meta?.["wid"] as number | undefined;
+      if (typeof wid === "number" && n.type) return `run:${wid}:${n.type}`;
+    }
+    if (n.category === "social") {
+      // Include the current total count so a later increase produces a new
+      // signature (and therefore a new notification even after dismissal).
+      const entityType = meta?.["entityType"];
+      const entityId = meta?.["entityId"];
+      const action = meta?.["action"];
+      const count = meta?.["count"];
+      if (entityType !== undefined && entityId !== undefined && action !== undefined) {
+        return `social:${entityType}:${entityId}:${action}:${count ?? "?"}`;
+      }
+    }
+    if (n.category === "admin") {
+      const uid = meta?.["uid"] as number | undefined;
+      if (typeof uid === "number") return `admin:${uid}`;
+    }
+    return undefined;
+  }
+
+  private loadDismissedKeys(): Set<string> {
+    try {
+      const raw = localStorage.getItem(DISMISSED_KEYS_STORAGE_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter((s): s is string => typeof s === "string"));
+    } catch {
+      return new Set();
+    }
+  }
+
+  private saveDismissedKeys(keys: Set<string>): void {
+    try {
+      // Bound the size so the dismissed set can't grow unbounded.
+      const arr = Array.from(keys).slice(-MAX_DISMISSED_KEYS);
+      localStorage.setItem(DISMISSED_KEYS_STORAGE_KEY, JSON.stringify(arr));
+    } catch {
+      // Storage may be unavailable; ignore.
+    }
+  }
+
+  public isDismissed(signature: string): boolean {
+    return this.loadDismissedKeys().has(signature);
+  }
+
+  public dismiss(signatures: ReadonlyArray<string>): void {
+    if (signatures.length === 0) return;
+    const keys = this.loadDismissedKeys();
+    for (const s of signatures) keys.add(s);
+    this.saveDismissedKeys(keys);
+  }
+
+  public undismiss(signature: string): void {
+    const keys = this.loadDismissedKeys();
+    if (keys.delete(signature)) {
+      this.saveDismissedKeys(keys);
+    }
+  }
+
   public markAllRead(category?: AgentNotificationCategory): void {
     const next = this.notificationsSubject.value.map(n =>
       !category || n.category === category ? { ...n, read: true } : n
@@ -146,6 +241,16 @@ export class FloatingAgentService {
   }
 
   public clear(category?: AgentNotificationCategory): void {
+    // Remember the signatures we're about to clear so polls / replay events
+    // don't immediately re-push them (e.g., after an HMR or page refresh).
+    const toClear = category
+      ? this.notificationsSubject.value.filter(n => n.category === category)
+      : this.notificationsSubject.value;
+    const signatures = toClear
+      .map(n => FloatingAgentService.signatureFor(n))
+      .filter((s): s is string => typeof s === "string");
+    if (signatures.length > 0) this.dismiss(signatures);
+
     const next = category ? this.notificationsSubject.value.filter(n => n.category !== category) : [];
     this.notificationsSubject.next(next);
     this.persist();

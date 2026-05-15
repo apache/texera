@@ -17,13 +17,13 @@
  * under the License.
  */
 
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, ElementRef, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
-import { Router } from "@angular/router";
+import { NavigationEnd, Router } from "@angular/router";
 import { CdkDrag, CdkDragEnd, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, Subscription, BehaviorSubject, combineLatest, of, timer } from "rxjs";
-import { catchError, map, switchMap, startWith } from "rxjs/operators";
+import { catchError, filter, map, switchMap, startWith } from "rxjs/operators";
 import { FormsModule } from "@angular/forms";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
 import { NzIconModule } from "ng-zorro-antd/icon";
@@ -51,7 +51,12 @@ import {
 } from "../../../hub/service/hub.service";
 import { AdminUserService } from "../../../dashboard/service/admin/user/admin-user.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import { DASHBOARD_USER_DATASET, DASHBOARD_USER_WORKSPACE } from "../../../app-routing.constant";
+import { AgentPanelControlService } from "../../../workspace/service/agent/agent-panel-control.service";
+import {
+  DASHBOARD_ADMIN_USER,
+  DASHBOARD_USER_DATASET,
+  DASHBOARD_USER_WORKSPACE,
+} from "../../../app-routing.constant";
 import {
   AgentNotification,
   AgentNotificationAction,
@@ -67,6 +72,15 @@ const MAX_DATASETS_TO_TRACK = 20;
 const MAX_SESSION_WORKFLOWS = 20;
 const POSITION_STORAGE_KEY = "texera-floating-agent-position";
 const EXECUTION_SNAPSHOT_STORAGE_KEY = "texera-floating-agent-execution-snapshot";
+const TERMINAL_DEDUP_STORAGE_KEY = "texera-floating-agent-terminal-dedup";
+const TERMINAL_DEDUP_WINDOW_MS = 30_000;
+const SESSION_WORKFLOWS_STORAGE_KEY = "texera-floating-agent-session-workflows";
+const PANEL_SIZE_STORAGE_KEY = "texera-floating-agent-panel-size";
+
+const PANEL_DEFAULT_WIDTH = 360;
+const PANEL_DEFAULT_HEIGHT = 520;
+const PANEL_MIN_WIDTH = 320;
+const PANEL_MIN_HEIGHT = 360;
 
 interface SessionWorkflow {
   wid?: number;
@@ -109,7 +123,19 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   public isAdmin = false;
   public isLoggedIn = false;
   public isSettingsOpen = false;
+  public isOnWorkflowPage = false;
+  public isAgentPanelOpen = false;
+  /** Panel anchor flip flags — computed when the panel opens based on viewport space. */
+  public panelOpensDown = false;
+  public panelOpensRight = false;
   public dragPosition: { x: number; y: number } = this.loadPosition();
+  public panelWidth = this.loadPanelSize().width;
+  public panelHeight = this.loadPanelSize().height;
+  public readonly panelMinWidth = PANEL_MIN_WIDTH;
+  public readonly panelMinHeight = PANEL_MIN_HEIGHT;
+  /** Viewport-relative position of the panel (computed in computePanelAnchor). */
+  public panelLeft = 0;
+  public panelTop = 0;
   /** Set in cdkDragEnded when a real drag (>4px) occurred; swallows the click the browser fires next. */
   private suppressNextClick = false;
 
@@ -124,7 +150,9 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   public readonly social$ = this.agentService.notificationsByCategory$("social");
   public readonly admin$ = this.agentService.notificationsByCategory$("admin");
 
-  private readonly sessionWorkflowsSubject = new BehaviorSubject<SessionWorkflow[]>([]);
+  private readonly sessionWorkflowsSubject = new BehaviorSubject<SessionWorkflow[]>(
+    FloatingAgentComponent.loadSessionWorkflows()
+  );
   public readonly sessionWorkflows$ = this.sessionWorkflowsSubject.asObservable();
 
   public readonly notifications$ = combineLatest([this.runs$, this.social$]).pipe(
@@ -137,7 +165,9 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
 
   /** Baseline counts captured after the first poll so we only notify on increases. */
   private socialBaseline: Map<string, number> = new Map();
-  private adminSeenInactive: Set<number> = new Set();
+  /** Uids surfaced in this session's admin notifications — used to avoid duplicate pushes
+   *  before the user clicks/marks-viewed and the next poll cycle returns. */
+  private adminNotifiedThisSession: Set<number> = new Set();
   private socialPollSub?: Subscription;
   private adminPollSub?: Subscription;
   /**
@@ -159,7 +189,9 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
     private datasetService: DatasetService,
     private hubService: HubService,
     private adminUserService: AdminUserService,
-    private router: Router
+    private agentPanelControlService: AgentPanelControlService,
+    private router: Router,
+    private elementRef: ElementRef<HTMLElement>
   ) {}
 
   ngOnInit(): void {
@@ -169,6 +201,39 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(user => this.onUserChanged(user));
     this.subscribeRunEvents();
+    this.subscribeRouteChanges();
+    // Track the AI agent panel's open state so we can hide the flask button while it's open.
+    this.agentPanelControlService.openState$
+      .pipe(untilDestroyed(this))
+      .subscribe(isOpen => (this.isAgentPanelOpen = isOpen));
+  }
+
+  private subscribeRouteChanges(): void {
+    // Set initial value based on current URL
+    this.isOnWorkflowPage = this.urlMatchesWorkflowEditor(this.router.url);
+    // Then update on every navigation
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        untilDestroyed(this)
+      )
+      .subscribe(event => {
+        this.isOnWorkflowPage = this.urlMatchesWorkflowEditor(event.urlAfterRedirects);
+      });
+  }
+
+  private urlMatchesWorkflowEditor(url: string): boolean {
+    // Workflow editor URL pattern: /dashboard/user/workflow/:wid
+    return /\/dashboard\/user\/workflow\/\d+/.test(url);
+  }
+
+  public openAgentPanel(event?: Event): void {
+    event?.stopPropagation();
+    if (this.suppressNextClick) {
+      this.suppressNextClick = false;
+      return;
+    }
+    this.agentPanelControlService.requestToggle();
   }
 
   ngOnDestroy(): void {
@@ -184,7 +249,46 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
     }
     this.isOpen = !this.isOpen;
     if (this.isOpen) {
+      this.computePanelAnchor();
       this.agentService.markAllRead();
+    }
+  }
+
+  /**
+   * Decide which side of the floating button the panel should expand toward,
+   * then compute the panel's viewport-fixed position. Default is up-left; we
+   * flip to down/right whenever the button is too close to the top/left edges
+   * of the viewport to fit the panel in the default direction.
+   */
+  private computePanelAnchor(): void {
+    const buttonEl = this.elementRef.nativeElement.querySelector(
+      ".agent-button:not(.agent-button-secondary)"
+    ) as HTMLElement | null;
+    if (!buttonEl) return;
+
+    const rect = buttonEl.getBoundingClientRect();
+    const GAP = 12;
+
+    // Vertical: prefer opening upward; flip downward if not enough room above.
+    this.panelOpensDown = rect.top < this.panelHeight + GAP;
+    // Horizontal: panel default extends to the LEFT of the button; flip if no room.
+    this.panelOpensRight = rect.right < this.panelWidth + GAP;
+
+    // Compute viewport-fixed position. The panel is `position: fixed`, so left/top
+    // are in viewport coordinates.
+    if (this.panelOpensRight) {
+      // Panel aligned to the LEFT edge of the button, extending right.
+      this.panelLeft = rect.left;
+    } else {
+      // Panel aligned to the RIGHT edge of the button, extending left.
+      this.panelLeft = rect.right - this.panelWidth;
+    }
+    if (this.panelOpensDown) {
+      // Panel below the button.
+      this.panelTop = rect.bottom + GAP;
+    } else {
+      // Panel above the button.
+      this.panelTop = rect.top - this.panelHeight - GAP;
     }
   }
 
@@ -207,10 +311,31 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
     this.agentService.clear(category);
   }
 
-  public clearAllNotifications(event?: Event): void {
+  public clearByKind(kind: "notifications" | "requests" | undefined, event?: Event): void {
     event?.stopPropagation();
-    this.agentService.clear("run");
-    this.agentService.clear("social");
+    if (kind === "requests") {
+      // Mark every currently-pending request as viewed in the DB (not just the ones
+      // currently shown in the panel). This handles the case where a new signup
+      // arrived between polls but isn't reflected in the notifications list yet.
+      this.adminUserService
+        .markAllRequestsViewed()
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          error: err => console.error("Failed to mark all requests as viewed:", err),
+        });
+      this.adminNotifiedThisSession.clear();
+      this.agentService.clear("admin");
+    } else {
+      // Default: combined notifications tab (runs + social)
+      this.agentService.clear("run");
+      this.agentService.clear("social");
+    }
+  }
+
+  public clearSessionWorkflows(event?: Event): void {
+    event?.stopPropagation();
+    this.sessionWorkflowsSubject.next([]);
+    this.persistSessionWorkflows();
   }
 
   public triggerAction(n: AgentNotification, event?: Event): void {
@@ -224,6 +349,23 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
       const wid = n.action.route[1];
       this.handleRetryWorkflow(wid as number);
       return;
+    }
+
+    // Admin request notifications: clicking is an implicit acknowledgement. Mark the
+    // request as viewed in the DB and immediately remove this specific notification from
+    // the list (so it doesn't reappear from localStorage on refresh).
+    if (n.category === "admin") {
+      const uid = (n.meta as { uid?: number } | undefined)?.uid;
+      if (typeof uid === "number") {
+        this.adminUserService
+          .markRequestsViewed([uid])
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            error: err => console.error("Failed to mark request as viewed:", err),
+          });
+        this.adminNotifiedThisSession.delete(uid);
+      }
+      this.agentService.removeWhere(other => other.id === n.id);
     }
 
     // Normal navigation
@@ -256,6 +398,100 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
       // Ignore malformed stored value.
     }
     return { x: 0, y: 0 };
+  }
+
+  private loadPanelSize(): { width: number; height: number } {
+    try {
+      const raw = localStorage.getItem(PANEL_SIZE_STORAGE_KEY);
+      if (!raw) return { width: PANEL_DEFAULT_WIDTH, height: PANEL_DEFAULT_HEIGHT };
+      const parsed = JSON.parse(raw) as { width: unknown; height: unknown };
+      const width =
+        typeof parsed?.width === "number" && parsed.width >= PANEL_MIN_WIDTH
+          ? parsed.width
+          : PANEL_DEFAULT_WIDTH;
+      const height =
+        typeof parsed?.height === "number" && parsed.height >= PANEL_MIN_HEIGHT
+          ? parsed.height
+          : PANEL_DEFAULT_HEIGHT;
+      return { width, height };
+    } catch {
+      return { width: PANEL_DEFAULT_WIDTH, height: PANEL_DEFAULT_HEIGHT };
+    }
+  }
+
+  /**
+   * Resize handles to expose based on which edges of the panel are free
+   * (i.e., not anchored to the floating button). The opposite anchor is fixed,
+   * so resizing those edges would feel broken.
+   */
+  public get panelResizeHandles(): string[] {
+    if (this.panelOpensDown && this.panelOpensRight) {
+      return ["right", "bottom", "bottomRight"];
+    }
+    if (this.panelOpensDown) {
+      return ["left", "bottom", "bottomLeft"];
+    }
+    if (this.panelOpensRight) {
+      return ["right", "top", "topRight"];
+    }
+    return ["left", "top", "topLeft"];
+  }
+
+  /**
+   * Start a resize gesture from the given handle direction. The panel is anchored
+   * by CSS (right:0 / left:0 / top:* / bottom:*) so we only need to change width and
+   * height — the opposite edge stays fixed automatically.
+   */
+  public startResize(direction: string, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startWidth = this.panelWidth;
+    const startHeight = this.panelHeight;
+    const maxSize = 900;
+
+    const movesLeft = direction.toLowerCase().includes("left");
+    const movesRight = direction.toLowerCase().includes("right");
+    const movesTop = direction.toLowerCase().startsWith("top");
+    const movesBottom = direction.toLowerCase().startsWith("bottom");
+
+    const onMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      // For LEFT handle: panel's right edge is anchored, so dragging left (negative dx)
+      // should grow width. For RIGHT handle: panel's left edge is anchored, dragging
+      // right (positive dx) grows width.
+      if (movesRight) {
+        this.panelWidth = Math.min(maxSize, Math.max(PANEL_MIN_WIDTH, startWidth + dx));
+      } else if (movesLeft) {
+        this.panelWidth = Math.min(maxSize, Math.max(PANEL_MIN_WIDTH, startWidth - dx));
+      }
+
+      if (movesBottom) {
+        this.panelHeight = Math.min(maxSize, Math.max(PANEL_MIN_HEIGHT, startHeight + dy));
+      } else if (movesTop) {
+        this.panelHeight = Math.min(maxSize, Math.max(PANEL_MIN_HEIGHT, startHeight - dy));
+      }
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      try {
+        localStorage.setItem(
+          PANEL_SIZE_STORAGE_KEY,
+          JSON.stringify({ width: this.panelWidth, height: this.panelHeight })
+        );
+      } catch {
+        // Storage may be unavailable; ignore.
+      }
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
   }
 
   private loadExecutionSnapshot(): { wid?: number; name?: string } | undefined {
@@ -343,9 +579,11 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
     if (identityChanged) {
       this.agentService.clear();
       this.socialBaseline.clear();
-      this.adminSeenInactive.clear();
+      this.adminNotifiedThisSession.clear();
       this.executionSnapshot = undefined;
       this.persistExecutionSnapshot();
+      this.sessionWorkflowsSubject.next([]);
+      this.persistSessionWorkflows();
     }
     if (!user) {
       this.isOpen = false;
@@ -374,7 +612,7 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   }
 
   private handleExecutionStateChange(previous: ExecutionStateInfo, current: ExecutionStateInfo): void {
-    // On page reload, the websocket reconnects and the server replays the current state.
+    // On page reload/HMR, the websocket reconnects and the server replays the current state.
     // This produces a synthetic Uninitialized → [terminal] transition that we must NOT
     // treat as a real event, otherwise we'd push a duplicate notification every refresh.
     const isTerminalState =
@@ -392,16 +630,42 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
       const metadata = this.workflowActionService.getWorkflowMetadata();
       this.executionSnapshot = { wid: metadata?.wid, name: metadata?.name };
       this.persistExecutionSnapshot();
+      // A fresh user-initiated run — clear any prior dismissal for this workflow's
+      // terminal-state signatures so the next terminal event notifies normally.
+      if (metadata?.wid !== undefined) {
+        this.agentService.undismiss(`run:${metadata.wid}:runSuccess`);
+        this.agentService.undismiss(`run:${metadata.wid}:runFailure`);
+        this.agentService.undismiss(`run:${metadata.wid}:runKilled`);
+      }
     }
 
-    const snapshot = this.executionSnapshot ?? {
-      wid: this.workflowActionService.getWorkflowMetadata()?.wid,
-      name: this.workflowActionService.getWorkflowMetadata()?.name,
-    };
+    // Prefer live metadata over the captured snapshot when both reference the same workflow.
+    // This way, if the user renames the workflow mid-run, the notification reflects the new name.
+    // Fall back to snapshot only when the editor has been unloaded (user navigated away).
+    const liveMetadata = this.workflowActionService.getWorkflowMetadata();
+    const snapshotWid = this.executionSnapshot?.wid;
+    const useLive = liveMetadata?.wid !== undefined && liveMetadata.wid === snapshotWid;
+    const snapshot = useLive
+      ? { wid: liveMetadata!.wid, name: liveMetadata!.name }
+      : (this.executionSnapshot ?? {
+          wid: liveMetadata?.wid,
+          name: liveMetadata?.name,
+        });
     const workflowName = snapshot.name && snapshot.name.length > 0 ? snapshot.name : "Workflow";
 
     // Track workflow in session
     this.trackSessionWorkflow(snapshot.wid, workflowName, current.state);
+
+    // Multi-step replay guard: when the websocket reconnects and replays through
+    // Uninitialized → Initializing → Running → [terminal], the first guard above
+    // doesn't catch the terminal hop because `previous` is no longer Uninitialized.
+    // Dedup against (wid, state) within a short window — real reruns take longer
+    // than this window, so legitimate notifications still come through.
+    if (isTerminalState && this.wasRecentlyNotified(snapshot.wid, current.state)) {
+      this.executionSnapshot = undefined;
+      this.persistExecutionSnapshot();
+      return;
+    }
 
     switch (current.state) {
       case ExecutionState.Completed:
@@ -412,7 +676,9 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
           title: `${workflowName} finished`,
           message: "The workflow run completed successfully.",
           action: this.workflowAction(snapshot.wid, "Tap to see result"),
+          meta: { wid: snapshot.wid },
         });
+        this.recordNotification(snapshot.wid, current.state);
         this.executionSnapshot = undefined;
         this.persistExecutionSnapshot();
         return;
@@ -427,6 +693,7 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
           action: { label: "Retry", route: ["__retry-workflow__", snapshot.wid] },
           meta: { action: "retry", wid: snapshot.wid },
         });
+        this.recordNotification(snapshot.wid, current.state);
         this.executionSnapshot = undefined;
         this.persistExecutionSnapshot();
         return;
@@ -441,11 +708,48 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
           action: { label: "Retry", route: ["__retry-workflow__", snapshot.wid] },
           meta: { action: "retry", wid: snapshot.wid },
         });
+        this.recordNotification(snapshot.wid, current.state);
         this.executionSnapshot = undefined;
         this.persistExecutionSnapshot();
         return;
       default:
         return;
+    }
+  }
+
+  private wasRecentlyNotified(wid: number | undefined, state: ExecutionState): boolean {
+    if (wid === undefined) return false;
+    const records = this.loadDedupRecords();
+    const now = Date.now();
+    return records.some(
+      r => r.wid === wid && r.state === state && now - r.time < TERMINAL_DEDUP_WINDOW_MS
+    );
+  }
+
+  private recordNotification(wid: number | undefined, state: ExecutionState): void {
+    if (wid === undefined) return;
+    const records = this.loadDedupRecords();
+    const now = Date.now();
+    const filtered = records.filter(r => now - r.time < TERMINAL_DEDUP_WINDOW_MS);
+    filtered.push({ wid, state, time: now });
+    try {
+      localStorage.setItem(TERMINAL_DEDUP_STORAGE_KEY, JSON.stringify(filtered));
+    } catch {
+      // Storage may be unavailable; ignore.
+    }
+  }
+
+  private loadDedupRecords(): { wid: number; state: ExecutionState; time: number }[] {
+    try {
+      const raw = localStorage.getItem(TERMINAL_DEDUP_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        r => typeof r?.wid === "number" && typeof r?.state === "string" && typeof r?.time === "number"
+      );
+    } catch {
+      return [];
     }
   }
 
@@ -568,7 +872,15 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
                 ? `+${diff} like${diff === 1 ? "" : "s"} (total ${current}).`
                 : `+${diff} clone${diff === 1 ? "" : "s"} (total ${current}).`,
             action: this.socialAction(row.entityType, row.entityId),
-            meta: { entityType: row.entityType, entityId: row.entityId, action, delta: diff },
+            // Include `count` in meta so the dismissal signature changes when the
+            // count grows — letting a later increase fire a fresh notification.
+            meta: {
+              entityType: row.entityType,
+              entityId: row.entityId,
+              action,
+              delta: diff,
+              count: current,
+            },
           });
         }
         this.socialBaseline.set(key, current);
@@ -612,15 +924,54 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   }
 
   private trackSessionWorkflow(wid: number | undefined, name: string, state: ExecutionState): void {
-    const workflows = this.sessionWorkflowsSubject.value;
-    const existingIndex = workflows.findIndex(w => w.wid === wid && w.name === name);
+    const workflows = [...this.sessionWorkflowsSubject.value];
+    // Match by wid (the stable identifier) — name can change via rename and shouldn't
+    // create a duplicate session entry. Fall back to name-match only for unsaved workflows.
+    const existingIndex =
+      wid !== undefined
+        ? workflows.findIndex(w => w.wid === wid)
+        : workflows.findIndex(w => w.wid === undefined && w.name === name);
     if (existingIndex >= 0) {
-      workflows[existingIndex] = { ...workflows[existingIndex], state, timestamp: Date.now() };
+      // Overwrite name too so renames are reflected in the Workflows tab.
+      workflows[existingIndex] = { wid, name, state, timestamp: Date.now() };
     } else {
       workflows.unshift({ wid, name, state, timestamp: Date.now() });
     }
     const updated = workflows.slice(0, MAX_SESSION_WORKFLOWS);
     this.sessionWorkflowsSubject.next(updated);
+    this.persistSessionWorkflows();
+  }
+
+  private persistSessionWorkflows(): void {
+    try {
+      localStorage.setItem(
+        SESSION_WORKFLOWS_STORAGE_KEY,
+        JSON.stringify(this.sessionWorkflowsSubject.value)
+      );
+    } catch {
+      // Storage may be unavailable (private mode, quota); ignore.
+    }
+  }
+
+  private static loadSessionWorkflows(): SessionWorkflow[] {
+    try {
+      const raw = localStorage.getItem(SESSION_WORKFLOWS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(
+          (w): w is SessionWorkflow =>
+            typeof w === "object" &&
+            w !== null &&
+            typeof w.name === "string" &&
+            typeof w.state === "string" &&
+            typeof w.timestamp === "number"
+        )
+        .slice(0, MAX_SESSION_WORKFLOWS);
+    } catch {
+      return [];
+    }
   }
 
   public handleKillWorkflow(): void {
@@ -654,28 +1005,40 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   }
 
   private applyAdminSnapshot(users: ReadonlyArray<User>): void {
-    const inactive = users.filter(u => u.role === Role.INACTIVE);
-    const isFirstPoll = this.adminSeenInactive.size === 0;
-    for (const user of inactive) {
-      if (!this.adminSeenInactive.has(user.uid)) {
-        if (!isFirstPoll) {
-          this.agentService.push({
-            category: "admin",
-            level: "warning",
-            type: "adminRequests",
-            title: `Approval needed: ${user.name}`,
-            message: this.buildAdminMessage(user),
-            meta: { uid: user.uid, email: user.email },
-          });
-        }
-        this.adminSeenInactive.add(user.uid);
+    // Only INACTIVE requests the admin hasn't already viewed (persisted in DB) count
+    // as fresh. This survives page reloads, browser switches, and offline periods.
+    const pendingUnseen = users.filter(u => u.role === Role.INACTIVE && !u.requestViewed);
+    const stillPending = new Set(pendingUnseen.map(u => u.uid));
+
+    // Auto-clean stale admin notifications: anyone in our notification list whose
+    // user is no longer pending+unseen (approved, deleted, or already viewed by
+    // another admin) should have their notification removed.
+    this.agentService.removeWhere(n => {
+      if (n.category !== "admin") return false;
+      const uid = (n.meta as { uid?: number } | undefined)?.uid;
+      return typeof uid === "number" && !stillPending.has(uid);
+    });
+
+    for (const user of pendingUnseen) {
+      if (!this.adminNotifiedThisSession.has(user.uid)) {
+        this.agentService.push({
+          category: "admin",
+          level: "warning",
+          type: "adminRequests",
+          title: `Approval needed: ${user.name}`,
+          message: this.buildAdminMessage(user),
+          action: { label: "Review user", route: [DASHBOARD_ADMIN_USER] },
+          meta: { uid: user.uid, email: user.email },
+        });
+        this.adminNotifiedThisSession.add(user.uid);
       }
     }
-    // Drop any users that have been approved/removed so future re-INACTIVE flips notify again.
-    const stillInactive = new Set(inactive.map(u => u.uid));
-    for (const uid of [...this.adminSeenInactive]) {
-      if (!stillInactive.has(uid)) {
-        this.adminSeenInactive.delete(uid);
+
+    // Drop in-session tracking for users no longer pending so a re-INACTIVE flip would
+    // notify again next poll.
+    for (const uid of [...this.adminNotifiedThisSession]) {
+      if (!stillPending.has(uid)) {
+        this.adminNotifiedThisSession.delete(uid);
       }
     }
   }

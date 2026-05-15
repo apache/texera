@@ -47,8 +47,11 @@ case class UserInfo(
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
     accountCreation: java.time.OffsetDateTime,
     affiliation: String,
-    joiningReason: String
+    joiningReason: String,
+    requestViewed: Boolean
 )
+
+case class MarkRequestsViewedRequest(uids: util.List[Integer])
 
 object AdminUserResource {
   private def context =
@@ -83,12 +86,45 @@ class AdminUserResource {
         USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
         USER.ACCOUNT_CREATION_TIME,
         USER.AFFILIATION,
-        USER.JOINING_REASON
+        USER.JOINING_REASON,
+        USER.REQUEST_VIEWED
       )
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)
       .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
       .fetchInto(classOf[UserInfo])
+  }
+
+  /**
+    * Mark the given pending user requests as viewed so the admin assistant
+    * stops re-surfacing them in the notification center.
+    */
+  @POST
+  @Path("/mark-requests-viewed")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def markRequestsViewed(request: MarkRequestsViewedRequest): Unit = {
+    if (request.uids == null || request.uids.isEmpty) return
+    AdminUserResource.context
+      .update(USER)
+      .set(USER.REQUEST_VIEWED, java.lang.Boolean.TRUE)
+      .where(USER.UID.in(request.uids))
+      .execute()
+  }
+
+  /**
+    * Mark every currently-pending (INACTIVE) account request as viewed.
+    * Triggered by the "Clear" action on the Requests tab so admins can wipe
+    * the queue in one shot even if new requests arrived between polls.
+    */
+  @POST
+  @Path("/mark-all-requests-viewed")
+  def markAllRequestsViewed(): Unit = {
+    AdminUserResource.context
+      .update(USER)
+      .set(USER.REQUEST_VIEWED, java.lang.Boolean.TRUE)
+      .where(USER.ROLE.eq(UserRoleEnum.INACTIVE))
+      .and(USER.REQUEST_VIEWED.eq(java.lang.Boolean.FALSE))
+      .execute()
   }
 
   @PUT

@@ -21,6 +21,7 @@ import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleCha
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
+import { AgentPanelControlService } from "../../../service/agent/agent-panel-control.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
@@ -98,11 +99,21 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   constructor(
     private agentService: AgentService,
     private workflowActionService: WorkflowActionService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private agentPanelControlService: AgentPanelControlService
   ) {}
 
   ngOnInit(): void {
     this.loadPanelSettings();
+
+    // Listen for external toggle requests (e.g., from the floating assistant button).
+    // openPanel() broadcasts the new state internally, so subscribers stay in sync.
+    this.agentPanelControlService.toggleRequest$.pipe(untilDestroyed(this)).subscribe(() => {
+      this.openPanel();
+    });
+
+    // Sync initial state to the control service so subscribers know the starting value.
+    this.agentPanelControlService.setOpenState(this.width > 0);
 
     // Subscribe to agent changes
     this.agentService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
@@ -188,6 +199,8 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
       this.width = 0;
       this.isDocked = true;
     }
+    // Notify the floating assistant button so it can show/hide itself.
+    this.agentPanelControlService.setOpenState(this.width > 0);
   }
 
   /**
