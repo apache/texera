@@ -22,6 +22,94 @@ import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 const PYTHON_UDF_OPERATOR_TYPES = ["PythonUDFV2"];
 const R_UDF_OPERATOR_TYPES = ["RUDF"];
 
+const MACHINE_TOOLS_INSTRUCTIONS = `## Machine & dataset tools (\`runOnMachine\`, \`listDatasets\`, \`getDatasetFile\`, \`uploadFileToDataset\`) and the \`MachineUDF\` operator
+
+When the user wants Texera to interact with files **on their own host** (read a local file, write output files on their laptop, run a local command), use these tools and the \`MachineUDF\` operator instead of Python UDF on a computing unit.
+
+### Tool-call plan for a typical "use my machine" request
+Follow this order — do NOT loop on a single tool. After each tool result, **move to the next step**.
+
+1. **\`runOnMachine\`** — verify the input file exists and inspect it.
+   - Example command: \`test -f /home/ali/Downloads/foo.csv && head -3 /home/ali/Downloads/foo.csv && wc -l /home/ali/Downloads/foo.csv\`.
+   - If \`exit_code == 0\`, the file exists and you have enough to proceed. **Do not call this tool again for the same path.**
+2. **\`listDatasets\`** — call this **once** to resolve a dataset name (e.g. "test-4") to its numeric \`did\`. Cache the result in memory; do not re-list on subsequent turns.
+3. **\`uploadFileToDataset\`** — push the local file into the dataset, creating a new dataset version. Args: \`{ machineId, localPath, datasetName, datasetFilePath }\`. Pass the dataset's *name* (e.g. \`"test-4"\`) as \`datasetName\` — the tool resolves it to a \`did\` internally. (You may pass \`datasetId\` if you already know it, but **never guess** a number from the name.) \`datasetFilePath\` is the path *inside the dataset* (usually just the file name).
+4. **Build the workflow** — typically \`CSVFileScan\` (or \`TableFileScan\`) reading the dataset file, then a \`MachineUDF\` to do the per-tuple work on the user's machine. Make sure to call \`runOnMachine\` to \`mkdir -p\` any output directory the workflow needs **before** running it.
+
+### \`MachineUDF\` operator
+\`MachineUDF\` is Python-only and runs the script on a *registered machine* (Machines tab) via that host's machine-manager — not on a computing unit. Required properties:
+
+- \`machineUrl\`: full URL of the target machine-manager, e.g. \`http://localhost:5555\`. Read this from the result of the corresponding \`runOnMachine\` call's lookup (look at the \`machine.url\` field).
+- \`machineToken\`: leave empty unless the user set one.
+- \`code\`: Python script. The current input tuple is exposed as a global dict \`tuple_in\`. The **last JSON line printed to stdout** becomes the output tuple. To re-emit the input row unchanged plus a status, \`print(json.dumps({**tuple_in, "status": "ok"}))\`.
+- \`outputColumns\`: declare any extra columns the script returns beyond the input schema.
+- \`retainInputColumns\`: usually \`true\` so the output keeps the input columns.
+
+Example for "write each row as a JSONL file":
+\`\`\`python
+import json, os
+out_dir = "/home/ali/Downloads/tmp"
+os.makedirs(out_dir, exist_ok=True)
+fname = f"row-{tuple_in.get('id', 'unknown')}.jsonl"
+path = os.path.join(out_dir, fname)
+with open(path, "w") as f:
+    f.write(json.dumps(tuple_in) + "\\n")
+print(json.dumps({**tuple_in, "written_to": path}))
+\`\`\`
+
+### When NOT to use these tools
+- The file is already inside a Texera dataset → just use \`CSVFileScan\` / \`TableFileScan\` directly. No \`runOnMachine\`, no \`uploadFileToDataset\`.
+- The Python logic doesn't touch the user's machine → use the regular \`PythonUDFV2\` operator on a computing unit, not \`MachineUDF\`.
+
+### Hard rules (these prevent agent loops — follow them strictly)
+
+1. **NEVER guess a \`datasetId\` from the dataset name.** The number in a name like \`test-4\` is **not** the \`did\`. The \`did\` is whatever integer \`listDatasets\` returns for that name. Skipping \`listDatasets\` and passing the wrong \`did\` causes a 403 Forbidden — at which point you must call \`listDatasets\`, not retry the upload with another guessed number.
+2. **One tool call per distinct purpose.** After a tool succeeds, never call the same tool with the same arguments again. After it fails, fix the args or pick a different tool — do not retry identically.
+3. **Plan first, then execute the plan in order.** Before the first tool call, write a numbered plan in your thought. Then check each step off as the tool result comes back. Do not re-plan from scratch every turn.
+4. **Use prior tool results.** If \`listDatasets\` already returned \`[{"did":2,"name":"test-4",...}]\` in this conversation, you have the \`did\` (2). Do not call \`listDatasets\` again, and pass \`datasetId: 2\` (not 4).
+5. **If a tool result already proves a precondition, do not re-verify.** Example: \`runOnMachine\` returned \`exit_code: 0\` for \`test -f /path/to.csv\` → the file exists, move on. Do **not** run another \`ls\` / \`stat\` / \`cat\` on the same path.
+6. **If two consecutive turns produce no progress, switch strategy or stop and ask the user.** Don't burn steps repeating yourself.
+
+### How to reference any dataset file in \`CSVFileScan\`/\`TableFileScan\`
+
+The scan operator's \`fileName\` property must be the **canonical dataset path** in this exact form:
+
+\`\`\`
+/<ownerEmail>/<datasetName>/latest/<filePath>
+\`\`\`
+
+- The leading slash is required.
+- The literal segment **\`latest\`** auto-resolves to the dataset's newest version. Use it instead of guessing \`v1\`/\`v2\`/\`v3\` — your guess will be wrong as soon as someone uploads again.
+- \`<filePath>\` is the path *inside* the dataset (just the filename for files at the root).
+
+**Two tools give you this string verbatim — pick one and copy the result:**
+
+1. \`uploadFileToDataset\` — after a successful upload, the result has a \`fileName_for_scan_operator\` field with the exact canonical path. Use this when you just uploaded the file.
+2. \`getDatasetFile({ datasetName, filename })\` — looks up an *existing* dataset file and returns its \`fileName_for_scan_operator\`. Use this when the file is already in the dataset and you didn't upload it this turn. If you don't know the filename, call with just \`datasetName\` to list the files in the latest version.
+
+**Common wrong moves to avoid:**
+- Using an absolute filesystem path like \`/home/ali/Downloads/tmp/customers-test.csv\` — that's the user's laptop, not the Texera dataset.
+- Using just the bare filename like \`customers-test.csv\` or \`test-4/customers-test.csv\`.
+- Hard-coding a specific version (\`v1\`, \`v2\`, ...) — always use \`latest\` so the path keeps working after the next upload.
+
+If a scan operator already exists with a wrong \`fileName\`, call \`modifyOperator\` and set \`fileName\` to the canonical path from \`uploadFileToDataset\` / \`getDatasetFile\`. Do not invent a path of your own.
+
+### Worked example — full demo end-to-end
+
+User request: *"use machine 1 to read /home/me/data.csv, upload it to dataset 'sales', then create a workflow that for every row writes /home/me/out/row-{id}.jsonl on my machine."*
+
+Plan:
+1. \`runOnMachine({ machineId: 1, command: "test -f /home/me/data.csv && head -3 /home/me/data.csv && wc -l /home/me/data.csv" })\` — verify file + capture column names.
+2. \`listDatasets()\` — find the \`did\` for \`sales\`. Suppose result includes \`{"did": 7, "name": "sales"}\`.
+3. \`uploadFileToDataset({ machineId: 1, localPath: "/home/me/data.csv", datasetId: 7, datasetFilePath: "data.csv" })\` — pushes the file as a new dataset version.
+4. \`runOnMachine({ machineId: 1, command: "mkdir -p /home/me/out" })\` — make sure the output directory exists on the user's machine.
+5. \`addOperator\` \`CSVFileScan\` and set its \`fileName\` to the \`fileName_for_scan_operator\` value returned by \`uploadFileToDataset\` (do not retype or guess the path).
+6. \`addOperator\` \`MachineUDF\` connected to the scan: properties \`{ "machineUrl": "http://localhost:5555", "code": "<the per-row script that writes the JSONL file>", "retainInputColumns": true, "outputColumns": [{ "name": "written_to", "type": "STRING" }] }\`.
+7. Done — respond to the user with the dataset version uploaded, the workflow built, and what they should click to run it.
+
+That is **7 tool calls maximum** for this kind of request, not 30.
+`;
+
 const PYTHON_UDF_INSTRUCTIONS = `## Python UDF Guide
 
 Python UDF operators run user-defined Python code. There are 2 APIs to process data:
@@ -290,6 +378,7 @@ export function buildSystemPrompt(metadataStore: WorkflowSystemMetadata, allowed
   const extraSections: string[] = [];
   if (pythonAllowed) extraSections.push(PYTHON_UDF_INSTRUCTIONS);
   if (rAllowed) extraSections.push(R_UDF_INSTRUCTIONS);
+  extraSections.push(MACHINE_TOOLS_INSTRUCTIONS);
 
   const base = SYSTEM_PROMPT_TEMPLATE.replace("{{OPERATOR_SCHEMA}}", operatorSchemas);
   return extraSections.length > 0 ? `${base}\n${extraSections.join("\n\n")}\n` : base;

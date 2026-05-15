@@ -105,6 +105,7 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
     "Scatterplot",
     "WordCloud",
     "PythonUDFV2",
+    "MachineUDF",
   ],
 };
 

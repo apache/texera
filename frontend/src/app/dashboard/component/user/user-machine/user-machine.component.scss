@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,30 @@
  * under the License.
  */
 
-export * from "./tools-utility";
-export * from "./workflow-crud-tools";
-export * from "./workflow-execution-tools";
-export * from "./machine-tools";
+.machine-card {
+  margin: 24px;
+}
+
+.machine-toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 8px;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.muted {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.empty-row {
+  text-align: center;
+  color: rgba(0, 0, 0, 0.45);
+}

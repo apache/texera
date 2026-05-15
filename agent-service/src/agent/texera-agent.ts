@@ -47,6 +47,16 @@ import {
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
+import {
+  createRunOnMachineTool,
+  createListDatasetsTool,
+  createUploadFileToDatasetTool,
+  createGetDatasetFileTool,
+  TOOL_NAME_RUN_ON_MACHINE,
+  TOOL_NAME_LIST_DATASETS,
+  TOOL_NAME_UPLOAD_FILE_TO_DATASET,
+  TOOL_NAME_GET_DATASET_FILE,
+} from "./tools/machine-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -226,6 +236,14 @@ export class TexeraAgent {
           this.workflowResultState.set(opId, this.head, operatorInfo);
         }
       );
+    }
+
+    if (this.delegateConfig?.userToken) {
+      const userToken = this.delegateConfig.userToken;
+      tools[TOOL_NAME_RUN_ON_MACHINE] = createRunOnMachineTool(userToken);
+      tools[TOOL_NAME_LIST_DATASETS] = createListDatasetsTool(userToken);
+      tools[TOOL_NAME_UPLOAD_FILE_TO_DATASET] = createUploadFileToDatasetTool(userToken);
+      tools[TOOL_NAME_GET_DATASET_FILE] = createGetDatasetFileTool(userToken);
     }
 
     return tools;

@@ -1,0 +1,131 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card class="machine-card">
+  <div class="machine-toolbar">
+    <h2>Machines</h2>
+    <span class="toolbar-spacer"></span>
+    <button
+      nz-button
+      nzType="primary"
+      (click)="openAdd()">
+      <span
+        nz-icon
+        nzType="plus"></span>
+      Add machine
+    </button>
+    <button
+      nz-button
+      (click)="refresh()">
+      <span
+        nz-icon
+        nzType="reload"></span>
+      Refresh
+    </button>
+  </div>
+
+  <nz-table
+    [nzData]="machines"
+    [nzLoading]="loading"
+    nzSize="middle"
+    [nzShowPagination]="false">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>URL</th>
+        <th>Token</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let m of machines">
+        <td>{{ m.mid }}</td>
+        <td>{{ m.name }}</td>
+        <td><code>{{ m.url }}</code></td>
+        <td>
+          <span *ngIf="m.token">●●●●</span>
+          <span *ngIf="!m.token" class="muted">(none)</span>
+        </td>
+        <td>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="openEdit(m)">
+            Edit
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            nzDanger
+            (click)="remove(m)">
+            Delete
+          </button>
+        </td>
+      </tr>
+      <tr *ngIf="!loading && machines.length === 0">
+        <td colspan="5" class="empty-row">
+          No machines registered yet. Click <em>Add machine</em> to register one.
+        </td>
+      </tr>
+    </tbody>
+  </nz-table>
+</nz-card>
+
+<nz-modal
+  [(nzVisible)]="showAddModal"
+  [nzTitle]="editing ? 'Edit machine' : 'Add machine'"
+  (nzOnCancel)="cancel()"
+  (nzOnOk)="save()"
+  [nzOkText]="editing ? 'Save' : 'Add'">
+  <ng-container *nzModalContent>
+    <form nz-form nzLayout="vertical">
+      <nz-form-item>
+        <nz-form-label>Name</nz-form-label>
+        <nz-form-control>
+          <input
+            nz-input
+            [(ngModel)]="form.name"
+            name="name"
+            placeholder="my-laptop" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>URL</nz-form-label>
+        <nz-form-control>
+          <input
+            nz-input
+            [(ngModel)]="form.url"
+            name="url"
+            placeholder="http://localhost:5555" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>Bearer token (optional)</nz-form-label>
+        <nz-form-control>
+          <input
+            nz-input
+            [(ngModel)]="form.token"
+            name="token"
+            placeholder="leave blank if MACHINE_MANAGER_TOKEN is unset" />
+        </nz-form-control>
+      </nz-form-item>
+    </form>
+  </ng-container>
+</nz-modal>

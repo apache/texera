@@ -36,6 +36,7 @@ export const DASHBOARD_USER_WORKFLOW = `${DASHBOARD_USER}/workflow`;
 export const DASHBOARD_USER_DATASET = `${DASHBOARD_USER}/dataset`;
 export const DASHBOARD_USER_DATASET_CREATE = `${DASHBOARD_USER_DATASET}/create`;
 export const DASHBOARD_USER_COMPUTING_UNIT = `${DASHBOARD_USER}/compute`;
+export const DASHBOARD_USER_MACHINE = `${DASHBOARD_USER}/machines`;
 export const DASHBOARD_USER_QUOTA = `${DASHBOARD_USER}/quota`;
 export const DASHBOARD_USER_DISCUSSION = `${DASHBOARD_USER}/discussion`;
 

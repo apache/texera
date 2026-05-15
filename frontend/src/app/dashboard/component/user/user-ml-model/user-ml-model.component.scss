@@ -17,7 +17,11 @@
  * under the License.
  */
 
-export * from "./tools-utility";
-export * from "./workflow-crud-tools";
-export * from "./workflow-execution-tools";
-export * from "./machine-tools";
+@import "../../dashboard.component";
+@import "../../section-style";
+@import "../../button-style";
+
+.ml-model-menu-bar {
+  height: 55px;
+  overflow-y: hidden;
+}

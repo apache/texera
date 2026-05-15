@@ -17,7 +17,17 @@
  * under the License.
  */
 
-export * from "./tools-utility";
-export * from "./workflow-crud-tools";
-export * from "./workflow-execution-tools";
-export * from "./machine-tools";
+export interface Machine {
+  mid: number;
+  uid: number;
+  name: string;
+  url: string;
+  token?: string | null;
+  creationTime?: string;
+}
+
+export interface MachineRequest {
+  name: string;
+  url: string;
+  token?: string | null;
+}

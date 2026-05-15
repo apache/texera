@@ -82,22 +82,42 @@ object FileResolver {
     * @param fileName The file path to parse
     * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
     */
+  /** Sentinel that means "resolve to the dataset's latest version".
+    * Use it in place of the version segment, e.g. /alice/myDataset/latest/foo.csv
+    */
+  private val LATEST_VERSION_TOKEN = "latest"
+
+  /**
+    * Parse a dataset-file path. Accepts both:
+    *   4-segment: /ownerEmail/datasetName/versionName/fileRelativePath
+    *   3-segment: /ownerEmail/datasetName/fileRelativePath          (auto-latest)
+    * The 3-segment form is signalled internally by versionName == LATEST_VERSION_TOKEN.
+    */
   private def parseDatasetFilePath(
       fileName: String
   ): Option[(String, String, String, Array[String])] = {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    if (pathSegments.length < 4) {
+    if (pathSegments.length < 3) {
       return None
     }
 
     val ownerEmail = pathSegments(0)
     val datasetName = pathSegments(1)
-    val versionName = pathSegments(2)
-    val fileRelativePathSegments = pathSegments.drop(3)
 
-    Some((ownerEmail, datasetName, versionName, fileRelativePathSegments))
+    // If we have at least 4 segments AND the third segment is NOT "latest", treat it
+    // as an explicit version name; otherwise resolve to the dataset's latest version.
+    if (pathSegments.length >= 4 && pathSegments(2) != LATEST_VERSION_TOKEN) {
+      val versionName = pathSegments(2)
+      val fileRelativePathSegments = pathSegments.drop(3)
+      Some((ownerEmail, datasetName, versionName, fileRelativePathSegments))
+    } else {
+      val versionStart = if (pathSegments(2) == LATEST_VERSION_TOKEN) 3 else 2
+      val fileRelativePathSegments = pathSegments.drop(versionStart)
+      if (fileRelativePathSegments.isEmpty) return None
+      Some((ownerEmail, datasetName, LATEST_VERSION_TOKEN, fileRelativePathSegments))
+    }
   }
 
   /**
@@ -138,12 +158,23 @@ object FileResolver {
           .and(DATASET.NAME.eq(datasetName))
           .fetchOneInto(classOf[Dataset])
 
-        // fetch the dataset version from DB
-        val datasetVersion = ctx
-          .selectFrom(DATASET_VERSION)
-          .where(DATASET_VERSION.DID.eq(dataset.getDid))
-          .and(DATASET_VERSION.NAME.eq(versionName))
-          .fetchOneInto(classOf[DatasetVersion])
+        // fetch the dataset version from DB. If the caller passed the special
+        // "latest" token (or the path was 3-segment, which we normalize to "latest"),
+        // resolve to the most recently created version of this dataset.
+        val datasetVersion = if (versionName == LATEST_VERSION_TOKEN) {
+          ctx
+            .selectFrom(DATASET_VERSION)
+            .where(DATASET_VERSION.DID.eq(dataset.getDid))
+            .orderBy(DATASET_VERSION.DVID.desc())
+            .limit(1)
+            .fetchOneInto(classOf[DatasetVersion])
+        } else {
+          ctx
+            .selectFrom(DATASET_VERSION)
+            .where(DATASET_VERSION.DID.eq(dataset.getDid))
+            .and(DATASET_VERSION.NAME.eq(versionName))
+            .fetchOneInto(classOf[DatasetVersion])
+        }
 
         if (dataset == null || datasetVersion == null) {
           throw new FileNotFoundException(s"Dataset file $fileName not found.")

@@ -1,0 +1,18 @@
+[project]
+name = "machine-manager"
+version = "0.1.0"
+description = "Texera machine-manager: per-host agent that executes commands, runs Python with tuple injection, deploys code, and uploads files to Texera datasets."
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

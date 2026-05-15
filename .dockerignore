@@ -119,6 +119,9 @@ metals.sbt
 
 # Ignore Angular build output
 **/dist/
+# ...but the webserver FE overlay (bin/k8s/utils/webserver-fe-overlay.dockerfile)
+# needs the frontend bundle as build input.
+!frontend/dist
 **/.angular/cache/
 **/.nx/cache/
 

@@ -110,6 +110,17 @@
             <span>Compute</span>
           </li>
           <li
+            nz-menu-item
+            nz-tooltip="Manage registered machines"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_MACHINE">
+            <span
+              nz-icon
+              nzType="desktop"></span>
+            <span>Machines</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.quota_enabled"
             nz-menu-item
             nz-tooltip="Quota information"

@@ -90,6 +90,7 @@ import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
 import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
+import org.apache.texera.amber.operator.udf.machine.MachineUDFOpDesc
 import org.apache.texera.amber.operator.udf.python._
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import org.apache.texera.amber.operator.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
@@ -214,6 +215,7 @@ trait StateTransferFunc
     new Type(value = classOf[PythonUDFOpDescV2], name = "PythonUDFV2"),
     new Type(value = classOf[PythonUDFSourceOpDescV2], name = "PythonUDFSourceV2"),
     new Type(value = classOf[DualInputPortsPythonUDFOpDescV2], name = "DualInputPortsPythonUDFV2"),
+    new Type(value = classOf[MachineUDFOpDesc], name = "MachineUDF"),
     new Type(value = classOf[MySQLSourceOpDesc], name = "MySQLSource"),
     new Type(value = classOf[PostgreSQLSourceOpDesc], name = "PostgreSQLSource"),
     new Type(value = classOf[AsterixDBSourceOpDesc], name = "AsterixDBSource"),

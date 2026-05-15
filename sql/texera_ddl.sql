@@ -74,6 +74,7 @@ DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
 DROP TABLE IF EXISTS site_settings CASCADE;
 DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
+DROP TABLE IF EXISTS machine CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -432,6 +433,19 @@ CREATE TABLE IF NOT EXISTS computing_unit_user_access
     privilege privilege_enum NOT NULL DEFAULT 'NONE',
     PRIMARY KEY (cuid, uid),
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
+-- machine table (Texera-managed remote/local hosts running machine-manager)
+CREATE TABLE IF NOT EXISTS machine
+(
+    mid           SERIAL PRIMARY KEY,
+    uid           INT NOT NULL,
+    name          VARCHAR(128) NOT NULL,
+    url           VARCHAR(512) NOT NULL,
+    token         VARCHAR(512),
+    creation_time TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (uid, name),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
