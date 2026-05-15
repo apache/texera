@@ -35,6 +35,9 @@ header:
     - '**/.env.example'
     - '**/.prettierrc'
     - '**/bun.lock'
+    # XcodeGen-generated Xcode project files. Source of truth is
+    # `ios/project.yml`; regenerating overwrites these.
+    - 'ios/Texera.xcodeproj/**'
     # Third-party code with MIT license - see LICENSE file for attribution
     - 'common/workflow-operator/src/main/scala/com/kjetland/**'
     # TypeFox monaco-languageclient derived files (MIT License)

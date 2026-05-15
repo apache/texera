@@ -1,0 +1,53 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Texera
+options:
+  bundleIdPrefix: org.apache.texera
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CLANG_ENABLE_MODULES: YES
+
+targets:
+  Texera:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Texera
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.apache.texera.ios
+        INFOPLIST_FILE: Texera/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_PREVIEWS: YES
+        SUPPORTS_MACCATALYST: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_EMIT_LOC_STRINGS: YES
+        GENERATE_INFOPLIST_FILE: NO

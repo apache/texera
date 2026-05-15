@@ -1,0 +1,27 @@
+# Xcode build artifacts and per-user state
+# (The .xcodeproj itself IS committed — see README for project.yml regen flow.)
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.moved-aside
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# CocoaPods / Carthage (not used today, ignored defensively)
+Pods/
+Carthage/Build/
+
+# Fastlane (not used today, ignored defensively)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
