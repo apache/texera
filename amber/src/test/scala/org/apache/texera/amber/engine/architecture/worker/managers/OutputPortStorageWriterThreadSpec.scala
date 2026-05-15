@@ -32,7 +32,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable
 
-class OutputPortResultWriterThreadSpec extends AnyFlatSpec {
+class OutputPortStorageWriterThreadSpec extends AnyFlatSpec {
 
   private class StubWriter(
       onPutOne: () => Unit = () => (),
@@ -51,9 +51,9 @@ class OutputPortResultWriterThreadSpec extends AnyFlatSpec {
 
   private def throwing(msg: String): () => Unit = () => throw new RuntimeException(msg)
 
-  "OutputPortResultWriterThread" should "leave getFailure empty on a clean run" in {
+  "OutputPortStorageWriterThread" should "leave getFailure empty on a clean run" in {
     val writer = new StubWriter()
-    val thread = new OutputPortResultWriterThread(writer)
+    val thread = new OutputPortStorageWriterThread(writer)
     thread.start()
     thread.queue.put(Right(PortStorageWriterTerminateSignal))
     thread.join()
@@ -63,7 +63,7 @@ class OutputPortResultWriterThreadSpec extends AnyFlatSpec {
 
   it should "capture a close() exception in getFailure so the worker can re-throw" in {
     val writer = new StubWriter(onClose = throwing("test close failure"))
-    val thread = new OutputPortResultWriterThread(writer)
+    val thread = new OutputPortStorageWriterThread(writer)
     thread.start()
     thread.queue.put(Right(PortStorageWriterTerminateSignal))
     thread.join()
@@ -73,7 +73,7 @@ class OutputPortResultWriterThreadSpec extends AnyFlatSpec {
 
   it should "capture a putOne exception and still call close()" in {
     val writer = new StubWriter(onPutOne = throwing("test putOne failure"))
-    val thread = new OutputPortResultWriterThread(writer)
+    val thread = new OutputPortStorageWriterThread(writer)
     thread.start()
     thread.queue.put(Left(null.asInstanceOf[Tuple]))
     thread.queue.put(Right(PortStorageWriterTerminateSignal))
@@ -89,7 +89,7 @@ class OutputPortResultWriterThreadSpec extends AnyFlatSpec {
       onPutOne = throwing("test putOne failure"),
       onClose = throwing("test close failure")
     )
-    val thread = new OutputPortResultWriterThread(writer)
+    val thread = new OutputPortStorageWriterThread(writer)
     thread.start()
     thread.queue.put(Left(null.asInstanceOf[Tuple]))
     thread.queue.put(Right(PortStorageWriterTerminateSignal))
@@ -110,14 +110,14 @@ class OutputPortResultWriterThreadSpec extends AnyFlatSpec {
   private def installWriterThread(
       manager: OutputManager,
       portId: PortIdentity,
-      thread: OutputPortResultWriterThread
+      thread: OutputPortStorageWriterThread
   ): Unit = {
     val field = classOf[OutputManager]
       .getDeclaredField("outputPortResultWriterThreads")
     field.setAccessible(true)
     field
       .get(manager)
-      .asInstanceOf[mutable.HashMap[PortIdentity, OutputPortResultWriterThread]]
+      .asInstanceOf[mutable.HashMap[PortIdentity, OutputPortStorageWriterThread]]
       .put(portId, thread)
   }
 
@@ -130,7 +130,7 @@ class OutputPortResultWriterThreadSpec extends AnyFlatSpec {
     )
     val portId = PortIdentity()
     val failingWriter = new StubWriter(onClose = throwing("test close failure"))
-    val failingThread = new OutputPortResultWriterThread(failingWriter)
+    val failingThread = new OutputPortStorageWriterThread(failingWriter)
     failingThread.start()
     installWriterThread(outputManager, portId, failingThread)
     val ex = intercept[RuntimeException] {
