@@ -58,6 +58,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
 import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/markdown-description/markdown-description.component";
+import { launchRocket } from "./launch-rocket";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -811,6 +812,11 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.currentExecutionName || "Untitled Execution",
       this.config.env.workflowEmailNotificationEnabled
     );
+  }
+
+  public onRunButtonClick(): void {
+    launchRocket(document.getElementById("run-button"));
+    this.onClickRunHandler();
   }
 
   protected readonly Privilege = Privilege;
