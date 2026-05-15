@@ -336,23 +336,28 @@ describe("JointUIService", () => {
   it.todo("add unit tests for JointUIService");
 
   describe("truncateOperatorDisplayName", () => {
-    const max = JointUIService.MAX_OPERATOR_NAME_LENGTH;
+    // Deterministic measurer: 10px per character. With the 200-px budget,
+    // 20 chars fit exactly; longer strings get truncated to a prefix plus "…".
+    const measure = (text: string) => text.length * 10;
+    const budget = JointUIService.MAX_OPERATOR_NAME_PIXELS;
+    const charsThatFit = budget / 10;
 
-    it("returns the name unchanged when it is within the limit", () => {
-      const name = "a".repeat(max);
-      expect(JointUIService.truncateOperatorDisplayName(name)).toBe(name);
+    it("returns the name unchanged when it fits within the pixel budget", () => {
+      const name = "a".repeat(charsThatFit);
+      expect(JointUIService.truncateOperatorDisplayName(name, measure)).toBe(name);
     });
 
-    it("truncates and appends an ellipsis when the name exceeds the limit", () => {
-      const name = "a".repeat(max + 10);
-      const result = JointUIService.truncateOperatorDisplayName(name);
-      expect(result.length).toBe(max);
+    it("truncates and appends an ellipsis when the name exceeds the budget", () => {
+      const name = "a".repeat(charsThatFit + 10);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
       expect(result.endsWith("…")).toBe(true);
-      expect(result).toBe("a".repeat(max - 1) + "…");
+      expect(measure(result)).toBeLessThanOrEqual(budget);
+      // Ellipsis takes 10px, leaving 190px for the prefix → 19 chars.
+      expect(result).toBe("a".repeat(charsThatFit - 1) + "…");
     });
 
     it("returns an empty string unchanged", () => {
-      expect(JointUIService.truncateOperatorDisplayName("")).toBe("");
+      expect(JointUIService.truncateOperatorDisplayName("", measure)).toBe("");
     });
   });
 });

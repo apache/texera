@@ -210,13 +210,47 @@ export class JointUIService {
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
-  public static readonly MAX_OPERATOR_NAME_LENGTH = 30;
+  public static readonly MAX_OPERATOR_NAME_PIXELS = 200;
+  private static readonly OPERATOR_NAME_FONT = "14px sans-serif";
+  private static measureCtx: CanvasRenderingContext2D | null = null;
 
-  public static truncateOperatorDisplayName(name: string): string {
-    if (name.length <= JointUIService.MAX_OPERATOR_NAME_LENGTH) {
-      return name;
+  private static getMeasureContext(): CanvasRenderingContext2D | null {
+    if (JointUIService.measureCtx) return JointUIService.measureCtx;
+    if (typeof document === "undefined") return null;
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (!ctx) return null;
+    ctx.font = JointUIService.OPERATOR_NAME_FONT;
+    JointUIService.measureCtx = ctx;
+    return ctx;
+  }
+
+  public static measureOperatorNameWidth(text: string): number {
+    const ctx = JointUIService.getMeasureContext();
+    if (ctx) return ctx.measureText(text).width;
+    // Fallback for environments without canvas (SSR, jsdom-without-canvas):
+    // approximate with a per-character width close to 14px sans-serif.
+    return text.length * 7;
+  }
+
+  public static truncateOperatorDisplayName(
+    name: string,
+    measure: (text: string) => number = JointUIService.measureOperatorNameWidth
+  ): string {
+    if (!name) return name;
+    const budget = JointUIService.MAX_OPERATOR_NAME_PIXELS;
+    if (measure(name) <= budget) return name;
+    const ellipsis = "…";
+    const prefixBudget = budget - measure(ellipsis);
+    if (prefixBudget <= 0) return ellipsis;
+    // Binary-search the longest prefix that fits inside prefixBudget.
+    let lo = 0;
+    let hi = name.length;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >>> 1;
+      if (measure(name.slice(0, mid)) <= prefixBudget) lo = mid;
+      else hi = mid - 1;
     }
-    return name.slice(0, JointUIService.MAX_OPERATOR_NAME_LENGTH - 1) + "…";
+    return name.slice(0, lo) + ellipsis;
   }
 
   private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
