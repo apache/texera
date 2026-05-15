@@ -34,6 +34,7 @@ import { UntilDestroy } from "@ngneat/until-destroy";
       <button (click)="retry()">Retry</button>
     </div>
     <router-outlet *ngIf="configLoaded"></router-outlet>
+    <texera-floating-agent *ngIf="configLoaded"></texera-floating-agent>
   `,
   standalone: false,
 })

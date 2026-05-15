@@ -190,6 +190,7 @@ import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { RegistrationRequestModalComponent } from "./common/service/user/registration-request-modal/registration-request-modal.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { UserComputingUnitListItemComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit-list-item/user-computing-unit-list-item.component";
+import { FloatingAgentComponent } from "./common/component/floating-agent/floating-agent.component";
 
 registerLocaleData(en);
 
@@ -358,6 +359,7 @@ registerLocaleData(en);
     MarkdownDescriptionComponent,
     UserComputingUnitComponent,
     UserComputingUnitListItemComponent,
+    FloatingAgentComponent,
   ],
   providers: [
     provideNzI18n(en_US),

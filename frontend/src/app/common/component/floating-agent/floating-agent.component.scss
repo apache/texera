@@ -1,0 +1,367 @@
+:host {
+  --agent-accent: #1677ff;
+  --agent-error: #ff4d4f;
+  --agent-warning: #faad14;
+  --agent-success: #52c41a;
+}
+
+.floating-agent {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+
+  &.cdk-drag-dragging {
+    cursor: grabbing;
+
+    .agent-button,
+    .panel-header {
+      cursor: grabbing;
+    }
+  }
+}
+
+.agent-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--agent-accent);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  }
+
+  .agent-icon {
+    font-size: 24px;
+  }
+
+  // Pull the badge up onto the icon corner.
+  :host ::ng-deep .ant-badge-count {
+    box-shadow: 0 0 0 2px #fff;
+  }
+}
+
+.agent-panel {
+  width: 360px;
+  height: min(520px, calc(100vh - 112px));
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(135deg, var(--agent-accent), #4096ff);
+  color: #fff;
+  cursor: grab;
+
+  .panel-title {
+    font-weight: 600;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    i {
+      font-size: 18px;
+    }
+  }
+
+  .panel-header-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  button {
+    color: #fff;
+
+    &.active {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+.settings-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.settings-header {
+  margin-bottom: 16px;
+}
+
+.settings-title {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.settings-subtitle {
+  display: block;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5);
+  margin-top: 2px;
+}
+
+.settings-section {
+  margin-bottom: 8px;
+}
+
+.settings-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.65);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.settings-label {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.settings-divider {
+  margin: 12px 0 !important;
+}
+
+.panel-tabs {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+:host ::ng-deep .panel-tabs .ant-tabs-nav {
+  margin: 0 12px;
+  flex: 0 0 auto;
+}
+
+:host ::ng-deep .panel-tabs .ant-tabs-content-holder,
+:host ::ng-deep .panel-tabs .ant-tabs-content,
+:host ::ng-deep .panel-tabs .ant-tabs-tabpane {
+  min-height: 0;
+}
+
+:host ::ng-deep .panel-tabs .ant-tabs-content-holder {
+  flex: 1;
+  overflow: hidden;
+}
+
+:host ::ng-deep .panel-tabs .ant-tabs-content {
+  height: 100%;
+}
+
+:host ::ng-deep .panel-tabs .ant-tabs-tabpane-active {
+  height: 100%;
+  overflow: hidden;
+}
+
+.list-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 12px;
+}
+
+.notification-list,
+.workflows-list {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.notification-scroll,
+.workflows-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 8px;
+}
+
+.notification-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(22, 119, 255, 0.04);
+  }
+
+  &.unread {
+    background: rgba(22, 119, 255, 0.06);
+  }
+
+  &.actionable {
+    cursor: pointer;
+  }
+
+  &[data-level="error"] .item-icon {
+    color: var(--agent-error);
+  }
+  &[data-level="warning"] .item-icon {
+    color: var(--agent-warning);
+  }
+  &[data-level="success"] .item-icon {
+    color: var(--agent-success);
+  }
+  &[data-level="info"] .item-icon {
+    color: var(--agent-accent);
+  }
+}
+
+.item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.item-icon {
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 2px;
+}
+
+.item-message {
+  font-size: 12.5px;
+  color: rgba(0, 0, 0, 0.65);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.item-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.item-action {
+  margin-top: 4px;
+  padding: 0;
+  height: auto;
+  line-height: 1.2;
+  font-size: 12px;
+  font-weight: 500;
+
+  i {
+    margin-left: 4px;
+    font-size: 11px;
+  }
+}
+
+.item-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.workflow-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(22, 119, 255, 0.04);
+  }
+}
+
+.workflow-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.workflow-icon {
+  font-size: 18px;
+  margin-top: 2px;
+
+  &.spinning {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.workflow-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.workflow-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 2px;
+  word-break: break-word;
+}
+
+.workflow-meta {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.4);
+  margin-bottom: 4px;
+}
+
+.workflow-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.empty {
+  padding: 24px 8px;
+}
