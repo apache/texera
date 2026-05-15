@@ -55,17 +55,13 @@ class DeployStrategiesSpec extends AnyFlatSpec with Matchers {
     assertThrows[IndexOutOfBoundsException](strategy.next())
   }
 
-  it should "preserve its iteration cursor across re-initialization (current behavior)" in {
-    // Pin: initialize() replaces the array reference but does NOT reset the
-    // index, so a re-initialized strategy continues counting from the prior
-    // position. A future fix that zeroes index inside initialize will break
-    // this spec on purpose so the contract change is reviewed.
+  it should "reset its iteration cursor on re-initialization" in {
     val strategy = OneOnEach()
     strategy.initialize(Array(nodeA, nodeB))
     strategy.next() shouldBe nodeA
+    strategy.next() shouldBe nodeB
     strategy.initialize(Array(nodeC))
-    // index is still 1 from the previous run; the new single-element array
-    // is therefore reported as exhausted.
+    strategy.next() shouldBe nodeC
     assertThrows[IndexOutOfBoundsException](strategy.next())
   }
 
