@@ -148,19 +148,11 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             )
             self.emit_ecm("StartChannel", EmbeddedControlMessageType.NO_ALIGNMENT)
 
-            # State is broadcast to every downstream worker (no partitioner
-            # filtering, unlike the tuple loop) -- per the design comment
-            # above. Loop-specific: guard with try/except since the state
-            # document may not be provisioned on every materialization in
-            # this branch (the LoopEnd path open-or-creates it).
-            try:
-                state_document, _ = DocumentFactory.open_document(
-                    VFSURIFactory.state_uri(self.uri)
-                )
-                for state_row in state_document.get():
-                    self.emit_payload(StateFrame(State.from_tuple(state_row)))
-            except ValueError:
-                pass
+            state_document, _ = DocumentFactory.open_document(
+                VFSURIFactory.state_uri(self.uri)
+            )
+            for state_row in state_document.get():
+                self.emit_payload(StateFrame(State.from_tuple(state_row)))
 
             storage_iterator = self.materialization.get()
             # Iterate and process tuples.
