@@ -327,7 +327,10 @@
 //   });
 // });
 
-import { JointUIService } from "./joint-ui.service";
+import { of } from "rxjs";
+import * as joint from "jointjs";
+import { JointUIService, operatorNameClass } from "./joint-ui.service";
+import { OperatorPredicate } from "../../types/workflow-common.interface";
 
 describe("JointUIService", () => {
   // Pre-existing spec body is commented out. Placeholder keeps Vitest's
@@ -468,6 +471,43 @@ describe("JointUIService", () => {
         expect(measureSpy).toHaveBeenCalledTimes(2);
       } finally {
         HTMLCanvasElement.prototype.getContext = originalGetContext;
+      }
+    });
+  });
+
+  describe("changeOperatorJointDisplayName", () => {
+    it("writes the truncated caption to the joint model's text attr", () => {
+      // Stub getContext → null so the binary-search inside
+      // truncateOperatorDisplayName routes through the fallback measurer
+      // instead of spamming jsdom's "Not implemented: getContext" warning.
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      (HTMLCanvasElement.prototype as unknown as { getContext: () => null }).getContext = () => null;
+      (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+      try {
+        const attrSpy = vi.fn();
+        const getModelByIdSpy = vi.fn(() => ({ attr: attrSpy }));
+        const jointPaper = { getModelById: getModelByIdSpy } as unknown as joint.dia.Paper;
+        // changeOperatorJointDisplayName is an instance method but uses no
+        // `this` state; pass a minimal metadata stub so the constructor's
+        // subscribe doesn't throw.
+        const metadataStub = { getOperatorMetadata: () => of({ operators: [], groups: [] }) };
+        const service = new JointUIService(metadataStub as never);
+
+        const operator = { operatorID: "op-1" } as OperatorPredicate;
+        // Long enough to force truncation under the 200-px budget.
+        const longName = "abcdefghij".repeat(20);
+        service.changeOperatorJointDisplayName(operator, jointPaper, longName);
+
+        expect(getModelByIdSpy).toHaveBeenCalledWith("op-1");
+        expect(attrSpy).toHaveBeenCalledTimes(1);
+        const [selector, rendered] = attrSpy.mock.calls[0];
+        expect(selector).toBe(`.${operatorNameClass}/text`);
+        expect(typeof rendered).toBe("string");
+        expect((rendered as string).endsWith("…")).toBe(true);
+        expect((rendered as string).length).toBeLessThan(longName.length);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+        (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
       }
     });
   });

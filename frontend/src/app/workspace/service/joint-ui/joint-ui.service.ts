@@ -216,7 +216,6 @@ export class JointUIService {
 
   private static getMeasureContext(): CanvasRenderingContext2D | null {
     if (JointUIService.measureCtx) return JointUIService.measureCtx;
-    if (typeof document === "undefined") return null;
     const ctx = document.createElement("canvas").getContext("2d");
     if (!ctx) return null;
     ctx.font = JointUIService.OPERATOR_NAME_FONT;
@@ -227,8 +226,7 @@ export class JointUIService {
   public static measureOperatorNameWidth(text: string): number {
     const ctx = JointUIService.getMeasureContext();
     if (ctx) return ctx.measureText(text).width;
-    // Fallback for environments without canvas (SSR, jsdom-without-canvas):
-    // approximate with a per-character width close to 14px sans-serif.
+    // Fallback for jsdom-without-canvas: approximate at ~14px sans-serif.
     return text.length * 7;
   }
 
@@ -236,7 +234,7 @@ export class JointUIService {
   // surrogate pairs (emoji) or ZWJ sequences (e.g. family emoji, flags).
   // Falls back to code-point iteration if Intl.Segmenter is unavailable.
   private static splitGraphemes(name: string): string[] {
-    if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+    if (typeof Intl.Segmenter === "function") {
       return Array.from(new Intl.Segmenter().segment(name), s => s.segment);
     }
     return Array.from(name);
