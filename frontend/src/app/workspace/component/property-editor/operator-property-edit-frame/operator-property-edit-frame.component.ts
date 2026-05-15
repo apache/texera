@@ -195,6 +195,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       const envProperty = patchedSchema.properties["envName"] as CustomJSONSchema7;
 
       envProperty.enum = envOptions;
+
+      envProperty.default = "Default";
     }
 
     return patchedSchema;
@@ -273,9 +275,21 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
      */
     this.formData = cloneDeep(operator.operatorProperties);
 
+    // Pre-fill the PVE selection to "Default" for freshly-dropped Python UDF operators.
+    // AJV's useDefaults pass below runs against the unpatched schema, so relying on the
+    // patched-schema default isn't enough; do it directly on formData here. Existing
+    // operators that already have an envName keep their value.
+    const isPythonUdf =
+      this.currentOperatorSchema.operatorType === "PythonUDFV2" ||
+      this.currentOperatorSchema.operatorType === "DualInputPortsPythonUDFV2" ||
+      this.currentOperatorSchema.operatorType === "PythonUDFSourceV2";
+    if (isPythonUdf && !this.formData.envName) {
+      this.formData.envName = "Default";
+    }
+
     const baseSchema = cloneDeep(this.currentOperatorSchema.jsonSchema);
 
-    if (this.currentOperatorSchema.operatorType === "PythonUDFV2" || this.currentOperatorSchema.operatorType === "DualInputPortsPythonUDFV2" || this.currentOperatorSchema.operatorType === "PythonUDFSourceV2") {
+    if (isPythonUdf) {
       this.computingUnitStatusService
         .getSelectedComputingUnit()
         .pipe(
