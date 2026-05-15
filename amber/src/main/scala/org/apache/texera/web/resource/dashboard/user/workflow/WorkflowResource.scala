@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowKindEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfProjectDao,
@@ -42,7 +42,7 @@ import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneActio
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
-import org.jooq.{Condition, DSLContext, Record9, Result, SelectOnConditionStep}
+import org.jooq.{Condition, DSLContext, Record9, Result, SelectConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -185,7 +185,13 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
+  /**
+    * Base select used by the workflows tab, the hub, and other workflow
+    * listings. The `WORKFLOW.KIND = WORKFLOW` filter is baked in here so that
+    * macros (`KIND = MACRO`) never leak into endpoints meant for top-level
+    * workflows. Callers append their additional predicates with `.and(...)`.
+    */
+  def baseWorkflowSelect(): SelectConditionStep[Record9[
     Integer,
     String,
     String,
@@ -217,6 +223,7 @@ object WorkflowResource {
       .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+      .where(WORKFLOW.KIND.eq(WorkflowKindEnum.WORKFLOW))
   }
 
   def mapWorkflowEntries(
@@ -339,6 +346,7 @@ class WorkflowResource extends LazyLogging {
         .where(
           orCondition
             .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+            .and(WORKFLOW.KIND.eq(WorkflowKindEnum.WORKFLOW))
         )
         .fetch()
 
@@ -363,7 +371,7 @@ class WorkflowResource extends LazyLogging {
   ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
     val workflowEntries = baseWorkflowSelect()
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .and(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .groupBy(
         WORKFLOW.WID,
         WORKFLOW.NAME,
@@ -497,7 +505,8 @@ class WorkflowResource extends LazyLogging {
               assignNewOperatorIds(oldWorkflow.getContent),
               null,
               null,
-              false
+              false,
+              WorkflowKindEnum.WORKFLOW
             ),
             sessionUser
           )
@@ -544,7 +553,8 @@ class WorkflowResource extends LazyLogging {
         assignNewOperatorIds(oldWorkflow.getContent),
         null,
         null,
-        false
+        false,
+        WorkflowKindEnum.WORKFLOW
       ),
       sessionUser
     )

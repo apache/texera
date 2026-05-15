@@ -262,7 +262,7 @@ object HubResource {
     }
 
     val records = baseWorkflowSelect()
-      .where(WORKFLOW.WID.in(wids: _*))
+      .and(WORKFLOW.WID.in(wids: _*))
       .groupBy(
         WORKFLOW.WID,
         WORKFLOW.NAME,

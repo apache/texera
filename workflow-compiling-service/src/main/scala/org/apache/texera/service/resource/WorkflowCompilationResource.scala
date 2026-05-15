@@ -25,6 +25,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
 import org.apache.texera.amber.compiler.WorkflowCompiler
+import org.apache.texera.amber.compiler.macroOp.DbMacroRegistry
 import org.apache.texera.amber.compiler.model.LogicalPlanPojo
 import org.apache.texera.amber.core.tuple.Attribute
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
@@ -68,8 +69,10 @@ class WorkflowCompilationResource extends LazyLogging {
     // a placeholder workflow context, as compiling a workflow doesn't require a wid from the frontend
     val context = new WorkflowContext(workflowId = WorkflowIdentity(0))
 
-    // Compile the pojo using WorkflowCompiler
-    val compilationResult = new WorkflowCompiler(context).compile(logicalPlanPojo)
+    // Compile the pojo using WorkflowCompiler. The DB-backed registry resolves
+    // any LIVE-mode macro instances against the `workflow` table.
+    val compilationResult =
+      new WorkflowCompiler(context, new DbMacroRegistry()).compile(logicalPlanPojo)
 
     val operatorOutputSchemas = compilationResult.operatorIdToOutputSchemas.map {
       case (operatorIdentity, schemas) =>
