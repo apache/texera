@@ -197,8 +197,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       envProperty.enum = envOptions;
     }
 
-    console.log("patched env property", patchedSchema.properties?.["envName"]);
-
     return patchedSchema;
   }
 
