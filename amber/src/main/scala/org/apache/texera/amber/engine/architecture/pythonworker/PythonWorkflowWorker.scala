@@ -170,9 +170,6 @@ class PythonWorkflowWorker(
       if (pythonENVPath.trim.isEmpty || pythonENVPath.trim == "Default") "python3"
       else pythonENVPath
 
-    // Prefer the cuid threaded through WorkerConfig (set from the user's selected
-    // computing unit). Fall back to the TEXERA_CUID env var for k8s / docker deployments
-    // where the pod env carries the cuid instead.
     val cuidOpt = workerConfig.cuid
       .orElse(sys.env.get("TEXERA_CUID").flatMap(s => scala.util.Try(s.toInt).toOption))
     val pveName = workerConfig.pveName.trim
