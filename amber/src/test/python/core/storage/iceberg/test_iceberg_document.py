@@ -24,6 +24,7 @@ from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from core.models import Schema, Tuple
+from core.models.state import State
 from core.storage.document_factory import DocumentFactory
 from core.storage.storage_config import StorageConfig
 from core.storage.vfs_uri_factory import VFSURIFactory
@@ -49,6 +50,7 @@ StorageConfig.initialize(
     rest_catalog_uri="http://localhost:8181/catalog/",
     rest_catalog_warehouse_name="texera",
     table_result_namespace="operator-port-result",
+    table_state_namespace="operator-port-state",
     directory_path=tempfile.mkdtemp(prefix="texera-iceberg-warehouse-"),
     commit_batch_size=4096,
     s3_endpoint="http://localhost:9000",
@@ -81,17 +83,21 @@ class TestIcebergDocument:
         with a random operator id
         """
         operator_uuid = str(uuid.uuid4()).replace("-", "")
-        uri = VFSURIFactory.create_result_uri(
-            WorkflowIdentity(id=0),
-            ExecutionIdentity(id=0),
-            GlobalPortIdentity(
-                op_id=PhysicalOpIdentity(
-                    logical_op_id=OperatorIdentity(id=f"test-table-{operator_uuid}"),
-                    layer_name="main",
+        uri = VFSURIFactory.result_uri(
+            VFSURIFactory.create_port_base_uri(
+                WorkflowIdentity(id=0),
+                ExecutionIdentity(id=0),
+                GlobalPortIdentity(
+                    op_id=PhysicalOpIdentity(
+                        logical_op_id=OperatorIdentity(
+                            id=f"test-table-{operator_uuid}"
+                        ),
+                        layer_name="main",
+                    ),
+                    port_id=PortIdentity(id=0),
+                    input=False,
                 ),
-                port_id=PortIdentity(id=0),
-                input=False,
-            ),
+            )
         )
         DocumentFactory.create_document(uri, amber_schema)
         document, _ = DocumentFactory.open_document(uri)
@@ -322,3 +328,85 @@ class TestIcebergDocument:
         assert iceberg_document.get_count() == len(sample_items), (
             "get_count should return the same number as the length of sample_items"
         )
+
+    def test_state_materialization_round_trip(self):
+        operator_uuid = str(uuid.uuid4()).replace("-", "")
+        base_uri = VFSURIFactory.create_port_base_uri(
+            WorkflowIdentity(id=0),
+            ExecutionIdentity(id=0),
+            GlobalPortIdentity(
+                op_id=PhysicalOpIdentity(
+                    logical_op_id=OperatorIdentity(id=f"test-state-{operator_uuid}"),
+                    layer_name="main",
+                ),
+                port_id=PortIdentity(id=0),
+                input=False,
+            ),
+        )
+        state_uri = VFSURIFactory.state_uri(base_uri)
+        DocumentFactory.create_document(state_uri, State.SCHEMA)
+        document, _ = DocumentFactory.open_document(state_uri)
+
+        state = State(
+            {
+                "loop_counter": 3,
+                "name": "outer-loop",
+                "payload": b"\x00\x01state-bytes",
+                "nested": {"enabled": True, "values": [1, 2, 3]},
+            }
+        )
+
+        writer = document.writer(str(uuid.uuid4()))
+        writer.open()
+        writer.put_one(state.to_tuple())
+        writer.close()
+
+        stored_rows = list(document.get())
+        assert len(stored_rows) == 1
+        assert State.from_tuple(stored_rows[0]) == state
+
+    def test_multiple_states_materialize_as_rows_in_one_table(self):
+        operator_uuid = str(uuid.uuid4()).replace("-", "")
+        base_uri = VFSURIFactory.create_port_base_uri(
+            WorkflowIdentity(id=0),
+            ExecutionIdentity(id=0),
+            GlobalPortIdentity(
+                op_id=PhysicalOpIdentity(
+                    logical_op_id=OperatorIdentity(
+                        id=f"test-multiple-states-{operator_uuid}"
+                    ),
+                    layer_name="main",
+                ),
+                port_id=PortIdentity(id=0),
+                input=False,
+            ),
+        )
+        state_uri = VFSURIFactory.state_uri(base_uri)
+        DocumentFactory.create_document(state_uri, State.SCHEMA)
+        document, _ = DocumentFactory.open_document(state_uri)
+
+        states = [
+            State({"loop_counter": 0, "i": 1, "payload": b"first"}),
+            State(
+                {
+                    "loop_counter": 1,
+                    "i": 2,
+                    "payload": b"second",
+                    "nested": {"values": [3, 4]},
+                }
+            ),
+        ]
+
+        writer = document.writer(str(uuid.uuid4()))
+        writer.open()
+        for state in states:
+            writer.put_one(state.to_tuple())
+        writer.close()
+
+        stored_rows = list(document.get())
+        assert len(stored_rows) == len(states)
+        actual_states = sorted(
+            [State.from_tuple(row) for row in stored_rows],
+            key=lambda state: state["loop_counter"],
+        )
+        assert actual_states == states
