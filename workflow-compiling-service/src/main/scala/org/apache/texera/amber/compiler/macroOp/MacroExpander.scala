@@ -35,8 +35,9 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 // Pre-compile pass: walks a LogicalPlan, inlines every MacroOpDesc by splicing its
 // body's inner operators and links into the parent, and produces a flat LogicalPlan
 // with no MacroOpDesc / MacroInputOp / MacroOutputOp nodes. Inner-op IDs are rewritten
-// to "${macroInstanceId}/${innerOpId}" so telemetry can be aggregated per macro
+// to "${macroInstanceId}--${innerOpId}" so telemetry can be aggregated per macro
 // purely from the operator-ID prefix — the physical-plan layer remains macro-unaware.
+// Note: "--" is chosen over "/" because "/" breaks VFS URI path parsing.
 object MacroExpander {
 
   def expand(plan: LogicalPlan, registry: MacroRegistry): LogicalPlan =
@@ -135,7 +136,7 @@ object MacroExpander {
     // (originalId → prefixedId) captured before mutating the cloned ops.
     val idRewrite: Map[OperatorIdentity, OperatorIdentity] = innerOps.map { op =>
       val originalId = op.operatorIdentifier
-      val newId = s"$instanceId/${op.operatorIdentifier.id}"
+      val newId = s"$instanceId--${op.operatorIdentifier.id}"
       op.setOperatorId(newId)
       originalId -> op.operatorIdentifier
     }.toMap

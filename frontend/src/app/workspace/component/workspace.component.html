@@ -23,6 +23,19 @@
     [nzSize]="'large'"
     nzTip="Loading workflow..."></nz-spin>
 </div>
+<div
+  *ngIf="macroEditMode"
+  class="macro-edit-banner">
+  <span class="macro-edit-banner__label">Editing Macro</span>
+  <span class="macro-edit-banner__name">{{ macroEditName }}</span>
+  <a
+    *ngIf="parentWorkflowId"
+    class="macro-edit-banner__back"
+    [href]="'/dashboard/user/workflow/' + parentWorkflowId"
+    title="Return to parent workflow">
+    ← Back to parent
+  </a>
+</div>
 <div id="result">
   <texera-result-panel></texera-result-panel>
 </div>

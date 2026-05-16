@@ -274,6 +274,15 @@ export class ValidationWorkflowService {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
 
+    // Macro operators embed a complex JSON schema that references all operator types
+    // (via MacroBody.operators: List[LogicalOp]). AJV cannot reliably compile or
+    // validate against it on the frontend. Macro properties are always set by
+    // internal code and are validated by the backend during compilation, so
+    // skip AJV here and let connection validation alone determine validity.
+    if (operator.operatorType === "Macro") {
+      return { isValid: true };
+    }
+
     // try to fetch dynamic schema first
     const operatorSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (operatorSchema === undefined) {

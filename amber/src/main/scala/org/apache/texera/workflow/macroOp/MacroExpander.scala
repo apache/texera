@@ -36,9 +36,9 @@ import org.apache.texera.workflow.{LogicalLink, LogicalPlan}
 // inlines every MacroOpDesc by splicing its body's inner operators and links
 // into the parent, and produces a flat LogicalPlan with no MacroOpDesc /
 // MacroInputOp / MacroOutputOp nodes. Inner-op IDs are rewritten to
-// "${macroInstanceId}/${innerOpId}" so telemetry can be aggregated per macro
+// "${macroInstanceId}--${innerOpId}" so telemetry can be aggregated per macro
 // purely from the operator-ID prefix — the physical-plan layer remains
-// macro-unaware.
+// macro-unaware. "--" is used instead of "/" to avoid breaking VFS URI paths.
 //
 // Mirrors the compiling-service MacroExpander; the two operate on their own
 // LogicalLink/LogicalPlan classes and will converge once those types are
@@ -137,7 +137,7 @@ object MacroExpander {
 
     val idRewrite: Map[OperatorIdentity, OperatorIdentity] = innerOps.map { op =>
       val originalId = op.operatorIdentifier
-      val newId = s"$instanceId/${op.operatorIdentifier.id}"
+      val newId = s"$instanceId--${op.operatorIdentifier.id}"
       op.setOperatorId(newId)
       originalId -> op.operatorIdentifier
     }.toMap

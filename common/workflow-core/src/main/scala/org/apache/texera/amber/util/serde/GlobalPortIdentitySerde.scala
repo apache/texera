@@ -50,6 +50,10 @@ object GlobalPortIdentitySerde {
         s"logicalOpId must not contain '_' (VFS URI parsing relies on this): $logicalOpId"
       )
       require(
+        !logicalOpId.contains('/'),
+        s"logicalOpId must not contain '/' (breaks VFS URI path structure): $logicalOpId"
+      )
+      require(
         !layerName.contains('_'),
         s"layerName must not contain '_' (VFS URI parsing relies on this): $layerName"
       )

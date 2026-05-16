@@ -57,3 +57,57 @@ texera-workflow-editor {
 :host {
   user-select: none;
 }
+
+// Pinned banner shown when the canvas is rendering a macro body via the
+// drill-down route (/workflow/:id/macro/:macroId). Sits above the menu so the
+// user can't miss that they're editing a macro definition, not the parent
+// workflow. Same z-index family as `texera-menu` (z: 1) but +1 to stay above.
+.macro-edit-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 100%;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(90deg, #1d6fdb 0%, #4a90e2 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+
+  &__label {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 11px;
+    opacity: 0.85;
+  }
+
+  &__name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  &__back {
+    margin-left: auto;
+    color: #ffffff;
+    text-decoration: underline;
+    font-size: 12px;
+    opacity: 0.9;
+    cursor: pointer;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+// Push the regular menu down so the banner doesn't overlap it.
+:host {
+  .macro-edit-banner + #result,
+  .macro-edit-banner ~ texera-menu {
+    margin-top: 32px;
+  }
+}

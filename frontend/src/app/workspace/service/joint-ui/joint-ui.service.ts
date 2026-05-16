@@ -272,6 +272,10 @@ export class JointUIService {
     // set operator element ID to be operator ID
     operatorElement.set("id", operator.operatorID);
     operatorElement.set("z", 1);
+    // Stash the type so type-conditional restyling (e.g. preserving the macro
+    // border across validation updates) can read it without going back to
+    // WorkflowActionService.
+    operatorElement.set("operatorType", operator.operatorType);
 
     // set the input ports and output ports based on operator predicate
     operator.inputPorts.forEach(port =>
@@ -465,10 +469,21 @@ export class JointUIService {
    * @param isOperatorValid
    */
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
-    if (isOperatorValid) {
-      jointPaper.getModelById(operatorID).attr("rect.body/stroke", "#CFCFCF");
+    const model = jointPaper.getModelById(operatorID);
+    if (!model) return;
+    if (!isOperatorValid) {
+      model.attr("rect.body/stroke", "red");
+      return;
+    }
+    // Preserve the macro-specific stroke for valid macro nodes; otherwise use
+    // the generic neutral grey applied to regular operators.
+    const operatorType = model.get("operatorType");
+    if (operatorType === "Macro") {
+      model.attr("rect.body/stroke", "#1d6fdb");
+    } else if (operatorType === "MacroInput" || operatorType === "MacroOutput") {
+      model.attr("rect.body/stroke", "#888888");
     } else {
-      jointPaper.getModelById(operatorID).attr("rect.body/stroke", "red");
+      model.attr("rect.body/stroke", "#CFCFCF");
     }
   }
 
@@ -693,6 +708,17 @@ export class JointUIService {
     operatorType: string,
     operatorFriendlyName: string
   ): joint.shapes.devs.ModelSelectors {
+    // Visual treatment for macro-related nodes:
+    //  - Macro instance: thicker stroke + dashed pattern to read as "container"
+    //  - MacroInput/MacroOutput: thin stroke; rounded so they read as port pads
+    //    rather than operator boxes (further reduction handled in their own
+    //    auto-layout pass — we keep the JointJS element shape but tone it down)
+    const isMacroInstance = operator.operatorType === "Macro";
+    const isMacroMarker = operator.operatorType === "MacroInput" || operator.operatorType === "MacroOutput";
+    const bodyStroke = isMacroInstance ? "#1d6fdb" : isMacroMarker ? "#888888" : "red";
+    const bodyStrokeWidth = isMacroInstance ? "3" : isMacroMarker ? "1" : "2";
+    const bodyStrokeDasharray = isMacroInstance ? "6,3" : undefined;
+    const bodyRadius = isMacroMarker ? "20px" : "5px";
     return {
       ".texera-operator-coeditor-editing": {
         text: "",
@@ -786,10 +812,11 @@ export class JointUIService {
       "rect.body": {
         fill: JointUIService.getOperatorFillColor(operator),
         "follow-scale": true,
-        stroke: "red",
-        "stroke-width": "2",
-        rx: "5px",
-        ry: "5px",
+        stroke: bodyStroke,
+        "stroke-width": bodyStrokeWidth,
+        ...(bodyStrokeDasharray ? { "stroke-dasharray": bodyStrokeDasharray } : {}),
+        rx: bodyRadius,
+        ry: bodyRadius,
       },
       "rect.boundary": {
         fill: "rgba(0, 0, 0, 0)",
@@ -818,7 +845,10 @@ export class JointUIService {
         "ref-y": -10,
       },
       ".texera-operator-name": {
-        text: operatorDisplayName,
+        // Markers don't get a display-name label — they are visual port pads,
+        // not operators. The friendly-name above the box already reads e.g.
+        // "Input 0" / "Output 0", which is enough.
+        text: isMacroMarker ? "" : operatorDisplayName,
         fill: "#595959",
         "font-size": "14px",
         "ref-x": 0.5,
@@ -829,8 +859,9 @@ export class JointUIService {
       },
       ".texera-operator-friendly-name": {
         text: operatorFriendlyName,
-        fill: "#888888",
-        "font-size": "10px",
+        fill: isMacroMarker ? "#5a5a5a" : "#888888",
+        "font-size": isMacroMarker ? "12px" : "10px",
+        "font-weight": isMacroMarker ? "600" : "normal",
         "ref-x": 0.5,
         "ref-y": -12,
         ref: "rect.body",
@@ -935,7 +966,15 @@ export class JointUIService {
 
   public static getOperatorFillColor(operator: OperatorPredicate): string {
     const isDisabled = operator.isDisabled ?? false;
-    return isDisabled ? "#E0E0E0" : "#FFFFFF";
+    if (isDisabled) return "#E0E0E0";
+    // Visually distinguish macro-related operators from regular ones so users
+    // can tell at a glance whether they're looking at a composite (Macro) or
+    // a boundary marker (MacroInput/MacroOutput) that's effectively a port.
+    if (operator.operatorType === "Macro") return "#E8F1FF"; // soft blue body
+    if (operator.operatorType === "MacroInput" || operator.operatorType === "MacroOutput") {
+      return "#EDEDED"; // muted grey — markers are "infrastructure," not real ops
+    }
+    return "#FFFFFF";
   }
 
   public static getOperatorCacheDisplayText(

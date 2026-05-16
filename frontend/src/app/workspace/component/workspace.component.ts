@@ -91,6 +91,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
+  // Macro drill-down state — drives the banner above the canvas so users know
+  // they're editing a macro body rather than a normal workflow.
+  public macroEditMode: boolean = false;
+  public macroEditName: string = "";
+  public parentWorkflowId?: string;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
 
   /**
@@ -286,6 +291,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         ({ detail }) => {
+          this.macroEditMode = true;
+          this.macroEditName = detail.name;
+          this.parentWorkflowId = this.route.snapshot.params.id ?? "";
           const macroWorkflow = this.macroService.macroDetailToWorkflow(detail);
           // Clear the canvas before reloading. Angular reuses WorkspaceComponent
           // across route changes (no ngOnDestroy fires when going from
@@ -346,6 +354,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         // Re-enable persist in case we just came back from a macro drill-down,
         // which disables it.
         this.workflowPersistService.setWorkflowPersistFlag(true);
+        this.macroEditMode = false;
+        this.macroEditName = "";
+        this.parentWorkflowId = undefined;
         this.loadWorkflowWithId(Number(wid));
         return;
       }

@@ -85,7 +85,17 @@ export class OperatorMetadataService {
     }
     const obj = node as Record<string, unknown>;
     if (obj["nullable"] === true && obj["type"] === undefined) {
-      delete obj["nullable"];
+      if (obj["$ref"] !== undefined) {
+        // "nullable: true, $ref: X" — Ajv ignores $ref siblings under Draft-07 strict
+        // rules. Convert to anyOf so that null AND the referenced type are both valid.
+        // This preserves round-trip properties that serialize Option[T] as null.
+        const ref = obj["$ref"];
+        delete obj["nullable"];
+        delete obj["$ref"];
+        obj["anyOf"] = [{ type: "null" }, { $ref: ref }];
+      } else {
+        delete obj["nullable"];
+      }
     }
     for (const key of ["properties", "definitions", "patternProperties"]) {
       const dict = obj[key];
