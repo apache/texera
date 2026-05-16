@@ -19,6 +19,80 @@
 
 #workflow-editor-wrapper {
   height: 100%;
+  position: relative;
+}
+
+.genesis-empty-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 360px;
+  width: calc(100% - 48px);
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: #6b7280;
+  opacity: 0.72;
+  padding: 28px 24px;
+  border-radius: 12px;
+  border: 1px dashed transparent;
+  background: transparent;
+  transition:
+    opacity 250ms ease-out,
+    border-color 250ms ease-out,
+    background 250ms ease-out,
+    color 250ms ease-out;
+  z-index: 5;
+}
+
+.genesis-empty-hint--dragging {
+  opacity: 1;
+  border-color: rgba(30, 64, 175, 0.45);
+  background: rgba(245, 247, 255, 0.85);
+  color: #1e3a8a;
+}
+
+.genesis-empty-hint__icon {
+  display: flex;
+  justify-content: center;
+  color: #1e40af;
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+
+.genesis-empty-hint__title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #1f2937;
+  letter-spacing: -0.01em;
+}
+
+.genesis-empty-hint__desc {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+.genesis-empty-hint__pills {
+  font-size: 12px;
+  color: #9ca3af;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+}
+
+.genesis-empty-hint__sep {
+  margin: 0 6px;
+  color: #d1d5db;
 }
 
 #workflow-editor {

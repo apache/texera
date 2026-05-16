@@ -108,6 +108,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     position: { x: number; y: number };
   } | null = null;
 
+  // BioFlow Genesis empty-canvas hint state
+  public showEmptyHint = false;
+  public isFileDragging = false;
+
   // Cached agent result summaries for port label display
 
   constructor(
@@ -205,6 +209,62 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.invokeResize();
     this.handleCenterEvent();
     this.handleOperatorChatButton();
+    this.handleGenesisEmptyHint();
+  }
+
+  /**
+   * Show a subtle BioFlow Genesis hint when the canvas has no operators.
+   * Hint fades out as soon as any operator is added (statically or by an agent).
+   */
+  private handleGenesisEmptyHint(): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    const refresh = () => {
+      const hasOperators = graph.getAllOperators().length > 0;
+      const next = !hasOperators;
+      if (next !== this.showEmptyHint) {
+        this.showEmptyHint = next;
+        this.changeDetectorRef.detectChanges();
+      }
+    };
+    refresh();
+
+    merge(graph.getOperatorAddStream(), graph.getOperatorDeleteStream())
+      .pipe(untilDestroyed(this))
+      .subscribe(() => refresh());
+
+    const setDragging = (dragging: boolean) => {
+      if (dragging === this.isFileDragging) {
+        return;
+      }
+      this.isFileDragging = dragging;
+      this.changeDetectorRef.detectChanges();
+    };
+
+    const hasFiles = (e: DragEvent) => {
+      const types = e.dataTransfer?.types;
+      if (!types) {
+        return false;
+      }
+      return Array.from(types as unknown as Iterable<string>).includes("Files");
+    };
+
+    fromEvent<DragEvent>(this.editorWrapper, "dragenter")
+      .pipe(untilDestroyed(this))
+      .subscribe(e => {
+        if (hasFiles(e)) {
+          setDragging(true);
+        }
+      });
+    fromEvent<DragEvent>(this.editorWrapper, "dragleave")
+      .pipe(untilDestroyed(this))
+      .subscribe(e => {
+        if (!e.relatedTarget || !(e.relatedTarget as Node).contains?.(e.target as Node)) {
+          setDragging(false);
+        }
+      });
+    fromEvent<DragEvent>(this.editorWrapper, "drop")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => setDragging(false));
   }
 
   ngOnDestroy(): void {

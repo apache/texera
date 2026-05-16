@@ -17,7 +17,20 @@
  under the License.
 -->
 
-<div class="section-container subsection-grid-container">
+<div class="workflow-section-wrapper">
+  <button
+    type="button"
+    class="genesis-hero-banner"
+    (click)="onClickGenesisLearnMore()"
+    aria-label="Learn more about BioFlow Genesis">
+    <span class="genesis-hero-banner__sparkle">✨</span>
+    <span class="genesis-hero-banner__text">
+      Drag any CSV to auto-build a workflow with AI
+    </span>
+    <span class="genesis-hero-banner__cta">Learn more →</span>
+  </button>
+
+  <div class="section-container subsection-grid-container workflow-section-grid">
   <nz-card class="section-title">
     <h2 class="page-title">Workflows</h2>
     <div class="button-group">
@@ -161,4 +174,5 @@
     (duplicated)="onClickDuplicateWorkflow($event)"
     [currentUid]="currentUid"
     (notifyWorkflow)="updateTooltip()"></texera-search-results>
+  </div>
 </div>

@@ -1,0 +1,82 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<div
+  class="genesis-card"
+  [class.genesis-card--hidden]="!visible"
+  tabindex="0">
+  <button
+    type="button"
+    class="genesis-card__close"
+    (click)="onCancel()"
+    aria-label="Close">
+    ✕
+  </button>
+
+  <h2 class="genesis-card__title">
+    🧬 {{ data.analyze.dataset_summary || data.analyze.detected_scenario }}
+  </h2>
+  <p class="genesis-card__meta">
+    {{ displayRowCount }} rows · {{ data.upload.columns.length }} columns · Confidence
+    {{ (data.analyze.confidence * 100) | number : "1.0-0" }}%
+  </p>
+  <p class="genesis-card__target" *ngIf="data.analyze.target_column as tc">
+    Primary target column: {{ tc }}
+  </p>
+
+  <div class="genesis-card__divider"></div>
+
+  <p class="genesis-card__section-title">Recommended analyses:</p>
+
+  <div class="genesis-card__suggestions">
+    <button
+      type="button"
+      class="genesis-card__choice"
+      *ngFor="let s of suggestions; let i = index"
+      (click)="pickIndex(i)">
+      <span class="genesis-card__choice-key">{{ ["A", "B", "C"][i] }}</span>
+      <span class="genesis-card__choice-title">{{ s.title }}</span>
+      <span class="genesis-card__choice-desc">{{ s.description }}</span>
+      <span class="genesis-card__choice-hint">
+        <svg
+          class="genesis-card__choice-hint-icon"
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true">
+          <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
+        </svg>
+        <span>AI-built · ~10s</span>
+      </span>
+    </button>
+  </div>
+
+  <p class="genesis-card__hint">💡 Press A/B/C or click to select</p>
+
+  <button
+    type="button"
+    class="genesis-card__skip"
+    (click)="onSkip()">
+    Skip - I'll do it myself
+  </button>
+</div>

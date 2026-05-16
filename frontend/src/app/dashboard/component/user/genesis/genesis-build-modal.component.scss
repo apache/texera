@@ -1,0 +1,147 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.genesis-build-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.78);
+}
+
+.genesis-build-modal__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(24, 144, 255, 0.25);
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  animation: genesis-spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+.genesis-build-modal__title {
+  font-size: 14px;
+}
+
+.genesis-build-modal__dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin-left: 2px;
+  height: 14px;
+
+  span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #1890ff;
+    opacity: 0.4;
+    animation: genesis-dot 1.2s ease-in-out infinite;
+  }
+
+  span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+.genesis-build-modal__intro {
+  margin: 0 0 12px;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.genesis-build-modal__log {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fafafa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 12px;
+}
+
+.genesis-build-modal__line {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  word-break: break-word;
+  // each newly-appended line fades + slides in
+  animation: genesis-line-in 220ms ease-out both;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.is-latest {
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.82);
+    animation:
+      genesis-line-in 220ms ease-out both,
+      genesis-pulse 1.6s ease-in-out 220ms infinite;
+  }
+}
+
+.genesis-build-modal__placeholder {
+  color: rgba(0, 0, 0, 0.35);
+  font-style: italic;
+  animation: genesis-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes genesis-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes genesis-dot {
+  0%, 80%, 100% { opacity: 0.4; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+@keyframes genesis-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes genesis-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+// Respect reduced-motion preferences — kill the looping animations but keep
+// the fade-in for new lines (still tasteful).
+@media (prefers-reduced-motion: reduce) {
+  .genesis-build-modal__spinner,
+  .genesis-build-modal__dots span,
+  .genesis-build-modal__line.is-latest,
+  .genesis-build-modal__placeholder {
+    animation: none;
+  }
+}

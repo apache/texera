@@ -17,12 +17,17 @@
  * under the License.
  */
 
-@import "../../dashboard.component.scss";
-@import "../../section-style";
-@import "../../button-style";
-@import "./genesis-hero-banner";
+import { CommonModule } from "@angular/common";
+import { Component, inject } from "@angular/core";
+import { GenesisBuildProgressService } from "../../../service/user/genesis/genesis-build-progress.service";
 
-::ng-deep .ant-badge-dot {
-  right: 8px;
-  top: 5px;
+@Component({
+  selector: "texera-genesis-build-modal",
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: "./genesis-build-modal.component.html",
+  styleUrls: ["./genesis-build-modal.component.scss"],
+})
+export class GenesisBuildModalComponent {
+  readonly progress = inject(GenesisBuildProgressService);
 }

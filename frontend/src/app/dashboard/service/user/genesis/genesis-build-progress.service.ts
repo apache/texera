@@ -17,12 +17,19 @@
  * under the License.
  */
 
-@import "../../dashboard.component.scss";
-@import "../../section-style";
-@import "../../button-style";
-@import "./genesis-hero-banner";
+import { Injectable, signal } from "@angular/core";
 
-::ng-deep .ant-badge-dot {
-  right: 8px;
-  top: 5px;
+@Injectable({
+  providedIn: "root",
+})
+export class GenesisBuildProgressService {
+  readonly lines = signal<string[]>([]);
+
+  public clear(): void {
+    this.lines.set([]);
+  }
+
+  public addLine(text: string): void {
+    this.lines.update(lines => [...lines, text]);
+  }
 }

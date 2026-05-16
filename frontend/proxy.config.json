@@ -1,4 +1,10 @@
 {
+  "/api/genesis/*": {
+    "target": "http://localhost:9099",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
   "/api/agents/*/react": {
     "target": "http://localhost:3001",
     "secure": false,
