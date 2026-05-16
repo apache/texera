@@ -55,7 +55,7 @@ class LoopStartOpDesc extends LogicalOp {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Loop Start",
-      "Loop Start",
+      "Begin a loop that iterates over rows of the input table; pairs with Loop End.",
       OperatorGroupConstants.CONTROL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())

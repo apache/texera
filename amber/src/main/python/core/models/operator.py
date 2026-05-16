@@ -316,5 +316,5 @@ class LoopEndOperator(TableOperator):
         yield table
 
     @abstractmethod
-    def condition(self) -> None:
+    def condition(self) -> bool:
         pass

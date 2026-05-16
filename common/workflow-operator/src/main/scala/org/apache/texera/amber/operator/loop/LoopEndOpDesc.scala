@@ -55,7 +55,7 @@ class LoopEndOpDesc extends LogicalOp {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Loop End",
-      "Loop End",
+      "Close a loop body and decide whether to iterate again based on a condition; pairs with Loop Start.",
       OperatorGroupConstants.CONTROL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
