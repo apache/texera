@@ -40,6 +40,41 @@
 
 <div id="spacer"></div>
 
+<!-- "Suggest Macros (AI)" panel — heuristic v1 (no LLM call). Shows ranked
+     candidate sub-DAGs to encapsulate, with a one-line rationale each. -->
+<div class="suggest-macros">
+  <button
+    class="suggest-macros__trigger"
+    [disabled]="!canModify || isSuggesting"
+    (click)="onSuggestMacros()">
+    <span class="suggest-macros__icon">✨</span>
+    <span *ngIf="!isSuggesting">Suggest Macros (AI)</span>
+    <span *ngIf="isSuggesting">Analyzing workflow…</span>
+  </button>
+  <div *ngIf="suggestions.length > 0" class="suggest-macros__panel">
+    <div class="suggest-macros__header">
+      <span>{{ suggestions.length }} candidate{{ suggestions.length === 1 ? '' : 's' }}</span>
+      <button
+        class="suggest-macros__close"
+        (click)="dismissSuggestions()"
+        title="dismiss">
+        ×
+      </button>
+    </div>
+    <div
+      *ngFor="let suggestion of suggestions"
+      class="suggest-macros__item"
+      (click)="onMaterializeSuggestion(suggestion)"
+      [title]="suggestion.rationale">
+      <div class="suggest-macros__name">{{ suggestion.suggestedName }}</div>
+      <div class="suggest-macros__rationale">{{ suggestion.rationale }}</div>
+      <div class="suggest-macros__meta">
+        {{ suggestion.operatorIds.length }} ops &middot; score {{ suggestion.score.toFixed(1) }}
+      </div>
+    </div>
+  </div>
+</div>
+
 <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames, depth: 0 }"></ng-container>
 
 <!-- "Your Macros" section — user's saved macros. Clicking adds the macro

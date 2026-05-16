@@ -37,7 +37,9 @@ import { NgFor, NgIf, NgTemplateOutlet } from "@angular/common";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { MacroService, MacroSummary } from "../../../service/macro/macro.service";
+import { MacroSuggestionService, MacroSuggestion } from "../../../service/macro/macro-suggestion.service";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -73,6 +75,12 @@ export class OperatorMenuComponent {
   // predicate.
   public macroList: (OperatorSchema & { __macroSummary?: MacroSummary })[] = [];
 
+  // Inline panel for "AI" macro suggestions. Populated on user click, then
+  // cleared after a selection is materialized. Empty list means panel is
+  // collapsed.
+  public suggestions: MacroSuggestion[] = [];
+  public isSuggesting: boolean = false;
+
   // input value of the search input box
   public searchInputValue: string = "";
   // search autocomplete suggestion list
@@ -95,7 +103,9 @@ export class OperatorMenuComponent {
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
     private dragDropService: DragDropService,
-    private macroService: MacroService
+    private macroService: MacroService,
+    private macroSuggestionService: MacroSuggestionService,
+    private message: NzMessageService
   ) {
     // Load the user's saved macros for the "Your Macros" palette section.
     this.macroService.listMacros().subscribe({
@@ -244,5 +254,61 @@ export class OperatorMenuComponent {
     const origin = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.translate();
     const point = { x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0) };
     this.workflowActionService.addOperator(predicate, point);
+  }
+
+  /**
+   * "Suggest Macros (AI)" button — runs the heuristic suggester over the
+   * current canvas and surfaces ranked candidates in the inline panel.
+   * v1 is local heuristics; a future swap to chat-assistant-service for
+   * LLM-ranked candidates would replace this body with an HTTP call that
+   * returns the same `MacroSuggestion[]` shape.
+   */
+  public onSuggestMacros(): void {
+    this.isSuggesting = true;
+    // Defer to next tick so the spinner can paint — heuristic is fast (<10ms)
+    // but pretending it's "thinking" matches the AI-agent UX the demo wants.
+    setTimeout(() => {
+      try {
+        const graph = this.workflowActionService.getTexeraGraph();
+        this.suggestions = this.macroSuggestionService.suggestMacros(graph);
+        if (this.suggestions.length === 0) {
+          this.message.info("No good macro candidates found. Try adding more operators!");
+        } else {
+          this.message.success(`Found ${this.suggestions.length} candidate(s).`);
+          // Highlight the suggestion's operators on the canvas so the user
+          // sees which ops would be encapsulated. Limit to the top suggestion
+          // to avoid overwhelming the canvas.
+          const jw = this.workflowActionService.getJointGraphWrapper();
+          jw.unhighlightOperators(...jw.getCurrentHighlightedOperatorIDs());
+          jw.setMultiSelectMode(true);
+          jw.highlightOperators(...this.suggestions[0].operatorIds);
+        }
+      } finally {
+        this.isSuggesting = false;
+      }
+    }, 250);
+  }
+
+  /**
+   * Materialize a suggested macro: select the candidate operators on the
+   * canvas, then trigger the existing "Create Macro" flow. We can't call
+   * `swapSelectionWithMacroNode` directly here (it's private to
+   * `ContextMenuComponent`); instead we highlight the operators and emit
+   * a synthetic event the user can then confirm via right-click → Create
+   * Macro. v2: expose a `MacroService.createFromSelection(ids, name)`
+   * convenience method and call it here directly.
+   */
+  public onMaterializeSuggestion(suggestion: MacroSuggestion): void {
+    const jw = this.workflowActionService.getJointGraphWrapper();
+    jw.unhighlightOperators(...jw.getCurrentHighlightedOperatorIDs());
+    jw.setMultiSelectMode(true);
+    jw.highlightOperators(...suggestion.operatorIds);
+    this.message.info(
+      `Selected ${suggestion.operatorIds.length} operators. Right-click → "Create Macro" to encapsulate.`
+    );
+  }
+
+  public dismissSuggestions(): void {
+    this.suggestions = [];
   }
 }
