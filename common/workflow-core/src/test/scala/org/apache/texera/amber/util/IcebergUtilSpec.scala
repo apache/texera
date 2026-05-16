@@ -300,7 +300,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(IcebergUtil.fromRecord(record, schema) == tuple)
   }
 
-  it should "build REST catalog properties without S3 settings" in {
+  it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {
     // Property Map is built before any network call. With or without
     // Lakekeeper reachable, .initialize surfaces a RESTException — the
     // failure is on the server side, not from Map composition.
