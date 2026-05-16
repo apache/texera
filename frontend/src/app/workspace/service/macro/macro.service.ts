@@ -32,6 +32,7 @@ import {
 import { PortIdentity } from "../../types/execute-workflow.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { v4 as uuid } from "uuid";
 
 // Per-instance runtime mapping from the macro's external ports back to the
@@ -125,8 +126,120 @@ interface MacroBody {
 export class MacroService {
   constructor(
     private http: HttpClient,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private workflowUtilService: WorkflowUtilService
   ) {}
+
+  /**
+   * Convenience: take a selection of operators, build a macro definition
+   * from them via `buildMacroFromSelection`, POST to `createMacro`, and on
+   * success replace the selection on the canvas with a single Macro op.
+   * Returns the `MacroDetail` so callers can chain on it (e.g. surface a
+   * toast / update local state).
+   *
+   * Mirrors `ContextMenuComponent.onCreateMacro` + `swapSelectionWithMacroNode`
+   * so that callers without right-click access (e.g. the
+   * suggestMacros panel's "materialize" action) can do the same thing.
+   */
+  public createMacroFromSelection(
+    workflowActionService: WorkflowActionService,
+    selectedOperatorIDs: readonly string[],
+    name: string
+  ): Observable<MacroDetail> {
+    const built = this.buildMacroFromSelection(workflowActionService, selectedOperatorIDs, name);
+    return this.createMacro(built.request).pipe(
+      tap(detail =>
+        this.swapSelectionWithMacroNode(workflowActionService, detail, selectedOperatorIDs, built)
+      )
+    );
+  }
+
+  /**
+   * Replace the selected operators on the canvas with a single Macro op
+   * pointing at the just-created definition. Extracted from
+   * `ContextMenuComponent.swapSelectionWithMacroNode` so it can be
+   * called from the suggestMacros materialize action too.
+   */
+  private swapSelectionWithMacroNode(
+    workflowActionService: WorkflowActionService,
+    detail: MacroDetail,
+    selectedOpIDs: readonly string[],
+    built: {
+      incomingEdges: { externalOpId: string; externalPortID: string; macroPortIndex: number }[];
+      outgoingEdges: { externalOpId: string; externalPortID: string; macroPortIndex: number }[];
+      inputPortCount: number;
+      outputPortCount: number;
+    }
+  ): void {
+    const inputPorts = Array.from({ length: built.inputPortCount }, (_, i) => ({
+      portID: `input-${i}`,
+      displayName: `in-${i}`,
+      disallowMultiInputs: false,
+      isDynamicPort: false,
+      dependencies: [],
+    }));
+    const outputPorts = Array.from({ length: built.outputPortCount }, (_, i) => ({
+      portID: `output-${i}`,
+      displayName: `out-${i}`,
+      disallowMultiInputs: false,
+      isDynamicPort: false,
+    }));
+    const macroPredicate: OperatorPredicate = {
+      operatorID: `Macro-operator-${this.workflowUtilService.getOperatorRandomUUID()}`,
+      operatorType: "Macro",
+      operatorVersion: "",
+      operatorProperties: {
+        macroId: detail.wid.toString(),
+        macroVersion: 1,
+        linkMode: "LIVE",
+        inputPortCount: built.inputPortCount,
+        outputPortCount: built.outputPortCount,
+        displayName: detail.name,
+      },
+      inputPorts,
+      outputPorts,
+      showAdvanced: false,
+      isDisabled: false,
+      customDisplayName: detail.name,
+      dynamicInputPorts: false,
+      dynamicOutputPorts: false,
+    };
+    const jointWrapper = workflowActionService.getJointGraphWrapper();
+    const positions = selectedOpIDs
+      .map(id => {
+        try {
+          return jointWrapper.getElementPosition(id);
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((p): p is Point => !!p);
+    const centroid: Point =
+      positions.length > 0
+        ? {
+            x: positions.reduce((sum, p) => sum + p.x, 0) / positions.length,
+            y: positions.reduce((sum, p) => sum + p.y, 0) / positions.length,
+          }
+        : { x: 200, y: 200 };
+    workflowActionService.getTexeraGraph().bundleActions(() => {
+      workflowActionService.addOperator(macroPredicate, centroid);
+      workflowActionService.deleteOperatorsAndLinks(Array.from(selectedOpIDs));
+      built.incomingEdges.forEach(edge =>
+        workflowActionService.addLink({
+          linkID: this.workflowUtilService.getLinkRandomUUID(),
+          source: { operatorID: edge.externalOpId, portID: edge.externalPortID },
+          target: { operatorID: macroPredicate.operatorID, portID: `input-${edge.macroPortIndex}` },
+        })
+      );
+      built.outgoingEdges.forEach(edge =>
+        workflowActionService.addLink({
+          linkID: this.workflowUtilService.getLinkRandomUUID(),
+          source: { operatorID: macroPredicate.operatorID, portID: `output-${edge.macroPortIndex}` },
+          target: { operatorID: edge.externalOpId, portID: edge.externalPortID },
+        })
+      );
+    });
+  }
 
   // Cached per-definition body bindings, keyed by `${macroId}` (the macro
   // definition's wid). Each entry is a hot Observable so multiple subscribers

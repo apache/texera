@@ -290,22 +290,26 @@ export class OperatorMenuComponent {
   }
 
   /**
-   * Materialize a suggested macro: select the candidate operators on the
-   * canvas, then trigger the existing "Create Macro" flow. We can't call
-   * `swapSelectionWithMacroNode` directly here (it's private to
-   * `ContextMenuComponent`); instead we highlight the operators and emit
-   * a synthetic event the user can then confirm via right-click → Create
-   * Macro. v2: expose a `MacroService.createFromSelection(ids, name)`
-   * convenience method and call it here directly.
+   * Materialize a suggested macro directly: call
+   * `MacroService.createMacroFromSelection` to build the definition, POST
+   * it, and swap the selection on the canvas with a single Macro op — same
+   * shape the right-click → Create Macro path produces. Pre-fix this only
+   * highlighted+selected the operators and asked the user to right-click;
+   * doing it inline removes one step from the demo and reads more like an
+   * agent action.
    */
   public onMaterializeSuggestion(suggestion: MacroSuggestion): void {
-    const jw = this.workflowActionService.getJointGraphWrapper();
-    jw.unhighlightOperators(...jw.getCurrentHighlightedOperatorIDs());
-    jw.setMultiSelectMode(true);
-    jw.highlightOperators(...suggestion.operatorIds);
-    this.message.info(
-      `Selected ${suggestion.operatorIds.length} operators. Right-click → "Create Macro" to encapsulate.`
-    );
+    const proposedName = suggestion.suggestedName || `macro-${Date.now()}`;
+    const name = window.prompt("Macro name", proposedName);
+    if (!name) return;
+    this.macroService.createMacroFromSelection(this.workflowActionService, suggestion.operatorIds, name).subscribe({
+      next: detail => {
+        this.message.success(`Created macro "${detail.name}" (wid=${detail.wid})`);
+        // Clear the suggestions panel — the candidate is now materialized.
+        this.suggestions = [];
+      },
+      error: err => this.message.error(`Failed to create macro: ${err?.message ?? err}`),
+    });
   }
 
   public dismissSuggestions(): void {
