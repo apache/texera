@@ -109,9 +109,15 @@ export class MacroSuggestionService {
   ): Map<string, number> {
     const m = new Map<string, number>();
     for (const op of ops) m.set(op.operatorID, 0);
+    // Only count a link if BOTH endpoints are in the filtered `ops` set —
+    // otherwise a Filter whose upstream is a Macro gets inDeg=1, blocking
+    // it from being detected as a chain head. The intent of the filtered
+    // view is "ignore macros entirely", which means edges incident on a
+    // macro have no degree contribution to the non-macro nodes.
+    const inOps = new Set(ops.map(o => o.operatorID));
     for (const link of links) {
+      if (!inOps.has(link.source.operatorID) || !inOps.has(link.target.operatorID)) continue;
       const endId = link[end].operatorID;
-      if (!m.has(endId)) continue; // link touches a Macro/marker, skip
       m.set(endId, (m.get(endId) ?? 0) + 1);
     }
     return m;
@@ -129,9 +135,14 @@ export class MacroSuggestionService {
     inDeg: Map<string, number>,
     outDeg: Map<string, number>
   ): string[][] {
+    // Build the adjacency over the FILTERED graph — only edges where both
+    // endpoints are non-macro count. Same rationale as `computeDegrees`:
+    // we want to treat the macro-free subgraph as if macros never existed.
     const adjOut = new Map<string, string[]>();
+    const inOps = new Set(ops.map(o => o.operatorID));
     for (const op of ops) adjOut.set(op.operatorID, []);
     for (const link of links) {
+      if (!inOps.has(link.source.operatorID) || !inOps.has(link.target.operatorID)) continue;
       const list = adjOut.get(link.source.operatorID);
       if (list) list.push(link.target.operatorID);
     }
@@ -141,7 +152,8 @@ export class MacroSuggestionService {
       if (visited.has(op.operatorID)) continue;
       // Heads: nodes whose predecessor isn't part of a continuing linear
       // chain (in-degree != 1 or predecessor has out-degree > 1).
-      const isHead = (inDeg.get(op.operatorID) ?? 0) !== 1 || this.predIsBranching(op.operatorID, links, outDeg);
+      const isHead =
+        (inDeg.get(op.operatorID) ?? 0) !== 1 || this.predIsBranching(op.operatorID, links, outDeg, inOps);
       if (!isHead) continue;
       const chain: string[] = [];
       let cur: string | undefined = op.operatorID;
@@ -160,8 +172,18 @@ export class MacroSuggestionService {
     return chains;
   }
 
-  private predIsBranching(opId: string, links: readonly OperatorLink[], outDeg: Map<string, number>): boolean {
-    const preds = links.filter(l => l.target.operatorID === opId).map(l => l.source.operatorID);
+  private predIsBranching(
+    opId: string,
+    links: readonly OperatorLink[],
+    outDeg: Map<string, number>,
+    inOps: Set<string>
+  ): boolean {
+    // Same as `computeDegrees`: only consider predecessors that are
+    // themselves non-macro. A macro upstream of a non-macro op is treated
+    // as "no predecessor" from the chain detector's perspective.
+    const preds = links
+      .filter(l => l.target.operatorID === opId && inOps.has(l.source.operatorID))
+      .map(l => l.source.operatorID);
     if (preds.length !== 1) return true;
     return (outDeg.get(preds[0]) ?? 0) > 1;
   }
