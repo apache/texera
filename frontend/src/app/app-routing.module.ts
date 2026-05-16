@@ -37,6 +37,8 @@ import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gma
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { UserAgentComponent } from "./dashboard/component/user/user-agent/user-agent.component";
+import { UserDashboardComponent } from "./dashboard/component/user/user-dashboard/user-dashboard.component";
+import { DashboardEditorComponent } from "./dashboard/component/user/user-dashboard/dashboard-editor/dashboard-editor.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowHubListComponent } from "./hub/component/workflow-hub/workflow-hub-list/workflow-hub-list.component";
 import { WorkflowHubDetailComponent } from "./hub/component/workflow-hub/workflow-hub-detail/workflow-hub-detail.component";
@@ -163,6 +165,14 @@ routes.push({
         {
           path: "discussion",
           component: FlarumComponent,
+        },
+        {
+          path: "dashboards",
+          component: UserDashboardComponent,
+        },
+        {
+          path: "dashboards/:id/edit",
+          component: DashboardEditorComponent,
         },
       ],
     },

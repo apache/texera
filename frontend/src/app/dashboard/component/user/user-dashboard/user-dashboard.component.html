@@ -1,0 +1,88 @@
+<div class="dashboard-list-page">
+  <header class="page-header">
+    <div>
+      <h1>My Dashboards</h1>
+      <p class="subtitle">Build presentable visualization boards from your workflow results.</p>
+    </div>
+    <button
+      nz-button
+      nzType="primary"
+      class="create-btn"
+      (click)="openCreate()">
+      <span nz-icon nzType="plus"></span>
+      Create Dashboard
+    </button>
+  </header>
+
+  <div
+    *ngIf="showCreateForm"
+    class="create-card">
+    <h3>New Dashboard</h3>
+    <label>Name
+      <input
+        nz-input
+        [(ngModel)]="newName"
+        placeholder="e.g. Customer Churn Analysis"
+        autofocus />
+    </label>
+    <label>Description (optional)
+      <input
+        nz-input
+        [(ngModel)]="newDescription"
+        placeholder="Short description for collaborators" />
+    </label>
+    <div class="create-actions">
+      <button nz-button (click)="cancelCreate()">Cancel</button>
+      <button
+        nz-button
+        nzType="primary"
+        [disabled]="!newName.trim()"
+        (click)="confirmCreate()">
+        Create
+      </button>
+    </div>
+  </div>
+
+  <div
+    *ngIf="dashboards.length === 0; else cards"
+    class="empty">
+    <span nz-icon nzType="dashboard" class="empty-icon"></span>
+    <h3>No dashboards yet</h3>
+    <p>Create one to start building presentation-ready views of your results.</p>
+  </div>
+
+  <ng-template #cards>
+    <div class="card-grid">
+      <div
+        *ngFor="let d of dashboards"
+        class="card"
+        (click)="openEditor(d.id)">
+        <div class="card-header">
+          <h3 class="card-title">{{ d.name }}</h3>
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            class="delete-btn"
+            nz-popconfirm
+            nzPopconfirmTitle="Delete this dashboard?"
+            nzPopconfirmPlacement="left"
+            (nzOnConfirm)="remove(d.id)"
+            (click)="$event.stopPropagation()">
+            <span nz-icon nzType="delete"></span>
+          </button>
+        </div>
+        <p
+          *ngIf="d.description"
+          class="card-desc">
+          {{ d.description }}
+        </p>
+        <div class="card-meta">
+          <span>{{ widgetCount(d) }} widget{{ widgetCount(d) === 1 ? '' : 's' }}</span>
+          <span>·</span>
+          <span>updated {{ timeAgo(d.updatedAt) }}</span>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</div>

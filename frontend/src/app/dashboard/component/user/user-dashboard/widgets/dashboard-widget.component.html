@@ -1,0 +1,160 @@
+<div class="widget" [ngSwitch]="widget.type">
+  <!-- Metric Card -->
+  <ng-container *ngSwitchCase="'metric'">
+    <div class="metric">
+      <div class="metric-header">
+        <span *ngIf="metric.icon" class="metric-icon" [style.color]="metric.color || '#7c5cff'">{{ metric.icon }}</span>
+        <span class="metric-title">{{ metric.title }}</span>
+      </div>
+      <div class="metric-value" [style.color]="metric.color || '#ffffff'">{{ metric.value }}</div>
+      <div *ngIf="metric.caption" class="metric-caption">{{ metric.caption }}</div>
+    </div>
+  </ng-container>
+
+  <!-- Bar Chart -->
+  <ng-container *ngSwitchCase="'bar'">
+    <div class="widget-title">{{ bar.title }}</div>
+    <div class="bar-legend">
+      <span class="legend-item" *ngFor="let s of bar.series">
+        <span class="legend-swatch" [style.background]="s.color"></span>
+        <span class="legend-label">{{ s.name }}</span>
+      </span>
+    </div>
+    <svg [attr.viewBox]="'0 0 ' + BAR_CHART_WIDTH + ' ' + BAR_CHART_HEIGHT" class="chart-svg">
+      <g class="axis">
+        <line
+          *ngFor="let t of barYTicks"
+          [attr.x1]="BAR_PAD.left"
+          [attr.x2]="BAR_PAD.left + barPlotWidth"
+          [attr.y1]="t.y"
+          [attr.y2]="t.y"
+          class="grid-line" />
+        <text
+          *ngFor="let t of barYTicks"
+          [attr.x]="BAR_PAD.left - 8"
+          [attr.y]="t.y + 4"
+          class="tick-label"
+          text-anchor="end">
+          {{ t.label }}
+        </text>
+      </g>
+      <g *ngFor="let g of barGroups; let gi = index">
+        <rect
+          *ngFor="let b of g.bars"
+          [attr.x]="b.x"
+          [attr.y]="b.y"
+          [attr.width]="b.w"
+          [attr.height]="b.h"
+          [attr.fill]="b.color"
+          rx="2" />
+        <text
+          [attr.x]="g.x"
+          [attr.y]="BAR_CHART_HEIGHT - BAR_PAD.bottom + 18"
+          class="tick-label"
+          text-anchor="middle">
+          {{ bar.categories[gi] }}
+        </text>
+      </g>
+    </svg>
+  </ng-container>
+
+  <!-- Donut Chart -->
+  <ng-container *ngSwitchCase="'donut'">
+    <div class="widget-title">{{ donut.title }}</div>
+    <div class="donut-wrap">
+      <svg
+        [attr.viewBox]="'0 0 ' + DONUT_SIZE + ' ' + DONUT_SIZE"
+        class="donut-svg">
+        <g [attr.transform]="'translate(' + (DONUT_SIZE/2) + ',' + (DONUT_SIZE/2) + ') rotate(-90)'">
+          <circle [attr.r]="DONUT_RADIUS" fill="none" stroke="#2a2a3e" [attr.stroke-width]="DONUT_STROKE" />
+          <circle
+            *ngFor="let s of donutSlices"
+            [attr.r]="DONUT_RADIUS"
+            fill="none"
+            [attr.stroke]="s.color"
+            [attr.stroke-width]="DONUT_STROKE"
+            [attr.stroke-dasharray]="s.dashArray"
+            [attr.stroke-dashoffset]="s.dashOffset" />
+        </g>
+        <text
+          *ngIf="donut.centerLabel"
+          [attr.x]="DONUT_SIZE/2"
+          [attr.y]="DONUT_SIZE/2 + 6"
+          text-anchor="middle"
+          class="donut-center">
+          {{ donut.centerLabel }}
+        </text>
+      </svg>
+      <ul class="donut-legend">
+        <li *ngFor="let s of donutSlices">
+          <span class="legend-swatch" [style.background]="s.color"></span>
+          <span class="legend-label">{{ s.label }}</span>
+          <span class="legend-value">{{ (s.pct * 100) | number:'1.0-1' }}%</span>
+        </li>
+      </ul>
+    </div>
+  </ng-container>
+
+  <!-- Horizontal Bar Chart -->
+  <ng-container *ngSwitchCase="'hbar'">
+    <div class="widget-title">{{ hbar.title }}</div>
+    <svg
+      [attr.viewBox]="'0 0 ' + HBAR_WIDTH + ' ' + hbarSvgHeight"
+      class="chart-svg">
+      <g *ngFor="let r of hbarRows; let i = index">
+        <text
+          [attr.x]="HBAR_LABEL_WIDTH - 8"
+          [attr.y]="i * HBAR_ROW_HEIGHT + HBAR_ROW_HEIGHT / 2 + 5"
+          class="tick-label"
+          text-anchor="end">
+          {{ r.label }}
+        </text>
+        <rect
+          [attr.x]="HBAR_LABEL_WIDTH"
+          [attr.y]="i * HBAR_ROW_HEIGHT + 4"
+          [attr.width]="hbarPlotWidth"
+          [attr.height]="HBAR_ROW_HEIGHT - 8"
+          rx="3"
+          fill="#2a2a3e" />
+        <rect
+          [attr.x]="HBAR_LABEL_WIDTH"
+          [attr.y]="i * HBAR_ROW_HEIGHT + 4"
+          [attr.width]="r.barWidth"
+          [attr.height]="HBAR_ROW_HEIGHT - 8"
+          rx="3"
+          [attr.fill]="hbar.color || '#7c5cff'" />
+        <text
+          [attr.x]="HBAR_LABEL_WIDTH + r.barWidth + 8"
+          [attr.y]="i * HBAR_ROW_HEIGHT + HBAR_ROW_HEIGHT / 2 + 5"
+          class="tick-label-strong">
+          {{ r.valueLabel }}
+        </text>
+      </g>
+    </svg>
+  </ng-container>
+
+  <!-- Text / Notes -->
+  <ng-container *ngSwitchCase="'text'">
+    <div class="widget-title">{{ text.title }}</div>
+    <div class="text-body">{{ text.body }}</div>
+  </ng-container>
+
+  <!-- Table -->
+  <ng-container *ngSwitchCase="'table'">
+    <div class="widget-title">{{ table.title }}</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th *ngFor="let c of table.columns">{{ c }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of table.rows">
+            <td *ngFor="let cell of row">{{ cell }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+</div>

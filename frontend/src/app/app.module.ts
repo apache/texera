@@ -55,6 +55,8 @@ import { UserService } from "./common/service/user/user.service";
 import { GuiConfigService } from "./common/service/gui-config.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
+import { UserDashboardComponent } from "./dashboard/component/user/user-dashboard/user-dashboard.component";
+import { DashboardEditorComponent } from "./dashboard/component/user/user-dashboard/dashboard-editor/dashboard-editor.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
 import { WorkflowExecutionHistoryComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
@@ -285,6 +287,8 @@ registerLocaleData(en);
     UserAvatarComponent,
     LocalLoginComponent,
     UserWorkflowComponent,
+    UserDashboardComponent,
+    DashboardEditorComponent,
     UserQuotaComponent,
     RowModalComponent,
     OperatorLabelComponent,

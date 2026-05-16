@@ -1,0 +1,100 @@
+<div class="add-widget-modal">
+  <div *ngIf="step === 'pick'" class="step picker">
+    <h3>Add a widget</h3>
+    <p class="hint">Pick a widget type. You can edit its data on the next step.</p>
+    <div class="type-grid">
+      <button
+        *ngFor="let t of widgetTypes"
+        class="type-card"
+        (click)="pick(t.type)">
+        <span nz-icon [nzType]="t.icon" class="type-icon"></span>
+        <span class="type-label">{{ t.label }}</span>
+        <span class="type-desc">{{ t.description }}</span>
+      </button>
+    </div>
+    <div class="footer">
+      <button nz-button (click)="cancel()">Cancel</button>
+    </div>
+  </div>
+
+  <div *ngIf="step === 'configure'" class="step configure">
+    <div class="header">
+      <button nz-button nzType="text" (click)="back()">
+        <span nz-icon nzType="arrow-left"></span>
+      </button>
+      <h3>Configure {{ selectedType }}</h3>
+    </div>
+
+    <div *ngIf="selectedType === 'metric'" class="form">
+      <label>Title<input nz-input [(ngModel)]="metric.title" /></label>
+      <label>Value<input nz-input [(ngModel)]="metric.value" placeholder="e.g. 96.7% or 768" /></label>
+      <label>Caption (optional)<input nz-input [(ngModel)]="metric.caption" /></label>
+      <label>Color<input nz-input [(ngModel)]="metric.color" placeholder="#4cc9f0" /></label>
+    </div>
+
+    <div *ngIf="selectedType === 'bar'" class="form">
+      <label>Title<input nz-input [(ngModel)]="bar.title" /></label>
+      <label>Categories (comma-separated)
+        <input nz-input [(ngModel)]="barCategoriesRaw" />
+      </label>
+      <label>Series — one per line: <code>name | color | v1, v2, v3</code>
+        <textarea
+          nz-input
+          [(ngModel)]="barSeriesRaw"
+          rows="4"></textarea>
+      </label>
+      <label>Y-axis label (optional)<input nz-input [(ngModel)]="bar.yAxisLabel" /></label>
+    </div>
+
+    <div *ngIf="selectedType === 'donut'" class="form">
+      <label>Title<input nz-input [(ngModel)]="donut.title" /></label>
+      <label>Segments — one per line: <code>label | value | color</code>
+        <textarea
+          nz-input
+          [(ngModel)]="donutSegmentsRaw"
+          rows="4"></textarea>
+      </label>
+      <label>Center label (optional)<input nz-input [(ngModel)]="donut.centerLabel" /></label>
+    </div>
+
+    <div *ngIf="selectedType === 'hbar'" class="form">
+      <label>Title<input nz-input [(ngModel)]="hbar.title" /></label>
+      <label>Items — one per line: <code>label | value</code>
+        <textarea
+          nz-input
+          [(ngModel)]="hbarItemsRaw"
+          rows="5"></textarea>
+      </label>
+      <label>Bar color<input nz-input [(ngModel)]="hbar.color" placeholder="#7c5cff" /></label>
+    </div>
+
+    <div *ngIf="selectedType === 'text'" class="form">
+      <label>Title<input nz-input [(ngModel)]="text.title" /></label>
+      <label>Body
+        <textarea
+          nz-input
+          [(ngModel)]="text.body"
+          rows="6"
+          placeholder="Free-form notes, findings, callouts. Newlines preserved."></textarea>
+      </label>
+    </div>
+
+    <div *ngIf="selectedType === 'table'" class="form">
+      <label>Title<input nz-input [(ngModel)]="table.title" /></label>
+      <label>Columns (comma-separated)
+        <input nz-input [(ngModel)]="tableColumnsRaw" />
+      </label>
+      <label>Rows — one per line, cells comma-separated
+        <textarea
+          nz-input
+          [(ngModel)]="tableRowsRaw"
+          rows="5"></textarea>
+      </label>
+    </div>
+
+    <div class="footer">
+      <button nz-button (click)="cancel()">Cancel</button>
+      <button nz-button nzType="primary" (click)="submit()">Add Widget</button>
+    </div>
+  </div>
+</div>

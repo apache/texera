@@ -1,0 +1,95 @@
+.add-widget-modal {
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .hint {
+    margin: 0;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .type-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .type-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 14px 16px;
+    background: #fafafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, transform 0.15s, background 0.15s;
+
+    &:hover {
+      border-color: #7c5cff;
+      background: #f5f3ff;
+      transform: translateY(-1px);
+    }
+    .type-icon {
+      font-size: 20px;
+      color: #7c5cff;
+    }
+    .type-label {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .type-desc {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+  }
+
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: #6b7280;
+
+      code {
+        font-size: 11px;
+        background: #f3f4f6;
+        padding: 1px 4px;
+        border-radius: 3px;
+        color: #374151;
+      }
+    }
+    textarea {
+      font-family: ui-monospace, "SFMono-Regular", monospace;
+      font-size: 12px;
+    }
+  }
+
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+  }
+}
