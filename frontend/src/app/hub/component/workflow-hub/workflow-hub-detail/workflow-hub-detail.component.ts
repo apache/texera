@@ -22,6 +22,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowHubService } from "../workflow-hub.service";
 import { WorkflowHubEntry } from "../workflow-hub.types";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -40,7 +42,8 @@ export class WorkflowHubDetailComponent implements OnInit {
     private router: Router,
     private hubService: WorkflowHubService,
     private workflowPersistService: WorkflowPersistService,
-    private message: NzMessageService
+    private message: NzMessageService,
+    private config: GuiConfigService
   ) {}
 
   ngOnInit(): void {
@@ -86,36 +89,52 @@ export class WorkflowHubDetailComponent implements OnInit {
   forkWorkflow(): void {
     if (!this.entry || this.forking) return;
     this.forking = true;
+    const entry = this.entry;
+    const forkName = `[Fork] ${entry.title}`;
 
-    const proceedWithLocalFork = () => {
-      // Fallback path: no backend wid available — record the fork count and route to a new local workspace.
-      this.hubService.recordFork(this.entry!.id);
-      this.message.success(`Forked "${this.entry!.title}" — open in workspace to start editing.`);
+    const onSuccess = (newWid: number | undefined) => {
+      this.hubService.recordFork(entry.id);
+      this.message.success(`Forked "${entry.title}" to your workflows.`);
       this.forking = false;
-      this.router.navigate(["/dashboard/user/workflow"]);
+      if (newWid !== undefined) {
+        this.router.navigate(["/dashboard/user/workflow", newWid]);
+      } else {
+        this.router.navigate(["/dashboard/user/workflow"]);
+      }
     };
 
-    if (this.entry.workflowId !== undefined) {
-      this.workflowPersistService.duplicateWorkflow([this.entry.workflowId]).subscribe({
-        next: dupes => {
-          this.hubService.recordFork(this.entry!.id);
-          this.message.success(`Forked "${this.entry!.title}" to your workflows.`);
-          this.forking = false;
-          const newWid = dupes?.[0]?.workflow?.wid;
-          if (newWid !== undefined) {
-            this.router.navigate(["/dashboard/user/workflow", newWid]);
-          } else {
-            this.router.navigate(["/dashboard/user/workflow"]);
-          }
-        },
-        error: () => {
-          this.message.warning("Fork via backend failed — falling back to local copy.");
-          proceedWithLocalFork();
-        },
+    const onError = (err: unknown) => {
+      this.forking = false;
+      console.error("Workflow fork failed", err);
+      this.message.error("Could not create the forked workflow. Are you signed in?");
+    };
+
+    if (entry.workflowId !== undefined) {
+      this.workflowPersistService.duplicateWorkflow([entry.workflowId]).subscribe({
+        next: dupes => onSuccess(dupes?.[0]?.workflow?.wid),
+        error: onError,
       });
     } else {
-      proceedWithLocalFork();
+      // Seed entry — no backend wid. Create a real workflow with empty content so
+      // the user can open it, see it in their Workflows page, and start editing.
+      this.workflowPersistService.createWorkflow(this.buildEmptyContent(), forkName).subscribe({
+        next: created => onSuccess(created?.workflow?.wid),
+        error: onError,
+      });
     }
+  }
+
+  private buildEmptyContent(): WorkflowContent {
+    return {
+      operators: [],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: {
+        dataTransferBatchSize: this.config.env?.defaultDataTransferBatchSize ?? 400,
+        executionMode: this.config.env?.defaultExecutionMode ?? ExecutionMode.PIPELINED,
+      },
+    };
   }
 
   get publishedDateLabel(): string {
