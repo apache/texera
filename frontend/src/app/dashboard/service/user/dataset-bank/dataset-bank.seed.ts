@@ -327,7 +327,7 @@ export const SEED_DATASETS: BankDataset[] = [
     name: "Human Protein Atlas",
     source: "dknet",
     description: "Protein expression profiles across human tissues, cell lines, and pathology samples.",
-    url: "https://www.proteinatlas.org/",
+    url: "https://dknet.org/about/RRID/SCR_006710",
     tags: ["proteomics", "biology"],
     categories: ["biomedical"],
     sizeLabel: "varies",

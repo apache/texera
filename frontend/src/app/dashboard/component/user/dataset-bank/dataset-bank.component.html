@@ -96,12 +96,22 @@
 
         <div class="card-actions">
           <a
+            class="card-action card-action-view"
+            [href]="d.url"
+            target="_blank"
+            rel="noopener"
+            nz-tooltip
+            [nzTooltipTitle]="'Open the original ' + sourceLabel[d.source] + ' page in a new tab'">
+            <span nz-icon nzType="link"></span>
+            <span>View on {{ sourceLabel[d.source] }}</span>
+          </a>
+          <a
             class="card-action card-action-download"
             [href]="downloadHref(d)"
             target="_blank"
             rel="noopener"
             nz-tooltip
-            nzTooltipTitle="Open the source page or direct download in a new tab">
+            nzTooltipTitle="Open the direct download (or source page if no direct URL) in a new tab">
             <span nz-icon nzType="download"></span>
             <span>Download</span>
           </a>

@@ -191,8 +191,8 @@
 
 .card-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
   margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid #f0f0f0;
@@ -202,15 +202,38 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   height: 28px;
+  padding: 0 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.card-action-view {
+  background: transparent;
+  color: #555;
+  border: 1px solid #d9d9d9;
+  text-decoration: none;
+  min-width: 0;
+
+  // Truncate long source names ("View on dkNET" etc.) before they push siblings.
+  span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover {
+    color: #1677ff;
+    border-color: #1677ff;
+    background: #f0f7ff;
+  }
 }
 
 .card-action-download {
