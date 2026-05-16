@@ -134,6 +134,52 @@
   }
 }
 
+.fuse-all-trigger {
+  width: 100%;
+  padding: 7px 12px;
+  margin: 6px 0;
+  background: linear-gradient(90deg, #d4a017 0%, #f4c437 100%);
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: filter 0.1s;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &__icon {
+    font-size: 14px;
+  }
+}
+
+.your-macros-filter {
+  width: 100%;
+  padding: 4px 8px;
+  margin: 4px 0 6px;
+  font-size: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  outline: none;
+  transition: border-color 0.1s;
+
+  &:focus {
+    border-color: #1d6fdb;
+  }
+}
+
 .your-macros-toolbar {
   margin: 8px 0 4px;
   display: flex;

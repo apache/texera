@@ -38,6 +38,10 @@ import { OperatorLabelComponent } from "./operator-label/operator-label.componen
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { MacroService, MacroSummary } from "../../../service/macro/macro.service";
 import { MacroSuggestionService, MacroSuggestion } from "../../../service/macro/macro-suggestion.service";
+import { MacroFusionService } from "../../../service/macro/macro-fusion.service";
+import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
+import { forkJoin, of } from "rxjs";
+import { catchError } from "rxjs/operators";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
 
@@ -74,6 +78,16 @@ export class OperatorMenuComponent {
   // inputPortCount, outputPortCount when instantiating the operator
   // predicate.
   public macroList: (OperatorSchema & { __macroSummary?: MacroSummary })[] = [];
+  // Search-box filter applied to `macroList` in the template. Case-insensitive
+  // substring match on the macro's display name. Empty string = show all.
+  public macroFilterText: string = "";
+  public get filteredMacroList(): (OperatorSchema & { __macroSummary?: MacroSummary })[] {
+    const q = this.macroFilterText.trim().toLowerCase();
+    if (q.length === 0) return this.macroList;
+    return this.macroList.filter(m =>
+      (m.additionalMetadata.userFriendlyName || "").toLowerCase().includes(q)
+    );
+  }
 
   // Inline panel for "AI" macro suggestions. Populated on user click, then
   // cleared after a selection is materialized. Empty list means panel is
@@ -111,6 +125,8 @@ export class OperatorMenuComponent {
     private dragDropService: DragDropService,
     private macroService: MacroService,
     private macroSuggestionService: MacroSuggestionService,
+    private macroFusionService: MacroFusionService,
+    private jointUIService: JointUIService,
     private message: NzMessageService
   ) {
     // Load the user's saved macros for the "Your Macros" palette section.
@@ -442,6 +458,93 @@ export class OperatorMenuComponent {
       jw.highlightOperators(...this.preHoverHighlight);
     }
     this.preHoverHighlight = [];
+  }
+
+  /** Currently-running "fuse all" indicator — disables the button and renders progress. */
+  public fuseAllInProgress: boolean = false;
+  /** Count of Macro ops on the current canvas that are NOT yet fused. Drives the button label. */
+  public unfusedMacroCountOnCanvas(): number {
+    try {
+      const graph = this.workflowActionService.getTexeraGraph();
+      return graph.getAllOperators().filter(op => {
+        if (op.operatorType !== "Macro") return false;
+        const f = op.operatorProperties?.["fusion"] as { verified?: boolean } | undefined;
+        return f?.verified !== true;
+      }).length;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * "Fuse all macros in workflow" — the one-click batch perf optimization.
+   * Walks every Macro op on the parent canvas, calls MacroFusionService for
+   * each, stamps the resulting fusion onto operatorProperties, and refreshes
+   * the canvas visual. Errors per-macro are surfaced individually so a
+   * single un-fusable macro doesn't abort the batch.
+   */
+  public onFuseAllMacros(): void {
+    if (this.fuseAllInProgress) return;
+    const graph = this.workflowActionService.getTexeraGraph();
+    const macros = graph.getAllOperators().filter(op => {
+      if (op.operatorType !== "Macro") return false;
+      const f = op.operatorProperties?.["fusion"] as { verified?: boolean } | undefined;
+      return f?.verified !== true;
+    });
+    if (macros.length === 0) {
+      this.message.info("No fusable macros on the canvas.");
+      return;
+    }
+    this.fuseAllInProgress = true;
+    const requests = macros.map(op => {
+      const macroId = op.operatorProperties?.["macroId"] as string | undefined;
+      if (!macroId) return of({ opId: op.operatorID, fused: false, reason: "no macroId" });
+      return this.macroFusionService.generateFusion(macroId).pipe(
+        catchError(err => of({ opId: op.operatorID, fused: false, reason: String(err?.message ?? err) }))
+      );
+    });
+    forkJoin(requests).subscribe({
+      next: results => {
+        let fusedCount = 0;
+        let failedCount = 0;
+        const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+        results.forEach((result: any, idx: number) => {
+          const macroOp = macros[idx];
+          if (result.fused === false || !result.verified) {
+            failedCount++;
+            return;
+          }
+          // result is a FusionResult
+          const newProps = {
+            ...macroOp.operatorProperties,
+            fusion: this.macroFusionService.toFusionPayload(result),
+          };
+          this.workflowActionService.setOperatorProperty(macroOp.operatorID, newProps);
+          if (paper) {
+            this.jointUIService.refreshMacroFusionStyle(
+              paper,
+              macroOp.operatorID,
+              true,
+              result.estimatedSpeedup
+            );
+          }
+          fusedCount++;
+        });
+        if (fusedCount > 0) {
+          this.message.success(
+            `Fused ${fusedCount} macro${fusedCount === 1 ? "" : "s"} for performance` +
+              (failedCount > 0 ? ` (${failedCount} skipped)` : "")
+          );
+        } else {
+          this.message.warning(`No macros could be fused (${failedCount} failed).`);
+        }
+        this.fuseAllInProgress = false;
+      },
+      error: err => {
+        this.fuseAllInProgress = false;
+        this.message.error(`Batch fuse failed: ${err?.message ?? err}`);
+      },
+    });
   }
 
   /** Reference to the hidden file input — clicked programmatically by `onTriggerImportMacro`. */

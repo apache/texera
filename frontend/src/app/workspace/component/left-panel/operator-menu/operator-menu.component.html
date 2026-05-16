@@ -87,6 +87,20 @@
   </div>
 </div>
 
+<!-- "Fuse all macros" — one-click batch perf optimization for every Macro op
+     on the canvas that isn't yet fused. Hides when there's nothing to fuse so
+     it doesn't take up palette real estate on macro-free workflows. -->
+<button
+  *ngIf="unfusedMacroCountOnCanvas() > 0 && canModify"
+  class="fuse-all-trigger"
+  [disabled]="fuseAllInProgress"
+  (click)="onFuseAllMacros()"
+  [title]="'Generate + verify fusion for every unfused Macro op on the canvas'">
+  <span class="fuse-all-trigger__icon">⚡</span>
+  <span *ngIf="!fuseAllInProgress">Fuse all macros ({{ unfusedMacroCountOnCanvas() }})</span>
+  <span *ngIf="fuseAllInProgress">Fusing…</span>
+</button>
+
 <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames, depth: 0 }"></ng-container>
 
 <!-- "Your Macros" section — user's saved macros. Clicking adds the macro
@@ -112,13 +126,19 @@
   nzBordered="false"
   nzExpandIconPosition="end">
   <nz-collapse-panel
-    nzHeader="Your Macros"
+    [nzHeader]="'Your Macros (' + macroList.length + ')'"
     nzActive="true"
     class="operator-group your-macros"
     [attr.data-depth]="0">
     <div class="indent">
+      <input
+        *ngIf="macroList.length > 3"
+        type="text"
+        placeholder="Filter macros…"
+        class="your-macros-filter"
+        [(ngModel)]="macroFilterText" />
       <div
-        *ngFor="let macroSchema of macroList"
+        *ngFor="let macroSchema of filteredMacroList"
         class="operator-label macro-palette-item"
         [class.disabled]="!canModify"
         [title]="macroSchema.additionalMetadata.operatorDescription">
