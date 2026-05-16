@@ -56,3 +56,53 @@
 #spacer {
   margin-top: 32px;
 }
+
+// "Your Macros" palette section — clickable rows that drop a Macro op on
+// the canvas. Match the dashed-blue treatment of macro nodes on the canvas
+// so the user reads palette→canvas as one continuous visual identity.
+.your-macros {
+  margin-top: 8px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.macro-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px dashed #4a90e2;
+  border-radius: 5px;
+  margin: 4px 0;
+  cursor: pointer;
+  background: #f5f9ff;
+  transition: background 0.1s;
+
+  &:hover {
+    background: #e8f1ff;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &__icon {
+    color: #1d6fdb;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  &__name {
+    flex: 1;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__ports {
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+  }
+}

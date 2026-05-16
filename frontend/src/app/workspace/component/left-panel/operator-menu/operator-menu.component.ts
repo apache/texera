@@ -33,9 +33,11 @@ import {
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { FormsModule } from "@angular/forms";
-import { NgFor, NgTemplateOutlet } from "@angular/common";
+import { NgFor, NgIf, NgTemplateOutlet } from "@angular/common";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { MacroService, MacroSummary } from "../../../service/macro/macro.service";
+import { OperatorPredicate } from "../../../types/workflow-common.interface";
 
 @UntilDestroy()
 @Component({
@@ -49,6 +51,7 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
     NzAutocompleteTriggerDirective,
     NzAutocompleteComponent,
     NgFor,
+    NgIf,
     NzAutocompleteOptionComponent,
     OperatorLabelComponent,
     NgTemplateOutlet,
@@ -59,6 +62,16 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
 export class OperatorMenuComponent {
   public opList = new Map<string, Array<OperatorSchema>>();
   public groupNames: ReadonlyArray<GroupInfo> = [];
+
+  // The user's saved macros — surfaced as a "Your Macros" section in the
+  // palette so they can be reused on other workflows by clicking the entry.
+  // We use the existing operator-label rendering by exposing each macro as
+  // an OperatorSchema-shaped object whose operatorType is the literal
+  // "Macro" and whose userFriendlyName is the macro name. The drag/click
+  // handler peeks at `__macroSummary` on the schema to fill in macroId,
+  // inputPortCount, outputPortCount when instantiating the operator
+  // predicate.
+  public macroList: (OperatorSchema & { __macroSummary?: MacroSummary })[] = [];
 
   // input value of the search input box
   public searchInputValue: string = "";
@@ -81,8 +94,16 @@ export class OperatorMenuComponent {
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private dragDropService: DragDropService
+    private dragDropService: DragDropService,
+    private macroService: MacroService
   ) {
+    // Load the user's saved macros for the "Your Macros" palette section.
+    this.macroService.listMacros().subscribe({
+      next: (summaries: MacroSummary[]) => {
+        this.macroList = summaries.map(m => this.macroSummaryToSchema(m));
+      },
+      error: () => undefined,
+    });
     // clear the search box if an operator is dropped from operator search box
     this.dragDropService.operatorDropStream.pipe(untilDestroyed(this)).subscribe(() => {
       this.searchInputValue = "";
@@ -149,5 +170,79 @@ export class OperatorMenuComponent {
       this.searchInputValue = "";
       this.autocompleteOptions = [];
     }, 0);
+  }
+
+  /**
+   * Adapt a backend `MacroSummary` into an `OperatorSchema`-shaped row the
+   * existing operator-label component can render. The macro's port count
+   * and definition wid are stashed on `__macroSummary` so click-to-add can
+   * build the right `OperatorPredicate` without re-fetching the macro.
+   */
+  private macroSummaryToSchema(m: MacroSummary): OperatorSchema & { __macroSummary: MacroSummary } {
+    return {
+      operatorType: "Macro",
+      jsonSchema: { type: "object", properties: {} } as unknown as OperatorSchema["jsonSchema"],
+      additionalMetadata: {
+        userFriendlyName: m.name,
+        operatorDescription: m.description ?? `Macro from workflow #${m.wid}`,
+        operatorGroupName: "Your Macros",
+        inputPorts: m.portSpec.inputs.map(p => ({ displayName: `in-${p.index}` })),
+        outputPorts: m.portSpec.outputs.map(p => ({ displayName: `out-${p.index}` })),
+        dynamicInputPorts: false,
+        dynamicOutputPorts: false,
+        supportReconfiguration: false,
+        allowPortCustomization: false,
+      } as unknown as OperatorSchema["additionalMetadata"],
+      operatorVersion: "",
+      __macroSummary: m,
+    };
+  }
+
+  /**
+   * Place a saved macro on the canvas. Builds a fresh `OperatorPredicate`
+   * matching the shape created by `swapSelectionWithMacroNode` so the
+   * downstream validation/render/execution paths see a normal Macro op.
+   */
+  public onAddMacro(macroSchema: OperatorSchema & { __macroSummary?: MacroSummary }): void {
+    const m = macroSchema.__macroSummary;
+    if (!m) return;
+    const inputPortCount = m.portSpec.inputs.length;
+    const outputPortCount = m.portSpec.outputs.length;
+    const inputPorts = Array.from({ length: inputPortCount }, (_, i) => ({
+      portID: `input-${i}`,
+      displayName: `in-${i}`,
+      disallowMultiInputs: false,
+      isDynamicPort: false,
+      dependencies: [],
+    }));
+    const outputPorts = Array.from({ length: outputPortCount }, (_, i) => ({
+      portID: `output-${i}`,
+      displayName: `out-${i}`,
+      disallowMultiInputs: false,
+      isDynamicPort: false,
+    }));
+    const predicate: OperatorPredicate = {
+      operatorID: `Macro-operator-${this.workflowUtilService.getOperatorRandomUUID()}`,
+      operatorType: "Macro",
+      operatorVersion: "",
+      operatorProperties: {
+        macroId: String(m.wid),
+        macroVersion: 1,
+        linkMode: "LIVE",
+        inputPortCount,
+        outputPortCount,
+        displayName: m.name,
+      },
+      inputPorts,
+      outputPorts,
+      showAdvanced: false,
+      isDisabled: false,
+      customDisplayName: m.name,
+      dynamicInputPorts: false,
+      dynamicOutputPorts: false,
+    };
+    const origin = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.translate();
+    const point = { x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0) };
+    this.workflowActionService.addOperator(predicate, point);
   }
 }
