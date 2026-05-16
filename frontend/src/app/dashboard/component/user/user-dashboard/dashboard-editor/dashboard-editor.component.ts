@@ -17,7 +17,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { DashboardService } from "../dashboard.service";
 import { Dashboard, DashboardWidget, WidgetLayout } from "../dashboard.types";
 import { DashboardWidgetComponent } from "../widgets/dashboard-widget.component";
-import { AddWidgetModalComponent } from "../add-widget-modal/add-widget-modal.component";
+import { AddWidgetModalComponent, AddWidgetResult } from "../add-widget-modal/add-widget-modal.component";
 import { DASHBOARD_USER_DASHBOARD } from "../../../../../app-routing.constant";
 
 const COLS = 12;
@@ -76,6 +76,7 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
   }
 
   private loadDashboard(id: string): void {
+    let hasRefreshed = false;
     this.dashboardService
       .list()
       .pipe(untilDestroyed(this))
@@ -83,6 +84,14 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
         this.dashboard = list.find(d => d.id === id);
         if (this.dashboard) {
           this.nameDraft = this.dashboard.name;
+        }
+        // On first load, pull fresh stats for any workflow-sourced widgets.
+        if (this.dashboard && !hasRefreshed) {
+          hasRefreshed = true;
+          this.dashboardService
+            .refreshFromWorkflows(this.dashboard.id)
+            .pipe(untilDestroyed(this))
+            .subscribe();
         }
       });
   }
@@ -120,9 +129,9 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
       nzCentered: true,
       nzClassName: "texera-add-widget-modal",
     });
-    ref.afterClose.pipe(untilDestroyed(this)).subscribe(widget => {
-      if (widget && this.dashboard) {
-        this.dashboardService.addWidget(this.dashboard.id, widget);
+    ref.afterClose.pipe(untilDestroyed(this)).subscribe((result: AddWidgetResult | null) => {
+      if (result && this.dashboard) {
+        this.dashboardService.addWidget(this.dashboard.id, result.widget, result.source);
       }
     });
   }

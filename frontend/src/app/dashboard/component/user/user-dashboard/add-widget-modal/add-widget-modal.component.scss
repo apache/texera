@@ -22,6 +22,52 @@
     gap: 6px;
   }
 
+  /* Source picker (top-level: workflow vs manual) ---------------------- */
+
+  .source-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .source-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 18px 18px;
+    background: #fafafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+
+    &:hover {
+      border-color: #7c5cff;
+      background: #f5f3ff;
+      transform: translateY(-1px);
+    }
+    &.primary {
+      background: linear-gradient(135deg, #f5f3ff, #ffffff);
+      border-color: #ddd6fe;
+    }
+    .source-icon {
+      font-size: 24px;
+      color: #7c5cff;
+    }
+    .source-label {
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .source-desc {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+  }
+
+  /* Manual widget type picker ----------------------------------------- */
+
   .type-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -60,6 +106,52 @@
     }
   }
 
+  /* Workflow widget type picker (compact horizontal cards) ------------ */
+
+  .wf-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .wf-type-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 12px;
+    background: #fafafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 12px;
+    transition: border-color 0.15s, background 0.15s;
+
+    &:hover {
+      border-color: #7c5cff;
+      background: #f5f3ff;
+    }
+    &.active {
+      border-color: #7c5cff;
+      background: #ede9ff;
+    }
+    span[nz-icon] {
+      font-size: 16px;
+      color: #7c5cff;
+    }
+    .wf-type-name {
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .wf-type-desc {
+      color: #6b7280;
+      line-height: 1.4;
+    }
+  }
+
+  /* Form fields ------------------------------------------------------- */
+
   .form {
     display: flex;
     flex-direction: column;
@@ -79,10 +171,27 @@
         border-radius: 3px;
         color: #374151;
       }
+      .warn {
+        color: #d97706;
+        font-size: 12px;
+      }
     }
     textarea {
       font-family: ui-monospace, "SFMono-Regular", monospace;
       font-size: 12px;
+    }
+  }
+
+  .snapshot-summary {
+    background: #fafafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #4b5563;
+
+    .warn {
+      color: #d97706;
     }
   }
 

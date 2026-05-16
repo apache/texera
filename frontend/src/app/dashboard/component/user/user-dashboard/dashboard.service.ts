@@ -4,9 +4,11 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { BehaviorSubject, Observable, forkJoin, of } from "rxjs";
+import { catchError, map, switchMap } from "rxjs/operators";
 import { Dashboard, DashboardWidget, WidgetConfig, WidgetLayout, WidgetType } from "./dashboard.types";
 import { buildSeedDashboard } from "./dashboard.seed";
+import { buildWidgetFromStats, WorkflowDataService } from "./workflow-data.service";
 
 const STORAGE_KEY = "texera.dashboards.v1";
 
@@ -14,7 +16,7 @@ const STORAGE_KEY = "texera.dashboards.v1";
 export class DashboardService {
   private dashboards$ = new BehaviorSubject<Dashboard[]>([]);
 
-  constructor() {
+  constructor(private workflowData: WorkflowDataService) {
     this.load();
   }
 
@@ -66,7 +68,11 @@ export class DashboardService {
     this.persist();
   }
 
-  addWidget(dashboardId: string, widget: WidgetConfig): DashboardWidget | undefined {
+  addWidget(
+    dashboardId: string,
+    widget: WidgetConfig,
+    source?: DashboardWidget["source"]
+  ): DashboardWidget | undefined {
     const dash = this.get(dashboardId);
     if (!dash) {
       return undefined;
@@ -76,10 +82,57 @@ export class DashboardService {
       id: this.genId(),
       layout,
       widget,
+      source,
     };
     const updated: Dashboard = { ...dash, widgets: [...dash.widgets, dw], updatedAt: Date.now() };
     this.saveDashboard(updated);
     return dw;
+  }
+
+  /**
+   * Re-fetches stats for every workflow-sourced widget in the dashboard and
+   * updates the widget's config in-place. Manual widgets are left untouched.
+   * Emits the updated dashboard via the existing list() stream.
+   */
+  refreshFromWorkflows(dashboardId: string): Observable<Dashboard | undefined> {
+    const dash = this.get(dashboardId);
+    if (!dash) return of(undefined);
+
+    // Group widgets by wid so we make one call per workflow.
+    const widsToWidgets = new Map<number, DashboardWidget[]>();
+    for (const w of dash.widgets) {
+      if (w.source?.kind === "workflow") {
+        const list = widsToWidgets.get(w.source.wid) ?? [];
+        list.push(w);
+        widsToWidgets.set(w.source.wid, list);
+      }
+    }
+    if (widsToWidgets.size === 0) return of(dash);
+
+    const fetches = Array.from(widsToWidgets.keys()).map(wid =>
+      this.workflowData.getWorkflowSnapshot(wid).pipe(
+        map(snapshot => ({ wid, snapshot })),
+        catchError(() => of({ wid, snapshot: null as any }))
+      )
+    );
+
+    return forkJoin(fetches).pipe(
+      map(results => {
+        const snapshotByWid = new Map(results.filter(r => r.snapshot).map(r => [r.wid, r.snapshot]));
+        const next: Dashboard = {
+          ...dash,
+          widgets: dash.widgets.map(w => {
+            if (w.source?.kind !== "workflow") return w;
+            const snap = snapshotByWid.get(w.source.wid);
+            if (!snap) return w;
+            const refreshed = buildWidgetFromStats(w.widget.type, w.source, snap.operators, snap.stats);
+            return refreshed ? { ...w, widget: refreshed } : w;
+          }),
+        };
+        this.saveDashboard(next);
+        return next;
+      })
+    );
   }
 
   updateWidget(dashboardId: string, widgetId: string, widget: WidgetConfig): void {

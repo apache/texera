@@ -1,12 +1,145 @@
 <div class="add-widget-modal">
-  <div *ngIf="step === 'pick'" class="step picker">
+  <!-- Step 0: choose source -->
+  <div *ngIf="step === 'choose-source'" class="step">
     <h3>Add a widget</h3>
-    <p class="hint">Pick a widget type. You can edit its data on the next step.</p>
+    <p class="hint">Pull live runtime stats from a workflow, or enter data manually.</p>
+    <div class="source-grid">
+      <button class="source-card primary" (click)="goWorkflow()">
+        <span nz-icon nzType="experiment" class="source-icon"></span>
+        <span class="source-label">From a Workflow</span>
+        <span class="source-desc">
+          Pull per-operator runtime stats (tuple counts, sizes, processing times)
+          from your latest execution. Auto-refreshes when you reopen the dashboard.
+        </span>
+      </button>
+      <button class="source-card" (click)="goManual()">
+        <span nz-icon nzType="edit" class="source-icon"></span>
+        <span class="source-label">Manual Entry</span>
+        <span class="source-desc">
+          Type or paste values directly. Good for callouts, text notes, or any
+          chart your workflow stats don't cover.
+        </span>
+      </button>
+    </div>
+    <div class="footer">
+      <button nz-button (click)="cancel()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Step 1: from workflow -->
+  <div *ngIf="step === 'from-workflow'" class="step">
+    <div class="header">
+      <button nz-button nzType="text" (click)="back()">
+        <span nz-icon nzType="arrow-left"></span>
+      </button>
+      <h3>From a Workflow</h3>
+    </div>
+
+    <div class="form">
+      <label>
+        Workflow
+        <nz-spin [nzSpinning]="loadingWorkflows" [nzSize]="'small'">
+          <nz-select
+            nzPlaceHolder="Pick one of your workflows"
+            [ngModel]="selectedWid"
+            (ngModelChange)="onWorkflowChange($event)"
+            nzShowSearch>
+            <nz-option
+              *ngFor="let w of workflows"
+              [nzValue]="w.wid"
+              [nzLabel]="w.name"></nz-option>
+          </nz-select>
+        </nz-spin>
+        <small *ngIf="!loadingWorkflows && workflows.length === 0" class="warn">
+          No workflows found. Create one first.
+        </small>
+      </label>
+
+      <ng-container *ngIf="selectedWid">
+        <nz-spin [nzSpinning]="loadingSnapshot">
+          <div *ngIf="!loadingSnapshot" class="snapshot-summary">
+            <span *ngIf="operators.length === 0" class="warn">
+              This workflow has no operators yet.
+            </span>
+            <span *ngIf="operators.length > 0">
+              {{ operators.length }} operator{{ operators.length === 1 ? '' : 's' }} ·
+              <ng-container *ngIf="statsCount > 0">
+                stats available for {{ statsCount }} operator{{ statsCount === 1 ? '' : 's' }} from latest run
+              </ng-container>
+              <ng-container *ngIf="statsCount === 0">
+                no execution data yet — run the workflow first to see numbers
+              </ng-container>
+            </span>
+          </div>
+        </nz-spin>
+
+        <label *ngIf="operators.length > 0">
+          Widget type
+          <div class="wf-type-grid">
+            <button
+              *ngFor="let t of workflowWidgetTypes"
+              class="wf-type-card"
+              [class.active]="selectedWfWidgetType === t.type"
+              (click)="pickWfWidgetType(t.type)">
+              <span nz-icon [nzType]="t.icon"></span>
+              <span class="wf-type-name">{{ t.label }}</span>
+              <span class="wf-type-desc">{{ t.description }}</span>
+            </button>
+          </div>
+        </label>
+
+        <label *ngIf="selectedWfWidgetType && selectedScope === 'single-operator'">
+          Operator
+          <nz-select
+            nzPlaceHolder="Pick an operator"
+            [(ngModel)]="selectedOpId"
+            nzShowSearch>
+            <nz-option
+              *ngFor="let op of operators"
+              [nzValue]="op.operatorID"
+              [nzLabel]="op.displayName + ' (' + op.operatorType + ')'"></nz-option>
+          </nz-select>
+        </label>
+
+        <label *ngIf="selectedWfWidgetType && selectedWfWidgetType !== 'table'">
+          Metric
+          <nz-select
+            nzPlaceHolder="Pick a metric"
+            [(ngModel)]="selectedMetric">
+            <nz-option
+              *ngFor="let m of metricOptions"
+              [nzValue]="m.value"
+              [nzLabel]="m.label"></nz-option>
+          </nz-select>
+        </label>
+      </ng-container>
+    </div>
+
+    <div class="footer">
+      <button nz-button (click)="cancel()">Cancel</button>
+      <button
+        nz-button
+        nzType="primary"
+        [disabled]="!canSubmitWorkflow"
+        (click)="submitWorkflow()">
+        Add Widget
+      </button>
+    </div>
+  </div>
+
+  <!-- Manual: pick type -->
+  <div *ngIf="step === 'manual-pick'" class="step">
+    <div class="header">
+      <button nz-button nzType="text" (click)="back()">
+        <span nz-icon nzType="arrow-left"></span>
+      </button>
+      <h3>Manual Entry — pick widget type</h3>
+    </div>
     <div class="type-grid">
       <button
-        *ngFor="let t of widgetTypes"
+        *ngFor="let t of allWidgetTypes"
         class="type-card"
-        (click)="pick(t.type)">
+        (click)="pickManualType(t.type)">
         <span nz-icon [nzType]="t.icon" class="type-icon"></span>
         <span class="type-label">{{ t.label }}</span>
         <span class="type-desc">{{ t.description }}</span>
@@ -17,58 +150,50 @@
     </div>
   </div>
 
-  <div *ngIf="step === 'configure'" class="step configure">
+  <!-- Manual: configure -->
+  <div *ngIf="step === 'manual-configure'" class="step">
     <div class="header">
       <button nz-button nzType="text" (click)="back()">
         <span nz-icon nzType="arrow-left"></span>
       </button>
-      <h3>Configure {{ selectedType }}</h3>
+      <h3>Configure {{ manualType }}</h3>
     </div>
 
-    <div *ngIf="selectedType === 'metric'" class="form">
+    <div *ngIf="manualType === 'metric'" class="form">
       <label>Title<input nz-input [(ngModel)]="metric.title" /></label>
       <label>Value<input nz-input [(ngModel)]="metric.value" placeholder="e.g. 96.7% or 768" /></label>
       <label>Caption (optional)<input nz-input [(ngModel)]="metric.caption" /></label>
       <label>Color<input nz-input [(ngModel)]="metric.color" placeholder="#4cc9f0" /></label>
     </div>
 
-    <div *ngIf="selectedType === 'bar'" class="form">
+    <div *ngIf="manualType === 'bar'" class="form">
       <label>Title<input nz-input [(ngModel)]="bar.title" /></label>
       <label>Categories (comma-separated)
         <input nz-input [(ngModel)]="barCategoriesRaw" />
       </label>
       <label>Series — one per line: <code>name | color | v1, v2, v3</code>
-        <textarea
-          nz-input
-          [(ngModel)]="barSeriesRaw"
-          rows="4"></textarea>
+        <textarea nz-input [(ngModel)]="barSeriesRaw" rows="4"></textarea>
       </label>
       <label>Y-axis label (optional)<input nz-input [(ngModel)]="bar.yAxisLabel" /></label>
     </div>
 
-    <div *ngIf="selectedType === 'donut'" class="form">
+    <div *ngIf="manualType === 'donut'" class="form">
       <label>Title<input nz-input [(ngModel)]="donut.title" /></label>
       <label>Segments — one per line: <code>label | value | color</code>
-        <textarea
-          nz-input
-          [(ngModel)]="donutSegmentsRaw"
-          rows="4"></textarea>
+        <textarea nz-input [(ngModel)]="donutSegmentsRaw" rows="4"></textarea>
       </label>
       <label>Center label (optional)<input nz-input [(ngModel)]="donut.centerLabel" /></label>
     </div>
 
-    <div *ngIf="selectedType === 'hbar'" class="form">
+    <div *ngIf="manualType === 'hbar'" class="form">
       <label>Title<input nz-input [(ngModel)]="hbar.title" /></label>
       <label>Items — one per line: <code>label | value</code>
-        <textarea
-          nz-input
-          [(ngModel)]="hbarItemsRaw"
-          rows="5"></textarea>
+        <textarea nz-input [(ngModel)]="hbarItemsRaw" rows="5"></textarea>
       </label>
       <label>Bar color<input nz-input [(ngModel)]="hbar.color" placeholder="#7c5cff" /></label>
     </div>
 
-    <div *ngIf="selectedType === 'text'" class="form">
+    <div *ngIf="manualType === 'text'" class="form">
       <label>Title<input nz-input [(ngModel)]="text.title" /></label>
       <label>Body
         <textarea
@@ -79,22 +204,19 @@
       </label>
     </div>
 
-    <div *ngIf="selectedType === 'table'" class="form">
+    <div *ngIf="manualType === 'table'" class="form">
       <label>Title<input nz-input [(ngModel)]="table.title" /></label>
       <label>Columns (comma-separated)
         <input nz-input [(ngModel)]="tableColumnsRaw" />
       </label>
       <label>Rows — one per line, cells comma-separated
-        <textarea
-          nz-input
-          [(ngModel)]="tableRowsRaw"
-          rows="5"></textarea>
+        <textarea nz-input [(ngModel)]="tableRowsRaw" rows="5"></textarea>
       </label>
     </div>
 
     <div class="footer">
       <button nz-button (click)="cancel()">Cancel</button>
-      <button nz-button nzType="primary" (click)="submit()">Add Widget</button>
+      <button nz-button nzType="primary" (click)="submitManual()">Add Widget</button>
     </div>
   </div>
 </div>

@@ -204,7 +204,9 @@
   justify-content: center;
   color: #6e6e90;
   font-size: 14px;
-  gap: 12px;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
 
   span[nz-icon] {
     font-size: 56px;
@@ -212,8 +214,12 @@
   }
   p {
     margin: 0;
+    max-width: 480px;
     strong {
       color: #b6b6cf;
     }
+  }
+  .empty-cta {
+    margin-top: 6px;
   }
 }
