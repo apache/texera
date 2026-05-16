@@ -133,11 +133,28 @@ export class MacroService {
   // share the same HTTP fetch. The body of a macro definition is immutable
   // for the lifetime of a given (macroId, vid) tuple, so caching by macroId
   // alone is safe — definition edits go through a new wid in the v1 LIVE mode.
-  private bodyBindingsCache = new Map<string, Observable<{ inputBindings: MacroPortBinding[]; outputBindings: MacroPortBinding[] }>>();
+  // The cached shape also carries `nestedMacros: Map<innerOpId, nestedMacroId>`
+  // so recursive resolution (for nested macros) can follow the chain without
+  // re-parsing the body.
+  private bodyBindingsCache = new Map<
+    string,
+    Observable<{
+      inputBindings: MacroPortBinding[];
+      outputBindings: MacroPortBinding[];
+      nestedMacros: Map<string, string>;
+    }>
+  >();
   // Latest-known synchronous snapshot — populated by `getBindingsForInstance`
   // after the first successful fetch so synchronous stat-update handlers can
   // look up bindings without re-triggering the network call.
-  private bodyBindingsSnapshot = new Map<string, { inputBindings: MacroPortBinding[]; outputBindings: MacroPortBinding[] }>();
+  private bodyBindingsSnapshot = new Map<
+    string,
+    {
+      inputBindings: MacroPortBinding[];
+      outputBindings: MacroPortBinding[];
+      nestedMacros: Map<string, string>;
+    }
+  >();
 
   public createMacro(req: MacroCreateRequest): Observable<MacroDetail> {
     return this.http.post<MacroDetail>(`${AppSettings.getApiEndpoint()}/${MACRO_CREATE_URL}`, req);
@@ -165,21 +182,37 @@ export class MacroService {
    *
    * Cached and shared across subscribers.
    */
-  public getBodyBindings(
-    macroId: string
-  ): Observable<{ inputBindings: MacroPortBinding[]; outputBindings: MacroPortBinding[] }> {
+  public getBodyBindings(macroId: string): Observable<{
+    inputBindings: MacroPortBinding[];
+    outputBindings: MacroPortBinding[];
+    nestedMacros: Map<string, string>;
+  }> {
     const cached = this.bodyBindingsCache.get(macroId);
     if (cached) return cached;
     const widNum = Number(macroId);
     if (!Number.isFinite(widNum)) {
-      const empty = { inputBindings: [], outputBindings: [] };
+      const empty = { inputBindings: [], outputBindings: [], nestedMacros: new Map<string, string>() };
       this.bodyBindingsSnapshot.set(macroId, empty);
       return of(empty);
     }
     const fetched = this.getMacro(widNum).pipe(
       map(detail => this.computeBodyBindings(detail)),
-      tap(bindings => this.bodyBindingsSnapshot.set(macroId, bindings)),
-      catchError(() => of({ inputBindings: [] as MacroPortBinding[], outputBindings: [] as MacroPortBinding[] })),
+      tap(bindings => {
+        this.bodyBindingsSnapshot.set(macroId, bindings);
+        // Eagerly recurse: fetch bindings for any nested macro definitions
+        // we discovered, so the synchronous resolution path in
+        // `getBindingsForInstance` finds everything in the snapshot cache.
+        for (const nestedMacroId of bindings.nestedMacros.values()) {
+          this.getBodyBindings(nestedMacroId).subscribe({ error: () => undefined });
+        }
+      }),
+      catchError(() =>
+        of({
+          inputBindings: [] as MacroPortBinding[],
+          outputBindings: [] as MacroPortBinding[],
+          nestedMacros: new Map<string, string>(),
+        })
+      ),
       shareReplay(1)
     );
     this.bodyBindingsCache.set(macroId, fetched);
@@ -194,6 +227,12 @@ export class MacroService {
    * the engine reports stats keyed by the prefixed strings — so we apply the
    * same rewrite here so callers can do straight-up `stats[innerOpId]` lookups.
    *
+   * Recursive: when a binding's `innerOpId` points to a nested macro, follow
+   * its body bindings (recursively, prefixed at each layer) until we reach a
+   * terminal non-macro inner op. A fan-out at an input port can produce
+   * multiple terminal bindings for one external port — those get summed by
+   * the stats consumer.
+   *
    * Returns the cached snapshot synchronously when available so stats-update
    * handlers don't have to await; preload via `prefetchBindingsForOperators`
    * to make sure the snapshot is populated by the time execution starts.
@@ -205,18 +244,86 @@ export class MacroService {
       this.getBodyBindings(macroId).subscribe({ error: () => undefined });
       return undefined;
     }
-    return {
-      inputBindings: snapshot.inputBindings.map(b => ({
-        externalPortIndex: b.externalPortIndex,
-        innerOpId: `${macroInstanceId}--${b.innerOpId}`,
-        innerPortIndex: b.innerPortIndex,
-      })),
-      outputBindings: snapshot.outputBindings.map(b => ({
-        externalPortIndex: b.externalPortIndex,
-        innerOpId: `${macroInstanceId}--${b.innerOpId}`,
-        innerPortIndex: b.innerPortIndex,
-      })),
-    };
+    const inputBindings: MacroPortBinding[] = [];
+    for (const b of snapshot.inputBindings) {
+      inputBindings.push(...this.resolveBinding(macroInstanceId, snapshot, b, /* isInput */ true));
+    }
+    const outputBindings: MacroPortBinding[] = [];
+    for (const b of snapshot.outputBindings) {
+      outputBindings.push(...this.resolveBinding(macroInstanceId, snapshot, b, /* isInput */ false));
+    }
+    return { inputBindings, outputBindings };
+  }
+
+  /**
+   * Walk a single body-relative binding down through any nested macros until
+   * we hit a terminal non-macro inner op. At each level we prefix the inner
+   * op ID with the accumulated instance prefix (so the final ID matches the
+   * engine's `${outerInstanceId}--${nestedInstanceId}--…--${terminalOp}`
+   * key).
+   *
+   * `externalPortIndex` is preserved through the chain — it identifies the
+   * MACRO'S external port we started from, not the nested macro's port.
+   * That's correct: every terminal binding still belongs to the same outer
+   * macro port.
+   */
+  private resolveBinding(
+    accumulatedPrefix: string,
+    snapshot: {
+      inputBindings: MacroPortBinding[];
+      outputBindings: MacroPortBinding[];
+      nestedMacros: Map<string, string>;
+    },
+    binding: MacroPortBinding,
+    isInput: boolean
+  ): MacroPortBinding[] {
+    const nestedMacroId = snapshot.nestedMacros.get(binding.innerOpId);
+    if (!nestedMacroId) {
+      // Terminal — return the binding with the full accumulated prefix.
+      return [
+        {
+          externalPortIndex: binding.externalPortIndex,
+          innerOpId: `${accumulatedPrefix}--${binding.innerOpId}`,
+          innerPortIndex: binding.innerPortIndex,
+        },
+      ];
+    }
+    // Nested macro: load its bindings and follow the chain. The nested
+    // macro's runtime instance ID is `${accumulatedPrefix}--${nestedInstanceId}`
+    // (where nestedInstanceId is the body-relative ID we'd otherwise return).
+    const nestedSnapshot = this.bodyBindingsSnapshot.get(nestedMacroId);
+    if (!nestedSnapshot) {
+      // Not yet cached — kick off fetch and return what we have so far. The
+      // outer caller will see the partial resolution; once the nested macro's
+      // body loads, the next stats emission will re-resolve correctly.
+      this.getBodyBindings(nestedMacroId).subscribe({ error: () => undefined });
+      return [
+        {
+          externalPortIndex: binding.externalPortIndex,
+          innerOpId: `${accumulatedPrefix}--${binding.innerOpId}`,
+          innerPortIndex: binding.innerPortIndex,
+        },
+      ];
+    }
+    // Find nested bindings matching the macro's port the outer binding
+    // points to (binding.innerPortIndex is the nested macro's external port).
+    const nestedBindings = isInput ? nestedSnapshot.inputBindings : nestedSnapshot.outputBindings;
+    const nextLayerPrefix = `${accumulatedPrefix}--${binding.innerOpId}`;
+    const matched = nestedBindings.filter(nb => nb.externalPortIndex === binding.innerPortIndex);
+    if (matched.length === 0) {
+      // Shouldn't happen for a well-formed body, but stay defensive.
+      return [];
+    }
+    const resolved: MacroPortBinding[] = [];
+    for (const nb of matched) {
+      const carriedOver: MacroPortBinding = {
+        externalPortIndex: binding.externalPortIndex, // preserve outer macro's external port
+        innerOpId: nb.innerOpId, // body-relative inside the nested macro
+        innerPortIndex: nb.innerPortIndex,
+      };
+      resolved.push(...this.resolveBinding(nextLayerPrefix, nestedSnapshot, carriedOver, isInput));
+    }
+    return resolved;
   }
 
   /**
@@ -235,14 +342,16 @@ export class MacroService {
       if (typeof macroId !== "string" || macroId.length === 0) continue;
       const instanceId = op.operatorID;
       this.getBodyBindings(macroId).subscribe({
-        next: bindings => {
-          const out0 = bindings.outputBindings.find(b => b.externalPortIndex === 0);
-          if (out0) {
-            this.workflowResultService.setMacroResultAlias(
-              instanceId,
-              `${instanceId}--${out0.innerOpId}`
-            );
-          }
+        next: () => {
+          // After the first-level bindings load, ask for the recursive
+          // resolved bindings — `getBindingsForInstance` chains through any
+          // nested macros automatically. Output port 0 might resolve to a
+          // single terminal inner op, OR (in the rare fan-out case) several;
+          // for the v1 macro-result alias we still pick the first terminal.
+          const resolved = this.getBindingsForInstance(instanceId, macroId);
+          if (!resolved) return;
+          const out0 = resolved.outputBindings.find(b => b.externalPortIndex === 0);
+          if (out0) this.workflowResultService.setMacroResultAlias(instanceId, out0.innerOpId);
         },
         error: () => undefined,
       });
@@ -252,20 +361,35 @@ export class MacroService {
   private computeBodyBindings(detail: MacroDetail): {
     inputBindings: MacroPortBinding[];
     outputBindings: MacroPortBinding[];
+    nestedMacros: Map<string, string>;
   } {
     let body: MacroBody;
     try {
       body = JSON.parse(detail.content) as MacroBody;
     } catch {
-      return { inputBindings: [], outputBindings: [] };
+      return { inputBindings: [], outputBindings: [], nestedMacros: new Map() };
     }
     const inputMarkerByPortIndex = new Map<number, string>();
     const outputMarkerByPortIndex = new Map<number, string>();
+    // Collect nested macro definitions: any Macro op inside the body whose
+    // macroId we'll need to recursively resolve through. Keyed by the body-
+    // relative operatorID since that's how the markers' links reference it.
+    const nestedMacros = new Map<string, string>();
     for (const raw of body.operators) {
-      const op = raw as { operatorID?: string; operatorType?: string; portIndex?: number };
-      if (typeof op.operatorID !== "string" || typeof op.portIndex !== "number") continue;
-      if (op.operatorType === "MacroInput") inputMarkerByPortIndex.set(op.portIndex, op.operatorID);
-      else if (op.operatorType === "MacroOutput") outputMarkerByPortIndex.set(op.portIndex, op.operatorID);
+      const op = raw as {
+        operatorID?: string;
+        operatorType?: string;
+        portIndex?: number;
+        macroId?: string;
+      };
+      if (typeof op.operatorID !== "string") continue;
+      if (op.operatorType === "MacroInput" && typeof op.portIndex === "number") {
+        inputMarkerByPortIndex.set(op.portIndex, op.operatorID);
+      } else if (op.operatorType === "MacroOutput" && typeof op.portIndex === "number") {
+        outputMarkerByPortIndex.set(op.portIndex, op.operatorID);
+      } else if (op.operatorType === "Macro" && typeof op.macroId === "string" && op.macroId.length > 0) {
+        nestedMacros.set(op.operatorID, op.macroId);
+      }
     }
     const markerIds = new Set([
       ...Array.from(inputMarkerByPortIndex.values()),
@@ -300,7 +424,7 @@ export class MacroService {
         });
       }
     }
-    return { inputBindings, outputBindings };
+    return { inputBindings, outputBindings, nestedMacros };
   }
 
   /**

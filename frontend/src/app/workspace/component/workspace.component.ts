@@ -29,7 +29,7 @@ import {
   ViewChild,
   ViewContainerRef,
 } from "@angular/core";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
@@ -85,6 +85,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     AgentPanelComponent,
     PropertyEditorComponent,
     FormlyRepeatDndComponent,
+    RouterLink,
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
@@ -295,15 +296,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.macroEditName = detail.name;
           this.parentWorkflowId = this.route.snapshot.params.id ?? "";
           const macroWorkflow = this.macroService.macroDetailToWorkflow(detail);
-          // Clear the canvas before reloading. Angular reuses WorkspaceComponent
-          // across route changes (no ngOnDestroy fires when going from
-          // `/workflow/:id` to `/workflow/:id/macro/:macroId`), so the parent
-          // workflow's operators+links are still on the JointJS paper —
-          // reloadWorkflow would otherwise hit "duplicate link" rejections in
-          // shared-model-change-handler.
-          this.workflowActionService.resetAsNewWorkflow();
-          // Reuse the same shared-model setup as the parent workflow editor so
-          // the YJS room / undo-redo stack are isolated to this macro.
+          // Joins the macro's YJS room (which itself destroys any previous
+          // shared-model first). Then reloadWorkflow clears the canvas of any
+          // prior operators+links before placing the macro body — same pattern
+          // as `loadWorkflowWithId`, so SPA navigation between workflow and
+          // macro routes stays clean and the parent's websocket/execution
+          // context survives the in-app navigation.
           this.workflowActionService.setNewSharedModel(macroId, this.userService.getCurrentUser());
           this.workflowActionService.reloadWorkflow(macroWorkflow);
           // Allow visual editing on the canvas, but persistWorkflow is already

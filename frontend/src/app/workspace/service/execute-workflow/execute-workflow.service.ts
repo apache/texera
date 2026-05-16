@@ -48,6 +48,7 @@ import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MacroService } from "../macro/macro.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -100,7 +101,8 @@ export class ExecuteWorkflowService {
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
     @Inject(DOCUMENT) private document: Document,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private macroService: MacroService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -202,10 +204,11 @@ export class ExecuteWorkflowService {
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
   ): void {
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+    const rawPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
     );
+    const logicalPlan = this.expandMacroIdsInPlan(rawPlan);
     const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
@@ -217,7 +220,8 @@ export class ExecuteWorkflowService {
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    const rawPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    const logicalPlan = this.expandMacroIdsInPlan(rawPlan);
     const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
@@ -228,6 +232,63 @@ export class ExecuteWorkflowService {
       false,
       replayExecutionInfo
     );
+  }
+
+  /**
+   * Rewrite `opsToViewResult` / `opsToReuseResult` so macro IDs are replaced
+   * with the post-expansion inner-op IDs the engine will actually see. After
+   * `MacroExpander.expand` runs on the backend, the macro op is gone — only
+   * its inner ops (prefixed with `${macroInstanceId}--`) exist. So if the
+   * user marked a macro for "view result", we forward that mark to the inner
+   * ops that produce the macro's external output(s). Non-macro IDs pass
+   * through unchanged.
+   */
+  private expandMacroIdsInPlan(plan: LogicalPlan): LogicalPlan {
+    const graph = this.workflowActionService.getTexeraGraph();
+    const expand = (opIds: readonly string[] | undefined): string[] => {
+      if (!opIds || opIds.length === 0) return [];
+      const out: string[] = [];
+      for (const opId of opIds) {
+        const op = (() => {
+          try {
+            return graph.getOperator(opId);
+          } catch {
+            return undefined;
+          }
+        })();
+        if (op?.operatorType !== "Macro") {
+          out.push(opId);
+          continue;
+        }
+        const macroId = op.operatorProperties?.["macroId"];
+        if (typeof macroId !== "string" || macroId.length === 0) {
+          // No macroId — leave as-is; backend will error on the unknown op.
+          out.push(opId);
+          continue;
+        }
+        const bindings = this.macroService.getBindingsForInstance(opId, macroId);
+        if (!bindings || bindings.outputBindings.length === 0) {
+          // Bindings not cached yet (or macro has no outputs). Leave the
+          // macro id so the request is well-formed; user can re-trigger after
+          // bindings load (preload kicks off on add, so this is rare).
+          out.push(opId);
+          continue;
+        }
+        // Mark every boundary output producer — when there are multiple
+        // output ports, the user clicking "view result" on the macro means
+        // "make all of the macro's outputs inspectable".
+        for (const binding of bindings.outputBindings) {
+          out.push(binding.innerOpId);
+        }
+      }
+      // Deduplicate (fan-out / overlapping bindings can repeat IDs).
+      return Array.from(new Set(out));
+    };
+    return {
+      ...plan,
+      opsToViewResult: expand(plan.opsToViewResult),
+      opsToReuseResult: expand(plan.opsToReuseResult),
+    };
   }
 
   public sendExecutionRequest(

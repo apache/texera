@@ -31,7 +31,7 @@
   <a
     *ngIf="parentWorkflowId"
     class="macro-edit-banner__back"
-    [href]="'/dashboard/user/workflow/' + parentWorkflowId"
+    [routerLink]="['/dashboard/user/workflow', parentWorkflowId]"
     title="Return to parent workflow">
     ← Back to parent
   </a>
