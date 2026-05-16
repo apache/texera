@@ -75,6 +75,35 @@ export async function persistWorkflow(
   return data;
 }
 
+export async function createWorkflow(token: string, name: string): Promise<number> {
+  const config = getBackendConfig();
+  const url = `${config.apiEndpoint}/api/${WORKFLOW_BASE_URL}/create`;
+
+  const emptyContent: WorkflowContent = {
+    operators: [],
+    commentBoxes: [],
+    links: [],
+    operatorPositions: {},
+    settings: { dataTransferBatchSize: 400, executionMode: "pipelined" } as any,
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: createAuthHeaders(token),
+    body: JSON.stringify({ name, content: JSON.stringify(emptyContent) }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to create workflow: ${response.status} - ${text}`);
+  }
+
+  const data = (await response.json()) as { workflow?: { wid: number }; wid?: number };
+  const wid = data.workflow?.wid ?? (data as any).wid;
+  if (!wid) throw new Error("Created workflow has no wid");
+  return wid;
+}
+
 export async function retrieveWorkflow(token: string, wid: number): Promise<Workflow> {
   const config = getBackendConfig();
   const url = `${config.apiEndpoint}/api/${WORKFLOW_BASE_URL}/${wid}`;

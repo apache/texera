@@ -17,76 +17,143 @@
  * under the License.
  */
 
+// Host: full-viewport overlay, pointer-events off so underlying UI isn't blocked
 :host {
   display: block;
-  width: 100%;
-  height: 100%;
   position: fixed;
-  z-index: 3;
-}
-
-#agent-container {
-  position: absolute;
-  top: calc(-100% + 80px);
-  right: 0;
-  z-index: 3;
-  background: white;
-}
-
-#title {
-  padding: 5px 9px;
-  border-bottom: 1px solid #e0e0e0;
-  position: absolute;
-  top: 0;
-  background: white;
-  width: 100%;
-  z-index: 2;
-}
-
-#agent-docked-button {
-  position: fixed;
-  bottom: 40px; // Position above the mini-map button
-  right: 10px;
-  z-index: 4;
-  box-shadow:
-    0 3px 1px -2px #0003,
-    0 2px 2px #00000024,
-    0 1px 5px #0000001f;
-}
-
-#return-button {
-  position: absolute;
   top: 0;
   right: 0;
-  z-index: 3;
+  height: 100vh;
+  z-index: 200;
+  pointer-events: none;
+}
+
+// ─── Collapsed tab ────────────────────────────────────────────────────────────
+// A thin vertical strip on the right edge, like Cursor's "AI" tab
+.sidebar-tab {
+  pointer-events: all;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 28px;
+  padding: 16px 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  cursor: pointer;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    background: #f0f7ff;
+    box-shadow: -3px 0 12px rgba(24, 144, 255, 0.15);
+
+    i, .sidebar-tab-label {
+      color: #1890ff;
+    }
+  }
+
+  i {
+    font-size: 16px;
+    color: #595959;
+  }
+
+  .sidebar-tab-label {
+    font-size: 11px;
+    color: #595959;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    letter-spacing: 0.5px;
+    user-select: none;
+  }
 }
 
-#content {
-  width: 100%;
-  height: 100%;
-  padding-top: 32px;
-  display: inline-block;
-  overflow-y: auto;
+// ─── Expanded sidebar panel ────────────────────────────────────────────────────
+#agent-container {
+  pointer-events: all;
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-left: 1px solid #e8e8e8;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+
+  // Left resize handle styling
+  ::ng-deep .ant-resizable-handle-left {
+    width: 4px;
+    background: transparent;
+    cursor: col-resize;
+    transition: background 0.15s;
+
+    &:hover, &:active {
+      background: #1890ff;
+    }
+  }
 }
 
-.shadow {
-  border-radius: 5px;
-  box-shadow:
-    0 3px 1px -2px #0003,
-    0 2px 2px #00000024,
-    0 1px 5px #0000001f;
+// ─── Panel header ──────────────────────────────────────────────────────────────
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 44px;
+  min-height: 44px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+  flex-shrink: 0;
+
+  .panel-header-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .panel-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #262626;
+  }
+
+  .panel-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .agent-count {
+    font-size: 11px;
+    color: #8c8c8c;
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .close-btn {
+    color: #8c8c8c;
+
+    &:hover {
+      color: #262626;
+      background: #f0f0f0 !important;
+    }
+  }
 }
 
-.ant-menu-item {
-  margin: 0 !important;
-  height: 32px;
-  line-height: 32px;
-  padding: 0 9px;
-}
-
+// ─── Tabs ──────────────────────────────────────────────────────────────────────
 .agent-tabs {
-  height: calc(100% - 32px); // Account for the title bar
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -100,6 +167,8 @@
 
     .ant-tabs-nav {
       margin-bottom: 0;
+      background: #fafafa;
+      border-bottom: 1px solid #f0f0f0;
     }
 
     .ant-tabs-content-holder {
@@ -122,58 +191,46 @@
 .agent-tab-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 
   .agent-tab-name {
     flex: 1;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  // Visual feedback for agents on different workflows
   &.workflow-mismatch {
     opacity: 0.6;
-
-    .agent-tab-name {
-      color: #8c8c8c;
-    }
+    .agent-tab-name { color: #8c8c8c; }
   }
 
   .workflow-lock-icon {
     color: #faad14;
-    font-size: 12px;
-    margin-left: -4px;
+    font-size: 11px;
   }
 }
 
 .agent-tab-close {
   padding: 0 !important;
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.6;
-  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+
+  .agent-tab-title:hover & {
+    opacity: 0.6;
+  }
 
   &:hover {
-    opacity: 1;
+    opacity: 1 !important;
     color: #ff4d4f !important;
-    background: rgba(255, 77, 79, 0.1) !important;
   }
 
-  i {
-    font-size: 12px;
-  }
-}
-
-.tab-bar-extra {
-  padding-right: 8px;
-}
-
-.agent-count {
-  font-size: 12px;
-  color: #8c8c8c;
-  padding: 4px 8px;
-  background: #f0f0f0;
-  border-radius: 4px;
+  i { font-size: 11px; }
 }

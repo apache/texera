@@ -102,6 +102,14 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   /** Steps on the HEAD path only (for chat rendering) */
   public visibleSteps: ReActStep[] = [];
   public currentMessage = "";
+  public selectedFile: File | null = null;
+  public isUploading = false;
+
+  // Duplicate file detection state
+  public duplicateFile: { fileName: string; filePath: string; uploadedDate: string; datasetId: number; datasetVersionId?: number } | null = null;
+  private pendingFileToUpload: File | null = null;
+  private pendingUserMessage = "";
+
   private shouldScrollToBottom = false;
   public isDetailsModalVisible = false;
   public selectedResponse: ReActStep | null = null;
@@ -399,23 +407,105 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
+  public attachFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.selectedFile = input.files[0];
+      input.value = "";
+    }
+  }
+
+  public removeFile(): void {
+    this.selectedFile = null;
+  }
+
   public sendMessage(): void {
-    if (!this.currentMessage.trim() || !this.canSendMessage()) {
+    if ((!this.currentMessage.trim() && !this.selectedFile) || !this.canSendMessage()) {
       return;
     }
 
     const userMessage = this.currentMessage.trim();
     this.currentMessage = "";
 
-    // Fire-and-forget; responses stream in via the WebSocket subscription.
-    this.agentService.sendMessage(this.agentInfo.id, userMessage);
+    if (this.selectedFile) {
+      const fileToUpload = this.selectedFile;
+      this.selectedFile = null;
+      this.isUploading = true;
+
+      // Check for existing file before uploading
+      this.agentService
+        .checkExistingFile(fileToUpload)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: existing => {
+            if (existing) {
+              // Found a duplicate — pause and ask user
+              this.isUploading = false;
+              this.duplicateFile = existing;
+              this.pendingFileToUpload = fileToUpload;
+              this.pendingUserMessage = userMessage;
+            } else {
+              // No duplicate — proceed with upload
+              this.doUploadAndSend(fileToUpload, userMessage);
+            }
+          },
+          error: () => {
+            // If check fails, proceed with upload
+            this.doUploadAndSend(fileToUpload, userMessage);
+          },
+        });
+    } else {
+      this.agentService.sendMessage(this.agentInfo.id, userMessage);
+    }
+  }
+
+  private doUploadAndSend(file: File, userMessage: string): void {
+    this.isUploading = true;
+    this.agentService
+      .uploadFile(this.agentInfo.id, file)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: fileRef => {
+          this.isUploading = false;
+          const message = userMessage || `I uploaded ${file.name}. Please help me analyze this file.`;
+          this.agentService.sendMessage(this.agentInfo.id, message, "chat", fileRef);
+        },
+        error: (err: unknown) => {
+          this.isUploading = false;
+          const msg = err instanceof Error ? err.message : String(err);
+          this.notificationService.error(`Failed to upload ${file.name}: ${msg}`);
+        },
+      });
+  }
+
+  public useExistingFile(): void {
+    if (!this.duplicateFile) return;
+    const { fileName, filePath, datasetId, datasetVersionId } = this.duplicateFile;
+    const userTyped = this.pendingUserMessage.trim();
+    const message = userTyped || `I already have ${fileName} in my datasets — please open it so I can see the file.`;
+    this.agentService.sendMessage(this.agentInfo.id, message, "chat", { fileName, filePath, datasetId, datasetVersionId });
+    this.clearDuplicateState();
+  }
+
+  public uploadNewFile(): void {
+    if (!this.pendingFileToUpload) return;
+    const file = this.pendingFileToUpload;
+    const msg = this.pendingUserMessage;
+    this.clearDuplicateState();
+    this.doUploadAndSend(file, msg);
+  }
+
+  public clearDuplicateState(): void {
+    this.duplicateFile = null;
+    this.pendingFileToUpload = null;
+    this.pendingUserMessage = "";
   }
 
   /**
-   * Check if messages can be sent (only when agent is available).
+   * Check if messages can be sent (only when agent is available and not uploading).
    */
   public canSendMessage(): boolean {
-    return this.agentState === AgentState.AVAILABLE;
+    return this.agentState === AgentState.AVAILABLE && !this.isUploading;
   }
 
   /**

@@ -27,6 +27,7 @@ import { HubComponent } from "../../hub/component/hub.component";
 import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
+import { AgentService } from "../../workspace/service/agent/agent.service";
 
 import {
   DASHBOARD_ABOUT,
@@ -124,11 +125,19 @@ export class DashboardComponent implements OnInit {
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
-    protected config: GuiConfigService
+    protected config: GuiConfigService,
+    private agentService: AgentService
   ) {}
 
   ngOnInit(): void {
     this.isCollapsed = false;
+
+    // Collapse the sidebar automatically when the agent panel opens
+    this.agentService.agentPanelOpen$
+      .pipe(untilDestroyed(this))
+      .subscribe(panelOpen => {
+        this.isCollapsed = panelOpen;
+      });
 
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();

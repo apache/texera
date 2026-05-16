@@ -74,6 +74,8 @@ export interface ReActStep {
   parentId?: string;
   /** Source of the user message: "chat" or "feedback" */
   messageSource?: string;
+  /** File uploaded with this message (user steps only) */
+  fileContext?: { fileName: string; filePath: string; datasetId?: number; datasetVersionId?: number };
   /** Workflow state before this step executed */
   beforeWorkflowContent?: any;
   /** Workflow state after this step executed */

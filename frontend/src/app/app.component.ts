@@ -17,9 +17,13 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
+import { Router } from "@angular/router";
+import { filter, switchMap, take } from "rxjs";
 import { GuiConfigService } from "./common/service/gui-config.service";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { AgentService } from "./workspace/service/agent/agent.service";
+import { UserService } from "./common/service/user/user.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
 @Component({
@@ -34,21 +38,56 @@ import { UntilDestroy } from "@ngneat/until-destroy";
       <button (click)="retry()">Retry</button>
     </div>
     <router-outlet *ngIf="configLoaded"></router-outlet>
+    <texera-agent-panel *ngIf="configLoaded && copilotEnabled"></texera-agent-panel>
   `,
   standalone: false,
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   configLoaded = false;
 
-  constructor(private config: GuiConfigService) {
-    // determine whether configuration was successfully loaded by APP_INITIALIZER
+  constructor(
+    private config: GuiConfigService,
+    private agentService: AgentService,
+    private userService: UserService,
+    private router: Router
+  ) {
     try {
-      // accessing env will throw if not loaded
       void this.config.env;
       this.configLoaded = true;
     } catch {
       this.configLoaded = false;
     }
+  }
+
+  ngOnInit(): void {
+    // Listen for agent-driven navigation requests and execute them in the browser.
+    this.agentService.navigate$.pipe(untilDestroyed(this)).subscribe(url => {
+      this.router.navigateByUrl(url);
+    });
+
+    if (!this.configLoaded || !this.copilotEnabled) return;
+
+    // Auto-open the agent panel when the user logs in and has no agents yet.
+    this.userService
+      .userChanged()
+      .pipe(
+        untilDestroyed(this),
+        filter(user => user !== undefined), // only when logged in
+        switchMap(() =>
+          // Re-fetch agent list fresh after login (bypasses cached empty state)
+          this.agentService.getAllAgents().pipe(take(1))
+        )
+      )
+      .subscribe(agents => {
+        if (agents.length === 0) {
+          // Delay so router finishes navigating to the dashboard before opening
+          setTimeout(() => this.agentService.requestOpenPanel(), 700);
+        }
+      });
+  }
+
+  get copilotEnabled(): boolean {
+    return this.config.env.copilotEnabled;
   }
 
   retry(): void {

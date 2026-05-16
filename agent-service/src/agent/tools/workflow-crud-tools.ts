@@ -43,6 +43,16 @@ export interface ToolContext {
     toolTimeoutMs?: number;
     executionTimeoutMs?: number;
   };
+  /** Returns the file context for the current message turn, if any. */
+  getFileContext?: () => { fileName: string; filePath: string } | undefined;
+  /** Tracks how many times each operatorType has been added this turn (for loop detection). */
+  operatorTypeAddCount?: Map<string, number>;
+  /** Tracks how many times each operatorId has been modified this turn (for loop detection). */
+  operatorModifyCount?: Map<string, number>;
+  /** Aborts generation immediately (used by loop detector). */
+  abort?: () => void;
+  /** Lazily creates a workflow when the agent first needs to build operators. */
+  ensureWorkflow?: () => Promise<void>;
 }
 
 export const TOOL_NAME_ADD_OPERATOR = "addOperator";
@@ -80,7 +90,7 @@ Examples:
           "Name of Operator. Use the format 'op' followed by an incrementing number starting from 1 (e.g., op1, op2, op3)."
         ),
       operatorType: z.string().describe("The operator type (e.g., 'DataProcessing', 'Aggregate')"),
-      properties: z.record(z.any()).describe("Properties to set on the operator"),
+      properties: z.record(z.any()).optional().describe("Properties to set on the operator"),
       inputOperatorIds: z
         .record(z.array(z.string()))
         .optional()
@@ -99,6 +109,9 @@ Examples:
       summary: string;
     }) => {
       try {
+        // Lazily create a workflow the first time the agent needs to build operators.
+        if (context?.ensureWorkflow) await context.ensureWorkflow();
+
         const inputInfo = formatInputArgs(args);
 
         const schemaEntry = operatorSchemas.get(args.operatorType);
@@ -106,6 +119,21 @@ Examples:
           return createErrorResult(
             `Unknown operator type: "${args.operatorType}". Available types: ${[...operatorSchemas.keys()].join(", ")}. ${inputInfo}`
           );
+        }
+
+        // Loop detection: if the same operatorType has been added 3+ times this turn, abort.
+        if (context?.operatorTypeAddCount) {
+          const prev = context.operatorTypeAddCount.get(args.operatorType) ?? 0;
+          if (prev >= 3) {
+            // Abort generation — the LLM ignores plain errors but abort stops the loop.
+            context.abort?.();
+            return createErrorResult(
+              `You have already added "${args.operatorType}" ${prev} times this turn without success. ` +
+                `Generation is stopping. Tell the user what was built so far and that ` +
+                `this specific step requires a different approach or manual configuration.`
+            );
+          }
+          context.operatorTypeAddCount.set(args.operatorType, prev + 1);
         }
 
         if (context?.metadataStore && args.properties) {
@@ -136,11 +164,47 @@ Examples:
           );
         }
 
-        let operator = workflowUtil.getNewOperatorPredicate(args.operatorType, args.summary);
+        // Auto-inject fileName from file context when the operator needs one but none was provided.
+        let resolvedProperties = args.properties || {};
+        if (!resolvedProperties.fileName && context?.getFileContext) {
+          const fc = context.getFileContext();
+          const schema = context.metadataStore?.getSchema(args.operatorType);
+          const needsFileName =
+            schema?.properties?.fileName !== undefined ||
+            schema?.required?.includes("fileName");
+          if (fc && needsFileName) {
+            resolvedProperties = { ...resolvedProperties, fileName: fc.filePath };
+          }
+        }
+
+        const operatorTemplate = workflowUtil.getNewOperatorPredicate(args.operatorType, args.summary);
+
+        // If this operator needs inputs but none were specified, block and explain.
+        if (operatorTemplate.inputPorts.length > 0 && !args.inputOperatorIds) {
+          const existingOps = workflowState.getAllOperators();
+          if (existingOps.length > 0) {
+            const opList = existingOps
+              .map(o => `${o.operatorID} (${o.operatorType})`)
+              .join(", ");
+            // Don't count this blocked attempt toward the repetition limit.
+            if (context?.operatorTypeAddCount) {
+              const cur = context.operatorTypeAddCount.get(args.operatorType) ?? 0;
+              context.operatorTypeAddCount.set(args.operatorType, Math.max(0, cur - 1));
+            }
+            return createErrorResult(
+              `Operator "${args.operatorId}" (${args.operatorType}) requires ${operatorTemplate.inputPorts.length} input(s) but no inputOperatorIds was provided. ` +
+                `You MUST specify which operator to connect it to using inputOperatorIds in this same addOperator call. ` +
+                `Available operators to connect to: ${opList}. ` +
+                `Example: {"0": ["${existingOps[0].operatorID}"]}`
+            );
+          }
+        }
+
+        let operator = operatorTemplate;
         operator = {
           ...operator,
           operatorID: args.operatorId,
-          operatorProperties: { ...operator.operatorProperties, ...args.properties },
+          operatorProperties: { ...operator.operatorProperties, ...resolvedProperties },
         };
 
         workflowState.addOperator(operator);
@@ -241,6 +305,19 @@ Examples:
 
         const operator = workflowState.getOperator(args.operatorId);
         if (!operator) return createErrorResult(`Operator ${args.operatorId} not found. ${inputInfo}`);
+
+        // Loop detection: abort if the same operator has been modified 5+ times this turn.
+        if (context?.operatorModifyCount) {
+          const prev = context.operatorModifyCount.get(args.operatorId) ?? 0;
+          if (prev >= 5) {
+            context.abort?.();
+            return createErrorResult(
+              `You have already modified "${args.operatorId}" ${prev} times this turn without success. ` +
+                `Generation is stopping. Tell the user what was built and what step is blocking progress.`
+            );
+          }
+          context.operatorModifyCount.set(args.operatorId, prev + 1);
+        }
 
         if (args.properties && context?.metadataStore) {
           const mergedProperties = { ...operator.operatorProperties, ...args.properties };

@@ -17,128 +17,106 @@
  under the License.
 -->
 
-<!-- Docked Button -->
-<button
-  id="agent-docked-button"
-  nz-button
-  nzType="primary"
-  nzShape="circle"
-  nzSize="large"
-  (click)="openPanel()"
+<!-- Collapsed tab — shown when panel is closed -->
+<div
   *ngIf="!width"
+  class="sidebar-tab"
+  (click)="openPanel()"
   nz-tooltip
   nzTooltipPlacement="left"
-  nzTooltipTitle="AI Agents">
-  <span
-    nz-icon
-    nzType="robot"></span>
-</button>
+  nzTooltipTitle="Open AI Agent">
+  <i nz-icon nzType="robot" nzTheme="outline"></i>
+  <span class="sidebar-tab-label">AI Agent</span>
+</div>
 
+<!-- Expanded sidebar panel -->
 <div
-  cdkDrag
-  cdkDragBoundary="texera-workspace"
+  *ngIf="width"
   id="agent-container"
-  class="box"
   nz-resizable
-  [nzMinWidth]="400"
-  [nzMinHeight]="450"
-  [nzMaxWidth]="window.innerWidth * 0.9"
-  [nzMaxHeight]="window.innerHeight * 0.85"
+  [nzMinWidth]="360"
+  [nzMaxWidth]="900"
   [style.width.px]="width"
-  [style.height.px]="height"
-  (nzResize)="onResize($event)"
-  (cdkDragStarted)="handleDragStart()"
-  [cdkDragFreeDragPosition]="dragPosition">
-  <!-- Minimize Button -->
-  <ul
-    id="return-button"
-    nz-menu
-    [ngClass]="{'shadow': !width}"
-    *ngIf="width">
-    <li
-      nz-menu-item
-      (click)="openPanel()">
-      <span
-        nz-icon
-        nzType="minus"></span>
-    </li>
-  </ul>
+  (nzResize)="onResize($event)">
 
-  <div
-    #content
-    id="content"
-    [hidden]="!width">
-    <h4
-      id="title"
-      cdkDragHandle>
-      AI Agents
-    </h4>
+  <!-- Left resize handle only -->
+  <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
 
-    <!-- Tabs -->
-    <nz-tabs
-      [nzSelectedIndex]="selectedTabIndex"
-      (nzSelectedIndexChange)="onTabSelectChange($event)"
-      class="agent-tabs"
-      nzType="card">
-      <ng-template nzTabBarExtraContent="end">
-        <div class="tab-bar-extra">
-          <span class="agent-count">{{ agents.length }} agent(s)</span>
+  <!-- Panel header -->
+  <div class="panel-header">
+    <div class="panel-header-left">
+      <i nz-icon nzType="robot" nzTheme="outline" style="font-size: 16px; color: #1890ff; margin-right: 6px"></i>
+      <span class="panel-title">AI Agent</span>
+    </div>
+    <div class="panel-header-right">
+      <span class="agent-count">{{ agents.length }} agent(s)</span>
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="openPanel()"
+        nz-tooltip
+        nzTooltipTitle="Close panel"
+        class="close-btn">
+        <i nz-icon nzType="double-right" nzTheme="outline"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <nz-tabs
+    [nzSelectedIndex]="selectedTabIndex"
+    (nzSelectedIndexChange)="onTabSelectChange($event)"
+    class="agent-tabs"
+    nzType="card">
+
+    <!-- Registration Tab -->
+    <nz-tab
+      nzTitle="+ Agent"
+      [nzForceRender]="true">
+      <ng-template nz-tab>
+        <texera-agent-registration
+          (agentCreated)="onAgentCreated($event)"
+          [isFirstTime]="agents.length === 0"></texera-agent-registration>
+      </ng-template>
+    </nz-tab>
+
+    <!-- Agent Tabs -->
+    <nz-tab
+      *ngFor="let agent of agents; let i = index"
+      [nzTitle]="agentTabTitle"
+      [nzForceRender]="true">
+      <ng-template
+        #agentTabTitle
+        let-active="active">
+        <div class="agent-tab-title">
+          <span class="agent-tab-name">{{ agent.name }}</span>
+          <i
+            *ngIf="!canSwitchToAgent(agent)"
+            nz-icon
+            nzType="lock"
+            nzTheme="outline"
+            class="workflow-lock-icon"
+            nz-tooltip
+            nzTooltipTitle="This agent is working on a different workflow"></i>
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            class="agent-tab-close"
+            (click)="deleteAgent(agent.id, $event)"
+            nz-tooltip
+            nzTooltipTitle="Close agent">
+            <i nz-icon nzType="close" nzTheme="outline"></i>
+          </button>
         </div>
       </ng-template>
+      <ng-template nz-tab>
+        <texera-agent-chat
+          [agentInfo]="agent"
+          [isActive]="activeAgentId === agent.id"></texera-agent-chat>
+      </ng-template>
+    </nz-tab>
 
-      <!-- Registration Tab -->
-      <nz-tab
-        nzTitle="+ Agent"
-        [nzForceRender]="true">
-        <ng-template nz-tab>
-          <texera-agent-registration (agentCreated)="onAgentCreated($event)"></texera-agent-registration>
-        </ng-template>
-      </nz-tab>
-
-      <!-- Agent Tabs -->
-      <nz-tab
-        *ngFor="let agent of agents; let i = index"
-        [nzTitle]="agentTabTitle"
-        [nzForceRender]="true"
-        [nzDisabled]="!canSwitchToAgent(agent)">
-        <ng-template
-          #agentTabTitle
-          let-active="active">
-          <div
-            class="agent-tab-title"
-            [class.workflow-mismatch]="!canSwitchToAgent(agent)">
-            <span class="agent-tab-name">{{ agent.name }}</span>
-            <i
-              *ngIf="!canSwitchToAgent(agent)"
-              nz-icon
-              nzType="lock"
-              nzTheme="outline"
-              class="workflow-lock-icon"
-              nz-tooltip
-              nzTooltipTitle="This agent is working on a different workflow"></i>
-            <button
-              nz-button
-              nzType="text"
-              nzSize="small"
-              class="agent-tab-close"
-              (click)="deleteAgent(agent.id, $event)"
-              nz-tooltip
-              nzTooltipTitle="Close agent">
-              <i
-                nz-icon
-                nzType="close"
-                nzTheme="outline"></i>
-            </button>
-          </div>
-        </ng-template>
-        <ng-template nz-tab>
-          <texera-agent-chat
-            [agentInfo]="agent"
-            [isActive]="activeAgentId === agent.id"></texera-agent-chat>
-        </ng-template>
-      </nz-tab>
-    </nz-tabs>
-
-    <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
-  </div>
+  </nz-tabs>
 </div>

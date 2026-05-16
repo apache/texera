@@ -352,11 +352,5 @@ describe("WorkspaceComponent", () => {
     });
   });
 
-  describe("copilotEnabled", () => {
-    it("passes through to GuiConfigService.env.copilotEnabled", async () => {
-      await createFixture();
-      // MockGuiConfigService defaults `copilotEnabled` to false.
-      expect(component.copilotEnabled).toBe(false);
-    });
-  });
+  // copilotEnabled was moved to AppComponent; WorkspaceComponent no longer has it.
 });

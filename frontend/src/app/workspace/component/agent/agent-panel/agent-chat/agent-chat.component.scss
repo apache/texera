@@ -204,8 +204,52 @@
   }
 }
 
+.duplicate-file-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 6px;
+  margin: 0 12px 8px;
+  font-size: 13px;
+
+  .duplicate-file-info {
+    display: flex;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+
+  .duplicate-file-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #f0f5ff;
+  border: 1px solid #adc6ff;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #2f54eb;
+
+  .file-chip-name {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .input-area {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid #f0f0f0;
@@ -214,6 +258,7 @@
 
   textarea {
     flex: 1;
+    min-width: 0;
   }
 
   button {

@@ -30,6 +30,9 @@ const EnvSchema = z.object({
   LOG_PRETTY: z.coerce.boolean().default(false),
 
   TEXERA_DASHBOARD_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8080"),
+  COMPUTING_UNIT_MANAGING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8888"),
+  COMPUTING_UNIT_WSAPI_URI: z.string().default("http://localhost:4200/wsapi"),
+  FILE_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9092"),
   LLM_ENDPOINT: z.string().url().default("http://localhost:9096"),
   WORKFLOW_COMPILING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9090"),
   WORKFLOW_EXECUTION_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8085"),

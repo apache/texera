@@ -17,14 +17,15 @@
  * under the License.
  */
 
-import { generateText, type ModelMessage, type LanguageModel, stepCountIs } from "ai";
+import { generateText, tool, type ModelMessage, type LanguageModel, stepCountIs } from "ai";
+import { z } from "zod";
 import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 import { WorkflowResultState } from "./workflow-result-state";
 import { formatOperatorResult } from "./tools/result-formatting";
-import type { AgentSettings, ReActStep, TokenUsage, UserInfo } from "../types/agent";
+import type { AgentSettings, ReActStep, TokenUsage, UserInfo, FileContext } from "../types/agent";
 import {
   AgentState as AgentStateEnum,
   DEFAULT_AGENT_SETTINGS,
@@ -49,10 +50,28 @@ import {
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
+import { env } from "../config/env";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
 
 const PERSIST_DEBOUNCE_MS = 500;
+
+/**
+ * Derive a concise, human-readable workflow name from the navigateToWorkflow summary.
+ * Looks for a bolded filename or the first meaningful sentence.
+ */
+function extractWorkflowName(summary: string): string | null {
+  // Try to extract a bold filename: **filename.csv** or **Name Analysis**
+  const boldMatch = summary.match(/\*\*([^*]{3,60})\*\*/);
+  if (boldMatch) {
+    const candidate = boldMatch[1].replace(/\.(csv|json|txt|xlsx?|parquet)$/i, "").trim();
+    if (candidate.length >= 3) return candidate.substring(0, 60);
+  }
+  // Fall back to first sentence (≤ 50 chars)
+  const firstLine = summary.split("\n")[0].replace(/[*`]/g, "").trim();
+  if (firstLine.length >= 5 && firstLine.length <= 60) return firstLine;
+  return null;
+}
 
 export interface TexeraAgentConfig {
   model: LanguageModel;
@@ -108,12 +127,21 @@ export class TexeraAgent {
   private delegateConfig?: {
     userToken: string;
     userInfo?: UserInfo;
-    workflowId: number;
+    workflowId?: number;
     workflowName?: string;
     computingUnitId?: number;
   };
 
   private stepCallback: ReActStepCallback | null = null;
+  private navigateCallback: ((url: string) => void) | null = null;
+  private shouldStopGeneration = false;
+  private navigationFiredThisTurn = false;
+  private currentFileContext: FileContext | undefined = undefined;
+  // Persists the last uploaded file across turns so the agent can use it in follow-up messages.
+  private lastSeenFileContext: FileContext | undefined = undefined;
+  private operatorTypeAddCount: Map<string, number> = new Map();
+  private operatorModifyCount: Map<string, number> = new Map();
+  private listCallCount: Map<string, number> = new Map();
 
   private messageCounter = 0;
 
@@ -191,6 +219,26 @@ export class TexeraAgent {
     };
   }
 
+  /** Lazily creates a workflow the first time the agent needs to build operators. */
+  private async ensureWorkflow(): Promise<void> {
+    if (this.delegateConfig?.workflowId || !this.delegateConfig?.userToken) return;
+    try {
+      const { createWorkflow } = await import("../api/workflow-api");
+      // Name the workflow after the file being analyzed, or fall back to a generic name
+      const fc = this.lastSeenFileContext ?? this.currentFileContext;
+      const workflowName = fc?.fileName
+        ? fc.fileName.replace(/\.[^.]+$/, "").replace(/_/g, " ")  // strip extension, underscores → spaces
+        : "Agent Workflow";
+      const wid = await createWorkflow(this.delegateConfig.userToken, workflowName);
+      // Store workflowName so auto-persist uses it instead of "Agent Workflow"
+      this.delegateConfig = { ...this.delegateConfig, workflowId: wid, workflowName };
+      this.setupWorkflowChangeHandlers();
+      this.log.info({ wid }, "lazily created workflow for agent");
+    } catch (e: any) {
+      this.log.warn({ err: e?.message }, "failed to lazily create workflow");
+    }
+  }
+
   private createTools(): Record<string, any> {
     const operatorSchemas = new Map<string, any>();
     for (const type of Object.keys(this.metadataStore.getAllOperatorTypes())) {
@@ -201,6 +249,8 @@ export class TexeraAgent {
       }
     }
 
+    // Expose executeOperator whenever a delegate config (user token + workflow) is present.
+    // If no computingUnitId is set, the tool auto-discovers a running unit at call time.
     const getExecutionConfig = this.delegateConfig ? () => this.buildExecutionConfig()! : undefined;
 
     const context: ToolContext = {
@@ -209,6 +259,15 @@ export class TexeraAgent {
         maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
         toolTimeoutMs: this.settings.toolTimeoutMs,
         executionTimeoutMs: this.settings.executionTimeoutMs,
+      },
+      // Fall back to the last uploaded file if no file was attached to the current message
+      getFileContext: () => this.currentFileContext ?? this.lastSeenFileContext,
+      operatorTypeAddCount: this.operatorTypeAddCount,
+      operatorModifyCount: this.operatorModifyCount,
+      ensureWorkflow: () => this.ensureWorkflow(),
+      abort: () => {
+        this.shouldStopGeneration = true;
+        this.abortController?.abort();
       },
     };
 
@@ -226,6 +285,293 @@ export class TexeraAgent {
           this.workflowResultState.set(opId, this.head, operatorInfo);
         }
       );
+    }
+
+    // Content-discovery and navigation tools — available whenever a user token exists.
+    if (this.delegateConfig?.userToken) {
+      const userToken = this.delegateConfig.userToken;
+      const dashboardEndpoint = env.TEXERA_DASHBOARD_SERVICE_ENDPOINT;
+      const fileEndpoint = env.FILE_SERVICE_ENDPOINT;
+      const navCb = () => this.navigateCallback;
+
+      tools["listWorkflows"] = tool({
+        description:
+          "List the user's existing workflows. Use this when the user mentions a previous workflow " +
+          "or wants to open, continue, or reference one they built before. " +
+          "Returns wid (workflow ID), name, and last-modified date.",
+        inputSchema: z.object({
+          query: z.string().optional().describe("Optional name filter (case-insensitive substring match)"),
+        }),
+        execute: async ({ query }: { query?: string }) => {
+          const key = `listWorkflows:${query ?? ""}`;
+          const prev = this.listCallCount.get(key) ?? 0;
+          if (prev >= 2) {
+            this.shouldStopGeneration = true;
+            this.abortController?.abort();
+            return query
+              ? `No workflow named "${query}" was found after searching twice. Navigate to "workflows" to let the user browse and open manually.`
+              : `Workflow list already retrieved twice. Stop repeating — present the results to the user or navigate to "workflows".`;
+          }
+          this.listCallCount.set(key, prev + 1);
+          try {
+            const res = await fetch(`${dashboardEndpoint}/api/workflow/list`, {
+              headers: { Authorization: `Bearer ${userToken}` },
+            });
+            if (!res.ok) return `Failed to list workflows: ${res.status}`;
+            const items = (await res.json()) as Array<{ workflow: { wid: number; name: string; lastModifiedTime: number } }>;
+            const filtered = query
+              ? items.filter(i => i.workflow.name.toLowerCase().includes(query.toLowerCase()))
+              : items;
+            if (!filtered.length)
+              return query
+                ? `No workflows matching "${query}". Try a different search or use navigate("workflows") to browse all.`
+                : "No workflows found.";
+
+            // Sort by most recently modified
+            const sorted = [...filtered].sort((a, b) => (b.workflow.lastModifiedTime ?? 0) - (a.workflow.lastModifiedTime ?? 0));
+            const lines = sorted.slice(0, 20).map((i, idx) => {
+              const wf = i.workflow;
+              const age = wf.lastModifiedTime
+                ? new Date(wf.lastModifiedTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                : "unknown";
+              return `${idx + 1}. **${wf.name}** — modified ${age} (wid: ${wf.wid})`;
+            });
+            const shownNote = sorted.length > 20 ? `, showing 20 most recent` : "";
+            return `📋 **Your workflows** (${filtered.length} total${shownNote}):\n\n${lines.join("\n")}\n\nTo open one, say "open wid [number]".`;
+          } catch (e: any) {
+            return `Error listing workflows: ${e.message}`;
+          }
+        },
+      });
+
+      tools["listDatasets"] = tool({
+        description:
+          "List the user's uploaded datasets/files. Use this when the user wants to use a file " +
+          "they uploaded previously, or to discover what data is available. " +
+          "Returns dataset name, ID, and creation date.",
+        inputSchema: z.object({
+          query: z.string().optional().describe("Optional name filter (case-insensitive substring match)"),
+        }),
+        execute: async ({ query }: { query?: string }) => {
+          const key = `listDatasets:${query ?? ""}`;
+          const prev = this.listCallCount.get(key) ?? 0;
+          if (prev >= 2) {
+            this.shouldStopGeneration = true;
+            this.abortController?.abort();
+            return query
+              ? `No dataset named "${query}" was found after searching twice. Navigate to "datasets" to let the user browse manually.`
+              : `Dataset list already retrieved twice. Stop repeating — present the results to the user or navigate to "datasets".`;
+          }
+          this.listCallCount.set(key, prev + 1);
+          try {
+            const res = await fetch(`${fileEndpoint}/api/dataset/list`, {
+              headers: { Authorization: `Bearer ${userToken}` },
+            });
+            if (!res.ok) return `Failed to list datasets: ${res.status}`;
+            const items = (await res.json()) as Array<{
+              dataset: { did: number; name: string; description: string; creationTime: number };
+              ownerEmail: string;
+            }>;
+
+            // Resolve display name and file path for each dataset
+            const resolveEntry = async (
+              ds: { did: number; name: string; description: string; creationTime: number },
+              ownerEmail: string
+            ): Promise<{ displayName: string; filePath: string; date: string }> => {
+              const date = ds.creationTime
+                ? new Date(ds.creationTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                : "unknown date";
+              const desc = ds.description ?? "";
+
+              // New format: stored at upload time
+              if (desc.startsWith("agent-upload:")) {
+                const safeFileName = desc.slice("agent-upload:".length);
+                return { displayName: safeFileName, filePath: `/${ownerEmail}/${ds.name}/v1/${safeFileName}`, date };
+              }
+
+              // Fetch file list from version/latest
+              try {
+                const vRes = await fetch(`${fileEndpoint}/api/dataset/${ds.did}/version/latest`, {
+                  headers: { Authorization: `Bearer ${userToken}` },
+                });
+                if (vRes.ok) {
+                  const vData = (await vRes.json()) as {
+                    fileNodes?: Array<{ name: string; parentDir: string; type: string }>;
+                  };
+                  const fileNode = (vData.fileNodes ?? []).find(n => n.type === "file");
+                  if (fileNode) {
+                    return { displayName: fileNode.name, filePath: `${fileNode.parentDir}/${fileNode.name}`, date };
+                  }
+                }
+              } catch { /* ignore */ }
+
+              // Last resort: strip timestamp prefix from dataset name
+              const bare = ds.name.replace(/^agent_upload_\d+_/, "").replace(/_/g, " ").replace(/\s+csv$/i, ".csv");
+              return { displayName: bare, filePath: "", date };
+            };
+
+            // Resolve all entries
+            const resolved = await Promise.all(
+              items.map(i => resolveEntry(i.dataset, i.ownerEmail ?? "unknown").then(e => ({ ...e, did: i.dataset.did })))
+            );
+
+            // Apply query filter on display name
+            const filteredResolved = query
+              ? resolved.filter(e => e.displayName.toLowerCase().includes(query.toLowerCase()))
+              : resolved;
+
+            if (!filteredResolved.length)
+              return query
+                ? `No files matching "${query}". Try a different search term.`
+                : "No uploaded files found.";
+
+            // Deduplicate by display name — keep the most recent copy of each file
+            const byName = new Map<string, typeof filteredResolved[0]>();
+            const countByName = new Map<string, number>();
+            for (const e of filteredResolved.sort((a, b) => b.did - a.did)) {
+              countByName.set(e.displayName, (countByName.get(e.displayName) ?? 0) + 1);
+              if (!byName.has(e.displayName)) byName.set(e.displayName, e);
+            }
+
+            const unique = Array.from(byName.values()).slice(0, 20);
+            const totalMsg = filteredResolved.length !== byName.size
+              ? ` (${filteredResolved.length} total versions)`
+              : "";
+
+            const lines = unique.map((e, idx) => {
+              const copies = countByName.get(e.displayName) ?? 1;
+              const copiesNote = copies > 1 ? ` (${copies} versions)` : "";
+              const pathNote = e.filePath ? ` — filePath: \`${e.filePath}\`` : "";
+              return `${idx + 1}. **${e.displayName}**${copiesNote} — uploaded ${e.date}${pathNote}`;
+            });
+
+            return `📁 **Your uploaded files** (${byName.size} unique${totalMsg}):\n\n${lines.join("\n")}\n\nTo load a file, say "load [filename]".`;
+          } catch (e: any) {
+            return `Error listing datasets: ${e.message}`;
+          }
+        },
+      });
+
+      tools["navigate"] = tool({
+        description:
+          "Navigate the user's browser to any page in the Texera app. " +
+          "Choose the destination that best matches what the user asked for. " +
+          "This is a terminal action — call it last, after all data retrieval is done.",
+        inputSchema: z.object({
+          destination: z
+            .enum([
+              "dashboard",   // home / landing page
+              "workflows",   // my workflows list
+              "datasets",    // my datasets list (overview)
+              "dataset",     // open a SPECIFIC dataset detail page — requires datasetId
+              "compute",     // computing units — use this for: "computing unit", "compute", "start a worker", "my compute resources"
+              "quota",       // storage/usage quota — use this for: "usage", "quota", "storage limit", "how much space"
+              "projects",    // my projects
+              "discussion",  // discussion / forum
+              "hub",         // public hub (browse shared workflows)
+              "workflow",    // open THIS agent's current workflow (never pass a workflowId here — use navigateToWorkflow instead)
+            ])
+            .describe("Page to navigate to. Use 'workflow' to open the current agent workflow. Use 'dataset' with datasetId to open a specific file. Use 'compute' for computing units."),
+          datasetId: z.number().optional().describe("Dataset ID — required when destination='dataset'"),
+          datasetVersionId: z.number().optional().describe("Dataset version ID (dvid) — use when navigating to 'dataset' to pre-select the version"),
+          message: z.string().describe("One sentence telling the user where they are going"),
+        }),
+        execute: async ({
+          destination,
+          datasetId: navDid,
+          datasetVersionId: navDvid,
+          message,
+        }: {
+          destination: string;
+          datasetId?: number;
+          datasetVersionId?: number;
+          message: string;
+        }) => {
+          if (this.navigationFiredThisTurn) {
+            return "Already navigated this turn. Do not call navigate again.";
+          }
+          this.navigationFiredThisTurn = true;
+          this.shouldStopGeneration = true;
+
+          // For "workflow" destination always use the agent's own workflow — never a hallucinated ID
+          const ownWorkflowId = this.delegateConfig?.workflowId;
+
+          const urls: Record<string, string> = {
+            dashboard:  "/dashboard/home",
+            workflows:  "/dashboard/user/workflow",
+            datasets:   "/dashboard/user/dataset",
+            dataset:    (navDid && navDid > 0) ? `/dashboard/user/dataset/${navDid}${navDvid ? `?dvid=${navDvid}` : ""}` : "/dashboard/user/dataset",
+            compute:    "/dashboard/user/compute",
+            quota:      "/dashboard/user/quota",
+            projects:   "/dashboard/user/project",
+            discussion: "/dashboard/user/discussion",
+            hub:        "/dashboard/hub/workflow/result",
+            workflow:   ownWorkflowId ? `/dashboard/user/workflow/${ownWorkflowId}` : "/dashboard/user/workflow",
+          };
+          const url = urls[destination] ?? "/dashboard/home";
+          const cb = navCb();
+          if (cb) cb(url);
+          this.abortController?.abort();
+          return `Navigating to ${destination}. ${message}`;
+        },
+      });
+    }
+
+    // navigateToWorkflow — sends the user's browser to the workspace for this workflow.
+    // Only available when a workflow is linked to this agent.
+    if (this.delegateConfig?.workflowId) {
+      const workflowId = this.delegateConfig.workflowId;
+      const navigateCallback = () => this.navigateCallback;
+      tools["navigateToWorkflow"] = tool({
+        description:
+          "Navigate the user's browser to the workspace. " +
+          "Only call this AFTER executing operators and seeing real results. " +
+          "The summary MUST include: (1) what operators were built, (2) actual numbers " +
+          "from execution (row counts, metric values, column names), and (3) 2-3 specific " +
+          "follow-up questions the user can ask. Format with line breaks between sections.",
+        inputSchema: z.object({
+          summary: z
+            .string()
+            .describe(
+              "Structured summary with three sections separated by newlines: " +
+              "Section 1 — what was built (operator names and types). " +
+              "Section 2 — actual results from execution (real numbers, not descriptions). " +
+              "Section 3 — 2-3 specific next steps the user can ask for."
+            ),
+        }),
+        execute: async ({ summary }: { summary: string }) => {
+          // Guard against repeated calls in the same turn.
+          if (this.navigationFiredThisTurn) {
+            return "Navigation already sent this turn. Stop calling navigateToWorkflow — the user is being taken to the workflow now.";
+          }
+          this.navigationFiredThisTurn = true;
+          this.shouldStopGeneration = true;
+
+          // Auto-rename the workflow based on the summary before navigating.
+          const workflowName = extractWorkflowName(summary);
+          if (workflowName && this.delegateConfig?.userToken) {
+            try {
+              await fetch(`${env.TEXERA_DASHBOARD_SERVICE_ENDPOINT}/api/workflow/update/name`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${this.delegateConfig.userToken}`,
+                },
+                body: JSON.stringify({ wid: workflowId, name: workflowName }),
+              });
+            } catch {
+              /* rename is best-effort — don't block navigation */
+            }
+          }
+
+          const cb = navigateCallback();
+          if (cb) {
+            cb(`/dashboard/user/workflow/${workflowId}`);
+          }
+          this.abortController?.abort();
+          return `Navigating to workflow #${workflowId}. ${summary}`;
+        },
+      });
     }
 
     return tools;
@@ -310,6 +656,10 @@ export class TexeraAgent {
 
   setStepCallback(callback: ReActStepCallback | null): void {
     this.stepCallback = callback;
+  }
+
+  setNavigateCallback(callback: ((url: string) => void) | null): void {
+    this.navigateCallback = callback;
   }
 
   private generateStepId(): string {
@@ -432,19 +782,18 @@ export class TexeraAgent {
   setDelegateConfig(config: {
     userToken: string;
     userInfo?: UserInfo;
-    workflowId: number;
+    workflowId?: number;
     workflowName?: string;
     computingUnitId?: number;
   }): void {
     this.delegateConfig = config;
-
+    // Rebuild tools with the new delegate config (unlocks navigate, listDatasets, etc.)
     this.tools = this.createTools();
-
     this.setupWorkflowChangeHandlers();
   }
 
   getDelegateConfig():
-    | { userToken: string; userInfo?: UserInfo; workflowId: number; workflowName?: string; computingUnitId?: number }
+    | { userToken: string; userInfo?: UserInfo; workflowId?: number; workflowName?: string; computingUnitId?: number }
     | undefined {
     return this.delegateConfig;
   }
@@ -485,7 +834,11 @@ export class TexeraAgent {
     this.workflowState.addSubscription(subscription);
   }
 
-  async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
+  async sendMessage(
+    userMessage: string,
+    messageSource?: "chat" | "feedback",
+    fileContext?: FileContext
+  ): Promise<AgentMessageResult> {
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
     let stepIndex = 0;
 
@@ -496,6 +849,14 @@ export class TexeraAgent {
     this.state = AgentStateEnum.GENERATING;
 
     this.currentMessageId = messageId;
+    this.shouldStopGeneration = false;
+    this.navigationFiredThisTurn = false;
+    this.currentFileContext = fileContext;
+    // Remember the file context across turns for follow-up messages like "load it"
+    if (fileContext) this.lastSeenFileContext = fileContext;
+    this.operatorTypeAddCount = new Map();
+    this.operatorModifyCount = new Map();
+    this.listCallCount = new Map();
 
     try {
       let beforeStepContent = this.workflowState.getWorkflowContent();
@@ -513,6 +874,7 @@ export class TexeraAgent {
         isBegin: true,
         isEnd: true,
         messageSource,
+        fileContext,
         beforeWorkflowContent: beforeStepContent,
         afterWorkflowContent: beforeStepContent,
         usage: {
@@ -536,7 +898,7 @@ export class TexeraAgent {
         messages: currentUserMessage,
         tools: this.tools,
         temperature: 0.2,
-        stopWhen: stepCountIs(this.settings.maxSteps),
+        stopWhen: (ctx: any) => stepCountIs(this.settings.maxSteps)(ctx) || this.shouldStopGeneration,
         prepareStep: async ({ stepNumber, messages: currentMessages }) => {
           let compilationResult: WorkflowCompilationResponse | null = null;
           if (this.workflowState.getAllOperators().length > 0) {
@@ -557,6 +919,34 @@ export class TexeraAgent {
             compilationResult
           );
           lastPreparedMessages = processed;
+
+          // After navigation fires: force text-only response, no more tool calls.
+          if (this.navigationFiredThisTurn) {
+            const stopMessages: ModelMessage[] = [
+              ...processed,
+              {
+                role: "user",
+                content:
+                  "STOP CALLING TOOLS. Navigation is complete — the user is already being taken to the workflow. " +
+                  "Do NOT call navigateToWorkflow or any other tool again. " +
+                  "Respond with a single short text message summarising what was done.",
+              },
+            ];
+            return { messages: stopMessages, toolChoice: "none" as const };
+          }
+
+          // Every 5 steps, inject a progress-check prompt so the LLM narrates
+          // what it has done and what it is about to do next.
+          if (stepNumber > 0 && stepNumber % 5 === 0) {
+            const checkIn: ModelMessage = {
+              role: "user",
+              content:
+                "Progress check: in 1–2 sentences describe what you have built so far " +
+                "and what your very next action will be. Then immediately continue working.",
+            };
+            return { messages: [...processed, checkIn] };
+          }
+
           return { messages: processed };
         },
         abortSignal: this.abortController?.signal,
@@ -592,7 +982,35 @@ export class TexeraAgent {
             stepId: stepIndex,
             timestamp: Date.now(),
             role: "agent",
-            content: text || "",
+            // Surface results from tools that the LLM should present but often loops on instead.
+            content: (() => {
+              // Navigation tools — append their summary/message
+              const navCall = toolCalls?.find(
+                tc => tc.toolName === "navigateToWorkflow" || tc.toolName === "navigate"
+              );
+              if (navCall) {
+                const extra: string =
+                  (navCall.input as any)?.summary ?? (navCall.input as any)?.message ?? "";
+                if (extra) return text ? `${text}\n\n${extra}` : extra;
+              }
+
+              // List tools — append the actual list so the LLM doesn't need to call again
+              const listCall = toolCalls?.find(
+                tc => tc.toolName === "listWorkflows" || tc.toolName === "listDatasets"
+              );
+              if (listCall && toolResults) {
+                const idx = (toolCalls ?? []).indexOf(listCall);
+                const listOut = String(toolResults[idx]?.output ?? "");
+                const isUseful =
+                  listOut.length > 0 &&
+                  !listOut.startsWith("[ERROR]") &&
+                  !listOut.includes("Stop repeating") &&
+                  !listOut.includes("already retrieved");
+                if (isUseful) return text ? `${text}\n\n${listOut}` : listOut;
+              }
+
+              return text || "";
+            })(),
             isBegin: isFirstStep,
             isEnd: false,
             toolCalls: formattedToolCalls,
@@ -642,6 +1060,22 @@ export class TexeraAgent {
 
           beforeStepContent = afterStepContent;
           isFirstStep = false;
+
+          // Abort if navigateToWorkflow fired (terminal action).
+          const navigated = toolCalls?.some(tc => tc.toolName === "navigateToWorkflow");
+          if (navigated) {
+            this.abortController?.abort();
+          }
+
+          // Abort if any loop detector fired this step (addOperator or modifyOperator repetition).
+          if (!navigated && toolResults) {
+            const loopDetected = toolResults.some(
+              tr => typeof tr.output === "string" && tr.output.includes("Generation is stopping")
+            );
+            if (loopDetected) {
+              this.abortController?.abort();
+            }
+          }
         },
       });
 
@@ -650,6 +1084,32 @@ export class TexeraAgent {
         const lastStep = msgSteps[msgSteps.length - 1];
         if (lastStep.role === "agent") {
           lastStep.isEnd = true;
+
+          // If the last step has no text content, the agent was cut off mid-task
+          // (hit maxSteps or a loop guard). Append an explanation.
+          if (!lastStep.content && lastStep.toolCalls?.length) {
+            // Check if the last tool result has a meaningful message to surface
+            const lastResult = lastStep.toolResults?.[lastStep.toolResults.length - 1];
+            const lastOut = typeof lastResult?.output === "string" ? lastResult.output : "";
+
+            if (lastOut.includes("Stop repeating") || lastOut.includes("Already searched") || lastOut.includes("Already navigated")) {
+              // Loop detector fired — extract the helpful part of the message
+              lastStep.content = lastOut.replace(/Generation is stopping\.\s*/g, "").replace(/\[ERROR\]\s*/g, "").trim();
+            } else {
+              const ops = this.workflowState.getAllOperators();
+              if (ops.length > 0) {
+                const opSummary = ops.map(o => `${o.operatorID} (${o.operatorType})`).join(", ");
+                lastStep.content =
+                  `⚠️ I reached the step limit before finishing. ` +
+                  `Here's what I built so far: **${opSummary}**. ` +
+                  `You can ask me to continue, simplify the request, or describe what to fix.`;
+              } else {
+                lastStep.content =
+                  `⚠️ I ran out of steps before completing your request. ` +
+                  `Please rephrase or break it into smaller steps.`;
+              }
+            }
+          }
         }
       }
 

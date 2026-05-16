@@ -31,6 +31,78 @@ import { createLogger } from "../../logger";
 
 const log = createLogger("ExecutionTools");
 
+/** Calls the computing-unit-managing-service to find or create a running unit for this user. */
+async function discoverRunningComputingUnit(userToken: string): Promise<number | undefined> {
+  const baseUrl = `${env.COMPUTING_UNIT_MANAGING_SERVICE_ENDPOINT}/api/computing-unit`;
+  const headers = { Authorization: `Bearer ${userToken}`, "Content-Type": "application/json" };
+
+  try {
+    // 1. Try to find an already-running unit
+    const listRes = await fetch(baseUrl, { headers });
+    if (!listRes.ok) return undefined;
+
+    const units = (await listRes.json()) as Array<{
+      computingUnit: { cuid: number; uri: string };
+      status: string;
+    }>;
+
+    const running = units.find(u => u.status === "Running");
+    if (running) {
+      log.info({ cuid: running.computingUnit.cuid }, "auto-discovered running computing unit");
+      return running.computingUnit.cuid;
+    }
+
+    // 2. No running unit — create a new local one automatically
+    log.info("no running computing unit found — provisioning one automatically");
+    const wsUri = env.COMPUTING_UNIT_WSAPI_URI;
+    const createRes = await fetch(`${baseUrl}/create`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        name: "Agent Computing Unit",
+        cpuLimit: "NaN",
+        memoryLimit: "NaN",
+        gpuLimit: "NaN",
+        jvmMemorySize: "NaN",
+        shmSize: "NaN",
+        uri: wsUri,
+        unitType: "local",
+      }),
+    });
+
+    if (!createRes.ok) {
+      log.warn({ status: createRes.status }, "failed to auto-provision computing unit");
+      return undefined;
+    }
+
+    const created = (await createRes.json()) as {
+      computingUnit?: { cuid: number };
+      cuid?: number;
+    };
+    const newCuid = created.computingUnit?.cuid ?? (created as any).cuid;
+    if (!newCuid) return undefined;
+
+    // 3. Wait up to 15s for it to become Running
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      const pollRes = await fetch(`${baseUrl}/${newCuid}`, { headers });
+      if (pollRes.ok) {
+        const unit = (await pollRes.json()) as { status: string };
+        if (unit.status === "Running") {
+          log.info({ cuid: newCuid }, "auto-provisioned computing unit is now Running");
+          return newCuid;
+        }
+      }
+    }
+
+    log.warn({ cuid: newCuid }, "auto-provisioned unit did not start in time");
+    return newCuid; // Return it anyway and let execution try
+  } catch (e: any) {
+    log.warn({ err: e?.message }, "error discovering/provisioning computing unit");
+    return undefined;
+  }
+}
+
 export const TOOL_NAME_EXECUTE_OPERATOR = "executeOperator";
 
 export interface ExecutionConfig {
@@ -207,8 +279,8 @@ function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string
       ...op.operatorProperties,
       operatorID: op.operatorID,
       operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
+      // inputPorts/outputPorts are omitted: the frontend uses string portIDs ("output-0")
+      // but Scala expects PortIdentity objects. Scala derives ports from the operator class.
     }));
 
     linksList = subDAG.links.map(link => ({
@@ -222,8 +294,6 @@ function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string
       ...op.operatorProperties,
       operatorID: op.operatorID,
       operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
     }));
 
     linksList = workflowState.getAllLinks().map(link => ({
@@ -433,7 +503,7 @@ function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
 
 export async function executeOperatorAndFormat(
   workflowState: WorkflowState,
-  config: ExecutionConfig,
+  config: ExecutionConfig,   // may be mutated locally to inject discovered computingUnitId
   operatorId: string,
   options: {
     abortSignal?: AbortSignal;
@@ -445,6 +515,17 @@ export async function executeOperatorAndFormat(
   const release = await getWorkflowMutex(config.workflowId).acquire();
 
   try {
+    // If no computing unit was explicitly set, auto-discover a running one.
+    if (config.computingUnitId === undefined) {
+      const discovered = await discoverRunningComputingUnit(config.userToken);
+      if (discovered === undefined) {
+        return createErrorResult(
+          "No running computing unit found. Please start a computing unit in the workspace."
+        );
+      }
+      config = { ...config, computingUnitId: discovered };
+    }
+
     const logicalPlan = buildLogicalPlan(workflowState, [operatorId]);
 
     if (logicalPlan.operators.length === 0) {

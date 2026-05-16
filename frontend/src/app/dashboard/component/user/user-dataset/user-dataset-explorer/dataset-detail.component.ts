@@ -359,15 +359,20 @@ export class DatasetDetailComponent implements OnInit {
 
   retrieveDatasetVersionList() {
     if (this.did) {
+      // Read optional dvid query param to pre-select a specific version (e.g. after agent upload)
+      const preSelectDvid = this.route.snapshot.queryParamMap.get("dvid");
+
       this.datasetService
         .retrieveDatasetVersionList(this.did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(versionNames => {
           this.versions = versionNames;
-          // by default, the selected version is the 1st element in the retrieved list
-          // which is guaranteed(by the backend) to be the latest created version.
           if (this.versions.length > 0) {
-            this.selectedVersion = this.versions[0];
+            // If a dvid was provided in the URL, pre-select that version
+            const target = preSelectDvid
+              ? this.versions.find(v => String(v.dvid) === preSelectDvid) ?? this.versions[0]
+              : this.versions[0];
+            this.selectedVersion = target;
             this.onVersionSelected(this.selectedVersion);
           }
         });

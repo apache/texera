@@ -113,6 +113,17 @@
             (mouseenter)="setHoveredMessage(i)"
             (mouseleave)="setHoveredMessage(null)"
             style="position: relative">
+            <!-- File attachment badge for user steps -->
+            <div
+              *ngIf="response.role === 'user' && response.fileContext"
+              class="file-chip"
+              style="margin-bottom: 6px">
+              <i
+                nz-icon
+                nzType="paper-clip"
+                nzTheme="outline"></i>
+              <span class="file-chip-name">{{ response.fileContext.fileName }}</span>
+            </div>
             <div
               *ngIf="response.content"
               class="message-content">
@@ -181,8 +192,92 @@
         </div>
       </div>
 
+      <!-- Duplicate file confirmation banner -->
+      <div
+        *ngIf="duplicateFile"
+        class="duplicate-file-banner">
+        <div class="duplicate-file-info">
+          <i
+            nz-icon
+            nzType="file-search"
+            nzTheme="outline"
+            style="margin-right: 6px; color: #1890ff"></i>
+          <span>
+            Found an existing copy of <strong>{{ duplicateFile.fileName }}</strong>
+            (uploaded {{ duplicateFile.uploadedDate }}). Use existing or upload a fresh copy?
+          </span>
+        </div>
+        <div class="duplicate-file-actions">
+          <button
+            nz-button
+            nzType="primary"
+            nzSize="small"
+            (click)="useExistingFile()">
+            Use Existing
+          </button>
+          <button
+            nz-button
+            nzType="default"
+            nzSize="small"
+            (click)="uploadNewFile()">
+            Upload New
+          </button>
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            (click)="clearDuplicateState()">
+            <i nz-icon nzType="close"></i>
+          </button>
+        </div>
+      </div>
+
       <!-- Input Area -->
       <div class="input-area">
+        <!-- Hidden file input -->
+        <input
+          #fileInput
+          type="file"
+          style="display: none"
+          (change)="attachFile($event)" />
+
+        <!-- Selected file chip -->
+        <div
+          *ngIf="selectedFile"
+          class="file-chip">
+          <i
+            nz-icon
+            nzType="paper-clip"
+            nzTheme="outline"></i>
+          <span class="file-chip-name">{{ selectedFile.name }}</span>
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            (click)="removeFile()"
+            style="padding: 0 2px; min-width: unset; height: unset; line-height: 1">
+            <i
+              nz-icon
+              nzType="close"
+              nzTheme="outline"
+              style="font-size: 11px"></i>
+          </button>
+        </div>
+
+        <!-- Upload progress indicator -->
+        <div
+          *ngIf="isUploading"
+          class="file-chip">
+          <nz-spin
+            nzSimple
+            nzSize="small"></nz-spin>
+          <span
+            class="file-chip-name"
+            style="margin-left: 6px">
+            Uploading...
+          </span>
+        </div>
+
         <textarea
           #messageInput
           nz-input
@@ -191,10 +286,26 @@
           [nzAutosize]="{ minRows: 1, maxRows: 4 }"
           (keydown.enter)="onEnterPress($any($event))"
           [disabled]="!canSendMessage()"></textarea>
+
+        <!-- Attach file button -->
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          [disabled]="!canSendMessage()"
+          (click)="fileInput.click()"
+          nz-tooltip
+          nzTooltipTitle="Attach a file">
+          <i
+            nz-icon
+            nzType="paper-clip"
+            nzTheme="outline"></i>
+        </button>
+
         <button
           nz-button
           nzType="primary"
-          [disabled]="!currentMessage.trim() || !canSendMessage()"
+          [disabled]="(!currentMessage.trim() && !selectedFile) || !canSendMessage()"
           (click)="sendMessage()">
           <i
             nz-icon

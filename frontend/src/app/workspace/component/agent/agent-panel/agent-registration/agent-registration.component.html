@@ -18,9 +18,65 @@
 -->
 
 <div class="agent-registration-container">
+
+  <!-- Welcome / onboarding screen (shown on first visit) -->
+  <div
+    *ngIf="showWelcome"
+    class="welcome-screen">
+    <div class="welcome-hero">
+      <i
+        nz-icon
+        nzType="robot"
+        nzTheme="outline"
+        class="welcome-icon"></i>
+      <h2>Meet your Texera AI Agent</h2>
+      <p class="welcome-subtitle">Your natural-language assistant for data analysis — no clicking required.</p>
+    </div>
+    <div class="welcome-capabilities">
+      <div class="capability-item">
+        <i nz-icon nzType="upload" nzTheme="outline"></i>
+        <div>
+          <strong>Upload &amp; explore files</strong>
+          <span>Drop a CSV or dataset and ask "what columns do I have?"</span>
+        </div>
+      </div>
+      <div class="capability-item">
+        <i nz-icon nzType="experiment" nzTheme="outline"></i>
+        <div>
+          <strong>Run analysis in plain English</strong>
+          <span>"Compute correlation between Human and GPT3 ratings by dataset"</span>
+        </div>
+      </div>
+      <div class="capability-item">
+        <i nz-icon nzType="bar-chart" nzTheme="outline"></i>
+        <div>
+          <strong>Create visualizations</strong>
+          <span>"Plot a scatterplot of Human vs GPT3, colored by dataset"</span>
+        </div>
+      </div>
+      <div class="capability-item">
+        <i nz-icon nzType="compass" nzTheme="outline"></i>
+        <div>
+          <strong>Navigate anywhere</strong>
+          <span>"Go to my datasets", "Open my previous workflow", "Show my compute units"</span>
+        </div>
+      </div>
+    </div>
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="large"
+      class="get-started-btn"
+      (click)="getStarted()">
+      Get Started →
+    </button>
+  </div>
+
+  <!-- Normal model selection (shown after welcome is dismissed) -->
+  <div *ngIf="!showWelcome">
   <div class="registration-header">
-    <h3>Welcome to Texera Agent!</h3>
-    <p>Select a model type and create an AI agent to assist with your data science tasks</p>
+    <h3>Create an AI Agent</h3>
+    <p>Select a model and start analyzing your data with natural language.</p>
   </div>
 
   <div class="model-type-selection">
@@ -83,21 +139,13 @@
   </div>
 
   <div class="action-buttons">
-    <nz-alert
-      *ngIf="!computingUnitConnected"
-      nzType="warning"
-      nzMessage="Please connect to a computing unit before creating an agent."
-      nzShowIcon
-      style="margin-bottom: 12px">
-    </nz-alert>
+    <!-- In workspace but no computing unit: soft reminder, not a blocker -->
     <button
       nz-button
       nzType="primary"
       nzSize="large"
       [nzLoading]="isCreating"
       [disabled]="!canCreate()"
-      nz-tooltip
-      [nzTooltipTitle]="!computingUnitConnected ? 'Connect to a computing unit first' : ''"
       (click)="createAgent()">
       <i
         *ngIf="!isCreating"
@@ -107,4 +155,5 @@
       {{ isCreating ? 'Creating...' : 'Create Agent' }}
     </button>
   </div>
+  </div> <!-- end *ngIf="!showWelcome" -->
 </div>

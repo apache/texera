@@ -52,7 +52,7 @@ async function createAgentInstance(
   const config = getBackendConfig();
 
   const openai = createOpenAI({
-    baseURL: `${config.modelsEndpoint}/api`,
+    baseURL: config.modelsEndpoint,
     apiKey: env.LLM_API_KEY,
   });
 
@@ -67,26 +67,30 @@ async function createAgentInstance(
 
   await agent.initialize();
 
-  if (delegateConfig?.workflowId && delegateConfig.userToken) {
-    try {
-      const workflow = await retrieveWorkflow(delegateConfig.userToken, delegateConfig.workflowId);
-      delegateConfig.workflowName = workflow.name;
-
-      const workflowState = agent.getWorkflowState();
-      workflowState.setWorkflowContent(workflow.content);
-
-      agent.setDelegateConfig({
-        userToken: delegateConfig.userToken,
-        userInfo: delegateConfig.userInfo,
-        workflowId: delegateConfig.workflowId,
-        workflowName: delegateConfig.workflowName,
-        computingUnitId: delegateConfig.computingUnitId,
-      });
-
-      log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
-    } catch (error) {
-      log.warn({ agentId, workflowId: delegateConfig.workflowId, err: error }, "failed to load workflow");
+  // Always set delegate config when we have a user token — even without a workflowId.
+  // This ensures navigation and discovery tools (navigate, listDatasets, etc.) are available
+  // from any page, not just when a workflow is open.
+  if (delegateConfig?.userToken) {
+    // Load the existing workflow content if we have a workflowId
+    if (delegateConfig.workflowId) {
+      try {
+        const workflow = await retrieveWorkflow(delegateConfig.userToken, delegateConfig.workflowId);
+        delegateConfig.workflowName = workflow.name;
+        const workflowState = agent.getWorkflowState();
+        workflowState.setWorkflowContent(workflow.content);
+        log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
+      } catch (error) {
+        log.warn({ agentId, workflowId: delegateConfig.workflowId, err: error }, "failed to load workflow");
+      }
     }
+
+    agent.setDelegateConfig({
+      userToken: delegateConfig.userToken,
+      userInfo: delegateConfig.userInfo,
+      workflowId: delegateConfig.workflowId,
+      workflowName: delegateConfig.workflowName,
+      computingUnitId: delegateConfig.computingUnitId,
+    });
   }
 
   agentStore.set(agentId, agent);
@@ -400,12 +404,79 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),
     }
+  )
+
+  .post(
+    "/:id/upload",
+    async ({ params, body, set }) => {
+      const agent = getAgent(params.id);
+      const delegateConfig = agent.getDelegateConfig();
+      if (!delegateConfig?.userToken) {
+        set.status = 401;
+        return { error: "Agent has no user token" };
+      }
+
+      const { file } = body as { file: File };
+      const fileName = file.name;
+      const ownerEmail = delegateConfig.userInfo?.email ?? "unknown";
+      const datasetName = `agent_upload_${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+      const createRes = await fetch(`${env.FILE_SERVICE_ENDPOINT}/api/dataset/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${delegateConfig.userToken}`,
+        },
+        body: JSON.stringify({
+          datasetName,
+          datasetDescription: "Uploaded via agent chat",
+          isDatasetPublic: false,
+          isDatasetDownloadable: false,
+        }),
+      });
+
+      if (!createRes.ok) {
+        const text = await createRes.text();
+        throw new Error(`Failed to create dataset: ${createRes.status} ${text}`);
+      }
+
+      const dataset = (await createRes.json()) as { did: number };
+      const did = dataset.did;
+
+      const fileBytes = await file.arrayBuffer();
+      const uploadRes = await fetch(
+        `${env.FILE_SERVICE_ENDPOINT}/api/dataset/${did}/upload?filePath=${encodeURIComponent(fileName)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "Content-Length": String(fileBytes.byteLength),
+            Authorization: `Bearer ${delegateConfig.userToken}`,
+          },
+          body: fileBytes,
+        }
+      );
+
+      if (!uploadRes.ok) {
+        const text = await uploadRes.text();
+        throw new Error(`Failed to upload file: ${uploadRes.status} ${text}`);
+      }
+
+      log.info({ agentId: params.id, datasetName, fileName }, "file uploaded via chat");
+      return { datasetName, fileName, ownerEmail };
+    },
+    {
+      body: t.Object({
+        file: t.File(),
+      }),
+    }
   );
 
 interface WsMessage {
   type: "message" | "stop";
   content?: string;
   messageSource?: "chat" | "feedback";
+  fileContext?: { fileName: string; filePath: string; datasetId?: number; datasetVersionId?: number };
 }
 
 interface OperatorResultSummaryWs {
@@ -423,7 +494,7 @@ interface OperatorResultSummaryWs {
 }
 
 interface WsOutgoingMessage {
-  type: "step" | "state" | "error" | "complete" | "init" | "headChange";
+  type: "step" | "state" | "error" | "complete" | "init" | "headChange" | "navigate";
   step?: ReActStep;
   state?: string;
   error?: string;
@@ -431,6 +502,8 @@ interface WsOutgoingMessage {
   headId?: string;
   operatorResults?: Record<string, OperatorResultSummaryWs>;
   workflowContent?: any;
+  // navigate message
+  url?: string;
 }
 
 function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummaryWs> {
@@ -549,12 +622,17 @@ export function buildApp() {
             });
           });
 
+          agent.setNavigateCallback((url: string) => {
+            broadcastToAgent(agentId, { type: "navigate", url });
+          });
+
           broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
 
           try {
-            const result = await agent.sendMessage(msg.content, msg.messageSource);
+            const result = await agent.sendMessage(msg.content, msg.messageSource, msg.fileContext);
 
             agent.setStepCallback(null);
+            agent.setNavigateCallback(null);
 
             const allSteps = agent.getReActSteps();
             const lastStep = allSteps[allSteps.length - 1];

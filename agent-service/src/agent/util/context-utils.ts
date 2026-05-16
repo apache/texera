@@ -112,6 +112,27 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
   if (userStep) {
     lines.push("### User request");
     lines.push("");
+    if (userStep.fileContext) {
+      const fc = userStep.fileContext;
+      const datasetInfo = fc.datasetId ? ` (dataset ID: ${fc.datasetId})` : "";
+      lines.push(`[File saved to datasets: **${fc.fileName}**${datasetInfo} → \`${fc.filePath}\`]`);
+      const navInstruction = fc.datasetId
+        ? `call navigate("dataset", datasetId=${fc.datasetId}${fc.datasetVersionId ? `, datasetVersionId=${fc.datasetVersionId}` : ""}) to open this exact dataset`
+        : `call navigate("datasets") to take the user to their datasets list`;
+      lines.push(
+        `The file is now in the user's datasets. Read the user's message and decide:\n` +
+          `• User wants to **analyze** the data → call addOperator(CSVFileScan, fileName="${fc.filePath}"), execute it to get schema and sample rows, then build 1-2 analysis operators (Aggregate or PythonUDFV2) to actually compute something meaningful (e.g. row counts by category, basic stats). Then call navigate("workflow"). ` +
+          `The navigate message must be well-formatted markdown with: a bold file summary line (rows × columns), a blank line, then a "**What you can do next:**" section as a numbered list with 3 specific suggestions based on the actual column names.\n` +
+          `• User wants to **just load / view** the data → call addOperator(CSVFileScan, fileName="${fc.filePath}"), execute it, then call navigate("workflow"). ` +
+          `The navigate message must be well-formatted markdown: bold file name + row/column count on line 1, blank line, then numbered list of 3 specific next-step suggestions.\n` +
+          `• User wants to **upload / store / save** it → ${navInstruction}. ` +
+          `The navigate message must be well-formatted markdown: line 1 "✅ **${fc.fileName}** saved to your datasets.", blank line, numbered list of 2-3 next steps like "1. Load it into a workflow for analysis", "2. Filter or search the data". ` +
+          `Do NOT guess a datasetId — only use the one provided above.\n` +
+          `• User's intent is unclear → confirm the upload and ask: "Would you like me to analyze it, load it into a workflow, or just view it in your datasets?"\n` +
+          `IMPORTANT for ALL navigate messages: use markdown with **bold**, line breaks between sections, and numbered lists. Never write next steps as inline text like "(1)... (2)... (3)...".`
+      );
+      lines.push("");
+    }
     lines.push(userStep.content);
     lines.push("");
   }

@@ -23,20 +23,15 @@ import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "n
 import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
-import { NgIf, NgClass, NgFor } from "@angular/common";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NgIf, NgFor } from "@angular/common";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
-import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NzTabsComponent, NzTabBarExtraContentDirective, NzTabComponent, NzTabDirective } from "ng-zorro-antd/tabs";
 import { AgentRegistrationComponent } from "./agent-registration/agent-registration.component";
 import { AgentChatComponent } from "./agent-chat/agent-chat.component";
-import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
 
 @UntilDestroy()
 @Component({
@@ -45,33 +40,24 @@ import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/r
   styleUrls: ["agent-panel.component.scss"],
   imports: [
     NgIf,
-    NzSpaceCompactItemDirective,
+    NgFor,
     NzButtonComponent,
     NzWaveDirective,
     ɵNzTransitionPatchDirective,
     NzTooltipDirective,
     NzIconDirective,
-    CdkDrag,
     NzResizableDirective,
-    NzMenuDirective,
-    NgClass,
-    NzMenuItemComponent,
-    CdkDragHandle,
     NzTabsComponent,
     NzTabBarExtraContentDirective,
     NzTabComponent,
     NzTabDirective,
     AgentRegistrationComponent,
-    NgFor,
     AgentChatComponent,
     NzResizeHandlesComponent,
-    FormlyRepeatDndComponent,
   ],
 })
 export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
-  protected readonly window = window;
-  private static readonly MIN_PANEL_WIDTH = 400;
-  private static readonly MIN_PANEL_HEIGHT = 450;
+  static readonly MIN_PANEL_WIDTH = 380;
 
   /**
    * Optional agent ID to activate when the panel loads.
@@ -80,13 +66,21 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
    */
   @Input() agentIdToActivate?: string;
 
-  // Panel dimensions and position
-  width: number = 0; // Start with 0 to show docked button
-  height = Math.max(AgentPanelComponent.MIN_PANEL_HEIGHT, window.innerHeight * 0.7);
-  id = -1;
-  dragPosition = { x: 0, y: 0 };
-  returnPosition = { x: 0, y: 0 };
-  isDocked = true;
+  // Width of the collapsed tab strip in px
+  private static readonly TAB_WIDTH = 28;
+
+  // Sidebar width — 0 means collapsed (shows the vertical tab)
+  private _width: number = 0;
+  get width(): number { return this._width; }
+  set width(v: number) {
+    this._width = v;
+    // Push page content so the panel never overlaps it
+    document.body.style.paddingRight = v > 0 ? `${v}px` : `${AgentPanelComponent.TAB_WIDTH}px`;
+    // Notify dashboard sidebar to collapse/expand
+    this.agentService.setAgentPanelOpen(v > 0);
+  }
+
+  private resizeId = -1;
 
   // Tab management
   selectedTabIndex: number = 0; // 0 = registration tab, 1+ = agent tabs
@@ -125,6 +119,13 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
         // Try to activate the agent if agentIdToActivate is set
         this.tryActivateAgentFromInput();
       });
+
+    // Open the panel when requested (e.g. on first login)
+    this.agentService.openPanel$.pipe(untilDestroyed(this)).subscribe(() => {
+      if (this.width === 0) {
+        this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -171,22 +172,16 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    // Deactivate any active agent before destroying
     this.deactivateCurrentAgent();
     this.savePanelSettings();
+    document.body.style.paddingRight = "";
   }
 
-  /**
-   * Open the panel from docked state
-   */
   public openPanel(): void {
     if (this.width === 0) {
-      // Open panel
       this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
     } else {
-      // Close panel (dock it)
       this.width = 0;
-      this.isDocked = true;
     }
   }
 
@@ -237,19 +232,8 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     const agentWorkflowId = agent.delegate?.workflowId;
     const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
 
-    // If agent has a workflow ID, check if it matches the current workflow
-    if (agentWorkflowId !== undefined && agentWorkflowId !== 0) {
-      if (currentWorkflowId !== agentWorkflowId) {
-        // Block switching - workflow mismatch
-        this.notificationService.warning(
-          `Cannot switch to agent "${agent.name}": It's working on a different workflow. ` +
-            `Open workflow #${agentWorkflowId} to interact with this agent.`
-        );
-        return;
-      }
-    }
-
-    // Workflow matches or agent has no workflow - allow switch
+    // Switch to the agent regardless of which page the user is on.
+    // The agent works from any page via the chat panel — no navigation needed.
     this.switchToAgent(agent.id, index);
   }
 
@@ -330,71 +314,29 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  /**
-   * Handle panel resize
-   */
-  onResize({ width, height }: NzResizeEvent): void {
-    cancelAnimationFrame(this.id);
-    this.id = requestAnimationFrame(() => {
+  onResize({ width }: NzResizeEvent): void {
+    cancelAnimationFrame(this.resizeId);
+    this.resizeId = requestAnimationFrame(() => {
       this.width = width!;
-      this.height = height!;
     });
   }
 
-  /**
-   * Handle drag start
-   */
-  handleDragStart(): void {
-    this.isDocked = false;
-  }
-
-  /**
-   * Load panel settings from localStorage
-   */
   private loadPanelSettings(): void {
     const savedWidth = localStorage.getItem("agent-panel-width");
-    const savedHeight = localStorage.getItem("agent-panel-height");
-    const savedStyle = localStorage.getItem("agent-panel-style");
-    const savedDocked = localStorage.getItem("agent-panel-docked");
-
-    // Only restore width if the panel was not docked
-    if (savedDocked === "false" && savedWidth) {
-      const parsedWidth = Number(savedWidth);
-      if (!isNaN(parsedWidth) && parsedWidth >= AgentPanelComponent.MIN_PANEL_WIDTH) {
-        this.width = parsedWidth;
+    const savedOpen = localStorage.getItem("agent-panel-open");
+    if (savedOpen === "true" && savedWidth) {
+      const w = Number(savedWidth);
+      if (!isNaN(w) && w >= AgentPanelComponent.MIN_PANEL_WIDTH) {
+        this.width = w;   // triggers the setter → sets paddingRight
+        return;
       }
     }
-
-    if (savedHeight) {
-      const parsedHeight = Number(savedHeight);
-      if (!isNaN(parsedHeight) && parsedHeight >= AgentPanelComponent.MIN_PANEL_HEIGHT) {
-        this.height = parsedHeight;
-      }
-    }
-
-    if (savedStyle) {
-      const container = document.getElementById("agent-container");
-      if (container) {
-        container.style.cssText = savedStyle;
-        const translates = container.style.transform;
-        const [xOffset, yOffset] = calculateTotalTranslate3d(translates);
-        this.returnPosition = { x: -xOffset, y: -yOffset };
-        this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
-      }
-    }
+    // Collapsed state — still reserve space for the tab strip
+    document.body.style.paddingRight = `${AgentPanelComponent.TAB_WIDTH}px`;
   }
 
-  /**
-   * Save panel settings to localStorage
-   */
   private savePanelSettings(): void {
-    localStorage.setItem("agent-panel-width", String(this.width));
-    localStorage.setItem("agent-panel-height", String(this.height));
-    localStorage.setItem("agent-panel-docked", String(this.width === 0));
-
-    const container = document.getElementById("agent-container");
-    if (container) {
-      localStorage.setItem("agent-panel-style", container.style.cssText);
-    }
+    localStorage.setItem("agent-panel-width", String(this.width || AgentPanelComponent.MIN_PANEL_WIDTH));
+    localStorage.setItem("agent-panel-open", String(this.width > 0));
   }
 }

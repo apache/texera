@@ -35,6 +35,13 @@ export interface TokenUsage {
 
 export const INITIAL_STEP_ID = "step-initial";
 
+export interface FileContext {
+  fileName: string;
+  filePath: string; // full Texera path: /ownerEmail/datasetName/v1/fileName
+  datasetId?: number; // dataset ID for direct navigation to the dataset detail page
+  datasetVersionId?: number; // dvid for pre-selecting the version on the dataset page
+}
+
 export interface ReActStep {
   id: string;
   parentId?: string;
@@ -58,6 +65,7 @@ export interface ReActStep {
   usage?: TokenUsage;
   inputMessages?: any[];
   messageSource?: "chat" | "feedback";
+  fileContext?: FileContext;
   beforeWorkflowContent?: WorkflowContent;
   afterWorkflowContent?: WorkflowContent;
 }
@@ -85,7 +93,7 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   operatorResultSerializationMode: OperatorResultSerializationMode.TSV,
   toolTimeoutMs: 240000,
   executionTimeoutMs: 240000,
-  maxSteps: 100,
+  maxSteps: 30,
   allowedOperatorTypes: [
     "CSVFileScan",
     "Filter",

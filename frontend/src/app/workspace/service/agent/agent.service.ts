@@ -25,6 +25,7 @@ import {
   BehaviorSubject,
   catchError,
   filter,
+  forkJoin,
   map,
   of,
   shareReplay,
@@ -32,6 +33,7 @@ import {
   throwError,
   interval,
   switchMap,
+  take,
   takeUntil,
 } from "rxjs";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -41,6 +43,8 @@ import { AuthService } from "../../../common/service/user/auth.service";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { Dataset } from "../../../common/type/dataset";
 
 /**
  * Agent settings for API (serializable format).
@@ -222,12 +226,33 @@ export class AgentService {
   private scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
   public scrollToStep$ = this.scrollToStepSubject.asObservable();
 
+  /** Subject emitting navigation URLs requested by the agent */
+  private navigateSubject = new Subject<string>();
+  public navigate$ = this.navigateSubject.asObservable();
+
+  /** Subject requesting the agent panel to open */
+  private openPanelSubject = new Subject<void>();
+  public openPanel$ = this.openPanelSubject.asObservable();
+
+  public requestOpenPanel(): void {
+    this.openPanelSubject.next();
+  }
+
+  /** Emits true when the agent panel is open (sidebar should collapse) */
+  private agentPanelOpenSubject = new BehaviorSubject<boolean>(false);
+  public agentPanelOpen$ = this.agentPanelOpenSubject.asObservable();
+
+  public setAgentPanelOpen(open: boolean): void {
+    this.agentPanelOpenSubject.next(open);
+  }
+
   constructor(
     private http: HttpClient,
     private notificationService: NotificationService,
     private workflowPersistService: WorkflowPersistService,
     private ngZone: NgZone,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private datasetService: DatasetService
   ) {
     // Sync local cache with backend on service initialization
     // This handles cases where the backend was restarted
@@ -575,6 +600,12 @@ export class AgentService {
         }
         break;
 
+      case "navigate":
+        if (message.url) {
+          this.navigateSubject.next(message.url);
+        }
+        break;
+
       default:
         console.warn("Unknown agent WebSocket message type:", message.type);
     }
@@ -901,7 +932,162 @@ export class AgentService {
    * Send a message to an agent via WebSocket.
    * The message is sent through the WebSocket connection for real-time streaming.
    */
-  public sendMessage(agentId: string, message: string, messageSource: "chat" | "feedback" = "chat"): void {
+  /**
+   * Check if a file with the same name already exists in the user's datasets.
+   * Returns the existing file info if found, null otherwise.
+   */
+  public checkExistingFile(
+    file: File
+  ): Observable<{ fileName: string; filePath: string; uploadedDate: string; datasetId: number; datasetVersionId?: number } | null> {
+    const safeFileName = file.name.replace(/\s+/g, "_");
+    const expectedDesc = `agent-upload:${safeFileName}`;
+
+    /** Fetch the latest dvid for a dataset so the version auto-selects on navigation. */
+    const getLatestDvid = (did: number): Observable<number | undefined> =>
+      this.datasetService.createDatasetVersion(did, "").pipe(
+        // We don't want to CREATE a version — just read the latest one.
+        // Use getDataset + version list instead.
+        switchMap(() => of(undefined)),
+        catchError(() => of(undefined))
+      );
+
+    const fetchDvid = (did: number): Observable<number | undefined> =>
+      this.http
+        .get<{ datasetVersion?: { dvid?: number } }>(
+          `${AppSettings.getApiEndpoint()}/dataset/${did}/version/latest`
+        )
+        .pipe(
+          map(r => r?.datasetVersion?.dvid ?? undefined),
+          catchError(() => of(undefined))
+        );
+
+    return this.datasetService.retrieveAccessibleDatasets().pipe(
+      switchMap(datasets => {
+        // Fast path: check new-format description
+        const newMatch = datasets.find(d => d.dataset.description === expectedDesc);
+        if (newMatch) {
+          const ownerEmail = newMatch.ownerEmail;
+          const did = newMatch.dataset.did!;
+          const filePath = `/${ownerEmail}/${newMatch.dataset.name}/v1/${safeFileName}`;
+          const uploadedDate = newMatch.dataset.creationTime
+            ? new Date(newMatch.dataset.creationTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : "previously";
+          return fetchDvid(did).pipe(
+            map(dvid => ({ fileName: safeFileName, filePath, uploadedDate, datasetId: did, datasetVersionId: dvid }))
+          );
+        }
+
+        // Slow path: check old-format datasets by fetching version/latest and comparing filename.
+        // Only check datasets whose name suggests they contain this file.
+        const safeBase = safeFileName.replace(/\.[^.]+$/, "").toLowerCase();
+        const candidates = datasets
+          .filter(d => d.dataset.name.toLowerCase().includes(safeBase) || d.dataset.name.startsWith("agent_upload_"))
+          .slice(0, 10); // limit to avoid too many requests
+
+        if (candidates.length === 0) return of(null);
+
+        // For old-format datasets: derive the safeDatasetName from the file and check
+        // if any dataset name ends with that suffix (pattern: agent_upload_{ts}_{safeDatasetName})
+        const safeDatasetName = file.name
+          .toLowerCase()
+          .replace(/\s+/g, "_")
+          .replace(/\./g, "_")
+          .replace(/[^a-z0-9_-]/g, "_");
+
+        const checks$ = candidates.map(candidate => of(candidate).pipe(
+          map(c => {
+            const ownerEmail = c.ownerEmail;
+            const dsName = c.dataset.name;
+            // Match by dataset name suffix
+            if (dsName === `agent_upload_${dsName.split("_").slice(2).join("_")}` ||
+                dsName.endsWith(`_${safeDatasetName}`) ||
+                dsName.includes(`_${safeDatasetName}`)) {
+              const filePath = `/${ownerEmail}/${dsName}/v1/${safeFileName}`;
+              const uploadedDate = c.dataset.creationTime
+                ? new Date(c.dataset.creationTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                : "previously";
+              // Return without dvid for slow-path matches; the navigate will still work without auto-select
+              return { fileName: safeFileName, filePath, uploadedDate, datasetId: c.dataset.did!, datasetVersionId: undefined };
+            }
+            return null;
+          }),
+          catchError(() => of(null))
+        ));
+
+        return forkJoin(checks$).pipe(
+          map(results => results.find(r => r !== null) ?? null)
+        );
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  public uploadFile(_agentId: string, file: File): Observable<{ fileName: string; filePath: string }> {
+    // Dataset name: lowercase, no spaces, only safe chars
+    const safeDatasetName = file.name
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/\./g, "_")
+      .replace(/[^a-z0-9_-]/g, "_");
+    const datasetName = `agent_upload_${Date.now()}_${safeDatasetName}`;
+
+    // File path inside the dataset: keep original extension, replace spaces with underscores
+    const safeFileName = file.name.replace(/\s+/g, "_");
+
+    const PART_SIZE = 5 * 1024 * 1024; // 5 MB — S3 minimum for non-final parts
+
+    const dataset: Dataset = {
+      did: undefined,
+      ownerUid: undefined,
+      name: datasetName,
+      // Store the safe filename so the agent service can reconstruct the full Texera path.
+      // Format: "agent-upload:{safeFileName}" — parsed by listDatasets in the agent service.
+      description: `agent-upload:${safeFileName}`,
+      isPublic: false,
+      isDownloadable: false,
+      storagePath: undefined,
+      creationTime: undefined,
+      coverImage: undefined,
+    };
+
+    return this.datasetService.createDataset(dataset).pipe(
+      switchMap(dashboardDataset => {
+        const { did } = dashboardDataset.dataset;
+        const ownerEmail = dashboardDataset.ownerEmail;
+
+        return this.datasetService
+          .multipartUpload(ownerEmail, datasetName, safeFileName, file, PART_SIZE, 3, false)
+          .pipe(
+            filter(p => p.status === "finished" || p.status === "failed"),
+            take(1),
+            switchMap(progress => {
+              if (progress.status === "failed") {
+                throw new Error(`File upload failed for ${file.name}`);
+              }
+              // Create a dataset version so FileResolver can find the file.
+              // Pass empty string so the server generates "v1" (not "v1 - v1") as the version name.
+              // Use the actual version name from the response to build the file path,
+              // since FileResolver looks up DATASET_VERSION.NAME by exact match.
+              return this.datasetService.createDatasetVersion(did!, "").pipe(
+                map(version => ({
+                  fileName: safeFileName,
+                  filePath: `/${ownerEmail}/${datasetName}/${version.name}/${safeFileName}`,
+                  datasetId: did!,
+                  datasetVersionId: version.dvid,  // dvid for direct version selection in UI
+                }))
+              );
+            })
+          );
+      })
+    );
+  }
+
+  public sendMessage(
+    agentId: string,
+    message: string,
+    messageSource: "chat" | "feedback" = "chat",
+    fileContext?: { fileName: string; filePath: string; datasetId?: number; datasetVersionId?: number }
+  ): void {
     const agent = this.agents.get(agentId);
     if (!agent) {
       this.notificationService.error(`Agent with ID ${agentId} not found`);
@@ -914,11 +1100,14 @@ export class AgentService {
       return;
     }
 
-    const wsMessage = {
+    const wsMessage: Record<string, any> = {
       type: "message",
       content: message,
       messageSource,
     };
+    if (fileContext) {
+      wsMessage["fileContext"] = fileContext;
+    }
 
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));

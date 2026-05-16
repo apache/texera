@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, OnDestroy, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from "@angular/core";
 import { AgentService, ModelType } from "../../../../service/agent/agent.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
@@ -55,9 +55,11 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzTooltipDirective,
   ],
 })
-export class AgentRegistrationComponent implements OnInit, OnDestroy {
+export class AgentRegistrationComponent implements OnInit, OnChanges, OnDestroy {
   @Output() agentCreated = new EventEmitter<string>();
+  @Input() isFirstTime: boolean = false;
 
+  public showWelcome: boolean = false;
   public modelTypes: ModelType[] = [];
   public selectedModelType: string | null = null;
   public customAgentName: string = "Texera Agent";
@@ -75,7 +77,18 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
     private computingUnitStatusService: ComputingUnitStatusService
   ) {}
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes["isFirstTime"]) {
+      this.showWelcome = this.isFirstTime;
+    }
+  }
+
+  public getStarted(): void {
+    this.showWelcome = false;
+  }
+
   ngOnInit(): void {
+    this.showWelcome = this.isFirstTime;
     this.isLoadingModels = true;
     this.hasLoadingError = false;
 
@@ -120,12 +133,14 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
     if (!this.selectedModelType || this.isCreating) {
       return;
     }
-
     this.isCreating = true;
+    // Use the open workflow ID if in the workspace; otherwise create the agent
+    // without a workflow — one will be created lazily when analysis is needed.
+    const workflowId = this.workflowActionService.getWorkflowMetadata()?.wid;
+    this.doCreateAgent(workflowId);
+  }
 
-    const workflowMetadata = this.workflowActionService.getWorkflowMetadata();
-    const workflowId = workflowMetadata?.wid;
-
+  private doCreateAgent(workflowId?: number): void {
     this.agentService
       .createAgent(this.selectedModelType!, this.customAgentName || undefined, workflowId)
       .pipe(takeUntil(this.destroy$))
@@ -148,6 +163,6 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
   }
 
   public canCreate(): boolean {
-    return this.selectedModelType !== null && !this.isCreating && this.computingUnitConnected;
+    return this.selectedModelType !== null && !this.isCreating;
   }
 }
