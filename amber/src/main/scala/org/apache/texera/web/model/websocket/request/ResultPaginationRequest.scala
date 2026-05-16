@@ -19,12 +19,21 @@
 
 package org.apache.texera.web.model.websocket.request
 
+import org.apache.texera.amber.core.storage.model.{ColumnFilter, SortSpec}
+
 case class ResultPaginationRequest(
     requestID: String,
     operatorID: String,
     pageIndex: Int,
     pageSize: Int,
+    // The columnOffset / columnLimit / columnSearch fields predate ag-grid's
+    // built-in column virtualization and column-toggle UI. Kept defaulted for
+    // wire compatibility with the Python SDK; new frontends do not set them.
     columnOffset: Int = 0,
     columnLimit: Int = Int.MaxValue,
-    columnSearch: Option[String] = None
+    columnSearch: Option[String] = None,
+    // Phase 2 / Phase 3 of the result-pane upgrade — row-level pushdown.
+    filters: Seq[ColumnFilter] = Seq.empty,
+    sorts: Seq[SortSpec] = Seq.empty,
+    rowSearch: Option[String] = None
 ) extends TexeraWebSocketRequest

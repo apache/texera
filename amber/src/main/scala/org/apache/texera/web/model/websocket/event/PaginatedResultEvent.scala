@@ -31,6 +31,24 @@ object PaginatedResultEvent {
   ): PaginatedResultEvent = {
     PaginatedResultEvent(req.requestID, req.operatorID, req.pageIndex, table, schema)
   }
+
+  def apply(
+      req: ResultPaginationRequest,
+      table: List[ObjectNode],
+      schema: List[Attribute],
+      totalNumTuples: Long,
+      sortSkipped: Boolean
+  ): PaginatedResultEvent = {
+    PaginatedResultEvent(
+      req.requestID,
+      req.operatorID,
+      req.pageIndex,
+      table,
+      schema,
+      Some(totalNumTuples),
+      sortSkipped
+    )
+  }
 }
 
 case class PaginatedResultEvent(
@@ -38,5 +56,13 @@ case class PaginatedResultEvent(
     operatorID: String,
     pageIndex: Int,
     table: List[ObjectNode],
-    schema: List[Attribute]
+    schema: List[Attribute],
+    // Total rows matching the request's filters / rowSearch. Optional because the
+    // unfiltered fast path doesn't bother recomputing it — the frontend already
+    // tracks totalNumTuples from WebPaginationUpdate in that case.
+    totalNumTuples: Option[Long] = None,
+    // True when sort was requested but the filtered row count exceeded the
+    // configured `storage.result.sort.max-rows` cap; the table comes back in
+    // scan order so the UI can prompt the user to narrow their filter.
+    sortSkipped: Boolean = false
 ) extends TexeraWebSocketEvent

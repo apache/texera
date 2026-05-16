@@ -7311,6 +7311,35 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ag-charts-types@npm:11.3.2":
+  version: 11.3.2
+  resolution: "ag-charts-types@npm:11.3.2"
+  checksum: 10c0/94c93b008e24d641e0a6035b211beb6e0a3dc1257ed333781476df6f244d7af14bf6f4b793640b5bdcbd085b591dc94b88e96986db311ebc97f9a72090421912
+  languageName: node
+  linkType: hard
+
+"ag-grid-angular@npm:^33":
+  version: 33.3.2
+  resolution: "ag-grid-angular@npm:33.3.2"
+  dependencies:
+    ag-grid-community: "npm:33.3.2"
+    tslib: "npm:^2.3.0"
+  peerDependencies:
+    "@angular/common": ">= 17.0.0"
+    "@angular/core": ">= 17.0.0"
+  checksum: 10c0/b621cb497ccb13bdee3b7d4acfeed0961bbc0ed347d3ff9281de1f702063d586ee45fb8343d46097193e4d0c3c30906ec69e8bb847b0cbc653cdbc0a4c45dbdf
+  languageName: node
+  linkType: hard
+
+"ag-grid-community@npm:33.3.2, ag-grid-community@npm:^33":
+  version: 33.3.2
+  resolution: "ag-grid-community@npm:33.3.2"
+  dependencies:
+    ag-charts-types: "npm:11.3.2"
+  checksum: 10c0/9fbeebccf963a28d2a1dbe14e3d49c853a4f48787a3b466a2a859e1a5ed6d2c04a4b2cadf65dbffde895bc87eed480edba3d427e72cef5970b3180989d9f7b29
+  languageName: node
+  linkType: hard
+
 "agent-base@npm:^7.1.0, agent-base@npm:^7.1.2":
   version: 7.1.4
   resolution: "agent-base@npm:7.1.4"
@@ -11055,6 +11084,8 @@ __metadata:
     "@vitest/browser": "npm:4.1.5"
     "@vitest/browser-playwright": "npm:4.1.5"
     "@vitest/coverage-v8": "npm:4.1.5"
+    ag-grid-angular: "npm:^33"
+    ag-grid-community: "npm:^33"
     ai: "npm:5.0.93"
     ajv: "npm:8.10.0"
     concaveman: "npm:2.0.0"

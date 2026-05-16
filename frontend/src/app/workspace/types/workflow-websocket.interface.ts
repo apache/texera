@@ -89,6 +89,19 @@ export type OperatorCurrentTuples = Readonly<{
   tuples: ReadonlyArray<WorkerTuples>;
 }>;
 
+export type ColumnFilter = Readonly<{
+  columnName: string;
+  // eq, ne, lt, le, gt, ge, contains, startsWith, endsWith, isNull, isNotNull, in
+  op: string;
+  value?: string;
+  values?: ReadonlyArray<string>;
+}>;
+
+export type SortSpec = Readonly<{
+  columnName: string;
+  direction: "asc" | "desc";
+}>;
+
 export type PaginationRequest = Readonly<{
   requestID: string;
   operatorID: string;
@@ -97,6 +110,9 @@ export type PaginationRequest = Readonly<{
   columnOffset?: number;
   columnLimit?: number;
   columnSearch?: string;
+  filters?: ReadonlyArray<ColumnFilter>;
+  sorts?: ReadonlyArray<SortSpec>;
+  rowSearch?: string;
 }>;
 
 export type PaginatedResultEvent = Readonly<{
@@ -105,6 +121,12 @@ export type PaginatedResultEvent = Readonly<{
   pageIndex: number;
   table: ReadonlyArray<IndexableObject>;
   schema: ReadonlyArray<SchemaAttribute>;
+  // Present on responses to queries with filters/rowSearch — total rows matching the
+  // request, used by the infinite-scroll datasource to size the scrollbar.
+  totalNumTuples?: number;
+  // True when the request asked for a sort but the matched row count blew the
+  // backend's `storage.result.sort.max-rows` cap. Frontend should banner the user.
+  sortSkipped?: boolean;
 }>;
 
 export type ResultExportRequest = Readonly<{

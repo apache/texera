@@ -24,18 +24,6 @@
     [ngClass]="{'shadow':  !width}">
     <li
       nz-menu-item
-      (click)="closePanel()"
-      *ngIf="width"
-      nz-tooltip="Close Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
-      <span
-        nz-icon
-        nzType="minus"></span>
-    </li>
-    <li
-      nz-menu-divider
-      id="divider"></li>
-    <li
-      nz-menu-item
       (click)="openPanel()"
       *ngIf="!width"
       nz-tooltip="Open Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
@@ -48,36 +36,20 @@
 
 <div
   id="result-container"
-  cdkDrag
-  cdkDragBoundary="texera-workspace"
   nz-resizable
-  [nzMinWidth]="300"
-  [nzMinHeight]="250"
-  [nzMaxWidth]="window.innerWidth"
-  [nzMaxHeight]="window.innerHeight"
-  [style.width.px]="width"
+  [nzMinHeight]="180"
+  [nzMaxHeight]="window.innerHeight - 80"
   [style.height.px]="height"
-  (nzResize)="onResize($event)"
-  [cdkDragFreeDragPosition]="dragPosition"
-  (cdkDragStarted)="handleStartDrag()"
-  (cdkDragEnded)="handleEndDrag($event)">
+  [class.hidden]="!width"
+  (nzResize)="onResize($event)">
   <ul
     nz-menu
     id="panel-button"
-    [ngClass]="{'shadow':  !width}">
-    <button
-      nz-button
-      nzType="text"
-      (click)="resetPanelPosition()"
-      *ngIf="width">
-      <span
-        nz-icon
-        nzType="enter"></span>
-    </button>
+    *ngIf="width">
     <li
       nz-menu-item
       (click)="closePanel()"
-      *ngIf="width">
+      nz-tooltip="Minimize Result Panel">
       <span
         nz-icon
         nzType="minus"></span>
@@ -86,9 +58,7 @@
   <div
     id="content"
     *ngIf="width">
-    <h4
-      id="title"
-      cdkDragHandle>
+    <h4 id="title">
       Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}
     </h4>
     <nz-tabs
@@ -117,5 +87,5 @@
   </div>
   <nz-resize-handles
     *ngIf="width"
-    [nzDirections]="isPanelDocked() ? ['right'] : ['right', 'bottom', 'bottomRight']"></nz-resize-handles>
+    [nzDirections]="['top']"></nz-resize-handles>
 </div>

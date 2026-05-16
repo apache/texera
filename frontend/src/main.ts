@@ -19,9 +19,14 @@
 
 import { enableProdMode, provideZoneChangeDetection } from "@angular/core";
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
+import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 
 import { AppModule } from "./app/app.module";
 import { environment } from "./environments/environment";
+
+// Register ag-grid Community modules once at bootstrap. Using the aggregator keeps
+// the registration site small; production builds tree-shake unused modules.
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 if (environment.production) {
   enableProdMode();

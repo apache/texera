@@ -17,16 +17,7 @@
  * under the License.
  */
 
-import {
-  ChangeDetectorRef,
-  Component,
-  ElementRef,
-  HostListener,
-  OnDestroy,
-  OnInit,
-  Type,
-  ViewChild,
-} from "@angular/core";
+import { ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit, Type } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -43,25 +34,20 @@ import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
-import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
-import { isDefined } from "../../../common/util/predicate";
-import { CdkDragEnd, CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { PanelService } from "../../service/panel/panel.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
-import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NgClass, NgIf, NgFor, NgComponentOutlet, KeyValuePipe } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
-import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
-import { FormlyRepeatDndComponent } from "../../../common/formly/repeat-dnd/repeat-dnd.component";
 
-export const DEFAULT_WIDTH = 800;
-export const DEFAULT_HEIGHT = 500;
+export const DEFAULT_HEIGHT = 360;
+/** Width is now a boolean-ish toggle: > 0 means the dock is open. */
+export const OPEN_FLAG = 1;
 /**
  * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -79,32 +65,26 @@ export const DEFAULT_HEIGHT = 500;
     ɵNzTransitionPatchDirective,
     NzTooltipDirective,
     NzIconDirective,
-    NzMenuDividerDirective,
-    CdkDrag,
     NzResizableDirective,
-    NzSpaceCompactItemDirective,
-    NzButtonComponent,
-    CdkDragHandle,
     NzTabsComponent,
     NzTabComponent,
     NgFor,
     NgComponentOutlet,
     NzResizeHandlesComponent,
-    FormlyRepeatDndComponent,
     KeyValuePipe,
   ],
 })
 export class ResultPanelComponent implements OnInit, OnDestroy {
-  @ViewChild("dynamicComponent")
-  componentOutlets!: ElementRef;
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
-  id = -1;
-  width = DEFAULT_WIDTH;
+  /**
+   * `width` is kept as a 0-or-OPEN_FLAG toggle for back-compat with template
+   * `*ngIf="width"` checks. The panel is full-width when open; height alone is
+   * the user-tunable dimension since this is a bottom dock.
+   */
+  width = OPEN_FLAG;
   height = DEFAULT_HEIGHT;
   operatorTitle = "";
-  dragPosition = { x: 0, y: 0 };
-  returnPosition = { x: 0, y: 0 };
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -128,20 +108,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const style = localStorage.getItem("result-panel-style");
-    if (style) document.getElementById("result-container")!.style.cssText = style;
-    const translates = document.getElementById("result-container")!.style.transform;
-    const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
-    this.returnPosition = { x: -xOffset, y: -yOffset };
-    this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
-    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
-      this.resetPanelPosition();
-      this.openPanel();
-    });
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => this.openPanel());
     this.workflowActionService.resultPanelOpen$.pipe(untilDestroyed(this)).subscribe(open => {
       if (open) {
         this.openPanel();
@@ -153,13 +124,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    localStorage.setItem("result-panel-width", String(this.width));
     localStorage.setItem("result-panel-height", String(this.height));
-
-    const resultContainer = document.getElementById("result-container");
-    if (resultContainer) {
-      localStorage.setItem("result-panel-style", resultContainer.style.cssText);
-    }
   }
 
   handleResultPanelForVersionPreview() {
@@ -366,58 +331,19 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   openPanel() {
-    this.height = DEFAULT_HEIGHT;
-    this.width = DEFAULT_WIDTH;
+    this.height = Number(localStorage.getItem("result-panel-height")) || DEFAULT_HEIGHT;
+    this.width = OPEN_FLAG;
     this.resizeService.changePanelSize(this.width, this.height);
   }
 
   closePanel() {
-    this.height = 32.5;
     this.width = 0;
+    this.resizeService.changePanelSize(this.width, this.height);
   }
 
-  resetPanelPosition() {
-    this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
-  }
-
-  isPanelDocked() {
-    return this.returnPosition.x === this.dragPosition.x && this.returnPosition.y === this.dragPosition.y;
-  }
-
-  handleStartDrag() {
-    let visualizationResult = this.componentOutlets.nativeElement.querySelector("#html-content");
-    if (visualizationResult !== null) {
-      visualizationResult.style.zIndex = -1;
-    }
-  }
-
-  handleEndDrag({ source }: CdkDragEnd) {
-    /**
-     * records the most recent panel location, updating dragPosition when dragging is over
-     */
-    const { x, y } = source.getFreeDragPosition();
-    this.dragPosition = { x: x, y: y };
-    let visualizationResult = this.componentOutlets.nativeElement.querySelector("#html-content");
-    if (visualizationResult !== null) {
-      visualizationResult.style.zIndex = 0;
-    }
-  }
-
-  onResize({ width, height }: NzResizeEvent) {
-    cancelAnimationFrame(this.id);
-    this.updateReturnPosition(this.height, height);
-    this.id = requestAnimationFrame(() => {
-      this.width = width!;
-      this.height = height!;
-      this.resizeService.changePanelSize(this.width, this.height);
-    });
-  }
-
-  updateReturnPosition(prevHeight: number, newHeight: number | undefined) {
-    /**
-     * Updating returnPosition ensures that even if the panel gets resized,it can be docked correctly to the left-bottom corner of the canvas.
-     */
-    if (!isDefined(newHeight)) return;
-    this.returnPosition = { x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight };
+  onResize({ height }: NzResizeEvent) {
+    if (height === undefined) return;
+    this.height = height;
+    this.resizeService.changePanelSize(this.width, this.height);
   }
 }

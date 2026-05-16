@@ -62,6 +62,40 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
     throw new NotImplementedError("getRange method is not implemented")
 
   /**
+    * Get an iterator over rows matching `filters` and `rowSearch`, ordered by `sorts`,
+    * sliced to `[from, until)` of the filtered/sorted view.
+    *
+    * Unlike `getRange`, the `from`/`until` indices here address the post-filter,
+    * post-sort sequence — not the underlying stored order. Implementations that don't
+    * support query pushdown should leave the default in place, which ignores
+    * filters/sorts/rowSearch and falls through to `getRange`.
+    *
+    * @param from index (inclusive) into the filtered, sorted view
+    * @param until index (exclusive) into the filtered, sorted view
+    * @param columns columns to project (None = all columns)
+    * @param filters row predicates ANDed together
+    * @param sorts sort keys applied in order
+    * @param rowSearch free-text substring; implementation defines how it expands across columns
+    */
+  def getRangeWithQuery(
+      from: Int,
+      until: Int,
+      columns: Option[Seq[String]] = None,
+      filters: Seq[ColumnFilter] = Seq.empty,
+      sorts: Seq[SortSpec] = Seq.empty,
+      rowSearch: Option[String] = None
+  ): Iterator[T] = getRange(from, until, columns)
+
+  /**
+    * Count rows that satisfy `filters` and `rowSearch`. Used by paginated UIs to
+    * size the scrollbar after a filter is applied. Default falls back to total count.
+    */
+  def countWithQuery(
+      filters: Seq[ColumnFilter] = Seq.empty,
+      rowSearch: Option[String] = None
+  ): Long = getCount
+
+  /**
     * get an iterator of all items after the specified index `offset`
     * @param offset the starting index (exclusive)
     * @return an iterator that returns data items of type T

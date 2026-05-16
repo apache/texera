@@ -28,7 +28,12 @@ import {
   WorkflowResultUpdate,
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
+import {
+  ColumnFilter,
+  PaginatedResultEvent,
+  SortSpec,
+  WorkflowAvailableResultEvent,
+} from "../../types/workflow-websocket.interface";
 import { map, Observable, of, pairwise, ReplaySubject, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
@@ -307,12 +312,23 @@ export class OperatorPaginationResultService {
     pageSize: number,
     columnOffset: number = 0,
     columnLimit: number = Number.MAX_SAFE_INTEGER,
-    columnSearch: string = ""
+    columnSearch: string = "",
+    filters: ReadonlyArray<ColumnFilter> = [],
+    sorts: ReadonlyArray<SortSpec> = [],
+    rowSearch: string = ""
   ): Observable<PaginatedResultEvent> {
     // update currently selected page
     this.currentPageIndex = pageIndex;
-    // first fetch from frontend result cache
-    const useCache = columnOffset === 0 && columnLimit === Number.MAX_SAFE_INTEGER && columnSearch === "";
+    // first fetch from frontend result cache. Cache only applies to unqualified
+    // requests — once filters/sorts/rowSearch are in play, results are query-shape
+    // dependent and must round-trip to the backend.
+    const useCache =
+      columnOffset === 0 &&
+      columnLimit === Number.MAX_SAFE_INTEGER &&
+      columnSearch === "" &&
+      filters.length === 0 &&
+      sorts.length === 0 &&
+      rowSearch === "";
     const pageCache = useCache ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
@@ -323,7 +339,11 @@ export class OperatorPaginationResultService {
         schema: this.schema,
       });
     } else {
-      // fetch result data from server
+      // fetch result data from server. Elide the legacy column-pager fields when
+      // they're at their unbounded defaults so Scala's defaults apply — JS's
+      // Number.MAX_SAFE_INTEGER (2^53-1) overflows Scala Int and would crash the
+      // case class binding, dropping the request silently. Same defensive approach
+      // for the Phase 2 query fields: send them only when non-empty.
       const requestID = uuid();
       const operatorID = this.operatorID;
       this.workflowWebsocketService.send("ResultPaginationRequest", {
@@ -331,9 +351,12 @@ export class OperatorPaginationResultService {
         operatorID,
         pageIndex,
         pageSize,
-        columnOffset,
-        columnLimit,
-        columnSearch,
+        ...(columnOffset !== 0 ? { columnOffset } : {}),
+        ...(columnLimit !== Number.MAX_SAFE_INTEGER ? { columnLimit } : {}),
+        ...(columnSearch !== "" ? { columnSearch } : {}),
+        ...(filters.length > 0 ? { filters } : {}),
+        ...(sorts.length > 0 ? { sorts } : {}),
+        ...(rowSearch !== "" ? { rowSearch } : {}),
       });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);
@@ -369,6 +392,13 @@ export class OperatorPaginationResultService {
     const pendingRequestSubject = this.pendingRequests.get(res.requestID);
     if (!pendingRequestSubject) {
       return;
+    }
+    // Populate the page cache for unfiltered/unsorted responses so that revisiting
+    // a page (e.g. paging back-and-forth in the grid) is served instantly without
+    // a WebSocket round-trip. Filtered responses are query-shape dependent and
+    // shouldn't share the same cache slot.
+    if (res.totalNumTuples === undefined && res.sortSkipped !== true) {
+      this.resultCache.set(res.pageIndex, res.table);
     }
     pendingRequestSubject.next(res);
     pendingRequestSubject.complete();

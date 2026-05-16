@@ -1,0 +1,396 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.transformation-diff {
+  width: 100%;
+}
+
+/* ---------- the always-visible strip ---------- */
+.strip {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: linear-gradient(180deg, #f8faff 0%, #f4f6fb 100%);
+  border-bottom: 1px solid #e3e7ef;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.7);
+  user-select: none;
+}
+
+.strip.source,
+.strip.multi {
+  gap: 8px;
+  color: rgba(0, 0, 0, 0.6);
+  font-style: italic;
+
+  i {
+    color: #1890ff;
+  }
+
+  .source-label {
+    font-weight: 500;
+    font-style: normal;
+    color: rgba(0, 0, 0, 0.75);
+  }
+
+  .source-stats {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    font-style: normal;
+  }
+}
+
+.strip.diff {
+  cursor: pointer;
+  flex-direction: column;
+  padding: 0;
+  align-items: stretch;
+
+  &:hover .strip-row {
+    background: linear-gradient(180deg, #eef3ff 0%, #e7ecf7 100%);
+  }
+}
+
+.strip-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  transition: background-color 120ms ease;
+}
+
+/* ---------- endpoint pills (upstream / current) ---------- */
+.endpoint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: #ffffff;
+  border: 1px solid #d9e0ec;
+  border-radius: 16px;
+  max-width: 320px;
+  min-width: 120px;
+  flex: 0 1 auto;
+
+  .endpoint-icon {
+    color: #1890ff;
+    font-size: 14px;
+    flex: 0 0 auto;
+  }
+
+  .endpoint-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.2;
+    min-width: 0;
+  }
+
+  .endpoint-name {
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.85);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .endpoint-stats {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.5);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.endpoint.current {
+  background: #fff8e6;
+  border-color: #ffd591;
+
+  .endpoint-icon {
+    color: #fa8c16;
+  }
+}
+
+/* ---------- flow / delta badges in the middle ---------- */
+.flow-arrow {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.delta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+}
+
+.delta-badge.rows {
+  &.positive {
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    color: #389e0d;
+  }
+
+  &.negative {
+    background: #fff1f0;
+    border: 1px solid #ffa39e;
+    color: #cf1322;
+  }
+
+  &.zero {
+    background: rgba(0, 0, 0, 0.04);
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  &.unknown {
+    background: rgba(0, 0, 0, 0.02);
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  .delta-sign i {
+    font-size: 10px;
+  }
+}
+
+.delta-badge.cols {
+  background: #f0f5ff;
+  border: 1px solid #adc6ff;
+  color: #1d39c4;
+
+  &.neutral {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: rgba(0, 0, 0, 0.45);
+  }
+
+  .cols-added {
+    color: #389e0d;
+    font-weight: 600;
+  }
+  .cols-removed {
+    color: #cf1322;
+    font-weight: 600;
+  }
+  .cols-typechange {
+    color: #d46b08;
+    font-weight: 600;
+  }
+  .cols-label {
+    color: rgba(0, 0, 0, 0.55);
+    font-weight: 400;
+  }
+}
+
+.expand-toggle {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: rgba(0, 0, 0, 0.55);
+  transition: transform 160ms ease, color 120ms ease;
+
+  &:hover {
+    color: #1890ff;
+    background: rgba(24, 144, 255, 0.08);
+  }
+
+  &.flipped {
+    transform: rotate(180deg);
+  }
+
+  i {
+    font-size: 12px;
+  }
+}
+
+/* ---------- expanded detail drawer ---------- */
+.diff-details {
+  padding: 10px 16px 12px;
+  background: #fbfcff;
+  border-top: 1px dashed #d9e0ec;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diff-row-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  .diff-bar-title {
+    flex: 0 0 80px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.65);
+    padding-top: 2px;
+  }
+
+  .diff-bar-rows {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .diff-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .diff-bar-side {
+    flex: 0 0 56px;
+    color: rgba(0, 0, 0, 0.55);
+    font-weight: 500;
+  }
+
+  .diff-bar-track {
+    flex: 1 1 auto;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .diff-bar-fill {
+    height: 100%;
+    background: #8ea3c2;
+    border-radius: 2px;
+    transition: width 240ms ease;
+
+    /* Subtle distinction between rows without screaming green/blue. */
+    &.after {
+      background: #5a6f8e;
+    }
+  }
+
+  .diff-bar-count {
+    flex: 0 0 auto;
+    min-width: 60px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.75);
+  }
+}
+
+.diff-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .diff-columns-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.75);
+
+    .diff-count {
+      font-weight: 400;
+      color: rgba(0, 0, 0, 0.45);
+      font-size: 11px;
+    }
+
+    .icon-added {
+      color: #52c41a;
+    }
+    .icon-removed {
+      color: #ff4d4f;
+    }
+    .icon-kept {
+      color: #1890ff;
+    }
+  }
+
+  .diff-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-left: 22px;
+
+    &.collapsed {
+      max-height: 64px;
+      overflow: hidden;
+    }
+  }
+}
+
+:host ::ng-deep {
+  .tag-added.ant-tag {
+    background: #f6ffed;
+    border-color: #b7eb8f;
+    color: #389e0d;
+
+    small {
+      color: #52c41a;
+      opacity: 0.8;
+    }
+  }
+
+  .tag-removed.ant-tag {
+    background: #fff1f0;
+    border-color: #ffa39e;
+    color: #cf1322;
+    text-decoration: line-through;
+    text-decoration-color: rgba(207, 19, 34, 0.4);
+
+    small {
+      color: #ff4d4f;
+      opacity: 0.8;
+    }
+  }
+
+  .tag-kept.ant-tag {
+    background: #fafafa;
+    border-color: #e8e8e8;
+    color: rgba(0, 0, 0, 0.65);
+  }
+
+  .tag-typechange.ant-tag {
+    background: #fff7e6;
+    border-color: #ffd591;
+    color: #d46b08;
+
+    small {
+      color: #fa8c16;
+      font-style: italic;
+    }
+  }
+}

@@ -23,7 +23,7 @@ import org.apache.pekko.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.config.ApplicationConfig
+import org.apache.texera.amber.config.{ApplicationConfig, StorageConfig}
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.result._
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
@@ -454,16 +454,44 @@ class ExecutionResultService(
           )
         }
 
-        val paginationIterable = {
-          virtualDocument
+        val hasQuery =
+          request.filters.nonEmpty || request.sorts.nonEmpty || request.rowSearch.exists(_.nonEmpty)
+
+        if (!hasQuery) {
+          val paginationIterable = virtualDocument
             .getRange(from, from + request.pageSize, columns)
             .to(Iterable)
+          val mappedResults = convertTuplesToJson(paginationIterable)
+          val attributes = paginationIterable.headOption
+            .map(_.getSchema.getAttributes)
+            .getOrElse(List.empty)
+          PaginatedResultEvent.apply(request, mappedResults, attributes)
+        } else {
+          // Filter / sort / rowSearch path: compute totalNumTuples up front so the
+          // frontend datasource can size the infinite scrollbar after the user's
+          // filter applies. If sort was requested and the matched row count blows
+          // the cap, IcebergDocument silently returns scan order — we surface that
+          // via `sortSkipped` so the UI can banner.
+          val totalMatching = virtualDocument.countWithQuery(request.filters, request.rowSearch)
+          val sortRequested = request.sorts.nonEmpty
+          val sortSkipped = sortRequested && totalMatching > StorageConfig.resultSortMaxRows
+
+          val paginationIterable = virtualDocument
+            .getRangeWithQuery(
+              from,
+              from + request.pageSize,
+              columns,
+              request.filters,
+              request.sorts,
+              request.rowSearch
+            )
+            .to(Iterable)
+          val mappedResults = convertTuplesToJson(paginationIterable)
+          val attributes = paginationIterable.headOption
+            .map(_.getSchema.getAttributes)
+            .getOrElse(List.empty)
+          PaginatedResultEvent.apply(request, mappedResults, attributes, totalMatching, sortSkipped)
         }
-        val mappedResults = convertTuplesToJson(paginationIterable)
-        val attributes = paginationIterable.headOption
-          .map(_.getSchema.getAttributes)
-          .getOrElse(List.empty)
-        PaginatedResultEvent.apply(request, mappedResults, attributes)
 
       case None =>
         // Handle the case when storageUri is empty

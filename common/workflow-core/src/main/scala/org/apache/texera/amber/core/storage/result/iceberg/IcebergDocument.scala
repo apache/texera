@@ -19,14 +19,16 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
+import org.apache.texera.amber.config.StorageConfig
 import org.apache.texera.amber.core.storage.IcebergCatalogInstance
-import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
+import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, ColumnFilter, SortSpec, VirtualDocument}
 import org.apache.texera.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.commons.io.IOUtils
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
+import org.apache.iceberg.expressions.Expression
 import org.apache.iceberg.types.{Conversions, Types}
 import org.apache.iceberg.{FileScanTask, Table}
 
@@ -126,6 +128,187 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         return 0
       )
     table.newScan().planFiles().iterator().asScala.map(f => f.file().recordCount()).sum
+  }
+
+  /**
+    * Query-aware overload of getRange. Translates `filters` to Iceberg predicates for
+    * pushdown into the Parquet reader, then applies residual filters (`contains`,
+    * `endsWith`), `rowSearch`, and `sorts` in memory. The `from`/`until` slice is
+    * taken from the post-filter, post-sort view.
+    *
+    * Sort is capped by `storage.result.sort.max-rows`: when the filtered count
+    * exceeds the cap, results are returned unsorted in scan order. Callers can
+    * detect this by comparing `countWithQuery` to the cap.
+    */
+  override def getRangeWithQuery(
+      from: Int,
+      until: Int,
+      columns: Option[Seq[String]] = None,
+      filters: Seq[ColumnFilter] = Seq.empty,
+      sorts: Seq[SortSpec] = Seq.empty,
+      rowSearch: Option[String] = None
+  ): Iterator[T] = {
+    if (filters.isEmpty && sorts.isEmpty && rowSearch.isEmpty) {
+      return getRange(from, until, columns)
+    }
+
+    withReadLock(lock) {
+      val tableOpt = IcebergUtil.loadTableMetadata(catalog, tableNamespace, tableName)
+      if (tableOpt.isEmpty) return Iterator.empty
+      val table = tableOpt.get
+      table.refresh()
+
+      val (pushdownExpr, residualFilters) =
+        IcebergPredicateBuilder.buildPushdownAndResidual(filters, table.schema())
+
+      // Sort and rowSearch may need columns not present in `columns` (e.g. sort by
+      // a hidden column, or rowSearch across all strings). Materialize each scan
+      // with the full schema so residual evaluation works; we re-project at the end.
+      val records = scanRecords(table, pushdownExpr)
+      val filtered = records
+        .filter(rec => matchesAll(rec, residualFilters, table.schema()))
+        .filter(rec => matchesRowSearch(rec, rowSearch, table.schema()))
+
+      val ordered: Iterator[Record] =
+        if (sorts.isEmpty) filtered
+        else sortBoundedOrFallback(filtered, sorts, table.schema())
+
+      val sliced = ordered.slice(from, until)
+
+      val projectionSchema = columns match {
+        case Some(cols) => tableSchema.select(cols.asJava)
+        case None       => tableSchema
+      }
+      sliced.map(rec => deserde(projectionSchema, rec))
+    }
+  }
+
+  /**
+    * Count of rows matching `filters` and `rowSearch`. Used by paginated UIs to size
+    * the scrollbar after a filter is applied; returns `getCount` (file-stat sum) when
+    * no predicates are present, otherwise scans the filtered iterator.
+    */
+  override def countWithQuery(
+      filters: Seq[ColumnFilter] = Seq.empty,
+      rowSearch: Option[String] = None
+  ): Long = {
+    if (filters.isEmpty && rowSearch.isEmpty) return getCount
+
+    withReadLock(lock) {
+      val tableOpt = IcebergUtil.loadTableMetadata(catalog, tableNamespace, tableName)
+      if (tableOpt.isEmpty) return 0L
+      val table = tableOpt.get
+      table.refresh()
+      val (pushdownExpr, residualFilters) =
+        IcebergPredicateBuilder.buildPushdownAndResidual(filters, table.schema())
+      val records = scanRecords(table, pushdownExpr)
+      records
+        .filter(rec => matchesAll(rec, residualFilters, table.schema()))
+        .count(rec => matchesRowSearch(rec, rowSearch, table.schema())).toLong
+    }
+  }
+
+  /**
+    * Plan scan tasks under the given pushdown expression, sorted by file sequence
+    * number to keep the in-memory residual evaluator deterministic.
+    */
+  private def scanRecords(table: Table, pushdownExpr: Option[Expression]): Iterator[Record] = {
+    val baseScan = table.newScan()
+    val scan = pushdownExpr.fold(baseScan)(baseScan.filter)
+    val fileTasks = scan.planFiles().iterator().asScala.toSeq.sortBy(_.file().fileSequenceNumber())
+    fileTasks.iterator.flatMap { task =>
+      IcebergUtil.readDataFileAsIterator(task.file(), tableSchema, table)
+    }
+  }
+
+  private def matchesAll(record: Record, filters: Seq[ColumnFilter], schema: org.apache.iceberg.Schema): Boolean = {
+    filters.forall(f => matchesOne(record, f, schema))
+  }
+
+  private def matchesOne(record: Record, filter: ColumnFilter, schema: org.apache.iceberg.Schema): Boolean = {
+    val raw = record.getField(filter.columnName)
+    val needle = filter.value.getOrElse("")
+    filter.op match {
+      case "contains"  => raw != null && raw.toString.contains(needle)
+      case "endsWith"  => raw != null && raw.toString.endsWith(needle)
+      case _           => true // pushdown-handled ops never reach here
+    }
+  }
+
+  /**
+    * rowSearch is a substring match across every string-typed column. We do it on
+    * the raw Record so we can answer based on the field type without deserializing
+    * the whole row first.
+    */
+  private def matchesRowSearch(
+      record: Record,
+      rowSearch: Option[String],
+      schema: org.apache.iceberg.Schema
+  ): Boolean = {
+    rowSearch match {
+      case None | Some("") => true
+      case Some(needle) =>
+        val n = needle.toLowerCase
+        schema.columns().asScala.exists { col =>
+          val v = record.getField(col.name())
+          v != null && v.toString.toLowerCase.contains(n)
+        }
+    }
+  }
+
+  /**
+    * In-memory sort, capped at `storage.result.sort.max-rows`. When the filtered
+    * count exceeds the cap we return the iterator in scan order — the caller is
+    * expected to check `countWithQuery` against the cap and surface a UI warning.
+    */
+  private def sortBoundedOrFallback(
+      records: Iterator[Record],
+      sorts: Seq[SortSpec],
+      schema: org.apache.iceberg.Schema
+  ): Iterator[Record] = {
+    val cap = StorageConfig.resultSortMaxRows
+    val buffer = mutable.ArrayBuffer.empty[Record]
+    val it = records
+    var overCap = false
+    while (it.hasNext && !overCap) {
+      val r = it.next()
+      buffer += r
+      if (buffer.size > cap) overCap = true
+    }
+    if (overCap) {
+      // Concatenate what we've buffered with the remainder, unsorted.
+      buffer.iterator ++ it
+    } else {
+      val ordering = sorts.foldRight(Ordering.by[Record, Int](_ => 0)) { (spec, base) =>
+        val cmp = recordOrdering(spec.columnName, spec.direction)
+        new Ordering[Record] {
+          override def compare(a: Record, b: Record): Int = {
+            val r = cmp.compare(a, b)
+            if (r != 0) r else base.compare(a, b)
+          }
+        }
+      }
+      buffer.sorted(ordering).iterator
+    }
+  }
+
+  private def recordOrdering(columnName: String, direction: String): Ordering[Record] = {
+    val base: Ordering[Record] = new Ordering[Record] {
+      override def compare(a: Record, b: Record): Int = {
+        val va = a.getField(columnName)
+        val vb = b.getField(columnName)
+        (va, vb) match {
+          case (null, null) => 0
+          case (null, _)    => -1
+          case (_, null)    => 1
+          case (x: java.lang.Comparable[_], y) =>
+            x.asInstanceOf[java.lang.Comparable[Any]].compareTo(y)
+          case (x, y) =>
+            x.toString.compareTo(y.toString)
+        }
+      }
+    }
+    if (direction.equalsIgnoreCase("desc")) base.reverse else base
   }
 
   /**

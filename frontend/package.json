@@ -41,6 +41,8 @@
     "@ngneat/until-destroy": "8.1.4",
     "@ngx-formly/core": "6.3.12",
     "@ngx-formly/ng-zorro-antd": "6.3.12",
+    "ag-grid-angular": "^33",
+    "ag-grid-community": "^33",
     "ai": "5.0.93",
     "ajv": "8.10.0",
     "concaveman": "2.0.0",

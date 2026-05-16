@@ -17,128 +17,116 @@
  * under the License.
  */
 
-:host ::ng-deep .ant-table-pagination.ant-pagination {
-  margin: 16px 0;
-}
-
-// make the pagination button to the left
-:host ::ng-deep .ant-table-pagination-right {
-  justify-content: left;
-}
-
-td.data-size {
-  font-size: 12px;
-}
-
-th.header-size {
-  font-size: 14px;
-  padding: 2px;
-}
-
-.custom-stats-row th {
-  background-color: #ccc;
-  border-bottom: 1px solid #ccc;
-  border-top: 1px solid #ccc;
-  border-left: 1px solid #ccc;
-  height: auto;
-  padding: 2px 4px;
-}
-
-.custom-stats-row th:first-child {
-  border-left: none; /* To remove the left border from the first column */
-}
-
-.statsHeader {
-  max-height: none;
-  padding: 2px 0;
-}
-
-.statsLine {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  gap: 16px;
-}
-
-.statsLine h5 {
-  margin: 0;
-  line-height: 1.2;
-  font-size: 12px;
-}
-
-.leftAlign {
-  text-align: left;
-  margin-right: 10px;
-}
-
-.rightAlign {
-  text-align: right;
-}
-
-.borderless-button {
-  border: none;
-  background: none;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-  }
-}
-
-.table-cell {
-  position: relative;
-  padding-right: 28px;
-}
-
-.cell-content {
+:host {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  height: 100%;
+  width: 100%;
 }
 
-.download-button {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out;
-  padding: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-
-  i {
-    font-size: 16px; // Slightly larger to match the cloud icon
-    color: #1890ff; // Ant Design's primary blue color
-  }
+.result-table-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
 }
 
-.table-row-hover:hover {
-  .download-button {
-    opacity: 0.7;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-}
-
-.table-footer {
+.grid-toolbar {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  align-items: center;
+  padding: 4px 8px;
+  gap: 8px;
 }
 
-.table-container {
-  position: relative;
+.row-search-input {
+  width: 220px;
 }
 
-.download-all-button {
-  position: absolute;
-  bottom: 16px;
-  right: 0;
+.sort-skipped-banner {
+  margin: 4px 8px;
+}
+
+.grid-wrapper {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.grid-wrapper.with-inspector {
+  flex: 1 1 60%;
+  min-height: 120px;
+}
+
+.result-grid {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+}
+
+.row-inspector {
+  flex: 0 1 40%;
+  min-height: 140px;
+  max-height: 50%;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #e8e8e8;
+  background: #ffffff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.row-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.row-inspector-title {
+  font-weight: 600;
+}
+
+.row-inspector-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.row-inspector-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 16px;
+}
+
+.column-toggle-panel {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  min-width: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.column-toggle-actions {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+.column-toggle-item {
+  display: flex;
+  padding: 4px 6px;
+  user-select: none;
 }

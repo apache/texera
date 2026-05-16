@@ -34,6 +34,9 @@ object StorageConfig {
   val jdbcUsername: String = conf.getString("storage.jdbc.username")
   val jdbcPassword: String = conf.getString("storage.jdbc.password")
 
+  // Result-pane query specifics
+  val resultSortMaxRows: Long = conf.getLong("storage.result.sort.max-rows")
+
   // Iceberg specifics
   val icebergCatalogType: String = conf.getString("storage.iceberg.catalog.type")
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")

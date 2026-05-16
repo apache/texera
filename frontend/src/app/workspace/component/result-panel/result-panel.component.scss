@@ -19,52 +19,52 @@
 
 :host {
   display: block;
-  height: 100%;
-  width: 100%;
   position: fixed;
+  inset: 0;
+  pointer-events: none;
   z-index: 4;
 }
 
 #texera-workspace {
   position: relative;
+  pointer-events: none;
+  height: 100%;
 }
 
+/**
+ * Result panel is docked along the bottom edge: full viewport width, height
+ * resizable from the top edge only. No drag-to-move. The host wrapper has
+ * pointer-events: none so the canvas behind the panel remains interactive
+ * everywhere the panel isn't drawn; the container re-enables them.
+ */
 #result-container {
-  position: absolute;
-  top: -300px;
+  position: fixed;
   left: 0;
-  background: white;
-  border-radius: 5px;
-  box-shadow:
-    0 3px 1px -2px #0003,
-    0 2px 2px #00000024,
-    0 1px 5px #0000001f;
+  right: 0;
+  bottom: 0;
+  pointer-events: auto;
+  background: #ffffff;
+  border-top: 1px solid #e8e8e8;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: height 120ms ease;
 }
 
-// make modal body scrollable and modal size fixed
-.modal-body {
-  min-height: calc(50vh);
-  overflow-y: auto !important;
+#result-container.hidden {
+  height: 0 !important;
+  border-top: 0;
+  box-shadow: none;
 }
-// change the internal color of pretty json of the result details
-
-$type-colors: (
-  string: black,
-  number: #27837a,
-  boolean: #751866,
-  date: #10536d,
-  array: #999,
-  object: #999,
-  function: #999,
-  "null": #fff,
-  undefined: #fff,
-);
 
 #content {
-  overflow-y: auto;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding-top: 38px;
-  width: inherit;
-  height: inherit;
+  width: 100%;
 }
 
 .result-content,
@@ -73,20 +73,35 @@ $type-colors: (
   height: 100%;
 }
 
-#result-buttons {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  z-index: 4;
-  display: flex;
+:host ::ng-deep .result-content.ant-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-#panel-button {
+/**
+ * Floating "open" pill, shown when the dock is minimised. Sits in the
+ * bottom-left so the user can re-open the panel without hunting for a menu.
+ */
+#result-buttons {
   position: fixed;
+  bottom: 8px;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  pointer-events: auto;
+}
+
+/**
+ * Minimise (−) button anchored to the panel's top-right. Floats above the
+ * title bar.
+ */
+#panel-button {
+  position: absolute;
   top: 0;
   right: 0;
   z-index: 4;
   display: flex;
+  pointer-events: auto;
 }
 
 .ant-menu-item {
@@ -94,10 +109,6 @@ $type-colors: (
   height: 32px;
   line-height: 32px;
   padding: 0 9px;
-}
-
-#divider {
-  margin: 0;
 }
 
 .shadow {
@@ -109,11 +120,30 @@ $type-colors: (
 }
 
 #title {
-  padding: 5px 9px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e8e8e8;
   position: absolute;
   top: 0;
-  background: white;
-  width: 100%;
+  left: 0;
+  right: 38px;
+  margin: 0;
+  background: #fafafa;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
   z-index: 2;
+}
+
+/**
+ * Re-style the resize handle on the top edge so it reads as a horizontal grip.
+ */
+:host ::ng-deep .nz-resizable-handle-top {
+  height: 6px;
+  top: -3px;
+  cursor: ns-resize;
+  background: transparent;
+}
+
+:host ::ng-deep .nz-resizable-handle-top:hover {
+  background: rgba(24, 144, 255, 0.2);
 }

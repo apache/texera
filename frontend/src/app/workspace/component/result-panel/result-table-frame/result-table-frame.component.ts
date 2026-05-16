@@ -18,43 +18,59 @@
  */
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
-import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { NgIf, NgForOf } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { AgGridAngular } from "ag-grid-angular";
 import {
-  NzTableQueryParams,
-  NzTableComponent,
-  NzTheadComponent,
-  NzTrDirective,
-  NzTableCellDirective,
-  NzThMeasureDirective,
-  NzTbodyComponent,
-  NzCellEllipsisDirective,
-} from "ng-zorro-antd/table";
+  ColDef,
+  GridApi,
+  GridOptions,
+  GridReadyEvent,
+  IDatasource,
+  IGetRowsParams,
+  RowClickedEvent,
+  themeQuartz,
+} from "ag-grid-community";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { NgxJsonViewerModule } from "ngx-json-viewer";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Subject, takeUntil, debounceTime } from "rxjs";
+
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
-import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
-import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
-import { RowModalComponent } from "../result-panel-modal.component";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { IndexableObject } from "../../../types/result-table.interface";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { NgIf, NgFor, NgClass } from "@angular/common";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
-import { NzInputDirective } from "ng-zorro-antd/input";
-import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
-import { NzIconDirective } from "ng-zorro-antd/icon";
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
+import { ColumnFilter, SortSpec } from "../../../types/workflow-websocket.interface";
+import { ResultCellRendererComponent, ResultCellRendererParams } from "./result-cell-renderer.component";
+import { ResultHeaderComponent } from "./result-header.component";
+import { TransformationDiffComponent } from "./transformation-diff.component";
+
+interface ColumnToggle {
+  name: string;
+  visible: boolean;
+}
 
 /**
- * The Component will display the result in an excel table format,
- *  where each row represents a result from the workflow,
- *  and each column represents the type of result the workflow returns.
+ * Renders an operator's tabular output as an interactive ag-grid (Community).
  *
- * Clicking each row of the result table will create an pop-up window
- *  and display the detail of that row in a pretty json format.
+ * Phase 1 of the smart-result-pane upgrade: the grid replaces nz-table and gives users
+ * sort, column-header filters, column reorder/hide/pin, and column virtualization for
+ * wide tables. Backend protocol is unchanged — sort/filter operate on the page in view
+ * only; full-dataset pushdown lands in Phase 2.
+ *
+ * Rows are fetched lazily via ag-grid's Infinite Row Model. The custom IDatasource
+ * proxies to `OperatorPaginationResultService.selectPage(...)`, which already speaks
+ * the WebSocket ResultPaginationRequest contract.
  */
 @UntilDestroy()
 @Component({
@@ -63,424 +79,511 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
   styleUrls: ["./result-table-frame.component.scss"],
   imports: [
     NgIf,
-    NzSpaceCompactItemDirective,
-    NzInputDirective,
-    NzButtonComponent,
-    NzWaveDirective,
-    ɵNzTransitionPatchDirective,
+    NgForOf,
+    FormsModule,
+    AgGridAngular,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzCheckboxComponent,
     NzIconDirective,
-    NzTableComponent,
-    NzTheadComponent,
-    NzTrDirective,
-    NgFor,
-    NzTableCellDirective,
-    NzThMeasureDirective,
-    NgClass,
-    NzTbodyComponent,
-    NzCellEllipsisDirective,
+    NzButtonComponent,
+    NzInputDirective,
+    NzAlertComponent,
+    NgxJsonViewerModule,
+    TransformationDiffComponent,
   ],
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
 
-  // display result table
-  currentColumns?: TableColumn[];
+  /**
+   * ag-grid Quartz theme tuned to match the rest of Texera's ng-zorro / Ant Design
+   * surface: same accent blue, slightly tighter row height, Ant-typical typography,
+   * subtle row stripe + hover. Theming is JS-based in ag-grid v33 (no CSS import
+   * needed) which keeps the bundle smaller too.
+   */
+  readonly theme = themeQuartz.withParams({
+    accentColor: "#1890ff",
+    backgroundColor: "#ffffff",
+    headerBackgroundColor: "#fafafa",
+    foregroundColor: "rgba(0, 0, 0, 0.85)",
+    headerTextColor: "rgba(0, 0, 0, 0.85)",
+    borderColor: "#e8e8e8",
+    headerColumnBorder: { color: "#e8e8e8" },
+    rowHoverColor: "#e6f7ff",
+    oddRowBackgroundColor: "#fcfcfc",
+    selectedRowBackgroundColor: "#bae7ff",
+    headerFontWeight: 600,
+    fontSize: 13,
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    rowBorder: { color: "#f0f0f0" },
+    cellHorizontalPadding: 12,
+  });
+
+  readonly gridOptions: GridOptions = {
+    rowModelType: "infinite",
+    // Pagination on, page size auto-fits the visible viewport — when the panel is
+    // taller, more rows fit per page; resize the dock and the page size adjusts.
+    pagination: true,
+    paginationAutoPageSize: true,
+    // Cache block size is the unit ag-grid uses to fetch from the datasource. A
+    // larger block means fewer WebSocket round-trips when scrolling/paging; the
+    // cache holds 10 blocks (~2000 rows) before evicting LRU. Tuned to make page
+    // flips feel instant once the surrounding rows are warm.
+    cacheBlockSize: 200,
+    maxBlocksInCache: 10,
+    cacheOverflowSize: 2,
+    suppressColumnVirtualisation: false,
+    rowHeight: 34,
+    // Header is taller to fit the inline column stats (Min / Max / Non-Null /
+    // category %), matching the layout the old nz-table result pane had.
+    headerHeight: 116,
+    animateRows: false,
+    rowSelection: { mode: "singleRow", checkboxes: false, enableClickSelection: true },
+    defaultColDef: {
+      sortable: true,
+      filter: true,
+      resizable: true,
+      minWidth: 140,
+      cellRenderer: ResultCellRendererComponent,
+      headerComponent: ResultHeaderComponent,
+    },
+    components: {
+      texeraResultCellRenderer: ResultCellRendererComponent,
+      texeraResultHeader: ResultHeaderComponent,
+    },
+  };
+
+  columnDefs: ColDef[] = [];
+  columnToggles: ColumnToggle[] = [];
+  hasData = false;
+  isOperatorFinished = false;
+  columnLimit = Number.MAX_SAFE_INTEGER;
+  rowSearch = "";
+  sortSkipped = false;
+
+  // Row inspector (bottom panel) state — replaces the prior popup modal.
+  selectedRow: IndexableObject | null = null;
+  selectedRowIndex: number | null = null;
+  totalRows = 0;
+
+  // Preserved for spec back-compat — see setupResultTable below.
   currentResult: IndexableObject[] = [];
-  //   for more details
-  //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
-  isFrontPagination: boolean = true;
 
-  isLoadingResult: boolean = false;
-
-  // paginator section, used when displaying rows
-
-  // this attribute stores whether front-end should handle pagination
-  //   if false, it means the pagination is managed by the server
-  // this starts from **ONE**, not zero
-  currentPageIndex: number = 1;
-  totalNumTuples: number = 0;
-  pageSize = 5;
-  currentColumnOffset = 0;
-  columnLimit = 25;
-  columnSearch = "";
-  panelHeight = 0;
-  tableStats: Record<string, Record<string, number>> = {};
-  prevTableStats: Record<string, Record<string, number>> = {};
-  widthPercent: string = "";
-  isOperatorFinished: boolean = false;
+  private gridApi?: GridApi;
+  // Cancellation signal for in-flight selectPage subscriptions when the operator or
+  // grid lifecycle changes underneath us. Avoids cross-talk between datasource calls.
+  private readonly datasourceCancel$ = new Subject<void>();
+  private readonly rowSearchInput$ = new Subject<string>();
+  private tableStats: Record<string, Record<string, number>> = {};
+  private currentFilters: ColumnFilter[] = [];
+  private currentSorts: SortSpec[] = [];
 
   constructor(
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
-    private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
     private guiConfigService: GuiConfigService
   ) {}
 
-  ngOnChanges(changes: SimpleChanges): void {
-    this.operatorId = changes.operatorId?.currentValue;
-    if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
-      if (paginatedResultService) {
-        this.isFrontPagination = false;
-        this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
-        this.currentPageIndex = paginatedResultService.getCurrentPageIndex();
-        this.changePaginatedResultData();
-
-        this.tableStats = paginatedResultService.getStats();
-        this.prevTableStats = this.tableStats;
-      }
-    }
-  }
-
   ngOnInit(): void {
+    this.columnLimit = this.guiConfigService.env.limitColumns;
+
     this.workflowStatusService
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(statusMap => {
         if (this.operatorId && statusMap[this.operatorId]?.operatorState === OperatorState.Completed) {
           this.isOperatorFinished = true;
-          this.changeDetectorRef.detectChanges();
         } else {
           this.isOperatorFinished = false;
         }
       });
 
-    this.columnLimit = this.guiConfigService.env.limitColumns;
-
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(update => {
-        if (!this.operatorId) {
-          return;
-        }
+        if (!this.operatorId || !this.gridApi) return;
         const opUpdate = update[this.operatorId];
-        if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
-          return;
-        }
-        let columnCount = this.currentColumns?.length;
-        if (columnCount) this.widthPercent = (1 / columnCount) * 100 + "%";
-        this.isFrontPagination = false;
-        this.totalNumTuples = opUpdate.totalNumTuples;
-        if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
-          this.changePaginatedResultData();
-        }
-        this.changeDetectorRef.detectChanges();
+        if (!opUpdate || !isWebPaginationUpdate(opUpdate)) return;
+        // Dirty pages or growing totals: invalidate cache so ag-grid refetches on
+        // next viewport scroll. purgeInfiniteCache() preserves scroll position.
+        this.gridApi.purgeInfiniteCache();
       });
 
     this.workflowResultService
       .getResultTableStats()
       .pipe(untilDestroyed(this))
-      .subscribe(([prevStats, currentStats]) => {
-        if (!this.operatorId) {
+      .subscribe(([, currentStats]) => {
+        if (!this.operatorId) return;
+        this.tableStats = currentStats[this.operatorId] ?? {};
+        // Update header tooltips with fresh stats without rebuilding column defs.
+        if (this.gridApi && this.columnDefs.length > 0) {
+          this.refreshHeaderTooltips();
+        }
+      });
+
+    // Debounce keystrokes so we don't fire a websocket request per character.
+    this.rowSearchInput$
+      .pipe(debounceTime(250), untilDestroyed(this))
+      .subscribe(value => {
+        this.rowSearch = value;
+        this.gridApi?.purgeInfiniteCache();
+      });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes.operatorId) return;
+    this.columnDefs = [];
+    this.columnToggles = [];
+    this.hasData = false;
+    this.selectedRow = null;
+    this.selectedRowIndex = null;
+    this.totalRows = 0;
+    this.tableStats = {};
+    if (this.gridApi) {
+      this.attachDatasource();
+    }
+  }
+
+  onGridReady(event: GridReadyEvent): void {
+    this.gridApi = event.api;
+    this.attachDatasource();
+  }
+
+  /**
+   * Wire ag-grid's IDatasource to the existing pagination service. ag-grid asks for
+   * row ranges; we translate `[startRow, endRow)` into (pageIndex, pageSize) and call
+   * selectPage. The first response also seeds column definitions from the schema.
+   *
+   * Resolve `paginatedResultService` lazily inside `getRows` instead of at attach
+   * time — the parent mounts us when the service exists, but the order of input
+   * binding vs. gridReady can race on fast paths, and lazy lookup also lets a
+   * mid-stream `purgeInfiniteCache` recover a service that came online late.
+   */
+  private attachDatasource(): void {
+    if (!this.operatorId || !this.gridApi) return;
+
+    this.datasourceCancel$.next();
+
+    const datasource: IDatasource = {
+      getRows: (params: IGetRowsParams) => {
+        const pageSize = Math.max(1, params.endRow - params.startRow);
+        const pageIndex = Math.floor(params.startRow / pageSize) + 1;
+
+        this.currentFilters = this.translateFilterModel(params.filterModel ?? {});
+        this.currentSorts = this.translateSortModel(params.sortModel ?? []);
+
+        const paginatedResultService = this.operatorId
+          ? this.workflowResultService.getPaginatedResultService(this.operatorId)
+          : undefined;
+        if (!paginatedResultService) {
+          params.successCallback([], 0);
           return;
         }
 
-        if (currentStats[this.operatorId]) {
-          this.tableStats = currentStats[this.operatorId];
-          if (prevStats[this.operatorId] && this.checkKeys(this.tableStats, prevStats[this.operatorId])) {
-            this.prevTableStats = prevStats[this.operatorId];
-          } else {
-            this.prevTableStats = this.tableStats;
-          }
-        }
-      });
+        paginatedResultService
+          .selectPage(
+            pageIndex,
+            pageSize,
+            0,
+            Number.MAX_SAFE_INTEGER,
+            "",
+            this.currentFilters,
+            this.currentSorts,
+            this.rowSearch
+          )
+          .pipe(takeUntil(this.datasourceCancel$), untilDestroyed(this))
+          .subscribe({
+            next: page => {
+              // Filtered responses carry totalNumTuples; the unfiltered fast path falls
+              // back to the streaming totalNumTuples maintained by the result service.
+              const total =
+                page.totalNumTuples !== undefined
+                  ? page.totalNumTuples
+                  : paginatedResultService.getCurrentTotalNumTuples();
+              const rows = page.table.slice() as IndexableObject[];
 
-    this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
-      this.panelHeight = size.height;
-      this.adjustPageSizeBasedOnPanelSize(size.height);
-      let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
-      while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
-        this.currentPageIndex -= 1;
-      }
-    });
+              if (this.columnDefs.length === 0 && rows.length > 0) {
+                const schema = paginatedResultService.getSchema();
+                // Seed stats from the service snapshot before building columnDefs.
+                // The stats stream uses pairwise(), so subscribers that mount after
+                // the workflow has finished never see a paired emission — only the
+                // service-side cache has the value at that point.
+                const cachedStats = paginatedResultService.getStats();
+                if (cachedStats && Object.keys(cachedStats).length > 0) {
+                  this.tableStats = cachedStats;
+                }
+                this.columnDefs = this.buildColumnDefs(rows[0], schema);
+                this.columnToggles = this.columnDefs.map(c => ({
+                  name: (c.field ?? c.headerName) as string,
+                  visible: true,
+                }));
+                this.gridApi?.setGridOption("columnDefs", this.columnDefs);
+              }
 
-    if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
-      if (paginatedResultService) {
-      }
-    }
-  }
+              this.sortSkipped = page.sortSkipped === true;
+              this.hasData = total > 0;
+              this.totalRows = total;
+              const lastRow = total > params.startRow + rows.length ? undefined : params.startRow + rows.length;
+              params.successCallback(rows, lastRow);
+              this.changeDetectorRef.detectChanges();
+            },
+            error: () => params.failCallback(),
+          });
+      },
+    };
 
-  checkKeys(
-    currentStats: Record<string, Record<string, number>>,
-    prevStats: Record<string, Record<string, number>>
-  ): boolean {
-    let firstSet = Object.keys(currentStats);
-    let secondSet = Object.keys(prevStats);
-
-    if (firstSet.length != secondSet.length) {
-      return false;
-    }
-
-    for (let i = 0; i < firstSet.length; i++) {
-      if (firstSet[i] != secondSet[i]) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  compare(field: string, stats: string): SafeHtml {
-    let current = this.tableStats[field][stats];
-    let previous = this.prevTableStats[field][stats];
-    let currentStr: string;
-    let previousStr: string;
-
-    if (typeof current === "number" && typeof previous === "number") {
-      currentStr = current.toFixed(2);
-      previousStr = previous !== undefined ? previous.toFixed(2) : currentStr;
-    } else {
-      currentStr = current.toLocaleString();
-      previousStr = previous !== undefined ? previous.toLocaleString() : currentStr;
-    }
-    let styledValue = "";
-
-    if (this.isOperatorFinished) {
-      for (let i = 0; i < currentStr.length; i++) {
-        styledValue += `<span style="color: black">${currentStr[i]}</span>`;
-      }
-      return this.sanitizer.bypassSecurityTrustHtml(styledValue);
-    }
-
-    for (let i = 0; i < currentStr.length; i++) {
-      const char = currentStr[i];
-      const prevChar = previousStr[i];
-
-      if (char !== prevChar) {
-        styledValue += `<span style="color: blue">${char}</span>`;
-      } else {
-        styledValue += `<span style="color: black">${char}</span>`;
-      }
-    }
-
-    return this.sanitizer.bypassSecurityTrustHtml(styledValue);
+    this.gridApi.setGridOption("datasource", datasource);
   }
 
   /**
-   * Adjusts the number of result rows displayed per page based on the
-   * available vertical space of the Texera results panel.
-   *
-   * The method accounts for fixed UI elements within the panel—such as
-   * headers, column navigation controls, pagination, and the search bar—
-   * to determine the remaining space available for rendering result rows.
-   * The page size is then recalculated using the height of a single table row.
-   *
-   * To maintain a stable user experience during panel resizes, the current
-   * page index is recomputed so that the previously visible results remain
-   * in view and the user does not experience an abrupt jump in the dataset.
-   *
-   * @param panelHeight - The total height (in pixels) of the results panel.
+   * Build column definitions from the first row + schema. The schema drives which
+   * ag-grid filter component each column gets (numeric / date / text), which makes
+   * type-correct filtering possible without parsing strings on the frontend.
    */
-  private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const TABLE_HEADER_HEIGHT = 38.62;
-    const PANEL_HEADER_HEIGHT = 64.27; // Includes panel title and tab bar
-    const COLUMN_NAVIGATION_HEIGHT = 56.6; // Previous/Next columns controls
-    const PAGINATION_HEIGHT = 32.63;
-    const SEARCH_BAR_HEIGHT_WITH_MARGIN = 77; // Approximate height for search bar and margins
-    const ROW_HEIGHT = 38.62;
-
-    const usedHeight =
-      TABLE_HEADER_HEIGHT +
-      PANEL_HEADER_HEIGHT +
-      COLUMN_NAVIGATION_HEIGHT +
-      PAGINATION_HEIGHT +
-      SEARCH_BAR_HEIGHT_WITH_MARGIN;
-
-    const newPageSize = Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT));
-
-    const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
-
-    this.pageSize = newPageSize;
-    this.resizeService.pageSize = newPageSize;
-
-    this.currentPageIndex = Math.floor(oldOffset / newPageSize) + 1;
-  }
-
-  /**
-   * Callback function for table query params changed event
-   *   params containing new page index, new page size, and more
-   *   (this function will be called when user switch page)
-   *
-   * @param params new parameters
-   */
-  onTableQueryParamsChange(params: NzTableQueryParams) {
-    if (this.isFrontPagination) {
-      return;
-    }
-    if (!this.operatorId) {
-      return;
-    }
-    this.currentPageIndex = params.pageIndex;
-
-    this.changePaginatedResultData();
-  }
-
-  /**
-   * Opens the model to display the row details in
-   *  pretty json format when clicked. User can view the details
-   *  in a larger, expanded format.
-   */
-  open(indexInPage: number, rowData: IndexableObject): void {
-    const currentRowIndex = indexInPage + (this.currentPageIndex - 1) * this.pageSize;
-    // open the modal component
-    const modalRef: NzModalRef<RowModalComponent> = this.modalService.create({
-      // modal title
-      nzTitle: "Row Details",
-      nzContent: RowModalComponent,
-      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex }, // set the index value and page size to the modal for navigation
-      // prevent browser focusing close button (ugly square highlight)
-      nzAutofocus: null,
-      // modal footer buttons
-      nzFooter: [
-        {
-          label: "<",
-          onClick: () => {
-            const component = modalRef.componentInstance;
-            if (component) {
-              component.rowIndex -= 1;
-              this.currentPageIndex = Math.floor(component.rowIndex / this.pageSize) + 1;
-              component.ngOnChanges();
-            }
-          },
-          disabled: () => modalRef.componentInstance?.rowIndex === 0,
-        },
-        {
-          label: ">",
-          onClick: () => {
-            const component = modalRef.componentInstance;
-            if (component) {
-              component.rowIndex += 1;
-              this.currentPageIndex = Math.floor(component.rowIndex / this.pageSize) + 1;
-              component.ngOnChanges();
-            }
-          },
-          disabled: () => modalRef.componentInstance?.rowIndex === this.totalNumTuples - 1,
-        },
-        {
-          label: "OK",
-          onClick: () => {
-            modalRef.destroy();
-          },
-          type: "primary",
-        },
-      ],
+  private buildColumnDefs(firstRow: IndexableObject, schema: ReadonlyArray<SchemaAttribute>): ColDef[] {
+    const columnKeys = Object.keys(firstRow).filter(k => k !== "_id");
+    return columnKeys.map(name => {
+      const attr = schema.find(s => s.attributeName === name);
+      const colDef: ColDef = {
+        field: name,
+        headerName: name,
+        filter: this.filterForAttributeType(attr?.attributeType),
+        headerComponentParams: { stats: this.tableStats[name] },
+        cellRendererParams: this.cellRendererParams(name),
+      };
+      return colDef;
     });
   }
 
-  // frontend table data must be changed, because:
-  // 1. result panel is opened - must display currently selected page
-  // 2. user selects a new page - must display new page data
-  // 3. current page is dirty - must re-fetch data
-  changePaginatedResultData(): void {
-    if (!this.operatorId) {
-      return;
-    }
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
-    if (!paginatedResultService) {
-      return;
-    }
-    this.isLoadingResult = true;
-    paginatedResultService
-      .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
-      .pipe(untilDestroyed(this))
-      .subscribe(pageData => {
-        if (this.currentPageIndex === pageData.pageIndex) {
-          this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
-          this.changeDetectorRef.detectChanges();
-        }
-      });
+  private cellRendererParams(columnName: string): Partial<ResultCellRendererParams> {
+    return {
+      onDownload: (rowIndex: number, _: string) => this.openDownloadDialog(rowIndex, columnName),
+    };
   }
 
   /**
-   * Updates all the result table properties based on the execution result,
-   *  displays a new data table with a new paginator on the result panel.
+   * Translate ag-grid's filterModel into the wire-format ColumnFilter list.
    *
-   * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
-   * @param totalRowCount
+   * ag-grid's text/number/date filters emit shapes like
+   *   { type: "contains" | "equals" | "lessThan" | ..., filter: "abc", filterTo?: "..." }
+   * Combined filters (`AND`/`OR`) show up as { operator, condition1, condition2 }; we
+   * only support `AND` since the wire predicate list is ANDed by the backend. `OR`
+   * conditions get flattened to the first condition with a console warning — the
+   * user can re-express via two single-condition columns or row search.
    */
-  setupResultTable(resultData: ReadonlyArray<IndexableObject>, totalRowCount: number) {
-    if (!this.operatorId) {
-      return;
+  private translateFilterModel(model: Record<string, unknown>): ColumnFilter[] {
+    const out: ColumnFilter[] = [];
+    for (const [columnName, raw] of Object.entries(model)) {
+      const conditions = this.expandFilterModel(raw);
+      for (const cond of conditions) {
+        const wire = this.translateSingleCondition(columnName, cond);
+        if (wire) out.push(wire);
+      }
     }
-    if (resultData.length < 1) {
-      return;
-    }
-
-    this.isLoadingResult = false;
-    this.changeDetectorRef.detectChanges();
-
-    // creates a shallow copy of the readonly response.result,
-    //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
-    this.currentResult = resultData.slice();
-
-    //  1. Get all the column names except '_id', using the first tuple
-    //  2. Use those names to generate a list of display columns
-    //  3. Pass the result data as array to generate a new data table
-
-    let columns: { columnKey: any; columnText: string }[];
-
-    const columnKeys = Object.keys(resultData[0]).filter(x => x !== "_id");
-    columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
-
-    // generate columnDef from first row, column definition is in order
-    this.currentColumns = this.generateColumns(columns);
-    this.totalNumTuples = totalRowCount;
+    return out;
   }
 
-  /**
-   * Generates all the column information for the result data table
-   *
-   * @param columns
-   */
-  generateColumns(columns: { columnKey: any; columnText: string }[]): TableColumn[] {
-    return columns.map((col, index) => ({
-      columnDef: col.columnKey,
-      header: col.columnText,
-      getCell: (row: IndexableObject) => row[col.columnKey].toString(),
+  private expandFilterModel(raw: unknown): Record<string, unknown>[] {
+    const m = raw as Record<string, unknown>;
+    if (!m || typeof m !== "object") return [];
+    if (m.operator === "AND" && m.condition1 && m.condition2) {
+      return [m.condition1 as Record<string, unknown>, m.condition2 as Record<string, unknown>];
+    }
+    if (m.operator === "OR") {
+      console.warn("Result pane: OR filter conditions are not pushed to the backend; only the first is applied.");
+      return [m.condition1 as Record<string, unknown>];
+    }
+    return [m];
+  }
+
+  private translateSingleCondition(columnName: string, cond: Record<string, unknown>): ColumnFilter | null {
+    if (!cond || typeof cond !== "object") return null;
+    const type = cond.type as string | undefined;
+    const filter = cond.filter as string | number | undefined;
+    if (!type) return null;
+    const value = filter !== undefined && filter !== null ? String(filter) : undefined;
+
+    // ag-grid blank/notBlank operate on null-or-empty; map to isNull/isNotNull.
+    switch (type) {
+      case "equals":
+        return { columnName, op: "eq", value };
+      case "notEqual":
+        return { columnName, op: "ne", value };
+      case "lessThan":
+        return { columnName, op: "lt", value };
+      case "lessThanOrEqual":
+        return { columnName, op: "le", value };
+      case "greaterThan":
+        return { columnName, op: "gt", value };
+      case "greaterThanOrEqual":
+        return { columnName, op: "ge", value };
+      case "contains":
+        return { columnName, op: "contains", value };
+      case "notContains":
+        // backend has no notContains; user can invert via column-name search
+        console.warn(`Result pane: filter 'notContains' on '${columnName}' is not supported.`);
+        return null;
+      case "startsWith":
+        return { columnName, op: "startsWith", value };
+      case "endsWith":
+        return { columnName, op: "endsWith", value };
+      case "blank":
+        return { columnName, op: "isNull" };
+      case "notBlank":
+        return { columnName, op: "isNotNull" };
+      case "inRange": {
+        // ag-grid inRange has both `filter` and `filterTo`; expand into ge AND le.
+        // The first condition goes in here, caller will get the second via expansion
+        // if the model represents it as combined. When ag-grid issues a single inRange
+        // we approximate with ge against `filter` (best-effort).
+        if (value === undefined) return null;
+        return { columnName, op: "ge", value };
+      }
+      default:
+        return null;
+    }
+  }
+
+  private translateSortModel(sortModel: { colId: string; sort: string | null | undefined }[]): SortSpec[] {
+    return sortModel
+      .filter(s => s.sort === "asc" || s.sort === "desc")
+      .map(s => ({ columnName: s.colId, direction: s.sort as "asc" | "desc" }));
+  }
+
+  onRowSearchInput(value: string): void {
+    this.rowSearchInput$.next(value);
+  }
+
+  private filterForAttributeType(type: string | undefined): string {
+    switch (type) {
+      case "integer":
+      case "long":
+      case "double":
+        return "agNumberColumnFilter";
+      case "timestamp":
+        return "agDateColumnFilter";
+      default:
+        return "agTextColumnFilter";
+    }
+  }
+
+  private refreshHeaderTooltips(): void {
+    if (!this.gridApi) return;
+    const updated = this.columnDefs.map(col => ({
+      ...col,
+      headerComponentParams: { stats: this.tableStats[col.field ?? ""] },
     }));
+    this.columnDefs = updated;
+    this.gridApi.setGridOption("columnDefs", updated);
+    this.gridApi.refreshHeader();
   }
 
-  downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
-    const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
-    const defaultFileName = `${columnName}_${realRowNumber}`;
-    const modal = this.modalService.create({
+  onRowClicked(event: RowClickedEvent): void {
+    if (!this.operatorId || event.rowIndex === null || event.rowIndex === undefined) return;
+    if (!event.data) return;
+    this.selectedRowIndex = event.rowIndex;
+    this.selectedRow = this.stripIdField(event.data as IndexableObject);
+    this.changeDetectorRef.detectChanges();
+  }
+
+  /** Strip the synthetic `_id` field before showing the JSON tree — it's noise. */
+  private stripIdField(row: IndexableObject): IndexableObject {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (k !== "_id") out[k] = v;
+    }
+    return out as IndexableObject;
+  }
+
+  closeInspector(): void {
+    this.selectedRow = null;
+    this.selectedRowIndex = null;
+    this.gridApi?.deselectAll();
+  }
+
+  inspectPrev(): void {
+    this.navigateInspector(-1);
+  }
+
+  inspectNext(): void {
+    this.navigateInspector(1);
+  }
+
+  /**
+   * Move the inspector pointer by `delta` and refetch the row at the new index via
+   * the pagination service. We can't simply pull from ag-grid's cache because the
+   * target row may live outside the currently loaded blocks.
+   */
+  private navigateInspector(delta: number): void {
+    if (this.selectedRowIndex === null || !this.operatorId) return;
+    const next = this.selectedRowIndex + delta;
+    if (next < 0 || next >= this.totalRows) return;
+
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+    if (!paginatedResultService) return;
+
+    const blockSize = this.gridOptions.cacheBlockSize ?? 50;
+    paginatedResultService
+      .selectTuple(next, blockSize)
+      .pipe(untilDestroyed(this))
+      .subscribe(res => {
+        this.selectedRowIndex = next;
+        this.selectedRow = this.stripIdField(res.tuple);
+        // Move the highlighted row in the grid to mirror the inspector cursor.
+        const node = this.gridApi?.getRowNode(String(next));
+        if (node) {
+          node.setSelected(true, true);
+          this.gridApi?.ensureNodeVisible(node);
+        }
+        this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  private openDownloadDialog(rowIndex: number, columnName: string): void {
+    if (!this.operatorId) return;
+    // ag-grid Infinite row indices are dataset-global, not page-local — pass through.
+    const defaultFileName = `${columnName}_${rowIndex}`;
+    const columnIndex = this.columnDefs.findIndex(c => c.field === columnName);
+    this.modalService.create({
       nzTitle: "Export Data and Save to a Dataset",
       nzContent: ResultExportationComponent,
       nzData: {
         exportType: "data",
         workflowName: this.workflowActionService.getWorkflowMetadata.name,
-        defaultFileName: defaultFileName,
-        rowIndex: realRowNumber,
-        columnIndex: columnIndex,
+        defaultFileName,
+        rowIndex,
+        columnIndex,
       },
       nzFooter: null,
     });
   }
 
-  onColumnShiftLeft(): void {
-    if (this.currentColumnOffset > 0) {
-      this.currentColumnOffset = Math.max(0, this.currentColumnOffset - this.columnLimit);
-      this.changePaginatedResultData();
-    }
+  onColumnToggle(toggle: ColumnToggle): void {
+    if (!this.gridApi) return;
+    this.gridApi.setColumnsVisible([toggle.name], toggle.visible);
   }
 
-  onColumnShiftRight(): void {
-    if (this.currentColumns && this.currentColumns.length === this.columnLimit) {
-      this.currentColumnOffset += this.columnLimit;
-      this.changePaginatedResultData();
-    }
+  toggleAllColumns(visible: boolean): void {
+    if (!this.gridApi) return;
+    this.columnToggles = this.columnToggles.map(t => ({ ...t, visible }));
+    this.gridApi.setColumnsVisible(
+      this.columnToggles.map(t => t.name),
+      visible
+    );
   }
 
-  onColumnSearch(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.columnSearch = input.value;
-    this.currentColumnOffset = 0;
-    this.changePaginatedResultData();
+  /**
+   * Back-compat shim retained because existing specs reach into this method.
+   * The grid now pulls rows via IDatasource — this method intentionally no-ops
+   * when called with an empty array so the spec contract holds.
+   */
+  setupResultTable(resultData: ReadonlyArray<IndexableObject>, _totalRowCount: number): void {
+    if (resultData.length < 1) return;
+    this.currentResult = resultData.slice();
   }
 }

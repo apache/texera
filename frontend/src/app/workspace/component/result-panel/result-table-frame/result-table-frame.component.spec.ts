@@ -24,10 +24,10 @@ import { OperatorMetadataService } from "../../../service/operator-metadata/oper
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
-import { NzTableModule } from "ng-zorro-antd/table";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 
 describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
@@ -35,9 +35,13 @@ describe("ResultTableFrameComponent", () => {
 
   const GUI_CONFIG_LIMIT = 15;
 
+  beforeAll(() => {
+    ModuleRegistry.registerModules([AllCommunityModule]);
+  });
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ResultTableFrameComponent, HttpClientTestingModule, NzModalModule, NzTableModule, NoopAnimationsModule],
+      imports: [ResultTableFrameComponent, HttpClientTestingModule, NzModalModule, NoopAnimationsModule],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -63,10 +67,9 @@ describe("ResultTableFrameComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result", () => {
+  it("setupResultTable should leave currentResult unchanged when called with an empty array", () => {
     component.currentResult = [{ test: "property" }];
-    (component as any).setupResultTable([], 0);
-
+    component.setupResultTable([], 0);
     expect(component.currentResult).toEqual([{ test: "property" }]);
   });
 

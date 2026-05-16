@@ -1,0 +1,249 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div
+  class="transformation-diff"
+  *ngIf="operatorId">
+  <!-- Source operator: nothing to diff against -->
+  <div
+    *ngIf="isSource"
+    class="strip source">
+    <i
+      nz-icon
+      nzType="play-circle"></i>
+    <span class="source-label">Source operator</span>
+    <span class="source-stats">
+      {{ formatNumber(currentRowCount) }} rows · {{ currentSchema.length }} columns
+    </span>
+  </div>
+
+  <!-- Multi-input operator (join, union, etc.) — defer rich diff for now -->
+  <div
+    *ngIf="multiInput"
+    class="strip multi">
+    <i
+      nz-icon
+      nzType="merge"></i>
+    <span class="source-label">Combined from {{ inputCount }} inputs</span>
+    <span class="source-stats">
+      → {{ formatNumber(currentRowCount) }} rows · {{ currentSchema.length }} columns
+    </span>
+  </div>
+
+  <!-- Single upstream — the main diff view -->
+  <div
+    *ngIf="upstream && !isSource && !multiInput"
+    class="strip diff"
+    [class.expanded]="isExpanded"
+    [class.has-changes]="hasChanges"
+    (click)="toggleExpanded()">
+    <div class="strip-row">
+      <div
+        class="endpoint upstream"
+        [title]="upstream.operatorName">
+        <i
+          nz-icon
+          nzType="arrow-right"
+          class="endpoint-icon"></i>
+        <div class="endpoint-content">
+          <div class="endpoint-name">{{ upstream.operatorName }}</div>
+          <div class="endpoint-stats">{{ formatNumber(upstream.rowCount) }} rows · {{ upstream.schema.length }} cols</div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <div
+          class="delta-badge rows"
+          [class]="rowDeltaClass">
+          <span class="delta-sign">
+            <i
+              nz-icon
+              [nzType]="rowDeltaClass === 'positive' ? 'arrow-up' : rowDeltaClass === 'negative' ? 'arrow-down' : 'minus'"></i>
+          </span>
+          <span class="delta-num">{{ formatSigned(rowDelta) }} rows</span>
+          <span
+            class="delta-pct"
+            *ngIf="rowDeltaPercent !== null">
+            ({{ formatPercent(rowDeltaPercent) }})
+          </span>
+        </div>
+        <div
+          class="delta-badge cols"
+          *ngIf="addedColumns.length > 0 || removedColumns.length > 0 || typeChangedColumns.length > 0">
+          <span
+            *ngIf="addedColumns.length > 0"
+            class="cols-added"
+            >+{{ addedColumns.length }}</span
+          >
+          <span
+            *ngIf="removedColumns.length > 0"
+            class="cols-removed"
+            >−{{ removedColumns.length }}</span
+          >
+          <span
+            *ngIf="typeChangedColumns.length > 0"
+            class="cols-typechange"
+            >⇄{{ typeChangedColumns.length }}</span
+          >
+          <span class="cols-label">cols</span>
+        </div>
+        <div
+          class="delta-badge cols neutral"
+          *ngIf="addedColumns.length === 0 && removedColumns.length === 0 && typeChangedColumns.length === 0">
+          {{ currentSchema.length }} cols · unchanged
+        </div>
+      </div>
+
+      <div
+        class="endpoint current"
+        [title]="currentOpName">
+        <div class="endpoint-content">
+          <div class="endpoint-name">{{ currentOpName }}</div>
+          <div class="endpoint-stats">{{ formatNumber(currentRowCount) }} rows · {{ currentSchema.length }} cols</div>
+        </div>
+        <i
+          nz-icon
+          nzType="environment"
+          class="endpoint-icon"></i>
+      </div>
+
+      <button
+        class="expand-toggle"
+        [class.flipped]="isExpanded"
+        type="button"
+        (click)="$event.stopPropagation(); toggleExpanded()"
+        [attr.aria-label]="isExpanded ? 'Collapse details' : 'Expand details'">
+        <i
+          nz-icon
+          nzType="down"></i>
+      </button>
+    </div>
+
+    <div
+      class="diff-details"
+      *ngIf="isExpanded">
+      <div class="diff-row-bar">
+        <div class="diff-bar-title">Row count</div>
+        <div class="diff-bar-rows">
+          <div class="diff-bar-row">
+            <span class="diff-bar-side">Before</span>
+            <div class="diff-bar-track">
+              <div
+                class="diff-bar-fill"
+                [style.width]="beforeBarWidth()"></div>
+            </div>
+            <span class="diff-bar-count">{{ formatNumber(upstream.rowCount) }}</span>
+          </div>
+          <div class="diff-bar-row">
+            <span class="diff-bar-side">After</span>
+            <div class="diff-bar-track">
+              <div
+                class="diff-bar-fill after"
+                [style.width]="afterBarWidth()"></div>
+            </div>
+            <span class="diff-bar-count">{{ formatNumber(currentRowCount) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="diff-columns"
+        *ngIf="removedColumns.length > 0">
+        <div class="diff-columns-title">
+          <i
+            nz-icon
+            nzType="minus-circle"
+            nzTheme="fill"
+            class="icon-removed"></i>
+          Removed
+          <span class="diff-count">{{ removedColumns.length }}</span>
+        </div>
+        <div class="diff-tag-list">
+          <nz-tag
+            *ngFor="let col of removedColumns"
+            class="tag-removed">
+            {{ col.name }}
+            <small *ngIf="col.type">({{ col.type }})</small>
+          </nz-tag>
+        </div>
+      </div>
+
+      <div
+        class="diff-columns"
+        *ngIf="addedColumns.length > 0">
+        <div class="diff-columns-title">
+          <i
+            nz-icon
+            nzType="plus-circle"
+            nzTheme="fill"
+            class="icon-added"></i>
+          Added
+          <span class="diff-count">{{ addedColumns.length }}</span>
+        </div>
+        <div class="diff-tag-list">
+          <nz-tag
+            *ngFor="let col of addedColumns"
+            class="tag-added">
+            {{ col.name }}
+            <small *ngIf="col.type">({{ col.type }})</small>
+          </nz-tag>
+        </div>
+      </div>
+
+      <div
+        class="diff-columns"
+        *ngIf="typeChangedColumns.length > 0">
+        <div class="diff-columns-title">
+          <i
+            nz-icon
+            nzType="swap"></i>
+          Type changes
+          <span class="diff-count">{{ typeChangedColumns.length }}</span>
+        </div>
+        <div class="diff-tag-list">
+          <nz-tag
+            *ngFor="let col of typeChangedColumns"
+            class="tag-typechange">
+            {{ col.name }}: <small>{{ col.from }} → {{ col.to }}</small>
+          </nz-tag>
+        </div>
+      </div>
+
+      <div
+        class="diff-columns"
+        *ngIf="keptColumns.length > 0">
+        <div class="diff-columns-title">
+          <i
+            nz-icon
+            nzType="check-circle"
+            class="icon-kept"></i>
+          Kept
+          <span class="diff-count">{{ keptColumns.length }}</span>
+        </div>
+        <div class="diff-tag-list collapsed">
+          <nz-tag
+            *ngFor="let col of keptColumns"
+            class="tag-kept">
+            {{ col.name }}
+          </nz-tag>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
