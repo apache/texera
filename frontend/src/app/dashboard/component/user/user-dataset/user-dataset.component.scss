@@ -25,3 +25,84 @@
   height: 55px;
   overflow-y: hidden;
 }
+
+.import-sources-card {
+  margin-bottom: 8px;
+
+  .import-sources-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .import-source-block {
+    flex: 1 1 320px;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .import-source-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: #262626;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .import-source-hint {
+      color: #8c8c8c;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+  }
+
+  .url-import-controls {
+    display: flex;
+    gap: 6px;
+
+    input {
+      flex: 1;
+      padding: 4px 10px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+
+      &:focus {
+        border-color: #1890ff;
+      }
+    }
+  }
+
+  .drop-zone {
+    border: 1.5px dashed #bfbfbf;
+    border-radius: 6px;
+    padding: 14px;
+    text-align: center;
+    color: #595959;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 12px;
+
+    &.dragging {
+      border-color: #1890ff;
+      background: #e6f7ff;
+      color: #096dd9;
+    }
+
+    .drop-zone-primary {
+      font-weight: 500;
+    }
+
+    .drop-zone-secondary {
+      font-size: 11px;
+      color: #8c8c8c;
+      margin-top: 2px;
+    }
+  }
+}

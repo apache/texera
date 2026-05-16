@@ -557,4 +557,27 @@ export class DatasetService {
       coverImage: coverImage,
     });
   }
+
+  /**
+   * Calls the agent-service data-source proxy to fetch a remote URL server-side
+   * (avoids browser CORS) and convert the response to CSV. Returns the CSV text
+   * plus metadata that the caller can use to upload it as a dataset.
+   */
+  public fetchUrlAsCsv(url: string): Observable<{
+    filename: string;
+    csv: string;
+    rows: number;
+    columns: string[];
+    preview: any[];
+    format: "json" | "csv";
+  }> {
+    return this.http.post<{
+      filename: string;
+      csv: string;
+      rows: number;
+      columns: string[];
+      preview: any[];
+      format: "json" | "csv";
+    }>(`/api/data-source/fetch-url`, { url });
+  }
 }

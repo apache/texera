@@ -36,6 +36,69 @@
     </div>
   </nz-card>
 
+  <nz-card
+    *ngIf="isLogin"
+    class="import-sources-card"
+    [nzBordered]="false">
+    <div class="import-sources-row">
+      <div class="import-source-block">
+        <div class="import-source-title">
+          <i
+            nz-icon
+            nzType="link"
+            nzTheme="outline"></i>
+          <span>Import from URL</span>
+        </div>
+        <div class="url-import-controls">
+          <input
+            type="text"
+            placeholder="https://example.com/data.csv"
+            [(ngModel)]="urlImportInput"
+            [disabled]="isImporting"
+            (keyup.enter)="onClickImportFromUrl()" />
+          <button
+            nz-button
+            nzType="primary"
+            [nzLoading]="isImporting"
+            [disabled]="!urlImportInput || isImporting"
+            (click)="onClickImportFromUrl()">
+            Import
+          </button>
+        </div>
+        <div class="import-source-hint">Paste any URL pointing to a CSV or JSON file.</div>
+      </div>
+
+      <div class="import-source-block">
+        <div class="import-source-title">
+          <i
+            nz-icon
+            nzType="inbox"
+            nzTheme="outline"></i>
+          <span>Import Local File</span>
+        </div>
+        <div
+          class="drop-zone"
+          [class.dragging]="isDragging"
+          (click)="fileInput.click()"
+          (dragenter)="onDragEnter($event)"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)">
+          <div class="drop-zone-primary">
+            Drag & drop .sqlite, .csv, .json, or .xlsx here
+          </div>
+          <div class="drop-zone-secondary">or click to browse</div>
+        </div>
+        <input
+          #fileInput
+          type="file"
+          hidden
+          accept=".sqlite,.db,.csv,.json,.xlsx"
+          (change)="onFileSelected($event)" />
+      </div>
+    </div>
+  </nz-card>
+
   <div class="section-search-bar">
     <texera-filters-instructions></texera-filters-instructions>
     <nz-select
