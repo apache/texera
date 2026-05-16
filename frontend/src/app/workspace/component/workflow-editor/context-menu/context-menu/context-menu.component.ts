@@ -390,6 +390,48 @@ export class ContextMenuComponent {
     return !existing?.verified;
   }
 
+  /**
+   * Reverse of "Fuse for performance" — drop the `fusion` field from the
+   * macro's properties so the next compile inlines the body again. Useful
+   * if the user wants to inspect the body (e.g., debug a behavior change)
+   * or re-fuse after editing the macro definition.
+   */
+  public canUnfuseMacro(): boolean {
+    if (!this.isWorkflowModifiable) return false;
+    if (this.highlightedOperatorIds.length !== 1) return false;
+    const opId = this.highlightedOperatorIds[0];
+    const op = (() => {
+      try {
+        return this.workflowActionService.getTexeraGraph().getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    if (op?.operatorType !== "Macro") return false;
+    const existing = op.operatorProperties?.["fusion"] as { verified?: boolean } | undefined;
+    return existing?.verified === true;
+  }
+
+  public onUnfuseMacro(): void {
+    const opId = this.highlightedOperatorIds[0];
+    if (!opId) return;
+    const graph = this.workflowActionService.getTexeraGraph();
+    const op = (() => {
+      try {
+        return graph.getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    if (!op) return;
+    const newProperties: Record<string, unknown> = { ...op.operatorProperties };
+    delete newProperties["fusion"];
+    this.workflowActionService.setOperatorProperty(opId, newProperties);
+    const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+    if (paper) this.jointUIService.refreshMacroFusionStyle(paper, opId, false);
+    this.notificationService.info("Unfused — macro body will inline on next run.");
+  }
+
   public onFuseMacro(): void {
     const opId = this.highlightedOperatorIds[0];
     if (!opId) return;

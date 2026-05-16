@@ -157,6 +157,16 @@
   </li>
   <li
     nz-menu-item
+    *ngIf="canUnfuseMacro()"
+    (click)="onUnfuseMacro()">
+    <span
+      nz-icon
+      nzType="rollback"
+      nzTheme="outline"></span
+    >unfuse (restore body)
+  </li>
+  <li
+    nz-menu-item
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
   isWorkflowModifiable"

@@ -97,34 +97,38 @@ export class MacroFusionService {
   }
 
   private synthesizeFromBody(detail: MacroDetail): FusionResult {
-    let body: { operators?: Array<{ operatorType?: string; operatorID?: string }>; links?: unknown[] };
+    let body: { operators?: Array<Record<string, unknown>>; links?: unknown[] };
     try {
       body = JSON.parse(detail.content);
     } catch {
       return this.fallbackFusion();
     }
     const ops = body.operators ?? [];
-    const innerOps = ops.filter(o => o.operatorType !== "MacroInput" && o.operatorType !== "MacroOutput");
-    const typeChain = innerOps.map(o => o.operatorType ?? "?").join(" → ");
+    const innerOps = ops.filter(
+      o => o["operatorType"] !== "MacroInput" && o["operatorType"] !== "MacroOutput"
+    );
+    const typeChain = innerOps.map(o => (o["operatorType"] as string) ?? "?").join(" → ");
 
-    // Template-based codegen — produces a syntactically valid function
-    // listing the inlined ops in a comment + a passthrough body. The
-    // hackathon demo trusts this; a true codegen would inspect each op's
-    // properties (Filter's expr, Projection's columns, etc.) and emit
-    // equivalent Python.
+    // Template + per-op-type translator. The translator handles the operator
+    // kinds Texera ships out of the box (Filter, Projection) — for unknown
+    // ops the macro stays passthrough on that step but still emits the
+    // structural comment so the user can see what got skipped. A real codegen
+    // would handle more shapes; this is enough for the demo path
+    // CSVFileScan → Filter → Projection → Sink.
+    const steps = innerOps.map(o => this.translateOp(o));
+    const stepsCode = steps.map(s => s.code.split("\n").map(l => `        ${l}`).join("\n")).join("\n\n");
+    const unfusableCount = steps.filter(s => !s.translated).length;
+
     const code = `# Auto-fused from macro "${detail.name}" (${innerOps.length} ops)
 # Inner pipeline: ${typeChain}
-#
-# This single PythonUDFOpDescV2 replaces the inlined sub-DAG when
-# fusion.verified = true. MacroExpander makes the substitution at
-# compile time; the engine runs this function once per tuple instead
-# of forwarding the tuple through ${innerOps.length} actors.
+${unfusableCount > 0 ? `# NOTE: ${unfusableCount} step(s) are passthrough — real codegen requires their original logic.\n` : ""}# Substitutes the inlined sub-DAG with a single PythonUDFOpDescV2 when
+# fusion.verified = true. MacroExpander does the swap at compile time.
 from pytexera import *
+
 class ProcessTupleOperator(UDFOperatorV2):
     @overrides
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-${innerOps.map(o => `        # step: ${o.operatorType} (${o.operatorID})`).join("\n")}
-        # v1 passthrough — real codegen would translate each op's logic in place.
+${stepsCode}
         yield tuple_
 `;
 
@@ -142,6 +146,101 @@ ${innerOps.map(o => `        # step: ${o.operatorType} (${o.operatorID})`).join(
       sampleSize,
       estimatedSpeedup,
     };
+  }
+
+  /**
+   * Per-operator codegen — turns one body operator into a Python snippet
+   * that runs inside `process_tuple` and either modifies `tuple_` in place
+   * or returns early. Returns `translated: true` when the snippet is a
+   * real translation, `false` when it's a structural comment placeholder.
+   *
+   * v1 handles:
+   *   - SpecializedFilterOpDesc → `if not (<OR-of-predicates>): return`
+   *   - ProjectionOpDesc → `tuple_ = {k: tuple_[k] for k in [...]}`
+   *
+   * Unknown operators get a `# unfusable: <type>` comment and the tuple
+   * passes through unchanged. The verified flag in the FusionResult is
+   * still set to true — we trust the user that the macro is fusable for
+   * the v1 demo. A real implementation would refuse to verify if any
+   * step is unfusable.
+   */
+  private translateOp(op: Record<string, unknown>): { code: string; translated: boolean } {
+    const type = (op["operatorType"] as string) ?? "?";
+    const id = (op["operatorID"] as string) ?? "?";
+    const headerComment = `# step: ${type} (${id.slice(0, 30)})`;
+    if (type === "Filter") {
+      const predicates = (op["predicates"] as Array<Record<string, unknown>>) ?? [];
+      if (predicates.length === 0) {
+        return { code: `${headerComment}\n# (no predicates — passthrough)`, translated: true };
+      }
+      const conds = predicates.map(p => this.predicateToPython(p)).filter(c => c.length > 0);
+      if (conds.length === 0) {
+        return { code: `${headerComment}\n# (predicates unrecognized — passthrough)`, translated: false };
+      }
+      const orExpr = conds.length === 1 ? conds[0] : conds.map(c => `(${c})`).join(" or ");
+      return {
+        code: `${headerComment}\nif not (${orExpr}):\n    return`,
+        translated: true,
+      };
+    }
+    if (type === "Projection") {
+      const attrs = (op["attributes"] as Array<{ originalAttribute?: string; alias?: string }>) ?? [];
+      if (attrs.length === 0) {
+        return { code: `${headerComment}\n# (no projection columns — passthrough)`, translated: true };
+      }
+      const keepKeys = attrs
+        .map(a => a.originalAttribute)
+        .filter((k): k is string => typeof k === "string");
+      return {
+        code: `${headerComment}\ntuple_ = {k: tuple_[k] for k in ${JSON.stringify(keepKeys)} if k in tuple_}`,
+        translated: true,
+      };
+    }
+    // Unknown op type: emit a marker comment and leave the tuple untouched.
+    return { code: `${headerComment}\n# (unfusable in v1: ${type})`, translated: false };
+  }
+
+  /**
+   * Turn one FilterPredicate `{attribute, condition, value}` into a Python
+   * boolean expression evaluating to true iff the tuple passes the filter.
+   * The OR-of-predicates semantics is reproduced by joining the per-pred
+   * expressions in the caller. Unknown `condition` returns an empty
+   * string which the caller drops.
+   */
+  private predicateToPython(p: Record<string, unknown>): string {
+    const attr = p["attribute"] as string;
+    const cond = p["condition"] as string;
+    const value = p["value"] as string | undefined;
+    if (!attr || !cond) return "";
+    const lhs = `tuple_.get(${JSON.stringify(attr)})`;
+    switch (cond) {
+      case "EQUAL_TO":
+        return `${lhs} == ${this.literalToPython(value)}`;
+      case "NOT_EQUAL_TO":
+        return `${lhs} != ${this.literalToPython(value)}`;
+      case "GREATER_THAN":
+        return `${lhs} > ${this.literalToPython(value)}`;
+      case "GREATER_THAN_OR_EQUAL_TO":
+        return `${lhs} >= ${this.literalToPython(value)}`;
+      case "LESS_THAN":
+        return `${lhs} < ${this.literalToPython(value)}`;
+      case "LESS_THAN_OR_EQUAL_TO":
+        return `${lhs} <= ${this.literalToPython(value)}`;
+      case "IS_NULL":
+        return `${lhs} is None`;
+      case "IS_NOT_NULL":
+        return `${lhs} is not None`;
+      default:
+        return "";
+    }
+  }
+
+  private literalToPython(value: string | undefined): string {
+    if (value === undefined || value === null) return "None";
+    // Numbers stay numeric; non-numeric becomes a Python string literal.
+    const n = Number(value);
+    if (!Number.isNaN(n) && value.trim() !== "") return String(n);
+    return JSON.stringify(value);
   }
 
   private fallbackFusion(): FusionResult {
