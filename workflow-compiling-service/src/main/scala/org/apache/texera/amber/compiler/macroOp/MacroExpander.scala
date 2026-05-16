@@ -22,7 +22,8 @@ package org.apache.texera.amber.compiler.macroOp
 import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlan}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
+import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.macroOp.{
   MacroBody,
   MacroInputOp,
@@ -67,9 +68,13 @@ object MacroExpander {
     ctx.guardAgainstCycle(m.macroId, m.macroVersion)
     ctx.guardAgainstDepth()
 
-    // TODO §9.2: if (m.fusion.exists(_.verified)) substitute a single
-    // PythonUDFOpDescV2 instead of fetching/inlining the body. Wired up in the
-    // AI-fusion step.
+    // §9.2 AI fusion substitution — mirror of the amber WorkflowCompiler's
+    // path so the compiling-service (which provides schema-propagation
+    // hints to the frontend) sees the same shape as the runtime engine.
+    // Frontend sets `fusion.verified = true` after sample-diff verification.
+    if (m.fusion.exists(_.verified)) {
+      return substituteFused(parent, m)
+    }
 
     val body: MacroBody = m.linkMode match {
       case MacroOpDesc.SNAPSHOT =>
@@ -233,5 +238,43 @@ object MacroExpander {
   private def deepClone(op: LogicalOp): LogicalOp = {
     val json = objectMapper.writeValueAsString(op)
     objectMapper.readValue(json, classOf[LogicalOp])
+  }
+
+  /**
+    * §9.2 fusion substitution — replace MacroOpDesc with a single
+    * PythonUDFOpDescV2 carrying the verified fused code. The new op
+    * inherits the macro's external port shape and keeps the macro
+    * instance ID so parent links don't need rewriting.
+    */
+  private def substituteFused(parent: LogicalPlan, m: MacroOpDesc): LogicalPlan = {
+    val fusion = m.fusion.get
+    val fused = new PythonUDFOpDescV2()
+    fused.code = fusion.code
+    fused.inputPorts = (0 until m.inputPortCount).map { i =>
+      PortDescription(
+        portID = s"input-$i",
+        displayName = s"in-$i",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = null,
+        dependencies = List.empty
+      )
+    }.toList
+    fused.outputPorts = (0 until m.outputPortCount).map { i =>
+      PortDescription(
+        portID = s"output-$i",
+        displayName = s"out-$i",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = null,
+        dependencies = List.empty
+      )
+    }.toList
+    fused.setOperatorId(m.operatorIdentifier.id)
+    val newOps = parent.operators.map {
+      case op if op.operatorIdentifier == m.operatorIdentifier => fused
+      case op => op
+    }
+    LogicalPlan(newOps, parent.links)
   }
 }

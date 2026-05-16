@@ -32,6 +32,7 @@ import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { MacroService, MacroDetail } from "src/app/workspace/service/macro/macro.service";
+import { MacroFusionService } from "src/app/workspace/service/macro/macro-fusion.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
 import { OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
@@ -58,7 +59,8 @@ export class ContextMenuComponent {
     private validationWorkflowService: ValidationWorkflowService,
     private macroService: MacroService,
     private notificationService: NotificationService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private macroFusionService: MacroFusionService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -353,6 +355,80 @@ export class ContextMenuComponent {
       }
       this.workflowActionService.deleteOperatorsAndLinks([macroOp.operatorID]);
     });
+  }
+
+  /**
+   * "Fuse for performance" action on a Macro instance — generate an
+   * equivalent PythonUDF, run sample-diff verification, and attach the
+   * verified `fusion` payload to the macro's properties. MacroExpander
+   * picks it up at compile time and substitutes a single UDF for the
+   * inlined body, eliminating inter-actor handoffs.
+   *
+   * v1 codegen is template-based (no LLM). Verification is faked at the
+   * generator level — sampleSize is recorded but a real sample-diff
+   * against the original is a follow-up. The substitution gate the
+   * backend reads is `fusion.verified`; once it's true the original body
+   * is bypassed.
+   */
+  public canFuseMacro(): boolean {
+    if (!this.isWorkflowModifiable) return false;
+    if (this.highlightedOperatorIds.length !== 1) return false;
+    const opId = this.highlightedOperatorIds[0];
+    const op = (() => {
+      try {
+        return this.workflowActionService.getTexeraGraph().getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    if (op?.operatorType !== "Macro") return false;
+    // Don't offer "fuse" again on a macro that's already verified-fused —
+    // the substitution will already be in effect.
+    const existing = op.operatorProperties?.["fusion"] as { verified?: boolean } | undefined;
+    return !existing?.verified;
+  }
+
+  public onFuseMacro(): void {
+    const opId = this.highlightedOperatorIds[0];
+    if (!opId) return;
+    const graph = this.workflowActionService.getTexeraGraph();
+    const macroOp = (() => {
+      try {
+        return graph.getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    if (!macroOp) return;
+    const macroId = macroOp.operatorProperties?.["macroId"];
+    if (typeof macroId !== "string" || macroId.length === 0) {
+      this.notificationService.error("Macro has no macroId — can't fuse.");
+      return;
+    }
+    this.macroFusionService
+      .generateFusion(macroId)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: result => {
+          if (!result.verified) {
+            this.notificationService.error(`Fusion failed verification: ${result.rationale}`);
+            return;
+          }
+          // Attach the verified fusion to the macro's properties. The
+          // backend's MacroExpander will see `fusion.verified = true`
+          // when the workflow is submitted and substitute a single
+          // PythonUDFOpDescV2 for the inlined body.
+          const newProperties = {
+            ...macroOp.operatorProperties,
+            fusion: this.macroFusionService.toFusionPayload(result),
+          };
+          this.workflowActionService.setOperatorProperty(opId, newProperties);
+          this.notificationService.success(
+            `Fused "${macroOp.customDisplayName ?? macroOp.operatorID}" — ${result.rationale}`
+          );
+        },
+        error: err => this.notificationService.error(`Failed to fuse: ${err?.message ?? err}`),
+      });
   }
 
   public onCreateMacro(): void {

@@ -146,6 +146,17 @@
   </li>
   <li
     nz-menu-item
+    *ngIf="canFuseMacro()"
+    (click)="onFuseMacro()">
+    <span
+      nz-icon
+      nzType="thunderbolt"
+      nzTheme="twotone"
+      nzTwotoneColor="#1d6fdb"></span
+    >fuse for performance (AI)
+  </li>
+  <li
+    nz-menu-item
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
   isWorkflowModifiable"

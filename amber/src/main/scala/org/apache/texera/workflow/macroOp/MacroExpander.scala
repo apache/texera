@@ -21,7 +21,7 @@ package org.apache.texera.workflow.macroOp
 
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.macroOp.{
   MacroBody,
   MacroInputOp,
@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.macroOp.{
   MacroOpDesc,
   MacroOutputOp
 }
+import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.workflow.{LogicalLink, LogicalPlan}
 
@@ -70,8 +71,16 @@ object MacroExpander {
     ctx.guardAgainstCycle(m.macroId, m.macroVersion)
     ctx.guardAgainstDepth()
 
-    // TODO §9.2: if (m.fusion.exists(_.verified)) substitute a single
-    // PythonUDFOpDescV2 instead of fetching/inlining the body.
+    // §9.2 AI fusion: if the macro has been verified-fused into a single
+    // PythonUDF, substitute that UDF for the entire inlined body instead
+    // of expanding. This eliminates inter-actor handoffs for the chain
+    // and is the perf-demo path of the hackathon's `fuseMacro` flow. The
+    // frontend sets `fusion.verified = true` after running sample-diff
+    // verification client-side; we trust that gate here because the
+    // verification protocol is owned by the agent service.
+    if (m.fusion.exists(_.verified)) {
+      return substituteFused(parent, m)
+    }
 
     val body: MacroBody = m.linkMode match {
       case MacroOpDesc.SNAPSHOT =>
@@ -228,5 +237,55 @@ object MacroExpander {
   private def deepClone(op: LogicalOp): LogicalOp = {
     val json = objectMapper.writeValueAsString(op)
     objectMapper.readValue(json, classOf[LogicalOp])
+  }
+
+  /**
+    * §9.2 AI fusion substitution: when the macro has a `verified` `fusion`,
+    * replace the entire MacroOpDesc + its inlined body with a single
+    * PythonUDFOpDescV2 carrying the fused code. The substitute operator
+    * inherits the macro's external input/output port count so all parent
+    * links re-target it cleanly (1:1 port mapping, no fan-out).
+    *
+    * This is the gate that powers the hackathon demo's "fuse for
+    * performance" path — once the frontend marks `fusion.verified = true`,
+    * the engine never sees the original inlined body for this instance.
+    */
+  private def substituteFused(parent: LogicalPlan, m: MacroOpDesc): LogicalPlan = {
+    val fusion = m.fusion.get
+    val instanceId = m.operatorIdentifier.id
+    val fused = new PythonUDFOpDescV2()
+    fused.code = fusion.code
+    // Keep the macro op's external interface — same input/output port
+    // counts so the upstream/downstream link wiring on the parent canvas
+    // doesn't need to change.
+    fused.inputPorts = (0 until m.inputPortCount).map { i =>
+      PortDescription(
+        portID = s"input-$i",
+        displayName = s"in-$i",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = null,
+        dependencies = List.empty
+      )
+    }.toList
+    fused.outputPorts = (0 until m.outputPortCount).map { i =>
+      PortDescription(
+        portID = s"output-$i",
+        displayName = s"out-$i",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = null,
+        dependencies = List.empty
+      )
+    }.toList
+    fused.setOperatorId(instanceId) // reuse the macro instance ID — no link rewrite needed
+    // Replace the macro op in the parent with the fused UDF op. Links
+    // already reference `instanceId` on both ends since `setOperatorId`
+    // preserved it; no link rewrite required.
+    val newOps = parent.operators.map {
+      case op if op.operatorIdentifier == m.operatorIdentifier => fused
+      case op => op
+    }
+    LogicalPlan(newOps, parent.links)
   }
 }
