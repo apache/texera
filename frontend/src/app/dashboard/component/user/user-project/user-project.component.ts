@@ -25,20 +25,22 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UserService } from "../../../../common/service/user/user.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { PublicProjectComponent } from "./public-project/public-project.component";
-import { NzCardComponent } from "ng-zorro-antd/card";
-import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NgIf, NgFor } from "@angular/common";
-import { NzInputDirective } from "ng-zorro-antd/input";
-import { FormsModule } from "@angular/forms";
-import { NzListComponent } from "ng-zorro-antd/list";
 import { UserProjectListItemComponent } from "./user-project-list-item/user-project-list-item.component";
+import {
+  CreateProjectDialogComponent,
+  CreateProjectDialogData,
+  CreateProjectDialogResult,
+} from "./create-project-dialog/create-project-dialog.component";
+import { setProjectIcon } from "./project-icon.util";
+import { forkJoin, Observable, of } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -46,32 +48,25 @@ import { UserProjectListItemComponent } from "./user-project-list-item/user-proj
   templateUrl: "./user-project.component.html",
   styleUrls: ["./user-project.component.scss"],
   imports: [
-    NzCardComponent,
-    NzDropdownADirective,
-    NzDropdownDirective,
-    NzSpaceCompactItemDirective,
+    NgIf,
+    NgFor,
     NzButtonComponent,
     NzWaveDirective,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
+    NzDropdownADirective,
+    NzDropdownDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,
     NzMenuItemComponent,
     NzTooltipDirective,
-    NgIf,
-    NzInputDirective,
-    FormsModule,
-    NzListComponent,
-    NgFor,
     UserProjectListItemComponent,
   ],
 })
 export class UserProjectComponent implements OnInit {
-  // store list of projects / variables to create and edit projects
   public userProjectEntries: DashboardProject[] = [];
-  public createButtonIsClicked: boolean = false;
-  public createProjectName: string = "";
   public uid: number | undefined;
+  public loading = false;
 
   constructor(
     private userProjectService: UserProjectService,
@@ -83,11 +78,22 @@ export class UserProjectComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadProjects();
+  }
+
+  public loadProjects(): void {
+    this.loading = true;
     this.userProjectService
       .getProjectList()
       .pipe(untilDestroyed(this))
-      .subscribe(projectEntries => {
-        this.userProjectEntries = projectEntries;
+      .subscribe({
+        next: projectEntries => {
+          this.userProjectEntries = projectEntries;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        },
       });
   }
 
@@ -95,55 +101,93 @@ export class UserProjectComponent implements OnInit {
     this.userProjectService
       .deleteProject(pid)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+      .subscribe(() => this.loadProjects());
   }
 
-  public clickCreateButton(): void {
-    this.createButtonIsClicked = true;
+  public openCreateDialog(): void {
+    const data: CreateProjectDialogData = { mode: "create" };
+    const modalRef = this.modalService.create({
+      nzContent: CreateProjectDialogComponent,
+      nzData: data,
+      nzFooter: null,
+      nzTitle: "Create new project",
+      nzCentered: true,
+      nzWidth: 520,
+    });
+
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe((result: CreateProjectDialogResult | null) => {
+      if (!result) return;
+      if (!this.isValidNewProjectName(result.name)) {
+        this.notificationService.error(
+          `Cannot create project named: "${result.name}". It must be a non-empty, unique name.`
+        );
+        return;
+      }
+      this.createProjectWithDetails(result);
+    });
   }
 
-  public unclickCreateButton(): void {
-    this.createButtonIsClicked = false;
-    this.createProjectName = "";
+  private createProjectWithDetails(input: CreateProjectDialogResult): void {
+    this.userProjectService
+      .createProject(input.name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: created => {
+          setProjectIcon(created.pid, input.icon);
+          const followups: Observable<Response>[] = [];
+          if (input.description) {
+            followups.push(this.userProjectService.updateProjectDescription(created.pid, input.description));
+          }
+          if (input.color) {
+            followups.push(this.userProjectService.updateProjectColor(created.pid, input.color));
+          }
+          const after$: Observable<unknown> = followups.length > 0 ? forkJoin(followups) : of(null);
+          after$
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: () => this.loadProjects(),
+              error: (e: unknown) => {
+                this.notificationService.error(`Project created but failed to apply some details: ${(e as Error).message}`);
+                this.loadProjects();
+              },
+            });
+        },
+        error: (e: unknown) => {
+          this.notificationService.error(`Failed to create project: ${(e as Error).message}`);
+        },
+      });
   }
 
-  public createNewProject(): void {
-    if (this.isValidNewProjectName(this.createProjectName)) {
-      this.userProjectService
-        .createProject(this.createProjectName)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.ngOnInit());
-    } else {
-      this.notificationService.error(
-        `Cannot create project named: "${this.createProjectName}".  It must be a non-empty, unique name`
-      );
-    }
+  public trackByPid(_index: number, project: DashboardProject): number {
+    return project.pid;
   }
 
   public sortByCreationTime(): void {
-    this.userProjectEntries.sort((p1, p2) =>
-      p1.creationTime !== undefined && p2.creationTime !== undefined ? p1.creationTime - p2.creationTime : 0
+    this.userProjectEntries = [...this.userProjectEntries].sort((p1, p2) =>
+      p1.creationTime !== undefined && p2.creationTime !== undefined ? p2.creationTime - p1.creationTime : 0
     );
   }
 
   public sortByNameAsc(): void {
-    this.userProjectEntries.sort((p1, p2) => p1.name.toLowerCase().localeCompare(p2.name.toLowerCase()));
+    this.userProjectEntries = [...this.userProjectEntries].sort((p1, p2) =>
+      p1.name.toLowerCase().localeCompare(p2.name.toLowerCase())
+    );
   }
 
   public sortByNameDesc(): void {
-    this.userProjectEntries.sort((p1, p2) => p2.name.toLowerCase().localeCompare(p1.name.toLowerCase()));
+    this.userProjectEntries = [...this.userProjectEntries].sort((p1, p2) =>
+      p2.name.toLowerCase().localeCompare(p1.name.toLowerCase())
+    );
   }
 
   private isValidNewProjectName(newName: string, oldProject?: DashboardProject): boolean {
     if (typeof oldProject === "undefined") {
-      return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
-    } else {
-      return (
-        newName.length != 0 &&
-        this.userProjectEntries.filter(project => project.pid !== oldProject.pid && project.name === newName).length ===
-          0
-      );
+      return newName.length !== 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
     }
+    return (
+      newName.length !== 0 &&
+      this.userProjectEntries.filter(project => project.pid !== oldProject.pid && project.name === newName).length === 0
+    );
   }
 
   public openPublicProject(): void {
@@ -154,6 +198,6 @@ export class UserProjectComponent implements OnInit {
       nzTitle: "Add Public Projects",
       nzCentered: true,
     });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.ngOnInit());
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.loadProjects());
   }
 }

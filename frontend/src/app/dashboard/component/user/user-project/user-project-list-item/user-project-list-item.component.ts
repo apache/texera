@@ -17,43 +17,24 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from "@angular/core";
 import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { ShareAccessService } from "../../../../service/user/share-access/share-access.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { ShareAccessComponent } from "../../share-access/share-access.component";
-import { NzModalService } from "ng-zorro-antd/modal";
-import { UserService } from "../../../../../common/service/user/user.service";
 import { DASHBOARD_USER_PROJECT } from "../../../../../app-routing.constant";
-import {
-  NzListItemComponent,
-  NzListItemMetaComponent,
-  NzListItemMetaAvatarComponent,
-  NzListItemMetaTitleComponent,
-  NzListItemMetaDescriptionComponent,
-  NzListItemActionsComponent,
-  NzListItemActionComponent,
-} from "ng-zorro-antd/list";
 import { NgStyle, NgIf, DatePipe } from "@angular/common";
-import { NzAvatarComponent } from "ng-zorro-antd/avatar";
-import { ColorPickerModule } from "ngx-color-picker";
-import { RouterLink } from "@angular/router";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { MarkdownComponent } from "ngx-markdown";
-import {
-  NzInputGroupComponent,
-  NzInputGroupWhitSuffixOrPrefixDirective,
-  NzInputDirective,
-  NzAutosizeDirective,
-} from "ng-zorro-antd/input";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { RouterLink } from "@angular/router";
 import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
+import { getProjectIcon } from "../project-icon.util";
+
+const DEFAULT_BG_COLOR = "808080";
 
 @UntilDestroy()
 @Component({
@@ -61,39 +42,29 @@ import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list
   templateUrl: "./user-project-list-item.component.html",
   styleUrls: ["./user-project-list-item.component.scss"],
   imports: [
-    NzListItemComponent,
-    NzListItemMetaComponent,
-    NzListItemMetaAvatarComponent,
     NgStyle,
-    NzAvatarComponent,
-    ColorPickerModule,
-    NzListItemMetaTitleComponent,
     NgIf,
     RouterLink,
-    NzSpaceCompactItemDirective,
     NzButtonComponent,
     ɵNzTransitionPatchDirective,
     NzTooltipDirective,
     NzIconDirective,
-    NzListItemMetaDescriptionComponent,
-    MarkdownComponent,
-    NzInputGroupComponent,
-    NzInputGroupWhitSuffixOrPrefixDirective,
-    NzInputDirective,
-    NzAutosizeDirective,
-    NzListItemActionsComponent,
-    NzListItemActionComponent,
     NzWaveDirective,
     NzPopconfirmDirective,
     DatePipe,
     HighlightSearchTermsPipe,
   ],
 })
-export class UserProjectListItemComponent implements OnInit {
+export class UserProjectListItemComponent implements OnInit, OnChanges {
   public readonly ROUTER_USER_PROJECT_BASE_URL = DASHBOARD_USER_PROJECT;
-  public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
+
   private _entry?: DashboardProject;
   @Input() public keywords: string[] = [];
+  @Input() public editable = false;
+  @Input() public uid: number | undefined;
+  @Output() deleted = new EventEmitter<void>();
+  @Output() refresh = new EventEmitter<void>();
+
   @Input()
   get entry(): DashboardProject {
     if (!this._entry) {
@@ -104,123 +75,80 @@ export class UserProjectListItemComponent implements OnInit {
   set entry(value: DashboardProject) {
     this._entry = value;
   }
-  @Output() deleted = new EventEmitter<void>();
-  @Output() refresh = new EventEmitter<void>();
-  @Input() editable = false;
-  @Input() uid: number | undefined;
-  editingColor = false;
-  editingName = false;
-  editingDescription = false;
-  descriptionCollapsed = true;
-  color = "#ffffff";
-  isAdmin: boolean = false;
-  /** To make sure info remains visible against white background */
-  get lightColor() {
-    return UserProjectService.isLightColor(this.color);
-  }
+
+  workflowCount = 0;
+  memberCount = 1;
+  datasetCount = 0;
+  lastUpdatedMs?: number;
+  icon = "📁";
 
   constructor(
     private userProjectService: UserProjectService,
-    private notificationService: NotificationService,
-    private modalService: NzModalService,
-    private userService: UserService
-  ) {
-    this.isAdmin = this.userService.isAdmin();
-  }
+    private shareAccessService: ShareAccessService
+  ) {}
 
   ngOnInit(): void {
-    if (this.entry.color) {
-      this.color = this.entry.color;
+    this.refreshStats();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes["entry"] && !changes["entry"].firstChange) {
+      this.refreshStats();
     }
   }
 
-  updateProjectColor(): void {
-    if (!this.editable) {
-      return;
-    }
-    const color = this.color.substring(1);
-    this.editingColor = false;
-    // validate that color is in proper HEX format
-    if (UserProjectService.isInvalidColorFormat(color)) {
-      this.notificationService.error(
-        `Cannot update color for project: "${this.entry.name}".  It must be a valid HEX color format`
-      );
-      return;
-    }
+  get bgColorHex(): string {
+    return this.entry.color ?? DEFAULT_BG_COLOR;
+  }
 
-    if (color === this.entry.color) {
-      return;
-    }
+  get descriptionPreview(): string {
+    return (this.entry.description ?? "").trim();
+  }
+
+  get relativeUpdatedLabel(): string {
+    const ts = this.lastUpdatedMs ?? this.entry.creationTime;
+    if (!ts) return "";
+    return formatRelative(ts);
+  }
+
+  private refreshStats(): void {
+    this.icon = getProjectIcon(this.entry.pid);
 
     this.userProjectService
-      .updateProjectColor(this.entry.pid, color)
+      .retrieveWorkflowsOfProject(this.entry.pid)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.color = color;
-        this.entry = { ...this.entry, color: color };
+      .subscribe(workflows => {
+        this.workflowCount = workflows.length;
+        const times = workflows
+          .map(w => w.workflow?.lastModifiedTime ?? w.workflow?.creationTime)
+          .filter((t): t is number => typeof t === "number");
+        if (times.length > 0) {
+          this.lastUpdatedMs = Math.max(...times);
+        }
+      });
+
+    this.shareAccessService
+      .getAccessList("project", this.entry.pid)
+      .pipe(untilDestroyed(this))
+      .subscribe(access => {
+        // owner + shared collaborators
+        this.memberCount = access.length + 1;
       });
   }
+}
 
-  removeProjectColor(): void {
-    this.editingColor = false;
-
-    this.userProjectService
-      .deleteProjectColor(this.entry.pid)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.color = "#ffffff"; // reset color wheel
-        this.entry = { ...this.entry, color: null };
-      });
-  }
-
-  saveProjectName(name: string): void {
-    // nothing happens if name is the same
-    if (this.entry.name === name) {
-      this.editingName = false;
-    } else {
-      this.userProjectService
-        .updateProjectName(this.entry.pid, name)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          if (!this.entry) {
-            throw new Error("entry property must be provided to UserProjectListItemComponent.");
-          }
-          this.editingName = false;
-          this.entry.name = name;
-        });
-    }
-  }
-
-  saveProjectDescription(description: string): void {
-    // nothing happens if description is the same
-    if (this.entry.description === description) {
-      this.editingDescription = false;
-      return;
-    }
-
-    // update the project's description
-    this.userProjectService
-      .updateProjectDescription(this.entry.pid, description)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.description = description;
-        this.notificationService.success(`Saved description for project: "${this.entry.name}".`);
-        this.editingDescription = false;
-      });
-  }
-
-  public onClickOpenShareAccess(): void {
-    const modalRef = this.modalService.create({
-      nzContent: ShareAccessComponent,
-      nzData: {
-        writeAccess: this.entry.accessLevel === "WRITE",
-        type: "project",
-        id: this.entry.pid,
-      },
-      nzFooter: null,
-      nzTitle: "Share this project with others",
-      nzCentered: true,
-    });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refresh.emit());
-  }
+function formatRelative(timestampMs: number): string {
+  const diff = Date.now() - timestampMs;
+  if (diff < 0) return "just now";
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years === 1 ? "" : "s"} ago`;
 }
