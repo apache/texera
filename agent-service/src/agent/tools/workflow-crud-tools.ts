@@ -53,6 +53,12 @@ export interface ToolContext {
   abort?: () => void;
   /** Lazily creates a workflow when the agent first needs to build operators. */
   ensureWorkflow?: () => Promise<void>;
+  /**
+   * Clears the current workflow (operators + workflowId) so the next ensureWorkflow()
+   * creates a fresh one. Used when the user loads a different file into a workflow that
+   * already contains operators from a previous file.
+   */
+  resetWorkflow?: () => void;
 }
 
 export const TOOL_NAME_ADD_OPERATOR = "addOperator";
@@ -109,6 +115,27 @@ Examples:
       summary: string;
     }) => {
       try {
+        // Resolve the incoming fileName early (may come from args.properties or fileContext
+        // auto-injection) so the reset check sees it regardless of which path sets it.
+        const isScanOp = args.operatorType.toLowerCase().includes("scan");
+        const incomingFileName: string | undefined =
+          args.properties?.fileName ||
+          (isScanOp && context?.getFileContext ? context.getFileContext()?.filePath : undefined);
+
+        // If the user is loading a different file into a workflow that already has operators,
+        // reset to a fresh workflow so we don't mix operators from different analyses.
+        if (isScanOp && incomingFileName && context?.resetWorkflow) {
+          const existingScans = workflowState.getAllOperators().filter(op =>
+            op.operatorType.toLowerCase().includes("scan")
+          );
+          if (existingScans.length > 0) {
+            const existingFile = (existingScans[0] as any).operatorProperties?.fileName;
+            if (existingFile && existingFile !== incomingFileName) {
+              context.resetWorkflow();
+            }
+          }
+        }
+
         // Lazily create a workflow the first time the agent needs to build operators.
         if (context?.ensureWorkflow) await context.ensureWorkflow();
 
@@ -116,9 +143,18 @@ Examples:
 
         const schemaEntry = operatorSchemas.get(args.operatorType);
         if (!schemaEntry) {
-          return createErrorResult(
-            `Unknown operator type: "${args.operatorType}". Available types: ${[...operatorSchemas.keys()].join(", ")}. ${inputInfo}`
-          );
+          // Fuzzy-match: find types whose name contains the requested name (case-insensitive)
+          // or whose requested name contains the type name.
+          const req = args.operatorType.toLowerCase();
+          const allTypes = [...operatorSchemas.keys()];
+          const suggestions = allTypes.filter(t => {
+            const tl = t.toLowerCase();
+            return tl.includes(req) || req.includes(tl) || req.split(/(?=[A-Z])/).some((w: string) => tl.includes(w.toLowerCase()));
+          });
+          const hint = suggestions.length > 0
+            ? `Did you mean: ${suggestions.join(", ")}?`
+            : `Search the available operator list in the system prompt for a visualization operator.`;
+          return createErrorResult(`Unknown operator type: "${args.operatorType}". ${hint} ${inputInfo}`);
         }
 
         // Loop detection: if the same operatorType has been added 3+ times this turn, abort.

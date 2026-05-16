@@ -69,15 +69,23 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   // Width of the collapsed tab strip in px
   private static readonly TAB_WIDTH = 28;
 
-  // Sidebar width — 0 means collapsed (shows the vertical tab)
-  private _width: number = 0;
+  // Separate open state from width so *ngIf doesn't destroy the panel during resize
+  isPanelOpen = false;
+
+  // Sidebar width in px (only meaningful when isPanelOpen is true)
+  _width: number = AgentPanelComponent.MIN_PANEL_WIDTH;
   get width(): number { return this._width; }
   set width(v: number) {
-    this._width = v;
-    // Push page content so the panel never overlaps it
-    document.body.style.paddingRight = v > 0 ? `${v}px` : `${AgentPanelComponent.TAB_WIDTH}px`;
-    // Notify dashboard sidebar to collapse/expand
-    this.agentService.setAgentPanelOpen(v > 0);
+    const clamped = Math.max(AgentPanelComponent.MIN_PANEL_WIDTH, v);
+    this._width = clamped;
+  }
+
+  private applyWidth(open: boolean): void {
+    const panelWidth = open ? this._width : 0;
+    document.body.style.paddingRight = open
+      ? `${this._width}px`
+      : `${AgentPanelComponent.TAB_WIDTH}px`;
+    this.agentService.setAgentPanelOpen(open);
   }
 
   private resizeId = -1;
@@ -122,8 +130,9 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
 
     // Open the panel when requested (e.g. on first login)
     this.agentService.openPanel$.pipe(untilDestroyed(this)).subscribe(() => {
-      if (this.width === 0) {
-        this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
+      if (!this.isPanelOpen) {
+        this.isPanelOpen = true;
+        this.applyWidth(true);
       }
     });
   }
@@ -149,8 +158,9 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     // Open the panel if it's closed
-    if (this.width === 0) {
-      this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
+    if (!this.isPanelOpen) {
+      this.isPanelOpen = true;
+      this.applyWidth(true);
     }
 
     // Switch to the agent's tab and activate it
@@ -177,12 +187,12 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     document.body.style.paddingRight = "";
   }
 
+  /** Used by the tryActivateAgentFromInput and openPanel$ to check open state */
+  get isOpen(): boolean { return this.isPanelOpen; }
+
   public openPanel(): void {
-    if (this.width === 0) {
-      this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
-    } else {
-      this.width = 0;
-    }
+    this.isPanelOpen = !this.isPanelOpen;
+    this.applyWidth(this.isPanelOpen);
   }
 
   /**
@@ -315,28 +325,34 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onResize({ width }: NzResizeEvent): void {
+    if (!width || width < AgentPanelComponent.MIN_PANEL_WIDTH) return;
     cancelAnimationFrame(this.resizeId);
     this.resizeId = requestAnimationFrame(() => {
-      this.width = width!;
+      this._width = width;
+      // Update body padding in real-time during drag
+      document.body.style.paddingRight = `${width}px`;
     });
+  }
+
+  onResizeEnd(): void {
+    this.savePanelSettings();
   }
 
   private loadPanelSettings(): void {
     const savedWidth = localStorage.getItem("agent-panel-width");
     const savedOpen = localStorage.getItem("agent-panel-open");
-    if (savedOpen === "true" && savedWidth) {
+    if (savedWidth) {
       const w = Number(savedWidth);
       if (!isNaN(w) && w >= AgentPanelComponent.MIN_PANEL_WIDTH) {
-        this.width = w;   // triggers the setter → sets paddingRight
-        return;
+        this._width = w;
       }
     }
-    // Collapsed state — still reserve space for the tab strip
-    document.body.style.paddingRight = `${AgentPanelComponent.TAB_WIDTH}px`;
+    this.isPanelOpen = savedOpen === "true";
+    this.applyWidth(this.isPanelOpen);
   }
 
   private savePanelSettings(): void {
-    localStorage.setItem("agent-panel-width", String(this.width || AgentPanelComponent.MIN_PANEL_WIDTH));
-    localStorage.setItem("agent-panel-open", String(this.width > 0));
+    localStorage.setItem("agent-panel-width", String(this._width));
+    localStorage.setItem("agent-panel-open", String(this.isPanelOpen));
   }
 }

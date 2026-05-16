@@ -211,7 +211,7 @@ export class TexeraAgent {
     if (!this.delegateConfig) return undefined;
     return {
       userToken: this.delegateConfig.userToken,
-      workflowId: this.delegateConfig.workflowId,
+      workflowId: this.delegateConfig.workflowId ?? 0,
       computingUnitId: this.delegateConfig.computingUnitId,
       maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
@@ -265,6 +265,15 @@ export class TexeraAgent {
       operatorTypeAddCount: this.operatorTypeAddCount,
       operatorModifyCount: this.operatorModifyCount,
       ensureWorkflow: () => this.ensureWorkflow(),
+      resetWorkflow: () => {
+        // Unlink the current workflow so ensureWorkflow() will create a fresh one.
+        if (this.delegateConfig) {
+          this.delegateConfig = { ...this.delegateConfig, workflowId: undefined, workflowName: undefined };
+        }
+        // Clear all operators and links from the in-memory state.
+        this.workflowState.setWorkflowContent({ operators: [], links: [], operatorPositions: {}, commentBoxes: [], settings: { dataTransferBatchSize: 400 } });
+        this.log.info("reset workflow for new file analysis");
+      },
       abort: () => {
         this.shouldStopGeneration = true;
         this.abortController?.abort();
@@ -517,11 +526,79 @@ export class TexeraAgent {
       });
     }
 
-    // navigateToWorkflow — sends the user's browser to the workspace for this workflow.
-    // Only available when a workflow is linked to this agent.
-    if (this.delegateConfig?.workflowId) {
-      const workflowId = this.delegateConfig.workflowId;
-      const navigateCallback = () => this.navigateCallback;
+    // createComputingUnit — provisions a new local computing unit for the user.
+    if (this.delegateConfig?.userToken) {
+      const cuToken = this.delegateConfig.userToken;
+      const cuEndpoint = env.COMPUTING_UNIT_MANAGING_SERVICE_ENDPOINT;
+      const cuHeaders = { Authorization: `Bearer ${cuToken}`, "Content-Type": "application/json" };
+      const navCbForCU = () => this.navigateCallback;
+
+      tools["createComputingUnit"] = tool({
+        description:
+          "Create a new computing unit for the user. " +
+          "If the user did not provide a name, ask for one before calling this tool. " +
+          "After creating, navigate to the compute page so the user can see it.",
+        inputSchema: z.object({
+          name: z.string().describe("A human-friendly name for the computing unit (ask the user if not provided)"),
+        }),
+        execute: async ({ name }: { name: string }) => {
+          try {
+            // Create the unit
+            const createRes = await fetch(`${cuEndpoint}/api/computing-unit/create`, {
+              method: "POST",
+              headers: cuHeaders,
+              body: JSON.stringify({
+                name,
+                cpuLimit: "NaN",
+                memoryLimit: "NaN",
+                gpuLimit: "NaN",
+                jvmMemorySize: "NaN",
+                shmSize: "NaN",
+                uri: env.COMPUTING_UNIT_WSAPI_URI,
+                unitType: "local",
+              }),
+            });
+
+            if (!createRes.ok) {
+              const text = await createRes.text();
+              return `[ERROR] Failed to create computing unit: ${createRes.status} — ${text}`;
+            }
+
+            const created = (await createRes.json()) as { computingUnit?: { cuid: number; name: string } };
+            const cuid = created.computingUnit?.cuid;
+            if (!cuid) return `[ERROR] Computing unit created but no ID returned.`;
+
+            // Poll up to 15s for Running status
+            for (let i = 0; i < 15; i++) {
+              await new Promise(r => setTimeout(r, 1000));
+              try {
+                const pollRes = await fetch(`${cuEndpoint}/api/computing-unit/${cuid}`, { headers: cuHeaders });
+                if (pollRes.ok) {
+                  const u = (await pollRes.json()) as { status?: string };
+                  if (u.status === "Running") break;
+                }
+              } catch { /* ignore poll errors */ }
+            }
+
+            // Navigate to compute page and stop generation
+            this.shouldStopGeneration = true;
+            this.navigationFiredThisTurn = true;
+            const cb = navCbForCU();
+            if (cb) cb("/dashboard/user/compute");
+            this.abortController?.abort();
+
+            return `✅ Computing unit **"${name}"** created (ID: ${cuid}) and is now running. Taking you to the Compute page.`;
+          } catch (e: any) {
+            return `[ERROR] ${e.message}`;
+          }
+        },
+      });
+    }
+
+    // navigateToWorkflow — always available when a user is logged in.
+    // workflowId is read lazily at execution time so that ensureWorkflow() called
+    // mid-turn (by addOperator) can create the workflow first and still be navigated to.
+    if (this.delegateConfig?.userToken) {
       tools["navigateToWorkflow"] = tool({
         description:
           "Navigate the user's browser to the workspace. " +
@@ -540,6 +617,12 @@ export class TexeraAgent {
             ),
         }),
         execute: async ({ summary }: { summary: string }) => {
+          // Read workflowId lazily — ensureWorkflow() may have set it mid-turn.
+          const workflowId = this.delegateConfig?.workflowId;
+          if (!workflowId) {
+            return "No workflow is linked to this agent yet. Build a workflow first (add and execute operators), then call navigateToWorkflow.";
+          }
+
           // Guard against repeated calls in the same turn.
           if (this.navigationFiredThisTurn) {
             return "Navigation already sent this turn. Stop calling navigateToWorkflow — the user is being taken to the workflow now.";
@@ -564,7 +647,7 @@ export class TexeraAgent {
             }
           }
 
-          const cb = navigateCallback();
+          const cb = this.navigateCallback;
           if (cb) {
             cb(`/dashboard/user/workflow/${workflowId}`);
           }
@@ -965,6 +1048,18 @@ export class TexeraAgent {
             toolCallId: tc.toolCallId,
             input: tc.input,
           }));
+
+          // Log tool calls so issues are visible in the agent log.
+          if (formattedToolCalls?.length) {
+            for (const tc of formattedToolCalls) {
+              const result = toolResults?.find(r => r.toolCallId === tc.toolCallId);
+              const isError = !!(result?.output as any)?.error;
+              this.log.info(
+                { toolName: tc.toolName, operatorType: (tc.input as any)?.operatorType, isError },
+                isError ? "tool call failed" : "tool call succeeded"
+              );
+            }
+          }
 
           const formattedToolResults = toolResults?.map(tr => ({
             toolCallId: tr.toolCallId,

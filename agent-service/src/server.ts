@@ -613,7 +613,9 @@ export function buildApp() {
 
           wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received message");
 
+          const broadcastedStepIds = new Set<string>();
           agent.setStepCallback((step: ReActStep) => {
+            broadcastedStepIds.add(step.id);
             const hasToolCalls = step.toolCalls && step.toolCalls.length > 0;
             broadcastToAgent(agentId, {
               type: "step",
@@ -636,7 +638,10 @@ export function buildApp() {
 
             const allSteps = agent.getReActSteps();
             const lastStep = allSteps[allSteps.length - 1];
-            if (lastStep && lastStep.isEnd) {
+            // Only re-broadcast the last step if it was NOT already sent via the callback
+            // (prevents duplicate messages — the callback sends isEnd:false, then we'd
+            // re-send the same step with isEnd:true after mutation).
+            if (lastStep && lastStep.isEnd && !broadcastedStepIds.has(lastStep.id)) {
               broadcastToAgent(agentId, { type: "step", step: lastStep });
             }
 

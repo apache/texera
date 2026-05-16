@@ -515,12 +515,13 @@ export async function executeOperatorAndFormat(
   const release = await getWorkflowMutex(config.workflowId).acquire();
 
   try {
-    // If no computing unit was explicitly set, auto-discover a running one.
+    // If no computing unit configured, auto-discover or provision one.
     if (config.computingUnitId === undefined) {
       const discovered = await discoverRunningComputingUnit(config.userToken);
       if (discovered === undefined) {
         return createErrorResult(
-          "No running computing unit found. Please start a computing unit in the workspace."
+          "Could not find or create a computing unit. " +
+          "Please go to the Compute page and start one, or ask the agent to create one for you."
         );
       }
       config = { ...config, computingUnitId: discovered };

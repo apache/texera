@@ -19,7 +19,7 @@
 
 <!-- Collapsed tab — shown when panel is closed -->
 <div
-  *ngIf="!width"
+  *ngIf="!isPanelOpen"
   class="sidebar-tab"
   (click)="openPanel()"
   nz-tooltip
@@ -29,15 +29,16 @@
   <span class="sidebar-tab-label">AI Agent</span>
 </div>
 
-<!-- Expanded sidebar panel -->
+<!-- Expanded sidebar panel — always in DOM when open, width controlled by _width only -->
 <div
-  *ngIf="width"
+  *ngIf="isPanelOpen"
   id="agent-container"
   nz-resizable
   [nzMinWidth]="360"
   [nzMaxWidth]="900"
-  [style.width.px]="width"
-  (nzResize)="onResize($event)">
+  [style.width.px]="_width"
+  (nzResize)="onResize($event)"
+  (nzResizeEnd)="onResizeEnd()">
 
   <!-- Left resize handle only -->
   <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>

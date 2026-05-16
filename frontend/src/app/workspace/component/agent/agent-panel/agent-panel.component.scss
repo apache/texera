@@ -90,15 +90,52 @@
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
   overflow: hidden;
 
-  // Left resize handle styling
+  // Left resize handle — wide hit area with visible grip dots
   ::ng-deep .ant-resizable-handle-left {
-    width: 4px;
+    width: 8px;
+    left: 0;
     background: transparent;
     cursor: col-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: background 0.15s;
+    z-index: 10;
 
-    &:hover, &:active {
-      background: #1890ff;
+    // Grip dots
+    &::after {
+      content: "";
+      display: block;
+      width: 2px;
+      height: 32px;
+      background: repeating-linear-gradient(
+        to bottom,
+        #d0d0d0 0px,
+        #d0d0d0 3px,
+        transparent 3px,
+        transparent 6px
+      );
+      border-radius: 2px;
+      opacity: 0.6;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    &:hover {
+      background: rgba(24, 144, 255, 0.06);
+      &::after {
+        opacity: 1;
+        background: repeating-linear-gradient(
+          to bottom,
+          #1890ff 0px,
+          #1890ff 3px,
+          transparent 3px,
+          transparent 6px
+        );
+      }
+    }
+
+    &:active {
+      background: rgba(24, 144, 255, 0.1);
     }
   }
 }
