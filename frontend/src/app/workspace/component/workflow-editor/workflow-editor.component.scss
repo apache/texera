@@ -190,3 +190,214 @@
   font-style: italic;
   color: rgba(0, 0, 0, 0.45);
 }
+
+.profiler-ghost {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+  animation: profiler-ghost-fade 240ms ease-out;
+}
+
+@keyframes profiler-ghost-fade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 4px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.profiler-ghost-body {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 2px dashed #722ed1;
+  border-radius: 14px;
+  background: rgba(244, 235, 255, 0.92);
+  color: #531dab;
+  font-weight: 500;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(114, 46, 209, 0.2);
+  transition: background-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    background: rgba(229, 211, 255, 0.95);
+    box-shadow: 0 2px 8px rgba(114, 46, 209, 0.3);
+  }
+}
+
+.profiler-ghost-dismiss {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d9d9d9;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 10px;
+  line-height: 1;
+
+  &:hover {
+    background: #fff;
+    color: rgba(0, 0, 0, 0.85);
+    border-color: rgba(0, 0, 0, 0.45);
+  }
+
+  i {
+    font-size: 10px;
+  }
+}
+
+// Bump-workers variant uses an orange/amber palette to visually distinguish it from
+// the purple Filter-insertion ghost. Same shape and behavior, different signal.
+.profiler-ghost-bump-workers {
+  .profiler-ghost-body {
+    border-color: #fa8c16;
+    background: rgba(255, 243, 224, 0.94);
+    color: #ad4e00;
+    box-shadow: 0 1px 4px rgba(250, 140, 22, 0.22);
+
+    &:hover {
+      background: rgba(255, 224, 178, 0.96);
+      box-shadow: 0 2px 8px rgba(250, 140, 22, 0.32);
+    }
+  }
+}
+
+// "Run now" prompt — surfaces briefly above the canvas after a suggestion is
+// materialized so the user can re-run without chasing the toolbar.
+.profiler-run-prompt {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  color: #262626;
+  max-width: 520px;
+  animation: profiler-run-prompt-fade 220ms ease-out;
+}
+
+@keyframes profiler-run-prompt-fade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.profiler-run-prompt-icon {
+  color: #fa8c16;
+  font-size: 16px;
+}
+
+.profiler-run-prompt-message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.profiler-run-prompt-button {
+  flex: 0 0 auto;
+}
+
+.profiler-run-prompt-dismiss {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: rgba(0, 0, 0, 0.55);
+  padding: 0;
+  font-size: 12px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.85);
+  }
+}
+
+// Floating "Run now" prompt that appears at the top-center of the canvas after
+// a suggestion is materialized. Auto-dismisses; user can run or × out manually.
+.profiler-run-prompt {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  animation: profiler-run-prompt-slide-in 220ms ease-out;
+}
+
+@keyframes profiler-run-prompt-slide-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.profiler-run-prompt-icon {
+  color: #fa8c16;
+  font-size: 14px;
+}
+
+.profiler-run-prompt-message {
+  color: #262626;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.profiler-run-prompt-button {
+  flex: 0 0 auto;
+}
+
+.profiler-run-prompt-dismiss {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 11px;
+  padding: 2px 4px;
+  line-height: 1;
+
+  &:hover {
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  i {
+    font-size: 11px;
+  }
+}

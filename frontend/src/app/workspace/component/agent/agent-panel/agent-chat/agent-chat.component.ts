@@ -37,12 +37,24 @@ import { AgentInfo, AgentService } from "../../../../service/agent/agent.service
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
+import { ProfilerService } from "../../../../service/profiler/profiler.service";
+import { buildProfilerSnapshot } from "../../../../service/profiler/profiler-snapshot";
+import {
+  extractPlans,
+  extractProposals,
+  mergeProposalIntoProperties,
+  summarizePropertyChanges,
+  OperatorChangeProposal,
+  OptimizationPlanProposal,
+  OptimizationPlanStep,
+  ProposalState,
+} from "../../../../service/agent/agent-proposal";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NgIf, NgFor } from "@angular/common";
+import { NgIf, NgFor, NgSwitch, NgSwitchCase } from "@angular/common";
 import { MarkdownComponent } from "ngx-markdown";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import {
@@ -73,6 +85,8 @@ import { NzSwitchComponent } from "ng-zorro-antd/switch";
     NzButtonComponent,
     NgIf,
     NgFor,
+    NgSwitch,
+    NgSwitchCase,
     MarkdownComponent,
     NzSpinComponent,
     NzInputDirective,
@@ -135,7 +149,8 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
-    private workflowPersistService: WorkflowPersistService
+    private workflowPersistService: WorkflowPersistService,
+    private profilerService: ProfilerService
   ) {}
 
   ngOnInit(): void {
@@ -399,6 +414,128 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
+  // Phase 3 / 4 (profiler-agent-tool-plan): structured-proposal channel.
+  //   - `proposeOperatorChange` → single Apply/Reject card under the agent message.
+  //   - `proposeOptimizationPlan` → multi-step plan card with per-step Apply/Reject
+  //     plus an Apply-All button.
+  // State is tracked per stable id (toolCallId for single proposals, synthetic
+  // `${toolCallId}::${index}` for plan steps) so re-renders remember user actions.
+  private proposalCache = new WeakMap<ReActStep, OperatorChangeProposal[]>();
+  private planCache = new WeakMap<ReActStep, OptimizationPlanProposal[]>();
+  private proposalStateByCallId = new Map<string, ProposalState>();
+
+  public getProposals(step: ReActStep): OperatorChangeProposal[] {
+    const cached = this.proposalCache.get(step);
+    if (cached) return cached;
+    const proposals = extractProposals(step);
+    this.proposalCache.set(step, proposals);
+    return proposals;
+  }
+
+  public getPlans(step: ReActStep): OptimizationPlanProposal[] {
+    const cached = this.planCache.get(step);
+    if (cached) return cached;
+    const plans = extractPlans(step);
+    this.planCache.set(step, plans);
+    return plans;
+  }
+
+  public getProposalState(stateKey: string): ProposalState {
+    return this.proposalStateByCallId.get(stateKey) ?? "pending";
+  }
+
+  public formatProposalSummary(p: { propertyChanges: Record<string, unknown> }): string {
+    return summarizePropertyChanges(p.propertyChanges);
+  }
+
+  /**
+   * Shared application logic used by single proposals AND individual plan steps.
+   * `stateKey` is what we track UI state under: toolCallId for proposals,
+   * `${toolCallId}::${index}` for plan steps.
+   */
+  private applyOperatorChange(
+    operatorId: string,
+    propertyChanges: Record<string, unknown>,
+    stateKey: string
+  ): void {
+    if (this.getProposalState(stateKey) !== "pending") return;
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (!graph.hasOperator(operatorId)) {
+      this.proposalStateByCallId.set(stateKey, "missing-operator");
+      this.notificationService.warning(`Operator '${operatorId}' no longer exists in the workflow.`);
+      return;
+    }
+    try {
+      const existing = graph.getOperator(operatorId).operatorProperties;
+      const merged = mergeProposalIntoProperties(existing, propertyChanges);
+      this.workflowActionService.setOperatorProperty(operatorId, merged);
+      this.proposalStateByCallId.set(stateKey, "applied");
+      this.notificationService.success(
+        `Applied: ${operatorId} ${summarizePropertyChanges(propertyChanges)}`
+      );
+    } catch (err) {
+      this.proposalStateByCallId.set(stateKey, "failed");
+      this.notificationService.error(
+        `Failed to apply change to '${operatorId}': ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  public applyProposal(proposal: OperatorChangeProposal): void {
+    this.applyOperatorChange(proposal.operatorId, proposal.propertyChanges, proposal.toolCallId);
+  }
+
+  public rejectProposal(proposal: OperatorChangeProposal): void {
+    if (this.getProposalState(proposal.toolCallId) !== "pending") return;
+    this.proposalStateByCallId.set(proposal.toolCallId, "rejected");
+  }
+
+  public applyPlanStep(step: OptimizationPlanStep): void {
+    this.applyOperatorChange(step.operatorId, step.propertyChanges, step.stepId);
+  }
+
+  public rejectPlanStep(step: OptimizationPlanStep): void {
+    if (this.getProposalState(step.stepId) !== "pending") return;
+    this.proposalStateByCallId.set(step.stepId, "rejected");
+  }
+
+  /**
+   * Apply every pending step of a plan, in order. Stops on the first failure
+   * so downstream steps that depend on the failed one aren't applied to a
+   * broken state.
+   */
+  public applyAllPlanSteps(plan: OptimizationPlanProposal): void {
+    for (const step of plan.steps) {
+      const state = this.getProposalState(step.stepId);
+      if (state !== "pending") continue;
+      this.applyPlanStep(step);
+      if (this.getProposalState(step.stepId) !== "applied") {
+        // Bail on first failure / missing-operator so later steps don't compound the error.
+        return;
+      }
+    }
+  }
+
+  public getPlanAppliedCount(plan: OptimizationPlanProposal): number {
+    return plan.steps.filter(s => this.getProposalState(s.stepId) === "applied").length;
+  }
+
+  public hasPendingPlanSteps(plan: OptimizationPlanProposal): boolean {
+    return plan.steps.some(s => this.getProposalState(s.stepId) === "pending");
+  }
+
+  public trackProposalById(_index: number, proposal: OperatorChangeProposal): string {
+    return proposal.toolCallId;
+  }
+
+  public trackPlanById(_index: number, plan: OptimizationPlanProposal): string {
+    return plan.toolCallId;
+  }
+
+  public trackPlanStepById(_index: number, step: OptimizationPlanStep): string {
+    return step.stepId;
+  }
+
   public sendMessage(): void {
     if (!this.currentMessage.trim() || !this.canSendMessage()) {
       return;
@@ -407,8 +544,49 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     const userMessage = this.currentMessage.trim();
     this.currentMessage = "";
 
+    // Attach a fresh profiler snapshot so the agent's read-only profiler tools have
+    // current per-operator metrics + hints to answer questions. Snapshot is omitted
+    // when profiling is disabled — the tools will then surface a "no data" message.
+    const snapshot = this.buildProfilerSnapshotForAgent();
+
     // Fire-and-forget; responses stream in via the WebSocket subscription.
-    this.agentService.sendMessage(this.agentInfo.id, userMessage);
+    this.agentService.sendMessage(this.agentInfo.id, userMessage, "chat", snapshot);
+  }
+
+  private buildProfilerSnapshotForAgent(): unknown {
+    const graph = this.workflowActionService.getTexeraGraph();
+    return buildProfilerSnapshot({
+      state: this.profilerService.getState(),
+      operatorType: id => {
+        try {
+          return graph.getOperator(id)?.operatorType;
+        } catch {
+          return undefined;
+        }
+      },
+      displayName: id => {
+        try {
+          const op = graph.getOperator(id);
+          return op?.customDisplayName?.trim() || op?.operatorType || id;
+        } catch {
+          return id;
+        }
+      },
+      upstreamOps: id => {
+        try {
+          return graph.getInputLinksByOperatorId(id).map(l => l.source.operatorID);
+        } catch {
+          return [];
+        }
+      },
+      downstreamOps: id => {
+        try {
+          return graph.getOutputLinksByOperatorId(id).map(l => l.target.operatorID);
+        } catch {
+          return [];
+        }
+      },
+    });
   }
 
   /**

@@ -78,12 +78,16 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzSliderComponent } from "ng-zorro-antd/slider";
 import { AsyncPipe } from "@angular/common";
 import { ProfilerService, ProfilerView } from "../../service/profiler/profiler.service";
+import { ProfilerHistoryService } from "../../service/profiler/profiler-history.service";
+import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import {
   buildReport,
   formatFilenameTimestamp,
   slugifyForFilename,
 } from "../../service/profiler/profiler-report";
 import { parseBaselineReport } from "../../service/profiler/profiler-delta";
+import { ProfilerSuggestionsService } from "../../service/profiler/profiler-suggestions.service";
+import { Suggestion } from "../../service/profiler/profiler-suggestions";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -204,6 +208,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
     public profilerService: ProfilerService,
+    public profilerSuggestionsService: ProfilerSuggestionsService,
+    private profilerHistoryService: ProfilerHistoryService,
     private router: Router
   ) {
     workflowWebsocketService
@@ -243,6 +249,18 @@ export class MenuComponent implements OnInit, OnDestroy {
       .subscribe(event => {
         this.executionState = event.current.state;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // "Run now" prompt (from profiler-suggestions) routes through the same handler
+    // the Run button uses, so execution name / computing-unit / email-notif config
+    // is identical. No-op if the Run button is currently disabled.
+    this.profilerSuggestionsService
+      .getWorkflowRunRequestStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (!this.runDisable) {
+          this.onClickRunHandler();
+        }
       });
 
     // set the map of operatorStatusMap
@@ -288,6 +306,29 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public setProfilerView(view: ProfilerView): void {
     this.profilerService.setView(view);
+  }
+
+  /** Apply a suggestion from the popover list — routes through the service so the
+   *  workflow-editor component performs the actual canvas mutation. */
+  public applySuggestion(s: Suggestion): void {
+    this.profilerSuggestionsService.requestMaterialize(s);
+  }
+
+  /** Dismiss a suggestion from the popover list. */
+  public dismissSuggestionFromList(s: Suggestion): void {
+    this.profilerSuggestionsService.dismiss(s.id);
+  }
+
+  /** Short label for one suggestion row — used in the popover list. */
+  public suggestionShortLabel(s: Suggestion): string {
+    if (s.type === "INSERT_FILTER") {
+      return `Insert Filter on edge`;
+    }
+    return `Bump workers → ${s.proposedWorkers}`;
+  }
+
+  public trackSuggestionById(_index: number, s: Suggestion): string {
+    return s.id;
   }
 
   public setProfilerHotThreshold(percentile: number): void {
@@ -402,6 +443,84 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public clearProfilerBaseline(): void {
     this.profilerService.clearBaseline();
+  }
+
+  // ---------------------------------------------------------------------------
+  // P6 — Compare across runs (server-side baseline).
+  // The user picks a past execution from a dropdown; we fetch its persisted
+  // runtime stats, convert to BaselineReport, and hand to ProfilerService —
+  // reusing the exact same delta heatmap + side-panel UI as the upload flow.
+  // ---------------------------------------------------------------------------
+
+  /** Past executions of the current workflow. Populated lazily on popover open. */
+  public profilerHistoryExecutions: WorkflowExecutionsEntry[] = [];
+  public profilerHistoryLoading: boolean = false;
+  public profilerHistorySelectedEid: number | null = null;
+
+  /**
+   * Fetches the list of completed executions for the current workflow. Idempotent:
+   * call from the popover's open-handler so the dropdown is populated when shown.
+   */
+  public loadProfilerHistoryList(): void {
+    if (this.workflowId == null) {
+      this.profilerHistoryExecutions = [];
+      return;
+    }
+    this.profilerHistoryLoading = true;
+    this.profilerHistoryService
+      .listCompletedExecutions(this.workflowId)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: rows => {
+          this.profilerHistoryExecutions = rows;
+          this.profilerHistoryLoading = false;
+        },
+        error: () => {
+          this.profilerHistoryExecutions = [];
+          this.profilerHistoryLoading = false;
+        },
+      });
+  }
+
+  /** Human-readable label for a past execution shown in the dropdown options. */
+  public profilerHistoryLabel(entry: WorkflowExecutionsEntry): string {
+    const name = entry.name && entry.name.trim().length > 0 ? entry.name : `Execution #${entry.eId}`;
+    const when = entry.completionTime
+      ? new Date(entry.completionTime).toLocaleString()
+      : entry.startingTime
+        ? new Date(entry.startingTime).toLocaleString()
+        : "";
+    return when ? `${name} — ${when}` : name;
+  }
+
+  /**
+   * Selects a past execution as the comparison baseline. Fetches the persisted
+   * stats, converts via the pure helper, and hands the result to ProfilerService.
+   */
+  public onProfilerHistorySelected(eid: number | null): void {
+    this.profilerHistorySelectedEid = eid;
+    if (eid == null || this.workflowId == null) return;
+    const execution = this.profilerHistoryExecutions.find(e => e.eId === eid);
+    if (!execution) {
+      this.notificationService.error(`Execution #${eid} is not in the loaded list.`);
+      return;
+    }
+    const workflowName = this.currentWorkflowName ?? `Workflow ${this.workflowId}`;
+    this.profilerHistoryService
+      .loadBaselineForExecution({ workflowId: this.workflowId, execution, workflowName })
+      .pipe(untilDestroyed(this))
+      .subscribe(baseline => {
+        if (!baseline) {
+          this.notificationService.error(
+            "No baseline data available for that run (the engine may not have persisted stats)."
+          );
+          return;
+        }
+        this.profilerService.setBaseline(baseline);
+        this.notificationService.success(
+          `Baseline loaded from ${baseline.header.executionName ?? "run"} (${baseline.operators.length} operators).`
+        );
+      });
   }
 
   private subscribeToComputingUnitSelection(): void {

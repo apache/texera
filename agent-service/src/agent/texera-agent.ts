@@ -47,6 +47,8 @@ import {
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
+import { createProfilerTools } from "./tools/profiler-tools";
+import { createProposalTools } from "./tools/proposal-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -122,6 +124,14 @@ export class TexeraAgent {
   private abortController: AbortController | null = null;
 
   private workflowChangeSubscription: Subscription | null = null;
+
+  /**
+   * Per-message profiler snapshot, set at the start of each `sendMessage` from the
+   * frontend's WebSocket payload. Profiler tools read it lazily via a getter passed
+   * to `createProfilerTools` so they always see the *current* snapshot, even though
+   * the tool instances are created once at agent construction.
+   */
+  private currentProfilerSnapshot: unknown = undefined;
 
   private log: Logger;
 
@@ -227,6 +237,9 @@ export class TexeraAgent {
         }
       );
     }
+
+    Object.assign(tools, createProfilerTools(() => this.currentProfilerSnapshot));
+    Object.assign(tools, createProposalTools());
 
     return tools;
   }
@@ -485,9 +498,17 @@ export class TexeraAgent {
     this.workflowState.addSubscription(subscription);
   }
 
-  async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
+  async sendMessage(
+    userMessage: string,
+    messageSource?: "chat" | "feedback",
+    profilerSnapshot?: unknown
+  ): Promise<AgentMessageResult> {
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
     let stepIndex = 0;
+
+    // Store the per-message profiler snapshot so profiler tools can read it via
+    // their getter callback. Cleared at end of message to avoid stale reuse.
+    this.currentProfilerSnapshot = profilerSnapshot;
 
     await this.refreshWorkflowFromBackend();
 

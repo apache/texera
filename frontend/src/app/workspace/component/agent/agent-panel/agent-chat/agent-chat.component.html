@@ -118,6 +118,204 @@
               class="message-content">
               <markdown [data]="response.content"></markdown>
             </div>
+
+            <!-- Phase 4: multi-step optimization-plan cards (one per proposeOptimizationPlan tool call). -->
+            <div
+              *ngFor="let plan of getPlans(response); trackBy: trackPlanById"
+              class="agent-plan-card">
+              <div class="agent-plan-header">
+                <i
+                  nz-icon
+                  nzType="ordered-list"
+                  nzTheme="outline"></i>
+                <span class="agent-plan-title">{{ plan.planTitle }}</span>
+                <span class="agent-plan-progress">
+                  {{ getPlanAppliedCount(plan) }}/{{ plan.steps.length }} applied
+                </span>
+              </div>
+              <div class="agent-plan-rationale">{{ plan.planRationale }}</div>
+              <div
+                class="agent-plan-hints"
+                *ngIf="plan.firingHints && plan.firingHints.length > 0">
+                <nz-tag
+                  *ngFor="let hint of plan.firingHints"
+                  nzColor="orange">{{ hint }}</nz-tag>
+              </div>
+              <ol class="agent-plan-steps">
+                <li
+                  *ngFor="let step of plan.steps; let stepIdx = index; trackBy: trackPlanStepById"
+                  class="agent-plan-step"
+                  [attr.data-state]="getProposalState(step.stepId)">
+                  <div class="agent-plan-step-header">
+                    <span class="agent-plan-step-desc">{{ step.description }}</span>
+                    <span class="agent-plan-step-operator">{{ step.operatorId }}</span>
+                  </div>
+                  <div class="agent-plan-step-changes">
+                    <code>{{ formatProposalSummary(step) }}</code>
+                  </div>
+                  <div class="agent-plan-step-meta">
+                    <span><strong>Why:</strong> {{ step.reasoning }}</span>
+                    <span><strong>Impact:</strong> {{ step.expectedImpact }}</span>
+                  </div>
+                  <div class="agent-plan-step-actions">
+                    <ng-container [ngSwitch]="getProposalState(step.stepId)">
+                      <ng-container *ngSwitchCase="'pending'">
+                        <button
+                          class="agent-proposal-btn"
+                          nz-button
+                          nzType="primary"
+                          nzSize="small"
+                          (click)="applyPlanStep(step)">
+                          Apply
+                        </button>
+                        <button
+                          class="agent-proposal-btn"
+                          nz-button
+                          nzType="default"
+                          nzSize="small"
+                          (click)="rejectPlanStep(step)">
+                          Reject
+                        </button>
+                      </ng-container>
+                      <span
+                        *ngSwitchCase="'applied'"
+                        class="agent-proposal-status agent-proposal-status-applied">
+                        <i
+                          nz-icon
+                          nzType="check-circle"
+                          nzTheme="outline"></i>
+                        Applied
+                      </span>
+                      <span
+                        *ngSwitchCase="'rejected'"
+                        class="agent-proposal-status agent-proposal-status-rejected">
+                        <i
+                          nz-icon
+                          nzType="close-circle"
+                          nzTheme="outline"></i>
+                        Rejected
+                      </span>
+                      <span
+                        *ngSwitchCase="'missing-operator'"
+                        class="agent-proposal-status agent-proposal-status-error">
+                        <i
+                          nz-icon
+                          nzType="exclamation-circle"
+                          nzTheme="outline"></i>
+                        Operator missing
+                      </span>
+                      <span
+                        *ngSwitchCase="'failed'"
+                        class="agent-proposal-status agent-proposal-status-error">
+                        <i
+                          nz-icon
+                          nzType="exclamation-circle"
+                          nzTheme="outline"></i>
+                        Failed
+                      </span>
+                    </ng-container>
+                  </div>
+                </li>
+              </ol>
+              <div
+                class="agent-plan-footer"
+                *ngIf="hasPendingPlanSteps(plan)">
+                <button
+                  class="agent-proposal-btn"
+                  nz-button
+                  nzType="primary"
+                  nzSize="small"
+                  (click)="applyAllPlanSteps(plan)">
+                  Apply All
+                </button>
+              </div>
+            </div>
+
+            <!-- Phase 3: structured-proposal cards (one per proposeOperatorChange tool call). -->
+            <div
+              *ngFor="let proposal of getProposals(response); trackBy: trackProposalById"
+              class="agent-proposal-card"
+              [attr.data-state]="getProposalState(proposal.toolCallId)">
+              <div class="agent-proposal-header">
+                <i
+                  nz-icon
+                  nzType="bulb"
+                  nzTheme="outline"></i>
+                <span class="agent-proposal-title">Suggested change</span>
+                <span class="agent-proposal-operator">{{ proposal.operatorId }}</span>
+              </div>
+              <div class="agent-proposal-changes">
+                <code>{{ formatProposalSummary(proposal) }}</code>
+              </div>
+              <div class="agent-proposal-reasoning"><strong>Why:</strong> {{ proposal.reasoning }}</div>
+              <div class="agent-proposal-impact"><strong>Expected impact:</strong> {{ proposal.expectedImpact }}</div>
+              <div
+                class="agent-proposal-hints"
+                *ngIf="proposal.firingHints && proposal.firingHints.length > 0">
+                <nz-tag
+                  *ngFor="let hint of proposal.firingHints"
+                  nzColor="orange">{{ hint }}</nz-tag>
+              </div>
+              <div class="agent-proposal-actions">
+                <ng-container [ngSwitch]="getProposalState(proposal.toolCallId)">
+                  <ng-container *ngSwitchCase="'pending'">
+                    <button
+                      class="agent-proposal-btn"
+                      nz-button
+                      nzType="primary"
+                      nzSize="small"
+                      (click)="applyProposal(proposal)">
+                      Apply
+                    </button>
+                    <button
+                      class="agent-proposal-btn"
+                      nz-button
+                      nzType="default"
+                      nzSize="small"
+                      (click)="rejectProposal(proposal)">
+                      Reject
+                    </button>
+                  </ng-container>
+                  <span
+                    *ngSwitchCase="'applied'"
+                    class="agent-proposal-status agent-proposal-status-applied">
+                    <i
+                      nz-icon
+                      nzType="check-circle"
+                      nzTheme="outline"></i>
+                    Applied
+                  </span>
+                  <span
+                    *ngSwitchCase="'rejected'"
+                    class="agent-proposal-status agent-proposal-status-rejected">
+                    <i
+                      nz-icon
+                      nzType="close-circle"
+                      nzTheme="outline"></i>
+                    Rejected
+                  </span>
+                  <span
+                    *ngSwitchCase="'missing-operator'"
+                    class="agent-proposal-status agent-proposal-status-error">
+                    <i
+                      nz-icon
+                      nzType="exclamation-circle"
+                      nzTheme="outline"></i>
+                    Operator no longer exists
+                  </span>
+                  <span
+                    *ngSwitchCase="'failed'"
+                    class="agent-proposal-status agent-proposal-status-error">
+                    <i
+                      nz-icon
+                      nzType="exclamation-circle"
+                      nzTheme="outline"></i>
+                    Failed to apply
+                  </span>
+                </ng-container>
+              </div>
+            </div>
+
             <div
               *ngIf="response.toolCalls && response.toolCalls.length > 0"
               style="color: #8c8c8c; font-style: italic">

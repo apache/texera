@@ -38,6 +38,10 @@ import {
   maxAbsRuntimeDelta,
   statsToComparable,
 } from "../../service/profiler/profiler-delta";
+import { ProfilerSuggestionsService } from "../../service/profiler/profiler-suggestions.service";
+import { Suggestion } from "../../service/profiler/profiler-suggestions";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
@@ -56,7 +60,9 @@ import concaveman from "concaveman";
 import { OperatorResultSummary, AgentService } from "../../service/agent/agent.service";
 import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { NgIf, AsyncPipe, DecimalPipe, NgSwitch, NgSwitchCase } from "@angular/common";
+import { NgIf, NgFor, AsyncPipe, DecimalPipe, NgSwitch, NgSwitchCase } from "@angular/common";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
+import { NzIconModule } from "ng-zorro-antd/icon";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -98,7 +104,7 @@ export const MAIN_CANVAS = {
   selector: "texera-workflow-editor",
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
-  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, NgSwitch, NgSwitchCase, AsyncPipe, DecimalPipe, AgentInteractionComponent],
+  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, NgFor, NgSwitch, NgSwitchCase, AsyncPipe, DecimalPipe, NzTooltipModule, NzIconModule, AgentInteractionComponent],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
@@ -129,6 +135,19 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     y: number;
   } | null = null;
 
+  // Ghost optimization suggestions rendered as HTML overlays on top of the canvas.
+  // Each ghost is a "click to materialize" Filter insertion proposed by the profiler.
+  public profilerGhosts: ReadonlyArray<Suggestion & { x: number; y: number }> = [];
+  private lastSuggestions: readonly Suggestion[] = [];
+
+  /**
+   * After materializing a suggestion, this floating prompt at the top of the canvas
+   * invites the user to re-run the workflow (the natural next step after a structural
+   * change). Null when no prompt is showing. Auto-dismisses after a few seconds.
+   */
+  public profilerRunPrompt: { message: string } | null = null;
+  private profilerRunPromptTimeoutId?: number;
+
   // Cached agent result summaries for port label display
 
   constructor(
@@ -150,7 +169,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private elementRef: ElementRef,
     private config: GuiConfigService,
     private agentService: AgentService,
-    public profilerService: ProfilerService
+    public profilerService: ProfilerService,
+    private profilerSuggestionsService: ProfilerSuggestionsService,
+    private workflowUtilService: WorkflowUtilService,
+    private workflowCompilingService: WorkflowCompilingService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -212,6 +234,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatisticsUpdate();
     this.handleProfilerHeatmap();
     this.handleProfilerHover();
+    this.handleProfilerSuggestions();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -554,6 +577,373 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       this.profilerHover = null;
       this.changeDetectorRef.detectChanges();
     }
+  }
+
+  /**
+   * Subscribes to the profiler suggestions stream and renders one HTML "ghost"
+   * overlay per suggestion. Ghosts are positioned at the midpoint of the edge they
+   * represent, in wrapper-relative pixel coordinates. Repositions on canvas pan/zoom
+   * so the ghosts stay anchored.
+   */
+  private handleProfilerSuggestions(): void {
+    this.profilerSuggestionsService
+      .getSuggestionsStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(suggestions => {
+        this.lastSuggestions = suggestions;
+        this.recomputeGhostPositions();
+      });
+
+    // The menu popover's "Apply" buttons fire materialize requests through the service
+    // (instead of depending on this editor component directly). Subscribe and route them
+    // through the same materialize logic the canvas ghost click uses.
+    this.profilerSuggestionsService
+      .getMaterializeRequestStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(s => this.materializeSuggestion(s));
+
+    // JointJS emits `translate` / `scale` events when the user pans/zooms the canvas.
+    // Reposition ghosts on each so they remain anchored to their edges.
+    this.paper.on("translate", () => this.recomputeGhostPositions());
+    this.paper.on("scale", () => this.recomputeGhostPositions());
+  }
+
+  private recomputeGhostPositions(): void {
+    if (!this.editorWrapper) {
+      this.profilerGhosts = [];
+      return;
+    }
+    const wrapperRect = this.editorWrapper.getBoundingClientRect();
+    const positioned: Array<Suggestion & { x: number; y: number }> = [];
+    // Track per-anchor occupancy so overlapping ghosts get a small vertical offset.
+    const anchorBucket = new Map<string, number>();
+    for (const s of this.lastSuggestions) {
+      const placed = this.computeGhostPosition(s, wrapperRect, anchorBucket);
+      if (placed) positioned.push(placed);
+    }
+    this.profilerGhosts = positioned;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  /**
+   * Computes wrapper-relative pixel coordinates for a single suggestion. Branches
+   * on suggestion type so edge ghosts (INSERT_FILTER) sit at edge midpoints and
+   * operator-attached ghosts (BUMP_WORKERS) sit above their operator. Returns
+   * undefined when the referenced operator(s) are no longer on the canvas.
+   */
+  private computeGhostPosition(
+    s: Suggestion,
+    wrapperRect: DOMRect,
+    anchorBucket: Map<string, number>
+  ): (Suggestion & { x: number; y: number }) | undefined {
+    if (s.type === "INSERT_FILTER") {
+      const upElem = this.paper.getModelById(s.upstreamOpId);
+      const downElem = this.paper.getModelById(s.downstreamOpId);
+      if (!upElem || !downElem) return undefined;
+      const upBBox = (upElem as joint.dia.Element).getBBox();
+      const downBBox = (downElem as joint.dia.Element).getBBox();
+      const midPaperX = (upBBox.x + upBBox.width + downBBox.x) / 2;
+      const midPaperY = (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2;
+      const pagePoint = this.paper.localToPagePoint(midPaperX, midPaperY);
+      const anchorKey = `edge:${s.upstreamOpId}->${s.downstreamOpId}`;
+      const stackIdx = anchorBucket.get(anchorKey) ?? 0;
+      anchorBucket.set(anchorKey, stackIdx + 1);
+      return {
+        ...s,
+        x: pagePoint.x - wrapperRect.left,
+        y: pagePoint.y - wrapperRect.top + stackIdx * 32,
+      };
+    }
+    // BUMP_WORKERS: anchor above the operator.
+    const opElem = this.paper.getModelById(s.operatorId);
+    if (!opElem) return undefined;
+    const bbox = (opElem as joint.dia.Element).getBBox();
+    const paperX = bbox.x + bbox.width / 2;
+    const paperY = bbox.y - 24; // 24px above the operator's top edge
+    const pagePoint = this.paper.localToPagePoint(paperX, paperY);
+    const anchorKey = `op:${s.operatorId}`;
+    const stackIdx = anchorBucket.get(anchorKey) ?? 0;
+    anchorBucket.set(anchorKey, stackIdx + 1);
+    return {
+      ...s,
+      x: pagePoint.x - wrapperRect.left,
+      y: pagePoint.y - wrapperRect.top - stackIdx * 32,
+    };
+  }
+
+  /**
+   * Applies a ghost suggestion to the canvas. Branches on the suggestion type:
+   *   - INSERT_FILTER → inserts a Filter operator on the upstream→downstream edge.
+   *   - BUMP_WORKERS  → sets the operator's `workers` property to the proposed value.
+   * In both cases, after the change we highlight the affected operator so the
+   * property panel opens for the user to fine-tune.
+   */
+  public materializeSuggestion(ghost: Suggestion): void {
+    if (ghost.type === "INSERT_FILTER") {
+      void this.materializeInsertFilter(ghost);
+      return;
+    }
+    if (ghost.type === "BUMP_WORKERS") {
+      void this.materializeBumpWorkers(ghost);
+      return;
+    }
+  }
+
+  /** Agent timeout used by materialize handlers — short enough to keep UX snappy. */
+  private static readonly AGENT_PROPOSAL_TIMEOUT_MS = 4000;
+
+  private async materializeInsertFilter(
+    ghost: Extract<Suggestion, { type: "INSERT_FILTER" }>
+  ): Promise<void> {
+    const upElem = this.paper.getModelById(ghost.upstreamOpId);
+    const downElem = this.paper.getModelById(ghost.downstreamOpId);
+    if (!upElem || !downElem) {
+      this.profilerSuggestionsService.dismiss(ghost.id);
+      return;
+    }
+    const upBBox = (upElem as joint.dia.Element).getBBox();
+    const downBBox = (downElem as joint.dia.Element).getBBox();
+    const newPos = {
+      x: (upBBox.x + upBBox.width + downBBox.x) / 2 - 60,
+      y: (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2 - 30,
+    };
+
+    // Try the agent for a smarter set of predicate rows; fall back to a single
+    // `is not null` row on the first upstream column if the agent isn't available
+    // or returns nothing useful (deferred items from profiler-agent-tool-plan).
+    const predicates = await this.proposeFilterPredicates(ghost);
+
+    const newFilterBase = this.workflowUtilService.getNewOperatorPredicate("Filter");
+    const newFilter: OperatorPredicate =
+      predicates.length > 0
+        ? {
+            ...newFilterBase,
+            operatorProperties: {
+              ...newFilterBase.operatorProperties,
+              predicates,
+            },
+          }
+        : newFilterBase;
+
+    const graph = this.workflowActionService.getTexeraGraph();
+    const existingLinks = graph
+      .getOutputLinksByOperatorId(ghost.upstreamOpId)
+      .filter(l => l.target.operatorID === ghost.downstreamOpId);
+
+    graph.bundleActions(() => {
+      this.workflowActionService.addOperator(newFilter, newPos);
+      if (existingLinks.length > 0) {
+        const linkToBreak = existingLinks[0];
+        const newInputPortId = newFilter.inputPorts[0]?.portID;
+        const newOutputPortId = newFilter.outputPorts[0]?.portID;
+        if (newInputPortId && newOutputPortId) {
+          this.workflowActionService.deleteLink(linkToBreak.source, linkToBreak.target);
+          this.workflowActionService.addLink({
+            linkID: this.workflowUtilService.getLinkRandomUUID(),
+            source: linkToBreak.source,
+            target: { operatorID: newFilter.operatorID, portID: newInputPortId },
+          });
+          this.workflowActionService.addLink({
+            linkID: this.workflowUtilService.getLinkRandomUUID(),
+            source: { operatorID: newFilter.operatorID, portID: newOutputPortId },
+            target: linkToBreak.target,
+          });
+        }
+      }
+    });
+
+    // Open the property panel on the new Filter so the user can configure its predicate.
+    this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(false);
+    this.workflowActionService.getJointGraphWrapper().highlightOperators(newFilter.operatorID);
+
+    this.profilerSuggestionsService.dismiss(ghost.id);
+    this.showRunPrompt(ghost);
+  }
+
+  /**
+   * Picks the first column name from the upstream operator's output schema, or
+   * `undefined` if the schema isn't available (e.g. workflow hasn't been compiled
+   * yet). Used as the rule-based fallback when the agent isn't available.
+   */
+  private firstUpstreamColumnName(upstreamOpId: string): string | undefined {
+    const outputMap = this.workflowCompilingService.getOperatorOutputSchemaMap(upstreamOpId);
+    if (!outputMap) return undefined;
+    for (const portKey of Object.keys(outputMap)) {
+      const portSchema = outputMap[portKey];
+      if (portSchema && portSchema.length > 0) {
+        return portSchema[0].attributeName;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Collects the upstream operator's output schema as a flat attribute list (first
+   * non-empty port wins). Used to build the request body for the agent's
+   * proposeFilterPredicate endpoint.
+   */
+  private upstreamSchemaForAgent(
+    upstreamOpId: string
+  ): { attributeName: string; attributeType: string }[] {
+    const outputMap = this.workflowCompilingService.getOperatorOutputSchemaMap(upstreamOpId);
+    if (!outputMap) return [];
+    for (const portKey of Object.keys(outputMap)) {
+      const portSchema = outputMap[portKey];
+      if (portSchema && portSchema.length > 0) {
+        return portSchema.map(a => ({ attributeName: a.attributeName, attributeType: a.attributeType }));
+      }
+    }
+    return [];
+  }
+
+  /**
+   * Returns the predicate rows to pre-populate a newly-inserted Filter operator
+   * with. Calls the agent for context-aware predicates and falls back to a single
+   * `is not null` row on the first upstream column if the agent is unavailable,
+   * times out, or returns nothing useful. Returns [] only when the schema isn't
+   * available either (workflow hasn't been compiled yet).
+   */
+  private async proposeFilterPredicates(
+    ghost: Extract<Suggestion, { type: "INSERT_FILTER" }>
+  ): Promise<{ attribute: string; condition: string; value: string }[]> {
+    const upstreamSchema = this.upstreamSchemaForAgent(ghost.upstreamOpId);
+    if (upstreamSchema.length > 0) {
+      const graph = this.workflowActionService.getTexeraGraph();
+      let downstreamType: string | undefined;
+      let downstreamProperties: Record<string, unknown> | undefined;
+      if (graph.hasOperator(ghost.downstreamOpId)) {
+        const down = graph.getOperator(ghost.downstreamOpId);
+        downstreamType = down.operatorType;
+        downstreamProperties = { ...(down.operatorProperties ?? {}) };
+      }
+      const proposal = await this.agentService.tryProposeFilterPredicate(
+        {
+          upstreamOpId: ghost.upstreamOpId,
+          downstreamOpId: ghost.downstreamOpId,
+          upstreamSchema,
+          downstreamType,
+          downstreamProperties,
+        },
+        WorkflowEditorComponent.AGENT_PROPOSAL_TIMEOUT_MS
+      );
+      if (proposal && proposal.predicates.length > 0) return proposal.predicates;
+    }
+    const firstColumn = this.firstUpstreamColumnName(ghost.upstreamOpId);
+    return firstColumn
+      ? [{ attribute: firstColumn, condition: "is not null", value: "" }]
+      : [];
+  }
+
+  private async materializeBumpWorkers(
+    ghost: Extract<Suggestion, { type: "BUMP_WORKERS" }>
+  ): Promise<void> {
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (!graph.hasOperator(ghost.operatorId)) {
+      this.profilerSuggestionsService.dismiss(ghost.id);
+      return;
+    }
+    const op = graph.getOperator(ghost.operatorId);
+
+    // Try the agent for a runtime/idle-ratio-aware worker count; fall back to
+    // ghost.proposedWorkers (the static rule-based default) on any miss.
+    const targetWorkers = await this.proposeWorkerCount(ghost, op);
+
+    // Merge: preserve all other properties, override `workers`.
+    const newProperties = {
+      ...(op.operatorProperties ?? {}),
+      workers: targetWorkers,
+    };
+    this.workflowActionService.setOperatorProperty(ghost.operatorId, newProperties);
+
+    // Open the property panel on the bumped operator so the user can verify / fine-tune.
+    this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(false);
+    this.workflowActionService.getJointGraphWrapper().highlightOperators(ghost.operatorId);
+
+    this.profilerSuggestionsService.dismiss(ghost.id);
+    this.showRunPrompt(ghost);
+  }
+
+  /**
+   * Returns the worker count to bump to. Reads the latest profiler entry to
+   * give the agent runtime + idle-ratio context, then falls back to the
+   * static rule-based default (`ghost.proposedWorkers`) on any miss.
+   */
+  private async proposeWorkerCount(
+    ghost: Extract<Suggestion, { type: "BUMP_WORKERS" }>,
+    op: OperatorPredicate
+  ): Promise<number> {
+    const currentWorkers = Number((op.operatorProperties as any)?.workers ?? 1) || 1;
+    const profilerEntry = this.profilerService.getState().scores[ghost.operatorId];
+    // Use the same derivation as the profiler snapshot so the agent sees the same
+    // runtime/idle numbers it would see in chat — keeps suggestions consistent.
+    const derived = profilerEntry
+      ? statsToComparable({
+          operatorId: ghost.operatorId,
+          displayName: op.customDisplayName ?? op.operatorType,
+          operatorType: op.operatorType,
+          score: profilerEntry.score,
+          stats: profilerEntry.stats,
+        })
+      : null;
+    const proposal = await this.agentService.tryProposeWorkerCount(
+      {
+        operatorId: ghost.operatorId,
+        operatorType: op.operatorType,
+        currentWorkers,
+        runtimeMs: derived?.runtimeMs ?? null,
+        idleRatio: derived?.idleRatio ?? null,
+        inputRows: derived?.inputRows ?? null,
+        outputRows: derived?.outputRows ?? null,
+      },
+      WorkflowEditorComponent.AGENT_PROPOSAL_TIMEOUT_MS
+    );
+    return proposal?.workers ?? ghost.proposedWorkers;
+  }
+
+  public dismissSuggestion(ghost: Suggestion, event: MouseEvent): void {
+    event.stopPropagation();
+    this.profilerSuggestionsService.dismiss(ghost.id);
+  }
+
+  public trackGhostById(_index: number, ghost: Suggestion): string {
+    return ghost.id;
+  }
+
+  /**
+   * Briefly surface a "Run now" prompt at the top of the canvas after the user
+   * materializes a suggestion. Auto-dismisses after 10 seconds; the user can also
+   * click ×. The Run button itself stays the canonical way to execute — this is just
+   * a one-click shortcut so the user doesn't have to chase the toolbar after applying.
+   */
+  private showRunPrompt(suggestion: Suggestion): void {
+    const message =
+      suggestion.type === "INSERT_FILTER"
+        ? "Filter inserted — re-run to see how the workflow performs with the change?"
+        : "Worker count updated — re-run to see how the workflow performs with the change?";
+    this.profilerRunPrompt = { message };
+    if (this.profilerRunPromptTimeoutId !== undefined) {
+      window.clearTimeout(this.profilerRunPromptTimeoutId);
+    }
+    this.profilerRunPromptTimeoutId = window.setTimeout(() => {
+      this.profilerRunPrompt = null;
+      this.profilerRunPromptTimeoutId = undefined;
+      this.changeDetectorRef.detectChanges();
+    }, 10000);
+    this.changeDetectorRef.detectChanges();
+  }
+
+  public triggerRunFromPrompt(): void {
+    this.profilerSuggestionsService.requestWorkflowRun();
+    this.dismissRunPrompt();
+  }
+
+  public dismissRunPrompt(): void {
+    this.profilerRunPrompt = null;
+    if (this.profilerRunPromptTimeoutId !== undefined) {
+      window.clearTimeout(this.profilerRunPromptTimeoutId);
+      this.profilerRunPromptTimeoutId = undefined;
+    }
+    this.changeDetectorRef.detectChanges();
   }
 
   private handleRegionEvents(): void {
