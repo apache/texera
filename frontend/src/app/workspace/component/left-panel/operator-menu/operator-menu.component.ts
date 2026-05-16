@@ -615,6 +615,80 @@ export class OperatorMenuComponent {
     }
   }
 
+  /** True while the multi-step auto-optimize agent is running. Disables the button + suggest panel. */
+  public autoOptimizeInProgress: boolean = false;
+
+  /**
+   * "Auto-optimize workflow" — the omni-agent action. Runs in sequence:
+   *   1. Pattern + chain detection (same as Suggest Macros).
+   *   2. Materialize the top K (default 3) candidates: create macros and
+   *      collapse the matching sub-DAGs.
+   *   3. Fuse every Macro op on the canvas (Fuse All).
+   *
+   * This is the demo's "do the whole refactor for me" moment. Progress is
+   * surfaced via a stepwise message stream so the user sees what the agent
+   * is doing.
+   */
+  public onAutoOptimizeWorkflow(): void {
+    if (this.autoOptimizeInProgress) return;
+    const graph = this.workflowActionService.getTexeraGraph();
+    const suggestions = this.macroSuggestionService.suggestMacros(graph);
+    const topK = 3;
+    const toMaterialize = suggestions.slice(0, topK);
+    if (toMaterialize.length === 0) {
+      // Nothing to extract — go straight to fuse-all.
+      this.onFuseAllMacros();
+      return;
+    }
+    this.autoOptimizeInProgress = true;
+    this.message.info(`Auto-optimize: extracting ${toMaterialize.length} pattern${toMaterialize.length === 1 ? "" : "s"}…`);
+    // Materialize sequentially: each createMacroFromSelection mutates the
+    // graph, so subsequent operator IDs need to remain valid. We snapshot
+    // the operator IDs before each call.
+    const materializeOne = (i: number): Promise<void> =>
+      new Promise((resolve, reject) => {
+        if (i >= toMaterialize.length) return resolve();
+        const sugg = toMaterialize[i];
+        // Skip the suggestion if any of its operator IDs have been swapped
+        // out by an earlier materialize (those ops no longer exist).
+        const stillPresent = sugg.operatorIds.every(opId => {
+          try {
+            return graph.getOperator(opId) !== undefined;
+          } catch {
+            return false;
+          }
+        });
+        if (!stillPresent) {
+          materializeOne(i + 1).then(resolve, reject);
+          return;
+        }
+        const name = sugg.suggestedName || `macro-${Date.now()}-${i}`;
+        this.macroService
+          .createMacroFromSelection(this.workflowActionService, sugg.operatorIds, name)
+          .subscribe({
+            next: detail => {
+              this.message.info(`  ✓ Extracted "${detail.name}" (${sugg.operatorIds.length} ops)`);
+              materializeOne(i + 1).then(resolve, reject);
+            },
+            error: err => {
+              this.message.warning(`  ✗ Skipped pattern: ${err?.message ?? err}`);
+              materializeOne(i + 1).then(resolve, reject);
+            },
+          });
+      });
+    materializeOne(0).then(
+      () => {
+        this.autoOptimizeInProgress = false;
+        // Now fuse everything on the canvas.
+        this.onFuseAllMacros();
+      },
+      err => {
+        this.autoOptimizeInProgress = false;
+        this.message.error(`Auto-optimize failed: ${err?.message ?? err}`);
+      }
+    );
+  }
+
   /**
    * "Fuse all macros in workflow" — the one-click batch perf optimization.
    * Walks every Macro op on the parent canvas, calls MacroFusionService for

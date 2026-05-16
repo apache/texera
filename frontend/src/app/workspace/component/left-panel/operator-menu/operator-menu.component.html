@@ -87,13 +87,27 @@
   </div>
 </div>
 
+<!-- "Auto-optimize workflow" — the omni-agent action: extract top patterns,
+     then fuse every macro. Always available (even on macro-free workflows
+     with detectable patterns). -->
+<button
+  *ngIf="canModify && (unfusedMacroCountOnCanvas() > 0 || availableCandidateCount > 0)"
+  class="auto-optimize-trigger"
+  [disabled]="autoOptimizeInProgress || fuseAllInProgress"
+  (click)="onAutoOptimizeWorkflow()"
+  [title]="'Detect patterns, extract macros, and fuse everything for max performance.'">
+  <span class="auto-optimize-trigger__icon">🚀</span>
+  <span *ngIf="!autoOptimizeInProgress">Auto-optimize workflow</span>
+  <span *ngIf="autoOptimizeInProgress">Optimizing…</span>
+</button>
+
 <!-- "Fuse all macros" — one-click batch perf optimization for every Macro op
      on the canvas that isn't yet fused. Hides when there's nothing to fuse so
      it doesn't take up palette real estate on macro-free workflows. -->
 <button
   *ngIf="unfusedMacroCountOnCanvas() > 0 && canModify"
   class="fuse-all-trigger"
-  [disabled]="fuseAllInProgress"
+  [disabled]="fuseAllInProgress || autoOptimizeInProgress"
   (click)="onFuseAllMacros()"
   [title]="'Generate + verify fusion for every unfused Macro op on the canvas'">
   <span class="fuse-all-trigger__icon">⚡</span>

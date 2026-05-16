@@ -143,6 +143,38 @@
   }
 }
 
+.auto-optimize-trigger {
+  width: 100%;
+  padding: 8px 12px;
+  margin: 6px 0 0;
+  background: linear-gradient(90deg, #6f42c1 0%, #b563ff 100%);
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: filter 0.1s, transform 0.1s;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &__icon {
+    font-size: 15px;
+  }
+}
+
 .fuse-all-trigger {
   width: 100%;
   padding: 7px 12px;
