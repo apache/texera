@@ -19,10 +19,19 @@
 
 package org.apache.texera.amber.operator.macroOp
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+
 // AI-fusion payload (Section 9.2). When `verified = true`, MacroExpander substitutes
 // the MacroOpDesc with a single PythonUDFOpDescV2 built from `code` instead of inlining
 // the macro body. `sampleSize` records how many rows the sample-run diff matched on;
 // `verifiedAt` is the epoch millis when verification passed.
+//
+// `ignoreUnknown = true`: the frontend attaches UI-only fields (e.g.
+// `estimatedSpeedup`, a human-readable "1.6×" used to render the on-canvas
+// ⚡ FUSED badge) onto this payload before persisting. The backend doesn't
+// model those fields here; without this annotation Jackson rejects the
+// whole WorkflowExecuteRequest at execute time.
+@JsonIgnoreProperties(ignoreUnknown = true)
 case class MacroFusion(
     code: String,
     verified: Boolean = false,
