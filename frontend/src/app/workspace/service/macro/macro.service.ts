@@ -336,40 +336,129 @@ export class MacroService {
    * Jackson-friendly on re-import.
    */
   public exportMacroToFile(wid: number): Observable<void> {
-    return this.getMacro(wid).pipe(
-      map(detail => {
-        // Scan the body for nested macros so the export is honest about its
-        // dependencies. Each nested macroId is stored alongside the root;
-        // the importer can fetch+create them on the target instance.
-        const nestedWids = this.collectNestedMacroIds(detail.content);
-        const exportPayload = {
-          schemaVersion: 1,
-          name: detail.name,
-          description: detail.description,
-          content: detail.content,
-          portSpec: detail.portSpec,
-          paramSpec: detail.paramSpec,
-          category: detail.category,
-          icon: detail.icon,
-          exportedAt: new Date().toISOString(),
-          exportedFromTexera: window.location.host,
-          dependsOnMacroWids: nestedWids,
-        };
-        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-          type: "application/json",
+    return new Observable<void>(subscriber => {
+      this.exportBundleForMacro(wid).subscribe({
+        next: bundle => {
+          const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          const safeName = bundle.name.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 60);
+          a.download = `macro-${safeName}-${wid}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          subscriber.next();
+          subscriber.complete();
+        },
+        error: err => subscriber.error(err),
+      });
+    });
+  }
+
+  /**
+   * Build the transitive export bundle for a macro: the root payload plus
+   * full definitions of every nested macro it references (and their nested
+   * macros, recursively). The result is self-contained — importable on a
+   * fresh Texera instance with no other prep — and structured to be applied
+   * dependency-first so each parent's body can be rewritten to reference
+   * the new wids of its children.
+   *
+   * The bundle has a `bundleVersion: 2` marker distinguishing it from the
+   * v1 single-macro export (`schemaVersion: 1`). Both shapes round-trip
+   * through `importMacroFromJson`.
+   */
+  public exportBundleForMacro(rootWid: number): Observable<{
+    bundleVersion: 2;
+    name: string;
+    description: string;
+    rootContent: string;
+    portSpec: PortSpec;
+    paramSpec: unknown;
+    category?: string;
+    icon?: string;
+    exportedAt: string;
+    exportedFromTexera: string;
+    nestedMacros: Array<{
+      originalWid: number;
+      name: string;
+      description: string;
+      content: string;
+      portSpec: PortSpec;
+      paramSpec: unknown;
+    }>;
+  }> {
+    // Walk the dependency graph depth-first, collecting every reachable
+    // macro id starting from the root. Cycles can't happen for macros
+    // (MacroExpander guards against them) but we still guard with `seen`.
+    return new Observable(subscriber => {
+      const seen = new Set<number>();
+      const order: number[] = [];
+      const details = new Map<number, MacroDetail>();
+      const visit = (w: number): Promise<void> =>
+        new Promise((resolve, reject) => {
+          if (seen.has(w)) return resolve();
+          seen.add(w);
+          this.getMacro(w).subscribe({
+            next: async d => {
+              details.set(w, d);
+              const nestedWids = this.collectNestedMacroIds(d.content);
+              for (const nw of nestedWids) {
+                try {
+                  await visit(nw);
+                } catch (e) {
+                  return reject(e);
+                }
+              }
+              order.push(w);
+              resolve();
+            },
+            error: reject,
+          });
         });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        // Slugify the macro name so the filename is safe across OSes.
-        const safeName = detail.name.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 60);
-        a.download = `macro-${safeName}-${detail.wid}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      })
-    );
+      visit(rootWid).then(
+        () => {
+          const root = details.get(rootWid);
+          if (!root) {
+            subscriber.error(new Error("Root macro fetch failed"));
+            return;
+          }
+          // Nested macros are everything in `order` except the root, in
+          // dependency-first order (children before their parents).
+          const nestedMacros = order
+            .filter(w => w !== rootWid)
+            .map(w => {
+              const d = details.get(w)!;
+              return {
+                originalWid: w,
+                name: d.name,
+                description: d.description,
+                content: d.content,
+                portSpec: d.portSpec,
+                paramSpec: d.paramSpec,
+              };
+            });
+          subscriber.next({
+            bundleVersion: 2 as const,
+            name: root.name,
+            description: root.description,
+            rootContent: root.content,
+            portSpec: root.portSpec,
+            paramSpec: root.paramSpec,
+            category: root.category,
+            icon: root.icon,
+            exportedAt: new Date().toISOString(),
+            exportedFromTexera: window.location.host,
+            nestedMacros,
+          });
+          subscriber.complete();
+        },
+        err => subscriber.error(err)
+      );
+    });
   }
 
   /**
@@ -392,11 +481,21 @@ export class MacroService {
    * Reverse of `exportMacroToFile`: parse an uploaded JSON file and POST it
    * as a brand-new macro definition. The new definition's wid is fresh —
    * any cross-references inside the original `content` to its own wid are
-   * left as-is (they'd be self-referential and unused). Returns the created
-   * MacroDetail so the caller can refresh the palette.
+   * left as-is (they'd be self-referential and unused).
+   *
+   * Bundle support (v2): if the JSON has `bundleVersion: 2`, all nested
+   * macros are created first (in dependency order), then the root content
+   * is rewritten to point at the new wids, then the root is created. The
+   * caller still receives the root's MacroDetail — the nested macros land
+   * in the user's library silently. Schema v1 (single-macro JSON) still
+   * works for back-compat.
    */
   public importMacroFromJson(rawJson: string): Observable<MacroDetail> {
-    const parsed = JSON.parse(rawJson) as {
+    const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+    if (parsed["bundleVersion"] === 2) {
+      return this.importMacroBundle(parsed as never);
+    }
+    const v1 = parsed as {
       schemaVersion?: number;
       name?: string;
       description?: string;
@@ -406,19 +505,97 @@ export class MacroService {
       category?: string;
       icon?: string;
     };
-    if (!parsed.name || !parsed.content || !parsed.portSpec) {
+    if (!v1.name || !v1.content || !v1.portSpec) {
       throw new Error("Invalid macro JSON: missing name / content / portSpec.");
     }
     const req: MacroCreateRequest = {
-      name: `${parsed.name} (imported)`,
-      description: parsed.description ?? "Imported macro",
-      content: parsed.content,
-      portSpec: parsed.portSpec,
-      paramSpec: parsed.paramSpec,
-      category: parsed.category,
-      icon: parsed.icon,
+      name: `${v1.name} (imported)`,
+      description: v1.description ?? "Imported macro",
+      content: v1.content,
+      portSpec: v1.portSpec,
+      paramSpec: v1.paramSpec,
+      category: v1.category,
+      icon: v1.icon,
     };
     return this.createMacro(req);
+  }
+
+  /**
+   * Apply a v2 export bundle: walk the nested macros in dependency order,
+   * create each one (collecting a `oldWid → newWid` map), rewrite the next
+   * pending body's macroId references to the new wids before creating it.
+   * Finally rewrite the root body the same way and create it.
+   *
+   * Failures abort the bundle (best-effort; partial state may persist if a
+   * mid-bundle create fails — surfacing this cleanly is a v3 follow-up).
+   */
+  private importMacroBundle(bundle: {
+    name: string;
+    description: string;
+    rootContent: string;
+    portSpec: PortSpec;
+    paramSpec: unknown;
+    category?: string;
+    icon?: string;
+    nestedMacros: Array<{
+      originalWid: number;
+      name: string;
+      description: string;
+      content: string;
+      portSpec: PortSpec;
+      paramSpec: unknown;
+    }>;
+  }): Observable<MacroDetail> {
+    return new Observable<MacroDetail>(subscriber => {
+      const idRewrite = new Map<number, number>();
+      const rewriteContent = (content: string): string =>
+        content.replace(/"macroId"\s*:\s*"(\d+)"/g, (match, oldWidStr) => {
+          const oldWid = Number(oldWidStr);
+          const newWid = idRewrite.get(oldWid);
+          if (newWid === undefined) return match;
+          return `"macroId":"${newWid}"`;
+        });
+      const createOne = (i: number): Promise<void> =>
+        new Promise((resolve, reject) => {
+          if (i >= bundle.nestedMacros.length) return resolve();
+          const nested = bundle.nestedMacros[i];
+          const rewrittenContent = rewriteContent(nested.content);
+          this.createMacro({
+            name: `${nested.name} (imported nested)`,
+            description: nested.description ?? "Imported macro (nested dep)",
+            content: rewrittenContent,
+            portSpec: nested.portSpec,
+            paramSpec: nested.paramSpec,
+          }).subscribe({
+            next: created => {
+              idRewrite.set(nested.originalWid, created.wid);
+              createOne(i + 1).then(resolve, reject);
+            },
+            error: reject,
+          });
+        });
+      createOne(0).then(
+        () => {
+          const rootContent = rewriteContent(bundle.rootContent);
+          this.createMacro({
+            name: `${bundle.name} (imported)`,
+            description: bundle.description ?? "Imported macro bundle",
+            content: rootContent,
+            portSpec: bundle.portSpec,
+            paramSpec: bundle.paramSpec,
+            category: bundle.category,
+            icon: bundle.icon,
+          }).subscribe({
+            next: rootDetail => {
+              subscriber.next(rootDetail);
+              subscriber.complete();
+            },
+            error: err => subscriber.error(err),
+          });
+        },
+        err => subscriber.error(err)
+      );
+    });
   }
 
   public listMacros(): Observable<MacroSummary[]> {
