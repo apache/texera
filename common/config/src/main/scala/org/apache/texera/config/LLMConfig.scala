@@ -26,4 +26,8 @@ object LLMConfig {
   // LLM Service Configuration
   val baseUrl: String = conf.getString("llm.base-url")
   val masterKey: String = conf.getString("llm.master-key")
+  val openRouterApiKey: Option[String] =
+    if (conf.hasPath("llm.openrouter-api-key"))
+      Option(conf.getString("llm.openrouter-api-key")).map(_.trim).filter(_.nonEmpty)
+    else None
 }

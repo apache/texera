@@ -31,7 +31,8 @@ import org.apache.texera.service.resource.{
   AccessControlResource,
   HealthCheckResource,
   LiteLLMModelsResource,
-  LiteLLMProxyResource
+  LiteLLMProxyResource,
+  OpenRouterModelsResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
 import java.nio.file.Path
@@ -69,6 +70,7 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(classOf[AccessControlResource])
     environment.jersey.register(classOf[LiteLLMProxyResource])
     environment.jersey.register(classOf[LiteLLMModelsResource])
+    environment.jersey.register(new OpenRouterModelsResource)
 
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))

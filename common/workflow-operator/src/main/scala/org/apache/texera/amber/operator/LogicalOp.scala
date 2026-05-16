@@ -34,6 +34,7 @@ import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_WORKFLOW_ID
 }
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
+import org.apache.texera.amber.operator.aiagent.AIAgentOpDesc
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
 import org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpDesc
@@ -164,6 +165,7 @@ trait StateTransferFunc
 @JsonSubTypes(
   Array(
     new Type(value = classOf[IfOpDesc], name = "If"),
+    new Type(value = classOf[AIAgentOpDesc], name = "AIAgent"),
     new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
     new Type(value = classOf[FileListerSourceOpDesc], name = "FileLister"),

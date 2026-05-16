@@ -184,6 +184,7 @@ import { ComputingUnitSelectionComponent } from "./workspace/component/power-but
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
+import { TagsInputComponent } from "./common/formly/tags-input.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzGridModule } from "ng-zorro-antd/grid";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
@@ -265,6 +266,7 @@ registerLocaleData(en);
     NzGridModule,
     ScrollingModule,
     FormlyRepeatDndComponent,
+    TagsInputComponent,
     AdminGmailComponent,
     PublicProjectComponent,
     WorkspaceComponent,

@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,14 +17,22 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.metadata.annotations;
+import { Component } from "@angular/core";
+import { ReactiveFormsModule } from "@angular/forms";
+import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
+import { NzSelectComponent } from "ng-zorro-antd/select";
 
-public class UIWidget {
-
-    public static final String UIWidgetTextArea = "{ \"widget\": {\n          \"formlyConfig\": {\n            \"type\": \"textarea\",\n            \"templateOptions\": {\n              \"autosize\": true,\n              \"autosizeMinRows\": 3\n            }\n          }\n        }\n      }";
-
-    public static final String UIWidgetPassword = "{ \"widget\": {\n          \"formlyConfig\": {\n            \"templateOptions\": {\n              \"type\": \"password\"\n            }\n          }\n        }\n      }";
-
-    public static final String UIWidgetTagsInput = "{ \"widget\": { \"formlyConfig\": { \"type\": \"tags-input\" } } }";
-
-}
+@Component({
+  selector: "texera-tags-input",
+  template: `
+    <nz-select
+      nzMode="tags"
+      [nzPlaceHolder]="props.placeholder ?? 'Type a value and press Enter'"
+      [nzTokenSeparators]="[',']"
+      [formControl]="formControl"
+      [formlyAttributes]="field">
+    </nz-select>
+  `,
+  imports: [FormlyModule, NzSelectComponent, ReactiveFormsModule],
+})
+export class TagsInputComponent extends FieldType<FieldTypeConfig> {}

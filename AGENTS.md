@@ -71,6 +71,14 @@ merge.
 | Python | 3.12 |
 | Node | 24 |
 
+JDK 17 is required, not just recommended. The `sbt-jacoco 3.5.0` plugin
+([`project/plugins.sbt`](project/plugins.sbt)) ships JaCoCo 0.8.11, which
+cannot instrument class files compiled to newer bytecode versions — under
+JDK 21+ `sbt test` fails during the instrumentation pass with
+`java.io.IOException: Error while instrumenting <Class>.class with JaCoCo`,
+before any test runs. Point `JAVA_HOME` at a Temurin 17 install for sbt
+invocations until the plugin is upgraded.
+
 One Python venv shared across worktrees, sibling of the texera checkout:
 
 ```
@@ -89,6 +97,21 @@ Tests that spawn Python workers need an interpreter path. Edit `python.path`
 in [`udf.conf`](common/config/src/main/resources/udf.conf) or
 `export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"` (env var overrides).
 Without it, `sbt` Python-integration tests fail to launch a worker.
+
+Backend services that touch datasets (`FileService`,
+`WorkflowComputingUnitManagingService`, anything calling
+`S3StorageClient`/`LakeFSStorageClient`) need MinIO + LakeFS running locally.
+Bring them up with:
+
+```bash
+docker compose -f file-service/src/main/resources/docker-compose.yml up -d minio lakefs
+```
+
+MinIO listens on `:9000`, LakeFS on `:8000`; both are wired to the
+defaults in [`storage.conf`](common/config/src/main/resources/storage.conf).
+Without these, startup fails at
+[`S3StorageClient.createBucketIfNotExist`](file-service/src/main/scala/org/apache/texera/service/util/S3StorageClient.scala)
+with `Connection refused` against `localhost:9000`.
 
 [`.jvmopts`](.jvmopts) holds every `--add-opens` flag Texera needs for
 JDK 17+, with each group annotated by its upstream source (Kryo,

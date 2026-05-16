@@ -17,10 +17,11 @@
  * under the License.
  */
 
+import { HttpClient } from "@angular/common/http";
 import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
-import { Subject } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { AbstractControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from "@ngx-formly/core";
 import Ajv from "ajv";
@@ -50,7 +51,7 @@ import {
   TypeCastingDisplayComponent,
 } from "../typecasting-display/type-casting-display.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter } from "rxjs/operators";
+import { catchError, filter, map, shareReplay } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -70,8 +71,40 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzFormDirective } from "ng-zorro-antd/form";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { AppSettings } from "../../../../common/app-setting";
 
 Quill.register("modules/cursors", QuillCursors);
+
+interface OpenRouterModelSummary {
+  id: string;
+  name: string;
+  contextLength?: number;
+  pricing: Record<string, string>;
+}
+
+interface OpenRouterModelsResponse {
+  data: OpenRouterModelSummary[];
+}
+
+interface OpenRouterModelOption {
+  value: string;
+  label: string;
+  company: string;
+}
+
+const OPENROUTER_PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  anthropic: "Anthropic",
+  cohere: "Cohere",
+  deepseek: "DeepSeek",
+  google: "Google",
+  meta: "Meta",
+  microsoft: "Microsoft",
+  mistralai: "Mistral AI",
+  openai: "OpenAI",
+  perplexity: "Perplexity",
+  qwen: "Qwen",
+  xai: "xAI",
+};
 
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
@@ -160,6 +193,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
+  private openRouterModelOptions$?: Observable<OpenRouterModelOption[]>;
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
 
@@ -173,7 +207,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private httpClient: HttpClient
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -240,7 +275,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // set the operator data needed
     this.workflowActionService.setOperatorVersion(operator.operatorID, this.currentOperatorSchema.operatorVersion);
     this.operatorVersion = operator.operatorVersion.slice(0, 9);
-    this.setFormlyFormBinding(this.currentOperatorSchema.jsonSchema);
+    const jsonSchema = cloneDeep(this.currentOperatorSchema.jsonSchema);
+    this.setFormlyFormBinding(jsonSchema);
+    this.populateOpenRouterModelOptions(this.currentOperatorId, jsonSchema);
     this.formTitle = operator.customDisplayName ?? this.currentOperatorSchema.additionalMetadata.userFriendlyName;
     this.operatorDescription = this.currentOperatorSchema.additionalMetadata.operatorDescription;
     /**
@@ -248,6 +285,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
      * Prevent the form directly changes the value in the texera graph without going through workflow action service.
      */
     this.formData = cloneDeep(operator.operatorProperties);
+    this.normalizeAttributeNameListValues(jsonSchema, this.formData);
 
     // use ajv to initialize the default value to data according to schema, see https://ajv.js.org/#assigning-defaults
     // WorkflowUtil service also makes sure that the default values are filled in when operator is added from the UI
@@ -255,7 +293,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // 1. the operator might be added not directly from the UI, which violates the precondition
     // 2. the schema might change, which specifies a new default value
     // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
-    this.ajv.validate(this.currentOperatorSchema.jsonSchema, this.formData);
+    this.ajv.validate(jsonSchema, this.formData);
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
@@ -549,6 +587,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
+      if (
+        this.currentOperatorSchema?.operatorType === "AIAgent" &&
+        mappedField.key === "model" &&
+        isDefined(mapSource.openRouterModelOptions)
+      ) {
+        mappedField.type = "openrouter-model-selector";
+        mappedField.props = {
+          ...mappedField.props,
+          options: [...mapSource.openRouterModelOptions],
+        };
+      }
+
       // Add custom validators for attribute type
       if (isDefined(mapSource.attributeTypeRules)) {
         mappedField.validators.checkAttributeType = {
@@ -734,6 +784,87 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // not return field.fieldGroup directly because
     // doing so the validator in the field will not be triggered
     this.formlyFields = [field];
+  }
+
+  private populateOpenRouterModelOptions(operatorId: string, schema: CustomJSONSchema7): void {
+    if (this.currentOperatorSchema?.operatorType !== "AIAgent") {
+      return;
+    }
+    this.fetchOpenRouterModelOptions()
+      .pipe(untilDestroyed(this))
+      .subscribe(modelOptions => {
+        if (
+          this.currentOperatorId !== operatorId ||
+          this.currentOperatorSchema?.operatorType !== "AIAgent" ||
+          modelOptions.length === 0
+        ) {
+          return;
+        }
+        const modelSchema = schema.properties?.model;
+        if (typeof modelSchema === "boolean" || !modelSchema) {
+          return;
+        }
+        modelSchema.openRouterModelOptions = modelOptions;
+        this.setFormlyFormBinding(schema);
+        this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  private fetchOpenRouterModelOptions(): Observable<OpenRouterModelOption[]> {
+    if (!this.openRouterModelOptions$) {
+      this.openRouterModelOptions$ = this.httpClient
+        .get<OpenRouterModelsResponse>(`${AppSettings.getApiEndpoint()}/models/openrouter`)
+        .pipe(
+          map(response =>
+            response.data
+              .map(model => ({
+                value: model.id,
+                label: model.name === model.id ? model.id : `${model.name} (${model.id})`,
+                company: this.getOpenRouterProviderName(model.id),
+              }))
+              .sort((a, b) => {
+                const companyComparison = a.company.localeCompare(b.company);
+                if (companyComparison !== 0) {
+                  return companyComparison;
+                }
+                return a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" });
+              })
+          ),
+          catchError(() => of([])),
+          shareReplay(1)
+        );
+    }
+    return this.openRouterModelOptions$;
+  }
+
+  private getOpenRouterProviderName(modelId: string): string {
+    const providerSlug = modelId.split("/")[0]?.replace(/^~/, "") ?? "";
+    return (
+      OPENROUTER_PROVIDER_DISPLAY_NAMES[providerSlug] ??
+      providerSlug
+        .split(/[-_]/)
+        .filter(Boolean)
+        .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(" ")
+    );
+  }
+
+  private normalizeAttributeNameListValues(schema: CustomJSONSchema7, model: Record<string, unknown>): void {
+    Object.entries(schema.properties ?? {}).forEach(([propertyName, propertySchema]) => {
+      if (
+        typeof propertySchema === "boolean" ||
+        propertySchema.autofill !== "attributeNameList" ||
+        !Object.prototype.hasOwnProperty.call(model, propertyName)
+      ) {
+        return;
+      }
+      const value = model[propertyName];
+      if (typeof value === "string") {
+        model[propertyName] = value === "" ? [] : [value];
+      } else if (value === null || value === undefined) {
+        model[propertyName] = [];
+      }
+    });
   }
 
   allowModifyOperatorLogic(): void {

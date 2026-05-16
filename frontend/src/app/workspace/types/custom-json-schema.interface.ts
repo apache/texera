@@ -69,4 +69,9 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
   hideOnNull?: boolean;
 
   additionalEnumValue?: string;
+  openRouterModelOptions?: ReadonlyArray<{
+    value: string;
+    label: string;
+    company?: string;
+  }>;
 }

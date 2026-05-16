@@ -110,7 +110,20 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-compress" % "1.27.1",
   "org.tukaani" % "xz" % "1.9",
   "com.univocity" % "univocity-parsers" % "2.9.1",
-  "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4"
+  "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4",
+  ("dev.langchain4j" % "langchain4j" % "1.0.1")
+    .exclude("com.fasterxml.jackson.core", "jackson-databind")
+    .exclude("com.fasterxml.jackson.core", "jackson-core")
+    .exclude("com.fasterxml.jackson.core", "jackson-annotations"),
+  ("dev.langchain4j" % "langchain4j-open-ai" % "1.0.1")
+    .exclude("com.fasterxml.jackson.core", "jackson-databind")
+    .exclude("com.fasterxml.jackson.core", "jackson-core")
+    .exclude("com.fasterxml.jackson.core", "jackson-annotations"),
+  // AI Agent tools: URL fetch + PDF read pipeline
+  "org.jsoup" % "jsoup" % "1.17.2",
+  "net.dankito.readability4j" % "readability4j" % "1.0.8",
+  "com.vladsch.flexmark" % "flexmark-html2md-converter" % "0.64.8",
+  "org.apache.pdfbox" % "pdfbox" % "2.0.32"
 )
 
 libraryDependencies += "io.github.classgraph" % "classgraph" % "4.8.184" % Test
