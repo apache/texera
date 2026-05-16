@@ -1,163 +1,222 @@
 <div class="add-widget-modal">
   <header class="modal-header">
-    <h3>Add Widgets</h3>
-    <p class="hint">
-      Check the widgets you want to add and fill in the data. You can add multiple at once,
-      and keep the modal open to add another batch.
-    </p>
+    <h3>Add Widget</h3>
   </header>
 
-  <!-- Quick metric presets -->
-  <section class="quick-presets">
-    <span class="presets-label">Quick:</span>
-    <button
-      *ngFor="let p of metricPresets"
-      class="preset-chip"
-      [style.--chip-color]="p.color"
-      (click)="applyMetricPreset(p)">
-      {{ p.label }}
-    </button>
-  </section>
+  <nz-tabs
+    nzType="line"
+    [nzAnimated]="false"
+    class="modal-tabs"
+    [(nzSelectedIndex)]="activeTab">
+    <!-- ========== Tab 1: From Workflow ========== -->
+    <nz-tab nzTitle="From Workflow">
+      <div class="tab-pane">
+        <!-- Step 1: pick workflow -->
+        <label class="field">
+          <span class="field-label">Workflow</span>
+          <nz-spin [nzSpinning]="loadingWorkflows" [nzSize]="'small'">
+            <nz-select
+              nzPlaceHolder="Pick a workflow"
+              [ngModel]="selectedWid"
+              (ngModelChange)="onWorkflowChange($event)"
+              nzShowSearch>
+              <nz-option
+                *ngFor="let w of workflows"
+                [nzValue]="w.wid"
+                [nzLabel]="w.name"></nz-option>
+            </nz-select>
+          </nz-spin>
+        </label>
 
-  <!-- Widget gallery with inline forms -->
-  <section class="widget-list">
-    <!-- METRIC -->
-    <article class="widget-row" [class.enabled]="metric.enabled">
-      <header class="row-header">
-        <label nz-checkbox [(ngModel)]="metric.enabled">
-          <span nz-icon nzType="field-number" class="row-icon"></span>
-          <span class="row-name">Metric Card</span>
-          <span class="row-sub">One big number — e.g. accuracy, F1.</span>
-        </label>
-      </header>
-      <div class="row-form" *ngIf="metric.enabled">
-        <label>Title<input nz-input [(ngModel)]="metric.config.title" /></label>
-        <label>Value<input nz-input [(ngModel)]="metric.config.value" /></label>
-        <label>Caption<input nz-input [(ngModel)]="metric.config.caption" /></label>
-        <label>Color<input nz-input [(ngModel)]="metric.config.color" /></label>
-      </div>
-    </article>
+        <!-- Loading bundle -->
+        <nz-spin
+          *ngIf="loadingBundle"
+          [nzSpinning]="true"
+          class="bundle-spinner">
+          <div class="bundle-spinner-fill"></div>
+        </nz-spin>
 
-    <!-- BAR -->
-    <article class="widget-row" [class.enabled]="bar.enabled">
-      <header class="row-header">
-        <label nz-checkbox [(ngModel)]="bar.enabled">
-          <span nz-icon nzType="bar-chart" class="row-icon"></span>
-          <span class="row-name">Bar Chart</span>
-          <span class="row-sub">Compare models or groups across one or more metrics.</span>
-        </label>
-      </header>
-      <div class="row-form" *ngIf="bar.enabled">
-        <label>Title<input nz-input [(ngModel)]="bar.config.title" /></label>
-        <label>Categories (comma-separated)
-          <input nz-input [(ngModel)]="bar.raw!['categoriesRaw']" />
-        </label>
-        <label>
-          Series — one per line: <code>name | color | v1, v2, v3</code>
-          <textarea nz-input rows="3" [(ngModel)]="bar.raw!['seriesRaw']"></textarea>
-        </label>
-      </div>
-    </article>
+        <!-- Bundle loaded, but workflow has no operators or no execution -->
+        <ng-container *ngIf="bundle && !loadingBundle">
+          <div
+            *ngIf="bundle.operators.length === 0"
+            class="bundle-warn">
+            <span nz-icon nzType="info-circle"></span>
+            This workflow has no operators yet.
+          </div>
 
-    <!-- HBAR -->
-    <article class="widget-row" [class.enabled]="hbar.enabled">
-      <header class="row-header">
-        <label nz-checkbox [(ngModel)]="hbar.enabled">
-          <span nz-icon nzType="menu" class="row-icon"></span>
-          <span class="row-name">Horizontal Bars</span>
-          <span class="row-sub">Ranked items — great for feature importance.</span>
-        </label>
-      </header>
-      <div class="row-form" *ngIf="hbar.enabled">
-        <label>Title<input nz-input [(ngModel)]="hbar.config.title" /></label>
-        <label>
-          Items — one per line: <code>label | value</code>
-          <textarea nz-input rows="4" [(ngModel)]="hbar.raw!['itemsRaw']"></textarea>
-        </label>
-        <label>Bar color<input nz-input [(ngModel)]="hbar.config.color" /></label>
-      </div>
-    </article>
+          <div
+            *ngIf="bundle.operators.length > 0 && !bundle.hasRunStats && !bundle.hasSavedResults"
+            class="bundle-warn">
+            <span nz-icon nzType="info-circle"></span>
+            No execution data yet. Open the workflow and run it, then come back to add widgets.
+          </div>
 
-    <!-- DONUT -->
-    <article class="widget-row" [class.enabled]="donut.enabled">
-      <header class="row-header">
-        <label nz-checkbox [(ngModel)]="donut.enabled">
-          <span nz-icon nzType="pie-chart" class="row-icon"></span>
-          <span class="row-name">Donut Chart</span>
-          <span class="row-sub">Proportions — class balance, breakdowns.</span>
-        </label>
-      </header>
-      <div class="row-form" *ngIf="donut.enabled">
-        <label>Title<input nz-input [(ngModel)]="donut.config.title" /></label>
-        <label>
-          Segments — one per line: <code>label | value | color</code>
-          <textarea nz-input rows="3" [(ngModel)]="donut.raw!['segmentsRaw']"></textarea>
-        </label>
-        <label>Center label<input nz-input [(ngModel)]="donut.config.centerLabel" /></label>
-      </div>
-    </article>
+          <!-- Step 2: list available data points -->
+          <div *ngIf="resultPoints.length > 0" class="data-section">
+            <div class="section-title">
+              <span nz-icon nzType="bulb"></span>
+              Results
+              <span
+                *ngIf="bundle.snapshotCapturedAt"
+                class="muted-note">
+                — snapshot from {{ bundle.snapshotCapturedAt | date:'short' }}
+              </span>
+            </div>
+            <div class="data-grid">
+              <button
+                *ngFor="let dp of resultPoints"
+                class="data-card"
+                [class.selected]="selectedDataPointKey === dp.key"
+                (click)="pickDataPoint(dp.key)">
+                <span class="data-op">{{ $any(dp.point).opName }}</span>
+                <ng-container *ngIf="dp.point.kind === 'metric'">
+                  <span class="data-name">{{ $any(dp.point).name }}</span>
+                  <span class="data-val">{{ $any(dp.point).value }}</span>
+                </ng-container>
+                <ng-container *ngIf="dp.point.kind === 'rows'">
+                  <span class="data-name">Output rows</span>
+                  <span class="data-val">{{ $any(dp.point).rows.length }} rows × {{ $any(dp.point).columns.length }} cols</span>
+                </ng-container>
+              </button>
+            </div>
+          </div>
 
-    <!-- TABLE -->
-    <article class="widget-row" [class.enabled]="table.enabled">
-      <header class="row-header">
-        <label nz-checkbox [(ngModel)]="table.enabled">
-          <span nz-icon nzType="table" class="row-icon"></span>
-          <span class="row-name">Table</span>
-          <span class="row-sub">Full metrics table.</span>
-        </label>
-      </header>
-      <div class="row-form" *ngIf="table.enabled">
-        <label>Title<input nz-input [(ngModel)]="table.config.title" /></label>
-        <label>Columns (comma-separated)
-          <input nz-input [(ngModel)]="table.raw!['columnsRaw']" />
-        </label>
-        <label>
-          Rows — one per line, cells comma-separated
-          <textarea nz-input rows="4" [(ngModel)]="table.raw!['rowsRaw']"></textarea>
-        </label>
-      </div>
-    </article>
+          <div *ngIf="statPoints.length > 0" class="data-section">
+            <div class="section-title">
+              <span nz-icon nzType="thunderbolt"></span>
+              Runtime stats
+              <span class="muted-note">— from latest execution</span>
+            </div>
+            <div class="data-grid">
+              <button
+                *ngFor="let dp of statPoints"
+                class="data-card"
+                [class.selected]="selectedDataPointKey === dp.key"
+                (click)="pickDataPoint(dp.key)">
+                <span class="data-op">{{ $any(dp.point).opName }}</span>
+                <span class="data-name">{{ $any(dp.point).name }}</span>
+                <span class="data-val">{{ $any(dp.point).valueLabel }}</span>
+              </button>
+            </div>
+          </div>
 
-    <!-- TEXT -->
-    <article class="widget-row" [class.enabled]="text.enabled">
-      <header class="row-header">
-        <label nz-checkbox [(ngModel)]="text.enabled">
-          <span nz-icon nzType="file-text" class="row-icon"></span>
-          <span class="row-name">Text / Notes</span>
-          <span class="row-sub">Key findings, callouts, takeaways.</span>
-        </label>
-      </header>
-      <div class="row-form" *ngIf="text.enabled">
-        <label>Title<input nz-input [(ngModel)]="text.config.title" /></label>
-        <label>Body
-          <textarea
-            nz-input
-            rows="5"
-            [(ngModel)]="text.config.body"
-            placeholder="Free-form notes — newlines preserved."></textarea>
-        </label>
+          <!-- Step 3: pick widget type -->
+          <div *ngIf="selectedPoint" class="data-section">
+            <div class="section-title">
+              <span nz-icon nzType="appstore"></span>
+              Widget type
+            </div>
+            <div class="widget-type-grid">
+              <button
+                *ngFor="let t of availableWidgetTypes"
+                class="widget-type-card"
+                [class.selected]="selectedWfWidgetType === t"
+                (click)="pickWfWidgetType(t)">
+                <span nz-icon [nzType]="t === 'metric' ? 'field-number' : t === 'bar' ? 'bar-chart' : t === 'donut' ? 'pie-chart' : t === 'table' ? 'table' : 'file-text'"></span>
+                <span>{{ t === 'metric' ? 'Metric Card' : t === 'bar' ? 'Bar Chart' : t === 'donut' ? 'Donut' : t === 'table' ? 'Table' : t }}</span>
+              </button>
+            </div>
+          </div>
+        </ng-container>
+
+        <nz-empty
+          *ngIf="!selectedWid && !loadingWorkflows && workflows.length === 0"
+          [nzNotFoundContent]="'No workflows yet — create one first.'"></nz-empty>
       </div>
-    </article>
-  </section>
+    </nz-tab>
+
+    <!-- ========== Tab 2: Manual ========== -->
+    <nz-tab nzTitle="Manual Input">
+      <div class="tab-pane">
+        <label class="field">
+          <span class="field-label">Widget type</span>
+          <div class="widget-type-grid">
+            <button
+              *ngFor="let t of manualTypes"
+              class="widget-type-card"
+              [class.selected]="manualType === t.type"
+              (click)="pickManualType(t.type)">
+              <span nz-icon [nzType]="t.icon"></span>
+              <span>{{ t.label }}</span>
+            </button>
+          </div>
+        </label>
+
+        <div *ngIf="manualType === 'metric'" class="form-grid">
+          <label>Title<input nz-input [(ngModel)]="metric.title" /></label>
+          <label>Value<input nz-input [(ngModel)]="metric.value" /></label>
+          <label>Subtitle<input nz-input [(ngModel)]="metric.caption" /></label>
+          <label>Color<input nz-input [(ngModel)]="metric.color" /></label>
+        </div>
+
+        <div *ngIf="manualType === 'bar'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="bar.title" /></label>
+          <label class="full">Categories (comma-separated)
+            <input nz-input [(ngModel)]="barCategoriesRaw" />
+          </label>
+          <label class="full">Series — one per line: <code>name | color | v1, v2, v3</code>
+            <textarea nz-input rows="3" [(ngModel)]="barSeriesRaw"></textarea>
+          </label>
+        </div>
+
+        <div *ngIf="manualType === 'donut'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="donut.title" /></label>
+          <label class="full">Segments — one per line: <code>label | value | color</code>
+            <textarea nz-input rows="3" [(ngModel)]="donutSegmentsRaw"></textarea>
+          </label>
+        </div>
+
+        <div *ngIf="manualType === 'table'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="table.title" /></label>
+          <label class="full">Columns (comma-separated)
+            <input nz-input [(ngModel)]="tableColumnsRaw" />
+          </label>
+          <label class="full">Rows — one per line, cells comma-separated
+            <textarea nz-input rows="4" [(ngModel)]="tableRowsRaw"></textarea>
+          </label>
+        </div>
+
+        <div *ngIf="manualType === 'text'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="text.title" /></label>
+          <label class="full">Content
+            <textarea
+              nz-input
+              rows="5"
+              [(ngModel)]="text.body"
+              placeholder="Free-form notes — newlines preserved."></textarea>
+          </label>
+        </div>
+      </div>
+    </nz-tab>
+  </nz-tabs>
 
   <footer class="modal-footer">
     <div class="footer-status">
       <span *ngIf="addedCount > 0" class="added-count" [class.flash]="justAddedFlash">
         <span nz-icon nzType="check-circle"></span>
-        Added {{ addedCount }} widget{{ addedCount === 1 ? '' : 's' }} so far
+        Added {{ addedCount }} widget{{ addedCount === 1 ? '' : 's' }}
       </span>
     </div>
     <div class="footer-actions">
       <button nz-button (click)="cancel()">Cancel</button>
       <button nz-button (click)="done()">Done</button>
       <button
+        *ngIf="activeTab === 0"
         nz-button
         nzType="primary"
-        [disabled]="selectedCount === 0"
-        (click)="addSelected()">
+        [disabled]="!canAddFromWorkflow"
+        (click)="addFromWorkflow()">
         <span nz-icon nzType="plus"></span>
-        Add {{ selectedCount > 0 ? selectedCount : '' }}
-        {{ selectedCount === 1 ? 'widget' : 'widgets' }}
+        Add Widget
+      </button>
+      <button
+        *ngIf="activeTab === 1"
+        nz-button
+        nzType="primary"
+        (click)="addManual()">
+        <span nz-icon nzType="plus"></span>
+        Add Widget
       </button>
     </div>
   </footer>

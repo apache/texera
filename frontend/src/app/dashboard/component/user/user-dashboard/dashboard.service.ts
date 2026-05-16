@@ -68,7 +68,11 @@ export class DashboardService {
     this.persist();
   }
 
-  addWidget(dashboardId: string, widget: WidgetConfig): DashboardWidget | undefined {
+  addWidget(
+    dashboardId: string,
+    widget: WidgetConfig,
+    source?: DashboardWidget["source"]
+  ): DashboardWidget | undefined {
     const dash = this.get(dashboardId);
     if (!dash) {
       return undefined;
@@ -78,27 +82,11 @@ export class DashboardService {
       id: this.genId(),
       layout,
       widget,
+      source,
     };
     const updated: Dashboard = { ...dash, widgets: [...dash.widgets, dw], updatedAt: Date.now() };
     this.saveDashboard(updated);
     return dw;
-  }
-
-  /** Bulk add — places widgets sequentially using nextLayout. */
-  addWidgets(dashboardId: string, widgets: WidgetConfig[]): DashboardWidget[] {
-    const created: DashboardWidget[] = [];
-    let dash = this.get(dashboardId);
-    if (!dash) return created;
-    let working: DashboardWidget[] = [...dash.widgets];
-    for (const w of widgets) {
-      const layout = this.nextLayout(working, w.type);
-      const dw: DashboardWidget = { id: this.genId(), layout, widget: w };
-      working = [...working, dw];
-      created.push(dw);
-    }
-    const updated: Dashboard = { ...dash, widgets: working, updatedAt: Date.now() };
-    this.saveDashboard(updated);
-    return created;
   }
 
 

@@ -149,6 +149,36 @@
   }
 }
 
+.source-badge {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  background: rgba(22, 119, 255, 0.08);
+  color: #1677ff;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 500;
+  pointer-events: none;
+  max-width: calc(100% - 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  span[nz-icon] {
+    font-size: 11px;
+  }
+}
+
+/* When edit-mode controls are visible (top-right), shift the badge over */
+.widget-cell.editable:hover .source-badge {
+  right: 44px;
+}
+
 .widget-controls {
   position: absolute;
   top: 6px;

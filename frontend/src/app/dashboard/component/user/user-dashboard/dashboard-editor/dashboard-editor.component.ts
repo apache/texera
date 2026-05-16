@@ -114,16 +114,16 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
   openAddWidget(): void {
     if (!this.dashboard) return;
     const data: AddWidgetModalData = {
-      onAdd: widgets => {
+      onAdd: (widget, source) => {
         if (!this.dashboard) return;
-        this.dashboardService.addWidgets(this.dashboard.id, widgets);
+        this.dashboardService.addWidget(this.dashboard.id, widget, source);
       },
     };
     this.modal.create({
       nzContent: AddWidgetModalComponent,
       nzData: data,
       nzFooter: null,
-      nzWidth: 720,
+      nzWidth: 760,
       nzCentered: true,
       nzClassName: "texera-add-widget-modal",
       nzMaskClosable: false,

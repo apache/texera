@@ -1,151 +1,226 @@
 .add-widget-modal {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .modal-header {
   h3 {
-    margin: 0 0 4px 0;
+    margin: 0;
     font-size: 16px;
     font-weight: 600;
     color: #111827;
   }
-  .hint {
-    margin: 0;
-    color: #6b7280;
-    font-size: 13px;
+}
+
+.modal-tabs {
+  ::ng-deep .ant-tabs-nav {
+    margin: 0 0 10px 0;
   }
 }
 
-/* Quick metric presets — pre-fill the Metric Card and enable it ----------- */
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 240px;
+  max-height: 56vh;
+  overflow-y: auto;
+  padding: 4px 2px 8px 2px;
+}
 
-.quick-presets {
+/* Generic form bits ----------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Tab 1: Workflow data ------------------------------------------------- */
+
+.bundle-spinner {
+  display: block;
+  padding: 12px 0;
+}
+.bundle-spinner-fill {
+  min-height: 24px;
+}
+
+.bundle-warn {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 12px;
-  background: #fafbfc;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
 
-  .presets-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-}
-.preset-chip {
-  --chip-color: #1677ff;
-  border: 1px solid var(--chip-color);
-  background: white;
-  color: var(--chip-color);
-  border-radius: 999px;
-  padding: 3px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-
-  &:hover {
-    background: var(--chip-color);
-    color: white;
+  span[nz-icon] {
+    color: #ea580c;
   }
 }
 
-/* Widget rows — checkbox + inline form ----------------------------------- */
-
-.widget-list {
+.data-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 52vh;
-  overflow-y: auto;
 }
 
-.widget-row {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: white;
-  transition: border-color 0.15s, background 0.15s;
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
-  &.enabled {
+  span[nz-icon] {
+    color: #1677ff;
+  }
+  .muted-note {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    color: #9ca3af;
+    font-size: 11.5px;
+  }
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.data-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+
+  &:hover {
     border-color: #1677ff;
     background: #f5f9ff;
   }
-
-  .row-header {
-    padding: 10px 14px;
-
-    label {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      width: 100%;
-    }
-    .row-icon {
-      font-size: 18px;
-      color: #1677ff;
-    }
-    .row-name {
-      font-weight: 600;
-      font-size: 14px;
-      color: #111827;
-    }
-    .row-sub {
-      color: #6b7280;
-      font-size: 12px;
-      font-weight: 400;
-    }
+  &.selected {
+    border-color: #1677ff;
+    background: #eef5ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18);
   }
 
-  .row-form {
-    padding: 4px 14px 14px 14px;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 12px;
-      color: #6b7280;
-
-      code {
-        font-size: 11px;
-        background: #f3f4f6;
-        padding: 1px 4px;
-        border-radius: 3px;
-        color: #374151;
-        font-weight: 500;
-      }
-      // Make textarea + long fields span both columns
-      &:has(textarea),
-      &:nth-child(odd):last-child {
-        grid-column: 1 / -1;
-      }
-    }
-    textarea {
-      font-family: ui-monospace, "SFMono-Regular", monospace;
-      font-size: 12px;
-      line-height: 1.45;
-    }
+  .data-op {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+  }
+  .data-name {
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+  }
+  .data-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
   }
 }
 
-/* Footer ---------------------------------------------------------------- */
+.widget-type-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.widget-type-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: #1677ff;
+    background: #f5f9ff;
+  }
+  &.selected {
+    border-color: #1677ff;
+    background: #eef5ff;
+    color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18);
+  }
+  span[nz-icon] {
+    color: #1677ff;
+    font-size: 15px;
+  }
+}
+
+/* Tab 2: Manual form --------------------------------------------------- */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #6b7280;
+
+    &.full {
+      grid-column: 1 / -1;
+    }
+    code {
+      font-size: 11px;
+      background: #f3f4f6;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #374151;
+      font-weight: 500;
+    }
+  }
+  textarea {
+    font-family: ui-monospace, "SFMono-Regular", monospace;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
+/* Footer --------------------------------------------------------------- */
 
 .modal-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid #f0f0f0;
 
   .footer-status {
@@ -168,10 +243,6 @@
 
     &.flash {
       transform: scale(1.05);
-    }
-
-    span[nz-icon] {
-      font-size: 14px;
     }
   }
   .footer-actions {

@@ -76,10 +76,27 @@ export interface WidgetLayout {
   h: number;
 }
 
+/**
+ * Where a widget's data came from. Used to label widgets on the dashboard.
+ * Manual widgets carry no label. Workflow-sourced widgets show "From <name>"
+ * so a viewer can see which run produced the number.
+ */
+export type WidgetSource =
+  | { kind: "manual" }
+  | {
+      kind: "workflow";
+      wid: number;
+      workflowName: string;
+      operatorName?: string;
+      /** Human-readable label of what was pulled (e.g. "Accuracy", "Output rows"). */
+      dataLabel?: string;
+    };
+
 export interface DashboardWidget {
   id: string;
   layout: WidgetLayout;
   widget: WidgetConfig;
+  source?: WidgetSource;
 }
 
 export interface Dashboard {
@@ -95,7 +112,7 @@ export const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
   metric: "Metric Card",
   bar: "Bar Chart",
   donut: "Donut Chart",
-  hbar: "Horizontal Bar Chart",
+  hbar: "Horizontal Bar",
   text: "Text / Notes",
   table: "Table",
 };

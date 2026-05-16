@@ -71,6 +71,13 @@
       (mousedown)="startMove($event, w)">
       <div class="widget-frame">
         <texera-dashboard-widget [widget]="w.widget"></texera-dashboard-widget>
+        <div
+          *ngIf="w.source?.kind === 'workflow'"
+          class="source-badge"
+          [title]="'From workflow: ' + $any(w.source).workflowName">
+          <span nz-icon nzType="link"></span>
+          From {{ $any(w.source).workflowName }}
+        </div>
         <div *ngIf="mode === 'edit'" class="widget-controls">
           <button
             nz-button
@@ -98,7 +105,7 @@
       *ngIf="dashboard.widgets.length === 0"
       class="empty-grid">
       <span nz-icon nzType="dashboard"></span>
-      <p>No widgets yet. Pull live stats from your workflow runs, or enter data manually.</p>
+      <p>No widgets yet. Click <strong>+ Add Widget</strong> to pull results from your workflows or enter data manually.</p>
       <button
         nz-button
         nzType="primary"
