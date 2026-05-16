@@ -89,6 +89,30 @@
 </div>
 
 <div
+  *ngIf="currentOperatorSchema?.operatorType === smartFileScanType && smartFileInferenceLoading && !editingTitle"
+  class="smart-file-inference-summary">
+  Detecting file format...
+</div>
+
+<div
+  *ngIf="currentOperatorSchema?.operatorType === smartFileScanType && smartFileInferenceSummary && !editingTitle"
+  class="smart-file-inference-summary">
+  <span class="summary-label">Detected</span>
+  <span>{{ smartFileInferenceSummary.detectedFormat }}</span>
+  <span *ngIf="smartFileInferenceSummary.isFolder">
+    Folder: {{ smartFileInferenceSummary.fileCount }} files
+  </span>
+  <span *ngIf="formatSmartFileDelimiter(smartFileInferenceSummary.customDelimiter) as delimiter">
+    Delimiter: {{ delimiter }}
+  </span>
+  <span *ngIf="smartFileInferenceSummary.hasHeader !== null">
+    Header: {{ smartFileInferenceSummary.hasHeader ? "yes" : "no" }}
+  </span>
+  <span *ngIf="smartFileInferenceSummary.sheetName">Sheet: {{ smartFileInferenceSummary.sheetName }}</span>
+  <span>{{ smartFileInferenceSummary.schema.length }} columns</span>
+</div>
+
+<div
   id="customName"
   [hidden]="!editingTitle"
   (focusout)="disconnectQuillFromText()"

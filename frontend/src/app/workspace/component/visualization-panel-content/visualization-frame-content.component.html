@@ -18,5 +18,7 @@
 -->
 
 <iframe
+  #visualizationFrame
   [srcdoc]="htmlData"
+  (load)="onVisualizationFrameLoad()"
   id="html-content"></iframe>

@@ -113,4 +113,50 @@ libraryDependencies ++= Seq(
   "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4"
 )
 
+// SmartFileSource: Parquet + Excel support.
+//
+// Hadoop drags in a LOT of stuff Texera doesn't use, and several of those
+// transitive deps conflict head-on with Texera's existing Dropwizard + Jersey-3
+// stack. We exclude all of the known troublemakers here. If you're tempted to
+// remove one of these, run TexeraWebApplication and watch it die at startup.
+//
+// Conflicts being avoided:
+//   - slf4j-reload4j / reload4j: conflicts with the project's logback setup
+//   - jsp-api 2.1: ships an ancient `javax.el.ExpressionFactory` (no
+//     `newInstance()`) that shadows the real `javax.el-3.0.x` Dropwizard's
+//     Hibernate Validator needs (NoSuchMethodError otherwise)
+//   - com.sun.jersey.* (Jersey 1.x): collides with the project's Jersey 3 via
+//     HK2 — JSONRootElementProvider gets instantiated and explodes on init
+//   - tomcat / jasper: only used by Hadoop's embedded web UIs
+//   - servlet-api 2.5: ancient javax servlet that conflicts with Jakarta
+libraryDependencies ++= Seq(
+  "org.apache.parquet" % "parquet-hadoop" % "1.13.1",
+  "org.apache.hadoop" % "hadoop-common" % "3.3.6"
+    exclude("org.slf4j", "slf4j-reload4j")
+    exclude("ch.qos.reload4j", "reload4j")
+    exclude("javax.servlet.jsp", "jsp-api")
+    exclude("javax.servlet", "servlet-api")
+    exclude("org.mortbay.jetty", "jetty")
+    exclude("org.mortbay.jetty", "jetty-util")
+    exclude("org.mortbay.jetty", "jsp-api-2.1")
+    exclude("tomcat", "jasper-compiler")
+    exclude("tomcat", "jasper-runtime")
+    exclude("com.sun.jersey", "jersey-core")
+    exclude("com.sun.jersey", "jersey-server")
+    exclude("com.sun.jersey", "jersey-json")
+    exclude("com.sun.jersey", "jersey-servlet")
+    exclude("com.sun.jersey", "jersey-client")
+    excludeAll(ExclusionRule(organization = "com.sun.jersey")),
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.6"
+    exclude("org.slf4j", "slf4j-reload4j")
+    exclude("ch.qos.reload4j", "reload4j")
+    exclude("javax.servlet.jsp", "jsp-api")
+    exclude("javax.servlet", "servlet-api")
+    excludeAll(ExclusionRule(organization = "com.sun.jersey")),
+  "org.apache.poi" % "poi-ooxml" % "5.2.5"
+)
+// Global Hadoop transitive-dep blackhole is declared at the top-level
+// build.sbt as `ThisBuild / excludeDependencies` so it applies to every
+// downstream project (especially amber) that pulls Hadoop through us.
+
 libraryDependencies += "io.github.classgraph" % "classgraph" % "4.8.184" % Test

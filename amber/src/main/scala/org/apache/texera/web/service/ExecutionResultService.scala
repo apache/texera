@@ -46,6 +46,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionMetadataStore
+import org.apache.texera.amber.util.ImageFormatUtils
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -59,6 +60,7 @@ import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecution
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
 import java.lang.Byte.{SIZE => BitsPerByte}
+import java.util.Base64
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -75,6 +77,11 @@ object ExecutionResultService {
         String.format(s"%${BitsPerByte}s", Integer.toBinaryString(b & 0xff)).replace(' ', '0')
       )
       .mkString("")
+
+  private def bytesToImageDataUrl(bytes: Array[Byte]): Option[String] =
+    ImageFormatUtils
+      .detectMimeType(bytes)
+      .map(mimeType => s"data:$mimeType;base64,${Base64.getEncoder.encodeToString(bytes)}")
 
   /**
     * Converts a collection of Tuples to a list of JSON ObjectNodes.
@@ -107,25 +114,27 @@ object ExecutionResultService {
                   case AttributeType.BINARY =>
                     value match {
                       case byteArray: Array[Byte] =>
-                        val totalSize = byteArray.length
-                        val sizeFormatted = f"$totalSize%,d"
-                        val totalBits = totalSize * BitsPerByte
-                        val preview =
-                          if (totalBits <= binaryPreviewLeadingBits + binaryPreviewTrailingBits)
-                            bytesToBinaryString(byteArray)
-                          else {
-                            val leadingBytesNeeded =
-                              math.ceil(binaryPreviewLeadingBits.toDouble / BitsPerByte).toInt
-                            val trailingBytesNeeded =
-                              math.ceil(binaryPreviewTrailingBits.toDouble / BitsPerByte).toInt
-                            val leading = bytesToBinaryString(byteArray.take(leadingBytesNeeded))
-                              .take(binaryPreviewLeadingBits)
-                            val trailing = bytesToBinaryString(
-                              byteArray.takeRight(trailingBytesNeeded)
-                            ).takeRight(binaryPreviewTrailingBits)
-                            s"$leading...$trailing"
-                          }
-                        s"<binary $preview, size = $sizeFormatted bytes>"
+                        bytesToImageDataUrl(byteArray).getOrElse {
+                          val totalSize = byteArray.length
+                          val sizeFormatted = f"$totalSize%,d"
+                          val totalBits = totalSize * BitsPerByte
+                          val preview =
+                            if (totalBits <= binaryPreviewLeadingBits + binaryPreviewTrailingBits)
+                              bytesToBinaryString(byteArray)
+                            else {
+                              val leadingBytesNeeded =
+                                math.ceil(binaryPreviewLeadingBits.toDouble / BitsPerByte).toInt
+                              val trailingBytesNeeded =
+                                math.ceil(binaryPreviewTrailingBits.toDouble / BitsPerByte).toInt
+                              val leading = bytesToBinaryString(byteArray.take(leadingBytesNeeded))
+                                .take(binaryPreviewLeadingBits)
+                              val trailing = bytesToBinaryString(
+                                byteArray.takeRight(trailingBytesNeeded)
+                              ).takeRight(binaryPreviewTrailingBits)
+                              s"$leading...$trailing"
+                            }
+                          s"<binary $preview, size = $sizeFormatted bytes>"
+                        }
 
                       case _ =>
                         throw new RuntimeException(

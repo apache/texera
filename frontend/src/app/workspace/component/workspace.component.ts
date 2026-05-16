@@ -61,6 +61,7 @@ import { LeftPanelComponent } from "./left-panel/left-panel.component";
 import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
 import { PropertyEditorComponent } from "./property-editor/property-editor.component";
 import { FormlyRepeatDndComponent } from "../../common/formly/repeat-dnd/repeat-dnd.component";
+import { VisualTracePanelComponent } from "./visual-trace-panel/visual-trace-panel.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -83,6 +84,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     NgIf,
     AgentPanelComponent,
     PropertyEditorComponent,
+    VisualTracePanelComponent,
     FormlyRepeatDndComponent,
   ],
 })

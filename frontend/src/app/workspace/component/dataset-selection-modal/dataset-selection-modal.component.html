@@ -55,6 +55,7 @@
 <texera-user-dataset-version-filetree
   [isExpandAllAfterViewInit]="true"
   [fileTreeNodes]="fileTree"
+  [isDirectorySelectable]="data.allowDirectorySelection === true"
   (selectedTreeNode)="onFileSelected($event)">
 </texera-user-dataset-version-filetree>
 <br />

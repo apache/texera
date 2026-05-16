@@ -73,3 +73,17 @@
     margin-bottom: 0;
   }
 }
+
+.smart-file-inference-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0 16px 10px 16px;
+  color: rgba(0, 0, 0, 0.72);
+  font-size: 12px;
+  line-height: 1.4;
+
+  .summary-label {
+    font-weight: 600;
+  }
+}

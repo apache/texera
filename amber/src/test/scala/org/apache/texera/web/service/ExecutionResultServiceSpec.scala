@@ -23,6 +23,10 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import javax.imageio.ImageIO
+
 class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
   "convertTuplesToJson" should "convert tuples with various field types correctly" in {
@@ -179,6 +183,24 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
     val emptyBinaryString = jsonNode.get("emptyBinary").asText()
     emptyBinaryString should include("size = 0 bytes")
+  }
+
+  it should "serialize recognized image binaries as data URLs" in {
+    val attributes = List(
+      new Attribute("image", AttributeType.BINARY)
+    )
+    val schema = new Schema(attributes)
+    val imageBytes = pngBytes(width = 2, height = 2)
+
+    val tuple = Tuple
+      .builder(schema)
+      .add("image", AttributeType.BINARY, imageBytes)
+      .build()
+
+    val result = ExecutionResultService.convertTuplesToJson(List(tuple))
+
+    result should have size 1
+    result.head.get("image").asText() should startWith("data:image/png;base64,")
   }
 
   it should "handle binary data with single ByteBuffer" in {
@@ -474,5 +496,12 @@ class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
     resultsDefault(1).get("value").asText() should endWith("...")
     resultsDefault(2).get("value").asText() shouldBe "medium length"
     resultsDefault(3).get("value").asText() should endWith("...")
+  }
+
+  private def pngBytes(width: Int, height: Int): Array[Byte] = {
+    val image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+    val out = new ByteArrayOutputStream()
+    ImageIO.write(image, "png", out)
+    out.toByteArray
   }
 }

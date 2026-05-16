@@ -62,6 +62,7 @@ export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
       nzData: {
         fileMode: true,
         selectedPath: this.formControl.getRawValue(),
+        allowDirectorySelection: this.props["allowFolderSelection"] === true,
       },
       nzBodyStyle: {
         resize: "both",

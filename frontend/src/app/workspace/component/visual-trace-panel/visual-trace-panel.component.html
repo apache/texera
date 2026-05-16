@@ -1,0 +1,136 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<aside
+  class="trace-panel"
+  *ngIf="trace as currentTrace">
+  <header class="trace-header">
+    <button
+      class="close-button"
+      type="button"
+      (click)="close()"
+      aria-label="Close visual trace">
+      <span
+        nz-icon
+        nzType="close"></span>
+    </button>
+
+    <div class="hero">
+      <div
+        class="hero-media"
+        *ngIf="currentTrace.heroImage">
+        <img
+          [src]="currentTrace.heroImage"
+          [alt]="currentTrace.heroImageAlt ?? currentTrace.title" />
+      </div>
+
+      <div class="hero-copy">
+        <div class="hero-kicker">Visual Journey</div>
+        <div class="hero-title">{{ currentTrace.title }}</div>
+        <div
+          class="hero-subtitle"
+          *ngIf="currentTrace.subtitle">
+          {{ currentTrace.subtitle }}
+        </div>
+      </div>
+
+      <div
+        class="hero-metric"
+        *ngIf="currentTrace.heroMetric">
+        <span>{{ currentTrace.heroMetric.label }}</span>
+        <strong>{{ currentTrace.heroMetric.value }}</strong>
+      </div>
+    </div>
+
+    <p
+      class="trace-summary"
+      *ngIf="currentTrace.summary">
+      {{ currentTrace.summary }}
+    </p>
+  </header>
+
+  <section class="filmstrip">
+    <div
+      class="film-frame"
+      *ngFor="let step of currentTrace.steps; let i = index">
+      <div class="film-index">{{ i + 1 }}</div>
+      <div
+        class="film-image"
+        [ngClass]="{'film-image--empty': !step.image}">
+        <img
+          *ngIf="step.image"
+          [src]="step.image"
+          [alt]="step.imageAlt ?? step.title" />
+        <span *ngIf="!step.image">{{ getKindLabel(step.kind) }}</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="trace-steps">
+    <article
+      class="trace-step"
+      *ngFor="let step of currentTrace.steps; let i = index"
+      [ngClass]="'trace-step--' + (step.kind ?? 'step')">
+      <div class="trace-line">
+        <div class="trace-dot"></div>
+      </div>
+
+      <div class="step-media">
+        <img
+          *ngIf="step.image"
+          [src]="step.image"
+          [alt]="step.imageAlt ?? step.title" />
+        <span *ngIf="!step.image">{{ i + 1 }}</span>
+      </div>
+
+      <div class="step-body">
+        <div class="step-meta">
+          <span class="kind-chip">{{ getKindLabel(step.kind) }}</span>
+          <button
+            *ngIf="step.operatorId"
+            class="operator-chip"
+            type="button"
+            (click)="focusOperator(step)">
+            {{ getStepLabel(step) }}
+          </button>
+          <span
+            *ngIf="!step.operatorId"
+            class="operator-chip operator-chip--static">
+            {{ getStepLabel(step) }}
+          </span>
+        </div>
+
+        <h3>{{ step.title }}</h3>
+        <p *ngIf="step.detail">{{ step.detail }}</p>
+
+        <div
+          class="metric-row"
+          *ngIf="step.metrics?.length">
+          <div
+            class="metric-pill"
+            *ngFor="let metric of step.metrics">
+            <span>{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+</aside>
+

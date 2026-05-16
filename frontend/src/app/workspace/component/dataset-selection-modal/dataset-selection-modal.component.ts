@@ -53,9 +53,10 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
   ],
 })
 export class DatasetSelectionModalComponent implements OnInit {
-  private readonly data = inject(NZ_MODAL_DATA) as {
+  public readonly data = inject(NZ_MODAL_DATA) as {
     fileMode: boolean;
     selectedPath?: string | null;
+    allowDirectorySelection?: boolean;
   };
 
   datasets: ReadonlyArray<DashboardDataset> = [];

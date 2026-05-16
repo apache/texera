@@ -161,7 +161,14 @@
             class="table-cell"
             nzEllipsis
             (click)="open(i, row)">
-            <span class="cell-content">{{ column.getCell(row) }}</span>
+            <img
+              *ngIf="isImageCell(row, column); else textCell"
+              class="image-thumbnail"
+              [src]="getImageCellSource(row, column)"
+              [alt]="column.header" />
+            <ng-template #textCell>
+              <span class="cell-content">{{ column.getCell(row) }}</span>
+            </ng-template>
             <button
               (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
               nz-button

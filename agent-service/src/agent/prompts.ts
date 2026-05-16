@@ -268,10 +268,12 @@ function buildAllowedOperatorSchemas(
   for (const operatorType of operatorTypes) {
     const compactSchema = metadataStore.getCompactSchema(operatorType);
     const description = metadataStore.getDescription(operatorType);
+    const displayName = metadataStore.getAdditionalMetadata(operatorType)?.userFriendlyName;
 
     if (compactSchema) {
       schemas.push(
         `## ${operatorType}\n` +
+          (displayName ? `Display name: ${displayName}\n` : "") +
           (description ? `Description: ${description}\n` : "") +
           `Schema:\n\`\`\`json\n${JSON.stringify(compactSchema, null, 2)}\n\`\`\``
       );

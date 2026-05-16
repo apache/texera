@@ -20,11 +20,7 @@
 package org.apache.texera.amber.operator.source.scan.file
 
 import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -53,14 +49,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Include Filename")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "extract"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
-    )
-  )
-  val outputFileName: Boolean = false
+  var outputFileName: Boolean = false
 
   fileTypeName = Option("")
 
@@ -92,4 +81,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
     }
     schema.add(attributeName, attributeType.getType)
   }
+
+  override def operatorInfo =
+    super.operatorInfo.copy(operatorDescription = "Scan data from a file or a folder of files")
 }

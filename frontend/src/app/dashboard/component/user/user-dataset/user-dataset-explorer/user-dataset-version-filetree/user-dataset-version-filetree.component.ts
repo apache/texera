@@ -58,6 +58,9 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   @Input()
   public isExpandAllAfterViewInit = false;
 
+  @Input()
+  public isDirectorySelectable = false;
+
   @ViewChild("tree") tree: any;
 
   @Output()
@@ -69,9 +72,13 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
     actionMapping: {
       mouse: {
         click: (tree: any, node: any, $event: any) => {
+          const isDirectory = node.data.type === "directory";
+          if (isDirectory && this.isDirectorySelectable) {
+            this.selectedTreeNode.emit(node.data);
+          }
           if (node.hasChildren) {
             TREE_ACTIONS.TOGGLE_EXPANDED(tree, node, $event);
-          } else {
+          } else if (!isDirectory) {
             this.selectedTreeNode.emit(node.data);
           }
         },

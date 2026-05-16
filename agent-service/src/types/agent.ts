@@ -87,6 +87,7 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   executionTimeoutMs: 240000,
   maxSteps: 100,
   allowedOperatorTypes: [
+    "SmartFileScan",
     "CSVFileScan",
     "Filter",
     "Projection",

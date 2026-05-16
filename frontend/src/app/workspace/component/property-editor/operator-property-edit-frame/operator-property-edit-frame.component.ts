@@ -61,6 +61,11 @@ import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
 import { AttributeType, PortSchema } from "../../../types/workflow-compiling.interface";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import {
+  SMART_FILE_SCAN_TYPE,
+  SmartFileInferenceResponse,
+  SmartFileInferenceService,
+} from "../../../service/smart-file-inference/smart-file-inference.service";
 import { NgIf } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -112,6 +117,7 @@ Quill.register("modules/cursors", QuillCursors);
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
+  readonly smartFileScanType = SMART_FILE_SCAN_TYPE;
 
   currentOperatorSchema?: OperatorSchema;
 
@@ -163,6 +169,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
 
+  /** Prevent duplicate inference calls for the same operator/file pair. */
+  private smartFileLastInferenceKey: string | undefined;
+  private smartFileInferenceByOperator = new Map<string, SmartFileInferenceResponse>();
+  public smartFileInferenceSummary?: SmartFileInferenceResponse;
+  public smartFileInferenceLoading = false;
+
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -173,7 +185,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private smartFileInferenceService: SmartFileInferenceService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -243,6 +256,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.setFormlyFormBinding(this.currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? this.currentOperatorSchema.additionalMetadata.userFriendlyName;
     this.operatorDescription = this.currentOperatorSchema.additionalMetadata.operatorDescription;
+    this.smartFileInferenceSummary =
+      this.currentOperatorSchema.operatorType === SMART_FILE_SCAN_TYPE
+        ? this.smartFileInferenceByOperator.get(operator.operatorID)
+        : undefined;
+    this.smartFileInferenceLoading = false;
     /**
      * Important: make a deep copy of the initial property data object.
      * Prevent the form directly changes the value in the texera graph without going through workflow action service.
@@ -349,8 +367,118 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         this.typeInferenceOnLambdaFunction(formData);
         this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
         this.listeningToChange = true;
+        this.runSmartFileInferenceIfNeeded(formData);
       }
     });
+  }
+
+  /**
+   * For `SmartFileScan` operators, when the user picks a new file the backend can sniff the
+   * format, dialect, and schema and tell us what to prefill. This method only fires once per
+   * fileName change (so editing other fields doesn't re-trigger it) and silently no-ops for any
+   * other operator type.
+   */
+  private runSmartFileInferenceIfNeeded(formData: Record<string, unknown>): void {
+    if (!this.currentOperatorId) return;
+    if (this.currentOperatorSchema?.operatorType !== SMART_FILE_SCAN_TYPE) return;
+    const fileName = formData?.["fileName"];
+    if (typeof fileName !== "string" || fileName.length === 0) return;
+    const operatorIdAtRequestTime = this.currentOperatorId;
+    const inferenceKey = `${operatorIdAtRequestTime}:${fileName}`;
+    if (inferenceKey === this.smartFileLastInferenceKey) return;
+    this.smartFileLastInferenceKey = inferenceKey;
+    this.smartFileInferenceByOperator.delete(operatorIdAtRequestTime);
+    this.smartFileInferenceSummary = undefined;
+    this.smartFileInferenceLoading = true;
+
+    const formatOverride = formData["formatOverride"];
+    const requestFormat =
+      typeof formatOverride === "string" && formatOverride !== "Auto-detect" && formatOverride !== "AUTO"
+        ? formatOverride
+        : undefined;
+    const customDelimiter = formData["customDelimiter"];
+    const hasHeader = formData["hasHeader"];
+    const sheetName = formData["sheetName"];
+    const flatten = formData["flatten"];
+    const fileEncoding = formData["fileEncoding"];
+
+    this.smartFileInferenceService
+      .preview({
+        fileName,
+        fileEncoding: typeof fileEncoding === "string" ? fileEncoding : undefined,
+        formatOverride: requestFormat,
+        customDelimiter:
+          typeof customDelimiter === "string" && customDelimiter.length > 0 ? customDelimiter : undefined,
+        hasHeader: typeof hasHeader === "boolean" ? hasHeader : undefined,
+        sheetName: typeof sheetName === "string" && sheetName.length > 0 ? sheetName : undefined,
+        flatten: typeof flatten === "boolean" ? flatten : undefined,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: response => this.applySmartFileInference(operatorIdAtRequestTime, fileName, response),
+        error: (err: unknown) => {
+          if (this.currentOperatorId === operatorIdAtRequestTime) {
+            this.smartFileInferenceLoading = false;
+          }
+          if (this.smartFileLastInferenceKey === inferenceKey) {
+            this.smartFileLastInferenceKey = undefined;
+          }
+          // Surface as a non-blocking warning. Sniffing failure shouldn't break the workflow —
+          // the operator's own sourceSchema() call will re-attempt at compile time.
+          this.notificationService.warning(`Could not auto-detect file: ${this.smartFileInferenceErrorMessage(err)}`);
+        },
+      });
+  }
+
+  private applySmartFileInference(
+    operatorIdAtRequestTime: string,
+    fileNameAtRequestTime: string,
+    response: SmartFileInferenceResponse
+  ): void {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorIdAtRequestTime);
+    if (!operator) return;
+    // Drop stale responses — user may have already changed the file again.
+    if (operator.operatorProperties["fileName"] !== fileNameAtRequestTime) return;
+
+    const merged: Record<string, unknown> = { ...operator.operatorProperties };
+    merged["formatOverride"] = response.detectedFormat;
+    if (response.customDelimiter !== null && response.customDelimiter !== undefined) {
+      merged["customDelimiter"] = response.customDelimiter;
+    }
+    if (response.hasHeader !== null && response.hasHeader !== undefined) {
+      merged["hasHeader"] = response.hasHeader;
+    }
+    if (response.sheetName !== null && response.sheetName !== undefined) {
+      merged["sheetName"] = response.sheetName;
+    }
+    if (response.flatten !== null && response.flatten !== undefined) {
+      merged["flatten"] = response.flatten;
+    }
+    const sourceFileColumnExists = response.schema.some(column => column.name.toLowerCase() === "source_file");
+    if (response.isFolder && !sourceFileColumnExists && merged["includeSourceFile"] === undefined) {
+      merged["includeSourceFile"] = true;
+    }
+    this.smartFileInferenceByOperator.set(operatorIdAtRequestTime, response);
+    if (this.currentOperatorId === operatorIdAtRequestTime) {
+      this.smartFileInferenceSummary = response;
+      this.smartFileInferenceLoading = false;
+    }
+    this.workflowActionService.setOperatorProperty(operatorIdAtRequestTime, merged);
+  }
+
+  public formatSmartFileDelimiter(delimiter: string | null): string | undefined {
+    if (delimiter === null) return undefined;
+    if (delimiter === "\t") return "tab";
+    if (delimiter === " ") return "space";
+    return delimiter;
+  }
+
+  private smartFileInferenceErrorMessage(err: unknown): string {
+    if (typeof err !== "object" || err === null) return "unknown error";
+    const maybeError = err as { error?: { message?: unknown }; message?: unknown };
+    if (typeof maybeError.error?.message === "string") return maybeError.error.message;
+    if (typeof maybeError.message === "string") return maybeError.message;
+    return "unknown error";
   }
 
   typeInferenceOnLambdaFunction(formData: any): void {
@@ -468,6 +596,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       // if the title is fileName, then change it to custom autocomplete input template
       if (mappedField.key === "fileName") {
         mappedField.type = "inputautocomplete";
+        mappedField.props = {
+          ...mappedField.props,
+          allowFolderSelection:
+            this.currentOperatorSchema?.operatorType === this.smartFileScanType ||
+            this.currentOperatorSchema?.operatorType === "FileScan",
+        };
       }
 
       if (mappedField.key === "datasetVersionPath") {

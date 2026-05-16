@@ -50,6 +50,19 @@ lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOpera
 
 val jacksonVersion = "2.18.6"
 
+// Globally exclude transitive Hadoop landmines that conflict with Texera's
+// Dropwizard + Jersey stack. These ride in via Parquet's `parquet-hadoop`,
+// added in common/workflow-operator/build.sbt for SmartFileScan. Defining the
+// excludes at ThisBuild level ensures they apply to every project that
+// transitively pulls Hadoop — most importantly amber.
+ThisBuild / excludeDependencies ++= Seq(
+  ExclusionRule("javax.servlet.jsp", "jsp-api"),
+  ExclusionRule("javax.servlet", "servlet-api"),
+  ExclusionRule(organization = "com.sun.jersey"),
+  ExclusionRule(organization = "com.sun.jersey.contribs"),
+  ExclusionRule("com.github.pjfanning", "jersey-json")
+)
+
 lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
 lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
 lazy val Auth = (project in file("common/auth"))

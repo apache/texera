@@ -21,9 +21,11 @@ package org.apache.texera.amber.operator.source.scan.file
 
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.tuple.TupleLike
+import org.apache.texera.amber.operator.source.scan.FolderInputResolver
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
+import java.net.URI
 
 class FileScanSourceOpExec private[scan] (
     descString: String
@@ -33,14 +35,21 @@ class FileScanSourceOpExec private[scan] (
 
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
-    FileScanUtils.createTuplesFromFile(
-      fileName = desc.fileName.get,
-      attributeType = desc.attributeType,
-      fileEncoding = desc.fileEncoding,
-      extract = desc.extract,
-      outputFileName = desc.outputFileName,
-      fileScanOffset = desc.fileScanOffset,
-      fileScanLimit = desc.fileScanLimit
-    )
+    FolderInputResolver
+      .resolve(new URI(desc.fileName.get))
+      .files
+      .iterator
+      .flatMap(file =>
+        FileScanUtils.createTuplesFromFile(
+          fileName = file.uri.toASCIIString,
+          displayFileName = file.displayName,
+          attributeType = desc.attributeType,
+          fileEncoding = desc.fileEncoding,
+          extract = desc.extract,
+          outputFileName = desc.outputFileName,
+          fileScanOffset = desc.fileScanOffset,
+          fileScanLimit = desc.fileScanLimit
+        )
+      )
   }
 }

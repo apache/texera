@@ -110,7 +110,8 @@ private[file] object FileScanUtils {
             TupleLike(fields.toSeq: _*)
         }
       } else {
-        fileEntries.flatMap(entry =>
+        fileEntries.zipAll(filenameIt, null, null).flatMap {
+          case (entry, entryFileName) =>
           new BufferedReader(new InputStreamReader(entry, fileEncoding.getCharset))
             .lines()
             .iterator()
@@ -119,13 +120,14 @@ private[file] object FileScanUtils {
               fileScanOffset.getOrElse(0),
               fileScanOffset.getOrElse(0) + fileScanLimit.getOrElse(Int.MaxValue)
             )
-            .map(line =>
-              TupleLike(attributeType match {
+            .map { line =>
+              val parsed = attributeType match {
                 case FileAttributeType.SINGLE_STRING => line
                 case _                               => parseField(line, attributeType.getType)
-              })
-            )
-        )
+              }
+              if (outputFileName) TupleLike(entryFileName, parsed) else TupleLike(parsed)
+            }
+        }
       }
 
     new AutoClosingIterator(rawIterator, () => closeables.foreach(_.close()))

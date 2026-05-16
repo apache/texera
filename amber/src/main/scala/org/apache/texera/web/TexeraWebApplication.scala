@@ -130,6 +130,7 @@ class TexeraWebApplication
     environment.servlets.setSessionHandler(new SessionHandler)
 
     environment.jersey.register(classOf[SystemMetadataResource])
+    environment.jersey.register(classOf[SmartFileInferenceResource])
     // environment.jersey().register(classOf[MockKillWorkerResource])
 
     environment.jersey.register(classOf[HealthCheckResource])

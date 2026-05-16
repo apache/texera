@@ -27,6 +27,9 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.nio.file.Files
+import scala.jdk.CollectionConverters._
+
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var fileScanSourceOpDesc: FileScanSourceOpDesc = _
@@ -183,6 +186,62 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
+  }
+
+  it should "read a folder of binary files and preserve relative file names" in {
+    val dir = Files.createTempDirectory("file-scan-image-folder-")
+    try {
+      Files.write(dir.resolve("cat.png"), Array[Byte](1, 2, 3))
+      Files.write(dir.resolve("dog.png"), Array[Byte](4, 5, 6))
+
+      fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(dir.toString))
+      fileScanSourceOpDesc.attributeType = FileAttributeType.BINARY
+      fileScanSourceOpDesc.outputFileName = true
+
+      val exec = new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+      exec.open()
+      val tuples = exec
+        .produceTuple()
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema()))
+        .toList
+      exec.close()
+
+      assert(tuples.map(_.getField[String]("filename")) == List("cat.png", "dog.png"))
+      assert(tuples.map(_.getField[Array[Byte]]("line").toList) == List(List[Byte](1, 2, 3), List[Byte](4, 5, 6)))
+    } finally deleteRecursively(dir)
+  }
+
+  it should "preserve relative file names for line-based folder scans" in {
+    val dir = Files.createTempDirectory("file-scan-text-folder-")
+    try {
+      Files.writeString(dir.resolve("a.txt"), "line-a\n")
+      Files.writeString(dir.resolve("b.txt"), "line-b\n")
+
+      fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(dir.toString))
+      fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+      fileScanSourceOpDesc.outputFileName = true
+
+      val exec = new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+      exec.open()
+      val tuples = exec
+        .produceTuple()
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema()))
+        .toList
+      exec.close()
+
+      assert(tuples.map(_.getField[String]("filename")) == List("a.txt", "b.txt"))
+      assert(tuples.map(_.getField[String]("line")) == List("line-a", "line-b"))
+    } finally deleteRecursively(dir)
+  }
+
+  private def deleteRecursively(path: java.nio.file.Path): Unit = {
+    Files
+      .walk(path)
+      .iterator()
+      .asScala
+      .toSeq
+      .sortBy(_.getNameCount)(Ordering.Int.reverse)
+      .foreach(Files.deleteIfExists)
   }
 
 }
