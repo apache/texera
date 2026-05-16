@@ -185,40 +185,63 @@ ${stepsCode}
     }
     if (type === "Projection") {
       const attrs = (op["attributes"] as Array<{ originalAttribute?: string; alias?: string }>) ?? [];
+      // isDrop=true means "exclude these columns"; otherwise "keep only these
+      // columns". Aliases rename the kept attributes — applied in a second
+      // pass so the original lookup keys remain valid.
+      const isDrop = op["isDrop"] === true;
       if (attrs.length === 0) {
         return { code: `${headerComment}\n# (no projection columns — passthrough)`, translated: true };
       }
-      const keepKeys = attrs
+      const targetKeys = attrs
         .map(a => a.originalAttribute)
         .filter((k): k is string => typeof k === "string");
+      const aliasMap: Record<string, string> = {};
+      attrs.forEach(a => {
+        if (a.originalAttribute && a.alias && a.alias.length > 0) {
+          aliasMap[a.originalAttribute] = a.alias;
+        }
+      });
+      const keysExpr = JSON.stringify(targetKeys);
+      const aliasExpr = Object.keys(aliasMap).length > 0 ? JSON.stringify(aliasMap) : "";
+      const selectExpr = isDrop
+        ? `tuple_ = {k: tuple_[k] for k in list(tuple_.keys()) if k not in ${keysExpr}}`
+        : `tuple_ = {k: tuple_[k] for k in ${keysExpr} if k in tuple_}`;
+      const aliasApply = aliasExpr
+        ? `\n_aliases = ${aliasExpr}\ntuple_ = {(_aliases.get(k, k)): v for k, v in tuple_.items()}`
+        : "";
       return {
-        code: `${headerComment}\ntuple_ = {k: tuple_[k] for k in ${JSON.stringify(keepKeys)} if k in tuple_}`,
+        code: `${headerComment}\n${selectExpr}${aliasApply}`,
         translated: true,
       };
     }
     if (type === "PythonUDFV2" || type === "PythonLambdaFunction") {
       // Inline the user's existing Python body. We can't safely run their
       // class-based UDF inside the fused process_tuple (their `self` won't
-      // exist), so we extract the *body* of their `process_tuple` method via
-      // a heuristic regex and splice it in. If that fails, fall back to a
-      // call-style placeholder. The codegen is best-effort — the user can
-      // edit the fused code in the property panel before running.
-      const code = (op["code"] as string) ?? "";
-      const bodyMatch = code.match(
-        /def\s+process_tuple\s*\([^)]*\)[^:]*:\s*([\s\S]*?)(?=\n\s*(?:def|@|class)\s|\Z)/
-      );
-      if (bodyMatch && bodyMatch[1].trim().length > 0) {
-        // Strip leading indentation so the body lines up cleanly with our 8-space
-        // process_tuple indent (the outer template adds the leading whitespace).
-        const dedented = this.dedent(bodyMatch[1]);
+      // exist), so we extract the *body* of their `process_tuple` method
+      // via an indent-aware walk.
+      //
+      // Critical: the inlined body's `yield X` would emit tuples through the
+      // fused operator, then collide with our outer `yield tuple_` — emitting
+      // twice. Rewrite `yield X` → `tuple_ = X` so the mutation persists and
+      // only the outer yield emits. This is correct semantics for one-in /
+      // one-out UDFs (the common case). Multi-yield generators aren't fully
+      // translatable in v1 — flagged in the property panel for manual edits.
+      const rawBody = this.extractPythonMethodBody((op["code"] as string) ?? "", "process_tuple");
+      if (rawBody.trim().length === 0) {
         return {
-          code: `${headerComment}\n# (inlined from user's PythonUDFV2)\n${dedented}`,
-          translated: true,
+          code: `${headerComment}\n# (could not parse user UDF body — passthrough)`,
+          translated: false,
         };
       }
+      const yieldCount = (rawBody.match(/^\s*yield\b/gm) || []).length;
+      const rewritten = rawBody.replace(/^(\s*)yield\s+(.+?)$/gm, "$1tuple_ = $2");
+      const multiYieldNote =
+        yieldCount > 1
+          ? "\n# NOTE: original UDF had multiple yields; only the last value propagates after fusion."
+          : "";
       return {
-        code: `${headerComment}\n# (could not parse user UDF body — passthrough)`,
-        translated: false,
+        code: `${headerComment}\n# (inlined from user's PythonUDFV2)${multiYieldNote}\n${rewritten}`,
+        translated: true,
       };
     }
     if (type === "Regex") {
@@ -291,6 +314,50 @@ ${stepsCode}
   }
 
   /**
+   * Extract the body of a Python method by name. Walks line-by-line: locates
+   * the `def <methodName>(...)` header, then takes everything indented strictly
+   * more than the header until a line with less-or-equal indent (excluding
+   * blank lines, which preserve formatting inside the body).
+   *
+   * Regex-only extraction is fragile across newline / continuation patterns;
+   * this indent-aware walk handles realistic UDF bodies including blank lines,
+   * decorators below the body, and methods that close at end-of-file without
+   * a trailing dedent line.
+   *
+   * The returned text is *dedented* — the method body is left-aligned so the
+   * caller can re-indent it to whatever depth the outer codegen needs.
+   */
+  private extractPythonMethodBody(code: string, methodName: string): string {
+    const lines = code.split("\n");
+    const headerRe = new RegExp(`^(\\s*)def\\s+${methodName}\\b`);
+    let headerIndent = -1;
+    let bodyIndent = -1;
+    const body: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (headerIndent < 0) {
+        const m = line.match(headerRe);
+        if (m) {
+          headerIndent = m[1].length;
+        }
+        continue;
+      }
+      // We're past the def header. The first non-blank line establishes
+      // the body indent.
+      if (line.trim() === "") {
+        body.push("");
+        continue;
+      }
+      const lineIndent = (line.match(/^(\s*)/) || ["", ""])[1].length;
+      if (bodyIndent < 0) bodyIndent = lineIndent;
+      // A line at-or-below the header's indent means we've exited the method.
+      if (lineIndent <= headerIndent) break;
+      body.push(line);
+    }
+    return this.dedent(body.join("\n"));
+  }
+
+  /**
    * Turn one FilterPredicate `{attribute, condition, value}` into a Python
    * boolean expression evaluating to true iff the tuple passes the filter.
    * The OR-of-predicates semantics is reproduced by joining the per-pred
@@ -303,22 +370,34 @@ ${stepsCode}
     const value = p["value"] as string | undefined;
     if (!attr || !cond) return "";
     const lhs = `tuple_.get(${JSON.stringify(attr)})`;
+    // Texera stores the condition as either the symbolic short form (=, !=,
+    // >, >=, <, <=) used in the property panel OR the enum-style long form
+    // (EQUAL_TO, NOT_EQUAL_TO, ...) depending on the backend version. Cover
+    // both so the fuse codegen works on older macros too.
     switch (cond) {
+      case "=":
       case "EQUAL_TO":
         return `${lhs} == ${this.literalToPython(value)}`;
+      case "!=":
       case "NOT_EQUAL_TO":
         return `${lhs} != ${this.literalToPython(value)}`;
+      case ">":
       case "GREATER_THAN":
         return `${lhs} > ${this.literalToPython(value)}`;
+      case ">=":
       case "GREATER_THAN_OR_EQUAL_TO":
         return `${lhs} >= ${this.literalToPython(value)}`;
+      case "<":
       case "LESS_THAN":
         return `${lhs} < ${this.literalToPython(value)}`;
+      case "<=":
       case "LESS_THAN_OR_EQUAL_TO":
         return `${lhs} <= ${this.literalToPython(value)}`;
       case "IS_NULL":
+      case "is null":
         return `${lhs} is None`;
       case "IS_NOT_NULL":
+      case "is not null":
         return `${lhs} is not None`;
       default:
         return "";
