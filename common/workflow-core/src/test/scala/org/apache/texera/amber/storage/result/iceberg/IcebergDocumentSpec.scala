@@ -144,9 +144,11 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     }
   }
 
-  it should "report documentExists=true for a created URI and false for a fresh one" in {
+  it should "report documentExists=true for a URI that was created via createDocument" in {
     assert(DocumentFactory.documentExists(uri))
+  }
 
+  it should "report documentExists=false for a URI that was never created" in {
     val freshBase = VFSURIFactory.createPortBaseURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),

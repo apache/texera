@@ -111,6 +111,10 @@ object DocumentFactory {
     *
     * Returns true iff the underlying storage already has an entry for this
     * URI (e.g., an iceberg table at the resolved namespace + storage key).
+    *
+    * @throws UnsupportedOperationException if the URI scheme is not `vfs`.
+    * @throws IllegalArgumentException if the resolved resource type has no
+    *                                  iceberg namespace mapping.
     */
   def documentExists(uri: URI): Boolean = {
     uri.getScheme match {

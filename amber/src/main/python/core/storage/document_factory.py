@@ -45,6 +45,10 @@ class DocumentFactory:
 
     @staticmethod
     def _resolve_namespace(resource_type: VFSResourceType) -> str:
+        # Only RESULT and STATE are mapped here: the Python runtime writes those
+        # tables. CONSOLE_MESSAGES and RUNTIME_STATISTICS are produced exclusively
+        # from the Scala side (see DocumentFactory.scala), so they are intentionally
+        # absent from this mapping and fall through to the unsupported branch.
         match resource_type:
             case VFSResourceType.RESULT:
                 return StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE
@@ -104,6 +108,11 @@ class DocumentFactory:
 
         Returns True iff the underlying storage already has an entry for this
         URI (e.g., an iceberg table at the resolved namespace + storage key).
+
+        Raises:
+            NotImplementedError: if the URI scheme is not ``vfs``.
+            ValueError: if the resolved resource type has no iceberg namespace
+                mapping (see ``_resolve_namespace``).
         """
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
