@@ -36,6 +36,7 @@ import { Workflow } from "../../common/type/workflow";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
+import { WorkflowUtilService } from "../service/workflow-graph/util/workflow-util.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -117,6 +118,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private undoRedoService: UndoRedoService,
     private workflowPersistService: WorkflowPersistService,
     private workflowActionService: WorkflowActionService,
+    private workflowUtilService: WorkflowUtilService,
     private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
@@ -184,6 +186,38 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     this.codeEditorViewRef.clear();
     this.workflowActionService.clearWorkflow();
+  }
+
+  /**
+   * Reads `addOp` + `fileName` query params (set by the dataset file renderer's "Open in
+   * workflow" button) and adds the corresponding scan operator with its `fileName` property
+   * prefilled. Strips the params from the URL on success so a refresh doesn't double-add.
+   *
+   * Runs after `loadWorkflowWithId` completes, so the operator metadata is loaded and the
+   * workflow graph is ready for modification.
+   */
+  handlePendingOperatorAddition(): void {
+    const params = this.route.snapshot.queryParams;
+    const addOp: string | undefined = params.addOp;
+    const fileName: string | undefined = params.fileName;
+    if (!addOp || !fileName) return;
+    try {
+      const operator = this.workflowUtilService.getNewOperatorPredicate(addOp);
+      // Place near the upper-left of the visible viewport.
+      const origin = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.translate();
+      const point = { x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0) };
+      this.workflowActionService.addOperator(operator, point);
+      // Set the file path through the schema-validated mutation API (operatorProperties is readonly).
+      this.workflowActionService.setOperatorProperty(operator.operatorID, {
+        ...operator.operatorProperties,
+        fileName,
+      });
+    } catch (err) {
+      this.notificationService.error(`Could not pre-add operator "${addOp}" — drag it in manually.`);
+    } finally {
+      // Strip query params so a manual refresh doesn't re-add the operator.
+      this.router.navigate([], { relativeTo: this.route, queryParams: {}, preserveFragment: true });
+    }
   }
 
   registerAutoPersistWorkflow(): void {
@@ -260,6 +294,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.setLoadingState(false);
           this.registerAutoPersistWorkflow();
           this.triggerCenter();
+          // If the user arrived via "Open in workflow" from the dataset file renderer,
+          // honor the addOp + fileName query params now that the workflow is fully loaded.
+          this.handlePendingOperatorAddition();
         },
         () => {
           this.workflowActionService.resetAsNewWorkflow();

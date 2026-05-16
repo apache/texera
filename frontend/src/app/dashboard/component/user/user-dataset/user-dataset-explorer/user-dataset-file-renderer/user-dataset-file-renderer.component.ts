@@ -645,28 +645,48 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     return !!this.filePath;
   }
 
-  /** Suggested operator type for this file (used in the post-create notification). */
-  private static getSuggestedOperatorName(filePath: string): string {
+  /**
+   * Map a file's MIME to the scan operator type that handles it. The workspace component
+   * uses this string to build a properly schema-validated operator via WorkflowUtilService.
+   */
+  private static getOperatorTypeForFile(filePath: string): string | null {
     const mime = getMimeType(filePath);
     switch (mime) {
-      case MIME_TYPES.CSV: return "CSV File Scan";
-      case MIME_TYPES.JSON: return "JSONL File Scan";
-      case MIME_TYPES.ARROW: return "Arrow File Scan";
-      case MIME_TYPES.PARQUET: return "Parquet File Scan";
-      default: return "File Scan";
+      case MIME_TYPES.CSV: return "CSVFileScan";
+      case MIME_TYPES.JSON: return "JSONLFileScan";
+      case MIME_TYPES.ARROW: return "ArrowFileScan";
+      case MIME_TYPES.PARQUET: return "ParquetFileScan";
+      case MIME_TYPES.PNG:
+      case MIME_TYPES.JPEG:
+      case MIME_TYPES.WEBP:
+      case MIME_TYPES.GIF:
+      case MIME_TYPES.AVIF:
+      case MIME_TYPES.BMP:
+      case MIME_TYPES.TIFF:
+      case MIME_TYPES.PDF:
+      case MIME_TYPES.MP3:
+      case MIME_TYPES.MP4:
+      case MIME_TYPES.WAV:
+      case MIME_TYPES.FLAC:
+      case MIME_TYPES.WEBM:
+      case MIME_TYPES.MOV:
+      case MIME_TYPES.TXT:
+      case MIME_TYPES.MD:
+        return "FileScan";
+      default:
+        return null;
     }
   }
 
   /**
-   * Creates a new empty workflow and navigates to the editor. We deliberately do NOT
-   * pre-populate the workflow with an operator — hand-constructing operator JSON without
-   * the operator-metadata schema validation tends to produce workflows the editor can't
-   * load. Instead we copy the file path to the clipboard and tell the user which operator
-   * to drag in. Same UX outcome, far more reliable.
+   * Creates a new empty workflow and navigates to the editor. If the file type maps to a
+   * known scan operator, the workspace component picks up the `addOp` + `fileName` query
+   * params after init and adds the operator via the schema-validated path — see
+   * `workspace.component.ts:handlePendingOperatorAddition()`.
    */
   onOpenInWorkflow(): void {
     const fileName = this.filePath.split("/").pop() ?? "file";
-    const suggestedOp = UserDatasetFileRendererComponent.getSuggestedOperatorName(this.filePath);
+    const addOp = UserDatasetFileRendererComponent.getOperatorTypeForFile(this.filePath);
     const workflowContent: WorkflowContent = {
       operators: [],
       commentBoxes: [],
@@ -688,16 +708,10 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
             this.notificationService.error("Workflow created but no ID was returned.");
             return;
           }
-          // Best-effort clipboard copy of the dataset file path so the user can paste it
-          // straight into the operator's File field. Falls back silently if the API isn't
-          // available (insecure context, older browser).
-          if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(this.filePath).catch(() => undefined);
-          }
-          this.notificationService.success(
-            `Workflow created. Drag a "${suggestedOp}" operator and paste the file path (copied to clipboard).`
-          );
-          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(navigated => {
+          // Query params tell the workspace component which operator to auto-add and which
+          // file path to wire into its fileName property. The workspace strips them on use.
+          const queryParams = addOp ? { addOp, fileName: this.filePath } : undefined;
+          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid], { queryParams }).then(navigated => {
             if (!navigated) {
               this.notificationService.error("Navigation to the workflow editor was blocked.");
             }
