@@ -136,6 +136,16 @@
   </li>
   <li
     nz-menu-item
+    *ngIf="canExpandMacro()"
+    (click)="onExpandMacro()">
+    <span
+      nz-icon
+      nzType="expand"
+      nzTheme="outline"></span
+    >expand macro
+  </li>
+  <li
+    nz-menu-item
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
   isWorkflowModifiable"

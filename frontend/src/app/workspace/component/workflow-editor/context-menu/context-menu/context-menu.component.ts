@@ -159,6 +159,202 @@ export class ContextMenuComponent {
    * node that has the same external boundary (input/output ports rewired to
    * whichever external operators were feeding / consuming the selection).
    */
+  /**
+   * Inverse of `onCreateMacro` — the user has highlighted exactly one Macro
+   * instance and wants to "expand" it back into its constituent sub-DAG on
+   * the parent canvas. Inline the body operators (with fresh IDs to avoid
+   * collisions), reproduce internal links, and rewire each external link
+   * touching the macro from its port back to the corresponding boundary
+   * inner op + port. The macro op is then removed.
+   *
+   * v1: only LIVE-linked macros are supported (body fetched via the registry).
+   * SNAPSHOT (embedded body) would need to read `operatorProperties.snapshot`
+   * instead of going through `getMacro`.
+   */
+  public canExpandMacro(): boolean {
+    if (!this.isWorkflowModifiable) return false;
+    if (this.highlightedOperatorIds.length !== 1) return false;
+    const opId = this.highlightedOperatorIds[0];
+    const op = (() => {
+      try {
+        return this.workflowActionService.getTexeraGraph().getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    return op?.operatorType === "Macro" && typeof op.operatorProperties?.["macroId"] === "string";
+  }
+
+  public onExpandMacro(): void {
+    const opId = this.highlightedOperatorIds[0];
+    if (!opId) return;
+    const graph = this.workflowActionService.getTexeraGraph();
+    const macroOp = (() => {
+      try {
+        return graph.getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    if (!macroOp) return;
+    const macroId = macroOp.operatorProperties?.["macroId"];
+    if (typeof macroId !== "string" || macroId.length === 0) {
+      this.notificationService.error("Macro has no macroId — can't expand.");
+      return;
+    }
+    const widNum = Number(macroId);
+    if (!Number.isFinite(widNum)) {
+      this.notificationService.error(`Invalid macroId: ${macroId}`);
+      return;
+    }
+    this.macroService
+      .getMacro(widNum)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: detail => {
+          try {
+            this.inlineMacroBody(macroOp, detail);
+            this.notificationService.success(`Expanded "${detail.name}" onto the canvas.`);
+          } catch (e) {
+            this.notificationService.error(`Expand failed: ${(e as Error)?.message ?? e}`);
+          }
+        },
+        error: err => this.notificationService.error(`Failed to load macro body: ${err?.message ?? err}`),
+      });
+  }
+
+  /**
+   * Inline the macro's body operators + links onto the parent canvas, rewire
+   * external links so each one targets the right boundary inner op + port,
+   * and remove the macro op + its outer links. New unique IDs are assigned
+   * to body operators so re-expanding the same macro elsewhere doesn't
+   * collide.
+   *
+   * Layout: body ops are laid out around the macro op's former position.
+   * Crude column layout (input markers → inner → output markers) gets the
+   * job done without a real layout pass.
+   */
+  private inlineMacroBody(macroOp: OperatorPredicate, detail: MacroDetail): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    // Parse the body via the existing macroDetailToWorkflow normalizer so we
+    // get OperatorPredicate-shaped ops and OperatorLink-shaped links.
+    const macroWorkflow = this.macroService.macroDetailToWorkflow(detail);
+    const bodyOps = macroWorkflow.content.operators.filter(
+      o => o.operatorType !== "MacroInput" && o.operatorType !== "MacroOutput"
+    );
+    const inputMarkers = macroWorkflow.content.operators.filter(o => o.operatorType === "MacroInput");
+    const outputMarkers = macroWorkflow.content.operators.filter(o => o.operatorType === "MacroOutput");
+    const markerIds = new Set([...inputMarkers, ...outputMarkers].map(o => o.operatorID));
+
+    // Assign fresh IDs to inner ops so re-using the same macro elsewhere
+    // doesn't collide. Map body-relative ID → fresh canvas ID.
+    const idRewrite = new Map<string, string>();
+    bodyOps.forEach(op => {
+      const fresh = `${op.operatorType}-operator-${this.workflowUtilService.getOperatorRandomUUID()}`;
+      idRewrite.set(op.operatorID, fresh);
+    });
+
+    // Anchor positions around the macro's old location (crude column layout).
+    const macroPos = this.workflowActionService.getJointGraphWrapper().getElementPosition(macroOp.operatorID);
+    const baseX = macroPos.x;
+    const baseY = macroPos.y;
+    const colSpacing = 180;
+    const rowSpacing = 120;
+
+    const positionedOps: { op: OperatorPredicate; pos: Point }[] = bodyOps.map((op, idx) => ({
+      op: { ...op, operatorID: idRewrite.get(op.operatorID)! },
+      pos: { x: baseX + (idx % 3) * colSpacing, y: baseY + Math.floor(idx / 3) * rowSpacing },
+    }));
+
+    // Internal links (not touching marker ops). Rewrite both endpoints.
+    const internalLinks = macroWorkflow.content.links
+      .filter(l => !markerIds.has(l.source.operatorID) && !markerIds.has(l.target.operatorID))
+      .map(l => ({
+        linkID: this.workflowUtilService.getLinkRandomUUID(),
+        source: { operatorID: idRewrite.get(l.source.operatorID)!, portID: l.source.portID },
+        target: { operatorID: idRewrite.get(l.target.operatorID)!, portID: l.target.portID },
+      }));
+
+    // Body links from MacroInput markers to inner ops give us (portIndex →
+    // [(innerOpId, innerPortID)]) — the same lookup table MacroExpander uses
+    // on the backend. We need it here to rewire each external incoming link
+    // (which currently terminates at `macroOp@port_X`) to the corresponding
+    // inner op port.
+    const inputBindings = new Map<number, { innerOpId: string; innerPortID: string }[]>();
+    for (const m of inputMarkers) {
+      const portIndex = m.operatorProperties?.["portIndex"];
+      if (typeof portIndex !== "number") continue;
+      const consumers = macroWorkflow.content.links
+        .filter(l => l.source.operatorID === m.operatorID && !markerIds.has(l.target.operatorID))
+        .map(l => ({
+          innerOpId: idRewrite.get(l.target.operatorID)!,
+          innerPortID: l.target.portID,
+        }));
+      inputBindings.set(portIndex, consumers);
+    }
+    const outputBindings = new Map<number, { innerOpId: string; innerPortID: string }>();
+    for (const m of outputMarkers) {
+      const portIndex = m.operatorProperties?.["portIndex"];
+      if (typeof portIndex !== "number") continue;
+      const producer = macroWorkflow.content.links.find(
+        l => l.target.operatorID === m.operatorID && !markerIds.has(l.source.operatorID)
+      );
+      if (producer) {
+        outputBindings.set(portIndex, {
+          innerOpId: idRewrite.get(producer.source.operatorID)!,
+          innerPortID: producer.source.portID,
+        });
+      }
+    }
+
+    // Find the parent canvas links that touch the macro and need rewiring.
+    // Frontend port IDs are `input-i` / `output-j`; the trailing integer is
+    // the external port index we map against.
+    const portIdToIndex = (portID: string): number | undefined => {
+      const m = portID.match(/(\d+)$/);
+      return m ? Number(m[1]) : undefined;
+    };
+    const incomingRewires: { source: { operatorID: string; portID: string }; targets: { operatorID: string; portID: string }[] }[] = [];
+    const outgoingRewires: { source: { operatorID: string; portID: string }; target: { operatorID: string; portID: string } }[] = [];
+    for (const link of graph.getAllLinks()) {
+      if (link.target.operatorID === macroOp.operatorID) {
+        const portIndex = portIdToIndex(link.target.portID);
+        if (portIndex === undefined) continue;
+        const consumers = inputBindings.get(portIndex) ?? [];
+        incomingRewires.push({ source: link.source, targets: consumers.map(c => ({ operatorID: c.innerOpId, portID: c.innerPortID })) });
+      } else if (link.source.operatorID === macroOp.operatorID) {
+        const portIndex = portIdToIndex(link.source.portID);
+        if (portIndex === undefined) continue;
+        const producer = outputBindings.get(portIndex);
+        if (producer) {
+          outgoingRewires.push({ source: { operatorID: producer.innerOpId, portID: producer.innerPortID }, target: link.target });
+        }
+      }
+    }
+
+    // Apply all of it atomically so undo collapses to one step.
+    graph.bundleActions(() => {
+      this.workflowActionService.addOperatorsAndLinks(positionedOps, internalLinks);
+      for (const rw of incomingRewires) {
+        for (const target of rw.targets) {
+          this.workflowActionService.addLink({
+            linkID: this.workflowUtilService.getLinkRandomUUID(),
+            source: rw.source,
+            target,
+          });
+        }
+      }
+      for (const rw of outgoingRewires) {
+        this.workflowActionService.addLink({
+          linkID: this.workflowUtilService.getLinkRandomUUID(),
+          source: rw.source,
+          target: rw.target,
+        });
+      }
+      this.workflowActionService.deleteOperatorsAndLinks([macroOp.operatorID]);
+    });
+  }
+
   public onCreateMacro(): void {
     const selected = Array.from(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
     if (selected.length < 2) {
