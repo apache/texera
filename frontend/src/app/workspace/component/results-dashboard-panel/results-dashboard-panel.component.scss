@@ -1,0 +1,171 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  z-index: 3;
+  pointer-events: none;
+}
+
+:host > * {
+  pointer-events: auto;
+}
+
+#results-dashboard-container {
+  position: absolute;
+  top: calc(-100% + 80px);
+  right: 480px; // offset left of the agent panel docked area
+  z-index: 3;
+  background: white;
+  border-radius: 6px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+#dashboard-title {
+  padding: 6px 10px;
+  border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  z-index: 2;
+  font-weight: 600;
+  cursor: move;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dashboard-timestamp {
+  font-weight: 400;
+  color: #888;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+#results-dashboard-docked-button {
+  position: fixed;
+  bottom: 100px;
+  right: 10px;
+  z-index: 4;
+  background: white;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+#dashboard-return-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+}
+
+#dashboard-content {
+  width: 100%;
+  height: 100%;
+  padding-top: 36px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dashboard-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+}
+
+.dashboard-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.dashboard-report {
+  font-size: 13px;
+
+  ::ng-deep {
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0;
+
+      th,
+      td {
+        border: 1px solid #d9d9d9;
+        padding: 6px 10px;
+        text-align: left;
+      }
+
+      th {
+        background: #fafafa;
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: #fcfcfc;
+      }
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    code {
+      background: #f5f5f5;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+
+    pre code {
+      display: block;
+      padding: 8px;
+    }
+  }
+}
+
+.shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}

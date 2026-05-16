@@ -33,6 +33,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subject } from "rxjs";
 import { distinctUntilChanged, filter, pairwise, startWith, takeUntil } from "rxjs/operators";
 import { AgentState, ReActStep } from "../../../../service/agent/agent-types";
+import { AgentReportService, extractReport } from "../../../../service/agent/agent-report.service";
 import { AgentInfo, AgentService } from "../../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -155,8 +156,39 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
-    private workflowPersistService: WorkflowPersistService
+    private workflowPersistService: WorkflowPersistService,
+    private agentReportService: AgentReportService
   ) {}
+
+  /** Content of an agent step with REPORT markers stripped — what we render inline. */
+  public getDisplayContent(step: ReActStep): string {
+    return extractReport(step.content || "").inline;
+  }
+
+  /** True when the step contained a REPORT_START/END block (we show a "view report" card for these). */
+  public hasReport(step: ReActStep): boolean {
+    return !!extractReport(step.content || "").report;
+  }
+
+  public openResultsDashboard(): void {
+    this.agentReportService.requestOpen();
+  }
+
+  private publishLatestReport(): void {
+    for (let i = this.visibleSteps.length - 1; i >= 0; i--) {
+      const step = this.visibleSteps[i];
+      if (step.role !== "agent") continue;
+      const { report } = extractReport(step.content || "");
+      if (!report) continue;
+      const stepTime = step.timestamp instanceof Date ? step.timestamp.getTime() : Number(step.timestamp);
+      this.agentReportService.publish({
+        markdown: report,
+        timestamp: Number.isFinite(stepTime) ? stepTime : Date.now(),
+        sourceId: step.id,
+      });
+      return;
+    }
+  }
 
   ngOnInit(): void {
     if (!this.agentInfo) {
@@ -199,6 +231,10 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.agentResponses = steps;
         this.updateVisibleSteps();
         this.shouldScrollToBottom = true;
+
+        // Push any new agent reports into the Results Dashboard panel. Only the
+        // most recent report is kept; sourceId dedups against re-emissions.
+        this.publishLatestReport();
 
         // Automatically highlight the latest visible step
         if (this.visibleSteps.length > 0) {

@@ -393,3 +393,33 @@
     }
   }
 }
+
+.report-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6f4ff 100%);
+  border: 1px solid #91caff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, #e6f4ff 0%, #cfe7ff 100%);
+    border-color: #4096ff;
+  }
+
+  .report-card-text {
+    font-weight: 500;
+    color: #1677ff;
+  }
+
+  .report-card-link {
+    color: #1677ff;
+    font-weight: 500;
+    margin-left: auto;
+  }
+}

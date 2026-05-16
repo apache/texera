@@ -114,9 +114,19 @@
             (mouseleave)="setHoveredMessage(null)"
             style="position: relative">
             <div
-              *ngIf="response.content"
+              *ngIf="getDisplayContent(response)"
               class="message-content">
-              <markdown [data]="response.content"></markdown>
+              <markdown [data]="getDisplayContent(response)"></markdown>
+            </div>
+            <div
+              *ngIf="hasReport(response)"
+              class="report-card"
+              (click)="openResultsDashboard()"
+              nz-tooltip
+              nzTooltipTitle="Open the Results Dashboard">
+              <span nz-icon nzType="bar-chart"></span>
+              <span class="report-card-text">Results ready</span>
+              <span class="report-card-link">View Report →</span>
             </div>
             <div
               *ngIf="response.toolCalls && response.toolCalls.length > 0"

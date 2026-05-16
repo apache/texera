@@ -1,0 +1,98 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<button
+  id="results-dashboard-docked-button"
+  nz-button
+  nzType="default"
+  nzShape="circle"
+  nzSize="large"
+  (click)="openPanel()"
+  *ngIf="!width"
+  nz-tooltip
+  nzTooltipPlacement="left"
+  nzTooltipTitle="Results Dashboard">
+  <span nz-icon nzType="bar-chart"></span>
+</button>
+
+<div
+  cdkDrag
+  cdkDragBoundary="texera-workspace"
+  id="results-dashboard-container"
+  class="box"
+  nz-resizable
+  [nzMinWidth]="400"
+  [nzMinHeight]="400"
+  [nzMaxWidth]="window.innerWidth * 0.9"
+  [nzMaxHeight]="window.innerHeight * 0.9"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)"
+  [cdkDragFreeDragPosition]="dragPosition">
+
+  <ul id="dashboard-return-button" nz-menu [ngClass]="{'shadow': !width}" *ngIf="width">
+    <li nz-menu-item (click)="openPanel()">
+      <span nz-icon nzType="minus"></span>
+    </li>
+  </ul>
+
+  <div id="dashboard-content" [hidden]="!width">
+    <div id="dashboard-title" cdkDragHandle>
+      <span nz-icon nzType="bar-chart" style="margin-right: 6px"></span>
+      <span>Results Dashboard</span>
+      <span class="dashboard-timestamp" *ngIf="report">
+        · {{ report.timestamp | date:'short' }}
+      </span>
+    </div>
+
+    <div class="dashboard-toolbar" *ngIf="report">
+      <button
+        nz-button
+        nzSize="small"
+        (click)="copyMarkdown()"
+        nz-tooltip
+        nzTooltipTitle="Copy report markdown">
+        <span nz-icon nzType="copy"></span>
+        Copy
+      </button>
+      <button
+        nz-button
+        nzSize="small"
+        (click)="exportMarkdown()"
+        nz-tooltip
+        nzTooltipTitle="Download as .md file">
+        <span nz-icon nzType="download"></span>
+        Export
+      </button>
+    </div>
+
+    <div class="dashboard-body">
+      <div *ngIf="!report" class="dashboard-empty">
+        <nz-empty
+          nzNotFoundImage="simple"
+          nzNotFoundContent="No agent analysis yet. Ask the agent to build and evaluate a workflow — when it produces a results summary, it will appear here."></nz-empty>
+      </div>
+      <div *ngIf="report" class="dashboard-report">
+        <markdown [data]="report.markdown"></markdown>
+      </div>
+    </div>
+
+    <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
+  </div>
+</div>
