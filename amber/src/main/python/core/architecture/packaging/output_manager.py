@@ -225,7 +225,7 @@ class OutputManager:
         elif port_id in self._port_state_writers:
             self._port_state_writers[port_id][0].put(element)
 
-    def reset_loopend_storage(self) -> None:
+    def reset_storage(self) -> None:
         port_id = self.get_port_ids()[0]
         storage_uri_base = self._storage_uri_base
         self.close_port_storage_writers()
