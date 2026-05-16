@@ -153,6 +153,36 @@
                 nzTheme="outline"></i>
               {{ group.operatorName }}
             </button>
+
+            <div
+              *ngIf="(draftOperatorId$ | async) === group.operatorId"
+              class="new-thread-composer">
+              <textarea
+                rows="2"
+                placeholder="Start a new comment thread on this operator…"
+                [(ngModel)]="newThreadDraft"
+                (keydown)="onNewThreadKeydown($event, group.operatorId)"
+                autofocus></textarea>
+              <div class="composer-actions">
+                <button
+                  nz-button
+                  nzSize="small"
+                  type="button"
+                  (click)="cancelNewThread()">
+                  Cancel
+                </button>
+                <button
+                  nz-button
+                  nzType="primary"
+                  nzSize="small"
+                  type="button"
+                  [disabled]="!newThreadDraft.trim()"
+                  (click)="submitNewThread(group.operatorId)">
+                  Comment
+                </button>
+              </div>
+            </div>
+
             <div
               *ngFor="let thread of group.threads; trackBy: trackThread"
               class="comment-thread"

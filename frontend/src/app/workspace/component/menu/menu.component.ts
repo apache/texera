@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
+import { AsyncPipe, DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
@@ -74,6 +74,9 @@ import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { CollaborationService } from "../../service/collaboration/collaboration.service";
+import { map, startWith } from "rxjs/operators";
+import { Observable } from "rxjs";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -122,6 +125,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzTooltipDirective,
     DatePipe,
     NzSpaceCompactComponent,
+    AsyncPipe,
   ],
 })
 export class MenuComponent implements OnInit, OnDestroy {
@@ -160,6 +164,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
+  public unresolvedCommentCount$!: Observable<number>;
+
   // Computing unit status variables
   private computingUnitStatusSubscription: Subscription = new Subscription();
   public selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
@@ -189,7 +195,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    public collaborationService: CollaborationService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -205,6 +212,11 @@ export class MenuComponent implements OnInit, OnDestroy {
             });
         }
       });
+    this.unresolvedCommentCount$ = this.collaborationService.unresolvedCountsByOperator$().pipe(
+      map(counts => Array.from(counts.values()).reduce((a, b) => a + b, 0)),
+      startWith(0)
+    );
+
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid

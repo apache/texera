@@ -254,6 +254,36 @@
   }
 }
 
+.new-thread-composer {
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+
+  textarea {
+    width: 100%;
+    border: 1px solid #f0e0a4;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+
+    &:focus {
+      border-color: #faad14;
+    }
+  }
+
+  .composer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 6px;
+  }
+}
+
 .comment-thread {
   border: 1px solid #f0f0f0;
   border-radius: 8px;

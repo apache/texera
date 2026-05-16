@@ -25,6 +25,7 @@ import { v4 as uuid } from "uuid";
 import { UserService } from "../../../common/service/user/user.service";
 import { CoeditorState } from "../../../common/type/user";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import {
   ChatMessage,
   CollaborationTab,
@@ -57,6 +58,7 @@ export class CollaborationService {
   private readonly openSubject = new BehaviorSubject<boolean>(false);
   private readonly activeTabSubject = new BehaviorSubject<CollaborationTab>("chat");
   private readonly awarenessTickSubject = new BehaviorSubject<number>(Date.now());
+  private readonly draftThreadOperatorIdSubject = new BehaviorSubject<string | null>(null);
   private readonly lastActivityByClient = new Map<string, number>();
 
   private chatArr?: Y.Array<ChatMessage>;
@@ -70,7 +72,7 @@ export class CollaborationService {
     private userService: UserService
   ) {
     this.attach();
-    this.workflowActionService.getTexeraGraph().newYDocLoadedSubject.subscribe(() => this.attach());
+    (this.workflowActionService.getTexeraGraph() as unknown as WorkflowGraph).newYDocLoadedSubject.subscribe(() => this.attach());
     // Tick periodically so idle status updates without external events.
     interval(PRESENCE_TICK_MS).subscribe(() => this.awarenessTickSubject.next(Date.now()));
   }
@@ -78,7 +80,7 @@ export class CollaborationService {
   // ───────────────────── attach / lifecycle ─────────────────────
 
   private attach(): void {
-    const graph = this.workflowActionService.getTexeraGraph();
+    const graph = (this.workflowActionService.getTexeraGraph() as unknown as WorkflowGraph);
     const sharedModel = graph?.sharedModel;
     if (!sharedModel) return;
 
@@ -87,13 +89,13 @@ export class CollaborationService {
     this.chatArr = sharedModel.yDoc.getArray<ChatMessage>(CHAT_Y_KEY);
     this.commentsArr = sharedModel.yDoc.getArray<OperatorComment>(COMMENTS_Y_KEY);
 
-    this.chatSubject.next(this.chatArr.toArray());
-    this.commentsSubject.next(this.commentsArr.toArray());
+    this.chatSubject.next(this.chatArr!.toArray());
+    this.commentsSubject.next(this.commentsArr!.toArray());
 
     this.chatObserver = () => this.chatSubject.next(this.chatArr!.toArray());
     this.commentsObserver = () => this.commentsSubject.next(this.commentsArr!.toArray());
-    this.chatArr.observe(this.chatObserver);
-    this.commentsArr.observe(this.commentsObserver);
+    this.chatArr!.observe(this.chatObserver);
+    this.commentsArr!.observe(this.commentsObserver);
 
     this.lastActivityByClient.clear();
     this.bumpAwarenessActivity();
@@ -105,7 +107,7 @@ export class CollaborationService {
   private detach(): void {
     if (this.chatArr && this.chatObserver) this.chatArr.unobserve(this.chatObserver);
     if (this.commentsArr && this.commentsObserver) this.commentsArr.unobserve(this.commentsObserver);
-    const sharedModel = this.workflowActionService.getTexeraGraph()?.sharedModel;
+    const sharedModel = (this.workflowActionService.getTexeraGraph() as unknown as WorkflowGraph)?.sharedModel;
     if (sharedModel && this.awarenessObserver) sharedModel.awareness.off("change", this.awarenessObserver);
     this.chatObserver = undefined;
     this.commentsObserver = undefined;
@@ -153,6 +155,20 @@ export class CollaborationService {
 
   public setActiveTab(tab: CollaborationTab): void {
     this.activeTabSubject.next(tab);
+  }
+
+  public startNewThreadForOperator(operatorId: string): void {
+    this.draftThreadOperatorIdSubject.next(operatorId);
+    this.activeTabSubject.next("comments");
+    this.openSubject.next(true);
+  }
+
+  public clearDraftThreadOperator(): void {
+    this.draftThreadOperatorIdSubject.next(null);
+  }
+
+  public draftThreadOperatorId$(): Observable<string | null> {
+    return this.draftThreadOperatorIdSubject.asObservable();
   }
 
   // ───────────────────── chat ─────────────────────
@@ -237,7 +253,7 @@ export class CollaborationService {
 
   public toggleResolveThread(rootCommentId: string): void {
     if (!this.commentsArr) return;
-    const sharedModel = this.workflowActionService.getTexeraGraph().sharedModel;
+    const sharedModel = (this.workflowActionService.getTexeraGraph() as unknown as WorkflowGraph).sharedModel;
     const list = this.commentsArr.toArray();
     const idx = list.findIndex(c => c.id === rootCommentId);
     if (idx < 0) return;
@@ -275,7 +291,7 @@ export class CollaborationService {
   public onlineUsers$(): Observable<OnlineUserSnapshot[]> {
     return merge(
       this.awarenessTickSubject,
-      this.workflowActionService.getTexeraGraph().newYDocLoadedSubject
+      (this.workflowActionService.getTexeraGraph() as unknown as WorkflowGraph).newYDocLoadedSubject
     ).pipe(
       map(() => this.buildOnlineUsers()),
       distinctUntilChanged((a, b) => this.serializeSnapshots(a) === this.serializeSnapshots(b))
@@ -283,7 +299,7 @@ export class CollaborationService {
   }
 
   private buildOnlineUsers(): OnlineUserSnapshot[] {
-    const sharedModel = this.workflowActionService.getTexeraGraph()?.sharedModel;
+    const sharedModel = (this.workflowActionService.getTexeraGraph() as unknown as WorkflowGraph)?.sharedModel;
     if (!sharedModel) return [];
     const states = this.getAwarenessStates();
     const localClientId = sharedModel.clientId;
@@ -316,7 +332,7 @@ export class CollaborationService {
   }
 
   private getAwarenessStates(): Map<number, CoeditorState> {
-    const sharedModel = this.workflowActionService.getTexeraGraph()?.sharedModel;
+    const sharedModel = (this.workflowActionService.getTexeraGraph() as unknown as WorkflowGraph)?.sharedModel;
     if (!sharedModel) return new Map();
     return sharedModel.awareness.getStates() as Map<number, CoeditorState>;
   }

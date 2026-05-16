@@ -18,13 +18,13 @@
  */
 
 import { AfterViewChecked, Component, ElementRef, OnInit, ViewChild } from "@angular/core";
-import { AsyncPipe, DatePipe, NgClass, NgFor, NgIf } from "@angular/common";
+import { AsyncPipe, DatePipe, NgClass, NgFor, NgIf, NgSwitch, NgSwitchCase } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzTagComponent } from "ng-zorro-antd/tag";
-import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { combineLatest, Observable } from "rxjs";
 import { map } from "rxjs/operators";
 import { CollaborationService } from "../../service/collaboration/collaboration.service";
@@ -56,10 +56,12 @@ interface CommentsTabViewModel {
     NgClass,
     NgFor,
     NgIf,
+    NgSwitch,
+    NgSwitchCase,
     NzButtonComponent,
     NzIconDirective,
     NzTagComponent,
-    NzToolTipModule,
+    NzTooltipModule,
   ],
 })
 export class CollaborationPanelComponent implements OnInit, AfterViewChecked {
@@ -74,6 +76,8 @@ export class CollaborationPanelComponent implements OnInit, AfterViewChecked {
   public chatDraft = "";
   public replyDraftByThread: Record<string, string> = {};
   public showResolved = false;
+  public draftOperatorId$: Observable<string | null>;
+  public newThreadDraft = "";
 
   private prevChatLength = 0;
 
@@ -85,7 +89,10 @@ export class CollaborationPanelComponent implements OnInit, AfterViewChecked {
     this.activeTab$ = this.collab.activeTab$();
     this.chatMessages$ = this.collab.chat$();
     this.online$ = this.collab.onlineUsers$();
-    this.comments$ = this.collab.threads$().pipe(map(threads => this.groupThreads(threads)));
+    this.comments$ = combineLatest([this.collab.threads$(), this.collab.draftThreadOperatorId$()]).pipe(
+      map(([threads, draftId]) => this.groupThreads(threads, draftId))
+    );
+    this.draftOperatorId$ = this.collab.draftThreadOperatorId$();
   }
 
   ngOnInit(): void {
@@ -155,6 +162,28 @@ export class CollaborationPanelComponent implements OnInit, AfterViewChecked {
     this.collab.toggleResolveThread(thread.root.id);
   }
 
+  public submitNewThread(operatorId: string): void {
+    const text = this.newThreadDraft.trim();
+    if (!text) return;
+    this.collab.addComment(operatorId, text);
+    this.newThreadDraft = "";
+    this.collab.clearDraftThreadOperator();
+  }
+
+  public cancelNewThread(): void {
+    this.newThreadDraft = "";
+    this.collab.clearDraftThreadOperator();
+  }
+
+  public onNewThreadKeydown(event: KeyboardEvent, operatorId: string): void {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      this.submitNewThread(operatorId);
+    } else if (event.key === "Escape") {
+      this.cancelNewThread();
+    }
+  }
+
   public trackThread = (_: number, thread: OperatorCommentThread) => thread.root.id;
   public trackReply = (_: number, reply: { id: string }) => reply.id;
   public trackMessage = (_: number, msg: ChatMessage) => msg.id;
@@ -170,20 +199,29 @@ export class CollaborationPanelComponent implements OnInit, AfterViewChecked {
     return op?.customDisplayName || op?.operatorType || operatorId;
   }
 
-  private groupThreads(threads: OperatorCommentThread[]): CommentsTabViewModel {
+  private groupThreads(threads: OperatorCommentThread[], draftOperatorId: string | null): CommentsTabViewModel {
     const groups = new Map<string, OperatorCommentThread[]>();
     for (const t of threads) {
       const list = groups.get(t.operatorId) ?? [];
       list.push(t);
       groups.set(t.operatorId, list);
     }
-    return {
-      byOperator: Array.from(groups.entries()).map(([operatorId, ts]) => ({
-        operatorId,
-        operatorName: this.operatorDisplayName(operatorId),
-        threads: ts,
-      })),
-    };
+    if (draftOperatorId && !groups.has(draftOperatorId)) {
+      groups.set(draftOperatorId, []);
+    }
+    const entries = Array.from(groups.entries()).map(([operatorId, ts]) => ({
+      operatorId,
+      operatorName: this.operatorDisplayName(operatorId),
+      threads: ts,
+    }));
+    if (draftOperatorId) {
+      entries.sort((a, b) => {
+        if (a.operatorId === draftOperatorId) return -1;
+        if (b.operatorId === draftOperatorId) return 1;
+        return 0;
+      });
+    }
+    return { byOperator: entries };
   }
 
   // ───────────────────── online tab helpers ─────────────────────
