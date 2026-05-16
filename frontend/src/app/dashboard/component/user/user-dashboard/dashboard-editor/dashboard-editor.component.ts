@@ -216,6 +216,10 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
     return (totalWidth - GUTTER * (COLS - 1)) / COLS;
   }
 
+  trackByWidgetId(_index: number, w: DashboardWidget): string {
+    return w.id;
+  }
+
   widgetStyle(w: DashboardWidget): { [k: string]: string } {
     const colWidth = `calc((100% - ${GUTTER * (COLS - 1)}px) / ${COLS})`;
     return {

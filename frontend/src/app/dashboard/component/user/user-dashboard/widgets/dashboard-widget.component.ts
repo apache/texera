@@ -3,7 +3,7 @@
  * no external charting library, no plotly, no d3.
  */
 
-import { Component, Input } from "@angular/core";
+import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import {
@@ -31,9 +31,33 @@ interface DonutSlice {
   templateUrl: "./dashboard-widget.component.html",
   styleUrls: ["./dashboard-widget.component.scss"],
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardWidgetComponent {
-  @Input() widget!: WidgetConfig;
+  private _widget!: WidgetConfig;
+  /** Cached SafeHtml — recomputed only when the underlying htmlContent
+   *  string actually changes. Without this, the getter returned a fresh
+   *  SafeHtml object on every CD cycle and the iframe's [srcdoc] binding
+   *  thrashed, causing the embedded Plotly chart to flicker. */
+  private _cachedHtml: string | null = null;
+  private _safeHtmlContent: SafeHtml | null = null;
+
+  @Input() set widget(value: WidgetConfig) {
+    this._widget = value;
+    if (value && value.type === "html") {
+      const next = value.config.htmlContent ?? "";
+      if (next !== this._cachedHtml) {
+        this._cachedHtml = next;
+        this._safeHtmlContent = this.sanitizer.bypassSecurityTrustHtml(next);
+      }
+    } else {
+      this._cachedHtml = null;
+      this._safeHtmlContent = null;
+    }
+  }
+  get widget(): WidgetConfig {
+    return this._widget;
+  }
 
   constructor(private sanitizer: DomSanitizer) {}
 
@@ -61,11 +85,11 @@ export class DashboardWidgetComponent {
 
   /**
    * The iframe's srcdoc bypasses Angular sanitization so inline Plotly
-   * scripts in the HTML actually execute. This mirrors what Texera's
-   * VisualizationFrameContentComponent does for the same kind of payload.
+   * scripts in the HTML actually execute. Returns the cached SafeHtml
+   * computed in the widget setter — never recomputes per CD cycle.
    */
-  get safeHtmlContent(): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.html.htmlContent ?? "");
+  get safeHtmlContent(): SafeHtml | null {
+    return this._safeHtmlContent;
   }
 
   // --- Bar chart helpers ---------------------------------------------------

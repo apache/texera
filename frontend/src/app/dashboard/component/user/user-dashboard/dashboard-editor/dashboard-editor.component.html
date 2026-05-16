@@ -64,7 +64,7 @@
     [style.height.px]="gridHeight()"
     *ngIf="dashboard">
     <div
-      *ngFor="let w of dashboard.widgets"
+      *ngFor="let w of dashboard.widgets; trackBy: trackByWidgetId"
       class="widget-cell"
       [class.editable]="mode === 'edit'"
       [ngStyle]="widgetStyle(w)"
