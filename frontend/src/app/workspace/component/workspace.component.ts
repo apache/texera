@@ -295,7 +295,19 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.macroEditMode = true;
           this.macroEditName = detail.name;
           this.parentWorkflowId = this.route.snapshot.params.id ?? "";
-          const macroWorkflow = this.macroService.macroDetailToWorkflow(detail);
+          // Override the workflow metadata's wid to the parent's wid (not the
+          // macro definition's). This is what `ComputingUnitSelectionComponent`
+          // reads when deciding which workflow id to open the execution
+          // websocket against; we want it on the parent so live execution
+          // stats from the parent's run still flow into this drilled-down
+          // view (via the `?instance=...` prefix machinery in
+          // `WorkflowEditorComponent`). Caveat: persisting workflow changes
+          // is disabled in drill-down anyway, so the spoofed wid is safe.
+          const macroWorkflowRaw = this.macroService.macroDetailToWorkflow(detail);
+          const parentWidNum = Number(this.parentWorkflowId);
+          const macroWorkflow = Number.isFinite(parentWidNum)
+            ? { ...macroWorkflowRaw, wid: parentWidNum }
+            : macroWorkflowRaw;
           // Joining the macro definition's YJS room replays every historical
           // operator/link the room ever held, dueling with `reloadWorkflow`'s
           // own pushes and triggering cascading duplicate-link rejections
