@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.storage.model._
 import org.apache.texera.amber.core.storage.result.iceberg.IcebergDocument
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil
+import org.apache.iceberg.catalog.TableIdentifier
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
 
@@ -117,7 +118,9 @@ object DocumentFactory {
         val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
         val namespace = resolveNamespace(resourceType)
-        IcebergUtil.tableExists(IcebergCatalogInstance.getInstance(), namespace, storageKey)
+        IcebergCatalogInstance
+          .getInstance()
+          .tableExists(TableIdentifier.of(namespace, storageKey))
 
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
