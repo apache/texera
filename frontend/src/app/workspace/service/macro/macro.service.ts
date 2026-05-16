@@ -187,32 +187,52 @@ export class MacroService {
       else if (srcIn && !dstIn) outgoing.push(entry);
     });
 
-    // Allocate one MacroInput marker per unique (innerOp, innerPort) that is
-    // fed by at least one external link. A single marker can have multiple
-    // external feeders but it only drives one inner port.
-    const incomingKeys = Array.from(new Set(incoming.map(l => `${l.dstOp}|${l.dstPort}`))).sort();
-    const inputMarkers = incomingKeys.map((key, idx) => {
-      const [innerOpId, innerPortID] = key.split("|");
-      return {
-        markerOpId: `MacroInput-operator-${uuid()}`,
-        portIndex: idx,
-        innerOpId,
-        innerPortID,
-        innerPortIdx: inputPortOrdinal(innerOpId, innerPortID),
-      };
+    // Preserve the sub-DAG's full external interface, not just the ports that
+    // happen to be wired up at macro-creation time. Replacing a sub-DAG with a
+    // macro op is a dataflow-equivalence transformation: every input port on
+    // the selection that isn't fed by another selected op is a boundary input
+    // (regardless of whether an external feeder is currently connected), and
+    // symmetrically for output ports. That way a selection of
+    // Filter → Projection where Projection's output is currently unwired still
+    // surfaces that output as an external macro port the user can connect later.
+    const internallyFedInputPorts = new Set(internal.map(l => `${l.dstOp}|${l.dstPort}`));
+    const internallyConsumedOutputPorts = new Set(internal.map(l => `${l.srcOp}|${l.srcPort}`));
+
+    type BoundaryPort = { innerOpId: string; innerPortID: string; innerPortIdx: number };
+    const boundaryInputPorts: BoundaryPort[] = [];
+    const boundaryOutputPorts: BoundaryPort[] = [];
+    selectedOperatorIDs.forEach(opId => {
+      const op = graph.getOperator(opId);
+      op.inputPorts.forEach((port, idx) => {
+        if (!internallyFedInputPorts.has(`${opId}|${port.portID}`)) {
+          boundaryInputPorts.push({ innerOpId: opId, innerPortID: port.portID, innerPortIdx: idx });
+        }
+      });
+      op.outputPorts.forEach((port, idx) => {
+        if (!internallyConsumedOutputPorts.has(`${opId}|${port.portID}`)) {
+          boundaryOutputPorts.push({ innerOpId: opId, innerPortID: port.portID, innerPortIdx: idx });
+        }
+      });
     });
 
-    const outgoingKeys = Array.from(new Set(outgoing.map(l => `${l.srcOp}|${l.srcPort}`))).sort();
-    const outputMarkers = outgoingKeys.map((key, idx) => {
-      const [innerOpId, innerPortID] = key.split("|");
-      return {
-        markerOpId: `MacroOutput-operator-${uuid()}`,
-        portIndex: idx,
-        innerOpId,
-        innerPortID,
-        innerPortIdx: outputPortOrdinal(innerOpId, innerPortID),
-      };
-    });
+    // Allocate one MacroInput/MacroOutput marker per boundary port. Marker
+    // ordering follows the selection's visual order (selectedOperatorIDs ×
+    // op.inputPorts), giving the user a stable mapping between macro ports
+    // and the underlying sub-DAG ports.
+    const inputMarkers = boundaryInputPorts.map((p, idx) => ({
+      markerOpId: `MacroInput-operator-${uuid()}`,
+      portIndex: idx,
+      innerOpId: p.innerOpId,
+      innerPortID: p.innerPortID,
+      innerPortIdx: p.innerPortIdx,
+    }));
+    const outputMarkers = boundaryOutputPorts.map((p, idx) => ({
+      markerOpId: `MacroOutput-operator-${uuid()}`,
+      portIndex: idx,
+      innerOpId: p.innerOpId,
+      innerPortID: p.innerPortID,
+      innerPortIdx: p.innerPortIdx,
+    }));
 
     // Marker ports follow the backend's `PortDescription` shape (portID string,
     // disallowMultiInputs/isDynamicPort flags) so MacroBody parses cleanly when
