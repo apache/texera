@@ -231,6 +231,13 @@ export class MacroService {
         inputPortCount: built.inputPortCount,
         outputPortCount: built.outputPortCount,
         displayName: detail.name,
+        // Newly-created instance is in-sync with the definition we just
+        // POSTed; stamp the modify time so the staleness check in the
+        // context-menu sees this as fresh until the definition is edited.
+        macroSyncedAt:
+          typeof detail.lastModifiedTime === "number"
+            ? detail.lastModifiedTime
+            : new Date(detail.lastModifiedTime as unknown as string).getTime(),
       },
       inputPorts,
       outputPorts,
@@ -386,7 +393,43 @@ export class MacroService {
   }
 
   public listMacros(): Observable<MacroSummary[]> {
-    return this.http.get<MacroSummary[]>(`${AppSettings.getApiEndpoint()}/${MACRO_LIST_URL}`);
+    return this.http
+      .get<MacroSummary[]>(`${AppSettings.getApiEndpoint()}/${MACRO_LIST_URL}`)
+      .pipe(
+        tap(summaries => {
+          // Mirror into the latest-modified cache so canvas-side consumers can
+          // detect stale instances without re-fetching. lastModifiedTime is a
+          // string in transport (LDT JSON) but a number once Jackson serializes
+          // a Timestamp; coerce both into ms-since-epoch for easy compare.
+          for (const m of summaries) {
+            const tsRaw = m.lastModifiedTime as unknown;
+            const tsMs =
+              typeof tsRaw === "number" ? tsRaw : new Date(tsRaw as string).getTime();
+            this.latestModifiedByWid.set(m.wid, tsMs);
+          }
+        })
+      );
+  }
+
+  /**
+   * Map of `macroId → most recently seen lastModifiedTime` (epoch ms),
+   * populated by every `listMacros` response. Used by the "refresh macro
+   * instance" context-menu action to decide whether a canvas instance is
+   * stale, and to imprint the freshness timestamp when re-syncing.
+   */
+  private latestModifiedByWid = new Map<number, number>();
+
+  /**
+   * Lookup helper for callers (e.g. the JointUI service when it renders a
+   * Macro op) — returns the most recent lastModifiedTime we've seen for the
+   * given macro definition, in ms since epoch. Returns 0 if we haven't seen
+   * the macro yet (i.e. listMacros hasn't been called or the macro is
+   * inaccessible to the current user).
+   */
+  public getLatestModifiedTime(macroId: number | string): number {
+    const wid = typeof macroId === "number" ? macroId : Number(macroId);
+    if (!Number.isFinite(wid)) return 0;
+    return this.latestModifiedByWid.get(wid) ?? 0;
   }
 
   public getMacro(wid: number): Observable<MacroDetail> {

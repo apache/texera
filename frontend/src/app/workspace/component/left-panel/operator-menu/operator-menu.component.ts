@@ -291,6 +291,13 @@ export class OperatorMenuComponent {
         inputPortCount,
         outputPortCount,
         displayName: m.name,
+        // Mark this instance as in-sync-with the macro's CURRENT
+        // lastModifiedTime. If the macro is later edited, this stays put;
+        // the "refresh macro (stale)" context-menu item then surfaces.
+        macroSyncedAt:
+          typeof m.lastModifiedTime === "number"
+            ? m.lastModifiedTime
+            : new Date(m.lastModifiedTime as unknown as string).getTime(),
       },
       inputPorts,
       outputPorts,

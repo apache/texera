@@ -167,6 +167,17 @@
   </li>
   <li
     nz-menu-item
+    *ngIf="canRefreshMacroInstance()"
+    (click)="onRefreshMacroInstance()">
+    <span
+      nz-icon
+      nzType="sync"
+      nzTheme="outline"
+      style="color: #d4a017;"></span
+    >refresh macro (stale)
+  </li>
+  <li
+    nz-menu-item
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
   isWorkflowModifiable"

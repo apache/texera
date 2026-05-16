@@ -432,6 +432,67 @@ export class ContextMenuComponent {
     this.notificationService.info("Unfused — macro body will inline on next run.");
   }
 
+  /**
+   * "Refresh macro instance" — re-pull the latest macroVersion + syncedAt
+   * timestamp from the source definition and stamp them onto this instance.
+   * If the macro definition has been edited since the instance was placed,
+   * this is how the user picks up the new body without re-instantiating.
+   *
+   * The instance's `macroSyncedAt` (epoch ms) is bumped to NOW; the engine
+   * still resolves LIVE-mode bodies via the current macro definition at
+   * compile time, so this action is mostly UI cosmetic — but it surfaces
+   * the freshness story to the user (and clears any "stale" indicator the
+   * canvas might paint based on comparing syncedAt to lastModifiedTime).
+   */
+  public canRefreshMacroInstance(): boolean {
+    if (!this.isWorkflowModifiable) return false;
+    if (this.highlightedOperatorIds.length !== 1) return false;
+    const opId = this.highlightedOperatorIds[0];
+    const op = (() => {
+      try {
+        return this.workflowActionService.getTexeraGraph().getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    if (op?.operatorType !== "Macro") return false;
+    const macroId = op.operatorProperties?.["macroId"];
+    if (typeof macroId !== "string" || macroId.length === 0) return false;
+    // Only worth offering if we actually know of a newer-than-instance time.
+    const syncedAt = Number(op.operatorProperties?.["macroSyncedAt"] ?? 0);
+    const latest = this.macroService.getLatestModifiedTime(macroId);
+    return latest > 0 && latest > syncedAt;
+  }
+
+  public onRefreshMacroInstance(): void {
+    const opId = this.highlightedOperatorIds[0];
+    if (!opId) return;
+    const graph = this.workflowActionService.getTexeraGraph();
+    const op = (() => {
+      try {
+        return graph.getOperator(opId);
+      } catch {
+        return undefined;
+      }
+    })();
+    if (!op) return;
+    const macroId = op.operatorProperties?.["macroId"] as string;
+    const latest = this.macroService.getLatestModifiedTime(macroId);
+    const newProperties: Record<string, unknown> = { ...op.operatorProperties };
+    newProperties["macroSyncedAt"] = latest > 0 ? latest : Date.now();
+    // The fusion's contract is "verified for THIS body's hash". When the
+    // body changes (the trigger for refresh), drop the verified flag so
+    // the next compile re-inlines the up-to-date body. The user can re-
+    // fuse against the new body if desired.
+    if (newProperties["fusion"]) {
+      delete newProperties["fusion"];
+      const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+      if (paper) this.jointUIService.refreshMacroFusionStyle(paper, opId, false);
+    }
+    this.workflowActionService.setOperatorProperty(opId, newProperties);
+    this.notificationService.info("Macro instance refreshed to latest definition.");
+  }
+
   public onFuseMacro(): void {
     const opId = this.highlightedOperatorIds[0];
     if (!opId) return;
