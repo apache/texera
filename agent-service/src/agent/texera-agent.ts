@@ -212,14 +212,14 @@ export class TexeraAgent {
       },
     };
 
-    const tools: Record<string, any> = {
+    const allTools: Record<string, any> = {
       [TOOL_NAME_DELETE_OPERATOR]: createDeleteOperatorTool(this.workflowState, context),
       [TOOL_NAME_ADD_OPERATOR]: createAddOperatorTool(this.workflowState, operatorSchemas, context),
       [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
     };
 
     if (getExecutionConfig) {
-      tools[TOOL_NAME_EXECUTE_OPERATOR] = createExecuteOperatorTool(
+      allTools[TOOL_NAME_EXECUTE_OPERATOR] = createExecuteOperatorTool(
         this.workflowState,
         getExecutionConfig,
         (opId, operatorInfo) => {
@@ -228,6 +228,12 @@ export class TexeraAgent {
       );
     }
 
+    const tools: Record<string, any> = {};
+    for (const [name, def] of Object.entries(allTools)) {
+      if (!this.settings.disabledTools.has(name)) {
+        tools[name] = def;
+      }
+    }
     return tools;
   }
 

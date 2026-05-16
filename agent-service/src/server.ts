@@ -22,6 +22,7 @@ import { node } from "@elysiajs/node";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
+import { TOOL_NAME_DELETE_OPERATOR } from "./agent/tools/workflow-crud-tools";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
@@ -43,6 +44,10 @@ import { OperatorResultSerializationMode } from "./types/agent";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
+
+/** No separate LLM tool exists; included so disabledTools stays forward-compatible. */
+const TOOL_NAME_DELETE_LINK = "deleteLink";
+const GENESIS_AGENT_MAX_STEPS = 30;
 
 async function createAgentInstance(
   modelType: string,
@@ -167,12 +172,19 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 
   .post(
     "/",
-    async ({ body }) => {
+    async ({ body, query, request }) => {
       const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
       }
+
+      const hdrSource = request?.headers.get("x-genesis-source")?.trim() ?? "";
+      const qSource = typeof query?.source === "string" ? query.source : "";
+      const qWidRaw = typeof query?.wid === "string" ? query.wid.trim() : "";
+      const widFromQuery = qWidRaw !== "" ? Number(qWidRaw) : NaN;
+      const workflowIdFromQuery = Number.isFinite(widFromQuery) && widFromQuery > 0 ? widFromQuery : undefined;
+      const effectiveWorkflowId = workflowId ?? workflowIdFromQuery;
 
       let delegateConfig: AgentDelegateConfig | undefined;
       if (userToken) {
@@ -184,33 +196,50 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         delegateConfig = {
           userToken,
           userInfo,
-          workflowId,
+          workflowId: effectiveWorkflowId,
           computingUnitId,
         };
       }
 
       const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig);
 
-      if (settings) {
+      const genesisMode = qSource === "genesis" || hdrSource === "genesis";
+      const mergedSettings = settings ? { ...settings } : genesisMode ? {} : undefined;
+
+      if (genesisMode && mergedSettings) {
+        const disabled = new Set(mergedSettings.disabledTools ?? []);
+        disabled.add(TOOL_NAME_DELETE_OPERATOR);
+        disabled.add(TOOL_NAME_DELETE_LINK);
+        mergedSettings.disabledTools = Array.from(disabled);
+        mergedSettings.maxSteps = Math.min(
+          mergedSettings.maxSteps ?? GENESIS_AGENT_MAX_STEPS,
+          GENESIS_AGENT_MAX_STEPS
+        );
+      }
+
+      if (mergedSettings) {
         log.info(
           {
             agentId,
-            maxOperatorResultCharLimit: settings.maxOperatorResultCharLimit,
-            maxOperatorResultCellCharLimit: settings.maxOperatorResultCellCharLimit,
+            genesisMode,
+            maxOperatorResultCharLimit: mergedSettings.maxOperatorResultCharLimit,
+            maxOperatorResultCellCharLimit: mergedSettings.maxOperatorResultCellCharLimit,
           },
           "applying initial agent settings"
         );
         agent.updateSettings({
-          maxOperatorResultCharLimit: settings.maxOperatorResultCharLimit,
-          maxOperatorResultCellCharLimit: settings.maxOperatorResultCellCharLimit,
-          operatorResultSerializationMode: settings.operatorResultSerializationMode
-            ? (settings.operatorResultSerializationMode as OperatorResultSerializationMode)
+          maxOperatorResultCharLimit: mergedSettings.maxOperatorResultCharLimit,
+          maxOperatorResultCellCharLimit: mergedSettings.maxOperatorResultCellCharLimit,
+          operatorResultSerializationMode: mergedSettings.operatorResultSerializationMode
+            ? (mergedSettings.operatorResultSerializationMode as OperatorResultSerializationMode)
             : undefined,
-          toolTimeoutMs: settings.toolTimeoutSeconds ? settings.toolTimeoutSeconds * 1000 : undefined,
-          executionTimeoutMs: settings.executionTimeoutMinutes ? settings.executionTimeoutMinutes * 60000 : undefined,
-          disabledTools: settings.disabledTools ? new Set(settings.disabledTools) : undefined,
-          maxSteps: settings.maxSteps,
-          allowedOperatorTypes: settings.allowedOperatorTypes,
+          toolTimeoutMs: mergedSettings.toolTimeoutSeconds ? mergedSettings.toolTimeoutSeconds * 1000 : undefined,
+          executionTimeoutMs: mergedSettings.executionTimeoutMinutes
+            ? mergedSettings.executionTimeoutMinutes * 60000
+            : undefined,
+          disabledTools: mergedSettings.disabledTools ? new Set(mergedSettings.disabledTools) : undefined,
+          maxSteps: mergedSettings.maxSteps,
+          allowedOperatorTypes: mergedSettings.allowedOperatorTypes,
         });
       }
 
@@ -235,6 +264,10 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
+      }),
+      query: t.Object({
+        wid: t.Optional(t.String()),
+        source: t.Optional(t.String()),
       }),
     }
   )

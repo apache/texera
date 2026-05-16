@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Router } from "@angular/router";
 import { firstValueFrom } from "rxjs";
@@ -38,6 +38,8 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
+import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
+import { OperatorPredicate } from "../../../../workspace/types/workflow-common.interface";
 
 const AGENT_WS_IDLE_MS = 300_000;
 const GENESIS_LEGACY_TEMPLATE_SUGGESTION_IDS = new Set<string>([
@@ -106,7 +108,8 @@ export class GenesisOrchestratorService {
     private config: GuiConfigService,
     private computingUnitStatus: ComputingUnitStatusService,
     private computingUnitManaging: WorkflowComputingUnitManagingService,
-    private workflowWebsocket: WorkflowWebsocketService
+    private workflowWebsocket: WorkflowWebsocketService,
+    private workflowActionService: WorkflowActionService
   ) {}
 
   public async run(file: File): Promise<void> {
@@ -128,17 +131,28 @@ export class GenesisOrchestratorService {
         return;
       }
 
-      const picked = analyzeResp.suggestions?.find(s => s.id === choice.suggestionId);
-      const targetCol =
-        picked?.target_column != null && String(picked.target_column).trim() !== ""
-          ? String(picked.target_column)
-          : analyzeResp.target_column ?? "";
+      let suggestionIdForAgent: string;
+      let targetCol: string;
+      let customGoal: string | undefined;
+
+      if (choice.kind === "custom") {
+        suggestionIdForAgent = "custom_goal";
+        targetCol = analyzeResp.target_column ?? "";
+        customGoal = choice.text;
+      } else {
+        suggestionIdForAgent = choice.suggestionId;
+        const picked = analyzeResp.suggestions?.find(s => s.id === choice.suggestionId);
+        targetCol =
+          picked?.target_column != null && String(picked.target_column).trim() !== ""
+            ? String(picked.target_column)
+            : analyzeResp.target_column ?? "";
+      }
 
       let inst: InstantiateResponse;
       try {
         inst = await firstValueFrom(
           this.genesis.instantiate(
-            choice.suggestionId,
+            suggestionIdForAgent,
             uploadResp.dataset_id,
             uploadResp.file_path,
             targetCol,
@@ -146,17 +160,18 @@ export class GenesisOrchestratorService {
               mode: "agent",
               columns: uploadResp.columns,
               uploadId: uploadResp.upload_id,
+              customGoal,
             }
           )
         );
       } catch (agentModeErr) {
         console.warn("[Genesis] /instantiate (mode=agent) failed; retrying with mode=template", agentModeErr);
-        if (!GENESIS_LEGACY_TEMPLATE_SUGGESTION_IDS.has(choice.suggestionId)) {
+        if (!GENESIS_LEGACY_TEMPLATE_SUGGESTION_IDS.has(suggestionIdForAgent)) {
           throw agentModeErr;
         }
         inst = await firstValueFrom(
           this.genesis.instantiate(
-            choice.suggestionId,
+            suggestionIdForAgent,
             uploadResp.dataset_id,
             uploadResp.file_path,
             targetCol,
@@ -178,7 +193,7 @@ export class GenesisOrchestratorService {
 
       if (isGenesisAgentMode(inst)) {
         console.info("[Genesis] taking agent path");
-        await this.runAgentMode(inst, choice.suggestionId);
+        await this.runAgentMode(inst, suggestionIdForAgent);
       } else {
         console.info("[Genesis] taking template path");
         await this.runTemplateMode(inst);
@@ -192,9 +207,110 @@ export class GenesisOrchestratorService {
   }
 
   /**
-   * Agent path: empty workflow → POST /api/agents → WebSocket prompt → navigate → wait for completion → auto-run.
+   * Same as {@link run}, but targets an **existing** workflow already open in the workspace
+   * (blank canvas). Does not create a new workflow record.
    */
-  private async runAgentMode(inst: InstantiateResponse, suggestionIdFallback: string): Promise<void> {
+  public async runIntoCurrentWorkflow(file: File, wid: number): Promise<void> {
+    const jwt = localStorage.getItem("access_token") ?? "";
+    this.message.loading("Analyzing data...", { nzDuration: 0 });
+    try {
+      const uploadResp = await firstValueFrom(this.genesis.upload(file, jwt));
+      const analyzeResp = await firstValueFrom(this.genesis.analyze(uploadResp));
+      this.message.remove();
+
+      const choice = await this.cardOverlay.show(uploadResp, analyzeResp);
+
+      if (choice.kind === "cancel") {
+        return;
+      }
+
+      if (choice.kind === "skip") {
+        await this.addCsvScanOnlyViaGrow(uploadResp);
+        return;
+      }
+
+      let suggestionIdForAgent: string;
+      let targetCol: string;
+      let customGoal: string | undefined;
+
+      if (choice.kind === "custom") {
+        suggestionIdForAgent = "custom_goal";
+        targetCol = analyzeResp.target_column ?? "";
+        customGoal = choice.text;
+      } else {
+        suggestionIdForAgent = choice.suggestionId;
+        const picked = analyzeResp.suggestions?.find(s => s.id === choice.suggestionId);
+        targetCol =
+          picked?.target_column != null && String(picked.target_column).trim() !== ""
+            ? String(picked.target_column)
+            : analyzeResp.target_column ?? "";
+      }
+
+      let inst: InstantiateResponse;
+      try {
+        inst = await firstValueFrom(
+          this.genesis.instantiate(
+            suggestionIdForAgent,
+            uploadResp.dataset_id,
+            uploadResp.file_path,
+            targetCol,
+            {
+              mode: "agent",
+              columns: uploadResp.columns,
+              uploadId: uploadResp.upload_id,
+              customGoal,
+            }
+          )
+        );
+      } catch (agentModeErr) {
+        console.warn("[Genesis] /instantiate (mode=agent) failed; retrying with mode=template", agentModeErr);
+        if (!GENESIS_LEGACY_TEMPLATE_SUGGESTION_IDS.has(suggestionIdForAgent)) {
+          throw agentModeErr;
+        }
+        inst = await firstValueFrom(
+          this.genesis.instantiate(
+            suggestionIdForAgent,
+            uploadResp.dataset_id,
+            uploadResp.file_path,
+            targetCol,
+            {
+              mode: "template",
+              columns: uploadResp.columns,
+            }
+          )
+        );
+      }
+
+      console.info("[Genesis] instantiate response (in-place)", {
+        mode: inst.mode,
+        suggestion_id: inst.suggestion_id,
+        wid,
+      });
+
+      if (isGenesisAgentMode(inst)) {
+        console.info("[Genesis] taking agent path (in-place)");
+        await this.runAgentMode(inst, suggestionIdForAgent, wid);
+      } else {
+        console.info("[Genesis] taking template path (in-place)");
+        await this.runTemplateMode(inst, wid);
+      }
+    } catch (e: unknown) {
+      this.message.remove();
+      this.message.error(`Genesis failed: ${this.formatUserVisibleError(e)}`);
+    } finally {
+      this.message.remove();
+    }
+  }
+
+  /**
+   * Agent path: empty workflow → POST /api/agents → WebSocket prompt → navigate → wait for completion → auto-run.
+   * When `existingWid` is set, uses that workflow instead of creating one and reloads the canvas in place.
+   */
+  private async runAgentMode(
+    inst: InstantiateResponse,
+    suggestionIdFallback: string,
+    existingWid?: number
+  ): Promise<void> {
     this.buildProgress.clear();
     let modalRef: NzModalRef | undefined;
     try {
@@ -218,10 +334,15 @@ export class GenesisOrchestratorService {
 
       const emptyContent = this.emptyContentFromTemplate(workflowObj);
 
-      const created = await firstValueFrom(this.workflowPersist.createWorkflow(emptyContent, inst.workflow_name));
-      const wid = created.workflow.wid;
-      if (!wid) {
-        throw new Error("Workflow creation did not return an id.");
+      let wid: number;
+      if (existingWid != null) {
+        wid = existingWid;
+      } else {
+        const created = await firstValueFrom(this.workflowPersist.createWorkflow(emptyContent, inst.workflow_name));
+        wid = created.workflow.wid ?? 0;
+        if (!wid) {
+          throw new Error("Workflow creation did not return an id.");
+        }
       }
 
       const userToken = AuthService.getAccessToken();
@@ -230,17 +351,26 @@ export class GenesisOrchestratorService {
       }
 
       const suggestionKey = inst.suggestion_id ?? suggestionIdFallback;
+      const agentParams = new HttpParams().set("source", "genesis").set("wid", String(wid));
+      const genesisAgentHeaders = new HttpHeaders().set("x-genesis-source", "genesis");
       const agentResp = await firstValueFrom(
-        this.http.post<{ id: string }>("/api/agents", {
-          modelType: inst.model,
-          name: `Genesis-${suggestionKey}`,
-          userToken,
-          workflowId: wid,
-          settings: {
-            allowedOperatorTypes: inst.allowed_operator_types ?? [],
-            maxSteps: 20,
+        this.http.post<{ id: string }>(
+          "/api/agents",
+          {
+            modelType: inst.model,
+            name: `Genesis-${suggestionKey}`,
+            userToken,
+            workflowId: wid,
+            settings: {
+              allowedOperatorTypes: inst.allowed_operator_types ?? [],
+              maxSteps: 30,
+            },
           },
-        })
+          {
+            params: agentParams,
+            headers: genesisAgentHeaders,
+          }
+        )
       );
       const agentId = agentResp.id;
       if (!agentId) {
@@ -284,7 +414,12 @@ export class GenesisOrchestratorService {
       this.buildProgress.addLine("Preparing computing unit…");
       const cu = await cuPromise;
 
-      await this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]);
+      if (existingWid == null) {
+        await this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]);
+      } else {
+        const refreshed = await firstValueFrom(this.workflowPersist.retrieveWorkflow(wid));
+        this.workflowActionService.reloadWorkflow(refreshed);
+      }
 
       modalRef.destroy();
       modalRef = undefined;
@@ -489,7 +624,11 @@ export class GenesisOrchestratorService {
           return;
         }
         if (msg.type === "step" && msg.step) {
-          this.buildProgress.addLine(formatGenesisAgentStepLine(msg.step));
+          const line = formatGenesisAgentStepLine(msg.step);
+          const rawId = msg.step.stepId;
+          const idx = rawId != null && Number.isFinite(Number(rawId)) ? Number(rawId) : null;
+          this.buildProgress.setAgentStep(idx, line);
+          this.buildProgress.addLine(line);
           return;
         }
         if (msg.type === "complete") {
@@ -519,7 +658,7 @@ export class GenesisOrchestratorService {
     });
   }
 
-  private async runTemplateMode(inst: InstantiateResponse): Promise<void> {
+  private async runTemplateMode(inst: InstantiateResponse, existingWid?: number): Promise<void> {
     let workflowObj: Partial<WorkflowContent> = {};
     try {
       workflowObj = JSON.parse(inst.workflow_content || "{}") as Partial<WorkflowContent>;
@@ -528,13 +667,18 @@ export class GenesisOrchestratorService {
     }
     const emptyContent = this.emptyContentFromTemplate(workflowObj);
 
-    const created = await firstValueFrom(this.workflowPersist.createWorkflow(emptyContent, inst.workflow_name));
-    const wid = created.workflow.wid;
-    if (!wid) {
-      throw new Error("Workflow creation did not return an id.");
+    let wid: number;
+    if (existingWid != null) {
+      wid = existingWid;
+    } else {
+      const created = await firstValueFrom(this.workflowPersist.createWorkflow(emptyContent, inst.workflow_name));
+      wid = created.workflow.wid ?? 0;
+      if (!wid) {
+        throw new Error("Workflow creation did not return an id.");
+      }
+      await this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]);
     }
 
-    await this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]);
     await this.waitForWorkspaceCanvasReady();
     await this.growAnimator.grow(workflowObj, 500);
     this.executeService.executeWorkflow("Genesis run");
@@ -582,6 +726,47 @@ export class GenesisOrchestratorService {
       commentBoxes: [],
       settings,
     };
+  }
+
+  private async addCsvScanOnlyViaGrow(upload: { file_path: string }): Promise<void> {
+    const opId = `CSVFileScan-operator-genesis-${crypto.randomUUID()}`;
+    const op: OperatorPredicate = {
+      operatorID: opId,
+      operatorType: "CSVFileScan",
+      operatorVersion: "N/A",
+      operatorProperties: {
+        fileEncoding: "UTF_8",
+        customDelimiter: ",",
+        hasHeader: true,
+        fileName: upload.file_path,
+      },
+      inputPorts: [],
+      outputPorts: [
+        {
+          portID: "output-0",
+          displayName: "",
+          disallowMultiInputs: true,
+          isDynamicPort: false,
+        },
+      ],
+      showAdvanced: false,
+      isDisabled: false,
+      viewResult: true,
+      dynamicInputPorts: false,
+      dynamicOutputPorts: false,
+    };
+    await this.growAnimator.grow(
+      {
+        operators: [op],
+        operatorPositions: { [opId]: { x: 200, y: 200 } },
+        links: [],
+        settings: {
+          dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+          executionMode: this.config.env.defaultExecutionMode,
+        },
+      },
+      0
+    );
   }
 
   private async createWorkflowWithOnlyCsvScan(upload: {

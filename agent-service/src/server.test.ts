@@ -118,6 +118,43 @@ describe(`POST ${API}/agents`, () => {
     // it is always a 4xx or 5xx, never a successful 2xx.
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
+
+  test("Genesis query caps maxSteps and omits deleteOperator from the live tool set", async () => {
+    const res = await app.handle(
+      new Request(url(`${API}/agents?source=genesis`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modelType: "m", name: "g", settings: { maxSteps: 100 } }),
+      })
+    );
+    expect(res.status).toBe(200);
+    const agent = await readJson<{
+      settings: { maxSteps: number; disabledTools: string[] };
+      id: string;
+    }>(res);
+    expect(agent.settings.maxSteps).toBe(30);
+    expect(agent.settings.disabledTools).toContain("deleteOperator");
+    expect(agent.settings.disabledTools).toContain("deleteLink");
+
+    const detail = await readJson<{ tools: { name: string }[] }>(await getJson(`${API}/agents/${agent.id}/system-info`));
+    expect(detail.tools.map(t => t.name)).not.toContain("deleteOperator");
+  });
+
+  test("Genesis header enables the same maxSteps cap as the query flag", async () => {
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-genesis-source": "genesis",
+        },
+        body: JSON.stringify({ modelType: "m", name: "h" }),
+      })
+    );
+    expect(res.status).toBe(200);
+    const agent = await readJson<{ settings: { maxSteps: number } }>(res);
+    expect(agent.settings.maxSteps).toBe(30);
+  });
 });
 
 describe(`GET ${API}/agents`, () => {
