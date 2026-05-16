@@ -3,9 +3,8 @@
  * no external charting library, no plotly, no d3.
  */
 
-import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, Input, ViewChild } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import {
   BarConfig,
   DonutConfig,
@@ -33,33 +32,50 @@ interface DonutSlice {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DashboardWidgetComponent {
+export class DashboardWidgetComponent implements AfterViewInit {
+  @ViewChild("htmlIframe", { static: false }) htmlIframeRef?: ElementRef<HTMLIFrameElement>;
+
   private _widget!: WidgetConfig;
-  /** Cached SafeHtml — recomputed only when the underlying htmlContent
-   *  string actually changes. Without this, the getter returned a fresh
-   *  SafeHtml object on every CD cycle and the iframe's [srcdoc] binding
-   *  thrashed, causing the embedded Plotly chart to flicker. */
-  private _cachedHtml: string | null = null;
-  private _safeHtmlContent: SafeHtml | null = null;
+  /** The HTML string currently loaded into the iframe. Used to skip
+   *  reloads when the input fires with the same content. */
+  private _appliedHtml: string | null = null;
+  /** The pending html content for the iframe, set before view-init. */
+  private _pendingHtml: string | null = null;
 
   @Input() set widget(value: WidgetConfig) {
     this._widget = value;
     if (value && value.type === "html") {
       const next = value.config.htmlContent ?? "";
-      if (next !== this._cachedHtml) {
-        this._cachedHtml = next;
-        this._safeHtmlContent = this.sanitizer.bypassSecurityTrustHtml(next);
-      }
+      this._pendingHtml = next;
+      this.applyIframeContent();
     } else {
-      this._cachedHtml = null;
-      this._safeHtmlContent = null;
+      this._pendingHtml = null;
     }
   }
   get widget(): WidgetConfig {
     return this._widget;
   }
 
-  constructor(private sanitizer: DomSanitizer) {}
+  ngAfterViewInit(): void {
+    this.applyIframeContent();
+  }
+
+  /**
+   * Imperatively set the iframe's srcdoc. Angular's [srcdoc] property
+   * binding would re-set the attribute on every change-detection cycle
+   * (each call to bypassSecurityTrustHtml returns a fresh SafeHtml ref),
+   * which caused the embedded Plotly chart to reload over and over —
+   * the flicker. Setting the DOM attribute ourselves only when the html
+   * string actually changes keeps the iframe stable.
+   */
+  private applyIframeContent(): void {
+    const el = this.htmlIframeRef?.nativeElement;
+    if (!el) return; // view not initialized yet — will run again in ngAfterViewInit
+    if (this._pendingHtml === null) return;
+    if (this._pendingHtml === this._appliedHtml) return;
+    el.srcdoc = this._pendingHtml;
+    this._appliedHtml = this._pendingHtml;
+  }
 
   get metric(): MetricConfig {
     return this.widget.config as MetricConfig;
@@ -83,14 +99,6 @@ export class DashboardWidgetComponent {
     return this.widget.config as HtmlConfig;
   }
 
-  /**
-   * The iframe's srcdoc bypasses Angular sanitization so inline Plotly
-   * scripts in the HTML actually execute. Returns the cached SafeHtml
-   * computed in the widget setter — never recomputes per CD cycle.
-   */
-  get safeHtmlContent(): SafeHtml | null {
-    return this._safeHtmlContent;
-  }
 
   // --- Bar chart helpers ---------------------------------------------------
 

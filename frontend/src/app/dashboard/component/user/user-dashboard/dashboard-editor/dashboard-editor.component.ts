@@ -220,7 +220,22 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
     return w.id;
   }
 
+  /** Memoize styles keyed on widget id + layout signature, so [ngStyle]
+   *  receives a referentially-stable object when nothing has moved. */
+  private styleCache = new Map<string, { sig: string; style: { [k: string]: string } }>();
+
   widgetStyle(w: DashboardWidget): { [k: string]: string } {
+    const sig = `${w.layout.x}|${w.layout.y}|${w.layout.w}|${w.layout.h}`;
+    const cached = this.styleCache.get(w.id);
+    if (cached && cached.sig === sig) {
+      return cached.style;
+    }
+    const style = this.computeWidgetStyle(w);
+    this.styleCache.set(w.id, { sig, style });
+    return style;
+  }
+
+  private computeWidgetStyle(w: DashboardWidget): { [k: string]: string } {
     const colWidth = `calc((100% - ${GUTTER * (COLS - 1)}px) / ${COLS})`;
     return {
       left: `calc(${w.layout.x} * (${colWidth} + ${GUTTER}px))`,
