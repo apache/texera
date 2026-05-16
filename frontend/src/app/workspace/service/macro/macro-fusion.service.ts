@@ -196,8 +196,98 @@ ${stepsCode}
         translated: true,
       };
     }
+    if (type === "PythonUDFV2" || type === "PythonLambdaFunction") {
+      // Inline the user's existing Python body. We can't safely run their
+      // class-based UDF inside the fused process_tuple (their `self` won't
+      // exist), so we extract the *body* of their `process_tuple` method via
+      // a heuristic regex and splice it in. If that fails, fall back to a
+      // call-style placeholder. The codegen is best-effort — the user can
+      // edit the fused code in the property panel before running.
+      const code = (op["code"] as string) ?? "";
+      const bodyMatch = code.match(
+        /def\s+process_tuple\s*\([^)]*\)[^:]*:\s*([\s\S]*?)(?=\n\s*(?:def|@|class)\s|\Z)/
+      );
+      if (bodyMatch && bodyMatch[1].trim().length > 0) {
+        // Strip leading indentation so the body lines up cleanly with our 8-space
+        // process_tuple indent (the outer template adds the leading whitespace).
+        const dedented = this.dedent(bodyMatch[1]);
+        return {
+          code: `${headerComment}\n# (inlined from user's PythonUDFV2)\n${dedented}`,
+          translated: true,
+        };
+      }
+      return {
+        code: `${headerComment}\n# (could not parse user UDF body — passthrough)`,
+        translated: false,
+      };
+    }
+    if (type === "Regex") {
+      const attr = op["attribute"] as string | undefined;
+      const regex = op["regex"] as string | undefined;
+      if (!attr || !regex) {
+        return { code: `${headerComment}\n# (missing attribute/regex — passthrough)`, translated: false };
+      }
+      // Filter-style semantics: drop tuples whose attribute doesn't match.
+      return {
+        code:
+          `${headerComment}\n` +
+          `import re as _re\n` +
+          `if not _re.search(${JSON.stringify(regex)}, str(tuple_.get(${JSON.stringify(attr)}, ""))):\n` +
+          `    return`,
+        translated: true,
+      };
+    }
+    if (type === "Limit") {
+      // Per-tuple counter via a closure-cell on the operator instance. We
+      // need to declare a state attribute up-top — the outer codegen handles
+      // that via a separate `# state:` marker that translateOp can emit.
+      const limit = Number(op["limit"]) || 0;
+      return {
+        code:
+          `${headerComment}\n` +
+          `if not hasattr(self, "_fuse_limit_seen"):\n` +
+          `    self._fuse_limit_seen = 0\n` +
+          `self._fuse_limit_seen += 1\n` +
+          `if self._fuse_limit_seen > ${limit}:\n` +
+          `    return`,
+        translated: true,
+      };
+    }
+    if (type === "Distinct") {
+      // Hash the tuple's frozen items into a set; suppress duplicates.
+      return {
+        code:
+          `${headerComment}\n` +
+          `if not hasattr(self, "_fuse_seen"):\n` +
+          `    self._fuse_seen = set()\n` +
+          `_key = frozenset(tuple_.items()) if hasattr(tuple_, "items") else id(tuple_)\n` +
+          `if _key in self._fuse_seen:\n` +
+          `    return\n` +
+          `self._fuse_seen.add(_key)`,
+        translated: true,
+      };
+    }
     // Unknown op type: emit a marker comment and leave the tuple untouched.
     return { code: `${headerComment}\n# (unfusable in v1: ${type})`, translated: false };
+  }
+
+  /**
+   * Strip leading common indentation from a multi-line string so the result
+   * can be re-indented by the outer codegen to a consistent depth. Python is
+   * indentation-sensitive — without this the inlined UDF body would either
+   * over-indent or trigger SyntaxError on import.
+   */
+  private dedent(text: string): string {
+    const lines = text.replace(/^\n+/, "").replace(/\n+$/, "").split("\n");
+    let minIndent = Infinity;
+    for (const line of lines) {
+      if (line.trim().length === 0) continue;
+      const m = line.match(/^(\s*)/);
+      const len = m ? m[1].length : 0;
+      if (len < minIndent) minIndent = len;
+    }
+    if (!Number.isFinite(minIndent) || minIndent === 0) return lines.join("\n");
+    return lines.map(l => l.slice(minIndent)).join("\n");
   }
 
   /**
