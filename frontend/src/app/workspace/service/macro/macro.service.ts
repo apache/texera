@@ -19,7 +19,8 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { Observable, ReplaySubject, of, shareReplay } from "rxjs";
+import { tap, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
 import { ExecutionMode, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import {
@@ -30,7 +31,24 @@ import {
 } from "../../types/workflow-common.interface";
 import { PortIdentity } from "../../types/execute-workflow.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { v4 as uuid } from "uuid";
+
+// Per-instance runtime mapping from the macro's external ports back to the
+// boundary inner-op port that actually carries the data. After MacroExpander
+// inlines the body into the parent plan, inner-op IDs gain a "${macroInstanceId}--"
+// prefix, so each entry is already keyed by the *runtime* inner-op ID — ready
+// for direct lookup against `OperatorStatisticsUpdateEvent.operatorStatistics`.
+export interface MacroPortBinding {
+  externalPortIndex: number;
+  innerOpId: string; // post-expansion / runtime ID, ready to look up against engine stats
+  innerPortIndex: number;
+}
+
+export interface MacroBindings {
+  inputBindings: MacroPortBinding[];
+  outputBindings: MacroPortBinding[];
+}
 
 export const MACRO_BASE_URL = "macro";
 export const MACRO_CREATE_URL = MACRO_BASE_URL + "/create";
@@ -105,7 +123,21 @@ interface MacroBody {
   providedIn: "root",
 })
 export class MacroService {
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private workflowResultService: WorkflowResultService
+  ) {}
+
+  // Cached per-definition body bindings, keyed by `${macroId}` (the macro
+  // definition's wid). Each entry is a hot Observable so multiple subscribers
+  // share the same HTTP fetch. The body of a macro definition is immutable
+  // for the lifetime of a given (macroId, vid) tuple, so caching by macroId
+  // alone is safe — definition edits go through a new wid in the v1 LIVE mode.
+  private bodyBindingsCache = new Map<string, Observable<{ inputBindings: MacroPortBinding[]; outputBindings: MacroPortBinding[] }>>();
+  // Latest-known synchronous snapshot — populated by `getBindingsForInstance`
+  // after the first successful fetch so synchronous stat-update handlers can
+  // look up bindings without re-triggering the network call.
+  private bodyBindingsSnapshot = new Map<string, { inputBindings: MacroPortBinding[]; outputBindings: MacroPortBinding[] }>();
 
   public createMacro(req: MacroCreateRequest): Observable<MacroDetail> {
     return this.http.post<MacroDetail>(`${AppSettings.getApiEndpoint()}/${MACRO_CREATE_URL}`, req);
@@ -117,6 +149,158 @@ export class MacroService {
 
   public getMacro(wid: number): Observable<MacroDetail> {
     return this.http.get<MacroDetail>(`${AppSettings.getApiEndpoint()}/${MACRO_BASE_URL}/${wid}`);
+  }
+
+  /**
+   * Compute body-level port bindings for the macro DEFINITION identified by
+   * `macroId` (the definition's wid). The bindings name body-relative inner
+   * op IDs — callers that need *runtime* IDs (after MacroExpander's prefix
+   * rewrite) should use `getBindingsForInstance` instead.
+   *
+   * Body bindings are derived from the persisted `MacroBody`:
+   *  - each `MacroInput(portIndex=i)` is followed by one or more links
+   *    `marker → innerOp@(p)`; we record (i → innerOp, p) for stats fan-out
+   *  - each `MacroOutput(portIndex=i)` is preceded by exactly one link
+   *    `innerOp@(p) → marker`; we record (i → innerOp, p) for stats/results
+   *
+   * Cached and shared across subscribers.
+   */
+  public getBodyBindings(
+    macroId: string
+  ): Observable<{ inputBindings: MacroPortBinding[]; outputBindings: MacroPortBinding[] }> {
+    const cached = this.bodyBindingsCache.get(macroId);
+    if (cached) return cached;
+    const widNum = Number(macroId);
+    if (!Number.isFinite(widNum)) {
+      const empty = { inputBindings: [], outputBindings: [] };
+      this.bodyBindingsSnapshot.set(macroId, empty);
+      return of(empty);
+    }
+    const fetched = this.getMacro(widNum).pipe(
+      map(detail => this.computeBodyBindings(detail)),
+      tap(bindings => this.bodyBindingsSnapshot.set(macroId, bindings)),
+      catchError(() => of({ inputBindings: [] as MacroPortBinding[], outputBindings: [] as MacroPortBinding[] })),
+      shareReplay(1)
+    );
+    this.bodyBindingsCache.set(macroId, fetched);
+    return fetched;
+  }
+
+  /**
+   * Resolve bindings to runtime IDs for one macro instance on the parent
+   * canvas. `${instanceId}--` is the prefix MacroExpander adds to every
+   * inner-op ID when it inlines the body (see
+   * `workflow-compiling-service/.../MacroExpander.scala`). After this rewrite
+   * the engine reports stats keyed by the prefixed strings — so we apply the
+   * same rewrite here so callers can do straight-up `stats[innerOpId]` lookups.
+   *
+   * Returns the cached snapshot synchronously when available so stats-update
+   * handlers don't have to await; preload via `prefetchBindingsForOperators`
+   * to make sure the snapshot is populated by the time execution starts.
+   */
+  public getBindingsForInstance(macroInstanceId: string, macroId: string): MacroBindings | undefined {
+    const snapshot = this.bodyBindingsSnapshot.get(macroId);
+    if (!snapshot) {
+      // kick off fetch so future calls hit the snapshot
+      this.getBodyBindings(macroId).subscribe({ error: () => undefined });
+      return undefined;
+    }
+    return {
+      inputBindings: snapshot.inputBindings.map(b => ({
+        externalPortIndex: b.externalPortIndex,
+        innerOpId: `${macroInstanceId}--${b.innerOpId}`,
+        innerPortIndex: b.innerPortIndex,
+      })),
+      outputBindings: snapshot.outputBindings.map(b => ({
+        externalPortIndex: b.externalPortIndex,
+        innerOpId: `${macroInstanceId}--${b.innerOpId}`,
+        innerPortIndex: b.innerPortIndex,
+      })),
+    };
+  }
+
+  /**
+   * Eagerly fetch bindings for every Macro op currently on the canvas, and
+   * register the macro-instance → inner-op alias used by
+   * `WorkflowResultService` so the result panel can show the macro's output
+   * (we route to output port 0's inner producer as the canonical "macro
+   * result"; a future multi-output UX could expose all outputs).
+   * Idempotent (cache-keyed), so spamming on every op-add stream emission
+   * does at most one HTTP per definition.
+   */
+  public prefetchBindingsForOperators(operators: readonly OperatorPredicate[]): void {
+    for (const op of operators) {
+      if (op.operatorType !== "Macro") continue;
+      const macroId = op.operatorProperties?.["macroId"];
+      if (typeof macroId !== "string" || macroId.length === 0) continue;
+      const instanceId = op.operatorID;
+      this.getBodyBindings(macroId).subscribe({
+        next: bindings => {
+          const out0 = bindings.outputBindings.find(b => b.externalPortIndex === 0);
+          if (out0) {
+            this.workflowResultService.setMacroResultAlias(
+              instanceId,
+              `${instanceId}--${out0.innerOpId}`
+            );
+          }
+        },
+        error: () => undefined,
+      });
+    }
+  }
+
+  private computeBodyBindings(detail: MacroDetail): {
+    inputBindings: MacroPortBinding[];
+    outputBindings: MacroPortBinding[];
+  } {
+    let body: MacroBody;
+    try {
+      body = JSON.parse(detail.content) as MacroBody;
+    } catch {
+      return { inputBindings: [], outputBindings: [] };
+    }
+    const inputMarkerByPortIndex = new Map<number, string>();
+    const outputMarkerByPortIndex = new Map<number, string>();
+    for (const raw of body.operators) {
+      const op = raw as { operatorID?: string; operatorType?: string; portIndex?: number };
+      if (typeof op.operatorID !== "string" || typeof op.portIndex !== "number") continue;
+      if (op.operatorType === "MacroInput") inputMarkerByPortIndex.set(op.portIndex, op.operatorID);
+      else if (op.operatorType === "MacroOutput") outputMarkerByPortIndex.set(op.portIndex, op.operatorID);
+    }
+    const markerIds = new Set([
+      ...Array.from(inputMarkerByPortIndex.values()),
+      ...Array.from(outputMarkerByPortIndex.values()),
+    ]);
+    // For each MacroInput, find body links marker -> innerOp@(p) — there can
+    // be multiple if the macro's external input fans out to several inner
+    // consumers (the rare "split feed" case in spliceIntoParent).
+    const inputBindings: MacroPortBinding[] = [];
+    for (const [portIndex, markerId] of inputMarkerByPortIndex.entries()) {
+      for (const link of body.links) {
+        if (link.fromOpId !== markerId) continue;
+        if (markerIds.has(link.toOpId)) continue; // marker → marker is malformed; skip
+        inputBindings.push({
+          externalPortIndex: portIndex,
+          innerOpId: link.toOpId,
+          innerPortIndex: link.toPortId.id,
+        });
+      }
+    }
+    // For each MacroOutput, find body links innerOp@(p) -> marker — exactly
+    // one producer per output marker (MacroExpander already enforces this).
+    const outputBindings: MacroPortBinding[] = [];
+    for (const [portIndex, markerId] of outputMarkerByPortIndex.entries()) {
+      for (const link of body.links) {
+        if (link.toOpId !== markerId) continue;
+        if (markerIds.has(link.fromOpId)) continue;
+        outputBindings.push({
+          externalPortIndex: portIndex,
+          innerOpId: link.fromOpId,
+          innerPortIndex: link.fromPortId.id,
+        });
+      }
+    }
+    return { inputBindings, outputBindings };
   }
 
   /**

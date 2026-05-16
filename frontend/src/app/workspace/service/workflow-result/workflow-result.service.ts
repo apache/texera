@@ -45,6 +45,14 @@ export class WorkflowResultService {
   private paginatedResultServices = new Map<string, OperatorPaginationResultService>();
   private operatorResultServices = new Map<string, OperatorResultService>();
 
+  // Alias map for macro instance IDs: macro op IDs on the canvas don't get
+  // direct result entries from the engine (the engine sees the inlined inner
+  // ops only). When a macro has at least one output port, route lookups for
+  // the macro to the inner op feeding output port 0 so the result panel can
+  // show "the macro's result" without the user having to drill down. Set by
+  // `MacroService` once body bindings are fetched.
+  private macroResultAliases = new Map<string, string>();
+
   // event stream of operator result update, undefined indicates the operator result is cleared
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
   private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
@@ -73,6 +81,40 @@ export class WorkflowResultService {
     return isDefined(this.getPaginatedResultService(operatorID));
   }
 
+  /**
+   * Register/refresh the macro-instance → inner-op alias used to resolve
+   * `getResultService` / `getPaginatedResultService` lookups for macro ops.
+   * Idempotent — call whenever a macro's body bindings finish loading.
+   * `innerOpId` must be a *runtime* (post-MacroExpander-prefix) ID so it
+   * matches what the engine sends in `WebResultUpdateEvent`.
+   */
+  public setMacroResultAlias(macroInstanceId: string, innerOpId: string): void {
+    this.macroResultAliases.set(macroInstanceId, innerOpId);
+  }
+
+  public clearMacroResultAlias(macroInstanceId: string): void {
+    this.macroResultAliases.delete(macroInstanceId);
+  }
+
+  // When the canvas is rendering a macro body (drill-down view), the operators
+  // on the canvas have body-relative IDs (`Filter-uuid`) but engine results
+  // arrive keyed by the post-expansion runtime ID (`${instanceId}--Filter-uuid`).
+  // Set this prefix to make every result lookup transparently target the
+  // runtime ID. Empty string disables the rewrite.
+  private drilldownPrefix: string = "";
+
+  public setDrilldownPrefix(prefix: string): void {
+    this.drilldownPrefix = prefix;
+  }
+
+  private resolveAlias(operatorID: string): string {
+    // Drill-down rewrite wins: when viewing a macro body during execution we
+    // want the body-relative op ID lifted to its runtime form. Macro aliases
+    // only fire on the outer canvas, where body-relative IDs aren't present.
+    if (this.drilldownPrefix.length > 0) return `${this.drilldownPrefix}${operatorID}`;
+    return this.macroResultAliases.get(operatorID) ?? operatorID;
+  }
+
   public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
     return this.resultUpdateStream;
   }
@@ -88,11 +130,11 @@ export class WorkflowResultService {
   }
 
   public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
-    return this.paginatedResultServices.get(operatorID);
+    return this.paginatedResultServices.get(this.resolveAlias(operatorID));
   }
 
   public getResultService(operatorID: string): OperatorResultService | undefined {
-    return this.operatorResultServices.get(operatorID);
+    return this.operatorResultServices.get(this.resolveAlias(operatorID));
   }
 
   private handleCleanResultCache(event: WorkflowAvailableResultEvent): void {
