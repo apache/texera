@@ -36,6 +36,7 @@ import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.compon
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
+import { DatasetBankComponent } from "./dashboard/component/user/dataset-bank/dataset-bank.component";
 import { UserAgentComponent } from "./dashboard/component/user/user-agent/user-agent.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
@@ -131,6 +132,10 @@ routes.push({
         {
           path: "dataset/create",
           component: DatasetDetailComponent,
+        },
+        {
+          path: "dataset-bank",
+          component: DatasetBankComponent,
         },
         {
           path: "compute",

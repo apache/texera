@@ -1,0 +1,124 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="dataset-bank">
+
+  <header class="bank-header">
+    <div class="bank-header-text">
+      <h1 class="bank-title">Dataset Bank</h1>
+      <p class="bank-subtitle">Browse and import public datasets</p>
+    </div>
+    <button
+      nz-button
+      nzType="default"
+      (click)="refresh()"
+      nz-tooltip
+      nzTooltipTitle="Refresh from public catalogs">
+      <span nz-icon nzType="reload"></span>
+      Refresh
+    </button>
+  </header>
+
+  <div class="bank-search-row">
+    <nz-input-group [nzPrefix]="searchIcon" nzSize="large" class="bank-search">
+      <input
+        nz-input
+        type="text"
+        placeholder="Search by name, tag, or description (e.g. 'diabetes', 'images', 'time series')…"
+        [ngModel]="searchQuery"
+        (ngModelChange)="onSearchChange($event)" />
+    </nz-input-group>
+    <ng-template #searchIcon>
+      <span nz-icon nzType="search"></span>
+    </ng-template>
+  </div>
+
+  <div class="bank-chips">
+    <button
+      *ngFor="let chip of chips"
+      class="bank-chip"
+      [class.bank-chip-active]="chip.key === activeCategory"
+      (click)="onCategoryClick(chip.key)"
+      type="button">
+      {{ chip.label }}
+    </button>
+  </div>
+
+  <div class="bank-loading" *ngIf="isLoading$ | async">
+    <nz-spin nzSimple nzSize="small"></nz-spin>
+    <span>Refreshing from public catalogs…</span>
+  </div>
+
+  <ng-container *ngIf="datasets$ | async as datasets">
+    <div class="bank-grid" *ngIf="datasets.length > 0; else empty">
+      <nz-card *ngFor="let d of datasets; trackBy: trackById" class="bank-card" [nzHoverable]="true">
+        <div class="card-head">
+          <h3 class="card-title" [title]="d.name">{{ d.name }}</h3>
+          <nz-tag [nzColor]="sourceColor[d.source]" class="card-source">{{ sourceLabel[d.source] }}</nz-tag>
+        </div>
+
+        <p class="card-description" [title]="d.description">{{ d.description }}</p>
+
+        <div class="card-stats">
+          <span *ngIf="d.rows !== undefined" class="card-stat" nz-tooltip nzTooltipTitle="Rows">
+            <span nz-icon nzType="bars"></span> {{ formatNumber(d.rows) }} rows
+          </span>
+          <span *ngIf="d.columns !== undefined" class="card-stat" nz-tooltip nzTooltipTitle="Columns">
+            <span nz-icon nzType="table"></span> {{ d.columns }} cols
+          </span>
+          <span *ngIf="d.sizeLabel" class="card-stat" nz-tooltip nzTooltipTitle="Approximate size">
+            <span nz-icon nzType="hdd"></span> {{ d.sizeLabel }}
+          </span>
+          <span *ngIf="d.format" class="card-stat" nz-tooltip nzTooltipTitle="Format">
+            <span nz-icon nzType="file-text"></span> {{ d.format }}
+          </span>
+        </div>
+
+        <div class="card-tags" *ngIf="d.tags.length > 0">
+          <nz-tag *ngFor="let t of d.tags">{{ t }}</nz-tag>
+        </div>
+
+        <div class="card-actions">
+          <a [href]="d.url" target="_blank" rel="noopener" class="card-source-link">
+            <span nz-icon nzType="link"></span>
+            View on {{ sourceLabel[d.source] }}
+          </a>
+          <button
+            nz-button
+            nzType="primary"
+            nzSize="small"
+            (click)="import(d)">
+            <span nz-icon nzType="cloud-download"></span>
+            Import
+          </button>
+        </div>
+      </nz-card>
+    </div>
+
+    <ng-template #empty>
+      <div class="bank-empty">
+        <nz-empty
+          [nzNotFoundContent]="searchQuery
+            ? 'No datasets match your search. Try a different keyword or clear the category filter.'
+            : 'No datasets available right now.'"></nz-empty>
+      </div>
+    </ng-template>
+  </ng-container>
+
+</div>

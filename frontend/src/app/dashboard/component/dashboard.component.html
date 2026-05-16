@@ -99,6 +99,17 @@
           </li>
           <li
             nz-menu-item
+            nz-tooltip="Browse and import public datasets"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_DATASET_BANK">
+            <span
+              nz-icon
+              nzType="cloud-download"></span>
+            <span>Dataset Bank</span>
+          </li>
+          <li
+            nz-menu-item
             nz-tooltip="Manage your custom AI agents"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
