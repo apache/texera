@@ -89,144 +89,16 @@ export class OperatorMenuComponent {
     );
   }
 
-  /**
-   * Cache for the per-macro auto-inferred category. Keyed by macroId (the
-   * wid as string). Populated lazily on demand and after each listMacros
-   * refresh so the palette can group by category without an extra HTTP call
-   * per macro on every render. Categories are derived from the macro body's
-   * operator-type composition — see `inferCategory()`.
-   */
-  private macroCategoryCache = new Map<string, string>();
-  /**
-   * Cache for the per-macro op-type subtitle (e.g. "Filter→Projection→Limit"
-   * truncated to 3 ops with a "+N" suffix when longer). Populated alongside
-   * the category cache from the same `getMacro` fetch.
-   */
-  private macroSubtitleCache = new Map<string, string>();
-
-  /**
-   * Cheap heuristic that maps a macro's body to a category label. We pull
-   * the body once via `getMacro` and inspect the operator-type composition:
-   *   - majority Aggregate/GroupBy/Sort → "aggregation"
-   *   - majority Visualizer/Chart → "visualization"
-   *   - majority PythonUDF/Lambda → "transformation"
-   *   - else (Filter/Projection/Regex/...) → "preprocessing"
-   *
-   * Returns "uncategorized" if we can't load the body. The category is
-   * cached the first time we look up a given macroId.
-   */
-  public categoryForMacro(macroSchema: OperatorSchema & { __macroSummary?: MacroSummary }): string {
-    const wid = macroSchema.__macroSummary?.wid;
-    if (!wid) return "uncategorized";
-    const key = String(wid);
-    const cached = this.macroCategoryCache.get(key);
-    if (cached) return cached;
-    // Fire and forget the body fetch; once it lands, fill the cache so a
-    // future render uses the real category.
-    this.macroService.getMacro(wid).subscribe({
-      next: detail => {
-        try {
-          const body = JSON.parse(detail.content) as {
-            operators?: Array<{ operatorType?: string }>;
-          };
-          const ops = body.operators ?? [];
-          this.macroCategoryCache.set(key, this.inferCategory(ops));
-          this.macroSubtitleCache.set(key, this.subtitleFromOps(ops));
-        } catch {
-          this.macroCategoryCache.set(key, "uncategorized");
-          this.macroSubtitleCache.set(key, "");
-        }
-      },
-      error: () => {
-        this.macroCategoryCache.set(key, "uncategorized");
-        this.macroSubtitleCache.set(key, "");
-      },
-    });
-    return "loading…";
-  }
-
-  /**
-   * Return a short op-type chain string for a macro, e.g.
-   * "Filter→Projection" or "Filter→Projection→Limit +2" for longer chains.
-   * Lazily populated alongside the category cache by `categoryForMacro`.
-   */
-  public subtitleForMacro(macroSchema: OperatorSchema & { __macroSummary?: MacroSummary }): string {
-    const wid = macroSchema.__macroSummary?.wid;
-    if (!wid) return "";
-    return this.macroSubtitleCache.get(String(wid)) ?? "";
-  }
-
-  private subtitleFromOps(operators: Array<{ operatorType?: string }>): string {
-    const inner = operators
-      .filter(o => o.operatorType !== "MacroInput" && o.operatorType !== "MacroOutput")
-      .map(o => o.operatorType ?? "?");
-    if (inner.length === 0) return "";
-    const head = inner.slice(0, 3).join("→");
-    return inner.length > 3 ? `${head} +${inner.length - 3}` : head;
-  }
-
-  /**
-   * Return a unicode glyph that matches a macro's auto-inferred category so
-   * the palette renders distinct visual cues per category. The fallback ▦
-   * keeps the layout stable for cases where the category hasn't loaded yet.
-   */
-  public iconForCategory(category: string): string {
-    switch (category) {
-      case "preprocessing":
-        return "🧹";
-      case "transformation":
-        return "🔄";
-      case "aggregation":
-        return "📊";
-      case "visualization":
-        return "📈";
-      case "loading…":
-      case "uncategorized":
-      default:
-        return "▦";
-    }
-  }
-
-  private inferCategory(operators: Array<{ operatorType?: string }>): string {
-    const inner = operators.filter(
-      o => o.operatorType !== "MacroInput" && o.operatorType !== "MacroOutput"
-    );
-    if (inner.length === 0) return "uncategorized";
-    const counts = { agg: 0, viz: 0, transform: 0, prep: 0 };
-    for (const op of inner) {
-      const t = (op.operatorType ?? "").toLowerCase();
-      if (/aggregate|groupby|sort|reduce|count/.test(t)) counts.agg++;
-      else if (/visualizer|chart|wordcloud|plot|piechart|barchart|linechart/.test(t)) counts.viz++;
-      else if (/python|lambda|udf/.test(t)) counts.transform++;
-      else counts.prep++;
-    }
-    const max = Math.max(counts.agg, counts.viz, counts.transform, counts.prep);
-    if (max === counts.viz && counts.viz > 0) return "visualization";
-    if (max === counts.agg && counts.agg > 0) return "aggregation";
-    if (max === counts.transform && counts.transform > 0) return "transformation";
-    return "preprocessing";
-  }
-
-  /**
-   * Group the filtered macro list by auto-inferred category, returning a
-   * stable category-ordered array so the palette renders deterministically.
-   * Empty categories are omitted. Categories the user hasn't seen yet emit
-   * a single "loading…" bucket that swaps in once getMacro lands.
-   */
-  public get groupedMacroList(): Array<{ category: string; macros: (OperatorSchema & { __macroSummary?: MacroSummary })[] }> {
-    const categoryOrder = ["preprocessing", "transformation", "aggregation", "visualization", "uncategorized", "loading…"];
-    const grouped = new Map<string, (OperatorSchema & { __macroSummary?: MacroSummary })[]>();
-    for (const macro of this.filteredMacroList) {
-      const cat = this.categoryForMacro(macro);
-      if (!grouped.has(cat)) grouped.set(cat, []);
-      grouped.get(cat)!.push(macro);
-    }
-    const result: Array<{ category: string; macros: (OperatorSchema & { __macroSummary?: MacroSummary })[] }> = [];
-    for (const cat of categoryOrder) {
-      if (grouped.has(cat)) result.push({ category: cat, macros: grouped.get(cat)! });
-    }
-    return result;
-  }
+  // REMOVED: per-macro categorization + op-chain subtitle.
+  //
+  // These features lazily called `getMacro(wid)` from inside Angular template
+  // bindings on every change-detection cycle while the cache was unfilled,
+  // which on a workflow that opens with many macros DDoS'd the browser's
+  // fetch pool with ERR_INSUFFICIENT_RESOURCES, starving the websocket and
+  // compile requests. A proper implementation needs the data on the backend
+  // MacroSummary (so we get it in one round-trip), not per-macro fetches
+  // from the palette renderer. Until that's done, the palette stays a flat
+  // list with just name + usage chip + ports + export button.
 
   // Inline panel for "AI" macro suggestions. Populated on user click, then
   // cleared after a selection is materialized. Empty list means panel is

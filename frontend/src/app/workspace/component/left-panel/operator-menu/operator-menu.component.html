@@ -87,9 +87,13 @@
   </div>
 </div>
 
-<!-- "Auto-optimize workflow" — the omni-agent action: extract top patterns,
-     then fuse every macro. Always available (even on macro-free workflows
-     with detectable patterns). -->
+<!-- Auto-optimize / Fuse-all buttons disabled until the template-based fuse
+     codegen produces a backend-compilable PythonUDFOpDescV2 on arbitrary
+     macros. The current codegen only handles a narrow op subset and
+     auto-fuse on real workflows fails the compile step. Per-macro fuse is
+     still reachable via the right-click context menu so the manual path
+     stays available for testing. -->
+<!--
 <button
   *ngIf="canModify && (unfusedMacroCountOnCanvas() > 0 || availableCandidateCount > 0)"
   class="auto-optimize-trigger"
@@ -100,10 +104,6 @@
   <span *ngIf="!autoOptimizeInProgress">Auto-optimize workflow</span>
   <span *ngIf="autoOptimizeInProgress">Optimizing…</span>
 </button>
-
-<!-- "Fuse all macros" — one-click batch perf optimization for every Macro op
-     on the canvas that isn't yet fused. Hides when there's nothing to fuse so
-     it doesn't take up palette real estate on macro-free workflows. -->
 <button
   *ngIf="unfusedMacroCountOnCanvas() > 0 && canModify"
   class="fuse-all-trigger"
@@ -114,6 +114,8 @@
   <span *ngIf="!fuseAllInProgress">Fuse all macros ({{ unfusedMacroCountOnCanvas() }})</span>
   <span *ngIf="fuseAllInProgress">Fusing…</span>
 </button>
+-->
+
 
 <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames, depth: 0 }"></ng-container>
 
@@ -151,46 +153,31 @@
         placeholder="Filter macros…"
         class="your-macros-filter"
         [(ngModel)]="macroFilterText" />
-      <!-- Macros are grouped by auto-inferred category so a large library
-           stays browsable. Categories appear in a stable order. -->
-      <div *ngFor="let group of groupedMacroList" class="macro-category">
-        <div class="macro-category__header">{{ group.category }}</div>
-        <div
-          *ngFor="let macroSchema of group.macros"
-          class="operator-label macro-palette-item"
-          [class.disabled]="!canModify"
-          [title]="macroSchema.additionalMetadata.operatorDescription">
-          <span class="macro-palette-item__icon" (click)="canModify && onAddMacro(macroSchema)">
-            {{ iconForCategory(categoryForMacro(macroSchema)) }}
-          </span>
-          <span
-            class="macro-palette-item__name"
-            (click)="canModify && onAddMacro(macroSchema)"
-            [title]="subtitleForMacro(macroSchema) || macroSchema.additionalMetadata.userFriendlyName">
-            {{ macroSchema.additionalMetadata.userFriendlyName }}
-            <span
-              *ngIf="subtitleForMacro(macroSchema)"
-              class="macro-palette-item__subtitle">
-              {{ subtitleForMacro(macroSchema) }}
-            </span>
-          </span>
-          <span
-            *ngIf="(macroSchema.__macroSummary?.usageCount ?? 0) > 0"
-            class="macro-palette-item__usage"
-            (click)="canModify && onAddMacro(macroSchema)"
-            [title]="'Used in ' + macroSchema.__macroSummary!.usageCount + ' workflow(s)'">
-            {{ macroSchema.__macroSummary!.usageCount }}× used
-          </span>
-          <span class="macro-palette-item__ports" (click)="canModify && onAddMacro(macroSchema)">
-            {{ macroSchema.additionalMetadata.inputPorts.length }} in /
-            {{ macroSchema.additionalMetadata.outputPorts.length }} out
-          </span>
-          <button
-            *ngIf="macroSchema.__macroSummary"
-            class="macro-palette-item__export"
-            title="Export macro as JSON"
-            (click)="onExportMacro(macroSchema.__macroSummary); $event.stopPropagation()">⤓</button>
-        </div>
+      <div
+        *ngFor="let macroSchema of filteredMacroList"
+        class="operator-label macro-palette-item"
+        [class.disabled]="!canModify"
+        [title]="macroSchema.additionalMetadata.operatorDescription">
+        <span class="macro-palette-item__icon" (click)="canModify && onAddMacro(macroSchema)">▦</span>
+        <span class="macro-palette-item__name" (click)="canModify && onAddMacro(macroSchema)">
+          {{ macroSchema.additionalMetadata.userFriendlyName }}
+        </span>
+        <span
+          *ngIf="(macroSchema.__macroSummary?.usageCount ?? 0) > 0"
+          class="macro-palette-item__usage"
+          (click)="canModify && onAddMacro(macroSchema)"
+          [title]="'Used in ' + macroSchema.__macroSummary!.usageCount + ' workflow(s)'">
+          {{ macroSchema.__macroSummary!.usageCount }}× used
+        </span>
+        <span class="macro-palette-item__ports" (click)="canModify && onAddMacro(macroSchema)">
+          {{ macroSchema.additionalMetadata.inputPorts.length }} in /
+          {{ macroSchema.additionalMetadata.outputPorts.length }} out
+        </span>
+        <button
+          *ngIf="macroSchema.__macroSummary"
+          class="macro-palette-item__export"
+          title="Export macro as JSON"
+          (click)="onExportMacro(macroSchema.__macroSummary); $event.stopPropagation()">⤓</button>
       </div>
     </div>
   </nz-collapse-panel>
