@@ -150,6 +150,46 @@ class WorkflowCompiler(
     // logical-plan-level abstraction; after this pass the rest of the pipeline
     // never sees a MacroOpDesc / MacroInputOp / MacroOutputOp.
     val logicalPlan: LogicalPlan = MacroExpander.expand(rawLogicalPlan, macroRegistry)
+    // Debug: dump the post-expansion logical plan to a file so we can diff
+    // it against a manually-flattened equivalent and confirm MacroExpander
+    // produces a structurally identical plan. Keyed by workflow id so we
+    // can correlate with execution logs.
+    try {
+      val wid = context.workflowId.id
+      val opsDump = logicalPlan.operators.map(o =>
+        Map(
+          "type" -> o.getClass.getSimpleName,
+          "id" -> o.operatorIdentifier.id,
+          "inputPorts" -> Option(o.inputPorts).map(_.map(p =>
+            Map(
+              "portID" -> p.portID,
+              "disallowMultiInputs" -> p.disallowMultiInputs,
+              "isDynamicPort" -> p.isDynamicPort,
+              "dependencies" -> p.dependencies
+            )
+          )).orNull,
+          "outputPorts" -> Option(o.outputPorts).map(_.map(p =>
+            Map("portID" -> p.portID, "disallowMultiInputs" -> p.disallowMultiInputs)
+          )).orNull
+        )
+      )
+      val linksDump = logicalPlan.links.map(l =>
+        Map(
+          "from" -> l.fromOpId.id,
+          "fromPort" -> l.fromPortId.id,
+          "to" -> l.toOpId.id,
+          "toPort" -> l.toPortId.id
+        )
+      )
+      val dump = Map("ops" -> opsDump, "links" -> linksDump)
+      val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+        .registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
+      val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(dump)
+      val outFile = new java.io.File(s"/tmp/texera-logs/expanded-plan-wid-$wid.json")
+      java.nio.file.Files.writeString(outFile.toPath, json)
+    } catch {
+      case e: Throwable => // ignore debug-dump failures
+    }
 
     // 3. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(None)

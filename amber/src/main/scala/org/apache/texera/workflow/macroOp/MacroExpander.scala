@@ -46,6 +46,26 @@ import org.apache.texera.workflow.{LogicalLink, LogicalPlan}
 // unified (see WorkflowCompiler.scala TODO).
 object MacroExpander {
 
+  /**
+    * Side-table from `runtimeInnerOpId → outermost macro instance OperatorIdentity`.
+    * Populated by `spliceIntoParent` and read by callers (e.g. the compiler /
+    * execution stats publisher) to roll inner-op stats back up to the macro op
+    * for the UI. Empty after `expand` returns when the plan had no macros.
+    *
+    * Threading model: not thread-safe; each compile call should drain it via
+    * `takeMacroInstanceMapping()` before another compile starts. Tests should
+    * call `resetMacroInstanceMapping()` between cases.
+    */
+  private val currentMacroInstanceMapping =
+    scala.collection.mutable.Map[OperatorIdentity, OperatorIdentity]()
+
+  /** Snapshot + clear the current mapping. The caller takes ownership. */
+  def takeMacroInstanceMapping(): Map[OperatorIdentity, OperatorIdentity] = {
+    val snapshot = currentMacroInstanceMapping.toMap
+    currentMacroInstanceMapping.clear()
+    snapshot
+  }
+
   def expand(plan: LogicalPlan, registry: MacroRegistry): LogicalPlan =
     expand(plan, registry, MacroCompileContext.root)
 
@@ -138,18 +158,42 @@ object MacroExpander {
       inputMarkers.values.map(_.operatorIdentifier).toSet ++
         outputMarkers.values.map(_.operatorIdentifier).toSet
 
-    // Deep-clone non-marker inner ops via JSON round-trip and prefix their IDs.
+    // Deep-clone non-marker inner ops via JSON round-trip.
     val innerOps: List[LogicalOp] = body.operators.collect {
       case op if !op.isInstanceOf[MacroInputOp] && !op.isInstanceOf[MacroOutputOp] =>
         deepClone(op)
     }
 
+    // Assign fresh UUIDs to each inner op. The expanded LogicalPlan must be
+    // STRUCTURALLY IDENTICAL to a hand-flattened workflow — otherwise downstream
+    // engine behavior (Iceberg materialization table naming, partition routing
+    // based on op-ID hashes, region scheduling) silently diverges.
+    //
+    // The previous "${macroInstanceId}--${innerOpId}" prefix scheme was
+    // convenient for stats aggregation but produced 170+ char op IDs, which
+    // caused observable Iceberg commit thrash on HashJoin's internal build
+    // port — execution that runs fine on a hand-flattened plan hangs on the
+    // macro-wrapped equivalent.
+    //
+    // Fresh UUIDs also handle the multi-instance case cleanly: instantiating
+    // the same macro twice in a workflow no longer collides on inner op IDs.
+    // Stats roll-up to the macro op is preserved via the side-table returned
+    // alongside the rewritten plan (see `expand` -> `MacroExpansionResult`).
     val idRewrite: Map[OperatorIdentity, OperatorIdentity] = innerOps.map { op =>
       val originalId = op.operatorIdentifier
-      val newId = s"$instanceId--${op.operatorIdentifier.id}"
-      op.setOperatorId(newId)
+      val freshId = s"${op.getClass.getSimpleName}-operator-${java.util.UUID.randomUUID()}"
+      op.setOperatorId(freshId)
       originalId -> op.operatorIdentifier
     }.toMap
+
+    // Side-table: record which freshly-assigned inner ops belong to this
+    // macro instance. The orchestrator above us collects these maps across
+    // every spliceIntoParent call and exposes the full mapping via
+    // `WorkflowContext` / execution stats so the frontend can aggregate
+    // inner-op stats back to the macro op without parsing op-ID prefixes.
+    idRewrite.values.foreach { rewrittenInnerOpId =>
+      currentMacroInstanceMapping += (rewrittenInnerOpId -> mId)
+    }
 
     def rewriteInnerId(id: OperatorIdentity): OperatorIdentity =
       idRewrite.getOrElse(

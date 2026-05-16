@@ -132,17 +132,20 @@ object MacroExpander {
       inputMarkers.values.map(_.operatorIdentifier).toSet ++
         outputMarkers.values.map(_.operatorIdentifier).toSet
 
-    // Deep-clone non-marker inner ops via JSON round-trip and prefix their IDs.
+    // Deep-clone non-marker inner ops via JSON round-trip.
     val innerOps: List[LogicalOp] = body.operators.collect {
       case op if !op.isInstanceOf[MacroInputOp] && !op.isInstanceOf[MacroOutputOp] =>
         deepClone(op)
     }
 
-    // (originalId → prefixedId) captured before mutating the cloned ops.
+    // Assign fresh UUIDs to each inner op. The expanded LogicalPlan must be
+    // structurally identical to a hand-flattened workflow — see the matching
+    // amber MacroExpander for full rationale (Iceberg materialization /
+    // partition routing diverge with long prefixed op IDs).
     val idRewrite: Map[OperatorIdentity, OperatorIdentity] = innerOps.map { op =>
       val originalId = op.operatorIdentifier
-      val newId = s"$instanceId--${op.operatorIdentifier.id}"
-      op.setOperatorId(newId)
+      val freshId = s"${op.getClass.getSimpleName}-operator-${java.util.UUID.randomUUID()}"
+      op.setOperatorId(freshId)
       originalId -> op.operatorIdentifier
     }.toMap
 
