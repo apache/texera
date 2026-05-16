@@ -28,6 +28,17 @@
           nz-button
           nzType="text"
           nzSize="small"
+          (click)="toggleSearch($event)"
+          [class.active]="isSearchOpen"
+          aria-label="Search">
+          <i
+            nz-icon
+            nzType="search"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
           (click)="toggleSettings($event)"
           [class.active]="isSettingsOpen"
           aria-label="Settings">
@@ -122,8 +133,99 @@
       </ng-container>
     </div>
 
+    <!-- Search Panel -->
+    <div
+      *ngIf="isSearchOpen"
+      class="search-panel">
+      <div class="search-input-row">
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search workflows, datasets…"
+          [(ngModel)]="searchQuery"
+          (keyup.enter)="runSearch()" />
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          [nzLoading]="searchLoading"
+          (click)="runSearch()">
+          Search
+        </button>
+      </div>
+      <div class="search-type-row">
+        <label class="search-type-option">
+          <input
+            type="radio"
+            name="searchType"
+            value="all"
+            [(ngModel)]="searchType" />
+          All
+        </label>
+        <label class="search-type-option">
+          <input
+            type="radio"
+            name="searchType"
+            value="workflow"
+            [(ngModel)]="searchType" />
+          Workflows
+        </label>
+        <label class="search-type-option">
+          <input
+            type="radio"
+            name="searchType"
+            value="dataset"
+            [(ngModel)]="searchType" />
+          Datasets
+        </label>
+      </div>
+      <div class="search-results">
+        <div
+          *ngFor="let item of searchResults"
+          class="search-result-item"
+          (click)="openSearchResult(item)">
+          <i
+            nz-icon
+            class="search-result-icon"
+            [nzType]="item.resourceType === 'workflow' ? 'partition' : 'database'"
+            nzTheme="outline"></i>
+          <div class="search-result-body">
+            <div class="search-result-title">
+              {{ item.workflow?.workflow?.name || item.dataset?.dataset?.name || "(no name)" }}
+            </div>
+            <div class="search-result-meta">
+              <span class="search-result-type">{{ item.resourceType }}</span>
+              <ng-container *ngIf="item.resourceType === 'workflow' && item.workflow?.workflow as wf">
+                <span
+                  *ngIf="wf.lastModifiedTime"
+                  class="search-result-date">
+                  Modified {{ wf.lastModifiedTime | date: "medium" }}
+                </span>
+                <span
+                  *ngIf="!wf.lastModifiedTime && wf.creationTime"
+                  class="search-result-date">
+                  Created {{ wf.creationTime | date: "medium" }}
+                </span>
+              </ng-container>
+              <ng-container *ngIf="item.resourceType === 'dataset' && item.dataset?.dataset as ds">
+                <span
+                  *ngIf="ds.creationTime"
+                  class="search-result-date">
+                  Created {{ ds.creationTime | date: "medium" }}
+                </span>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+        <nz-empty
+          *ngIf="!searchLoading && searchQuery && searchResults.length === 0"
+          nzNotFoundContent="No results"
+          class="empty"></nz-empty>
+      </div>
+    </div>
+
     <nz-tabs
-      *ngIf="!isSettingsOpen"
+      *ngIf="!isSettingsOpen && !isSearchOpen"
       nzSize="small"
       class="panel-tabs">
       <!-- Notification Tab -->
@@ -157,6 +259,81 @@
               workflowsList;
               context: { $implicit: sessionWorkflows$ | async }
             "></ng-container>
+        </ng-template>
+      </nz-tab>
+
+      <!-- Operator Tab (workflow page only) -->
+      <nz-tab
+        *ngIf="isOnWorkflowPage"
+        [nzTitle]="operatorTitle">
+        <ng-template #operatorTitle>
+          <span class="tab-title">Operator</span>
+        </ng-template>
+        <ng-template nz-tab>
+          <div class="operator-pane">
+            <ng-container *ngIf="selectedOperatorId; else noOperatorSelected">
+              <div class="operator-header">
+                <div class="operator-type">{{ selectedOperatorType }}</div>
+                <div class="operator-id">{{ selectedOperatorId }}</div>
+              </div>
+              <div
+                *ngIf="selectedOperatorProperties"
+                class="operator-props">
+                <div
+                  *ngFor="let prop of (selectedOperatorProperties | keyvalue)"
+                  class="operator-prop-row">
+                  <span class="operator-prop-key">{{ prop.key }}</span>
+                  <span class="operator-prop-value">{{ prop.value | json }}</span>
+                </div>
+              </div>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="operator-explain-btn"
+                [nzLoading]="operatorExplanationLoading"
+                [disabled]="operatorExplanationLoading"
+                (click)="explainSelectedOperator()">
+                <i
+                  nz-icon
+                  nzType="bulb"
+                  nzTheme="outline"></i>
+                Explain with AI
+              </button>
+              <div
+                *ngIf="operatorExplanation || operatorExplanationLoading"
+                class="item-ai-suggestion operator-explanation">
+                <div class="item-ai-header">
+                  <i
+                    nz-icon
+                    nzType="bulb"
+                    nzTheme="outline"></i>
+                  Explanation
+                  <i
+                    *ngIf="operatorExplanationLoading"
+                    nz-icon
+                    nzType="loading"
+                    nzTheme="outline"
+                    class="item-ai-spinner"></i>
+                </div>
+                <div
+                  *ngIf="operatorExplanation"
+                  class="item-ai-body">
+                  <markdown [data]="operatorExplanation"></markdown>
+                </div>
+                <div
+                  *ngIf="operatorExplanationLoading && !operatorExplanation"
+                  class="item-ai-body item-ai-placeholder">
+                  Asking your workflow's AI agent…
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #noOperatorSelected>
+              <nz-empty
+                nzNotFoundContent="Select an operator on the canvas"
+                class="empty"></nz-empty>
+            </ng-template>
+          </div>
         </ng-template>
       </nz-tab>
 
@@ -265,6 +442,33 @@
                 *ngIf="n.hint"
                 class="item-hint">
                 Try: {{ n.hint }}
+              </div>
+              <div
+                *ngIf="n.aiSuggestionLoading || n.aiSuggestion"
+                class="item-ai-suggestion">
+                <div class="item-ai-header">
+                  <i
+                    nz-icon
+                    nzType="bulb"
+                    nzTheme="outline"></i>
+                  AI suggestion
+                  <i
+                    *ngIf="n.aiSuggestionLoading"
+                    nz-icon
+                    nzType="loading"
+                    nzTheme="outline"
+                    class="item-ai-spinner"></i>
+                </div>
+                <div
+                  *ngIf="n.aiSuggestion"
+                  class="item-ai-body">
+                  <markdown [data]="n.aiSuggestion"></markdown>
+                </div>
+                <div
+                  *ngIf="n.aiSuggestionLoading && !n.aiSuggestion"
+                  class="item-ai-body item-ai-placeholder">
+                  Asking your workflow's AI agent…
+                </div>
               </div>
               <button
                 *ngIf="n.action"

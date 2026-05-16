@@ -76,6 +76,10 @@ export interface AgentNotification {
   read: boolean;
   /** Optional metadata for downstream actions; not displayed directly. */
   meta?: Record<string, unknown>;
+  /** LLM-generated remediation suggestion, streamed in after the notification is pushed. */
+  aiSuggestion?: string;
+  /** Whether an AI suggestion request is in flight. */
+  aiSuggestionLoading?: boolean;
 }
 
 const MAX_NOTIFICATIONS = 100;
@@ -122,6 +126,7 @@ export class FloatingAgentService {
     this.persist();
   }
 
+
   public getSettings(): AgentNotificationSettings {
     return this.settingsSubject.value;
   }
@@ -137,17 +142,10 @@ export class FloatingAgentService {
     return this.settingsSubject.value[type] !== false;
   }
 
-  public push(notification: Omit<AgentNotification, "id" | "timestamp" | "read">): void {
+  public push(notification: Omit<AgentNotification, "id" | "timestamp" | "read">): string | undefined {
     // Filter out muted notification types
     if (notification.type && !this.isTypeEnabled(notification.type)) {
-      return;
-    }
-    // Filter out notifications the user has previously dismissed via Clear.
-    // The signature is built from semantic identity (e.g., wid+state for runs,
-    // entity+action for social, uid for admin) — see signatureFor().
-    const signature = FloatingAgentService.signatureFor(notification);
-    if (signature && this.isDismissed(signature)) {
-      return;
+      return undefined;
     }
     const entry: AgentNotification = {
       ...notification,
@@ -156,6 +154,18 @@ export class FloatingAgentService {
       read: false,
     };
     const next = [entry, ...this.notificationsSubject.value].slice(0, MAX_NOTIFICATIONS);
+    this.notificationsSubject.next(next);
+    this.persist();
+    return entry.id;
+  }
+
+  /** Update fields on an existing notification (used to stream in AI suggestions). */
+  public updateById(id: string, partial: Partial<AgentNotification>): void {
+    const list = this.notificationsSubject.value;
+    const idx = list.findIndex(n => n.id === id);
+    if (idx < 0) return;
+    const next = [...list];
+    next[idx] = { ...list[idx], ...partial };
     this.notificationsSubject.next(next);
     this.persist();
   }
@@ -241,16 +251,6 @@ export class FloatingAgentService {
   }
 
   public clear(category?: AgentNotificationCategory): void {
-    // Remember the signatures we're about to clear so polls / replay events
-    // don't immediately re-push them (e.g., after an HMR or page refresh).
-    const toClear = category
-      ? this.notificationsSubject.value.filter(n => n.category === category)
-      : this.notificationsSubject.value;
-    const signatures = toClear
-      .map(n => FloatingAgentService.signatureFor(n))
-      .filter((s): s is string => typeof s === "string");
-    if (signatures.length > 0) this.dismiss(signatures);
-
     const next = category ? this.notificationsSubject.value.filter(n => n.category !== category) : [];
     this.notificationsSubject.next(next);
     this.persist();

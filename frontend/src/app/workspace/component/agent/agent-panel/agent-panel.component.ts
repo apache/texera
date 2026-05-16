@@ -39,6 +39,9 @@ import { AgentRegistrationComponent } from "./agent-registration/agent-registrat
 import { AgentChatComponent } from "./agent-chat/agent-chat.component";
 import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
 
+/** localStorage key — value is a JSON map of `{ [workflowId: number]: agentId: string }`. */
+const ACTIVE_AGENT_BY_WORKFLOW_STORAGE_KEY = "agent-panel-active-agent-by-workflow";
+
 @UntilDestroy()
 @Component({
   selector: "texera-agent-panel",
@@ -110,6 +113,11 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     // openPanel() broadcasts the new state internally, so subscribers stay in sync.
     this.agentPanelControlService.toggleRequest$.pipe(untilDestroyed(this)).subscribe(() => {
       this.openPanel();
+      // Opening the panel is a good moment to restore the previously selected agent
+      // if init-time restore didn't catch it (e.g., agents loaded after ngOnInit).
+      if (this.width > 0 && !this.activeAgentId) {
+        this.restoreLastActiveAgent();
+      }
     });
 
     // Sync initial state to the control service so subscribers know the starting value.
@@ -124,6 +132,11 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
           this.agents = agents;
           // Try to activate the agent if agentIdToActivate is set
           this.tryActivateAgentFromInput();
+          // If still no active agent, retry the localStorage restore — agents
+          // might've shown up after the initial load.
+          if (!this.activeAgentId) {
+            this.restoreLastActiveAgent();
+          }
         });
     });
 
@@ -135,7 +148,114 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
         this.agents = agents;
         // Try to activate the agent if agentIdToActivate is set
         this.tryActivateAgentFromInput();
+        // Otherwise, restore the agent previously bound to *this* workflow.
+        if (!this.activeAgentId) {
+          this.restoreLastActiveAgent();
+        }
       });
+
+    // Workflow metadata can load (or change to a different workflow) after the
+    // panel is already mounted. When that happens, deactivate the current agent
+    // (so we don't leave the wrong binding active) and restore the one bound to
+    // the new workflow.
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+        const targetAgentId = this.getStoredAgentIdForWorkflow(wid);
+        if (this.activeAgentId && this.activeAgentId !== targetAgentId) {
+          this.deactivateCurrentAgent();
+        }
+        if (!this.activeAgentId) this.restoreLastActiveAgent();
+      });
+  }
+
+  /**
+   * Restore the agent previously bound to the *current* workflow. Falls back to
+   * the registration tab when there's no saved binding for this workflow, when
+   * the bound agent no longer exists, or when no workflow id is available yet.
+   */
+  private restoreLastActiveAgent(): void {
+    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata()?.wid;
+    const storedAgentId = this.getStoredAgentIdForWorkflow(currentWorkflowId);
+    console.log(
+      `[AgentPanel] restoreLastActiveAgent: wid=${currentWorkflowId}, storedId=${storedAgentId}`
+    );
+    if (!storedAgentId) {
+      // No binding for this workflow → drop the user on the registration tab so
+      // they can either pick a different agent or create a new one.
+      this.selectedTabIndex = 0;
+      return;
+    }
+    const agentIndex = this.agents.findIndex(a => a.id === storedAgentId);
+    console.log(
+      `[AgentPanel] restoreLastActiveAgent: agentIndex = ${agentIndex}, agents.length = ${this.agents.length}`
+    );
+    if (agentIndex === -1) {
+      // Stale binding — the agent was deleted elsewhere. Clean it up.
+      this.clearStoredAgentIdForWorkflow(currentWorkflowId);
+      this.selectedTabIndex = 0;
+      return;
+    }
+    const agent = this.agents[agentIndex];
+    this.switchToAgent(agent.id, agentIndex + 1); // +1 because tab 0 is registration
+  }
+
+  // ----- Per-workflow agent binding (localStorage map) -----
+
+  private loadAgentByWorkflowMap(): Record<string, string> {
+    try {
+      const raw = localStorage.getItem(ACTIVE_AGENT_BY_WORKFLOW_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, string>;
+      }
+    } catch {
+      // Ignore malformed storage.
+    }
+    return {};
+  }
+
+  private saveAgentByWorkflowMap(map: Record<string, string>): void {
+    try {
+      localStorage.setItem(ACTIVE_AGENT_BY_WORKFLOW_STORAGE_KEY, JSON.stringify(map));
+    } catch {
+      // Storage unavailable; ignore.
+    }
+  }
+
+  private getStoredAgentIdForWorkflow(wid: number | undefined): string | undefined {
+    if (wid === undefined) return undefined;
+    const map = this.loadAgentByWorkflowMap();
+    return map[String(wid)];
+  }
+
+  private setStoredAgentIdForWorkflow(wid: number | undefined, agentId: string): void {
+    if (wid === undefined) return; // Unsaved workflows aren't persisted.
+    const map = this.loadAgentByWorkflowMap();
+    map[String(wid)] = agentId;
+    this.saveAgentByWorkflowMap(map);
+  }
+
+  private clearStoredAgentIdForWorkflow(wid: number | undefined): void {
+    if (wid === undefined) return;
+    const map = this.loadAgentByWorkflowMap();
+    if (delete map[String(wid)]) this.saveAgentByWorkflowMap(map);
+  }
+
+  /** Remove a given agentId from every workflow binding (used on agent delete). */
+  private clearStoredAgentEverywhere(agentId: string): void {
+    const map = this.loadAgentByWorkflowMap();
+    let changed = false;
+    for (const key of Object.keys(map)) {
+      if (map[key] === agentId) {
+        delete map[key];
+        changed = true;
+      }
+    }
+    if (changed) this.saveAgentByWorkflowMap(map);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -215,6 +335,8 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     // Set the new agent as active immediately
     this.activeAgentId = agentId;
     this.agentService.activateAgent(agentId);
+    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata()?.wid;
+    this.setStoredAgentIdForWorkflow(currentWorkflowId, agentId);
 
     // Fetch the latest agent list and switch to the new agent's tab
     this.agentService
@@ -284,6 +406,10 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     this.activeAgentId = agentId;
     this.agentService.activateAgent(agentId);
     this.selectedTabIndex = tabIndex;
+    // Remember the binding for the *current* workflow so each workflow has its
+    // own restored agent on re-entry.
+    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata()?.wid;
+    this.setStoredAgentIdForWorkflow(currentWorkflowId, agentId);
   }
 
   /**
@@ -321,6 +447,9 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
       if (this.activeAgentId === agentId) {
         this.deactivateCurrentAgent();
       }
+
+      // Remove this agent from any workflow bindings so we don't try to restore it.
+      this.clearStoredAgentEverywhere(agentId);
 
       // Must subscribe to the observable for it to execute
       this.agentService

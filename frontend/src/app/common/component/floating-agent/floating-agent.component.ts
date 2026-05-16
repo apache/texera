@@ -33,6 +33,7 @@ import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { NzDividerModule } from "ng-zorro-antd/divider";
+import { MarkdownComponent } from "ngx-markdown";
 
 import { UserService } from "../../service/user/user.service";
 import { WorkflowPersistService } from "../../service/workflow-persist/workflow-persist.service";
@@ -51,7 +52,11 @@ import {
 } from "../../../hub/service/hub.service";
 import { AdminUserService } from "../../../dashboard/service/admin/user/admin-user.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { SearchService } from "../../../dashboard/service/user/search.service";
+import { SearchResultItem } from "../../../dashboard/type/search-result";
+import { SortMethod } from "../../../dashboard/type/sort-method";
 import { AgentPanelControlService } from "../../../workspace/service/agent/agent-panel-control.service";
+import { AgentService } from "../../../workspace/service/agent/agent.service";
 import {
   DASHBOARD_ADMIN_USER,
   DASHBOARD_USER_DATASET,
@@ -75,6 +80,11 @@ const EXECUTION_SNAPSHOT_STORAGE_KEY = "texera-floating-agent-execution-snapshot
 const TERMINAL_DEDUP_STORAGE_KEY = "texera-floating-agent-terminal-dedup";
 const TERMINAL_DEDUP_WINDOW_MS = 30_000;
 const SESSION_WORKFLOWS_STORAGE_KEY = "texera-floating-agent-session-workflows";
+const SESSION_WORKFLOWS_DISMISSED_STORAGE_KEY = "texera-floating-agent-session-workflows-dismissed";
+/** Must match the key used by AgentPanelComponent (per-workflow agent binding). */
+const AGENT_BY_WORKFLOW_STORAGE_KEY = "agent-panel-active-agent-by-workflow";
+/** Stop waiting for the agent's reply after this long. */
+const AI_SUGGESTION_TIMEOUT_MS = 60_000;
 const PANEL_SIZE_STORAGE_KEY = "texera-floating-agent-panel-size";
 
 const PANEL_DEFAULT_WIDTH = 360;
@@ -115,6 +125,7 @@ const RUN_ERROR_HINTS: Partial<Record<ExecutionState, string>> = {
     NzTooltipModule,
     NzSwitchModule,
     NzDividerModule,
+    MarkdownComponent,
   ],
   providers: [DatePipe],
 })
@@ -123,8 +134,24 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   public isAdmin = false;
   public isLoggedIn = false;
   public isSettingsOpen = false;
+  public isSearchOpen = false;
   public isOnWorkflowPage = false;
   public isAgentPanelOpen = false;
+  public searchQuery = "";
+  public searchType: "all" | "workflow" | "dataset" = "all";
+  public searchResults: SearchResultItem[] = [];
+  public searchLoading = false;
+  private searchSub?: Subscription;
+  /** ID of the operator displayed in the Operator tab. Sticky — does NOT clear on
+   *  canvas deselection; only changes when the user selects a different operator. */
+  public selectedOperatorId?: string;
+  public selectedOperatorType?: string;
+  public selectedOperatorProperties?: Record<string, unknown>;
+  public operatorExplanation?: string;
+  public operatorExplanationLoading = false;
+  /** Cache of explanations keyed by operator id so switching between operators
+   *  doesn't lose the prior AI response. */
+  private operatorExplanationCache: Map<string, string> = new Map();
   /** Panel anchor flip flags — computed when the panel opens based on viewport space. */
   public panelOpensDown = false;
   public panelOpensRight = false;
@@ -190,6 +217,8 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
     private hubService: HubService,
     private adminUserService: AdminUserService,
     private agentPanelControlService: AgentPanelControlService,
+    private workspaceAgentService: AgentService,
+    private searchService: SearchService,
     private router: Router,
     private elementRef: ElementRef<HTMLElement>
   ) {}
@@ -206,6 +235,35 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
     this.agentPanelControlService.openState$
       .pipe(untilDestroyed(this))
       .subscribe(isOpen => (this.isAgentPanelOpen = isOpen));
+    // Track operator selection so the Operator tab can show what's selected and
+    // offer to explain it via the bound AI agent.
+    this.subscribeOperatorHighlight();
+  }
+
+  private subscribeOperatorHighlight(): void {
+    const jointWrapper = this.workflowActionService.getJointGraphWrapper();
+    const sync = (): void => {
+      const ids = jointWrapper.getCurrentHighlightedOperatorIDs();
+      const newId = ids.length === 1 ? ids[0] : undefined;
+      // Sticky: ignore deselections so the user can keep reading the explanation
+      // after they click off the operator. Only react to actual new selections.
+      if (!newId) return;
+      if (newId === this.selectedOperatorId) return;
+      this.selectedOperatorId = newId;
+      this.operatorExplanationLoading = false;
+      // Load cached explanation for this operator (undefined if never asked).
+      this.operatorExplanation = this.operatorExplanationCache.get(newId);
+      try {
+        const op = this.workflowActionService.getTexeraGraph().getOperator(newId);
+        this.selectedOperatorType = op.operatorType;
+        this.selectedOperatorProperties = op.operatorProperties as Record<string, unknown>;
+      } catch {
+        this.selectedOperatorType = undefined;
+        this.selectedOperatorProperties = undefined;
+      }
+    };
+    jointWrapper.getJointOperatorHighlightStream().pipe(untilDestroyed(this)).subscribe(() => sync());
+    sync();
   }
 
   private subscribeRouteChanges(): void {
@@ -295,11 +353,69 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   public closePanel(): void {
     this.isOpen = false;
     this.isSettingsOpen = false;
+    this.isSearchOpen = false;
   }
 
   public toggleSettings(event?: Event): void {
     event?.stopPropagation();
     this.isSettingsOpen = !this.isSettingsOpen;
+    if (this.isSettingsOpen) this.isSearchOpen = false;
+  }
+
+  public toggleSearch(event?: Event): void {
+    event?.stopPropagation();
+    this.isSearchOpen = !this.isSearchOpen;
+    if (this.isSearchOpen) this.isSettingsOpen = false;
+  }
+
+  public runSearch(): void {
+    const keyword = this.searchQuery.trim();
+    if (!keyword) {
+      this.searchResults = [];
+      return;
+    }
+    this.searchSub?.unsubscribe();
+    this.searchLoading = true;
+    const emptyFilters = {
+      createDateStart: null,
+      createDateEnd: null,
+      modifiedDateStart: null,
+      modifiedDateEnd: null,
+      owners: [],
+      ids: [],
+      operators: [],
+      projectIds: [],
+    };
+    const type: "workflow" | "dataset" | null = this.searchType === "all" ? null : this.searchType;
+    this.searchSub = this.searchService
+      .search([keyword], emptyFilters, 0, 20, type, SortMethod.EditTimeDesc, this.isLoggedIn, false)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: result => {
+          this.searchResults = result.results.filter(
+            r => r.resourceType === "workflow" || r.resourceType === "dataset"
+          );
+          this.searchLoading = false;
+        },
+        error: err => {
+          console.error("[FloatingAgent] search failed:", err);
+          this.searchResults = [];
+          this.searchLoading = false;
+        },
+      });
+  }
+
+  public openSearchResult(item: SearchResultItem): void {
+    let route: unknown[] | undefined;
+    if (item.resourceType === "workflow" && item.workflow?.workflow?.wid !== undefined) {
+      route = [DASHBOARD_USER_WORKSPACE, item.workflow.workflow.wid];
+    } else if (item.resourceType === "dataset" && item.dataset?.dataset?.did !== undefined) {
+      route = [DASHBOARD_USER_DATASET, item.dataset.dataset.did];
+    }
+    if (route) {
+      this.router.navigate(route);
+      this.closePanel();
+    }
   }
 
   public updateSetting(key: keyof AgentNotificationSettings, value: boolean): void {
@@ -334,8 +450,40 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
 
   public clearSessionWorkflows(event?: Event): void {
     event?.stopPropagation();
+    // Remember which workflow ids the user just dismissed so passive state events
+    // (websocket replays on reload, state polling, etc.) don't re-populate them.
+    // The dismissal is lifted automatically when the workflow next enters the
+    // Running state — that's a clear user-initiated re-run.
+    const currentWids = this.sessionWorkflowsSubject.value
+      .map(w => w.wid)
+      .filter((w): w is number => typeof w === "number");
+    if (currentWids.length > 0) {
+      const dismissed = this.loadDismissedSessionWorkflows();
+      currentWids.forEach(wid => dismissed.add(wid));
+      this.saveDismissedSessionWorkflows(dismissed);
+    }
     this.sessionWorkflowsSubject.next([]);
     this.persistSessionWorkflows();
+  }
+
+  private loadDismissedSessionWorkflows(): Set<number> {
+    try {
+      const raw = localStorage.getItem(SESSION_WORKFLOWS_DISMISSED_STORAGE_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter((n): n is number => typeof n === "number"));
+    } catch {
+      return new Set();
+    }
+  }
+
+  private saveDismissedSessionWorkflows(set: Set<number>): void {
+    try {
+      localStorage.setItem(SESSION_WORKFLOWS_DISMISSED_STORAGE_KEY, JSON.stringify([...set]));
+    } catch {
+      // Storage may be unavailable; ignore.
+    }
   }
 
   public triggerAction(n: AgentNotification, event?: Event): void {
@@ -630,13 +778,6 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
       const metadata = this.workflowActionService.getWorkflowMetadata();
       this.executionSnapshot = { wid: metadata?.wid, name: metadata?.name };
       this.persistExecutionSnapshot();
-      // A fresh user-initiated run — clear any prior dismissal for this workflow's
-      // terminal-state signatures so the next terminal event notifies normally.
-      if (metadata?.wid !== undefined) {
-        this.agentService.undismiss(`run:${metadata.wid}:runSuccess`);
-        this.agentService.undismiss(`run:${metadata.wid}:runFailure`);
-        this.agentService.undismiss(`run:${metadata.wid}:runKilled`);
-      }
     }
 
     // Prefer live metadata over the captured snapshot when both reference the same workflow.
@@ -682,8 +823,8 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
         this.executionSnapshot = undefined;
         this.persistExecutionSnapshot();
         return;
-      case ExecutionState.Failed:
-        this.agentService.push({
+      case ExecutionState.Failed: {
+        const notificationId = this.agentService.push({
           category: "run",
           level: "error",
           type: "runFailure",
@@ -693,10 +834,16 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
           action: { label: "Retry", route: ["__retry-workflow__", snapshot.wid] },
           meta: { action: "retry", wid: snapshot.wid },
         });
+        // If this workflow has a bound AI agent (per the workflow-agent map), ask it
+        // for a remediation suggestion and stream the reply back into the notification.
+        if (notificationId && snapshot.wid !== undefined) {
+          this.askAgentAboutFailure(notificationId, workflowName, snapshot.wid, current);
+        }
         this.recordNotification(snapshot.wid, current.state);
         this.executionSnapshot = undefined;
         this.persistExecutionSnapshot();
         return;
+      }
       case ExecutionState.Killed:
         this.agentService.push({
           category: "run",
@@ -750,6 +897,216 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
       );
     } catch {
       return [];
+    }
+  }
+
+  /**
+   * Look up the AI agent bound to the failed workflow (via the workflow→agent map saved
+   * by AgentPanelComponent). If one exists and is actively connected, send a debug
+   * prompt and stream the reply back into the notification's `aiSuggestion` field.
+   * If the workflow has no bound agent, silently skip — only static hint is shown.
+   */
+  private askAgentAboutFailure(
+    notificationId: string,
+    workflowName: string,
+    wid: number,
+    state: ExecutionStateInfo
+  ): void {
+    if (state.state !== ExecutionState.Failed) return;
+    const agentId = this.lookupAgentForWorkflow(wid);
+    console.log(`[FloatingAgent] askAgent: wid=${wid}, boundAgentId=${agentId}`);
+    if (!agentId) return; // No agent bound to this workflow — skip silently.
+    const activeIds = new Set(this.workspaceAgentService.getActivelyConnectedAgentIds());
+    if (!activeIds.has(agentId)) {
+      console.log(
+        `[FloatingAgent] askAgent: bound agent ${agentId} is not actively connected; skipping`
+      );
+      return;
+    }
+
+    const errorDetails = state.errorMessages
+      .map(e => (e.operatorId ? `Operator ${e.operatorId}: ${e.message}` : e.message))
+      .join("\n");
+    const prompt =
+      `My workflow "${workflowName}" just failed with the following error(s):\n\n${errorDetails}\n\n` +
+      `Provide a concise diagnostic (under 120 words) with:\n` +
+      `1. The most likely cause.\n` +
+      `2. 1-3 concrete steps to debug or fix it.\n\n` +
+      `Do NOT ask me any follow-up questions. Do NOT offer to perform actions or wait ` +
+      `for my reply. End your response after the steps.`;
+
+    this.agentService.updateById(notificationId, { aiSuggestionLoading: true });
+    const promptSentAt = Date.now();
+    let collected = "";
+    let completed = false;
+
+    const sub = this.workspaceAgentService
+      .getReActStepsObservable(agentId)
+      .pipe(untilDestroyed(this))
+      .subscribe(steps => {
+        if (completed) return;
+        // Only consider agent-role steps that arrived after we sent the prompt.
+        const after = steps.filter(
+          s => s.role === "agent" && new Date(s.timestamp).getTime() >= promptSentAt
+        );
+        if (after.length === 0) return;
+        collected = after.map(s => s.content).filter(Boolean).join("\n").trim();
+        const cleaned = this.cleanAiSuggestion(collected);
+        if (cleaned) {
+          this.agentService.updateById(notificationId, { aiSuggestion: cleaned });
+        }
+        const last = after[after.length - 1];
+        if (last.isEnd) {
+          completed = true;
+          this.agentService.updateById(notificationId, { aiSuggestionLoading: false });
+          sub.unsubscribe();
+        }
+      });
+
+    // Failsafe: stop showing the spinner after a timeout even if isEnd never arrives.
+    setTimeout(() => {
+      if (!completed) {
+        completed = true;
+        this.agentService.updateById(notificationId, { aiSuggestionLoading: false });
+        sub.unsubscribe();
+      }
+    }, AI_SUGGESTION_TIMEOUT_MS);
+
+    try {
+      this.workspaceAgentService.sendMessage(agentId, prompt, "chat");
+    } catch (err) {
+      console.error("[FloatingAgent] sendMessage failed:", err);
+      this.agentService.updateById(notificationId, { aiSuggestionLoading: false });
+      sub.unsubscribe();
+    }
+  }
+
+  /**
+   * Strip conversational follow-ups (questions to the user, offers to perform
+   * actions, etc.) from the trailing portion of the agent's response so the
+   * notification stays focused on causes and remediation steps. The agent's full
+   * reply remains visible in the AI panel chat.
+   */
+  private cleanAiSuggestion(text: string): string {
+    let cleaned = text.trim();
+    // Patterns that suggest a trailing paragraph is conversational and should be dropped.
+    const followUpPatterns: RegExp[] = [
+      /\?\s*$/, // ends with a question mark
+      /^(could|can|would|will|should|do|does)\s+(you|i)\b/i,
+      /^(let me know|once you|i'll|i will|i can|i would|please (share|provide|send|tell))\b/i,
+      /^(if you (can|could|want))\b/i,
+    ];
+    // Drop trailing paragraphs/sentences that match a follow-up pattern. Stops as soon
+    // as the new last block doesn't match, so legitimate steps with questions inline
+    // (e.g., "Is the path correct?" as part of step 2) stay intact.
+    for (let i = 0; i < 5; i++) {
+      // Try paragraph split first; if there's only one paragraph, fall back to sentences.
+      const paraSplit = cleaned.split(/\n\s*\n/);
+      const lastPara = paraSplit[paraSplit.length - 1].trim();
+      if (lastPara && followUpPatterns.some(p => p.test(lastPara))) {
+        cleaned = paraSplit.slice(0, -1).join("\n\n").trim();
+        continue;
+      }
+      // Sentence-level cleanup: strip trailing sentences that match a follow-up.
+      const sentences = cleaned.split(/(?<=[.!?])\s+(?=[A-Z])/);
+      const lastSent = sentences[sentences.length - 1].trim();
+      if (lastSent && followUpPatterns.some(p => p.test(lastSent))) {
+        cleaned = sentences.slice(0, -1).join(" ").trim();
+        continue;
+      }
+      break;
+    }
+    return cleaned;
+  }
+
+  /**
+   * Ask the workflow's bound AI agent to explain the currently selected operator.
+   * Streams the reply into `operatorExplanation` for the Operator tab to render.
+   */
+  public explainSelectedOperator(): void {
+    if (!this.selectedOperatorId || !this.selectedOperatorType) return;
+    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+    const agentId = wid !== undefined ? this.lookupAgentForWorkflow(wid) : undefined;
+    if (!agentId) {
+      this.operatorExplanation =
+        "Bind an AI agent to this workflow (purple flask button) to get operator explanations.";
+      return;
+    }
+    const activeIds = new Set(this.workspaceAgentService.getActivelyConnectedAgentIds());
+    if (!activeIds.has(agentId)) {
+      this.operatorExplanation = "The bound AI agent isn't currently connected. Open it from the flask button.";
+      return;
+    }
+
+    const propsJson = JSON.stringify(this.selectedOperatorProperties ?? {}, null, 2);
+    const prompt =
+      `Briefly explain this Texera operator and its current parameters (under 100 words).\n\n` +
+      `Operator type: ${this.selectedOperatorType}\n` +
+      `Operator id: ${this.selectedOperatorId}\n` +
+      `Current parameters:\n\`\`\`json\n${propsJson}\n\`\`\`\n\n` +
+      `Cover: (1) what the operator does, (2) what each non-default parameter is doing here. ` +
+      `Do NOT ask follow-up questions or offer to take actions — just explain.`;
+
+    this.operatorExplanation = undefined;
+    this.operatorExplanationLoading = true;
+    const promptSentAt = Date.now();
+    let collected = "";
+    let completed = false;
+
+    // Capture the operator id at request time so the cache write later targets
+    // the right operator even if the user has clicked something else by then.
+    const requestedOperatorId = this.selectedOperatorId;
+    const sub = this.workspaceAgentService
+      .getReActStepsObservable(agentId)
+      .pipe(untilDestroyed(this))
+      .subscribe(steps => {
+        if (completed) return;
+        const after = steps.filter(
+          s => s.role === "agent" && new Date(s.timestamp).getTime() >= promptSentAt
+        );
+        if (after.length === 0) return;
+        collected = after.map(s => s.content).filter(Boolean).join("\n").trim();
+        const cleaned = this.cleanAiSuggestion(collected);
+        if (cleaned) {
+          if (requestedOperatorId) this.operatorExplanationCache.set(requestedOperatorId, cleaned);
+          // Only update the visible explanation if we're still on the same operator.
+          if (requestedOperatorId === this.selectedOperatorId) this.operatorExplanation = cleaned;
+        }
+        const last = after[after.length - 1];
+        if (last.isEnd) {
+          completed = true;
+          this.operatorExplanationLoading = false;
+          sub.unsubscribe();
+        }
+      });
+
+    setTimeout(() => {
+      if (!completed) {
+        completed = true;
+        this.operatorExplanationLoading = false;
+        sub.unsubscribe();
+      }
+    }, AI_SUGGESTION_TIMEOUT_MS);
+
+    try {
+      this.workspaceAgentService.sendMessage(agentId, prompt, "chat");
+    } catch (err) {
+      console.error("[FloatingAgent] sendMessage (explain) failed:", err);
+      this.operatorExplanationLoading = false;
+      sub.unsubscribe();
+    }
+  }
+
+  /** Read the workflow→agent map written by AgentPanelComponent. */
+  private lookupAgentForWorkflow(wid: number): string | undefined {
+    try {
+      const raw = localStorage.getItem(AGENT_BY_WORKFLOW_STORAGE_KEY);
+      if (!raw) return undefined;
+      const map = JSON.parse(raw) as Record<string, unknown>;
+      const value = map[String(wid)];
+      return typeof value === "string" ? value : undefined;
+    } catch {
+      return undefined;
     }
   }
 
@@ -924,6 +1281,17 @@ export class FloatingAgentComponent implements OnInit, OnDestroy {
   }
 
   private trackSessionWorkflow(wid: number | undefined, name: string, state: ExecutionState): void {
+    if (wid !== undefined) {
+      const dismissed = this.loadDismissedSessionWorkflows();
+      if (dismissed.has(wid)) {
+        // Workflow was explicitly cleared by the user. Only re-admit when the user
+        // visibly starts a new run (state hits Running) — otherwise stay hidden.
+        if (state !== ExecutionState.Running) return;
+        dismissed.delete(wid);
+        this.saveDismissedSessionWorkflows(dismissed);
+      }
+    }
+
     const workflows = [...this.sessionWorkflowsSubject.value];
     // Match by wid (the stable identifier) — name can change via rename and shouldn't
     // create a duplicate session entry. Fall back to name-match only for unsaved workflows.
