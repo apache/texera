@@ -92,11 +92,6 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
-        # Loop-end operators have a single output port; remember its base
-        # URI so `reset_loopend_storage` can re-provision the iceberg
-        # tables on each loop iteration.
-        self._storage_uri_base: typing.Optional[str] = None
-
     def is_missing_output_ports(self):
         """
         This method is only used for ensuring correct region execution.
@@ -138,16 +133,19 @@ class OutputManager:
         state materialization on the same port. `storage_uri_base` is the
         port's base URI; the result and state URIs are derived from it.
         """
-        # Remember the base URI so `reset_loopend_storage` can re-provision
-        # the iceberg tables on subsequent loop iterations.
-        self._storage_uri_base = storage_uri_base
         document, _ = DocumentFactory.open_document(
             VFSURIFactory.result_uri(storage_uri_base)
         )
         buffered_item_writer = document.writer(str(get_worker_index(self.worker_id)))
         writer_queue = Queue()
+        # Stash the base URI on the result-port writer so
+        # `reset_loopend_storage` can re-provision the iceberg tables on
+        # subsequent loop iterations without OutputManager having to
+        # remember it separately.
         port_storage_writer = PortStorageWriter(
-            buffered_item_writer=buffered_item_writer, queue=writer_queue
+            buffered_item_writer=buffered_item_writer,
+            queue=writer_queue,
+            storage_uri_base=storage_uri_base,
         )
         writer_thread = threading.Thread(
             target=port_storage_writer.run,
@@ -227,7 +225,8 @@ class OutputManager:
 
     def reset_loopend_storage(self) -> None:
         port_id = self.get_port_ids()[0]
-        storage_uri_base = self._storage_uri_base
+        _, result_writer, _ = self._port_storage_writers[port_id]
+        storage_uri_base = result_writer.storage_uri_base
         self.close_port_storage_writers()
         DocumentFactory.create_document(
             VFSURIFactory.result_uri(storage_uri_base),

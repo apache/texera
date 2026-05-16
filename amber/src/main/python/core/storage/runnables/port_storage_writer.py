@@ -16,6 +16,8 @@
 # under the License.
 
 from dataclasses import dataclass
+from typing import Optional
+
 from overrides import overrides
 
 from core.models import Tuple
@@ -30,9 +32,18 @@ class PortStorageWriterElement(QueueElement):
 
 
 class PortStorageWriter(StoppableQueueBlockingRunnable):
-    def __init__(self, buffered_item_writer: BufferedItemWriter, queue: IQueue):
+    def __init__(
+        self,
+        buffered_item_writer: BufferedItemWriter,
+        queue: IQueue,
+        storage_uri_base: Optional[str] = None,
+    ):
         super().__init__(name=self.__class__.__name__, queue=queue)
         self.buffered_item_writer: BufferedItemWriter = buffered_item_writer
+        # The VFS base URI this writer was opened from. Only the result-port
+        # writer needs to remember this so loop-end can rebuild the iceberg
+        # tables on each iteration; for other writers it stays None.
+        self.storage_uri_base: Optional[str] = storage_uri_base
 
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
