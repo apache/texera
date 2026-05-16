@@ -77,11 +77,15 @@ export type WidgetConfig =
   | { type: "table"; config: TableConfig }
   | { type: "html"; config: HtmlConfig };
 
+/**
+ * Position and size of a widget on the dashboard canvas.
+ * All values are in pixels — free-form, not grid-snapped.
+ */
 export interface WidgetLayout {
   x: number;
   y: number;
-  w: number;
-  h: number;
+  width: number;
+  height: number;
 }
 
 /**

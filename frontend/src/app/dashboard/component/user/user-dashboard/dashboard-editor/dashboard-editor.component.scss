@@ -120,10 +120,9 @@
 
 .widget-cell {
   position: absolute;
-  transition: left 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-              top 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-              width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-              height 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  /* No CSS transitions on position/size — dragging needs to follow the
+   * mouse in real-time, and an iframe that resizes via transition would
+   * cause Plotly to redraw on every frame. */
 }
 
 .widget-frame {

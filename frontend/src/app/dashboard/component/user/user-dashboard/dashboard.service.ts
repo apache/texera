@@ -123,22 +123,33 @@ export class DashboardService {
     this.saveDashboard(updated);
   }
 
+  /**
+   * Default pixel size per widget type when adding a new widget. The widget
+   * is placed below all existing widgets so it never overlaps and never
+   * appears under the cursor.
+   */
   private nextLayout(existing: DashboardWidget[], type: WidgetType): WidgetLayout {
-    const sizes: Record<WidgetType, { w: number; h: number }> = {
-      metric: { w: 3, h: 2 },
-      bar: { w: 6, h: 4 },
-      donut: { w: 4, h: 4 },
-      hbar: { w: 6, h: 4 },
-      text: { w: 4, h: 3 },
-      table: { w: 8, h: 4 },
-      html: { w: 6, h: 5 },
+    const sizes: Record<WidgetType, { width: number; height: number }> = {
+      metric: { width: 320, height: 180 },
+      bar: { width: 580, height: 360 },
+      donut: { width: 360, height: 320 },
+      hbar: { width: 520, height: 320 },
+      text: { width: 320, height: 240 },
+      table: { width: 640, height: 320 },
+      html: { width: 600, height: 400 },
     };
     const size = sizes[type];
     let maxBottom = 0;
     for (const w of existing) {
-      maxBottom = Math.max(maxBottom, w.layout.y + w.layout.h);
+      maxBottom = Math.max(maxBottom, w.layout.y + w.layout.height);
     }
-    return { x: 0, y: maxBottom, w: size.w, h: size.h };
+    const GAP = 16;
+    return {
+      x: 16,
+      y: existing.length === 0 ? 16 : maxBottom + GAP,
+      width: size.width,
+      height: size.height,
+    };
   }
 
   private load(): void {
@@ -147,8 +158,9 @@ export class DashboardService {
       if (raw) {
         const parsed: Dashboard[] = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          // Drop any legacy seed dashboards from previous iterations.
-          const cleaned = parsed.filter(d => !LEGACY_SEED_IDS.has(d.id));
+          const cleaned = parsed
+            .filter(d => !LEGACY_SEED_IDS.has(d.id))
+            .map(migrateLegacyLayout);
           this.dashboards$.next(cleaned);
           if (cleaned.length !== parsed.length) {
             this.persist();
@@ -173,4 +185,43 @@ export class DashboardService {
   private genId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   }
+}
+
+/**
+ * Earlier versions of this code used 12-col grid-unit layouts
+ * ({x, y, w, h}) instead of pixel layouts ({x, y, width, height}). When we
+ * load a dashboard saved by the old code, convert the layout in-place so
+ * the editor's pixel-based code works unchanged.
+ */
+function migrateLegacyLayout(dashboard: Dashboard): Dashboard {
+  const COLS = 12;
+  const PX_PER_COL = 100; // approximation — fine for one-off migration
+  const PX_PER_ROW = 80;
+  const GUTTER = 12;
+  const widgets = dashboard.widgets.map(w => {
+    const layout: any = w.layout ?? {};
+    if ("width" in layout && "height" in layout) {
+      return w; // already in pixel format
+    }
+    if ("w" in layout && "h" in layout) {
+      const gridX: number = layout.x ?? 0;
+      const gridY: number = layout.y ?? 0;
+      const gridW: number = layout.w ?? 4;
+      const gridH: number = layout.h ?? 3;
+      return {
+        ...w,
+        layout: {
+          x: gridX * (PX_PER_COL + GUTTER) + 16,
+          y: gridY * (PX_PER_ROW + GUTTER) + 16,
+          width: gridW * (PX_PER_COL + GUTTER) - GUTTER,
+          height: gridH * PX_PER_ROW + (gridH - 1) * GUTTER,
+        },
+      };
+    }
+    return {
+      ...w,
+      layout: { x: 16, y: 16, width: 320, height: 240 },
+    };
+  });
+  return { ...dashboard, widgets };
 }

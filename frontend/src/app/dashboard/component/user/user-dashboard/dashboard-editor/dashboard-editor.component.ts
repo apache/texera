@@ -20,12 +20,27 @@ import { DashboardWidgetComponent } from "../widgets/dashboard-widget.component"
 import { AddWidgetModalComponent, AddWidgetModalData } from "../add-widget-modal/add-widget-modal.component";
 import { DASHBOARD_USER_DASHBOARD } from "../../../../../app-routing.constant";
 
-const COLS = 12;
-const ROW_HEIGHT = 80;
-const GUTTER = 12;
+const MIN_WIDTH = 160;
+const MIN_HEIGHT = 120;
 
-type DragMode = { kind: "move"; widgetId: string; offsetX: number; offsetY: number }
-  | { kind: "resize"; widgetId: string; startW: number; startH: number; startX: number; startY: number };
+type DragMode =
+  | {
+      kind: "move";
+      widgetId: string;
+      startMouseX: number;
+      startMouseY: number;
+      startWidgetX: number;
+      startWidgetY: number;
+      moved: boolean;
+    }
+  | {
+      kind: "resize";
+      widgetId: string;
+      startMouseX: number;
+      startMouseY: number;
+      startWidth: number;
+      startHeight: number;
+    };
 
 @UntilDestroy()
 @Component({
@@ -50,10 +65,6 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
   mode: "edit" | "view" = "view";
   editingName = false;
   nameDraft = "";
-
-  readonly COLS = COLS;
-  readonly ROW_HEIGHT = ROW_HEIGHT;
-  readonly GUTTER = GUTTER;
 
   private drag: DragMode | null = null;
 
@@ -142,8 +153,11 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
     this.drag = {
       kind: "move",
       widgetId: w.id,
-      offsetX: event.clientX,
-      offsetY: event.clientY,
+      startMouseX: event.clientX,
+      startMouseY: event.clientY,
+      startWidgetX: w.layout.x,
+      startWidgetY: w.layout.y,
+      moved: false,
     };
     document.body.classList.add("dashboard-dragging");
   }
@@ -155,50 +169,43 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
     this.drag = {
       kind: "resize",
       widgetId: w.id,
-      startW: w.layout.w,
-      startH: w.layout.h,
-      startX: event.clientX,
-      startY: event.clientY,
+      startMouseX: event.clientX,
+      startMouseY: event.clientY,
+      startWidth: w.layout.width,
+      startHeight: w.layout.height,
     };
     document.body.classList.add("dashboard-dragging");
   }
 
   @HostListener("document:mousemove", ["$event"])
   onMouseMove(event: MouseEvent): void {
-    if (!this.drag || !this.dashboard || !this.gridEl) return;
+    if (!this.drag || !this.dashboard) return;
+    const w = this.dashboard.widgets.find(x => x.id === this.drag!.widgetId);
+    if (!w) return;
 
-    const colWidth = this.colPixelWidth();
     if (this.drag.kind === "move") {
-      const dxPx = event.clientX - this.drag.offsetX;
-      const dyPx = event.clientY - this.drag.offsetY;
-      const dx = Math.round(dxPx / colWidth);
-      const dy = Math.round(dyPx / (ROW_HEIGHT + GUTTER));
-      if (dx === 0 && dy === 0) return;
-      const w = this.dashboard.widgets.find(x => x.id === this.drag!.widgetId);
-      if (!w) return;
-      const newX = Math.max(0, Math.min(COLS - w.layout.w, w.layout.x + dx));
-      const newY = Math.max(0, w.layout.y + dy);
-      if (newX !== w.layout.x || newY !== w.layout.y) {
-        const layout: WidgetLayout = { ...w.layout, x: newX, y: newY };
-        this.dashboardService.updateLayout(this.dashboard.id, w.id, layout);
-        if (this.drag.kind === "move") {
-          this.drag.offsetX = event.clientX;
-          this.drag.offsetY = event.clientY;
-        }
-      }
-    } else if (this.drag.kind === "resize") {
-      const dxPx = event.clientX - this.drag.startX;
-      const dyPx = event.clientY - this.drag.startY;
-      const dw = Math.round(dxPx / colWidth);
-      const dh = Math.round(dyPx / (ROW_HEIGHT + GUTTER));
-      const w = this.dashboard.widgets.find(x => x.id === this.drag!.widgetId);
-      if (!w) return;
-      const newW = Math.max(2, Math.min(COLS - w.layout.x, this.drag.startW + dw));
-      const newH = Math.max(2, this.drag.startH + dh);
-      if (newW !== w.layout.w || newH !== w.layout.h) {
-        const layout: WidgetLayout = { ...w.layout, w: newW, h: newH };
-        this.dashboardService.updateLayout(this.dashboard.id, w.id, layout);
-      }
+      const dx = event.clientX - this.drag.startMouseX;
+      const dy = event.clientY - this.drag.startMouseY;
+      const newX = Math.max(0, this.drag.startWidgetX + dx);
+      const newY = Math.max(0, this.drag.startWidgetY + dy);
+      if (newX === w.layout.x && newY === w.layout.y) return;
+      this.drag.moved = true;
+      this.dashboardService.updateLayout(this.dashboard.id, w.id, {
+        ...w.layout,
+        x: newX,
+        y: newY,
+      });
+    } else {
+      const dw = event.clientX - this.drag.startMouseX;
+      const dh = event.clientY - this.drag.startMouseY;
+      const newWidth = Math.max(MIN_WIDTH, this.drag.startWidth + dw);
+      const newHeight = Math.max(MIN_HEIGHT, this.drag.startHeight + dh);
+      if (newWidth === w.layout.width && newHeight === w.layout.height) return;
+      this.dashboardService.updateLayout(this.dashboard.id, w.id, {
+        ...w.layout,
+        width: newWidth,
+        height: newHeight,
+      });
     }
   }
 
@@ -210,47 +217,37 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  private colPixelWidth(): number {
-    if (!this.gridEl) return 100;
-    const totalWidth = this.gridEl.nativeElement.clientWidth;
-    return (totalWidth - GUTTER * (COLS - 1)) / COLS;
-  }
-
   trackByWidgetId(_index: number, w: DashboardWidget): string {
     return w.id;
   }
 
-  /** Memoize styles keyed on widget id + layout signature, so [ngStyle]
+  /** Memoize styles keyed on widget id + layout signature so [ngStyle]
    *  receives a referentially-stable object when nothing has moved. */
   private styleCache = new Map<string, { sig: string; style: { [k: string]: string } }>();
 
   widgetStyle(w: DashboardWidget): { [k: string]: string } {
-    const sig = `${w.layout.x}|${w.layout.y}|${w.layout.w}|${w.layout.h}`;
+    const sig = `${w.layout.x}|${w.layout.y}|${w.layout.width}|${w.layout.height}`;
     const cached = this.styleCache.get(w.id);
     if (cached && cached.sig === sig) {
       return cached.style;
     }
-    const style = this.computeWidgetStyle(w);
+    const style: { [k: string]: string } = {
+      left: `${w.layout.x}px`,
+      top: `${w.layout.y}px`,
+      width: `${w.layout.width}px`,
+      height: `${w.layout.height}px`,
+    };
     this.styleCache.set(w.id, { sig, style });
     return style;
   }
 
-  private computeWidgetStyle(w: DashboardWidget): { [k: string]: string } {
-    const colWidth = `calc((100% - ${GUTTER * (COLS - 1)}px) / ${COLS})`;
-    return {
-      left: `calc(${w.layout.x} * (${colWidth} + ${GUTTER}px))`,
-      top: `${w.layout.y * (ROW_HEIGHT + GUTTER)}px`,
-      width: `calc(${w.layout.w} * (${colWidth} + ${GUTTER}px) - ${GUTTER}px)`,
-      height: `${w.layout.h * ROW_HEIGHT + (w.layout.h - 1) * GUTTER}px`,
-    };
-  }
-
+  /** The canvas grows to accommodate the lowest-positioned widget. */
   gridHeight(): number {
     if (!this.dashboard) return 600;
     let maxBottom = 0;
     for (const w of this.dashboard.widgets) {
-      maxBottom = Math.max(maxBottom, w.layout.y + w.layout.h);
+      maxBottom = Math.max(maxBottom, w.layout.y + w.layout.height);
     }
-    return Math.max(8, maxBottom + 1) * (ROW_HEIGHT + GUTTER);
+    return Math.max(600, maxBottom + 80);
   }
 }
