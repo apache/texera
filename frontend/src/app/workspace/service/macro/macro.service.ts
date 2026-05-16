@@ -550,16 +550,27 @@ export class MacroService {
     ): MacroPortBinding[] => {
       const nestedMacroId = definition.nestedMacros.get(b.innerOpId);
       if (!nestedMacroId) {
-        // Terminal: find the runtime op whose chain matches accumulatedChain
-        // (the chain of macro instances we descended through) and whose
-        // bodyOpId matches this binding's innerOpId.
+        // Terminal: find the runtime op whose chain ENDS WITH accumulatedChain
+        // (the chain of macro instances we descended through from the call
+        // site) and whose bodyOpId matches this binding's innerOpId.
+        //
+        // Suffix match (not exact length) so that a synthesize() call rooted
+        // at an INNER macro instance (e.g. d3188a84 when computing the nested
+        // macro op's stats in drill-down view) still finds its runtime ops —
+        // those carry full chains like [outerInstance, innerInstance], so the
+        // accumulatedChain [innerInstance] is a suffix.
         const candidates: string[] = [];
+        const matchesSuffix = (chain: string[]): boolean => {
+          if (chain.length < accumulatedChain.length) return false;
+          const offset = chain.length - accumulatedChain.length;
+          for (let i = 0; i < accumulatedChain.length; i++) {
+            if (chain[offset + i] !== accumulatedChain[i]) return false;
+          }
+          return true;
+        };
         for (const [runtimeOpId, prov] of this.runtimeMacroMapping.entries()) {
           if (prov.bodyOpId !== b.innerOpId) continue;
-          if (prov.macroChain.length !== accumulatedChain.length) continue;
-          if (prov.macroChain.every((c, i) => c === accumulatedChain[i])) {
-            candidates.push(runtimeOpId);
-          }
+          if (matchesSuffix(prov.macroChain)) candidates.push(runtimeOpId);
         }
         return candidates.map(runtimeOpId => ({
           externalPortIndex: b.externalPortIndex,
