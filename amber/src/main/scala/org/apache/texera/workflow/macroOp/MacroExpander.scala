@@ -255,6 +255,17 @@ object MacroExpander {
     val instanceId = m.operatorIdentifier.id
     val fused = new PythonUDFOpDescV2()
     fused.code = fusion.code
+    // Schema propagation for the fused UDF: a fused macro that takes an input
+    // re-emits a tuple of the same shape (filter/projection/map operators
+    // mutate or drop the input dict but don't introduce new columns unless
+    // the user adds them in the fused code). retainInputColumns=true lets the
+    // engine carry the input schema through to the output without a hand-
+    // declared outputColumns list. workers=1 keeps the fused execution
+    // single-actor — the whole point of fusion is collapsing serialization
+    // hops, not parallelism.
+    fused.retainInputColumns = m.inputPortCount > 0
+    fused.outputColumns = List.empty
+    fused.workers = 1
     // Keep the macro op's external interface — same input/output port
     // counts so the upstream/downstream link wiring on the parent canvas
     // doesn't need to change.

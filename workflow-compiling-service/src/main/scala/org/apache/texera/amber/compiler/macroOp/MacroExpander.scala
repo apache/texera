@@ -250,6 +250,13 @@ object MacroExpander {
     val fusion = m.fusion.get
     val fused = new PythonUDFOpDescV2()
     fused.code = fusion.code
+    // Schema propagation: see amber/.../MacroExpander.scala substituteFused
+    // for the same rationale. retainInputColumns lets the engine carry the
+    // input schema through to the output without a hand-declared
+    // outputColumns list; workers=1 keeps the fused execution single-actor.
+    fused.retainInputColumns = m.inputPortCount > 0
+    fused.outputColumns = List.empty
+    fused.workers = 1
     fused.inputPorts = (0 until m.inputPortCount).map { i =>
       PortDescription(
         portID = s"input-$i",
