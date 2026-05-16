@@ -147,8 +147,16 @@
           [class.disabled]="!canModify"
           [title]="macroSchema.additionalMetadata.operatorDescription">
           <span class="macro-palette-item__icon" (click)="canModify && onAddMacro(macroSchema)">▦</span>
-          <span class="macro-palette-item__name" (click)="canModify && onAddMacro(macroSchema)">
+          <span
+            class="macro-palette-item__name"
+            (click)="canModify && onAddMacro(macroSchema)"
+            [title]="subtitleForMacro(macroSchema) || macroSchema.additionalMetadata.userFriendlyName">
             {{ macroSchema.additionalMetadata.userFriendlyName }}
+            <span
+              *ngIf="subtitleForMacro(macroSchema)"
+              class="macro-palette-item__subtitle">
+              {{ subtitleForMacro(macroSchema) }}
+            </span>
           </span>
           <span
             *ngIf="(macroSchema.__macroSummary?.usageCount ?? 0) > 0"

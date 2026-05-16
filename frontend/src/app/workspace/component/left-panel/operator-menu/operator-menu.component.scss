@@ -98,6 +98,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  &__subtitle {
+    font-size: 10px;
+    color: #999;
+    font-weight: 400;
   }
 
   &__ports {

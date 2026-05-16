@@ -97,6 +97,12 @@ export class OperatorMenuComponent {
    * operator-type composition — see `inferCategory()`.
    */
   private macroCategoryCache = new Map<string, string>();
+  /**
+   * Cache for the per-macro op-type subtitle (e.g. "Filter→Projection→Limit"
+   * truncated to 3 ops with a "+N" suffix when longer). Populated alongside
+   * the category cache from the same `getMacro` fetch.
+   */
+  private macroSubtitleCache = new Map<string, string>();
 
   /**
    * Cheap heuristic that maps a macro's body to a category label. We pull
@@ -123,14 +129,40 @@ export class OperatorMenuComponent {
           const body = JSON.parse(detail.content) as {
             operators?: Array<{ operatorType?: string }>;
           };
-          this.macroCategoryCache.set(key, this.inferCategory(body.operators ?? []));
+          const ops = body.operators ?? [];
+          this.macroCategoryCache.set(key, this.inferCategory(ops));
+          this.macroSubtitleCache.set(key, this.subtitleFromOps(ops));
         } catch {
           this.macroCategoryCache.set(key, "uncategorized");
+          this.macroSubtitleCache.set(key, "");
         }
       },
-      error: () => this.macroCategoryCache.set(key, "uncategorized"),
+      error: () => {
+        this.macroCategoryCache.set(key, "uncategorized");
+        this.macroSubtitleCache.set(key, "");
+      },
     });
     return "loading…";
+  }
+
+  /**
+   * Return a short op-type chain string for a macro, e.g.
+   * "Filter→Projection" or "Filter→Projection→Limit +2" for longer chains.
+   * Lazily populated alongside the category cache by `categoryForMacro`.
+   */
+  public subtitleForMacro(macroSchema: OperatorSchema & { __macroSummary?: MacroSummary }): string {
+    const wid = macroSchema.__macroSummary?.wid;
+    if (!wid) return "";
+    return this.macroSubtitleCache.get(String(wid)) ?? "";
+  }
+
+  private subtitleFromOps(operators: Array<{ operatorType?: string }>): string {
+    const inner = operators
+      .filter(o => o.operatorType !== "MacroInput" && o.operatorType !== "MacroOutput")
+      .map(o => o.operatorType ?? "?");
+    if (inner.length === 0) return "";
+    const head = inner.slice(0, 3).join("→");
+    return inner.length > 3 ? `${head} +${inner.length - 3}` : head;
   }
 
   private inferCategory(operators: Array<{ operatorType?: string }>): string {
