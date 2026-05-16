@@ -129,30 +129,32 @@
   <div
     *ngIf="userProjectsMap.size > 0"
     class="project-label-container">
-    <div
-      *ngFor="let projectID of getProjectIds()"
-      class="project-label">
-      <a
-        *ngIf="userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
-        nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
-        nzTooltipPlacement="bottom"
-        class="project-label-name"
-        [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color!), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color!)}"
-        [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color!) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-        [routerLink]="DASHBOARD_USER_PROJECT + '/' + userProjectsMap.get(projectID)!.pid">
-        {{userProjectsMap.get(projectID)!.name}}
-      </a>
+    <ng-container *ngFor="let projectID of getProjectIds()">
       <div
-        *ngIf="editable && userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"
-        nz-tooltip="Remove from project"
-        nzTooltipPlacement="bottom"
-        class="project-label-remove"
-        [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color!), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color!)}"
-        [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color!) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-        (click)="removeWorkflowFromProject(projectID)">
-        x
+        *ngIf="userProjectsMap.has(projectID) && projectID !== pid"
+        class="project-label">
+        <a
+          nz-tooltip="{{userProjectsMap.get(projectID)!.name}}"
+          nzTooltipPlacement="bottom"
+          class="project-label-name"
+          [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color)}"
+          [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color) ? 'black' : 'white', 'background-color' : projectBgColor(userProjectsMap.get(projectID)!.color)}"
+          [routerLink]="DASHBOARD_USER_PROJECT + '/' + userProjectsMap.get(projectID)!.pid">
+          <span class="project-label-icon">{{ projectIcon(projectID) }}</span>
+          {{userProjectsMap.get(projectID)!.name}}
+        </a>
+        <div
+          *ngIf="editable"
+          nz-tooltip="Remove from project"
+          nzTooltipPlacement="bottom"
+          class="project-label-remove"
+          [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color)}"
+          [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color) ? 'black' : 'white', 'background-color' : projectBgColor(userProjectsMap.get(projectID)!.color)}"
+          (click)="removeWorkflowFromProject(projectID)">
+          x
+        </div>
       </div>
-    </div>
+    </ng-container>
   </div>
 
   <ul nz-list-item-actions>
