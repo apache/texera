@@ -22,6 +22,7 @@ import { tool } from "ai";
 import { env } from "../../config/env";
 
 export const TOOL_NAME_RUN_ON_MACHINE = "runOnMachine";
+export const TOOL_NAME_RUN_PYTHON_ON_MACHINE = "runPythonOnMachine";
 export const TOOL_NAME_LIST_DATASETS = "listDatasets";
 export const TOOL_NAME_UPLOAD_FILE_TO_DATASET = "uploadFileToDataset";
 export const TOOL_NAME_GET_DATASET_FILE = "getDatasetFile";
@@ -162,6 +163,93 @@ export function createRunOnMachineTool(userToken: string) {
           exit_code: body.exit_code,
           stdout: body.stdout,
           stderr: body.stderr,
+        };
+      } catch (e) {
+        return {
+          success: false,
+          error: e instanceof Error ? e.message : String(e),
+        };
+      }
+    },
+  });
+}
+
+/**
+ * `runPythonOnMachine`: run a self-contained Python script on the user's machine.
+ *
+ * Unlike `runOnMachine` (which only runs a shell command, intended for cheap
+ * inspection / setup), this hits machine-manager's `/python` endpoint, which
+ * executes the script under a data-science Python (sklearn, pandas, matplotlib,
+ * numpy, ...). Use this for ANY analysis task where the data lives on the
+ * user's laptop and the outputs (plots, reports, model files) should also be
+ * written to the user's laptop — load the CSV, train models, save artifacts,
+ * all in one call. No Texera workflow / dataset upload needed.
+ *
+ * The script can `print(json.dumps({...}))` on its last line to return a
+ * structured result the agent can then read.
+ */
+export function createRunPythonOnMachineTool(userToken: string) {
+  return tool({
+    description:
+      "DIAGNOSTICS ONLY. Run a tiny Python snippet on the user's machine to check the environment " +
+      "(e.g. `import sklearn; print(sklearn.__version__)`). DO NOT use this to actually do the " +
+      "user's data analysis — that always goes in a Texera workflow with the `MachineUDF` operator " +
+      "in batch mode. The script's last `print(json.dumps({...}))` line is returned as `result`.",
+    inputSchema: z.object({
+      machineId: z
+        .number()
+        .int()
+        .describe("Numeric machine id (`mid`) from the Machines tab."),
+      code: z
+        .string()
+        .describe(
+          "Self-contained Python source. The script's global scope already has `tuple_in` (None " +
+          "for this use). Print a JSON object on the last line to return a structured result."
+        ),
+      timeoutSeconds: z
+        .number()
+        .min(1)
+        .max(600)
+        .default(120)
+        .describe("Seconds before the script is killed. Default 120."),
+    }),
+    execute: async args => {
+      try {
+        const machine = await lookupMachine(userToken, args.machineId);
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (machine.token && machine.token.trim().length > 0) {
+          headers["Authorization"] = `Bearer ${machine.token.trim()}`;
+        }
+        const res = await fetch(`${machine.url.replace(/\/$/, "")}/python`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            code: args.code,
+            tuple_in: null,
+            timeout_seconds: args.timeoutSeconds,
+          }),
+        });
+        const bodyText = await res.text();
+        if (!res.ok) {
+          return {
+            success: false,
+            error: `machine-manager returned HTTP ${res.status}: ${bodyText}`,
+            machine: { mid: machine.mid, name: machine.name, url: machine.url },
+          };
+        }
+        const body = JSON.parse(bodyText) as {
+          exit_code: number;
+          stdout: string;
+          stderr: string;
+          result: unknown;
+        };
+        return {
+          success: body.exit_code === 0,
+          machine: { mid: machine.mid, name: machine.name, url: machine.url },
+          exit_code: body.exit_code,
+          stdout: body.stdout,
+          stderr: body.stderr,
+          result: body.result,
         };
       } catch (e) {
         return {
@@ -391,6 +479,7 @@ export function createUploadFileToDatasetTool(userToken: string) {
           ownerEmail != null && datasetForScan != null
             ? `/${ownerEmail}/${datasetForScan}/latest/${parsed.file_path}`
             : null;
+        console.log("[DBG-UPLOAD] csvFileScanPath:", csvFileScanPath, "ownerEmail:", ownerEmail, "datasetForScan:", datasetForScan);
         return {
           success: true,
           result: parsed,

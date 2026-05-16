@@ -15,4 +15,20 @@ if [[ ! -d "$VENV_DIR" ]]; then
   "$VENV_DIR/bin/pip" install -e .
 fi
 
+# Pick the Python interpreter the /python endpoint will use for running user
+# code. Prefer an existing data-science venv (sklearn / pandas / matplotlib)
+# so analysis scripts work out of the box; fall back to the manager's own
+# venv if nothing better is available.
+if [[ -z "${MACHINE_MANAGER_PYTHON:-}" ]]; then
+  for candidate in \
+    "$HOME/IdeaProjects/texera/.venv/bin/python" \
+    "$VENV_DIR/bin/python"; do
+    if [[ -x "$candidate" ]]; then
+      export MACHINE_MANAGER_PYTHON="$candidate"
+      break
+    fi
+  done
+fi
+echo "[machine-manager] /python interpreter = ${MACHINE_MANAGER_PYTHON:-<default>}"
+
 exec "$VENV_DIR/bin/python" -m machine_manager.server

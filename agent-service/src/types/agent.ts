@@ -87,7 +87,9 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   executionTimeoutMs: 240000,
   maxSteps: 100,
   allowedOperatorTypes: [
+    // --- core data manipulation ---
     "CSVFileScan",
+    "JSONLFileScan",
     "Filter",
     "Projection",
     "TypeCasting",
@@ -98,14 +100,30 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
     "KeywordSearch",
     "HashJoin",
     "Aggregate",
+    "Split",
+    // --- visualizations ---
     "LineChart",
     "BarChart",
     "PieChart",
     "Histogram",
     "Scatterplot",
+    "ScatterMatrixChart",
     "WordCloud",
+    "ImageVisualizer",
+    // --- python / custom code ---
     "PythonUDFV2",
+    "PythonTableReducer",
     "MachineUDF",
+    // --- regression / ML ---
+    // Both `SklearnXxx` (inference) and `SklearnTrainingXxx` (training) shapes
+    // are exposed; agent picks the trainer for fitting and the matching
+    // predictor/evaluator downstream.
+    "SklearnLinearRegression",
+    "SklearnTrainingLinearRegression",
+    "SklearnRidge",
+    "SklearnTrainingRidge",
+    "SVRTrainer",
+    "SklearnPrediction",
   ],
 };
 

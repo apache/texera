@@ -49,10 +49,12 @@ import {
 } from "./tools/workflow-execution-tools";
 import {
   createRunOnMachineTool,
+  createRunPythonOnMachineTool,
   createListDatasetsTool,
   createUploadFileToDatasetTool,
   createGetDatasetFileTool,
   TOOL_NAME_RUN_ON_MACHINE,
+  TOOL_NAME_RUN_PYTHON_ON_MACHINE,
   TOOL_NAME_LIST_DATASETS,
   TOOL_NAME_UPLOAD_FILE_TO_DATASET,
   TOOL_NAME_GET_DATASET_FILE,
@@ -241,6 +243,11 @@ export class TexeraAgent {
     if (this.delegateConfig?.userToken) {
       const userToken = this.delegateConfig.userToken;
       tools[TOOL_NAME_RUN_ON_MACHINE] = createRunOnMachineTool(userToken);
+      // `runPythonOnMachine` is intentionally NOT registered. The product showcases
+      // Texera as a workflow engine — every data-analysis path must end in a
+      // workflow on the canvas, not a side-channel script. Keep the helper in
+      // machine-tools.ts as dead code for now in case we need it for diagnostics
+      // later, but do not expose it to the LLM.
       tools[TOOL_NAME_LIST_DATASETS] = createListDatasetsTool(userToken);
       tools[TOOL_NAME_UPLOAD_FILE_TO_DATASET] = createUploadFileToDatasetTool(userToken);
       tools[TOOL_NAME_GET_DATASET_FILE] = createGetDatasetFileTool(userToken);

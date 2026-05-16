@@ -42,6 +42,12 @@ SANDBOX_DIR = Path(
 ).resolve()
 SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
 
+# Python interpreter used for /python execution. Defaults to machine-manager's
+# own interpreter, which typically has only FastAPI/uvicorn. Override with a
+# data-science venv (sklearn, pandas, matplotlib, ...) when the agent needs to
+# run real analysis workloads.
+PYTHON_INTERPRETER = os.environ.get("MACHINE_MANAGER_PYTHON", sys.executable)
+
 
 # --- auth -------------------------------------------------------------------
 
@@ -73,7 +79,10 @@ class ExecResponse(BaseModel):
 
 class PythonRequest(BaseModel):
     code: str
-    tuple_in: dict[str, Any] | None = None
+    # `tuple_in` is whatever JSON the caller wants injected as a Python global.
+    # For per-tuple MachineUDF this is a dict; for batch MachineUDF it's a list of
+    # dicts; for ad-hoc runs (`runPythonOnMachine`) callers pass null.
+    tuple_in: Any = None
     timeout_seconds: float = 60.0
 
 
@@ -126,6 +135,7 @@ async def healthz() -> dict[str, Any]:
         "ok": True,
         "sandbox": str(SANDBOX_DIR),
         "auth_required": bool(TOKEN),
+        "python_interpreter": PYTHON_INTERPRETER,
     }
 
 
@@ -191,7 +201,7 @@ async def run_python(req: PythonRequest) -> PythonResponse:
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            sys.executable,
+            PYTHON_INTERPRETER,
             script_path,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,

@@ -19,16 +19,33 @@
 
 package org.apache.texera.amber.operator.udf.machine
 
-import com.fasterxml.jackson.databind.node.ObjectNode
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
+import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
-import org.apache.texera.amber.operator.map.MapOpExec
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Duration
+import scala.collection.mutable
 
-class MachineUDFOpExec(descString: String) extends MapOpExec {
+/**
+  * Runs a user Python script on a *registered machine* via its machine-manager service.
+  *
+  * Two modes (selected by `desc.batchMode`):
+  *   - per-tuple (default): one HTTP /python call per input row. The output of each call's
+  *     last JSON stdout line becomes the output tuple. Input row is exposed to the script
+  *     as `tuple_in` (dict).
+  *   - batch: buffer every input row, and on `onFinish` issue ONE HTTP call with the full
+  *     buffer. `tuple_in` is then a list of dicts. The script can print multiple JSON lines
+  *     and each becomes an output tuple — useful for e.g. training N models and emitting
+  *     one metric row per model.
+  *
+  * In both cases we pin HTTP/1.1 to work around uvicorn's h2c upgrade dropping the request
+  * body (we hit that bug with HTTP/2 in earlier testing).
+  */
+class MachineUDFOpExec(descString: String) extends OperatorExecutor {
   private val desc: MachineUDFOpDesc =
     objectMapper.readValue(descString, classOf[MachineUDFOpDesc])
 
@@ -39,18 +56,27 @@ class MachineUDFOpExec(descString: String) extends MapOpExec {
       .connectTimeout(Duration.ofSeconds(10))
       .build()
 
-  setMapFunc(runOnMachine)
+  // Per-tuple mode: nothing to buffer. Batch mode: accumulate input rows here.
+  private val batchBuffer: mutable.ArrayBuffer[ObjectNode] =
+    mutable.ArrayBuffer.empty[ObjectNode]
 
-  private def runOnMachine(tuple: Tuple): TupleLike = {
-    val tupleJson = objectMapper.createObjectNode()
+  private def tupleToObjectNode(tuple: Tuple): ObjectNode = {
+    val node = objectMapper.createObjectNode()
     tuple.schema.getAttributes.foreach { attr =>
       val v = tuple.getField[AnyRef](attr.getName)
-      tupleJson.putPOJO(attr.getName, v)
+      node.putPOJO(attr.getName, v)
     }
+    node
+  }
 
+  /**
+    * POST to `<machineUrl>/python` with a JSON body and return the parsed response body.
+    * `tupleInPayload` is either an ObjectNode (per-tuple) or an ArrayNode (batch).
+    */
+  private def callMachinePython(tupleInPayload: JsonNode): JsonNode = {
     val payload = objectMapper.createObjectNode()
     payload.put("code", Option(desc.code).getOrElse(""))
-    payload.set[ObjectNode]("tuple_in", tupleJson)
+    payload.set[ObjectNode]("tuple_in", tupleInPayload)
     payload.put("timeout_seconds", desc.timeoutSeconds.toDouble)
 
     val payloadJson = objectMapper.writeValueAsString(payload)
@@ -86,39 +112,108 @@ class MachineUDFOpExec(descString: String) extends MapOpExec {
         s"machine-manager script failed (exit=$exitCode): $stderr"
       )
     }
+    body
+  }
 
-    // Build the output tuple as a sequence of (name, value). For columns the operator
-    // declared as retained input columns, always re-use the original input tuple's value
-    // (preserves type identity with the input schema). Only use the script's result for
-    // columns not already present in the input schema (i.e. the declared outputColumns).
-    val builder = scala.collection.mutable.LinkedHashMap[String, Any]()
-    val inputAttrNames = scala.collection.mutable.Set.empty[String]
+  /**
+    * For per-tuple mode, build a single output tuple from the script's parsed `result`
+    * (the last JSON line). If `retainInputColumns`, original input values are re-used
+    * for any column the script did not override (preserves type identity with the input
+    * schema).
+    */
+  private def buildPerTupleOutput(inputTuple: Tuple, scriptResult: JsonNode): TupleLike = {
+    val builder = mutable.LinkedHashMap[String, Any]()
+    val inputAttrNames = mutable.Set.empty[String]
     if (desc.retainInputColumns) {
-      tuple.schema.getAttributes.foreach { attr =>
-        builder(attr.getName) = tuple.getField[Any](attr.getName)
+      inputTuple.schema.getAttributes.foreach { attr =>
+        builder(attr.getName) = inputTuple.getField[Any](attr.getName)
         inputAttrNames += attr.getName
       }
     }
-    val result = body.path("result")
-    if (result.isObject) {
-      val it = result.fields()
+    if (scriptResult.isObject) {
+      val it = scriptResult.fields()
       while (it.hasNext) {
         val entry = it.next()
         val key = entry.getKey
         if (!inputAttrNames.contains(key)) {
-          val node = entry.getValue
-          val value: Any =
-            if (node.isNull) null
-            else if (node.isInt) node.asInt()
-            else if (node.isLong) node.asLong()
-            else if (node.isDouble || node.isFloat) node.asDouble()
-            else if (node.isBoolean) node.asBoolean()
-            else node.asText()
-          builder(key) = value
+          builder(key) = jsonToScala(entry.getValue)
         }
       }
     }
-
     TupleLike(builder.toSeq: _*)
+  }
+
+  /**
+    * For batch mode, the script can emit one or more rows. We accept either:
+    *   - `result` is an ObjectNode → emit a single row from the declared output columns.
+    *   - `result` is an ArrayNode of ObjectNode → emit one row per element.
+    *   - script's stdout has multiple JSON object lines → each becomes a row.
+    * We accept the last form via the response's `stdout` field, splitting on lines.
+    */
+  private def buildBatchOutputs(responseBody: JsonNode): Iterator[TupleLike] = {
+    val outputColumns = Option(desc.outputColumns).getOrElse(List()).map(_.getName)
+    val result = responseBody.path("result")
+
+    val rows: Seq[JsonNode] =
+      if (result.isArray) {
+        val arr = result.asInstanceOf[ArrayNode]
+        (0 until arr.size()).map(arr.get)
+      } else if (result.isObject) {
+        Seq(result)
+      } else {
+        // No structured `result`; fall back to scanning stdout for JSON object lines.
+        val stdout = responseBody.path("stdout").asText("")
+        stdout
+          .split("\n")
+          .toSeq
+          .map(_.trim)
+          .filter(_.nonEmpty)
+          .flatMap { line =>
+            scala.util.Try(objectMapper.readTree(line)).toOption.filter(_.isObject)
+          }
+      }
+
+    rows.iterator.map(row => batchRowFromJson(row, outputColumns))
+  }
+
+  private def batchRowFromJson(row: JsonNode, outputColumnNames: List[String]): TupleLike = {
+    val builder = mutable.LinkedHashMap[String, Any]()
+    // Project only the declared output columns, in declared order. Missing columns become null.
+    for (colName <- outputColumnNames) {
+      val v = row.path(colName)
+      builder(colName) = if (v.isMissingNode) null else jsonToScala(v)
+    }
+    TupleLike(builder.toSeq: _*)
+  }
+
+  private def jsonToScala(node: JsonNode): Any = {
+    if (node == null || node.isNull) null
+    else if (node.isInt) node.asInt()
+    else if (node.isLong) node.asLong()
+    else if (node.isDouble || node.isFloat) node.asDouble()
+    else if (node.isBoolean) node.asBoolean()
+    else node.asText()
+  }
+
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    if (desc.batchMode) {
+      // Buffer; emit nothing until input is finished.
+      batchBuffer += tupleToObjectNode(tuple)
+      Iterator.empty
+    } else {
+      val body = callMachinePython(tupleToObjectNode(tuple))
+      Iterator.single(buildPerTupleOutput(tuple, body.path("result")))
+    }
+  }
+
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    if (!desc.batchMode) return Iterator.empty
+    val arr = objectMapper.createArrayNode()
+    batchBuffer.foreach(arr.add)
+    System.err.println(
+      s"[MachineUDFOpExec] batch finished; sending ${batchBuffer.size} rows to ${desc.machineUrl}"
+    )
+    val body = callMachinePython(arr)
+    buildBatchOutputs(body)
   }
 }

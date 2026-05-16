@@ -65,11 +65,26 @@ class MachineUDFOpDesc extends MapOpDesc {
   var code: String = ""
 
   @JsonProperty(defaultValue = "60")
-  @JsonSchemaTitle("Per-tuple timeout (seconds)")
+  @JsonSchemaTitle("Per-call timeout (seconds)")
   var timeoutSeconds: Int = 60
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Batch mode (run once on the whole table)")
+  @JsonPropertyDescription(
+    "When true, the script receives ALL input rows at once as `tuple_in` (a list of dicts) " +
+      "and runs ONE time after upstream finishes. Use this for whole-table analyses (e.g. " +
+      "train ML models, build summary plots) that need the full dataset. Output rows come " +
+      "from JSON lines the script prints. When false (default), the script runs per tuple " +
+      "with `tuple_in` as a single dict."
+  )
+  var batchMode: Boolean = false
 
   @JsonProperty(defaultValue = "true")
   @JsonSchemaTitle("Retain input columns")
+  @JsonPropertyDescription(
+    "Per-tuple mode: keep the input row's columns in the output. Ignored in batch mode " +
+      "(the output schema is exactly the declared output columns)."
+  )
   var retainInputColumns: Boolean = true
 
   @JsonProperty
@@ -94,9 +109,12 @@ class MachineUDFOpDesc extends MapOpDesc {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
         val inputSchema = inputSchemas.values.head
-        var outputSchema = if (retainInputColumns) inputSchema else Schema()
+        // Batch mode never keeps the input schema — the operator emits whatever rows the script
+        // prints, with the user-declared columns.
+        val effectiveRetain = retainInputColumns && !batchMode
+        var outputSchema = if (effectiveRetain) inputSchema else Schema()
         if (outputColumns != null) {
-          if (retainInputColumns) {
+          if (effectiveRetain) {
             for (column <- outputColumns) {
               if (inputSchema.containsAttribute(column.getName)) {
                 throw new RuntimeException(
