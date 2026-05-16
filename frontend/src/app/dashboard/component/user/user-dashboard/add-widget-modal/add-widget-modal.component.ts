@@ -97,8 +97,11 @@ export class AddWidgetModalComponent implements OnInit {
   selectedWid: number | null = null;
   bundle: WorkflowDataBundle | null = null;
   loadingBundle = false;
-  selectedDataPointKey: string | null = null;
-  selectedWfWidgetType: WidgetType | null = null;
+  /** Multi-select of data-point keys; each gets its own widget on Add. */
+  selectedKeys = new Set<string>();
+  /** Runtime-stats section starts collapsed — most users don't care about
+   *  processing time and input row counts. */
+  statsExpanded = false;
 
   // --- Tab 2: Manual ----------------------------------------------------
   manualType: WidgetType = "metric";
@@ -168,8 +171,8 @@ export class AddWidgetModalComponent implements OnInit {
   onWorkflowChange(wid: number | null): void {
     this.selectedWid = wid;
     this.bundle = null;
-    this.selectedDataPointKey = null;
-    this.selectedWfWidgetType = null;
+    this.selectedKeys.clear();
+    this.statsExpanded = false;
     if (!wid) return;
     const wf = this.workflows.find(w => w.wid === wid);
     if (!wf) return;
@@ -257,50 +260,71 @@ export class AddWidgetModalComponent implements OnInit {
   get statPoints() {
     return this.dataPoints.filter(p => p.section === "stats");
   }
-  get selectedPoint(): WorkflowDataPoint | undefined {
-    return this.dataPoints.find(p => p.key === this.selectedDataPointKey)?.point;
+
+  /** Default widget type for a data point — used so the user doesn't have to
+   *  click a separate widget-type picker. Metric/stat → Metric Card; rows → Table. */
+  defaultWidgetType(point: WorkflowDataPoint): WidgetType {
+    return point.kind === "rows" ? "table" : "metric";
   }
 
-  /** Widget types that make sense for the current selected data point. */
-  get availableWidgetTypes(): WidgetType[] {
-    const p = this.selectedPoint;
-    if (!p) return [];
-    if (p.kind === "metric" || p.kind === "stat") return ["metric"];
-    if (p.kind === "rows") return ["table", "bar", "donut"];
-    return [];
+  defaultWidgetIcon(point: WorkflowDataPoint): string {
+    return point.kind === "rows" ? "table" : "field-number";
   }
 
-  pickDataPoint(key: string): void {
-    this.selectedDataPointKey = key;
-    const avail = this.availableWidgetTypes;
-    this.selectedWfWidgetType = avail[0] ?? null;
+  toggleSelection(key: string): void {
+    if (this.selectedKeys.has(key)) {
+      this.selectedKeys.delete(key);
+    } else {
+      this.selectedKeys.add(key);
+    }
   }
 
-  pickWfWidgetType(t: WidgetType): void {
-    this.selectedWfWidgetType = t;
+  isSelected(key: string): boolean {
+    return this.selectedKeys.has(key);
+  }
+
+  get selectedCount(): number {
+    return this.selectedKeys.size;
   }
 
   get canAddFromWorkflow(): boolean {
-    return !!this.selectedPoint && !!this.selectedWfWidgetType;
+    return this.selectedKeys.size > 0 && !!this.bundle;
   }
 
   addFromWorkflow(): void {
     if (!this.canAddFromWorkflow || !this.bundle) return;
-    const p = this.selectedPoint!;
-    const t = this.selectedWfWidgetType!;
     const wf = this.bundle.workflow;
+    let added = 0;
+    for (const dp of this.dataPoints) {
+      if (!this.selectedKeys.has(dp.key)) continue;
+      const point = dp.point;
+      const widget = buildWidgetFromPoint(this.defaultWidgetType(point), point);
+      if (!widget) continue;
+      const source: WidgetSource = {
+        kind: "workflow",
+        wid: wf.wid,
+        workflowName: wf.name,
+        operatorName: point.opName,
+        dataLabel: dataPointLabel(point),
+      };
+      this.data.onAdd(widget, source);
+      added++;
+    }
+    if (added > 0) {
+      this.addedCount += added;
+      this.justAddedFlash = true;
+      setTimeout(() => (this.justAddedFlash = false), 1400);
+      // Clear selection so the user can compose another batch.
+      this.selectedKeys.clear();
+    }
+  }
 
-    const widget = buildWidgetFromPoint(t, p);
-    if (!widget) return;
-    const source: WidgetSource = {
-      kind: "workflow",
-      wid: wf.wid,
-      workflowName: wf.name,
-      operatorName: p.kind === "metric" || p.kind === "stat" || p.kind === "rows" ? p.opName : undefined,
-      dataLabel: dataPointLabel(p),
-    };
-    this.data.onAdd(widget, source);
-    this.flashAdded();
+  toggleStatsExpanded(): void {
+    this.statsExpanded = !this.statsExpanded;
+  }
+
+  trackByKey(_index: number, item: { key: string }): string {
+    return item.key;
   }
 
   // --- Manual tab logic -------------------------------------------------

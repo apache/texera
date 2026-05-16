@@ -16,6 +16,7 @@
           <span class="field-label">Workflow</span>
           <nz-spin [nzSpinning]="loadingWorkflows" [nzSize]="'small'">
             <nz-select
+              class="wf-select"
               nzPlaceHolder="Pick a workflow"
               [ngModel]="selectedWid"
               (ngModelChange)="onWorkflowChange($event)"
@@ -52,23 +53,40 @@
             No execution data yet. Open the workflow and run it, then come back to add widgets.
           </div>
 
-          <!-- Step 2: list available data points -->
-          <div *ngIf="resultPoints.length > 0" class="data-section">
-            <div class="section-title">
-              <span nz-icon nzType="bulb"></span>
-              Results
-              <span
-                *ngIf="bundle.snapshotCapturedAt"
-                class="muted-note">
-                — snapshot from {{ bundle.snapshotCapturedAt | date:'short' }}
-              </span>
-            </div>
+          <!-- Results — actual data (top, prominent) -->
+          <section *ngIf="resultPoints.length > 0" class="data-section primary">
+            <header class="section-header">
+              <span class="section-icon-wrap"><span nz-icon nzType="bulb"></span></span>
+              <div class="section-titles">
+                <h4>Results</h4>
+                <p
+                  *ngIf="bundle.snapshotCapturedAt"
+                  class="section-sub">
+                  Captured {{ bundle.snapshotCapturedAt | date:'short' }}
+                </p>
+                <p
+                  *ngIf="!bundle.snapshotCapturedAt"
+                  class="section-sub">
+                  Real data from the latest run
+                </p>
+              </div>
+            </header>
             <div class="data-grid">
               <button
-                *ngFor="let dp of resultPoints"
-                class="data-card"
-                [class.selected]="selectedDataPointKey === dp.key"
-                (click)="pickDataPoint(dp.key)">
+                type="button"
+                *ngFor="let dp of resultPoints; trackBy: trackByKey"
+                class="data-card primary"
+                [class.selected]="isSelected(dp.key)"
+                (click)="toggleSelection(dp.key)">
+                <span
+                  nz-icon
+                  class="card-type-icon"
+                  [nzType]="defaultWidgetIcon(dp.point)"></span>
+                <span
+                  *ngIf="isSelected(dp.key)"
+                  nz-icon
+                  nzType="check"
+                  class="card-check"></span>
                 <span class="data-op">{{ $any(dp.point).opName }}</span>
                 <ng-container *ngIf="dp.point.kind === 'metric'">
                   <span class="data-name">{{ $any(dp.point).name }}</span>
@@ -76,48 +94,47 @@
                 </ng-container>
                 <ng-container *ngIf="dp.point.kind === 'rows'">
                   <span class="data-name">Output rows</span>
-                  <span class="data-val">{{ $any(dp.point).rows.length }} rows × {{ $any(dp.point).columns.length }} cols</span>
+                  <span class="data-val">{{ $any(dp.point).rows.length }} × {{ $any(dp.point).columns.length }}</span>
                 </ng-container>
               </button>
             </div>
-          </div>
+          </section>
 
-          <div *ngIf="statPoints.length > 0" class="data-section">
-            <div class="section-title">
-              <span nz-icon nzType="thunderbolt"></span>
-              Runtime stats
-              <span class="muted-note">— from latest execution</span>
-            </div>
-            <div class="data-grid">
+          <!-- Runtime stats — secondary, collapsed by default -->
+          <section *ngIf="statPoints.length > 0" class="data-section">
+            <button
+              type="button"
+              class="section-header collapsible"
+              (click)="toggleStatsExpanded()">
+              <span class="section-icon-wrap muted"><span nz-icon nzType="thunderbolt"></span></span>
+              <div class="section-titles">
+                <h4>Runtime stats <span class="count-pill">{{ statPoints.length }}</span></h4>
+                <p class="section-sub">Processing time, input rows, output sizes</p>
+              </div>
+              <span
+                nz-icon
+                class="chevron"
+                [class.expanded]="statsExpanded"
+                nzType="down"></span>
+            </button>
+            <div *ngIf="statsExpanded" class="data-grid">
               <button
-                *ngFor="let dp of statPoints"
+                type="button"
+                *ngFor="let dp of statPoints; trackBy: trackByKey"
                 class="data-card"
-                [class.selected]="selectedDataPointKey === dp.key"
-                (click)="pickDataPoint(dp.key)">
+                [class.selected]="isSelected(dp.key)"
+                (click)="toggleSelection(dp.key)">
+                <span
+                  *ngIf="isSelected(dp.key)"
+                  nz-icon
+                  nzType="check"
+                  class="card-check"></span>
                 <span class="data-op">{{ $any(dp.point).opName }}</span>
                 <span class="data-name">{{ $any(dp.point).name }}</span>
                 <span class="data-val">{{ $any(dp.point).valueLabel }}</span>
               </button>
             </div>
-          </div>
-
-          <!-- Step 3: pick widget type -->
-          <div *ngIf="selectedPoint" class="data-section">
-            <div class="section-title">
-              <span nz-icon nzType="appstore"></span>
-              Widget type
-            </div>
-            <div class="widget-type-grid">
-              <button
-                *ngFor="let t of availableWidgetTypes"
-                class="widget-type-card"
-                [class.selected]="selectedWfWidgetType === t"
-                (click)="pickWfWidgetType(t)">
-                <span nz-icon [nzType]="t === 'metric' ? 'field-number' : t === 'bar' ? 'bar-chart' : t === 'donut' ? 'pie-chart' : t === 'table' ? 'table' : 'file-text'"></span>
-                <span>{{ t === 'metric' ? 'Metric Card' : t === 'bar' ? 'Bar Chart' : t === 'donut' ? 'Donut' : t === 'table' ? 'Table' : t }}</span>
-              </button>
-            </div>
-          </div>
+          </section>
         </ng-container>
 
         <nz-empty
@@ -208,7 +225,10 @@
         [disabled]="!canAddFromWorkflow"
         (click)="addFromWorkflow()">
         <span nz-icon nzType="plus"></span>
-        Add Widget
+        <ng-container *ngIf="selectedCount > 0">
+          Add {{ selectedCount }} Widget{{ selectedCount === 1 ? '' : 's' }}
+        </ng-container>
+        <ng-container *ngIf="selectedCount === 0">Add Widget</ng-container>
       </button>
       <button
         *ngIf="activeTab === 1"
