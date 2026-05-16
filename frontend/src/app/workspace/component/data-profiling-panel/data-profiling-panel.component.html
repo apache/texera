@@ -20,7 +20,11 @@
 <div class="profiling-panel">
   <div class="panel-header">
     <span class="header-icon">📊</span>
-    <h3 class="header-title">Data Profile: <span class="source-name">{{ profile?.source || source }}</span></h3>
+    <h3
+      class="header-title"
+      [title]="profile?.source || source">
+      Data Profile: <span class="source-name">{{ shortSource() }}</span>
+    </h3>
   </div>
 
   <div
@@ -30,7 +34,13 @@
       nz-icon
       nzType="loading"
       nzTheme="outline"></span>
-    Profiling…
+    Reading & profiling CSV…
+  </div>
+
+  <div
+    *ngIf="error && !loading"
+    class="error-state">
+    ⚠️ {{ error }}
   </div>
 
   <ng-container *ngIf="!loading && profile && score">

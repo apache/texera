@@ -73,6 +73,7 @@ export class DataProfilingPanelComponent implements OnInit, OnChanges {
 
   profile?: DatasetProfile;
   loading = true;
+  error?: string;
   score?: QualityScoreBreakdown;
   suggestions: CleaningSuggestion[] = [];
   roles: ColumnRole[] = [];
@@ -96,18 +97,32 @@ export class DataProfilingPanelComponent implements OnInit, OnChanges {
 
   private loadProfile(): void {
     this.loading = true;
+    this.error = undefined;
     this.profilingService
       .getProfile(this.source)
       .pipe(untilDestroyed(this))
-      .subscribe(profile => {
-        this.profile = profile;
-        this.score = computeQualityScore(profile);
-        this.suggestions = generateSuggestions(profile);
-        this.roles = detectColumnRoles(profile);
-        this.rolesByColumn = Object.fromEntries(this.roles.map(r => [r.column, r]));
-        this.roleSummary = this.summarizeRoles(this.roles);
-        this.loading = false;
+      .subscribe({
+        next: profile => {
+          this.profile = profile;
+          this.score = computeQualityScore(profile);
+          this.suggestions = generateSuggestions(profile);
+          this.roles = detectColumnRoles(profile);
+          this.rolesByColumn = Object.fromEntries(this.roles.map(r => [r.column, r]));
+          this.roleSummary = this.summarizeRoles(this.roles);
+          this.loading = false;
+        },
+        error: err => {
+          this.error = err?.message ?? String(err);
+          this.loading = false;
+        },
       });
+  }
+
+  shortSource(): string {
+    const s = this.profile?.source ?? this.source ?? "";
+    if (!s) return "—";
+    const parts = s.split("/").filter(p => p.length > 0);
+    return parts[parts.length - 1] || s;
   }
 
   private summarizeRoles(roles: ColumnRole[]): RoleSummaryEntry[] {

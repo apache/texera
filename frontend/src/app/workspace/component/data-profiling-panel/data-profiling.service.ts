@@ -18,18 +18,64 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Observable, of } from "rxjs";
-import { delay } from "rxjs/operators";
+import { Observable, from, of } from "rxjs";
+import { catchError, delay, switchMap } from "rxjs/operators";
+import * as Papa from "papaparse";
+import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { UserService } from "../../../common/service/user/user.service";
 import { DatasetProfile } from "./data-profiling.types";
+import { ParsedRow, computeProfile } from "./data-profiling.profiler";
+
+const MAX_ROWS_FOR_PROFILE = 5000;
 
 @Injectable({ providedIn: "root" })
 export class DataProfilingService {
+  constructor(
+    private datasetService: DatasetService,
+    private userService: UserService
+  ) {}
+
   /**
-   * Returns a profile for the given data source. The backend integration is a follow-up;
-   * for now this returns a deterministic mock that exercises every UI affordance.
+   * Fetches the CSV at `source` (a dataset-relative path like /{owner}/{ds}/{ver}/{rel})
+   * and computes a real DatasetProfile. Falls back to a deterministic mock on any
+   * failure so the panel always has something useful to show.
    */
-  getProfile(source: string = "diabetes.csv"): Observable<DatasetProfile> {
-    return of(this.buildMockProfile(source)).pipe(delay(150));
+  getProfile(source: string = ""): Observable<DatasetProfile> {
+    const path = (source ?? "").trim();
+    if (!path || !this.looksLikeDatasetPath(path)) {
+      return of(this.buildMockProfile(path || "diabetes.csv")).pipe(delay(120));
+    }
+
+    const isLogin = this.userService.isLogin();
+    return this.datasetService.retrieveDatasetVersionSingleFile(path, isLogin).pipe(
+      switchMap(blob => from(this.profileBlob(blob, path))),
+      catchError(err => {
+        // eslint-disable-next-line no-console
+        console.warn("[data-profiling] real profile failed, using mock:", err);
+        return of(this.buildMockProfile(path));
+      })
+    );
+  }
+
+  private looksLikeDatasetPath(p: string): boolean {
+    // matches /{owner}/{datasetName}/{versionName}/{relativePath} — at least 4 segments
+    return /^\/[^/]+\/[^/]+\/[^/]+\/.+/.test(p);
+  }
+
+  private async profileBlob(blob: Blob, source: string): Promise<DatasetProfile> {
+    const text = await blob.text();
+    const result = Papa.parse<Record<string, string>>(text, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: false,
+      preview: MAX_ROWS_FOR_PROFILE,
+    });
+    const headers = (result.meta?.fields ?? []).filter(h => h && h.length > 0);
+    if (headers.length === 0) {
+      throw new Error("CSV has no header row");
+    }
+    const rows = (result.data ?? []) as ParsedRow[];
+    return computeProfile(source, headers, rows);
   }
 
   private buildMockProfile(source: string): DatasetProfile {
