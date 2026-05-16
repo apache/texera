@@ -1,0 +1,102 @@
+<div class="hub-detail-page" *ngIf="entry">
+  <a class="hub-back-link" routerLink="/dashboard/hub/workflow-hub">
+    <span nz-icon nzType="arrow-left"></span>
+    Back to Workflow Hub
+  </a>
+
+  <div class="hub-detail-layout">
+    <main class="hub-detail-main">
+      <div class="hub-detail-author">
+        <span
+          class="hub-avatar"
+          [style.background]="entry.authorAvatarColor">
+          {{ entry.authorName.charAt(0) }}
+        </span>
+        <div>
+          <div class="hub-detail-author__name">{{ entry.authorName }}</div>
+          <div class="hub-detail-author__date">Published {{ publishedDateLabel }}</div>
+        </div>
+      </div>
+
+      <h1 class="hub-detail-title">{{ entry.title }}</h1>
+      <p class="hub-detail-description">{{ entry.description }}</p>
+
+      <section class="hub-detail-section">
+        <h2 class="hub-detail-section__title">Workflow Preview</h2>
+        <div class="hub-dag-preview">
+          <ng-container *ngFor="let op of entry.operators; let last = last">
+            <div class="hub-dag-preview__node">{{ op }}</div>
+            <svg *ngIf="!last" class="hub-dag-preview__arrow" width="24" height="20" viewBox="0 0 24 20">
+              <line x1="0" y1="10" x2="18" y2="10" stroke="#8c8c8c" stroke-width="1.5"></line>
+              <polygon points="18,5 24,10 18,15" fill="#8c8c8c"></polygon>
+            </svg>
+          </ng-container>
+        </div>
+      </section>
+
+      <section class="hub-detail-section">
+        <h2 class="hub-detail-section__title">Tags</h2>
+        <div class="hub-detail-tags">
+          <nz-tag *ngFor="let tag of entry.tags">{{ tag }}</nz-tag>
+        </div>
+      </section>
+    </main>
+
+    <aside class="hub-detail-sidebar">
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="large"
+        class="hub-detail-action"
+        [nzLoading]="forking"
+        (click)="forkWorkflow()">
+        <span nz-icon nzType="fork"></span>
+        Fork to My Workflows
+      </button>
+
+      <button
+        nz-button
+        nzSize="large"
+        class="hub-detail-action hub-detail-action--star"
+        [class.hub-detail-action--starred]="starred"
+        (click)="toggleStar()">
+        <span nz-icon nzType="star" [nzTheme]="starred ? 'fill' : 'outline'"></span>
+        {{ starred ? 'Starred' : 'Star' }}
+      </button>
+
+      <div class="hub-detail-stats">
+        <div class="hub-detail-stat">
+          <div class="hub-detail-stat__value">{{ entry.stars }}</div>
+          <div class="hub-detail-stat__label">Stars</div>
+        </div>
+        <div class="hub-detail-stat">
+          <div class="hub-detail-stat__value">{{ entry.forks }}</div>
+          <div class="hub-detail-stat__label">Forks</div>
+        </div>
+        <div class="hub-detail-stat">
+          <div class="hub-detail-stat__value">{{ entry.views }}</div>
+          <div class="hub-detail-stat__label">Views</div>
+        </div>
+        <div class="hub-detail-stat">
+          <div class="hub-detail-stat__value">{{ entry.operators.length }}</div>
+          <div class="hub-detail-stat__label">Operators</div>
+        </div>
+      </div>
+
+      <div *ngIf="entry.agent" class="hub-detail-agent">
+        <div class="hub-detail-agent__title">🤖 Agent Included</div>
+        <div class="hub-detail-agent__name">{{ entry.agent.name }}</div>
+        <div *ngIf="entry.agent.methodology" class="hub-detail-agent__methodology">
+          Methodology: {{ entry.agent.methodology }}
+        </div>
+        <button
+          nz-button
+          nzSize="small"
+          class="hub-detail-agent__btn">
+          <span nz-icon nzType="download"></span>
+          Import Agent Config
+        </button>
+      </div>
+    </aside>
+  </div>
+</div>
