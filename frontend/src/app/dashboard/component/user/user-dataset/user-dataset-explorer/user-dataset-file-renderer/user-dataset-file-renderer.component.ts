@@ -26,6 +26,14 @@ import { DomSanitizer, SafeResourceUrl, SafeUrl } from "@angular/platform-browse
 import readXlsxFile, { readSheetNames } from "read-excel-file";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { formatSize } from "../../../../../../common/util/size-formatter.util";
+import { Router } from "@angular/router";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "../../../../../../common/service/workflow-persist/workflow-persist.service";
+import { GuiConfigService } from "../../../../../../common/service/gui-config.service";
+import { ExecutionMode, WorkflowContent } from "../../../../../../common/type/workflow";
+import { DASHBOARD_USER_WORKSPACE } from "../../../../../../app-routing.constant";
 import { NgStyle, NgIf, NgFor } from "@angular/common";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
@@ -40,6 +48,8 @@ import {
 import { MarkdownComponent } from "ngx-markdown";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { fileTypeFromBlob } from "file-type";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 export const MIME_TYPES = {
   JPEG: "image/jpeg",
@@ -522,7 +532,6 @@ function summarizeFasta(text: string): {
     minLen: minLen === Infinity ? 0 : minLen,
     maxLen,
     avgLen: sequenceCount > 0 ? totalBases / sequenceCount : 0,
-    // Heuristic: if more than 10% of characters aren't ACGTUN, treat as protein
     isProtein: totalBases > 0 && nonNucleotideCount / totalBases > 0.1,
   };
 }
@@ -546,6 +555,8 @@ function summarizeFasta(text: string): {
     NzTbodyComponent,
     MarkdownComponent,
     NgxJsonViewerModule,
+    NzButtonComponent,
+    NzIconDirective,
   ],
 })
 export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDestroy {
@@ -623,8 +634,78 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     private datasetService: DatasetService,
     private sanitizer: DomSanitizer,
     private notificationService: NotificationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private router: Router,
+    private workflowPersistService: WorkflowPersistService,
+    private config: GuiConfigService
   ) {}
+
+  /** Always available — every file gives the user something useful when opened in a workflow. */
+  get canOpenInWorkflow(): boolean {
+    return !!this.filePath;
+  }
+
+  /** Suggested operator type for this file (used in the post-create notification). */
+  private static getSuggestedOperatorName(filePath: string): string {
+    const mime = getMimeType(filePath);
+    switch (mime) {
+      case MIME_TYPES.CSV: return "CSV File Scan";
+      case MIME_TYPES.JSON: return "JSONL File Scan";
+      case MIME_TYPES.ARROW: return "Arrow File Scan";
+      case MIME_TYPES.PARQUET: return "Parquet File Scan";
+      default: return "File Scan";
+    }
+  }
+
+  /**
+   * Creates a new empty workflow and navigates to the editor. We deliberately do NOT
+   * pre-populate the workflow with an operator — hand-constructing operator JSON without
+   * the operator-metadata schema validation tends to produce workflows the editor can't
+   * load. Instead we copy the file path to the clipboard and tell the user which operator
+   * to drag in. Same UX outcome, far more reliable.
+   */
+  onOpenInWorkflow(): void {
+    const fileName = this.filePath.split("/").pop() ?? "file";
+    const suggestedOp = UserDatasetFileRendererComponent.getSuggestedOperatorName(this.filePath);
+    const workflowContent: WorkflowContent = {
+      operators: [],
+      commentBoxes: [],
+      links: [],
+      operatorPositions: {},
+      settings: {
+        dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+        executionMode: this.config.env.defaultExecutionMode ?? ExecutionMode.PIPELINED,
+      },
+    };
+    const workflowName = `Analysis of ${fileName}`;
+    this.workflowPersistService
+      .createWorkflow(workflowContent, workflowName || DEFAULT_WORKFLOW_NAME)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: created => {
+          const wid = created?.workflow?.wid;
+          if (wid == null) {
+            this.notificationService.error("Workflow created but no ID was returned.");
+            return;
+          }
+          // Best-effort clipboard copy of the dataset file path so the user can paste it
+          // straight into the operator's File field. Falls back silently if the API isn't
+          // available (insecure context, older browser).
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(this.filePath).catch(() => undefined);
+          }
+          this.notificationService.success(
+            `Workflow created. Drag a "${suggestedOp}" operator and paste the file path (copied to clipboard).`
+          );
+          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(navigated => {
+            if (!navigated) {
+              this.notificationService.error("Navigation to the workflow editor was blocked.");
+            }
+          });
+        },
+        error: () => this.notificationService.error("Failed to create workflow"),
+      });
+  }
 
   ngOnInit(): void {
     this.reloadFileContent();

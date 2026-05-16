@@ -58,11 +58,21 @@
         nzShowIcon></nz-alert>
     </div>
 
-    <div *ngIf="metadataItems.length > 0" class="file-metadata-strip">
+    <div *ngIf="metadataItems.length > 0 || canOpenInWorkflow" class="file-metadata-strip">
       <span *ngFor="let item of metadataItems" class="metadata-pill">
         <span class="metadata-label">{{ item.label }}</span>
         <span class="metadata-value">{{ item.value }}</span>
       </span>
+      <button
+        *ngIf="canOpenInWorkflow"
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        class="open-in-workflow-btn"
+        (click)="onOpenInWorkflow()">
+        <span nz-icon nzType="play-circle" nzTheme="outline"></span>
+        Open in workflow
+      </button>
     </div>
 
     <nz-table

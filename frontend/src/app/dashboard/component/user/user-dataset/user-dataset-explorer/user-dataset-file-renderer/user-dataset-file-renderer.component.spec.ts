@@ -24,6 +24,8 @@ import { DatasetService } from "../../../../../service/user/dataset/dataset.serv
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
+import { Router } from "@angular/router";
+import { WorkflowPersistService } from "../../../../../../common/service/workflow-persist/workflow-persist.service";
 
 describe("UserDatasetFileRendererComponent", () => {
   let component: UserDatasetFileRendererComponent;
@@ -34,6 +36,8 @@ describe("UserDatasetFileRendererComponent", () => {
       providers: [
         DatasetService,
         NotificationService,
+        WorkflowPersistService,
+        { provide: Router, useValue: { navigate: vi.fn() } },
         {
           provide: DomSanitizer,
           useValue: {
@@ -267,6 +271,19 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(schema.types).toEqual(["string", "string"]);
       expect(schema.nullCounts).toEqual([0, 2]);
     });
+
+    it("should expose canOpenInWorkflow whenever a filePath is set", () => {
+      component.filePath = "/x/y/v1/data.csv";
+      expect(component.canOpenInWorkflow).toBe(true);
+      component.filePath = "/x/y/v1/model.safetensors";
+      expect(component.canOpenInWorkflow).toBe(true);
+    });
+
+    it("should not expose canOpenInWorkflow when no file is selected", () => {
+      component.filePath = "";
+      expect(component.canOpenInWorkflow).toBe(false);
+    });
+
 
     it("should parse a GGUF header", async () => {
       const buf = new Uint8Array(24);
