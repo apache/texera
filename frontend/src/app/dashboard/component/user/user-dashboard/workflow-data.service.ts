@@ -166,7 +166,83 @@ export class WorkflowDataService {
 
 // --- Helpers (exported for use by the modal) -----------------------------
 
+/**
+ * Reads cached operator results from localStorage. Two key conventions are
+ * supported:
+ *
+ *   New (per-operator): `texera.results.{wid}.{opId}` — written by
+ *     DashboardResultCacheService as the Result Panel receives data over
+ *     WebSocket. Value shape: { columns, rows, timestamp }.
+ *
+ *   Legacy (bundle): `texera.workflow.results.{wid}` — single
+ *     WorkflowResultsSnapshot for the whole workflow. Used by any caller
+ *     that wants to write a pre-aggregated bundle.
+ *
+ * Both are merged into one WorkflowResultsSnapshot for the modal.
+ */
 export function readSnapshot(wid: number): WorkflowResultsSnapshot | undefined {
+  const operatorsFromCache = readPerOperatorCache(wid);
+  const legacyBundle = readLegacyBundle(wid);
+
+  if (operatorsFromCache.length === 0 && !legacyBundle) {
+    return undefined;
+  }
+
+  // Merge: cache entries take precedence over legacy bundle on opId clash.
+  const merged = new Map<string, WorkflowResultsSnapshot["operators"][number]>();
+  if (legacyBundle) {
+    for (const op of legacyBundle.operators) merged.set(op.operatorID, op);
+  }
+  for (const op of operatorsFromCache) merged.set(op.operatorID, op);
+
+  let capturedAt = legacyBundle?.capturedAt ?? 0;
+  for (const op of operatorsFromCache) {
+    // captured-at is tracked at the per-op level too
+    const t = (op as any).__ts ?? 0;
+    if (t > capturedAt) capturedAt = t;
+  }
+
+  return {
+    wid,
+    capturedAt: capturedAt || Date.now(),
+    operators: Array.from(merged.values()),
+  };
+}
+
+function readPerOperatorCache(wid: number): Array<WorkflowResultsSnapshot["operators"][number] & { __ts?: number }> {
+  const prefix = `texera.results.${wid}.`;
+  const out: Array<WorkflowResultsSnapshot["operators"][number] & { __ts?: number }> = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const opId = key.slice(prefix.length);
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") continue;
+        const columns: string[] = Array.isArray(parsed.columns) ? parsed.columns : [];
+        const rows: (string | number | null)[][] = Array.isArray(parsed.rows) ? parsed.rows : [];
+        const ts = parsed.timestamp ? Date.parse(parsed.timestamp) : 0;
+        out.push({
+          operatorID: opId,
+          columns,
+          rows,
+          metrics: extractMetricsFromTable(columns, rows),
+          __ts: ts,
+        });
+      } catch {
+        // skip malformed entry
+      }
+    }
+  } catch {
+    // localStorage unavailable — give up
+  }
+  return out;
+}
+
+function readLegacyBundle(wid: number): WorkflowResultsSnapshot | undefined {
   try {
     const raw = localStorage.getItem(`texera.workflow.results.${wid}`);
     if (!raw) return undefined;
@@ -175,8 +251,65 @@ export function readSnapshot(wid: number): WorkflowResultsSnapshot | undefined {
       return parsed as WorkflowResultsSnapshot;
     }
   } catch {
-    // ignore — treat as no snapshot
+    // ignore
   }
+  return undefined;
+}
+
+/**
+ * Heuristically extract scalar metrics from a result table:
+ *
+ *   - Single-row table: every numeric column becomes a metric. This catches
+ *     evaluation operators that output one row like {accuracy: 0.96, f1: 0.94}.
+ *   - Two-column name/value table (≤ 20 rows): each row becomes a metric. This
+ *     catches aggregations like {model: "RF", score: 0.94}.
+ *
+ * Returns undefined when no shape matches — the rows are still available for
+ * Table / Bar / Donut widgets that consume the full table.
+ */
+function extractMetricsFromTable(
+  columns: string[],
+  rows: (string | number | null)[][]
+): Record<string, number | string> | undefined {
+  if (rows.length === 0 || columns.length === 0) return undefined;
+
+  if (rows.length === 1) {
+    const metrics: Record<string, number | string> = {};
+    columns.forEach((col, i) => {
+      const v = rows[0][i];
+      if (v === null || v === undefined) return;
+      const asNum = typeof v === "number" ? v : Number(v);
+      if (!isNaN(asNum) && typeof v !== "string") {
+        metrics[col] = asNum;
+      } else if (typeof v === "string" && !isNaN(asNum)) {
+        metrics[col] = asNum;
+      } else if (typeof v === "string") {
+        // Skip non-numeric strings — usually IDs, not interesting metrics.
+      }
+    });
+    return Object.keys(metrics).length > 0 ? metrics : undefined;
+  }
+
+  if (columns.length === 2 && rows.length <= 20) {
+    const looksLikeNameValue = rows.every(r => {
+      const name = r[0];
+      const value = r[1];
+      const nameOk = typeof name === "string" || typeof name === "number";
+      const valNum = typeof value === "number" ? value : Number(value as any);
+      return nameOk && !isNaN(valNum);
+    });
+    if (looksLikeNameValue) {
+      const metrics: Record<string, number | string> = {};
+      rows.forEach(r => {
+        const num = typeof r[1] === "number" ? r[1] : Number(r[1] as any);
+        if (!isNaN(num)) {
+          metrics[String(r[0])] = num;
+        }
+      });
+      return Object.keys(metrics).length > 0 ? metrics : undefined;
+    }
+  }
+
   return undefined;
 }
 
