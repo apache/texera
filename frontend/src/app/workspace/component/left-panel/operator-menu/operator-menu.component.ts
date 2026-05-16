@@ -633,53 +633,95 @@ export class OperatorMenuComponent {
     if (this.autoOptimizeInProgress) return;
     const graph = this.workflowActionService.getTexeraGraph();
     const suggestions = this.macroSuggestionService.suggestMacros(graph);
-    const topK = 3;
-    const toMaterialize = suggestions.slice(0, topK);
-    if (toMaterialize.length === 0) {
-      // Nothing to extract — go straight to fuse-all.
+    if (suggestions.length === 0) {
       this.onFuseAllMacros();
       return;
     }
+    // Group suggestions by `suggestedName` so all occurrences of a pattern
+    // share one macro definition. Take the top K distinct patterns by the
+    // highest-scoring occurrence of each. This is how a single click can
+    // batch-refactor 6 occurrences into 1 macro definition + 6 instances —
+    // the demo's killer "agent did the refactor for me" moment.
+    const distinctPatterns = new Map<string, MacroSuggestion[]>();
+    for (const s of suggestions) {
+      if (!distinctPatterns.has(s.suggestedName)) distinctPatterns.set(s.suggestedName, []);
+      distinctPatterns.get(s.suggestedName)!.push(s);
+    }
+    const topK = 3;
+    const patternGroups = Array.from(distinctPatterns.values())
+      .sort((a, b) => b[0].score - a[0].score)
+      .slice(0, topK);
+
     this.autoOptimizeInProgress = true;
-    this.message.info(`Auto-optimize: extracting ${toMaterialize.length} pattern${toMaterialize.length === 1 ? "" : "s"}…`);
-    // Materialize sequentially: each createMacroFromSelection mutates the
-    // graph, so subsequent operator IDs need to remain valid. We snapshot
-    // the operator IDs before each call.
-    const materializeOne = (i: number): Promise<void> =>
+    const patternCount = patternGroups.length;
+    const totalOccurrences = patternGroups.reduce((sum, g) => sum + g.length, 0);
+    this.message.info(
+      `🚀 Auto-optimize: extracting ${patternCount} pattern${patternCount === 1 ? "" : "s"} ` +
+        `(${totalOccurrences} occurrence${totalOccurrences === 1 ? "" : "s"})…`
+    );
+
+    /**
+     * For one pattern group: create the macro definition from the FIRST
+     * occurrence, then swap every remaining occurrence with a fresh
+     * instance of the same definition. Returns a Promise that resolves
+     * after all swaps land.
+     */
+    const materializePattern = (group: MacroSuggestion[]): Promise<void> =>
       new Promise((resolve, reject) => {
-        if (i >= toMaterialize.length) return resolve();
-        const sugg = toMaterialize[i];
-        // Skip the suggestion if any of its operator IDs have been swapped
-        // out by an earlier materialize (those ops no longer exist).
-        const stillPresent = sugg.operatorIds.every(opId => {
-          try {
-            return graph.getOperator(opId) !== undefined;
-          } catch {
-            return false;
-          }
-        });
-        if (!stillPresent) {
-          materializeOne(i + 1).then(resolve, reject);
-          return;
-        }
-        const name = sugg.suggestedName || `macro-${Date.now()}-${i}`;
+        // Filter to occurrences whose operators are still on the graph
+        // (a previous pattern's extract may have consumed some of these).
+        const alive = group.filter(s =>
+          s.operatorIds.every(opId => {
+            try {
+              return graph.getOperator(opId) !== undefined;
+            } catch {
+              return false;
+            }
+          })
+        );
+        if (alive.length === 0) return resolve();
+        const first = alive[0];
+        const name = first.suggestedName || `macro-${Date.now()}`;
         this.macroService
-          .createMacroFromSelection(this.workflowActionService, sugg.operatorIds, name)
+          .createMacroFromSelection(this.workflowActionService, first.operatorIds, name)
           .subscribe({
             next: detail => {
-              this.message.info(`  ✓ Extracted "${detail.name}" (${sugg.operatorIds.length} ops)`);
-              materializeOne(i + 1).then(resolve, reject);
+              let extraSwapped = 0;
+              let extraSkipped = 0;
+              for (const peer of alive.slice(1)) {
+                const ok = this.macroService.swapSelectionWithExistingMacro(
+                  this.workflowActionService,
+                  detail,
+                  peer.operatorIds
+                );
+                if (ok) extraSwapped++;
+                else extraSkipped++;
+              }
+              this.message.info(
+                `  ✓ Extracted "${detail.name}"` +
+                  (extraSwapped > 0
+                    ? ` (and refactored ${extraSwapped} other occurrence${extraSwapped === 1 ? "" : "s"})`
+                    : "") +
+                  (extraSkipped > 0 ? `; ${extraSkipped} shape-mismatched skipped` : "")
+              );
+              resolve();
             },
             error: err => {
-              this.message.warning(`  ✗ Skipped pattern: ${err?.message ?? err}`);
-              materializeOne(i + 1).then(resolve, reject);
+              this.message.warning(`  ✗ Skipped pattern "${name}": ${err?.message ?? err}`);
+              resolve(); // soft-fail so a bad pattern doesn't abort the batch
             },
           });
       });
-    materializeOne(0).then(
+
+    const materializeAll = (i: number): Promise<void> =>
+      i >= patternGroups.length
+        ? Promise.resolve()
+        : materializePattern(patternGroups[i]).then(() => materializeAll(i + 1));
+
+    materializeAll(0).then(
       () => {
         this.autoOptimizeInProgress = false;
-        // Now fuse everything on the canvas.
+        // Now fuse everything on the canvas, including the newly-created macros.
         this.onFuseAllMacros();
       },
       err => {
