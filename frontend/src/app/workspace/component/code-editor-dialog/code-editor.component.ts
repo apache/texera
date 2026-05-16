@@ -51,6 +51,7 @@ import { filter, switchMap } from "rxjs/operators";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./code-debugger.component";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
+import { ThemeService } from "src/app/common/service/theme/theme.service";
 import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -139,7 +140,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
     private aiAssistantService: AIAssistantService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private themeService: ThemeService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -246,7 +248,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           },
           userConfiguration: {
             json: JSON.stringify({
-              "workbench.colorTheme": "Default Dark Modern",
+              "workbench.colorTheme":
+                this.themeService.getCurrent().mode === "dark"
+                  ? "Default Dark Modern"
+                  : "Default Light Modern",
             }),
           },
         },
@@ -324,7 +329,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           },
           userConfiguration: {
             json: JSON.stringify({
-              "workbench.colorTheme": "Default Dark Modern",
+              "workbench.colorTheme":
+                this.themeService.getCurrent().mode === "dark"
+                  ? "Default Dark Modern"
+                  : "Default Light Modern",
             }),
           },
         },

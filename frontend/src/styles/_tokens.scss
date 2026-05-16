@@ -1,0 +1,138 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/*
+ * Theme tokens.
+ *
+ * Every color, radius, shadow, motion duration, and font family used in the
+ * frontend should ultimately resolve to one of the `--tx-*` variables below.
+ * The ThemeService overwrites these on `:root` at runtime; the defaults here
+ * are the Light theme so that uninitialized SSR / first-paint still works.
+ *
+ * Add new tokens here when you find a hardcoded value that needs to be
+ * theme-aware. Keep names semantic (`--tx-text-secondary`), not literal
+ * (`--tx-gray-500`) — that way themes can re-interpret them freely.
+ */
+
+:root {
+  /* ---- Surfaces (layered backgrounds, base -> elevated) ----------------- */
+  --tx-bg-base:        #ffffff;
+  --tx-bg-surface:     #fafafa;
+  --tx-bg-elevated:    #ffffff;
+  --tx-bg-canvas:      #f5f7fa;
+  --tx-bg-hover:       rgba(0, 0, 0, 0.04);
+  --tx-bg-active:      rgba(0, 0, 0, 0.08);
+  --tx-bg-overlay:     rgba(0, 0, 0, 0.45); /* modal scrim */
+
+  /* ---- Text ------------------------------------------------------------- */
+  --tx-text-primary:   rgba(0, 0, 0, 0.88);
+  --tx-text-secondary: rgba(0, 0, 0, 0.65);
+  --tx-text-tertiary:  rgba(0, 0, 0, 0.45);
+  --tx-text-disabled:  rgba(0, 0, 0, 0.25);
+  --tx-text-inverse:   #ffffff;
+
+  /* ---- Borders ---------------------------------------------------------- */
+  --tx-border-subtle:  #f0f0f0;
+  --tx-border-default: #d9d9d9;
+  --tx-border-strong:  #bfbfbf;
+
+  /* ---- Brand / primary action color ------------------------------------- */
+  --tx-primary:        #1890ff;
+  --tx-primary-hover:  #40a9ff;
+  --tx-primary-active: #096dd9;
+  --tx-primary-soft:   rgba(24, 144, 255, 0.10);
+  --tx-primary-fg:     #ffffff;
+
+  /* ---- Semantic --------------------------------------------------------- */
+  --tx-success:        #52c41a;
+  --tx-success-soft:   rgba(82, 196, 26, 0.12);
+  --tx-warning:        #faad14;
+  --tx-warning-soft:   rgba(250, 173, 20, 0.12);
+  --tx-danger:         #ff4d4f;
+  --tx-danger-soft:    rgba(255, 77, 79, 0.12);
+  --tx-info:           #1890ff;
+  --tx-info-soft:      rgba(24, 144, 255, 0.10);
+
+  /* ---- Shadows ---------------------------------------------------------- */
+  --tx-shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.06);
+  --tx-shadow-md:      0 2px 8px rgba(0, 0, 0, 0.08);
+  --tx-shadow-lg:      0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* ---- Typography ------------------------------------------------------- */
+  --tx-font-ui:        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                       "Helvetica Neue", Arial, sans-serif;
+  --tx-font-mono:      "JetBrains Mono", "Fira Code", "SF Mono", Monaco,
+                       Consolas, monospace;
+  --tx-font-size-base: 14px;
+
+  /* ---- Layout ----------------------------------------------------------- */
+  --tx-radius-sm:      2px;
+  --tx-radius-md:      4px;
+  --tx-radius-lg:      8px;
+
+  /* ---- Motion ----------------------------------------------------------- */
+  --tx-motion-fast:    100ms;
+  --tx-motion-default: 200ms;
+  --tx-motion-slow:    400ms;
+  --tx-motion-ease:    cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---- Workspace canvas (JointJS paper, grid, operator boxes, links) ---- */
+  --tx-canvas-bg:       #f6f6f6; /* paper background */
+  --tx-canvas-grid:     rgba(0, 0, 0, 0.18); /* grid dots */
+  --tx-op-body-bg:      #ffffff; /* operator box fill */
+  --tx-op-body-stroke:  #cfcfcf; /* operator box border (valid) */
+  --tx-op-label:        #595959; /* operator name */
+  --tx-op-sublabel:     #888888; /* operator friendly-name / subtitle */
+  --tx-op-port:         #a0a0a0; /* port circle fill */
+  --tx-link-stroke:     #919191; /* link line color */
+  --tx-link-handle:     #919191; /* source/target dot fill */
+  --tx-minimap-border:  #797a79; /* minimap viewport rectangle */
+
+  /* Monaco theme name (Monaco built-ins: "vs", "vs-dark", "hc-black"). */
+  --tx-monaco-theme:    "vs";
+}
+
+/*
+ * Theme transitions.
+ *
+ * When the user switches themes the CSS variables change instantly, but we
+ * want the visible color shift to crossfade. Animate the most common color-
+ * carrying properties on every element. Restricted to the listed properties
+ * so we don't trip layout animations.
+ */
+*,
+*::before,
+*::after {
+  transition:
+    background-color var(--tx-motion-default) var(--tx-motion-ease),
+    border-color     var(--tx-motion-default) var(--tx-motion-ease),
+    color            var(--tx-motion-default) var(--tx-motion-ease),
+    fill             var(--tx-motion-default) var(--tx-motion-ease),
+    stroke           var(--tx-motion-default) var(--tx-motion-ease),
+    box-shadow       var(--tx-motion-default) var(--tx-motion-ease);
+}
+
+/* Users who request reduced motion get instant theme switches. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}

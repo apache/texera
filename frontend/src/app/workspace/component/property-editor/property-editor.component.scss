@@ -29,15 +29,17 @@
   position: fixed;
   top: 10vh;
   right: 0;
-  background: white;
+  background: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
 }
 
 #title {
   padding: 5px 9px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--tx-border-subtle);
   position: absolute;
   top: 0;
-  background: white;
+  background: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
   width: 100%;
   z-index: 2;
 }

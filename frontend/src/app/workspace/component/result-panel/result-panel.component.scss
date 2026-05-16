@@ -33,12 +33,10 @@
   position: absolute;
   top: -300px;
   left: 0;
-  background: white;
+  background: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
   border-radius: 5px;
-  box-shadow:
-    0 3px 1px -2px #0003,
-    0 2px 2px #00000024,
-    0 1px 5px #0000001f;
+  box-shadow: var(--tx-shadow-md);
 }
 
 // make modal body scrollable and modal size fixed
@@ -110,10 +108,11 @@ $type-colors: (
 
 #title {
   padding: 5px 9px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--tx-border-subtle);
   position: absolute;
   top: 0;
-  background: white;
+  background: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
   width: 100%;
   z-index: 2;
 }

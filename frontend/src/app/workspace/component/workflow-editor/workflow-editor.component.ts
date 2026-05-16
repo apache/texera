@@ -48,6 +48,8 @@ import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
+import { ThemeService } from "../../../common/service/theme/theme.service";
+import { MotionService } from "../../../common/service/motion/motion.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -128,7 +130,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private agentService: AgentService
+    private agentService: AgentService,
+    private themeService: ThemeService,
+    private motionService: MotionService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -166,6 +170,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.editorWrapper = document.getElementById("workflow-editor-wrapper")!;
     document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
     this.initializeJointPaper();
+    this.applyCanvasTheme();
+    this.themeService
+      .current()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.applyCanvasTheme());
     this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
@@ -205,6 +214,92 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.invokeResize();
     this.handleCenterEvent();
     this.handleOperatorChatButton();
+    this.handleMotionEffects();
+  }
+
+  /**
+   * Wire up the "delight" effects: confetti + chime on workflow success,
+   * shake + chime on failure, draw-in animation for newly-added links,
+   * settle scale for newly-added operators. Every hook is a no-op when
+   * the motion/sound preference is off, so we don't gate them here.
+   */
+  /** Tracks whether the workflow has finished loading, so we don't animate
+   * every operator and link of an opened-from-persistence workflow at once. */
+  private animationsArmed = false;
+
+  private handleMotionEffects(): void {
+    // Execution success / failure feedback.
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ previous, current }) => {
+        if (previous.state === current.state) return;
+        if (current.state === ExecutionState.Completed) {
+          this.motionService.confetti();
+          this.motionService.chime("success");
+        } else if (current.state === ExecutionState.Failed) {
+          this.motionService.shake();
+          this.motionService.chime("fail");
+        }
+      });
+
+    // Arm animations after the initial workflow-load burst settles.
+    // Anything added before this timer is presumed to be persistence-restored
+    // and shouldn't trigger an entrance animation.
+    setTimeout(() => { this.animationsArmed = true; }, 800);
+
+    // Link draw-in / element settle for newly-added cells.
+    const graph = this.wrapper.jointGraph;
+    graph.on("add", (cell: joint.dia.Cell) => {
+      if (!this.animationsArmed || !this.motionService.isMotionEnabled()) return;
+      if (cell.isLink()) {
+        requestAnimationFrame(() => this.animateLinkDrawIn(cell as joint.dia.Link));
+      } else if (cell.isElement()) {
+        requestAnimationFrame(() => this.animateElementSettle(cell as joint.dia.Element));
+      }
+    });
+  }
+
+  private animateLinkDrawIn(link: joint.dia.Link): void {
+    const view = this.paper.findViewByModel(link);
+    if (!view) return;
+    const path = view.el.querySelector("path.connection") as SVGPathElement | null;
+    if (!path) return;
+    const length = path.getTotalLength();
+    if (length === 0) return;
+    path.style.strokeDasharray = `${length}`;
+    path.style.strokeDashoffset = `${length}`;
+    path.style.transition = "stroke-dashoffset 380ms cubic-bezier(0.4, 0, 0.2, 1)";
+    // force reflow, then animate to 0
+    void path.getBoundingClientRect();
+    path.style.strokeDashoffset = "0";
+    // clean up so subsequent re-renders don't keep dasharray
+    setTimeout(() => {
+      path.style.transition = "";
+      path.style.strokeDasharray = "";
+      path.style.strokeDashoffset = "";
+    }, 450);
+  }
+
+  private animateElementSettle(element: joint.dia.Element): void {
+    const view = this.paper.findViewByModel(element);
+    if (!view) return;
+    const node = view.el as SVGGElement;
+    // JointJS positions elements via SVG transform="matrix(...)". We layer
+    // our scale on a CSS variable via `transform-origin` on the group,
+    // animating its `transform: scale()` ON TOP of the matrix. Since SVG
+    // <g> respects CSS transforms in modern browsers, this works without
+    // fighting JointJS's positioning.
+    node.style.transformBox = "fill-box";
+    node.style.transformOrigin = "center";
+    node.animate(
+      [
+        { transform: "scale(0.6)", opacity: 0 },
+        { transform: "scale(1.08)", opacity: 1, offset: 0.7 },
+        { transform: "scale(1)", opacity: 1 },
+      ],
+      { duration: 280, easing: "cubic-bezier(0.34, 1.56, 0.64, 1)" }
+    );
   }
 
   ngOnDestroy(): void {
@@ -237,6 +332,24 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
         this._onProcessKeyboardActionObservable.complete();
       });
+  }
+
+  /**
+   * Sync the JointJS paper's background color and grid dots to the active
+   * theme. JointJS bakes both into inline styles / canvas-rendered images
+   * at construction, so a CSS variable alone can't retint them — we have
+   * to call drawBackground() and drawGrid() with the resolved token values.
+   */
+  private applyCanvasTheme(): void {
+    if (!this.paper) return;
+    const rootStyle = getComputedStyle(document.documentElement);
+    const bg = rootStyle.getPropertyValue("--tx-canvas-bg").trim() || "#f6f6f6";
+    const dot = rootStyle.getPropertyValue("--tx-canvas-grid").trim() || "rgba(0,0,0,0.18)";
+    this.paper.drawBackground({ color: bg });
+    this.paper.drawGrid({
+      name: "fixedDot",
+      args: { color: dot, scaleFactor: 8, thickness: 1.2 },
+    });
   }
 
   private initializeJointPaper(): void {

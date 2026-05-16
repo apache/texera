@@ -22,7 +22,8 @@
   padding: 10px 15px;
   display: flex;
   align-items: center;
-  background-color: white;
+  background-color: var(--tx-bg-surface);
+  border-bottom: 1px solid var(--tx-border-subtle);
   justify-content: space-between;
 }
 
@@ -49,11 +50,11 @@ button {
 }
 
 .ant-layout-content {
-  background-color: white;
+  background-color: var(--tx-bg-base);
 }
 
 .page-content-layout {
-  border-left: 1px solid #f0f0f0;
+  border-left: 1px solid var(--tx-border-subtle);
 }
 
 .ant-layout-sider-has-trigger {
@@ -105,7 +106,7 @@ nz-content {
   left: 5px;
   bottom: 5px;
   font-size: 0.4em;
-  color: gray;
+  color: var(--tx-text-tertiary);
   z-index: 5;
   pointer-events: none;
 }

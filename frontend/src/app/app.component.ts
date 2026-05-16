@@ -19,6 +19,8 @@
 
 import { Component } from "@angular/core";
 import { GuiConfigService } from "./common/service/gui-config.service";
+import { ThemeService } from "./common/service/theme/theme.service";
+import { MotionService } from "./common/service/motion/motion.service";
 import { UntilDestroy } from "@ngneat/until-destroy";
 
 @UntilDestroy()
@@ -40,7 +42,17 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 export class AppComponent {
   configLoaded = false;
 
-  constructor(private config: GuiConfigService) {
+  constructor(
+    private config: GuiConfigService,
+    // Eager-instantiate ThemeService so it applies the persisted theme
+    // (and sets up the prefers-color-scheme fallback) before any view
+    // renders. Marked unused intentionally — the constructor side-effect
+    // is what we want.
+    private _theme: ThemeService,
+    // MotionService installs the global Konami listener and resolves
+    // motion/sound preferences. Same eager-load reasoning.
+    private _motion: MotionService
+  ) {
     // determine whether configuration was successfully loaded by APP_INITIALIZER
     try {
       // accessing env will throw if not loaded

@@ -20,7 +20,8 @@
 .list-item-card {
   padding: 3px;
   width: 100%;
-  background-color: white;
+  background-color: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
   position: relative;
   min-height: 65px;
   height: auto;
@@ -30,7 +31,7 @@
   }
 
   &:hover {
-    background-color: #f0f0f0;
+    background-color: var(--tx-bg-hover);
 
     .edit-button {
       display: flex;
@@ -42,17 +43,17 @@
   }
 
   &.selected {
-    border-color: #1e90ff;
-    background-color: #e6f7ff;
+    border-color: var(--tx-primary);
+    background-color: var(--tx-primary-soft);
 
     .button-group,
     .button-group button {
-      background-color: #e6f7ff;
+      background-color: var(--tx-primary-soft);
     }
 
     .button-group button:hover,
     .edit-button button:hover {
-      background-color: #cceeff;
+      background-color: var(--tx-bg-active);
     }
   }
 }
@@ -76,12 +77,12 @@
 .resource-description {
   font-size: 12px;
   font-weight: 300;
-  color: grey;
+  color: var(--tx-text-secondary);
 }
 
 .resource-info {
   font-size: 13px;
-  color: grey;
+  color: var(--tx-text-secondary);
 }
 
 .large-checkbox {
@@ -110,13 +111,14 @@
   button {
     margin-right: 32px;
     transition: none;
-    background-color: #e0e0e0;
-    border: 1px solid #d0d0d0;
+    background-color: var(--tx-bg-elevated);
+    color: var(--tx-text-primary);
+    border: 1px solid var(--tx-border-default);
     border-radius: 8px;
   }
 
   button:hover {
-    background-color: #c7c7c7;
+    background-color: var(--tx-bg-hover);
   }
 }
 
@@ -138,14 +140,14 @@
 .resource-description {
   font-size: 14px;
   font-weight: 400;
-  color: #333333;
+  color: var(--tx-text-primary);
   transition: all 0.2s ease;
 }
 
 .list-item-card:hover .resource-description {
   font-size: 15px;
   font-weight: 500;
-  color: #1e90ff;
+  color: var(--tx-primary);
 }
 
 .resource-description-edit-textarea {
@@ -168,7 +170,7 @@
 
   &:hover {
     display: block;
-    background-color: #d9d9d9;
+    background-color: var(--tx-bg-hover);
   }
 
   button {

@@ -28,7 +28,8 @@ texera-menu {
   left: 0;
   z-index: 1;
   width: 100%;
-  background-color: white;
+  background-color: var(--tx-bg-surface);
+  border-bottom: 1px solid var(--tx-border-subtle);
 }
 
 texera-mini-map {
@@ -44,7 +45,7 @@ texera-workflow-editor {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #f6f6f6;
+  background-color: var(--tx-canvas-bg);
 }
 
 .spinner-container {

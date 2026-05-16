@@ -836,8 +836,34 @@ stop() {
     pkill -f "$mainclass" 2>/dev/null || true
   done
 
+  # Final safety net: sweep any process still bound to one of our ports.
+  # Catches orphans whose process group was lost — most commonly the
+  # frontend's y-websocket child (port 1234), which `concurrently` spawns
+  # under a transient parent and which can survive a pgid-targeted kill.
+  sweep_known_ports
+
   stop_lakefs
   ok "stopped."
+}
+
+# sweep_known_ports — for each well-known port, find the listening PID via
+# lsof and kill it (TERM then KILL). Logs each kill so a leaked grandchild
+# can never silently lock out the next `texera start`.
+sweep_known_ports() {
+  local port pids
+  for port in 1234 4200 3001 8080 8081 8082 8085 8888 9090 9092 9094 9096; do
+    pids=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)
+    [[ -z "$pids" ]] && continue
+    info "sweeping leaked listener on port $port (pid: $pids)"
+    # shellcheck disable=SC2086
+    kill -TERM $pids 2>/dev/null || true
+    sleep 0.3
+    pids=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)
+    if [[ -n "$pids" ]]; then
+      # shellcheck disable=SC2086
+      kill -KILL $pids 2>/dev/null || true
+    fi
+  done
 }
 
 # ---- Dispatch ---------------------------------------------------------------

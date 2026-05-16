@@ -19,6 +19,352 @@
 
 @import "@ali-hm/angular-tree-component/css/angular-tree-component.css";
 
+/* Theme token contract + transitions. */
+@import "./styles/tokens";
+
+/* -- App shell & ng-zorro retinting ---------------------------------------
+ *
+ * ng-zorro-antd ships as a pre-built minified stylesheet bundled in
+ * angular.json, so we can't customize its less variables through the
+ * supported channel without forking the build. Instead we override the
+ * high-visibility classes here using the token variables so the chrome
+ * (layouts, menus, modals, dropdowns, tables, cards, buttons, inputs)
+ * follows the active theme.
+ *
+ * Deeper ng-zorro components may still look ng-zorro-tinted; those land
+ * in phases 2 and 3.
+ * ------------------------------------------------------------------------ */
+
+html,
+body {
+  background-color: var(--tx-bg-base);
+  color: var(--tx-text-primary);
+  font-family: var(--tx-font-ui);
+  font-size: var(--tx-font-size-base);
+}
+
+/* Page-level layout containers — every dashboard/hub page lives inside one
+ * of these. */
+.ant-layout,
+.ant-layout-content,
+.ant-layout-footer {
+  background-color: var(--tx-bg-base);
+  color: var(--tx-text-primary);
+}
+
+.ant-layout-header,
+.ant-layout-sider {
+  background-color: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
+  border-color: var(--tx-border-subtle);
+}
+
+/* Menus (top nav, sidebar nav, context menus). */
+.ant-menu {
+  background-color: transparent;
+  color: var(--tx-text-primary);
+  border-color: var(--tx-border-subtle);
+}
+/* The sidebar uses nzTheme="light" which adds an .ant-menu-light class
+   that hardcodes white backgrounds on the menu itself AND on the inline
+   submenu panel (.ant-menu-sub) that opens beneath "Your Work" etc.
+   We need explicit overrides for both, plus the inline-submenu container,
+   otherwise the expanded items render on a white background regardless
+   of the active theme. */
+.ant-menu-light,
+.ant-menu-light .ant-menu-sub,
+.ant-menu.ant-menu-inline .ant-menu-sub.ant-menu-inline,
+.ant-menu-sub.ant-menu-inline {
+  background-color: var(--tx-bg-surface) !important;
+  color: var(--tx-text-primary);
+}
+.ant-menu-item,
+.ant-menu-submenu-title {
+  color: var(--tx-text-primary);
+}
+/* Submenu chevron and the small arrow on collapsed-submenu popouts. */
+.ant-menu-submenu-arrow,
+.ant-menu-submenu-arrow::before,
+.ant-menu-submenu-arrow::after {
+  color: var(--tx-text-secondary);
+  background: var(--tx-text-secondary);
+}
+.ant-menu-item:hover,
+.ant-menu-submenu-title:hover,
+.ant-menu-item-active {
+  background-color: var(--tx-bg-hover) !important;
+  color: var(--tx-primary) !important;
+}
+.ant-menu-item-selected,
+.ant-menu-light .ant-menu-item-selected {
+  background-color: var(--tx-primary-soft) !important;
+  color: var(--tx-primary) !important;
+}
+/* Sider trigger (the little collapse/expand chevron at the bottom edge). */
+.ant-layout-sider-trigger {
+  background-color: var(--tx-bg-elevated) !important;
+  color: var(--tx-text-secondary) !important;
+  border-top: 1px solid var(--tx-border-subtle);
+}
+
+/* Dropdowns (user menu, "more actions", picker popovers). */
+.ant-dropdown-menu,
+.ant-select-dropdown,
+.ant-picker-dropdown {
+  background-color: var(--tx-bg-elevated);
+  color: var(--tx-text-primary);
+  border: 1px solid var(--tx-border-subtle);
+  box-shadow: var(--tx-shadow-lg);
+}
+.ant-dropdown-menu-item {
+  color: var(--tx-text-primary);
+}
+.ant-dropdown-menu-item:hover,
+.ant-dropdown-menu-item-active {
+  background-color: var(--tx-bg-hover);
+  color: var(--tx-text-primary);
+}
+/* User-icon dropdown uses <ul nz-menu> inside <nz-dropdown-menu>, which
+   renders as .ant-dropdown > .ant-menu (NOT .ant-dropdown-menu). The
+   outer wrapper has its own white background that the menu sits on.
+   Retint the wrapper + every menu/submenu surface inside it. */
+.ant-dropdown,
+.ant-dropdown .ant-menu,
+.ant-dropdown .ant-menu-sub,
+.ant-dropdown .ant-menu.ant-menu-light,
+.ant-dropdown .ant-menu-submenu,
+.ant-dropdown .ant-menu-submenu .ant-menu-sub {
+  background-color: var(--tx-bg-elevated) !important;
+  color: var(--tx-text-primary);
+  box-shadow: var(--tx-shadow-lg);
+}
+.ant-dropdown .ant-menu-item,
+.ant-dropdown .ant-menu-submenu-title {
+  background-color: transparent !important;
+  color: var(--tx-text-primary) !important;
+}
+
+/* Submenu flyouts (the panel that opens when you hover "Theme" /
+   "Preferences") render in their own CDK overlay as .ant-menu-submenu-popup,
+   appended to <body> — they are NOT children of .ant-dropdown so the
+   selectors above don't reach them. Retint them directly. */
+.ant-menu-submenu-popup,
+.ant-menu-submenu-popup > .ant-menu,
+.ant-menu-submenu-popup .ant-menu,
+.ant-menu-submenu-popup .ant-menu-sub {
+  background-color: var(--tx-bg-elevated) !important;
+  color: var(--tx-text-primary);
+  box-shadow: var(--tx-shadow-lg);
+  border: 1px solid var(--tx-border-subtle);
+}
+.ant-menu-submenu-popup .ant-menu-item,
+.ant-menu-submenu-popup .ant-menu-submenu-title {
+  background-color: transparent !important;
+  color: var(--tx-text-primary) !important;
+}
+.ant-menu-submenu-popup .ant-menu-item:hover,
+.ant-menu-submenu-popup .ant-menu-submenu-title:hover {
+  background-color: var(--tx-bg-hover) !important;
+  color: var(--tx-primary) !important;
+}
+
+/* Modals. */
+.ant-modal-content,
+.ant-modal-header,
+.ant-modal-footer {
+  background-color: var(--tx-bg-elevated);
+  color: var(--tx-text-primary);
+  border-color: var(--tx-border-subtle);
+}
+.ant-modal-title {
+  color: var(--tx-text-primary);
+}
+.ant-modal-close,
+.ant-modal-close-x {
+  color: var(--tx-text-secondary);
+}
+.ant-modal-mask {
+  background-color: var(--tx-bg-overlay);
+}
+
+/* Cards (used everywhere on the dashboard/hub). */
+.ant-card {
+  background-color: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
+  border-color: var(--tx-border-subtle);
+}
+.ant-card-head {
+  background-color: transparent;
+  color: var(--tx-text-primary);
+  border-bottom-color: var(--tx-border-subtle);
+}
+
+/* Tables (admin pages, dataset listings, workflow versions). */
+.ant-table {
+  background-color: var(--tx-bg-surface);
+  color: var(--tx-text-primary);
+}
+.ant-table-thead > tr > th {
+  background-color: var(--tx-bg-base);
+  color: var(--tx-text-secondary);
+  border-bottom-color: var(--tx-border-subtle);
+}
+.ant-table-tbody > tr > td {
+  border-bottom-color: var(--tx-border-subtle);
+}
+.ant-table-tbody > tr:hover > td {
+  background-color: var(--tx-bg-hover) !important;
+}
+
+/* Inputs / selects / pickers. */
+.ant-input,
+.ant-input-number,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  background-color: var(--tx-bg-base) !important;
+  color: var(--tx-text-primary) !important;
+  border-color: var(--tx-border-default) !important;
+}
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select-selector:hover {
+  border-color: var(--tx-primary-hover) !important;
+}
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: var(--tx-primary) !important;
+  box-shadow: 0 0 0 2px var(--tx-primary-soft) !important;
+}
+
+/* Buttons. The primary button uses --tx-primary; default and ghost stay
+ * on surface tones. */
+.ant-btn {
+  background-color: var(--tx-bg-base);
+  color: var(--tx-text-primary);
+  border-color: var(--tx-border-default);
+}
+.ant-btn:hover {
+  color: var(--tx-primary);
+  border-color: var(--tx-primary);
+}
+.ant-btn-primary {
+  background-color: var(--tx-primary);
+  color: var(--tx-primary-fg);
+  border-color: var(--tx-primary);
+}
+.ant-btn-primary:hover {
+  background-color: var(--tx-primary-hover);
+  color: var(--tx-primary-fg);
+  border-color: var(--tx-primary-hover);
+}
+.ant-btn-link {
+  color: var(--tx-primary);
+}
+
+/* Disabled state. ng-zorro hardcodes a light-mode disabled palette
+   (#f5f5f5 bg / rgba(0,0,0,0.25) text / #d9d9d9 border) which becomes a
+   bright pale rectangle on any dark theme. Override with semantic tokens
+   so disabled buttons recede on every theme, regardless of variant. */
+.ant-btn[disabled],
+.ant-btn[disabled]:hover,
+.ant-btn[disabled]:focus,
+.ant-btn[disabled]:active,
+.ant-btn.ant-btn-disabled,
+.ant-btn-primary[disabled],
+.ant-btn-primary[disabled]:hover,
+.ant-btn-default[disabled],
+.ant-btn-default[disabled]:hover,
+.ant-btn-dashed[disabled],
+.ant-btn-dashed[disabled]:hover {
+  background-color: var(--tx-bg-active) !important;
+  color: var(--tx-text-disabled) !important;
+  border-color: var(--tx-border-default) !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+/* Link / text buttons disabled — keep them transparent so they don't paint
+   a filled rectangle into otherwise unfilled UI. */
+.ant-btn-link[disabled],
+.ant-btn-link[disabled]:hover,
+.ant-btn-text[disabled],
+.ant-btn-text[disabled]:hover {
+  background-color: transparent !important;
+  color: var(--tx-text-disabled) !important;
+  border-color: transparent !important;
+}
+/* Disabled form controls (inputs, selects, checkbox/radio labels, switches)
+   — share the same recede-into-the-surface treatment so the workspace
+   doesn't strobe between themed and un-themed regions. */
+.ant-input[disabled],
+.ant-input-affix-wrapper-disabled,
+.ant-input-number-disabled,
+.ant-input-number-disabled input,
+.ant-select-disabled .ant-select-selector,
+.ant-picker.ant-picker-disabled,
+.ant-checkbox-disabled + span,
+.ant-radio-disabled + span,
+textarea[disabled] {
+  background-color: var(--tx-bg-active) !important;
+  color: var(--tx-text-disabled) !important;
+  border-color: var(--tx-border-default) !important;
+}
+.ant-checkbox-disabled .ant-checkbox-inner,
+.ant-radio-disabled .ant-radio-inner {
+  background-color: var(--tx-bg-active) !important;
+  border-color: var(--tx-border-default) !important;
+}
+.ant-switch-disabled {
+  opacity: 0.5;
+}
+
+/* Tabs (used in property editor + dashboard sub-nav). */
+.ant-tabs {
+  color: var(--tx-text-primary);
+}
+.ant-tabs-tab {
+  color: var(--tx-text-secondary);
+}
+.ant-tabs-tab:hover {
+  color: var(--tx-primary);
+}
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--tx-primary) !important;
+}
+.ant-tabs-ink-bar {
+  background-color: var(--tx-primary) !important;
+}
+
+/* Tooltips. */
+.ant-tooltip-inner {
+  background-color: var(--tx-bg-elevated);
+  color: var(--tx-text-primary);
+  box-shadow: var(--tx-shadow-md);
+}
+.ant-tooltip-arrow-content {
+  background-color: var(--tx-bg-elevated);
+}
+
+/* Form labels. */
+.ant-form-item-label > label {
+  color: var(--tx-text-secondary);
+}
+
+/* Collapse (sidebars / accordions). */
+.ant-collapse {
+  background-color: transparent;
+  border-color: var(--tx-border-subtle);
+}
+.ant-collapse-item,
+.ant-collapse-content {
+  border-color: var(--tx-border-subtle);
+  background-color: transparent;
+  color: var(--tx-text-primary);
+}
+
 .ant-menu-item,
 .ant-menu-submenu-title,
 img {
@@ -60,22 +406,19 @@ img {
 }
 
 hr {
-  background-color: #d3d3d3;
+  background-color: var(--tx-border-default);
   height: 1px;
   border: 0;
 }
 
 // due to innerHTML, this rule has to be global
 .highlight-search-terms {
-  color: blue;
+  color: var(--tx-primary);
 }
 
 .box {
-  border-radius: 5px;
-  box-shadow:
-    0 3px 1px -2px #0003,
-    0 2px 2px #00000024,
-    0 1px 5px #0000001f;
+  border-radius: var(--tx-radius-lg);
+  box-shadow: var(--tx-shadow-md);
 }
 
 .ant-collapse-header {
@@ -91,7 +434,8 @@ hr {
 }
 
 .annotation-highlight {
-  background-color: #6a5acd;
+  background-color: var(--tx-primary-soft);
+  color: var(--tx-primary);
 }
 
 // makes avatar text centered in dropdown menu
@@ -412,4 +756,101 @@ hr {
       margin-top: 2px;
     }
   }
+}
+
+/* -- Workspace canvas overrides (phase 2) ----------------------------------
+ *
+ * JointJS renders the workflow editor's paper, operator boxes, links, and
+ * grid as inline SVG inside `<svg class="joint-paper"...>`. Each visual is
+ * configured via JointJS attrs that emit as SVG element attributes (eg.
+ * `fill="#FFFFFF"`). SVG attributes have lower CSS specificity than rules
+ * targeting the same element, so we can retint everything by selecting
+ * the generated DOM classes — no JointJS code changes needed.
+ *
+ * Important: do NOT add the universal transition to .joint-link paths —
+ * those are dragged and animating stroke turns into ghosting.
+ * ------------------------------------------------------------------------ */
+
+/* Paper background. JointJS draws a <rect> beneath everything when the
+ * paper is constructed with `background: { color: ... }`. The fill is
+ * an inline attribute — we override it. */
+.joint-paper-background {
+  fill: var(--tx-canvas-bg) !important;
+}
+
+/* Grid. JointJS renders the dot grid as an SVG <pattern> containing
+ * small <circle fill="black">. Targeting the pattern's children
+ * retints all dots. */
+.joint-paper-grid circle,
+.joint-paper-grid rect {
+  fill: var(--tx-canvas-grid) !important;
+}
+
+/* Operator box body (the main rounded rectangle of every operator).
+ * The default JointJS shape names the body element via `body` attr key,
+ * which becomes `class="body"` on the resulting <rect>. */
+.operator-element rect.body,
+.joint-element rect.body {
+  fill: var(--tx-op-body-bg);
+  stroke: var(--tx-op-body-stroke);
+}
+
+/* Operator port circles. */
+.operator-element circle.port-body,
+.joint-element circle.port-body,
+.joint-port-body {
+  fill: var(--tx-op-port);
+}
+
+/* Operator name (large title text). JointUIService binds it via the
+ * `text` attr selector — JointJS emits a <text> element with no extra
+ * class, so we target by tag-name within the element. The "name" label
+ * we set explicitly has the `data-attribute="text"` look — easier to
+ * match all <text> inside an operator and rely on token semantics. */
+.operator-element text,
+.joint-element text {
+  fill: var(--tx-op-label);
+}
+.operator-element text[font-size="12"],
+.operator-element text.operator-friendly-name,
+.joint-element text.operator-friendly-name {
+  fill: var(--tx-op-sublabel);
+}
+
+/* Links (the lines connecting operators). */
+.joint-link path.connection {
+  stroke: var(--tx-link-stroke);
+}
+.joint-link circle.marker-source,
+.joint-link circle.marker-target {
+  fill: var(--tx-link-handle);
+  stroke: var(--tx-link-handle);
+}
+
+/* Minimap surround (the small navigator in the bottom-right corner).
+ * Its outer rectangle is drawn with hardcoded `#797a79` — the SCSS for
+ * the component still owns that, but the rect background uses paper
+ * conventions same as main canvas. */
+texera-mini-map .joint-paper-background {
+  fill: var(--tx-canvas-bg) !important;
+}
+texera-mini-map svg {
+  border: 2px solid var(--tx-minimap-border);
+  background-color: var(--tx-bg-elevated);
+}
+
+/* Tab strips inside result panel / property editor — ng-zorro tabs. */
+.ant-tabs-tab {
+  color: var(--tx-text-secondary);
+}
+.ant-tabs-tab-active,
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--tx-primary) !important;
+}
+.ant-tabs-ink-bar {
+  background: var(--tx-primary) !important;
+}
+.ant-tabs-nav::before,
+.ant-tabs-bar {
+  border-bottom-color: var(--tx-border-subtle) !important;
 }

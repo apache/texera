@@ -60,7 +60,7 @@
 
 #mini-map-navigator {
   position: absolute;
-  border: 2px solid #797a79;
+  border: 2px solid var(--tx-minimap-border);
   cursor: move;
   z-index: 1;
 }

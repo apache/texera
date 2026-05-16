@@ -30,6 +30,60 @@
 <nz-dropdown-menu #menu="nzDropdownMenu">
   <ul nz-menu>
     <li
+      nz-submenu
+      nzTitle="Theme"
+      nzIcon="bg-colors">
+      <ul>
+        <li
+          *ngFor="let theme of themes"
+          nz-menu-item
+          (click)="onSelectTheme(theme)">
+          <span
+            *ngIf="theme.id === currentThemeId"
+            nz-icon
+            nzType="check"
+            style="margin-right: 6px;"></span>
+          <span
+            *ngIf="theme.id !== currentThemeId"
+            style="display: inline-block; width: 20px;"></span>
+          {{ theme.name }}
+        </li>
+      </ul>
+    </li>
+    <li
+      nz-submenu
+      nzTitle="Preferences"
+      nzIcon="setting">
+      <ul>
+        <li
+          nz-menu-item
+          (click)="toggleMotion(); $event.stopPropagation()">
+          <span
+            *ngIf="motionOn"
+            nz-icon
+            nzType="check"
+            style="margin-right: 6px;"></span>
+          <span
+            *ngIf="!motionOn"
+            style="display: inline-block; width: 20px;"></span>
+          Animations
+        </li>
+        <li
+          nz-menu-item
+          (click)="toggleSound(); $event.stopPropagation()">
+          <span
+            *ngIf="soundOn"
+            nz-icon
+            nzType="check"
+            style="margin-right: 6px;"></span>
+          <span
+            *ngIf="!soundOn"
+            style="display: inline-block; width: 20px;"></span>
+          Sound effects
+        </li>
+      </ul>
+    </li>
+    <li
       (click)="onClickLogout()"
       nz-menu-item>
       Sign Out
