@@ -18,6 +18,7 @@
  */
 
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
+import type { UserDatasetSummary } from "../api/user-datasets-api";
 
 const PYTHON_UDF_OPERATOR_TYPES = ["PythonUDFV2"];
 const R_UDF_OPERATOR_TYPES = ["RUDF"];
@@ -489,10 +490,27 @@ export function buildCustomAgentSection(
   return sections.join("\n\n");
 }
 
+function buildUserDatasetsSection(datasets: UserDatasetSummary[]): string {
+  if (!datasets || datasets.length === 0) return "";
+  const lines: string[] = [
+    "\n\n## Your Datasets",
+    "Datasets the current user has access to. Reference these by name when the user says " +
+      'things like "use my X dataset"; the path prefix below is what a CSV/File Scan ' +
+      "operator's `fileName` should start with (append `/<version>/<file>` to point at a " +
+      "concrete file — list versions via the dataset picker if unsure).",
+  ];
+  for (const d of datasets) {
+    const desc = d.description ? ` — ${d.description.replace(/\s+/g, " ").slice(0, 160)}` : "";
+    lines.push(`- ${d.name}: ${d.pathPrefix}${desc}`);
+  }
+  return lines.join("\n");
+}
+
 export function buildSystemPrompt(
   metadataStore: WorkflowSystemMetadata,
   allowedOperatorTypes: string[] = [],
-  customAgent?: CustomAgentConfig
+  customAgent?: CustomAgentConfig,
+  userDatasets?: UserDatasetSummary[]
 ): string {
   const operatorSchemas = buildAllowedOperatorSchemas(metadataStore, allowedOperatorTypes);
   const allowsAll = allowedOperatorTypes.length === 0;
@@ -508,5 +526,6 @@ export function buildSystemPrompt(
   if (customAgent) {
     result += buildCustomAgentSection(customAgent, metadataStore);
   }
+  result += buildUserDatasetsSection(userDatasets ?? []);
   return result;
 }

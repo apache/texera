@@ -51,6 +51,8 @@ import {
   createWorkflowHistoryTool,
   TOOL_NAME_WORKFLOW_HISTORY,
 } from "./tools/workflow-history-tool";
+import { createSearchDatasetsTool, TOOL_NAME_SEARCH_DATASETS } from "./tools/dataset-search-tool";
+import { fetchUserDatasetSummaries, type UserDatasetSummary } from "../api/user-datasets-api";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -129,6 +131,8 @@ export class TexeraAgent {
 
   private workflowChangeSubscription: Subscription | null = null;
 
+  private userDatasets: UserDatasetSummary[] = [];
+
   private log: Logger;
 
   constructor(config: TexeraAgentConfig) {
@@ -182,8 +186,27 @@ export class TexeraAgent {
   }
 
   private rebuildSystemPrompt(): void {
-    this.systemPrompt = buildSystemPrompt(this.metadataStore, this.settings.allowedOperatorTypes, this.customAgent);
+    this.systemPrompt = buildSystemPrompt(
+      this.metadataStore,
+      this.settings.allowedOperatorTypes,
+      this.customAgent,
+      this.userDatasets
+    );
     this.settings.systemPrompt = this.systemPrompt;
+  }
+
+  private async refreshUserDatasets(): Promise<void> {
+    if (!this.delegateConfig?.userToken) {
+      this.userDatasets = [];
+      return;
+    }
+    try {
+      this.userDatasets = await fetchUserDatasetSummaries(this.delegateConfig.userToken);
+      this.log.debug({ count: this.userDatasets.length }, "loaded user datasets");
+    } catch (error) {
+      this.log.warn({ err: error }, "failed to fetch user datasets; continuing without them");
+      this.userDatasets = [];
+    }
   }
 
   private buildExecutionConfig(): ExecutionConfig | undefined {
@@ -223,6 +246,7 @@ export class TexeraAgent {
       [TOOL_NAME_DELETE_OPERATOR]: createDeleteOperatorTool(this.workflowState, context),
       [TOOL_NAME_ADD_OPERATOR]: createAddOperatorTool(this.workflowState, operatorSchemas, context),
       [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
+      [TOOL_NAME_SEARCH_DATASETS]: createSearchDatasetsTool(),
     };
 
     if (getExecutionConfig) {
@@ -458,6 +482,12 @@ export class TexeraAgent {
     this.tools = this.createTools();
 
     this.setupWorkflowChangeHandlers();
+
+    // Fire-and-forget: pull the user's datasets and rebuild the system prompt
+    // so subsequent messages know about them. We don't block setDelegateConfig
+    // on the network call — first message may go without datasets, then they
+    // appear on the second message.
+    void this.refreshUserDatasets().then(() => this.rebuildSystemPrompt());
   }
 
   getDelegateConfig():

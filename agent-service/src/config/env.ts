@@ -34,6 +34,12 @@ const EnvSchema = z.object({
   WORKFLOW_COMPILING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9090"),
   WORKFLOW_EXECUTION_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8085"),
   EXECUTION_ENDPOINT_TEMPLATE: z.string().optional(),
+
+  // Optional Kaggle API credentials. When unset, the search_datasets tool skips
+  // Kaggle and queries only the other sources. Get from kaggle.com → Account →
+  // "Create New API Token" (kaggle.json has username and key fields).
+  KAGGLE_USERNAME: z.string().optional(),
+  KAGGLE_KEY: z.string().optional(),
 });
 
 export const env = EnvSchema.parse(process.env);
