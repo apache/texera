@@ -546,7 +546,12 @@ export class ContextMenuComponent {
     if (selected.length < 2) {
       return;
     }
-    const name = window.prompt("Macro name", `macro-${Date.now()}`);
+    // Pre-fill the prompt with a smart default derived from the selected
+    // operators' types so the user gets a readable name (e.g.
+    // "filter_projection_block") rather than a UNIX-time tag. Falls back to
+    // the legacy timestamp if no type info is available.
+    const defaultName = this.suggestedMacroNameForSelection(selected) || `macro-${Date.now()}`;
+    const name = window.prompt("Macro name", defaultName);
     if (!name) {
       return;
     }
@@ -566,6 +571,36 @@ export class ContextMenuComponent {
         },
         error: err => this.notificationService.error(`Failed to create macro: ${err?.message ?? err}`),
       });
+  }
+
+  /**
+   * Suggest a snake-cased default name for a fresh macro from its selected
+   * operator types. "Filter→Projection" → "filter_projection_block";
+   * a 4+-op chain gets a `_pipeline` suffix. Falls back to undefined if
+   * we can't read the types (caller should default to the timestamp form).
+   *
+   * Mirrors `MacroSuggestionService.suggestedNameForChain` so the names
+   * produced via right-click match the names suggested by the AI panel.
+   */
+  private suggestedMacroNameForSelection(selectedIds: readonly string[]): string | undefined {
+    if (selectedIds.length === 0) return undefined;
+    const graph = this.workflowActionService.getTexeraGraph();
+    const types: string[] = [];
+    for (const id of selectedIds) {
+      try {
+        types.push(graph.getOperator(id).operatorType);
+      } catch {
+        return undefined;
+      }
+    }
+    if (types.length === 0) return undefined;
+    const compact = types
+      .slice(0, Math.min(3, types.length))
+      .map(t => t.replace(/OpDesc$|Op$/, ""))
+      .map(t => t.toLowerCase())
+      .map(t => t.replace(/[^a-z0-9]/g, ""));
+    const suffix = types.length >= 4 ? "_pipeline" : types.length >= 3 ? "_block" : "";
+    return compact.join("_") + suffix;
   }
 
   private swapSelectionWithMacroNode(
