@@ -268,11 +268,16 @@ object WorkflowVersionResource {
   }
 
   /**
-    * Fetches all versions of a workflow from a specific version ID to the latest version
+    * Fetches the patches that need to be applied to the current workflow content to
+    * reconstruct the state at `vid`. Each row in workflow_version stores a reverse-patch
+    * (JsonDiff.asJson(new, old)) that, when applied to `new`'s content, produces `old`'s
+    * content. So to reconstruct state at `vid`, we apply patches for all versions STRICTLY
+    * NEWER than `vid` — applying `vid`'s own patch would over-shoot by one and land us at
+    * `vid - 1`.
     *
     * @param wid workflow ID to query
-    * @param vid starting version ID (inclusive)
-    * @return List of workflow versions ordered from latest to earliest
+    * @param vid target version ID (exclusive — its own patch is NOT included)
+    * @return List of workflow versions ordered from latest to earliest, with vid > given
     */
   def fetchSubsequentVersions(
       wid: Integer,
@@ -282,7 +287,7 @@ object WorkflowVersionResource {
     context
       .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
       .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
+      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.gt(vid)))
       .orderBy(WORKFLOW_VERSION.VID.desc())
       .fetchInto(classOf[WorkflowVersion])
       .asScala

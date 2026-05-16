@@ -241,11 +241,14 @@ export class VersionsListComponent implements OnInit {
     wid: number,
     cuid: number,
     vid: number,
-    executions: ReadonlyArray<{ eId: number; vId: number; status: number }>,
+    executions: ReadonlyArray<{ eId: number; vId: number; status: number; hasResults?: boolean }>,
     label: "A" | "B"
   ): Observable<number> {
+    // Require both status=Completed AND hasResults — without per-operator rows in
+    // `operator_port_executions`, the compare endpoint can't show anything, so reusing
+    // such an eid is worse than running a fresh one.
     const completed = executions
-      .filter(e => e.vId === vid && e.status === 3)
+      .filter(e => e.vId === vid && e.status === 3 && e.hasResults === true)
       .reduce<{ eId: number; vId: number; status: number } | null>(
         (latest, cur) => (latest === null || cur.eId > latest.eId ? cur : latest),
         null

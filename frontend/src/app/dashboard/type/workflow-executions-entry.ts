@@ -32,6 +32,10 @@ export interface WorkflowExecutionsEntry {
   result: string;
   bookmarked: boolean;
   logLocation: string;
+  // True when this execution actually persisted per-operator output rows
+  // (`operator_port_executions`). Used by the compare-versions flow to avoid reusing
+  // "completed but empty" executions left over from older backend builds.
+  hasResults: boolean;
 }
 
 export const EXECUTION_STATUS_CODE: Record<number, string> = {

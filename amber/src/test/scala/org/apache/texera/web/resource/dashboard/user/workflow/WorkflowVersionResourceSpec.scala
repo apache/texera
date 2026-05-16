@@ -99,9 +99,13 @@ class WorkflowVersionResourceSpec
     val newJson = objectMapper.createObjectNode()
     newJson.put("value", newValue)
 
+    // Match production direction: insertVersion stores a *reverse* patch
+    // (JsonDiff.asJson(NEW, OLD)) — applying it to NEW yields OLD. Tests previously
+    // built forward patches and relied on last-write-wins to pass; that masked the
+    // off-by-one in fetchSubsequentVersions.
     val patch = com.flipkart.zjsonpatch.JsonDiff.asJson(
-      oldJson,
-      newJson
+      newJson,
+      oldJson
     )
     patch.toString
   }

@@ -28,25 +28,36 @@ import {
   WorkflowExecutionCompareSummary,
   WorkflowExecutionsService,
 } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { CompareDagComponent, OperatorStatus } from "./compare-dag/compare-dag.component";
 
-interface CellDiff {
+/**
+ * One row's worth of side-by-side data. `kind` controls the visual treatment:
+ *   - `same`    both sides identical → no tint
+ *   - `changed` both rows exist but differ on at least one cell → yellow tint,
+ *               cells that differ get the per-cell red highlight
+ *   - `onlyA`   row exists in A, B is padding → red tint on A, "—" on B
+ *   - `onlyB`   row exists in B, A is padding → green tint on B, "—" on A
+ */
+type RowKind = "same" | "changed" | "onlyA" | "onlyB";
+
+interface DiffCell {
   readonly value: string;
   readonly differs: boolean;
   readonly missing: boolean;
 }
 
-interface RowPair {
-  readonly index: number;
-  readonly cellsA: ReadonlyArray<CellDiff>;
-  readonly cellsB: ReadonlyArray<CellDiff>;
-  readonly anyDiff: boolean;
+interface DiffRow {
+  readonly kind: RowKind;
+  readonly cellsA: ReadonlyArray<DiffCell>;
+  readonly cellsB: ReadonlyArray<DiffCell>;
 }
 
 @UntilDestroy()
 @Component({
   selector: "texera-compare-workspace",
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, CompareDagComponent],
   templateUrl: "./compare-workspace.component.html",
   styleUrls: ["./compare-workspace.component.scss"],
 })
@@ -59,18 +70,35 @@ export class CompareWorkspaceComponent implements OnInit {
   loadError: string | null = null;
   summary: WorkflowExecutionCompareSummary | null = null;
 
+  // Workflow content for each side's version, fed into the DAG canvases.
+  // The WorkflowVersionService parses content from string into a structured object, so we
+  // accept `any` here and let the DAG component handle either shape.
+  contentA: any = null;
+  contentB: any = null;
+  // operatorId → worst status across all of that operator's ports (red > yellow > green).
+  // Single map shared by both DAGs so the colors agree on each side.
+  statusMap: ReadonlyMap<string, OperatorStatus> = new Map();
+
   selected: OperatorPortCompareResult | null = null;
+  // When set, the user clicked an operator that isn't in summary.operators — meaning
+  // neither execution captured per-operator results for it. Used to show a hint in the
+  // result panel instead of failing silently.
+  clickedOperatorMissing: string | null = null;
   pageIndex = 0;
   pageSize = 25;
   pageA: ExecutionOperatorResultPage | null = null;
   pageB: ExecutionOperatorResultPage | null = null;
   pageLoadError: string | null = null;
-  rowPairs: ReadonlyArray<RowPair> = [];
+  diffRows: ReadonlyArray<DiffRow> = [];
   unionColumnNames: ReadonlyArray<string> = [];
+  // Row count summaries shown above each side's table.
+  rowsOnA = 0;
+  rowsOnB = 0;
 
   constructor(
     private route: ActivatedRoute,
-    private executionsService: WorkflowExecutionsService
+    private executionsService: WorkflowExecutionsService,
+    private workflowVersionService: WorkflowVersionService
   ) {}
 
   ngOnInit(): void {
@@ -83,6 +111,8 @@ export class CompareWorkspaceComponent implements OnInit {
       .subscribe({
         next: summary => {
           this.summary = summary;
+          this.statusMap = this.buildStatusMap(summary);
+          this.loadWorkflowContents(summary);
           this.loading = false;
           const firstShared = summary.operators.find(o => o.status === "shared") ?? summary.operators[0];
           if (firstShared) {
@@ -94,6 +124,59 @@ export class CompareWorkspaceComponent implements OnInit {
           this.loading = false;
         },
       });
+  }
+
+  /**
+   * Reduce the per-port compare results into a single status per operator. We want one
+   * color per DAG node, so an operator with any red port stays red; a yellow-or-better
+   * mix falls back to yellow; otherwise green.
+   */
+  private buildStatusMap(summary: WorkflowExecutionCompareSummary): ReadonlyMap<string, OperatorStatus> {
+    const result = new Map<string, OperatorStatus>();
+    const rank: Record<OperatorStatus, number> = { green: 0, gray: 1, yellow: 2, red: 3 };
+    for (const entry of summary.operators) {
+      const portStatus: OperatorStatus =
+        entry.status === "onlyInA" || entry.status === "onlyInB" || !entry.schemaMatches
+          ? "red"
+          : entry.rowCountA !== entry.rowCountB
+            ? "yellow"
+            : "green";
+      const existing = result.get(entry.operatorId) ?? "green";
+      result.set(entry.operatorId, rank[portStatus] >= rank[existing] ? portStatus : existing);
+    }
+    return result;
+  }
+
+  private loadWorkflowContents(summary: WorkflowExecutionCompareSummary): void {
+    this.contentA = null;
+    this.contentB = null;
+    if (summary.vidA > 0) {
+      this.workflowVersionService
+        .retrieveWorkflowByVersion(summary.wid, summary.vidA)
+        .pipe(untilDestroyed(this))
+        .subscribe(wf => (this.contentA = wf?.content ?? null));
+    }
+    if (summary.vidB > 0) {
+      this.workflowVersionService
+        .retrieveWorkflowByVersion(summary.wid, summary.vidB)
+        .pipe(untilDestroyed(this))
+        .subscribe(wf => (this.contentB = wf?.content ?? null));
+    }
+  }
+
+  /** Click handler from either DAG canvas. Resolves to the first port of the operator. */
+  onDagOperatorClicked(operatorId: string): void {
+    if (!this.summary) return;
+    const entry = this.summary.operators.find(o => o.operatorId === operatorId);
+    if (entry) {
+      this.clickedOperatorMissing = null;
+      this.selectOperator(entry);
+    } else {
+      // No per-operator results were persisted for this operator in either execution.
+      // Surface this in the result panel so the click isn't silently ignored.
+      this.clickedOperatorMissing = operatorId;
+      this.selected = null;
+    }
   }
 
   selectOperator(entry: OperatorPortCompareResult): void {
@@ -114,8 +197,10 @@ export class CompareWorkspaceComponent implements OnInit {
     this.pageLoadError = null;
     this.pageA = null;
     this.pageB = null;
-    this.rowPairs = [];
+    this.diffRows = [];
     this.unionColumnNames = [];
+    this.rowsOnA = 0;
+    this.rowsOnB = 0;
 
     const entry = this.selected;
     const fetchA =
@@ -158,11 +243,23 @@ export class CompareWorkspaceComponent implements OnInit {
       });
   }
 
+  /**
+   * Build the side-by-side diff row list from the two fetched pages. Rows are paired
+   * positionally (A[i] vs B[i]) — the same positional convention the existing
+   * "deterministic sort" banner warns about. Each pair is classified into one of four
+   * kinds so the template can apply git-diff–style coloring.
+   */
   private computeRowDiff(): void {
     const rowsA = this.pageA?.rows ?? [];
     const rowsB = this.pageB?.rows ?? [];
     const colsA = this.pageA?.schema.map(s => s.name) ?? [];
     const colsB = this.pageB?.schema.map(s => s.name) ?? [];
+    this.rowsOnA = this.pageA?.totalRowCount ?? rowsA.length;
+    this.rowsOnB = this.pageB?.totalRowCount ?? rowsB.length;
+
+    // Display the union of columns so per-cell diffs line up when schemas overlap.
+    // Order: columns from A first (preserving A's column order), then any
+    // B-only columns appended at the end.
     const seen = new Set<string>();
     const union: string[] = [];
     [...colsA, ...colsB].forEach(name => {
@@ -174,30 +271,29 @@ export class CompareWorkspaceComponent implements OnInit {
     this.unionColumnNames = union;
 
     const maxRows = Math.max(rowsA.length, rowsB.length);
-    const pairs: RowPair[] = [];
+    const rows: DiffRow[] = [];
     for (let i = 0; i < maxRows; i++) {
       const rowA = rowsA[i];
       const rowB = rowsB[i];
-      const cellsA: CellDiff[] = [];
-      const cellsB: CellDiff[] = [];
-      let anyDiff = false;
+      const cellsA: DiffCell[] = [];
+      const cellsB: DiffCell[] = [];
+      let anyCellDiffers = false;
 
       union.forEach(col => {
-        const aPresent = rowA && col in rowA;
-        const bPresent = rowB && col in rowB;
+        const aPresent = !!rowA && col in rowA;
+        const bPresent = !!rowB && col in rowB;
         const aVal = aPresent ? this.stringifyCell(rowA[col]) : "";
         const bVal = bPresent ? this.stringifyCell(rowB[col]) : "";
         const differs = aPresent && bPresent && aVal !== bVal;
-        if (differs || aPresent !== bPresent || !rowA || !rowB) {
-          anyDiff = true;
-        }
-        cellsA.push({ value: aVal, differs, missing: !rowA || !aPresent });
-        cellsB.push({ value: bVal, differs, missing: !rowB || !bPresent });
+        if (differs) anyCellDiffers = true;
+        cellsA.push({ value: aVal, differs, missing: !aPresent });
+        cellsB.push({ value: bVal, differs, missing: !bPresent });
       });
 
-      pairs.push({ index: i, cellsA, cellsB, anyDiff });
+      const kind: RowKind = !rowA ? "onlyB" : !rowB ? "onlyA" : anyCellDiffers ? "changed" : "same";
+      rows.push({ kind, cellsA, cellsB });
     }
-    this.rowPairs = pairs;
+    this.diffRows = rows;
   }
 
   private stringifyCell(value: unknown): string {
@@ -209,19 +305,6 @@ export class CompareWorkspaceComponent implements OnInit {
     } catch {
       return String(value);
     }
-  }
-
-  badgeClass(entry: OperatorPortCompareResult): string {
-    if (entry.status === "onlyInA" || entry.status === "onlyInB") return "badge-red";
-    if (!entry.schemaMatches) return "badge-red";
-    if (entry.rowCountA !== entry.rowCountB) return "badge-yellow";
-    return "badge-green";
-  }
-
-  rowCountDelta(entry: OperatorPortCompareResult): string {
-    const a = entry.rowCountA ?? 0;
-    const b = entry.rowCountB ?? 0;
-    return `A: ${entry.rowCountA ?? "—"} · B: ${entry.rowCountB ?? "—"} · Δ ${b - a}`;
   }
 
   schemaDiffSummary(entry: OperatorPortCompareResult): string {

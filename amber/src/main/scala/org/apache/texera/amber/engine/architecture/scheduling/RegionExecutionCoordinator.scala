@@ -285,14 +285,17 @@ class RegionExecutionCoordinator(
   private def executeNonDependeePortPhase(): Future[Unit] = {
     setPhase(ExecutingNonDependeePortsPhase)
     // Allocate output port storage objects
-    region.resourceConfig.get.portConfigs
-      .collect {
-        case (id, cfg: OutputPortConfig) => id -> cfg
-      }
-      .foreach {
-        case (pid, cfg) =>
-          createOutputPortStorageObjects(Map(pid -> cfg))
-      }
+    val outputPortConfigs = region.resourceConfig.get.portConfigs.collect {
+      case (id, cfg: OutputPortConfig) => id -> cfg
+    }
+    // TODO: remove once `operator_port_executions` is reliably populated for compare-versions runs.
+    logger.info(
+      s"[compare-debug] region=${region.id.id} outputPortConfigs.size=${outputPortConfigs.size} isRestart=$isRestart"
+    )
+    outputPortConfigs.foreach {
+      case (pid, cfg) =>
+        createOutputPortStorageObjects(Map(pid -> cfg))
+    }
 
     val ops = region.getOperators.filter(_.dependeeInputs.isEmpty)
 
@@ -576,10 +579,28 @@ class RegionExecutionCoordinator(
           schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
         DocumentFactory.createDocument(storageUriToAdd, schema)
         if (!isRestart) {
-          WorkflowExecutionsResource.insertOperatorPortResultUri(
-            eid = eid,
-            globalPortId = outputPortId,
-            uri = storageUriToAdd
+          // TODO: remove once `operator_port_executions` is reliably populated for compare-versions runs.
+          logger.info(
+            s"[compare-debug] inserting operator_port_executions row eid=${eid.id} port=${outputPortId.opId.logicalOpId.id}/${outputPortId.portId.id} uri=$storageUriToAdd"
+          )
+          try {
+            WorkflowExecutionsResource.insertOperatorPortResultUri(
+              eid = eid,
+              globalPortId = outputPortId,
+              uri = storageUriToAdd
+            )
+          } catch {
+            case e: Throwable =>
+              logger.error(
+                s"[compare-debug] insertOperatorPortResultUri FAILED eid=${eid.id} port=${outputPortId.opId.logicalOpId.id}/${outputPortId.portId.id}: ${e.getMessage}",
+                e
+              )
+              throw e
+          }
+        } else {
+          // TODO: remove once `operator_port_executions` is reliably populated for compare-versions runs.
+          logger.info(
+            s"[compare-debug] SKIPPING insert (isRestart=true) eid=${eid.id} port=${outputPortId.opId.logicalOpId.id}/${outputPortId.portId.id}"
           )
         }
     }

@@ -15,97 +15,147 @@
   <div *ngIf="loadError" class="status status-error">{{ loadError }}</div>
 
   <div *ngIf="summary && !loading" class="body">
-    <aside class="op-list">
-      <div class="op-list-header">Operators</div>
-      <ul>
-        <li
-          *ngFor="let op of summary.operators"
-          [class.selected]="selected?.operatorId === op.operatorId && selected?.portId === op.portId"
-          (click)="selectOperator(op)">
-          <span class="badge" [ngClass]="badgeClass(op)"></span>
-          <div class="op-meta">
-            <div class="op-id">{{ displayOperatorName(op.operatorId) }} <span class="port">·port {{ op.portId }}</span></div>
-            <div class="op-detail">{{ op.status }} · {{ rowCountDelta(op) }}</div>
-          </div>
-        </li>
-      </ul>
-    </aside>
+    <section class="dag-stack">
+      <texera-compare-dag
+        [label]="'Execution A (#' + eidA + ')'"
+        [content]="contentA"
+        [statusMap]="statusMap"
+        [selectedOperatorId]="selected?.operatorId ?? null"
+        (operatorSelected)="onDagOperatorClicked($event)">
+      </texera-compare-dag>
+      <texera-compare-dag
+        [label]="'Execution B (#' + eidB + ')'"
+        [content]="contentB"
+        [statusMap]="statusMap"
+        [selectedOperatorId]="selected?.operatorId ?? null"
+        (operatorSelected)="onDagOperatorClicked($event)">
+      </texera-compare-dag>
+    </section>
 
-    <main class="op-detail-pane">
+    <section class="result-panel">
       <ng-container *ngIf="selected; else noSelection">
-        <section class="schema-strip">
-          <div class="schema-label">Schema diff:</div>
-          <div class="schema-summary">{{ schemaDiffSummary(selected) }}</div>
-        </section>
-
-        <section class="stats-strip">
-          <div>Status: <strong>{{ selected.status }}</strong></div>
-          <div>Rows A: <strong>{{ selected.rowCountA ?? "—" }}</strong></div>
-          <div>Rows B: <strong>{{ selected.rowCountB ?? "—" }}</strong></div>
-          <div>Schema matches: <strong>{{ selected.schemaMatches }}</strong></div>
-        </section>
+        <header class="selected-header">
+          <div class="selected-name">
+            <strong>{{ displayOperatorName(selected.operatorId) }}</strong>
+            <span class="port-suffix">output port {{ selected.portId }}</span>
+          </div>
+          <div class="selected-meta">
+            <span class="meta-pill">A: {{ rowsOnA }} rows</span>
+            <span class="meta-pill">B: {{ rowsOnB }} rows</span>
+            <span class="meta-pill" [class.meta-pill-warn]="rowsOnA !== rowsOnB">
+              Δ {{ rowsOnB - rowsOnA > 0 ? "+" : "" }}{{ rowsOnB - rowsOnA }}
+            </span>
+            <span class="meta-pill" [class.meta-pill-warn]="!selected.schemaMatches">
+              {{ schemaDiffSummary(selected) }}
+            </span>
+          </div>
+        </header>
 
         <div *ngIf="pageLoadError" class="status status-error">{{ pageLoadError }}</div>
 
-        <section class="diff-tables" *ngIf="!pageLoadError">
-          <div class="pagination">
-            <button (click)="changePage(-1)" [disabled]="pageIndex === 0">Prev</button>
-            <span>Page {{ pageIndex + 1 }}</span>
-            <button (click)="changePage(1)" [disabled]="isLastPage()">Next</button>
+        <div class="diff-tables" *ngIf="!pageLoadError">
+          <div class="result-toolbar">
+            <div class="diff-legend">
+              <span class="legend-chip legend-same"></span> identical
+              <span class="legend-chip legend-changed"></span> row differs
+              <span class="legend-chip legend-removed"></span> only in A
+              <span class="legend-chip legend-added"></span> only in B
+            </div>
+            <div class="pagination" *ngIf="rowsOnA + rowsOnB > pageSize">
+              <button (click)="changePage(-1)" [disabled]="pageIndex === 0">‹ Prev</button>
+              <span class="page-label">Page {{ pageIndex + 1 }}</span>
+              <button (click)="changePage(1)" [disabled]="isLastPage()">Next ›</button>
+            </div>
           </div>
 
           <div class="side-by-side">
             <div class="side">
-              <div class="side-header">Execution A (#{{ eidA }})</div>
-              <table>
-                <thead>
-                  <tr>
-                    <th class="row-num">#</th>
-                    <th *ngFor="let col of unionColumnNames">{{ col }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let pair of rowPairs" [class.row-diff]="pair.anyDiff">
-                    <td class="row-num">{{ pair.index }}</td>
-                    <td
-                      *ngFor="let cell of pair.cellsA"
-                      [class.cell-diff]="cell.differs"
-                      [class.cell-missing]="cell.missing">
-                      {{ cell.missing ? "—" : cell.value }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="side-header">
+                <span class="side-title">Execution A</span>
+                <span class="side-eid">#{{ eidA }}</span>
+              </div>
+              <div class="side-scroll" *ngIf="diffRows.length > 0; else emptyA">
+                <table class="diff-table">
+                  <thead>
+                    <tr>
+                      <th *ngFor="let col of unionColumnNames">{{ col }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let row of diffRows" [ngClass]="'row-' + row.kind">
+                      <td
+                        *ngFor="let cell of row.cellsA"
+                        [class.cell-diff]="cell.differs"
+                        [class.cell-missing]="cell.missing"
+                        [title]="cell.missing ? '' : cell.value">
+                        <span *ngIf="cell.missing" class="missing-mark">—</span>
+                        <span *ngIf="!cell.missing">{{ cell.value }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <ng-template #emptyA>
+                <div class="empty-tpl">No rows captured for this operator in execution A.</div>
+              </ng-template>
             </div>
 
             <div class="side">
-              <div class="side-header">Execution B (#{{ eidB }})</div>
-              <table>
-                <thead>
-                  <tr>
-                    <th class="row-num">#</th>
-                    <th *ngFor="let col of unionColumnNames">{{ col }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let pair of rowPairs" [class.row-diff]="pair.anyDiff">
-                    <td class="row-num">{{ pair.index }}</td>
-                    <td
-                      *ngFor="let cell of pair.cellsB"
-                      [class.cell-diff]="cell.differs"
-                      [class.cell-missing]="cell.missing">
-                      {{ cell.missing ? "—" : cell.value }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="side-header">
+                <span class="side-title">Execution B</span>
+                <span class="side-eid">#{{ eidB }}</span>
+              </div>
+              <div class="side-scroll" *ngIf="diffRows.length > 0; else emptyB">
+                <table class="diff-table">
+                  <thead>
+                    <tr>
+                      <th *ngFor="let col of unionColumnNames">{{ col }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let row of diffRows" [ngClass]="'row-' + row.kind">
+                      <td
+                        *ngFor="let cell of row.cellsB"
+                        [class.cell-diff]="cell.differs"
+                        [class.cell-missing]="cell.missing"
+                        [title]="cell.missing ? '' : cell.value">
+                        <span *ngIf="cell.missing" class="missing-mark">—</span>
+                        <span *ngIf="!cell.missing">{{ cell.value }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <ng-template #emptyB>
+                <div class="empty-tpl">No rows captured for this operator in execution B.</div>
+              </ng-template>
             </div>
           </div>
-        </section>
+        </div>
       </ng-container>
       <ng-template #noSelection>
-        <div class="status">Select an operator to view its results.</div>
+        <div *ngIf="clickedOperatorMissing; else hint" class="status status-warning">
+          <strong>{{ displayOperatorName(clickedOperatorMissing) }}</strong>
+          has no captured results in either execution.
+          <div class="status-detail">
+            Operators only show up here once Texera persists their output port results to
+            <code>operator_port_executions</code>. If you're seeing this for every operator, neither
+            execution actually wrote per-operator results — try re-running the workflow so the
+            output ports get persisted, then refresh this page.
+          </div>
+        </div>
+        <ng-template #hint>
+          <div *ngIf="summary && summary.operators.length === 0; else clickHint" class="status status-warning">
+            Neither execution #{{ eidA }} nor #{{ eidB }} has any per-operator results stored.
+            Clicking operators in the DAG above can't show outputs because there's nothing
+            to compare. Re-run the workflow (on a setup that writes to
+            <code>operator_port_executions</code>) and try again.
+          </div>
+          <ng-template #clickHint>
+            <div class="status">Click an operator in either DAG above to see its results.</div>
+          </ng-template>
+        </ng-template>
       </ng-template>
-    </main>
+    </section>
   </div>
 </div>

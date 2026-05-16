@@ -162,6 +162,8 @@ export interface WorkflowExecutionCompareSummary {
   readonly wid: number;
   readonly eidA: number;
   readonly eidB: number;
+  readonly vidA: number;
+  readonly vidB: number;
   readonly operators: ReadonlyArray<OperatorPortCompareResult>;
 }
 

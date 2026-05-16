@@ -183,7 +183,11 @@ class WorkflowService(
   def initExecutionService(
       req: WorkflowExecuteRequest,
       userOpt: Option[User],
-      sessionUri: URI
+      sessionUri: URI,
+      // When true, skip the wipe-previous-execution-resources step. The compare-versions
+      // auto-run flow sets this so both sides' `operator_port_executions` rows survive
+      // long enough to be diffed.
+      preservePreviousResults: Boolean = false
   ): Unit = {
 
     if (executionService.hasValue) {
@@ -195,12 +199,14 @@ class WorkflowService(
     val workflowContext: WorkflowContext = createWorkflowContext()
     var controllerConf = ControllerConfig.default
 
-    // clean up results from previous run
-    val previousExecutionId =
-      WorkflowExecutionService.getLatestExecutionId(workflowId, req.computingUnitId)
-    previousExecutionId.foreach(eid => {
-      clearExecutionResources(eid)
-    }) // TODO: change this behavior after enabling cache.
+    if (!preservePreviousResults) {
+      // clean up results from previous run
+      val previousExecutionId =
+        WorkflowExecutionService.getLatestExecutionId(workflowId, req.computingUnitId)
+      previousExecutionId.foreach(eid => {
+        clearExecutionResources(eid)
+      }) // TODO: change this behavior after enabling cache.
+    }
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,

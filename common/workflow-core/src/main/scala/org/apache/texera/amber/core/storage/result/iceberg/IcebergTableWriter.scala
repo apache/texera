@@ -25,11 +25,13 @@ import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.data.parquet.GenericParquetWriter
+import org.apache.iceberg.exceptions.CommitFailedException
 import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
-import org.apache.iceberg.{Schema, Table}
+import org.apache.iceberg.{DataFile, Schema, Table}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Random
 
 /**
   * IcebergTableWriter writes data to the given Iceberg table in an append-only way.
@@ -126,11 +128,39 @@ private[storage] class IcebergTableWriter[T](
       } finally {
         dataWriter.close()
       }
-      // Commit the new file to the table
+      // Commit the new file to the table.
+      // Multiple workers of the same operator share one Iceberg table per output port and
+      // all race to commit at the end. Iceberg uses optimistic concurrency on the JDBC
+      // catalog, so concurrent commits manifest as `CommitFailedException`. Iceberg's own
+      // internal retry budget (~4 attempts) is sometimes exhausted under high-parallelism
+      // fast operators; this wrapper retries with jittered exponential backoff so the
+      // worker doesn't fail the whole execution just because two workers raced.
       val dataFile = dataWriter.toDataFile
-      table.newAppend().appendFile(dataFile).commit()
+      commitWithRetry(dataFile)
       // Clear the item buffer
       buffer.clear()
+    }
+  }
+
+  private def commitWithRetry(dataFile: DataFile): Unit = {
+    val maxAttempts = 10
+    var attempt = 0
+    var delayMs = 100L
+    val maxDelayMs = 2000L
+    while (true) {
+      try {
+        table.newAppend().appendFile(dataFile).commit()
+        return
+      } catch {
+        case e: CommitFailedException =>
+          attempt += 1
+          if (attempt >= maxAttempts) throw e
+          // Jittered exponential backoff: avoid thundering-herd retries when many workers
+          // collide on the same table at the same instant.
+          val jitter = Random.nextLong(delayMs)
+          Thread.sleep(delayMs + jitter)
+          delayMs = (delayMs * 2).min(maxDelayMs)
+      }
     }
   }
 

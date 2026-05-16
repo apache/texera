@@ -46,6 +46,7 @@ import org.apache.texera.web.model.http.request.result.ResultExportRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import org.apache.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
 import play.api.libs.json.Json
 
 import java.net.URI
@@ -332,6 +333,20 @@ object WorkflowExecutionsResource {
       )
     }
 
+    // True when at least one operator-port row was persisted for this eid. The compare
+    // flow filters on this so it can skip executions left over from older backend builds
+    // that completed but never wrote to operator_port_executions.
+    val hasResultsField = DSL
+      .field(
+        DSL.exists(
+          DSL
+            .selectOne()
+            .from(OPERATOR_PORT_EXECUTIONS)
+            .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(WORKFLOW_EXECUTIONS.EID))
+        )
+      )
+      .as("has_results")
+
     context
       .select(
         WORKFLOW_EXECUTIONS.EID,
@@ -345,7 +360,8 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
         WORKFLOW_EXECUTIONS.BOOKMARKED,
         WORKFLOW_EXECUTIONS.NAME,
-        WORKFLOW_EXECUTIONS.LOG_LOCATION
+        WORKFLOW_EXECUTIONS.LOG_LOCATION,
+        hasResultsField
       )
       .from(WORKFLOW_EXECUTIONS)
       .join(WORKFLOW_VERSION)
@@ -594,6 +610,10 @@ object WorkflowExecutionsResource {
       wid: Integer,
       eidA: Integer,
       eidB: Integer,
+      // vid each eid was executed against. The frontend uses these to load the
+      // historical workflow content for each side's DAG canvas.
+      vidA: Integer,
+      vidB: Integer,
       operators: List[OperatorPortCompareResult]
   )
 
@@ -617,7 +637,12 @@ object WorkflowExecutionsResource {
       completionTime: Timestamp,
       bookmarked: Boolean,
       name: String,
-      logLocation: String
+      logLocation: String,
+      // True when this execution has at least one row in `operator_port_executions`
+      // i.e. produced per-operator output that can be paginated / compared. The compare
+      // flow uses this to skip "completed but empty" executions left over from older
+      // backend builds that didn't reliably persist port results.
+      hasResults: Boolean
   )
 
   case class WorkflowRuntimeStatistics(
@@ -855,7 +880,18 @@ class WorkflowExecutionsResource {
     }
     val sorted = enriched.sortBy(e => (rank(e.operatorId), e.operatorId, e.portId))
 
-    WorkflowExecutionCompareSummary(wid, eidA, eidB, sorted)
+    val vidA = vidForExecution(eidA).getOrElse(Integer.valueOf(-1))
+    val vidB = vidForExecution(eidB).getOrElse(Integer.valueOf(-1))
+    WorkflowExecutionCompareSummary(wid, eidA, eidB, vidA, vidB, sorted)
+  }
+
+  private def vidForExecution(eid: Integer): Option[Integer] = {
+    val opt = context
+      .select(WORKFLOW_EXECUTIONS.VID)
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
+      .fetchOptionalInto(classOf[Integer])
+    if (opt.isPresent) Some(opt.get()) else None
   }
 
   /** Return the ordered list of operator IDs across both executions' workflow versions. */

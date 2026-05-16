@@ -76,7 +76,11 @@ case class SyncExecutionRequest(
     targetOperatorIds: List[String],
     timeoutSeconds: Int,
     maxOperatorResultCharLimit: Int,
-    maxOperatorResultCellCharLimit: Int
+    maxOperatorResultCellCharLimit: Int,
+    // When true, do not wipe the previous execution's persisted operator-port results
+    // before starting this run. Used by the workflow-compare auto-run flow, which needs
+    // BOTH side's results to coexist in `operator_port_executions`.
+    preservePreviousResults: Boolean = false
 )
 
 case class ConsoleMessageInfo(
@@ -182,7 +186,8 @@ class SyncExecutionResource extends LazyLogging {
       workflowService.initExecutionService(
         executeRequest,
         Some(user.getUser),
-        new URI(s"sync-execution://$workflowId")
+        new URI(s"sync-execution://$workflowId"),
+        preservePreviousResults = request.preservePreviousResults
       )
 
       val executionService = workflowService.executionService.getValue
@@ -455,7 +460,10 @@ class SyncExecutionResource extends LazyLogging {
         targetOperatorIds = List.empty, // run the whole plan, not a sub-DAG
         timeoutSeconds = 600,
         maxOperatorResultCharLimit = 0, // suppress inline result payload
-        maxOperatorResultCellCharLimit = 0
+        maxOperatorResultCellCharLimit = 0,
+        // Don't wipe the previous execution's port results — the compare flow needs both
+        // sides' rows to coexist in `operator_port_executions`.
+        preservePreviousResults = true
       )
 
       executeWorkflowSync(workflowId, computingUnitId, request, user)

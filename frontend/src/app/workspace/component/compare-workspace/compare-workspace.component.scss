@@ -45,11 +45,106 @@
 .status-error {
   color: #c0392b;
 }
+.status-warning {
+  color: #92651a;
+  background: #fff9e6;
+  border: 1px solid #f1c40f;
+  border-radius: 4px;
+  margin: 12px 0;
+
+  code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+}
+.status-detail {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6e5400;
+  line-height: 1.5;
+}
 
 .body {
   flex: 1;
   display: flex;
+  flex-direction: column;
   min-height: 0;
+  padding: 12px 20px 0;
+  gap: 12px;
+  overflow: auto;
+}
+
+.dag-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  // Give each DAG a concrete height so its inner flexbox can size the paper.
+  // Without this, height: 100% inside compare-dag has nothing to resolve against
+  // and the JointJS paper collapses to a few pixels.
+  flex-shrink: 0;
+
+  texera-compare-dag {
+    display: block;
+    height: 420px;
+  }
+}
+
+.result-panel {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.selected-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .selected-name {
+    font-size: 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+
+    strong {
+      color: #1f1f1f;
+    }
+  }
+  .port-suffix {
+    color: #777;
+    font-weight: 400;
+    font-size: 12px;
+    padding: 2px 8px;
+    background: #f0f0f0;
+    border-radius: 10px;
+  }
+  .selected-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .meta-pill {
+    font-size: 12px;
+    color: #444;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .meta-pill-warn {
+    background: #fff4e6;
+    border-color: #f5b66c;
+    color: #6e4500;
+  }
 }
 
 .op-list {
@@ -154,19 +249,72 @@
   color: #333;
 }
 
-.pagination {
+.result-toolbar {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.diff-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  color: #666;
+
+  .legend-chip {
+    display: inline-block;
+    width: 14px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .legend-same {
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+  }
+  .legend-changed {
+    background: #fff4ce;
+    border: 1px solid #e0c66a;
+  }
+  .legend-removed {
+    background: #fde2e2;
+    border: 1px solid #e7a3a3;
+  }
+  .legend-added {
+    background: #dff5e0;
+    border: 1px solid #9ed2a3;
+  }
+}
+
+.pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #555;
 
   button {
-    padding: 4px 12px;
+    padding: 3px 10px;
+    border: 1px solid #d0d0d0;
+    background: #fff;
+    border-radius: 3px;
     cursor: pointer;
+    font-size: 12px;
+  }
+  button:hover:not(:disabled) {
+    background: #f5f5f5;
   }
   button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+  .page-label {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
   }
 }
 
@@ -176,30 +324,60 @@
   gap: 12px;
 }
 
+.empty-tpl {
+  padding: 24px;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+}
+
 .side {
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 
   .side-header {
-    padding: 6px 10px;
-    background: #f5f5f5;
-    font-weight: 600;
-    font-size: 12px;
+    padding: 8px 12px;
+    background: #f7f7f7;
     border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+
+    .side-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: #1f1f1f;
+    }
+    .side-eid {
+      color: #888;
+      font-size: 11px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    }
   }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
+  .side-scroll {
+    overflow-x: auto;
   }
+}
+
+.diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+
   th,
   td {
-    padding: 4px 8px;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 6px 10px;
     text-align: left;
+    border-bottom: 1px solid #f0f0f0;
     max-width: 240px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -207,21 +385,49 @@
   }
   th {
     background: #fafafa;
+    color: #444;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #e6e6e6;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  // git-diff–style row tints
+  tr.row-same td {
+    background: #ffffff;
+  }
+  tr.row-changed td {
+    background: #fff8dc;
+  }
+  tr.row-onlyA td {
+    background: #fde2e2;
+  }
+  tr.row-onlyB td {
+    background: #dff5e0;
+  }
+  // hover effect
+  tbody tr:hover td {
+    filter: brightness(0.97);
+  }
+
+  // Cell-level highlight on top of the row tint, so the user can pinpoint which value
+  // changed within a "row differs" row.
+  td.cell-diff {
+    background: rgba(231, 76, 60, 0.28) !important;
+    color: #7a1f1f;
     font-weight: 600;
   }
-  .row-num {
-    width: 36px;
-    color: #999;
-    background: #fafafa;
-  }
-  .row-diff td {
-    background: rgba(241, 196, 15, 0.08);
-  }
-  .cell-diff {
-    background: rgba(231, 76, 60, 0.18) !important;
-  }
-  .cell-missing {
+
+  td.cell-missing {
     color: #bbb;
     font-style: italic;
+    text-align: center;
+  }
+  .missing-mark {
+    color: #bbb;
   }
 }
