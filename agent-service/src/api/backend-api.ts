@@ -21,6 +21,7 @@ import { env } from "../config/env";
 
 interface BackendConfig {
   apiEndpoint: string;
+  fileServiceEndpoint: string;
   modelsEndpoint: string;
   compileEndpoint: string;
   executionEndpoint: string;
@@ -28,6 +29,7 @@ interface BackendConfig {
 
 const currentConfig: BackendConfig = {
   apiEndpoint: env.TEXERA_DASHBOARD_SERVICE_ENDPOINT,
+  fileServiceEndpoint: env.TEXERA_FILE_SERVICE_ENDPOINT,
   modelsEndpoint: env.LLM_ENDPOINT,
   compileEndpoint: env.WORKFLOW_COMPILING_SERVICE_ENDPOINT,
   executionEndpoint: env.WORKFLOW_EXECUTION_SERVICE_ENDPOINT,

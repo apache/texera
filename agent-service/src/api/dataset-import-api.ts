@@ -19,6 +19,9 @@
 
 import { getBackendConfig } from "./backend-api";
 import { createAuthHeaders, extractUserFromToken } from "./auth-api";
+import { createLogger } from "../logger";
+
+const log = createLogger("dataset-import");
 
 const PART_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 const FETCH_TIMEOUT_MS = 60_000;
@@ -97,7 +100,9 @@ export async function importDatasetFromUrl(
   token: string,
   req: ImportFromUrlRequest
 ): Promise<ImportFromUrlResult> {
-  const base = getBackendConfig().apiEndpoint;
+  // Dataset endpoints (create / multipart-upload / version/create) are served
+  // by file-service (port 9092), not amber/dashboard.
+  const base = getBackendConfig().fileServiceEndpoint;
   const user = extractUserFromToken(token);
   if (!user.email) {
     throw new DatasetImportError("Token does not include the user's email.", 401);
@@ -117,7 +122,9 @@ export async function importDatasetFromUrl(
   // raw chunk uploads override Content-Type below.
 
   // 1. Create the dataset.
-  const createResp = await fetch(`${base}/api/dataset/create`, {
+  const createUrl = `${base}/api/dataset/create`;
+  log.info({ url: createUrl, datasetName, fileBytes: file.byteLength }, "creating dataset");
+  const createResp = await fetch(createUrl, {
     method: "POST",
     headers: authHeaders,
     body: JSON.stringify({
@@ -129,6 +136,7 @@ export async function importDatasetFromUrl(
   });
   if (!createResp.ok) {
     const text = await createResp.text();
+    log.error({ url: createUrl, status: createResp.status, body: text }, "createDataset failed");
     throw new DatasetImportError(`createDataset failed: ${createResp.status} ${text}`, createResp.status);
   }
   const created = (await createResp.json()) as { dataset?: { did?: number; name?: string } };
@@ -147,9 +155,11 @@ export async function importDatasetFromUrl(
     `&fileSizeBytes=${file.byteLength}` +
     `&partSizeBytes=${PART_SIZE_BYTES}` +
     `&restart=false`;
+  log.info({ url: initUrl, did }, "multipart-upload init");
   const initResp = await fetch(initUrl, { method: "POST", headers: authHeaders, body: "{}" });
   if (!initResp.ok) {
     const text = await initResp.text();
+    log.error({ url: initUrl, status: initResp.status, body: text }, "multipart-upload init failed");
     throw new DatasetImportError(`multipart-upload init failed: ${initResp.status} ${text}`, initResp.status);
   }
   const init = (await initResp.json()) as { missingParts: number[]; completedPartsCount: number };
@@ -177,6 +187,7 @@ export async function importDatasetFromUrl(
     });
     if (!partResp.ok) {
       const text = await partResp.text();
+      log.error({ url: partUrl, partNumber, status: partResp.status, body: text }, "part upload failed");
       throw new DatasetImportError(
         `multipart-upload part ${partNumber} failed: ${partResp.status} ${text}`,
         partResp.status
@@ -191,22 +202,28 @@ export async function importDatasetFromUrl(
     `&ownerEmail=${encodeURIComponent(user.email)}` +
     `&datasetName=${encodeURIComponent(datasetName)}` +
     `&filePath=${encodeURIComponent(encodeURIComponent(fileName))}`;
+  log.info({ url: finishUrl }, "multipart-upload finish");
   const finishResp = await fetch(finishUrl, { method: "POST", headers: authHeaders, body: "{}" });
   if (!finishResp.ok) {
     const text = await finishResp.text();
+    log.error({ url: finishUrl, status: finishResp.status, body: text }, "finish failed");
     throw new DatasetImportError(`multipart-upload finish failed: ${finishResp.status} ${text}`, finishResp.status);
   }
 
   // 5. Publish v1.
-  const versionResp = await fetch(`${base}/api/dataset/${did}/version/create`, {
+  const versionUrl = `${base}/api/dataset/${did}/version/create`;
+  log.info({ url: versionUrl, did }, "creating version v1");
+  const versionResp = await fetch(versionUrl, {
     method: "POST",
     headers: { Authorization: authHeaders.Authorization, "Content-Type": "text/plain" },
     body: "v1",
   });
   if (!versionResp.ok) {
     const text = await versionResp.text();
+    log.error({ url: versionUrl, status: versionResp.status, body: text }, "createDatasetVersion failed");
     throw new DatasetImportError(`createDatasetVersion failed: ${versionResp.status} ${text}`, versionResp.status);
   }
 
+  log.info({ did, datasetName, fileBytes: file.byteLength }, "dataset import succeeded");
   return { did, datasetName, fileName, fileSize: file.byteLength };
 }

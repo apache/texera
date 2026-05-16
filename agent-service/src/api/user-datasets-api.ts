@@ -40,7 +40,7 @@ export interface UserDatasetSummary {
  * the agent should still work without this context.
  */
 export async function fetchUserDatasetSummaries(userToken: string): Promise<UserDatasetSummary[]> {
-  const url = `${getBackendConfig().apiEndpoint}/api/dataset/list`;
+  const url = `${getBackendConfig().fileServiceEndpoint}/api/dataset/list`;
   let resp: Response;
   try {
     resp = await fetch(url, { method: "GET", headers: createAuthHeaders(userToken) });
