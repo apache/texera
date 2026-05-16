@@ -38,7 +38,7 @@ import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.BeforeAndAfterAll
 
-import java.lang.reflect.{InvocationHandler, Method, Proxy}
+import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method, Proxy}
 import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
@@ -185,6 +185,23 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
       ExecutionIdentity(0)
     )
     assert(!DocumentFactory.documentExists(statsUri))
+  }
+
+  it should "throw IllegalArgumentException for resolveNamespace on an unmapped resource type" in {
+    // `resolveNamespace` is private and its `case _ =>` is unreachable from any
+    // well-formed VFS URI (VFSURIFactory.decodeURI validates resource types).
+    // Exercise the defensive branch by reflecting on the method and passing
+    // null — Scala pattern matches fall through to the wildcard for null
+    // scrutinees.
+    val method = DocumentFactory.getClass.getDeclaredMethod(
+      "resolveNamespace",
+      classOf[Enumeration#Value]
+    )
+    method.setAccessible(true)
+    val wrapped = intercept[InvocationTargetException] {
+      method.invoke(DocumentFactory, null)
+    }
+    assert(wrapped.getCause.isInstanceOf[IllegalArgumentException])
   }
 
   it should "round trip materialized state documents" in {
