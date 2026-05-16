@@ -700,25 +700,31 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.openCommentBox(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            // Macro nodes drill down into their body via an in-app route
-            // change. Use Angular router (not window.location.href) so the
-            // execution websocket survives the navigation — full reload
-            // would tear down the parent's `WorkflowWebsocketService` and
-            // the drill-down view would see no live stats. `loadMacroWithId`
-            // is responsible for fully resetting the canvas/YJS room before
-            // reloading the body so we don't hit duplicate-link errors.
+            // Macro nodes drill down into their body via a route change. We
+            // use `window.location.href` (hard reload) instead of
+            // `Router.navigate` because Angular reuses WorkspaceComponent
+            // across the workflow→macro route transition: SPA navigation
+            // hits a flurry of duplicate-link rejections from interleaved
+            // YJS server-side replay + local `reloadWorkflow`. The cost is
+            // losing the parent's execution websocket connection — the
+            // drill-down view stashes (parentWid, executionId) into
+            // sessionStorage so the new page can reconnect to the parent's
+            // execution context for live stats. See `WorkspaceComponent`
+            // `ngOnInit` for the rehydration logic.
             const op = this.workflowActionService.getTexeraGraph().getOperator(elementID);
             const macroId = op?.operatorProperties?.["macroId"];
             if (op?.operatorType === "Macro" && macroId) {
               const parentWid = this.route.snapshot.params.id ?? "";
-              this.router.navigate(["/dashboard/user/workflow", parentWid, "macro", macroId], {
-                // Carry the macro instance ID so the drill-down view can map
-                // live execution stats from the parent — engine reports
-                // inner-op stats under `${instanceId}--${innerOpId}` keys,
-                // and the drill-down canvas only has the un-prefixed
-                // inner-op IDs.
-                queryParams: { instance: elementID },
-              });
+              try {
+                sessionStorage.setItem(
+                  "macroDrilldownParentContext",
+                  JSON.stringify({ parentWid, instanceId: elementID, ts: Date.now() })
+                );
+              } catch {
+                // sessionStorage can throw in private-mode; that's fine, we
+                // just won't have drill-down live stats on this navigation.
+              }
+              window.location.href = `/dashboard/user/workflow/${parentWid}/macro/${macroId}?instance=${encodeURIComponent(elementID)}`;
               return;
             }
             this.workflowActionService.openResultPanel();

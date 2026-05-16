@@ -296,13 +296,15 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.macroEditName = detail.name;
           this.parentWorkflowId = this.route.snapshot.params.id ?? "";
           const macroWorkflow = this.macroService.macroDetailToWorkflow(detail);
-          // Joins the macro's YJS room (which itself destroys any previous
-          // shared-model first). Then reloadWorkflow clears the canvas of any
-          // prior operators+links before placing the macro body — same pattern
-          // as `loadWorkflowWithId`, so SPA navigation between workflow and
-          // macro routes stays clean and the parent's websocket/execution
-          // context survives the in-app navigation.
-          this.workflowActionService.setNewSharedModel(macroId, this.userService.getCurrentUser());
+          // Joining the macro definition's YJS room replays every historical
+          // operator/link the room ever held, dueling with `reloadWorkflow`'s
+          // own pushes and triggering cascading duplicate-link rejections
+          // that wipe the canvas. Use an anonymous (uuid-suffix) shared model
+          // so the drill-down starts clean. Collaboration on the body via
+          // this view is therefore *local-only* for now; persistent
+          // collaborative editing of macros is deferred.
+          this.workflowActionService.resetAsNewWorkflow();
+          this.workflowActionService.setNewSharedModel(undefined, this.userService.getCurrentUser());
           this.workflowActionService.reloadWorkflow(macroWorkflow);
           // Allow visual editing on the canvas, but persistWorkflow is already
           // disabled above so changes won't accidentally land on /workflow/persist.

@@ -216,16 +216,28 @@ export class SharedModelChangeHandler {
    *          this link is already deleted from the shared model.
    */
   private validateAndRepairNewLink(newLink: OperatorLink): boolean {
+    // Duplicates are routinely transient — e.g. when SPA-navigating into a
+    // workflow whose YJS room sync arrives shortly after a `reloadWorkflow`
+    // has already populated the same operators+links from the HTTP detail
+    // fetch. The existing link is the canonical one; just skip rendering the
+    // duplicate and leave the shared model alone. Pre-fix we *deleted* the
+    // duplicate from the shared model, which corrupted the canvas on
+    // drill-down navigation (every link disappeared along with its operators).
     try {
       this.texeraGraph.assertLinkNotDuplicated(newLink);
-      // Verify the link connects to operators and ports that exist.
+    } catch (error) {
+      console.log("skipping duplicate link: ", (error as Error).message);
+      return false;
+    }
+    // Validity check is a different failure mode (link references a
+    // non-existent op/port). Those entries are truly broken and the right
+    // thing is still to repair them out of the shared model.
+    try {
       this.texeraGraph.assertLinkIsValid(newLink);
       return true;
     } catch (error) {
-      // Invalid link, repair the shared model
       this.texeraGraph.sharedModel.operatorLinkMap.delete(newLink.linkID);
-      // This is treated as a normal repair step and not an error.
-      console.log("failed to add link. cause: ", (error as Error).message);
+      console.log("failed to add link, repaired: ", (error as Error).message);
       return false;
     }
   }
