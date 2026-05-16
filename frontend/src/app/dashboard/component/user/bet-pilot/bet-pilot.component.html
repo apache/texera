@@ -1,0 +1,107 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="bp-shell">
+  <aside class="bp-sidebar">
+    <div class="bp-sidebar-header">
+      <span class="brand">
+        <span class="dot"></span>
+        <span class="wordmark">Bet Pilot</span>
+        <span class="badge-version">v0.1.0</span>
+      </span>
+    </div>
+
+    <nav>
+      <div class="nav-section">
+        <div class="nav-section-title">Live</div>
+        <a
+          class="nav-item"
+          routerLinkActive="active"
+          [routerLink]="LINK_TODAY">
+          <span>Today's bets</span>
+          <span></span>
+          <span class="nav-icon">●</span>
+        </a>
+        <a
+          class="nav-item"
+          routerLinkActive="active"
+          [routerLink]="LINK_LINES_INPUT">
+          <span>Lines input</span>
+          <span></span>
+          <span class="nav-icon">↥</span>
+        </a>
+        <a
+          class="nav-item"
+          routerLinkActive="active"
+          [routerLink]="LINK_HEALTH">
+          <span>Model health</span>
+          <span class="nav-sub">amber</span>
+          <span class="nav-icon">◆</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Reports</div>
+        <a
+          class="nav-item"
+          routerLinkActive="active"
+          [routerLink]="LINK_SCOUTING">
+          <span>Scouting report</span>
+          <span></span>
+          <span class="nav-icon">▣</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Performance</div>
+        <a
+          class="nav-item"
+          routerLinkActive="active"
+          [routerLink]="LINK_BANKROLL">
+          <span>Bankroll</span>
+          <span class="nav-sub">$574</span>
+          <span class="nav-icon">$</span>
+        </a>
+        <a
+          class="nav-item"
+          routerLinkActive="active"
+          [routerLink]="LINK_CALIBRATION">
+          <span>Calibration log</span>
+          <span></span>
+          <span class="nav-icon">◯</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="bp-sidebar-bottom">
+      <a
+        class="nav-item"
+        routerLinkActive="active"
+        [routerLink]="LINK_GLOSSARY">
+        <span>Glossary</span>
+        <span></span>
+        <span class="nav-icon">?</span>
+      </a>
+    </div>
+  </aside>
+
+  <main class="bp-main">
+    <router-outlet></router-outlet>
+  </main>
+</div>

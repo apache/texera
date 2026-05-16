@@ -1,0 +1,174 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<header class="bp-screen-header">
+  <div>
+    <h1>Lines input</h1>
+    <p class="sub">Drop screenshots of Underdog lines, or paste them as text. The workflow handles the rest.</p>
+  </div>
+  <span
+    *ngIf="workflowUrl"
+    class="wf-button-wrap">
+    <a
+      class="wf-button"
+      [href]="workflowUrl"
+      target="_blank"
+      rel="noopener"
+      title="Open WF-2 in Texera">
+      Show workflow
+    </a>
+    <texera-bp-wf-preview
+      class="wf-preview"
+      [wid]="wfId"></texera-bp-wf-preview>
+  </span>
+</header>
+
+<!-- ============ Drop / upload zone ============ -->
+<div class="card upload-zone">
+  <h3 style="margin-bottom: 6px">1 · Add your Underdog lines</h3>
+  <p
+    class="muted small"
+    style="margin-top: 0">
+    Photos go in here. We don't store them — the filenames feed the workflow, where real OCR turns each image into
+    structured lines. For now those rows are stand-in until the model is connected.
+  </p>
+
+  <label class="drop-zone">
+    <input
+      type="file"
+      multiple
+      accept="image/*"
+      (change)="onFilesChosen($event)"
+      hidden />
+    <div class="drop-inner">
+      <div class="drop-glyph">↥</div>
+      <div><b>Choose images</b> or drag a folder of screenshots here</div>
+      <div
+        class="muted small"
+        style="margin-top: 4px">
+        PNG, JPG, HEIC · multiple files OK
+      </div>
+    </div>
+  </label>
+
+  <ul
+    *ngIf="uploaded.length"
+    class="uploaded-list">
+    <li
+      *ngFor="let name of uploaded; let i = index"
+      class="uploaded-row">
+      <span class="up-icon">🖼</span>
+      <span class="up-name">{{ name }}</span>
+      <button
+        class="up-x"
+        (click)="removeUploaded(i)"
+        title="Remove">
+        ×
+      </button>
+    </li>
+  </ul>
+</div>
+
+<!-- ============ Manual entry ============ -->
+<div
+  class="card upload-zone"
+  style="margin-top: 14px">
+  <h3 style="margin-bottom: 6px">2 · Or paste lines as text</h3>
+  <p
+    class="muted small"
+    style="margin-top: 0">
+    One per row. Format: <code>player [HIGHER|LOWER] line</code>. Examples:
+  </p>
+  <pre class="hint mono">
+PatMen HIGHER 31.5
+Primmie HIGHER 38.5
+invy 27.5</pre
+  >
+  <textarea
+    class="lines-textarea"
+    [(ngModel)]="rawInput"
+    rows="6"
+    placeholder="One line per row...">
+  </textarea>
+</div>
+
+<!-- ============ Parsed preview ============ -->
+<h2 class="bp-section-title">
+  Parsed preview · {{ combined.length }} total
+  <span
+    *ngIf="errorCount > 0"
+    class="muted small">
+    &nbsp;· {{ validCount }} valid · {{ errorCount }} couldn't parse
+  </span>
+</h2>
+
+<ul
+  *ngIf="combined.length; else emptyTpl"
+  class="bp-queue">
+  <li
+    *ngFor="let p of combined"
+    class="bp-row"
+    style="grid-template-columns: 110px 160px 80px 100px 1fr">
+    <span
+      class="pill"
+      [class.bet]="p.valid"
+      [class.no-bet]="!p.valid">
+      {{ p.valid ? "READY" : "REVIEW" }}
+    </span>
+    <span class="player">{{ p.player || "—" }}</span>
+    <span>{{ p.direction }}</span>
+    <span><b>{{ p.line ?? "—" }}</b></span>
+    <span class="reason">{{ p.note }}</span>
+  </li>
+</ul>
+
+<ng-template #emptyTpl>
+  <div
+    class="bp-empty-card"
+    style="grid-column: 1 / -1; max-width: 480px">
+    <h3>Nothing to send yet</h3>
+    <p>Upload some images or paste a line above.</p>
+  </div>
+</ng-template>
+
+<!-- ============ Action row ============ -->
+<div
+  class="action-row"
+  *ngIf="combined.length">
+  <button
+    class="btn-primary"
+    [disabled]="validCount === 0 || status === 'sending'"
+    (click)="sendToWorkflow()">
+    <ng-container [ngSwitch]="status">
+      <span *ngSwitchCase="'idle'"
+        >Send {{ validCount }} line<span *ngIf="validCount !== 1">s</span> to workflow →</span
+      >
+      <span *ngSwitchCase="'sending'">Sending…</span>
+      <span *ngSwitchCase="'sent'">Sent · check Today's bets</span>
+    </ng-container>
+  </button>
+  <button
+    class="btn-secondary"
+    (click)="reset()">
+    Clear all
+  </button>
+  <span class="muted small">
+    Currently a stub. Once the model is wired, this triggers WF-2 with your parsed lines as input.
+  </span>
+</div>

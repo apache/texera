@@ -413,3 +413,133 @@ hr {
     }
   }
 }
+
+// =========================================================================
+// Global dark theme. Applied when <html data-app-theme="dark">.
+// Best-effort wash over Texera + ng-zorro. Not a full design pass.
+// =========================================================================
+html[data-app-theme="dark"] {
+  --app-bg: #0b0d12;
+  --app-bg-elev: #14171f;
+  --app-bg-2: #1a1e28;
+  --app-line: #262b39;
+  --app-text: #ecf0f8;
+  --app-text-2: #cdd3e0;
+  --app-muted: #8b93a7;
+  --app-accent: #ff4655;
+
+  background: var(--app-bg);
+  color: var(--app-text);
+
+  body,
+  .ant-layout,
+  .ant-layout-content,
+  nz-content,
+  .page-container,
+  .page-content-layout {
+    background: var(--app-bg) !important;
+    color: var(--app-text) !important;
+  }
+  .ant-layout-sider,
+  nz-sider,
+  #left-sider {
+    background: var(--app-bg-elev) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-line) !important;
+  }
+  .ant-menu,
+  .ant-menu-submenu > .ant-menu,
+  .ant-menu-inline,
+  .ant-menu-vertical,
+  .ant-menu-light {
+    background: var(--app-bg-elev) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-line) !important;
+  }
+  .ant-menu-item,
+  .ant-menu-submenu-title {
+    color: var(--app-text-2) !important;
+  }
+  .ant-menu-item:hover,
+  .ant-menu-submenu-title:hover {
+    color: var(--app-text) !important;
+    background: var(--app-bg-2) !important;
+  }
+  .ant-menu-item-selected,
+  .ant-menu-item-active {
+    background: rgba(255, 70, 85, 0.1) !important;
+    color: var(--app-accent) !important;
+  }
+  .ant-menu-submenu-arrow::before,
+  .ant-menu-submenu-arrow::after {
+    background: var(--app-muted) !important;
+  }
+  .ant-card,
+  .ant-modal-content,
+  .ant-modal-header,
+  .ant-dropdown-menu,
+  .ant-popover-inner,
+  .ant-select-dropdown,
+  .ant-table {
+    background: var(--app-bg-elev) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-line) !important;
+  }
+  .ant-card-head,
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    background: var(--app-bg-elev) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-line) !important;
+  }
+  .ant-table-tbody > tr:hover > td {
+    background: var(--app-bg-2) !important;
+  }
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-select-selector,
+  .ant-picker {
+    background: var(--app-bg-2) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-line) !important;
+  }
+  .ant-input::placeholder {
+    color: var(--app-muted) !important;
+  }
+  .ant-btn-default {
+    background: var(--app-bg-2) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-line) !important;
+  }
+  .ant-btn-default:hover {
+    border-color: var(--app-text) !important;
+  }
+  .ant-tabs-tab,
+  .ant-tabs-tab-btn {
+    color: var(--app-text-2) !important;
+  }
+  .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: var(--app-accent) !important;
+  }
+  .ant-tabs-ink-bar {
+    background: var(--app-accent) !important;
+  }
+  .ant-divider {
+    border-color: var(--app-line) !important;
+  }
+  .ant-tooltip-inner {
+    background: #050608 !important;
+    color: var(--app-text) !important;
+  }
+  #nav,
+  .nav-bar {
+    background: var(--app-bg-elev) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-line) !important;
+  }
+  hr,
+  .border-top,
+  .border-bottom {
+    border-color: var(--app-line) !important;
+  }
+}

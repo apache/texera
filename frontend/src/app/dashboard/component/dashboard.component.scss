@@ -119,3 +119,45 @@ nz-content {
   max-height: 100%;
   overflow: hidden;
 }
+
+.app-version-pill {
+  margin-left: auto;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgba(255, 70, 85, 0.12);
+  color: #ff4655;
+  border: 1px solid rgba(255, 70, 85, 0.45);
+  border-radius: 999px;
+  line-height: 1.5;
+}
+
+.app-theme-toggle {
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: inherit;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  display: inline-grid;
+  place-items: center;
+  margin: 0 8px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.22);
+  }
+}
+html[data-app-theme="dark"] .app-theme-toggle {
+  border-color: rgba(255, 255, 255, 0.12);
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+}

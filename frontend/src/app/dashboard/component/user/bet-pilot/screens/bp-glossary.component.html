@@ -1,0 +1,81 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<header class="bp-screen-header">
+  <div>
+    <h1>Glossary</h1>
+    <p class="sub">Plain-English explanations of every term in the app.</p>
+  </div>
+</header>
+
+<dl class="glossary-list">
+  <dt>Verification gate</dt>
+  <dd>
+    Before betting real money, the system replays its picks against past games to see if it actually finds an edge. We
+    require the model to have been tested on at least <b>1,000 past bets</b> with a positive track record before
+    unlocking real-money mode. Anything smaller is statistically noisy — you can get lucky in 50 bets and still be a
+    losing bettor in the long run.
+  </dd>
+
+  <dt>Closing Line Value (CLV)</dt>
+  <dd>
+    The most important number in sports betting. If we bet a line at 26.5 kills and the line later "closes" at 24.5 by
+    game time, we got the better price. Sustained positive CLV is the leading sign of edge — it means we're picking
+    sharper than the market.
+  </dd>
+
+  <dt>Calibration ("does 75% confident actually win 75% of the time?")</dt>
+  <dd>
+    When the model says it's 75% confident, we want it to actually win about 75% of those bets. If it wins 60% of them,
+    the model is over-confident in that range. Either way, confidence is unreliable and bet sizing breaks. We track this
+    per confidence band and refit a correction weekly.
+  </dd>
+
+  <dt>Points (as in "−6 points")</dt>
+  <dd>
+    Short for <i>percentage points</i>, the difference between two percentages. "Predicted 67%, actually won 61%, so −6
+    points" means the model was 6 percentage points too optimistic in that band.
+  </dd>
+
+  <dt>Edge score</dt>
+  <dd>
+    How far our projection is from the Underdog line, multiplied by how confident we are. Formula:
+    <code>edge = |our projection − line| × confidence</code>. We only bet when edge ≥ 1.0 AND confidence ≥ 65%.
+  </dd>
+
+  <dt>Kelly fraction</dt>
+  <dd>
+    The mathematically optimal share of your bankroll to risk on a single bet, given your edge. We always cap it at
+    <b>5% of bankroll</b> regardless of what the math says — Kelly assumes your edge estimate is exact, so we bet
+    smaller for safety.
+  </dd>
+
+  <dt>Rule projection vs neural residual</dt>
+  <dd>
+    <b>Rule projection</b> is a deterministic kill estimate from each map's historical averages.
+    <b>Neural residual</b> is a small machine-learning adjustment (capped at ±4 kills) that nudges the rule projection
+    based on opponent strength, recent form, and other patterns.
+  </dd>
+
+  <dt>Why empty days are OK</dt>
+  <dd>
+    Most days the model finds no qualifying bets — that's the system filtering correctly, not failing. Underdog's payout
+    structure has high vig, so only high-edge picks are worth taking.
+  </dd>
+</dl>

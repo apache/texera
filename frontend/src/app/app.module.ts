@@ -58,6 +58,15 @@ import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
 import { WorkflowExecutionHistoryComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
+import { BetPilotComponent } from "./dashboard/component/user/bet-pilot/bet-pilot.component";
+import { BpTodayComponent } from "./dashboard/component/user/bet-pilot/screens/bp-today.component";
+import { BpScoutingComponent } from "./dashboard/component/user/bet-pilot/screens/bp-scouting.component";
+import { BpHealthComponent } from "./dashboard/component/user/bet-pilot/screens/bp-health.component";
+import { BpBankrollComponent } from "./dashboard/component/user/bet-pilot/screens/bp-bankroll.component";
+import { BpCalibrationComponent } from "./dashboard/component/user/bet-pilot/screens/bp-calibration.component";
+import { BpGlossaryComponent } from "./dashboard/component/user/bet-pilot/screens/bp-glossary.component";
+import { BpWfPreviewComponent } from "./dashboard/component/user/bet-pilot/screens/bp-wf-preview.component";
+import { BpLinesInputComponent } from "./dashboard/component/user/bet-pilot/screens/bp-lines-input.component";
 import { UserIconComponent } from "./dashboard/component/user/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user/user-avatar/user-avatar.component";
 import { CodeEditorComponent } from "./workspace/component/code-editor-dialog/code-editor.component";
@@ -286,6 +295,15 @@ registerLocaleData(en);
     LocalLoginComponent,
     UserWorkflowComponent,
     UserQuotaComponent,
+    BetPilotComponent,
+    BpTodayComponent,
+    BpScoutingComponent,
+    BpHealthComponent,
+    BpBankrollComponent,
+    BpCalibrationComponent,
+    BpGlossaryComponent,
+    BpWfPreviewComponent,
+    BpLinesInputComponent,
     RowModalComponent,
     OperatorLabelComponent,
     MiniMapComponent,

@@ -1,0 +1,171 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<header class="bp-screen-header">
+  <div>
+    <h1>Today's bets</h1>
+    <p class="sub">{{ data.date }} · {{ data.matchLabel }}</p>
+  </div>
+  <div style="display: flex; align-items: center; gap: 14px">
+    <span class="bp-bankroll"> <b>${{ data.bankroll }}</b> bankroll · ${{ data.stakePerParlay }}/parlay </span>
+    <span
+      *ngIf="workflowUrl"
+      class="wf-button-wrap">
+      <a
+        class="wf-button"
+        [href]="workflowUrl"
+        target="_blank"
+        rel="noopener"
+        title="Open WF-2 in Texera">
+        Show workflow
+      </a>
+      <texera-bp-wf-preview
+        class="wf-preview"
+        [wid]="wfId"></texera-bp-wf-preview>
+    </span>
+    <span
+      *ngIf="!workflowUrl"
+      class="wf-button disabled"
+      title="Not yet imported">
+      Workflow not imported
+    </span>
+  </div>
+</header>
+
+<section class="slip-grid">
+  <article
+    class="ud-slip"
+    *ngFor="let slip of data.slips">
+    <div class="slip-watermark">Winner</div>
+    <div class="slip-head">
+      <div>
+        <h2>
+          {{ slip.title }} for
+          <span
+            *ngIf="slip.originalMultiplier"
+            class="old-mult"
+            >{{ slip.originalMultiplier | number:'1.2-2' }}x</span
+          >
+          <span class="mult">{{ slip.multiplier | number:'1.2-2' }}x</span>
+        </h2>
+        <p><b>${{ slip.stake }}</b> paid <strong>${{ slip.payout | number:'1.2-2' }}</strong></p>
+      </div>
+      <span class="share-icon">↗</span>
+    </div>
+    <div class="promo">✦ {{ slip.promoLabel }}</div>
+
+    <div
+      class="slip-leg"
+      *ngFor="let p of slip.picks">
+      <div class="leg-match">
+        <span>{{ p.matchLabel }}</span>
+        <span>{{ p.startTime }}</span>
+      </div>
+      <div class="leg-card">
+        <span class="valorant-mark">V</span>
+        <div class="leg-main">
+          <b>{{ p.player }}</b>
+          <span><strong>Higher {{ p.line }}</strong> Kills on Maps 1+2</span>
+          <span class="leg-bar">
+            <span
+              class="leg-fill"
+              [style.width.%]="p.actualKills ? 88 : 80"></span>
+            <span class="leg-target"></span>
+            <span
+              *ngIf="p.actualKills"
+              class="actual-chip">
+              {{ p.actualKills }}
+            </span>
+          </span>
+        </div>
+        <span class="win-check">✓</span>
+      </div>
+    </div>
+
+    <div class="slip-meta">
+      <span>Time: <b>{{ slip.time }}</b></span>
+      <span>Location: <b>{{ slip.location }}</b></span>
+    </div>
+  </article>
+</section>
+
+<ng-container *ngIf="data.picks.length === 0; else hasPicks">
+  <section class="bp-empty">
+    <div class="bp-empty-card">
+      <h3>No bets recommended today</h3>
+      <p>None of today's lines met our minimum confidence and edge.</p>
+    </div>
+    <div class="bp-empty-card subtle">
+      <h3>This is normal</h3>
+      <p>Most days have no bet. Skipping bad odds is how the model stays profitable long-term.</p>
+    </div>
+  </section>
+</ng-container>
+
+<ng-template #hasPicks>
+  <h2 class="bp-section-title">Model readout · {{ data.picks.length }} captured lines</h2>
+  <p class="bp-section-sub">Stand-in workflow output translated from the attached Underdog results.</p>
+  <section class="bp-picks">
+    <article
+      class="bp-pick"
+      *ngFor="let p of data.picks">
+      <div class="row top">
+        <h3>{{ p.player }} <span class="dir">{{ p.direction }} {{ p.line }}</span></h3>
+        <span class="pill bet">Suggested</span>
+      </div>
+      <div class="row stats">
+        <div>
+          <span class="label">Projection</span><b>{{ p.finalProjection }}</b><small> ± {{ p.projectionStdDev }}</small>
+        </div>
+        <div><span class="label">Gap</span><b class="good">+{{ p.gap }}</b></div>
+        <div>
+          <span class="label">Edge</span><b>{{ p.edgeScore }}</b
+          ><small> · conf {{ p.confidence * 100 | number:'1.0-0' }}%</small>
+        </div>
+      </div>
+      <p class="reasoning">{{ p.llmReasoning }}</p>
+    </article>
+  </section>
+</ng-template>
+
+<h2 class="bp-section-title">Players we considered · {{ data.considered.length }} today</h2>
+<p class="bp-section-sub">Each line we looked at and why we passed on it. Hover a tag to see the quick reason.</p>
+
+<ul class="bp-queue">
+  <li
+    *ngFor="let c of data.considered"
+    class="bp-row">
+    <span class="status-wrap">
+      <span
+        class="pill"
+        [class.no-bet]="c.status === 'SKIPPED'"
+        [class.review]="c.status === 'NEEDS_REVIEW'">
+        {{ c.status === "SKIPPED" ? "SKIPPED" : "NEEDS REVIEW" }}
+      </span>
+      <span class="hover-preview">
+        <span class="preview-title">
+          {{ c.status === "SKIPPED" ? "Why we skipped this" : "Player or team not recognized" }}
+        </span>
+        <span class="preview-body">{{ c.reasonDetail }}</span>
+      </span>
+    </span>
+    <span class="player">{{ c.player }} <span class="numbers">Higher {{ c.line }}</span></span>
+    <span class="reason">{{ c.reasonShort }}</span>
+  </li>
+</ul>

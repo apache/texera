@@ -1,0 +1,120 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<header class="bp-screen-header">
+  <div>
+    <h1>Calibration log</h1>
+    <p class="sub">Weekly self-corrections · keeps stated confidence honest.</p>
+  </div>
+  <div style="display: flex; align-items: center; gap: 12px">
+    <span class="pill bet">on schedule</span>
+    <span
+      *ngIf="workflowUrl"
+      class="wf-button-wrap">
+      <a
+        class="wf-button"
+        [href]="workflowUrl"
+        target="_blank"
+        rel="noopener"
+        title="Open WF-4 in Texera">
+        Show workflow
+      </a>
+      <texera-bp-wf-preview
+        class="wf-preview"
+        [wid]="wfId"></texera-bp-wf-preview>
+    </span>
+    <span
+      *ngIf="!workflowUrl"
+      class="wf-button disabled"
+      title="Not yet imported">
+      Workflow not imported
+    </span>
+  </div>
+</header>
+
+<p class="bp-section-sub">
+  Every Sunday the system reviews recent resolved bets and refits its confidence scale. Older versions are kept so we
+  can roll back if a refit makes things worse.
+</p>
+
+<ul class="bp-queue">
+  <li class="cal-row">
+    <span class="sub-head">Version</span>
+    <span class="sub-head">Refit date</span>
+    <span class="sub-head">What changed</span>
+    <span class="sub-head">Brier score</span>
+  </li>
+  <li
+    *ngFor="let v of c.versions"
+    class="cal-row">
+    <span style="display: inline-flex; align-items: center; gap: 8px">
+      <b>{{ v.version }}</b>
+      <span
+        *ngIf="v.active"
+        class="pill bet"
+        >active</span
+      >
+    </span>
+    <span>{{ v.refitDate }}</span>
+    <span class="reason">{{ v.changed }}</span>
+    <span>
+      <b
+        class="bs"
+        *ngIf="v.brierScore !== null"
+        >{{ v.brierScore }}</b
+      >
+      <span
+        *ngIf="v.brierScore === null"
+        class="muted"
+        >—</span
+      >
+      <span
+        class="muted small"
+        *ngIf="v.trend === 'better'"
+        >↓ better</span
+      >
+      <span
+        class="muted small"
+        *ngIf="v.trend === 'baseline'"
+        >baseline</span
+      >
+    </span>
+  </li>
+</ul>
+
+<div
+  class="row-2"
+  style="margin-top: 14px">
+  <div class="card stat">
+    <div class="label">Resolved bets feeding the next refit</div>
+    <div class="value">{{ c.resolvedBetsAvailable }}</div>
+    <div class="delta">Minimum required: {{ c.minBetsRequired }} ✓</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Brier score trend</div>
+    <div class="value good">{{ c.brierTrendDelta }}</div>
+    <div class="delta">Lower is better. Trending down across 3 refits.</div>
+  </div>
+</div>
+
+<p
+  class="muted small"
+  style="margin-top: 14px">
+  Brier score measures how far the model's stated confidence is from reality. 0 is perfect, 0.25 is random guessing.
+</p>

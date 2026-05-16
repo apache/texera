@@ -40,6 +40,7 @@ import {
   DASHBOARD_USER_PROJECT,
   DASHBOARD_USER_QUOTA,
   DASHBOARD_USER_WORKFLOW,
+  DASHBOARD_USER_BET_PILOT,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -115,6 +116,32 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
   protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
   protected readonly DASHBOARD_ADMIN_SETTINGS = DASHBOARD_ADMIN_SETTINGS;
+  protected readonly DASHBOARD_USER_BET_PILOT = DASHBOARD_USER_BET_PILOT;
+  protected readonly BET_PILOT_VERSION = "v0.1.0";
+
+  // Global theme — applies across all of Texera and Bet Pilot.
+  appTheme: "dark" | "light" = "dark";
+
+  toggleAppTheme(): void {
+    this.applyAppTheme(this.appTheme === "dark" ? "light" : "dark");
+  }
+
+  private applyAppTheme(t: "dark" | "light"): void {
+    this.appTheme = t;
+    document.documentElement.setAttribute("data-bp-theme", t);
+    document.documentElement.setAttribute("data-app-theme", t);
+    try {
+      globalThis.localStorage?.setItem("betpilot-theme", t);
+    } catch {}
+  }
+
+  private readAppTheme(): "dark" | "light" {
+    try {
+      return (globalThis.localStorage?.getItem("betpilot-theme") as "dark" | "light" | null) || "dark";
+    } catch {
+      return "dark";
+    }
+  }
 
   constructor(
     private userService: UserService,
@@ -129,6 +156,9 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.isCollapsed = false;
+
+    // Restore saved theme on app boot.
+    this.applyAppTheme(this.readAppTheme());
 
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();

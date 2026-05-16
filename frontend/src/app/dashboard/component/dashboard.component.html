@@ -190,6 +190,27 @@
       </li>
 
       <li
+        *ngIf="isLogin"
+        nz-submenu
+        nzTitle="Apps"
+        nzIcon="appstore">
+        <ul>
+          <li
+            nz-menu-item
+            nz-tooltip="Valorant prop-bet picker (stand-in data)"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_BET_PILOT">
+            <span
+              nz-icon
+              nzType="rocket"></span>
+            <span>Bet Pilot</span>
+            <span class="app-version-pill">{{ BET_PILOT_VERSION }}</span>
+          </li>
+        </ul>
+      </li>
+
+      <li
         *ngIf="sidebarTabs.about_enabled"
         nz-menu-item
         nz-tooltip
@@ -210,6 +231,13 @@
         [hidden]="!displayNavbar"
         id="nav">
         <texera-search-bar></texera-search-bar>
+        <button
+          class="app-theme-toggle"
+          (click)="toggleAppTheme()"
+          [title]="appTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          aria-label="Toggle theme">
+          {{ appTheme === "dark" ? "☀" : "☾" }}
+        </button>
         <ng-container *ngIf="isLogin">
           <texera-user-icon></texera-user-icon>
         </ng-container>

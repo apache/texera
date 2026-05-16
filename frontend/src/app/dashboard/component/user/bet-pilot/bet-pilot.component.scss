@@ -1,0 +1,231 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+// Bet Pilot shell — owns the theme tokens so all children inherit them.
+
+:host {
+  display: block;
+
+  --bp-bg: #0b0d12;
+  --bp-bg-elev: #0f1218;
+  --bp-panel: #14171f;
+  --bp-panel-2: #1a1e28;
+  --bp-line: #262b39;
+  --bp-text: #ecf0f8;
+  --bp-text-2: #cdd3e0;
+  --bp-muted: #8b93a7;
+  --bp-accent: #ff4655;
+  --bp-accent-soft: rgba(255, 70, 85, 0.16);
+  --bp-accent-tint: #1a151a;
+  --bp-good: #4ade80;
+  --bp-good-soft: rgba(74, 222, 128, 0.14);
+  --bp-warn: #facc15;
+  --bp-warn-soft: rgba(250, 204, 21, 0.14);
+  --bp-bad: #f87171;
+  --bp-popover: #050608;
+  --bp-link: #7aa7ff;
+  --bp-shadow: 0 1px 0 #ffffff05, 0 24px 70px -32px #00000099;
+}
+
+:host-context(html[data-bp-theme="light"]) {
+  --bp-bg: #f7f7fb;
+  --bp-bg-elev: #ffffff;
+  --bp-panel: #ffffff;
+  --bp-panel-2: #f3f4f8;
+  --bp-line: #e3e6ee;
+  --bp-text: #0d1320;
+  --bp-text-2: #2c3344;
+  --bp-muted: #6b7180;
+  --bp-accent: #ff3b48;
+  --bp-accent-soft: rgba(255, 59, 72, 0.1);
+  --bp-accent-tint: #fff5f6;
+  --bp-good: #16a34a;
+  --bp-good-soft: rgba(22, 163, 74, 0.1);
+  --bp-warn: #b45309;
+  --bp-warn-soft: rgba(180, 83, 9, 0.1);
+  --bp-bad: #dc2626;
+  --bp-popover: #ffffff;
+  --bp-link: #2563eb;
+  --bp-shadow: 0 2px 0 rgba(13, 19, 32, 0.02), 0 24px 60px -28px rgba(13, 19, 32, 0.28);
+}
+
+.bp-shell {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 100%;
+  background: var(--bp-bg);
+  color: var(--bp-text);
+  font-family:
+    "Inter",
+    -apple-system,
+    system-ui,
+    sans-serif;
+}
+
+.bp-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  order: 1; /* explicitly on the LEFT */
+  padding: 0;
+}
+
+.bp-sidebar {
+  flex: 0 0 260px;
+  order: 2; /* explicitly on the RIGHT */
+  background: var(--bp-bg-elev);
+  border-left: 1px solid var(--bp-line);
+  padding: 28px 18px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bp-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 4px 4px 0;
+  margin-bottom: 28px;
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    .dot {
+      width: 10px;
+      height: 10px;
+      background: var(--bp-accent);
+      border-radius: 3px;
+      box-shadow: 0 0 0 3px var(--bp-accent-soft);
+    }
+    .wordmark {
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      font-size: 15px;
+    }
+    .badge-version {
+      padding: 1px 7px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: var(--bp-accent-soft);
+      color: var(--bp-accent);
+      border: 1px solid var(--bp-accent);
+      border-radius: 999px;
+      line-height: 1.5;
+    }
+  }
+}
+
+.icon-btn {
+  background: var(--bp-panel-2);
+  border: 1px solid var(--bp-line);
+  color: var(--bp-muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+  &:hover {
+    color: var(--bp-text);
+    border-color: var(--bp-text);
+  }
+}
+
+nav {
+  flex: 1;
+  overflow-y: auto;
+}
+.nav-section {
+  margin-bottom: 22px;
+}
+
+.nav-section-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--bp-muted);
+  padding: 0 12px 8px;
+  opacity: 0.7;
+  font-weight: 600;
+  text-align: right;
+}
+
+.nav-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto; /* label | sub-badge | icon */
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--bp-muted);
+  text-decoration: none;
+  font-size: 13.5px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: right;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  font-family: inherit;
+
+  > span:first-child {
+    font-weight: 500;
+  }
+
+  &:hover {
+    background: var(--bp-panel-2);
+    color: var(--bp-text);
+  }
+  &.active {
+    background: var(--bp-accent-tint, var(--bp-panel-2));
+    color: var(--bp-text);
+    border-right: 2px solid var(--bp-accent);
+    padding-right: 10px;
+  }
+  .nav-icon {
+    width: 18px;
+    text-align: center;
+    opacity: 0.85;
+  }
+  .nav-sub {
+    font-size: 11px;
+    color: var(--bp-muted);
+    padding: 1px 7px;
+    background: var(--bp-panel-2);
+    border-radius: 999px;
+    line-height: 1.5;
+  }
+}
+
+.bp-sidebar-bottom {
+  padding-top: 14px;
+  border-top: 1px solid var(--bp-line);
+}
+
+.bp-main {
+  overflow-x: hidden;
+}

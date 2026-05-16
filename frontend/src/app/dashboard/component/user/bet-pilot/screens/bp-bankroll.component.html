@@ -1,0 +1,160 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<header class="bp-screen-header">
+  <div>
+    <h1>Bankroll</h1>
+    <p class="sub">Real-money progress — updated after each match settles.</p>
+  </div>
+  <span
+    *ngIf="workflowUrl"
+    class="wf-button-wrap">
+    <a
+      class="wf-button"
+      [href]="workflowUrl"
+      target="_blank"
+      rel="noopener"
+      title="Open WF-5 in Texera">
+      Show workflow
+    </a>
+    <texera-bp-wf-preview
+      class="wf-preview"
+      [wid]="wfId"></texera-bp-wf-preview>
+  </span>
+  <span
+    *ngIf="!workflowUrl"
+    class="wf-button disabled"
+    title="Not yet imported">
+    Workflow not imported
+  </span>
+</header>
+
+<div class="br-hero">
+  <div class="label">Total balance</div>
+  <div class="amount">${{ b.totalBalance | number:'1.2-2' }}</div>
+  <div
+    class="change"
+    [class.neg]="b.changeAbs < 0">
+    <span class="arrow">{{ b.changeAbs >= 0 ? "▲" : "▼" }}</span>
+    <span
+      ><b>{{ b.changeAbs >= 0 ? "+" : "" }}${{ b.changeAbs | number:'1.2-2' }}</b> &nbsp;({{ b.changePct >= 0 ? "+" : ""
+      }}{{ b.changePct }}%)</span
+    >
+    <span class="muted">· {{ b.rangeLabel }}</span>
+  </div>
+</div>
+
+<div class="br-chart">
+  <div
+    class="br-tooltip"
+    [style.left.%]="tooltipLeftPct"
+    [style.opacity]="hoverVisible ? 1 : 0">
+    <div class="tt-date">{{ hoverDate }}</div>
+    <div>{{ hoverValue }}</div>
+  </div>
+  <svg
+    #svg
+    viewBox="0 0 800 260"
+    preserveAspectRatio="none"
+    (mousemove)="onMove($event)"
+    (mouseleave)="onLeave()">
+    <defs>
+      <linearGradient
+        id="brGrad"
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="1">
+        <stop
+          offset="0%"
+          stop-color="var(--bp-good)"
+          stop-opacity="0.30" />
+        <stop
+          offset="100%"
+          stop-color="var(--bp-good)"
+          stop-opacity="0" />
+      </linearGradient>
+    </defs>
+    <line
+      x1="0"
+      y1="130"
+      x2="800"
+      y2="130"
+      stroke="var(--bp-line)"
+      stroke-dasharray="3 4" />
+    <path
+      [attr.d]="areaPath"
+      fill="url(#brGrad)" />
+    <path
+      [attr.d]="linePath"
+      fill="none"
+      stroke="var(--bp-good)"
+      stroke-width="2" />
+    <line
+      class="crosshair-line"
+      [attr.x1]="hoverX"
+      y1="0"
+      [attr.x2]="hoverX"
+      y2="260"
+      [style.opacity]="hoverVisible ? 1 : 0" />
+    <circle
+      class="crosshair-dot"
+      [attr.cx]="hoverX"
+      [attr.cy]="hoverY"
+      r="5"
+      [style.opacity]="hoverVisible ? 1 : 0" />
+  </svg>
+
+  <div class="range-tabs">
+    <button>1D</button>
+    <button>1W</button>
+    <button class="active">1M</button>
+    <button>3M</button>
+    <button>ALL</button>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="card stat">
+    <div class="label">Starting balance</div>
+    <div class="value">${{ b.startingBalance | number:'1.2-2' }}</div>
+    <div class="delta">{{ b.rangeLabel }} ago</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Net profit</div>
+    <div class="value good">+${{ b.changeAbs | number:'1.2-2' }}</div>
+    <div class="delta">+{{ b.changePct }}% return</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Settled bets</div>
+    <div class="value">{{ b.settledBets }}</div>
+    <div class="delta">{{ b.wonBets }} won · {{ b.lostBets }} lost</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Hit rate</div>
+    <div class="value">{{ b.hitRate * 100 | number:'1.1-1' }}%</div>
+    <div class="delta">model claimed ~{{ b.modelClaimedHitRate * 100 | number:'1.0-0' }}%</div>
+  </div>
+</div>
+
+<p
+  class="muted small"
+  style="margin-top: 16px">
+  Captured parlays use $30-$33 entries with squad boosts applied when available. Bankroll updates after each match settles.
+</p>

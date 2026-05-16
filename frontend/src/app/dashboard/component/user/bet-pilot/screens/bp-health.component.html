@@ -1,0 +1,176 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<header class="bp-screen-header">
+  <div>
+    <h1>Model health</h1>
+    <p class="sub">Can I trust the model with real money?</p>
+  </div>
+  <div style="display: flex; align-items: center; gap: 12px">
+    <span class="pill amber">NOT YET</span>
+    <span
+      *ngIf="workflowUrl"
+      class="wf-button-wrap">
+      <a
+        class="wf-button"
+        [href]="workflowUrl"
+        target="_blank"
+        rel="noopener"
+        title="Open WF-3 in Texera">
+        Show workflow
+      </a>
+      <texera-bp-wf-preview
+        class="wf-preview"
+        [wid]="wfId"></texera-bp-wf-preview>
+    </span>
+    <span
+      *ngIf="!workflowUrl"
+      class="wf-button disabled"
+      title="Not yet imported">
+      Workflow not imported
+    </span>
+  </div>
+</header>
+
+<div
+  class="card gate-card"
+  style="margin-bottom: 16px">
+  <div class="gate-line">
+    <div>
+      <span class="pct">{{ h.gatePct }}%</span>
+      <span class="muted"> · model is being verified before risking real money</span>
+    </div>
+    <div class="muted">{{ h.picksEvaluated }} / {{ h.picksRequired }} historical bets reviewed</div>
+  </div>
+  <div class="bar-track">
+    <div
+      class="bar-fill"
+      [style.width.%]="h.gatePct"></div>
+  </div>
+  <div
+    class="muted small"
+    style="margin-top: 10px">
+    Once the model proves itself across {{ h.picksRequired }} reviewed bets, it unlocks real-money mode.
+  </div>
+</div>
+
+<div class="row-2">
+  <div class="card">
+    <h3>Are our picks getting better odds than the market closes at?</h3>
+    <svg
+      viewBox="0 0 400 130"
+      preserveAspectRatio="none"
+      style="width: 100%; height: 130px; margin-top: 8px">
+      <line
+        x1="10"
+        y1="70"
+        x2="390"
+        y2="70"
+        stroke="var(--bp-line)"
+        stroke-dasharray="4 4" />
+      <polyline
+        fill="none"
+        stroke="var(--bp-accent)"
+        stroke-width="2"
+        [attr.points]="polylinePoints" />
+      <text
+        x="14"
+        y="20"
+        fill="var(--bp-muted)"
+        font-size="11">
+        better odds →
+      </text>
+      <text
+        x="335"
+        y="66"
+        fill="var(--bp-muted)"
+        font-size="11">
+        break-even
+      </text>
+    </svg>
+    <p class="muted small">
+      Trending in the right direction over the last 50 bets. Not enough data yet to call it real.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Has the model been honest about its confidence?</h3>
+    <p
+      class="muted small"
+      style="margin: 0 0 8px">
+      For every past bet, we recorded how confident the model was, then checked how often those bets actually won.
+    </p>
+    <div
+      class="kv-row"
+      *ngFor="let row of h.calibrationRows">
+      <span class="l">{{ row.bucket }}</span>
+      <span>predicted {{ row.predicted * 100 | number:'1.0-0' }}%</span>
+      <span>actually won {{ row.actual * 100 | number:'1.0-0' }}%</span>
+      <span
+        class="verdict"
+        [class.good]="row.verdictPos"
+        [class.bad]="!row.verdictPos"
+        >{{ row.verdict }}</span
+      >
+    </div>
+  </div>
+</div>
+
+<div
+  class="card"
+  style="margin-top: 14px">
+  <h3>Where the model has been right (and wrong)</h3>
+  <div class="row-2">
+    <div>
+      <div
+        class="kv-row"
+        *ngFor="let s of h.edgeSlices.slice(0, 3)">
+        <span class="l">{{ s.slice }}</span>
+        <span>{{ s.n }} bets</span>
+        <span></span>
+        <span
+          class="verdict"
+          [class.good]="s.clvPp > 0"
+          [class.bad]="s.clvPp < 0">
+          {{ s.clvPp > 0 ? "+" : "" }}{{ s.clvPp }} points
+        </span>
+      </div>
+    </div>
+    <div>
+      <div
+        class="kv-row"
+        *ngFor="let s of h.edgeSlices.slice(3)">
+        <span class="l">{{ s.slice }}</span>
+        <span>{{ s.n }} bets</span>
+        <span></span>
+        <span
+          class="verdict"
+          [class.good]="s.clvPp > 0"
+          [class.bad]="s.clvPp < 0">
+          {{ s.clvPp > 0 ? "+" : "" }}{{ s.clvPp }} points
+        </span>
+      </div>
+    </div>
+  </div>
+  <p
+    class="muted small"
+    style="margin-top: 14px">
+    Takeaway: {{ h.takeaway }}
+  </p>
+</div>

@@ -42,6 +42,14 @@ import { DASHBOARD_ABOUT, DASHBOARD_USER_WORKFLOW } from "./app-routing.constant
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { GuiConfigService } from "./common/service/gui-config.service";
+import { BetPilotComponent } from "./dashboard/component/user/bet-pilot/bet-pilot.component";
+import { BpTodayComponent } from "./dashboard/component/user/bet-pilot/screens/bp-today.component";
+import { BpScoutingComponent } from "./dashboard/component/user/bet-pilot/screens/bp-scouting.component";
+import { BpHealthComponent } from "./dashboard/component/user/bet-pilot/screens/bp-health.component";
+import { BpBankrollComponent } from "./dashboard/component/user/bet-pilot/screens/bp-bankroll.component";
+import { BpCalibrationComponent } from "./dashboard/component/user/bet-pilot/screens/bp-calibration.component";
+import { BpGlossaryComponent } from "./dashboard/component/user/bet-pilot/screens/bp-glossary.component";
+import { BpLinesInputComponent } from "./dashboard/component/user/bet-pilot/screens/bp-lines-input.component";
 
 const rootRedirectGuard: CanActivateFn = () => {
   const config = inject(GuiConfigService);
@@ -142,6 +150,20 @@ routes.push({
         {
           path: "discussion",
           component: FlarumComponent,
+        },
+        {
+          path: "bet-pilot",
+          component: BetPilotComponent,
+          children: [
+            { path: "", redirectTo: "today", pathMatch: "full" },
+            { path: "today", component: BpTodayComponent },
+            { path: "scouting", component: BpScoutingComponent },
+            { path: "health", component: BpHealthComponent },
+            { path: "bankroll", component: BpBankrollComponent },
+            { path: "calibration", component: BpCalibrationComponent },
+            { path: "glossary", component: BpGlossaryComponent },
+            { path: "lines-input", component: BpLinesInputComponent },
+          ],
         },
       ],
     },
