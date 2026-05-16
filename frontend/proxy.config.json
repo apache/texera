@@ -10,6 +10,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/dataset-bank": {
+    "target": "http://localhost:3001",
+    "secure": false,
+    "changeOrigin": true
+  },
 "/api/models": {
     "target": "http://localhost:9096",
     "secure": false,

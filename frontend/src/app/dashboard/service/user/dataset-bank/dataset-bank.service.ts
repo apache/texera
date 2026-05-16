@@ -19,13 +19,10 @@
 
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { BehaviorSubject, Observable, combineLatest, forkJoin, from, of, throwError } from "rxjs";
-import { catchError, filter, map, switchMap, take, timeout } from "rxjs/operators";
+import { BehaviorSubject, Observable, combineLatest, forkJoin, of, throwError } from "rxjs";
+import { catchError, map, timeout } from "rxjs/operators";
 import { SEED_DATASETS } from "./dataset-bank.seed";
 import { BankCategory, BankDataset, BankDatasetSource } from "./dataset-bank.types";
-import { DatasetService } from "../dataset/dataset.service";
-import { UserService } from "../../../../common/service/user/user.service";
-import { Dataset } from "../../../../common/type/dataset";
 
 interface CachedPayload {
   fetchedAt: number;
@@ -75,11 +72,7 @@ export class DatasetBankService {
     })
   );
 
-  constructor(
-    private http: HttpClient,
-    private datasetService: DatasetService,
-    private userService: UserService
-  ) {
+  constructor(private http: HttpClient) {
     // Hydrate from cache if recent — purely a UX optimization; the seed list is
     // always shown immediately so the page is never blank.
     const cached = this.readCache();
@@ -125,103 +118,29 @@ export class DatasetBankService {
   }
 
   /**
-   * Fetches the file from the bank dataset's downloadUrl (falling back to its
-   * source URL) and imports it as a new Texera dataset under the current user.
-   *
-   * Steps (mirrors how UserDataset's dataset-detail page does it):
-   *   1. createDataset()                         → DashboardDataset with did
-   *   2. multipartUpload() until status=finished → stages the file
-   *   3. createDatasetVersion(did, "v1")         → publishes
-   *
-   * The fetch in step 0 is browser-side, so it depends on the source allowing
-   * CORS. Most well-known catalogs don't, in which case this fails fast with
-   * a clear error and the user can use the Download button instead.
+   * Calls the agent-service `POST /api/dataset-bank/import-from-url` proxy,
+   * which fetches the file server-side (no browser CORS) and runs the full
+   * `createDataset → multipart-upload → createDatasetVersion` pipeline. The
+   * frontend just needs the bearer token (added by the HttpClient interceptor)
+   * and the source URL + display name.
    */
   importToTexera(d: BankDataset): Observable<{ did: number; datasetName: string }> {
     const fetchUrl = d.downloadUrl || d.url;
     if (!fetchUrl) {
       return throwError(() => new Error("No source URL is available for this dataset."));
     }
-    const user = this.userService.getCurrentUser();
-    if (!user?.email) {
-      return throwError(() => new Error("You must be signed in to import datasets."));
-    }
-    const ownerEmail = user.email;
-    const datasetName = this.sanitizeDatasetName(d.name);
-    const filename = this.guessFilename(d, fetchUrl);
-
-    const fetchFile$ = from(
-      fetch(fetchUrl, { method: "GET" }).then(async resp => {
-        if (!resp.ok) throw new Error(`Source responded ${resp.status} ${resp.statusText}`);
-        const blob = await resp.blob();
-        return new File([blob], filename, { type: blob.type || "application/octet-stream" });
-      })
-    ).pipe(
-      catchError(err => {
-        // Browser fetch failures often manifest as TypeError with no body —
-        // surface a clear hint for the common CORS case.
-        const msg =
-          err?.name === "TypeError"
-            ? "Couldn't fetch the file directly (likely CORS). Use the Download button to grab it manually."
-            : `Couldn't fetch the file: ${err?.message ?? String(err)}`;
-        return throwError(() => new Error(msg));
-      })
-    );
-
-    const ds: Dataset = {
-      name: datasetName,
-      description: d.description ?? "",
-      isPublic: false,
-      isDownloadable: true,
-      did: undefined,
-      ownerUid: undefined,
-      storagePath: undefined,
-      creationTime: undefined,
-      coverImage: undefined,
-    };
-
-    return fetchFile$.pipe(
-      switchMap(file =>
-        this.datasetService.createDataset(ds).pipe(
-          map(created => ({ created, file }))
-        )
-      ),
-      switchMap(({ created, file }) => {
-        const did = created.dataset?.did;
-        if (did === undefined || did === null) {
-          return throwError(() => new Error("Dataset was created but the server did not return an ID."));
-        }
-        const partSize = 5 * 1024 * 1024; // 5 MB
-        return this.datasetService
-          .multipartUpload(ownerEmail, datasetName, file.name, file, partSize, 4, false)
-          .pipe(
-            filter(progress => progress.status === "finished"),
-            take(1),
-            switchMap(() => this.datasetService.createDatasetVersion(did, "v1")),
-            map(() => ({ did, datasetName }))
-          );
-      })
-    );
-  }
-
-  private sanitizeDatasetName(name: string): string {
-    return name
-      .trim()
-      .replace(/[^a-zA-Z0-9._-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 64) || "imported-dataset";
-  }
-
-  private guessFilename(d: BankDataset, fetchUrl: string): string {
-    try {
-      const path = new URL(fetchUrl).pathname;
-      const last = path.split("/").filter(Boolean).pop();
-      if (last && /\.[a-zA-Z0-9]+$/.test(last)) return last;
-    } catch {
-      // fall through
-    }
-    const ext = (d.format ?? "csv").split("/")[0].trim().toLowerCase();
-    return `${this.sanitizeDatasetName(d.name)}.${ext || "csv"}`;
+    return this.http
+      .post<{ did: number; datasetName: string; fileName: string; fileSize: number }>(
+        "/api/dataset-bank/import-from-url",
+        { url: fetchUrl, name: d.name, description: d.description ?? "" }
+      )
+      .pipe(
+        map(resp => ({ did: resp.did, datasetName: resp.datasetName })),
+        catchError(err => {
+          const message = err?.error?.error || err?.message || "Import failed.";
+          return throwError(() => new Error(message));
+        })
+      );
   }
 
   // ---------- internals ----------

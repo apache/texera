@@ -24,6 +24,7 @@ import { TexeraAgent } from "./agent/texera-agent";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
+import { DatasetImportError, importDatasetFromUrl } from "./api/dataset-import-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
@@ -479,6 +480,47 @@ function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
   }
 }
 
+const datasetBankRouter = new Elysia({ prefix: "/dataset-bank" })
+  .onError(({ error, set }) => {
+    log.error({ err: error }, "dataset-bank request error");
+    if (error instanceof DatasetImportError) {
+      // 5xx from upstream surfaces as 502; auth/validation passes through.
+      set.status = error.status >= 400 && error.status < 600 ? error.status : 500;
+      return { error: error.message };
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    set.status = 500;
+    return { error: message || "Internal server error" };
+  })
+  .post(
+    "/import-from-url",
+    async ({ body, headers, set }) => {
+      const auth = headers["authorization"] || (headers as any)["Authorization"];
+      if (typeof auth !== "string" || !auth.startsWith("Bearer ")) {
+        set.status = 401;
+        return { error: "Missing bearer token" };
+      }
+      const token = auth.slice("Bearer ".length).trim();
+      if (!validateToken(token)) {
+        set.status = 401;
+        return { error: "Invalid or expired token" };
+      }
+      const result = await importDatasetFromUrl(token, {
+        url: body.url,
+        name: body.name,
+        description: body.description,
+      });
+      return result;
+    },
+    {
+      body: t.Object({
+        url: t.String({ minLength: 1 }),
+        name: t.String({ minLength: 1 }),
+        description: t.Optional(t.String()),
+      }),
+    }
+  );
+
 export function buildApp() {
   return new Elysia()
     .use(cors())
@@ -489,6 +531,7 @@ export function buildApp() {
           timestamp: new Date().toISOString(),
         }))
         .use(agentsRouter)
+        .use(datasetBankRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {
