@@ -6,7 +6,7 @@
         <span *ngIf="metric.icon" class="metric-icon" [style.color]="metric.color || '#7c5cff'">{{ metric.icon }}</span>
         <span class="metric-title">{{ metric.title }}</span>
       </div>
-      <div class="metric-value" [style.color]="metric.color || '#ffffff'">{{ metric.value }}</div>
+      <div class="metric-value" [style.color]="metric.color || '#1f2937'">{{ metric.value }}</div>
       <div *ngIf="metric.caption" class="metric-caption">{{ metric.caption }}</div>
     </div>
   </ng-container>
@@ -66,7 +66,7 @@
         [attr.viewBox]="'0 0 ' + DONUT_SIZE + ' ' + DONUT_SIZE"
         class="donut-svg">
         <g [attr.transform]="'translate(' + (DONUT_SIZE/2) + ',' + (DONUT_SIZE/2) + ') rotate(-90)'">
-          <circle [attr.r]="DONUT_RADIUS" fill="none" stroke="#2a2a3e" [attr.stroke-width]="DONUT_STROKE" />
+          <circle [attr.r]="DONUT_RADIUS" fill="none" stroke="#f0f0f3" [attr.stroke-width]="DONUT_STROKE" />
           <circle
             *ngFor="let s of donutSlices"
             [attr.r]="DONUT_RADIUS"
@@ -115,7 +115,7 @@
           [attr.width]="hbarPlotWidth"
           [attr.height]="HBAR_ROW_HEIGHT - 8"
           rx="3"
-          fill="#2a2a3e" />
+          fill="#eef0f4" />
         <rect
           [attr.x]="HBAR_LABEL_WIDTH"
           [attr.y]="i * HBAR_ROW_HEIGHT + 4"

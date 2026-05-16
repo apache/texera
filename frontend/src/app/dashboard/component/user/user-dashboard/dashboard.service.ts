@@ -4,19 +4,19 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, forkJoin, of } from "rxjs";
-import { catchError, map, switchMap } from "rxjs/operators";
+import { BehaviorSubject, Observable } from "rxjs";
 import { Dashboard, DashboardWidget, WidgetConfig, WidgetLayout, WidgetType } from "./dashboard.types";
-import { buildSeedDashboard } from "./dashboard.seed";
-import { buildWidgetFromStats, WorkflowDataService } from "./workflow-data.service";
 
 const STORAGE_KEY = "texera.dashboards.v1";
+/** Old IDs we created in earlier iterations — purge them on load so old
+ *  installs don't keep showing fake demo data. */
+const LEGACY_SEED_IDS = new Set(["seed-diabetes", "seed-empty"]);
 
 @Injectable({ providedIn: "root" })
 export class DashboardService {
   private dashboards$ = new BehaviorSubject<Dashboard[]>([]);
 
-  constructor(private workflowData: WorkflowDataService) {
+  constructor() {
     this.load();
   }
 
@@ -68,11 +68,7 @@ export class DashboardService {
     this.persist();
   }
 
-  addWidget(
-    dashboardId: string,
-    widget: WidgetConfig,
-    source?: DashboardWidget["source"]
-  ): DashboardWidget | undefined {
+  addWidget(dashboardId: string, widget: WidgetConfig): DashboardWidget | undefined {
     const dash = this.get(dashboardId);
     if (!dash) {
       return undefined;
@@ -82,58 +78,29 @@ export class DashboardService {
       id: this.genId(),
       layout,
       widget,
-      source,
     };
     const updated: Dashboard = { ...dash, widgets: [...dash.widgets, dw], updatedAt: Date.now() };
     this.saveDashboard(updated);
     return dw;
   }
 
-  /**
-   * Re-fetches stats for every workflow-sourced widget in the dashboard and
-   * updates the widget's config in-place. Manual widgets are left untouched.
-   * Emits the updated dashboard via the existing list() stream.
-   */
-  refreshFromWorkflows(dashboardId: string): Observable<Dashboard | undefined> {
-    const dash = this.get(dashboardId);
-    if (!dash) return of(undefined);
-
-    // Group widgets by wid so we make one call per workflow.
-    const widsToWidgets = new Map<number, DashboardWidget[]>();
-    for (const w of dash.widgets) {
-      if (w.source?.kind === "workflow") {
-        const list = widsToWidgets.get(w.source.wid) ?? [];
-        list.push(w);
-        widsToWidgets.set(w.source.wid, list);
-      }
+  /** Bulk add — places widgets sequentially using nextLayout. */
+  addWidgets(dashboardId: string, widgets: WidgetConfig[]): DashboardWidget[] {
+    const created: DashboardWidget[] = [];
+    let dash = this.get(dashboardId);
+    if (!dash) return created;
+    let working: DashboardWidget[] = [...dash.widgets];
+    for (const w of widgets) {
+      const layout = this.nextLayout(working, w.type);
+      const dw: DashboardWidget = { id: this.genId(), layout, widget: w };
+      working = [...working, dw];
+      created.push(dw);
     }
-    if (widsToWidgets.size === 0) return of(dash);
-
-    const fetches = Array.from(widsToWidgets.keys()).map(wid =>
-      this.workflowData.getWorkflowSnapshot(wid).pipe(
-        map(snapshot => ({ wid, snapshot })),
-        catchError(() => of({ wid, snapshot: null as any }))
-      )
-    );
-
-    return forkJoin(fetches).pipe(
-      map(results => {
-        const snapshotByWid = new Map(results.filter(r => r.snapshot).map(r => [r.wid, r.snapshot]));
-        const next: Dashboard = {
-          ...dash,
-          widgets: dash.widgets.map(w => {
-            if (w.source?.kind !== "workflow") return w;
-            const snap = snapshotByWid.get(w.source.wid);
-            if (!snap) return w;
-            const refreshed = buildWidgetFromStats(w.widget.type, w.source, snap.operators, snap.stats);
-            return refreshed ? { ...w, widget: refreshed } : w;
-          }),
-        };
-        this.saveDashboard(next);
-        return next;
-      })
-    );
+    const updated: Dashboard = { ...dash, widgets: working, updatedAt: Date.now() };
+    this.saveDashboard(updated);
+    return created;
   }
+
 
   updateWidget(dashboardId: string, widgetId: string, widget: WidgetConfig): void {
     const dash = this.get(dashboardId);
@@ -191,17 +158,19 @@ export class DashboardService {
       if (raw) {
         const parsed: Dashboard[] = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          this.dashboards$.next(parsed);
+          // Drop any legacy seed dashboards from previous iterations.
+          const cleaned = parsed.filter(d => !LEGACY_SEED_IDS.has(d.id));
+          this.dashboards$.next(cleaned);
+          if (cleaned.length !== parsed.length) {
+            this.persist();
+          }
           return;
         }
       }
     } catch (e) {
       console.warn("Failed to load dashboards from localStorage", e);
     }
-    // First visit — seed the demo dashboard
-    const seed = buildSeedDashboard(this.genId.bind(this));
-    this.dashboards$.next([seed]);
-    this.persist();
+    this.dashboards$.next([]);
   }
 
   private persist(): void {

@@ -76,31 +76,10 @@ export interface WidgetLayout {
   h: number;
 }
 
-/**
- * Where the widget's data came from.
- * - `manual`: user entered values directly
- * - `workflow`: pulled from a workflow's runtime statistics. `scope` decides
- *    whether the widget is one operator's metric ("single-operator", e.g. a
- *    Metric Card) or every operator's metric ("all-operators", e.g. a bar
- *    chart across operators).
- */
-export type WidgetSource =
-  | { kind: "manual" }
-  | {
-      kind: "workflow";
-      wid: number;
-      workflowName: string;
-      scope: "single-operator" | "all-operators";
-      operatorId?: string;
-      operatorName?: string;
-      metric: string;
-    };
-
 export interface DashboardWidget {
   id: string;
   layout: WidgetLayout;
   widget: WidgetConfig;
-  source?: WidgetSource;
 }
 
 export interface Dashboard {

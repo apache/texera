@@ -1,222 +1,164 @@
 <div class="add-widget-modal">
-  <!-- Step 0: choose source -->
-  <div *ngIf="step === 'choose-source'" class="step">
-    <h3>Add a widget</h3>
-    <p class="hint">Pull live runtime stats from a workflow, or enter data manually.</p>
-    <div class="source-grid">
-      <button class="source-card primary" (click)="goWorkflow()">
-        <span nz-icon nzType="experiment" class="source-icon"></span>
-        <span class="source-label">From a Workflow</span>
-        <span class="source-desc">
-          Pull per-operator runtime stats (tuple counts, sizes, processing times)
-          from your latest execution. Auto-refreshes when you reopen the dashboard.
-        </span>
-      </button>
-      <button class="source-card" (click)="goManual()">
-        <span nz-icon nzType="edit" class="source-icon"></span>
-        <span class="source-label">Manual Entry</span>
-        <span class="source-desc">
-          Type or paste values directly. Good for callouts, text notes, or any
-          chart your workflow stats don't cover.
-        </span>
-      </button>
+  <header class="modal-header">
+    <h3>Add Widgets</h3>
+    <p class="hint">
+      Check the widgets you want to add and fill in the data. You can add multiple at once,
+      and keep the modal open to add another batch.
+    </p>
+  </header>
+
+  <!-- Quick metric presets -->
+  <section class="quick-presets">
+    <span class="presets-label">Quick:</span>
+    <button
+      *ngFor="let p of metricPresets"
+      class="preset-chip"
+      [style.--chip-color]="p.color"
+      (click)="applyMetricPreset(p)">
+      {{ p.label }}
+    </button>
+  </section>
+
+  <!-- Widget gallery with inline forms -->
+  <section class="widget-list">
+    <!-- METRIC -->
+    <article class="widget-row" [class.enabled]="metric.enabled">
+      <header class="row-header">
+        <label nz-checkbox [(ngModel)]="metric.enabled">
+          <span nz-icon nzType="field-number" class="row-icon"></span>
+          <span class="row-name">Metric Card</span>
+          <span class="row-sub">One big number — e.g. accuracy, F1.</span>
+        </label>
+      </header>
+      <div class="row-form" *ngIf="metric.enabled">
+        <label>Title<input nz-input [(ngModel)]="metric.config.title" /></label>
+        <label>Value<input nz-input [(ngModel)]="metric.config.value" /></label>
+        <label>Caption<input nz-input [(ngModel)]="metric.config.caption" /></label>
+        <label>Color<input nz-input [(ngModel)]="metric.config.color" /></label>
+      </div>
+    </article>
+
+    <!-- BAR -->
+    <article class="widget-row" [class.enabled]="bar.enabled">
+      <header class="row-header">
+        <label nz-checkbox [(ngModel)]="bar.enabled">
+          <span nz-icon nzType="bar-chart" class="row-icon"></span>
+          <span class="row-name">Bar Chart</span>
+          <span class="row-sub">Compare models or groups across one or more metrics.</span>
+        </label>
+      </header>
+      <div class="row-form" *ngIf="bar.enabled">
+        <label>Title<input nz-input [(ngModel)]="bar.config.title" /></label>
+        <label>Categories (comma-separated)
+          <input nz-input [(ngModel)]="bar.raw!['categoriesRaw']" />
+        </label>
+        <label>
+          Series — one per line: <code>name | color | v1, v2, v3</code>
+          <textarea nz-input rows="3" [(ngModel)]="bar.raw!['seriesRaw']"></textarea>
+        </label>
+      </div>
+    </article>
+
+    <!-- HBAR -->
+    <article class="widget-row" [class.enabled]="hbar.enabled">
+      <header class="row-header">
+        <label nz-checkbox [(ngModel)]="hbar.enabled">
+          <span nz-icon nzType="menu" class="row-icon"></span>
+          <span class="row-name">Horizontal Bars</span>
+          <span class="row-sub">Ranked items — great for feature importance.</span>
+        </label>
+      </header>
+      <div class="row-form" *ngIf="hbar.enabled">
+        <label>Title<input nz-input [(ngModel)]="hbar.config.title" /></label>
+        <label>
+          Items — one per line: <code>label | value</code>
+          <textarea nz-input rows="4" [(ngModel)]="hbar.raw!['itemsRaw']"></textarea>
+        </label>
+        <label>Bar color<input nz-input [(ngModel)]="hbar.config.color" /></label>
+      </div>
+    </article>
+
+    <!-- DONUT -->
+    <article class="widget-row" [class.enabled]="donut.enabled">
+      <header class="row-header">
+        <label nz-checkbox [(ngModel)]="donut.enabled">
+          <span nz-icon nzType="pie-chart" class="row-icon"></span>
+          <span class="row-name">Donut Chart</span>
+          <span class="row-sub">Proportions — class balance, breakdowns.</span>
+        </label>
+      </header>
+      <div class="row-form" *ngIf="donut.enabled">
+        <label>Title<input nz-input [(ngModel)]="donut.config.title" /></label>
+        <label>
+          Segments — one per line: <code>label | value | color</code>
+          <textarea nz-input rows="3" [(ngModel)]="donut.raw!['segmentsRaw']"></textarea>
+        </label>
+        <label>Center label<input nz-input [(ngModel)]="donut.config.centerLabel" /></label>
+      </div>
+    </article>
+
+    <!-- TABLE -->
+    <article class="widget-row" [class.enabled]="table.enabled">
+      <header class="row-header">
+        <label nz-checkbox [(ngModel)]="table.enabled">
+          <span nz-icon nzType="table" class="row-icon"></span>
+          <span class="row-name">Table</span>
+          <span class="row-sub">Full metrics table.</span>
+        </label>
+      </header>
+      <div class="row-form" *ngIf="table.enabled">
+        <label>Title<input nz-input [(ngModel)]="table.config.title" /></label>
+        <label>Columns (comma-separated)
+          <input nz-input [(ngModel)]="table.raw!['columnsRaw']" />
+        </label>
+        <label>
+          Rows — one per line, cells comma-separated
+          <textarea nz-input rows="4" [(ngModel)]="table.raw!['rowsRaw']"></textarea>
+        </label>
+      </div>
+    </article>
+
+    <!-- TEXT -->
+    <article class="widget-row" [class.enabled]="text.enabled">
+      <header class="row-header">
+        <label nz-checkbox [(ngModel)]="text.enabled">
+          <span nz-icon nzType="file-text" class="row-icon"></span>
+          <span class="row-name">Text / Notes</span>
+          <span class="row-sub">Key findings, callouts, takeaways.</span>
+        </label>
+      </header>
+      <div class="row-form" *ngIf="text.enabled">
+        <label>Title<input nz-input [(ngModel)]="text.config.title" /></label>
+        <label>Body
+          <textarea
+            nz-input
+            rows="5"
+            [(ngModel)]="text.config.body"
+            placeholder="Free-form notes — newlines preserved."></textarea>
+        </label>
+      </div>
+    </article>
+  </section>
+
+  <footer class="modal-footer">
+    <div class="footer-status">
+      <span *ngIf="addedCount > 0" class="added-count" [class.flash]="justAddedFlash">
+        <span nz-icon nzType="check-circle"></span>
+        Added {{ addedCount }} widget{{ addedCount === 1 ? '' : 's' }} so far
+      </span>
     </div>
-    <div class="footer">
+    <div class="footer-actions">
       <button nz-button (click)="cancel()">Cancel</button>
-    </div>
-  </div>
-
-  <!-- Step 1: from workflow -->
-  <div *ngIf="step === 'from-workflow'" class="step">
-    <div class="header">
-      <button nz-button nzType="text" (click)="back()">
-        <span nz-icon nzType="arrow-left"></span>
-      </button>
-      <h3>From a Workflow</h3>
-    </div>
-
-    <div class="form">
-      <label>
-        Workflow
-        <nz-spin [nzSpinning]="loadingWorkflows" [nzSize]="'small'">
-          <nz-select
-            nzPlaceHolder="Pick one of your workflows"
-            [ngModel]="selectedWid"
-            (ngModelChange)="onWorkflowChange($event)"
-            nzShowSearch>
-            <nz-option
-              *ngFor="let w of workflows"
-              [nzValue]="w.wid"
-              [nzLabel]="w.name"></nz-option>
-          </nz-select>
-        </nz-spin>
-        <small *ngIf="!loadingWorkflows && workflows.length === 0" class="warn">
-          No workflows found. Create one first.
-        </small>
-      </label>
-
-      <ng-container *ngIf="selectedWid">
-        <nz-spin [nzSpinning]="loadingSnapshot">
-          <div *ngIf="!loadingSnapshot" class="snapshot-summary">
-            <span *ngIf="operators.length === 0" class="warn">
-              This workflow has no operators yet.
-            </span>
-            <span *ngIf="operators.length > 0">
-              {{ operators.length }} operator{{ operators.length === 1 ? '' : 's' }} ·
-              <ng-container *ngIf="statsCount > 0">
-                stats available for {{ statsCount }} operator{{ statsCount === 1 ? '' : 's' }} from latest run
-              </ng-container>
-              <ng-container *ngIf="statsCount === 0">
-                no execution data yet — run the workflow first to see numbers
-              </ng-container>
-            </span>
-          </div>
-        </nz-spin>
-
-        <label *ngIf="operators.length > 0">
-          Widget type
-          <div class="wf-type-grid">
-            <button
-              *ngFor="let t of workflowWidgetTypes"
-              class="wf-type-card"
-              [class.active]="selectedWfWidgetType === t.type"
-              (click)="pickWfWidgetType(t.type)">
-              <span nz-icon [nzType]="t.icon"></span>
-              <span class="wf-type-name">{{ t.label }}</span>
-              <span class="wf-type-desc">{{ t.description }}</span>
-            </button>
-          </div>
-        </label>
-
-        <label *ngIf="selectedWfWidgetType && selectedScope === 'single-operator'">
-          Operator
-          <nz-select
-            nzPlaceHolder="Pick an operator"
-            [(ngModel)]="selectedOpId"
-            nzShowSearch>
-            <nz-option
-              *ngFor="let op of operators"
-              [nzValue]="op.operatorID"
-              [nzLabel]="op.displayName + ' (' + op.operatorType + ')'"></nz-option>
-          </nz-select>
-        </label>
-
-        <label *ngIf="selectedWfWidgetType && selectedWfWidgetType !== 'table'">
-          Metric
-          <nz-select
-            nzPlaceHolder="Pick a metric"
-            [(ngModel)]="selectedMetric">
-            <nz-option
-              *ngFor="let m of metricOptions"
-              [nzValue]="m.value"
-              [nzLabel]="m.label"></nz-option>
-          </nz-select>
-        </label>
-      </ng-container>
-    </div>
-
-    <div class="footer">
-      <button nz-button (click)="cancel()">Cancel</button>
+      <button nz-button (click)="done()">Done</button>
       <button
         nz-button
         nzType="primary"
-        [disabled]="!canSubmitWorkflow"
-        (click)="submitWorkflow()">
-        Add Widget
+        [disabled]="selectedCount === 0"
+        (click)="addSelected()">
+        <span nz-icon nzType="plus"></span>
+        Add {{ selectedCount > 0 ? selectedCount : '' }}
+        {{ selectedCount === 1 ? 'widget' : 'widgets' }}
       </button>
     </div>
-  </div>
-
-  <!-- Manual: pick type -->
-  <div *ngIf="step === 'manual-pick'" class="step">
-    <div class="header">
-      <button nz-button nzType="text" (click)="back()">
-        <span nz-icon nzType="arrow-left"></span>
-      </button>
-      <h3>Manual Entry — pick widget type</h3>
-    </div>
-    <div class="type-grid">
-      <button
-        *ngFor="let t of allWidgetTypes"
-        class="type-card"
-        (click)="pickManualType(t.type)">
-        <span nz-icon [nzType]="t.icon" class="type-icon"></span>
-        <span class="type-label">{{ t.label }}</span>
-        <span class="type-desc">{{ t.description }}</span>
-      </button>
-    </div>
-    <div class="footer">
-      <button nz-button (click)="cancel()">Cancel</button>
-    </div>
-  </div>
-
-  <!-- Manual: configure -->
-  <div *ngIf="step === 'manual-configure'" class="step">
-    <div class="header">
-      <button nz-button nzType="text" (click)="back()">
-        <span nz-icon nzType="arrow-left"></span>
-      </button>
-      <h3>Configure {{ manualType }}</h3>
-    </div>
-
-    <div *ngIf="manualType === 'metric'" class="form">
-      <label>Title<input nz-input [(ngModel)]="metric.title" /></label>
-      <label>Value<input nz-input [(ngModel)]="metric.value" placeholder="e.g. 96.7% or 768" /></label>
-      <label>Caption (optional)<input nz-input [(ngModel)]="metric.caption" /></label>
-      <label>Color<input nz-input [(ngModel)]="metric.color" placeholder="#4cc9f0" /></label>
-    </div>
-
-    <div *ngIf="manualType === 'bar'" class="form">
-      <label>Title<input nz-input [(ngModel)]="bar.title" /></label>
-      <label>Categories (comma-separated)
-        <input nz-input [(ngModel)]="barCategoriesRaw" />
-      </label>
-      <label>Series — one per line: <code>name | color | v1, v2, v3</code>
-        <textarea nz-input [(ngModel)]="barSeriesRaw" rows="4"></textarea>
-      </label>
-      <label>Y-axis label (optional)<input nz-input [(ngModel)]="bar.yAxisLabel" /></label>
-    </div>
-
-    <div *ngIf="manualType === 'donut'" class="form">
-      <label>Title<input nz-input [(ngModel)]="donut.title" /></label>
-      <label>Segments — one per line: <code>label | value | color</code>
-        <textarea nz-input [(ngModel)]="donutSegmentsRaw" rows="4"></textarea>
-      </label>
-      <label>Center label (optional)<input nz-input [(ngModel)]="donut.centerLabel" /></label>
-    </div>
-
-    <div *ngIf="manualType === 'hbar'" class="form">
-      <label>Title<input nz-input [(ngModel)]="hbar.title" /></label>
-      <label>Items — one per line: <code>label | value</code>
-        <textarea nz-input [(ngModel)]="hbarItemsRaw" rows="5"></textarea>
-      </label>
-      <label>Bar color<input nz-input [(ngModel)]="hbar.color" placeholder="#7c5cff" /></label>
-    </div>
-
-    <div *ngIf="manualType === 'text'" class="form">
-      <label>Title<input nz-input [(ngModel)]="text.title" /></label>
-      <label>Body
-        <textarea
-          nz-input
-          [(ngModel)]="text.body"
-          rows="6"
-          placeholder="Free-form notes, findings, callouts. Newlines preserved."></textarea>
-      </label>
-    </div>
-
-    <div *ngIf="manualType === 'table'" class="form">
-      <label>Title<input nz-input [(ngModel)]="table.title" /></label>
-      <label>Columns (comma-separated)
-        <input nz-input [(ngModel)]="tableColumnsRaw" />
-      </label>
-      <label>Rows — one per line, cells comma-separated
-        <textarea nz-input [(ngModel)]="tableRowsRaw" rows="5"></textarea>
-      </label>
-    </div>
-
-    <div class="footer">
-      <button nz-button (click)="cancel()">Cancel</button>
-      <button nz-button nzType="primary" (click)="submitManual()">Add Widget</button>
-    </div>
-  </div>
+  </footer>
 </div>

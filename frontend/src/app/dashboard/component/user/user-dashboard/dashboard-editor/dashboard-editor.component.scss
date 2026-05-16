@@ -2,8 +2,8 @@
   display: block;
   width: 100%;
   min-height: 100%;
-  background: #1a1a2e;
-  color: #e6e6f0;
+  background: #f5f6f8;
+  color: #1f2937;
 }
 
 :host-context(body.dashboard-dragging) {
@@ -13,15 +13,15 @@
 
 .dashboard-editor {
   min-height: 100vh;
-  padding: 22px 28px 80px;
-  background: #1a1a2e;
+  padding: 24px 32px 80px;
+  background: #f5f6f8;
 }
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   gap: 12px;
 
   .left {
@@ -36,20 +36,19 @@
     gap: 12px;
     align-items: center;
   }
-
   .back-btn {
-    color: #b6b6cf;
+    color: #4b5563;
     &:hover {
-      color: white;
+      color: #111827;
     }
   }
 }
 
 .name {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0;
-  color: white;
+  color: #111827;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -60,28 +59,25 @@
 }
 .name-edit-icon {
   font-size: 13px;
-  color: #6e6e90;
+  color: #9ca3af;
   cursor: pointer;
 }
 .dashboard-editor:not(.view-mode) .name {
   cursor: pointer;
   &:hover .name-edit-icon {
-    color: #b6b6cf;
+    color: #4b5563;
   }
 }
 .name-input {
   font-size: 20px;
-  font-weight: 700;
-  background: #2a2a3e !important;
-  color: white !important;
-  border-color: #3b3b58 !important;
+  font-weight: 600;
   max-width: 480px;
 }
 
 .mode-toggle {
   display: inline-flex;
-  background: #2a2a3e;
-  border: 1px solid #3b3b58;
+  background: white;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 3px;
   gap: 2px;
@@ -89,7 +85,7 @@
   button {
     border: none;
     background: transparent;
-    color: #b6b6cf;
+    color: #6b7280;
     padding: 5px 14px;
     border-radius: 4px;
     font-size: 13px;
@@ -101,10 +97,10 @@
     transition: background 0.15s, color 0.15s;
 
     &:hover {
-      color: white;
+      color: #111827;
     }
     &.active {
-      background: #7c5cff;
+      background: #1677ff;
       color: white;
     }
   }
@@ -112,7 +108,7 @@
 
 .description {
   margin: 0 0 18px 0;
-  color: #8a8aa0;
+  color: #6b7280;
   font-size: 13px;
 }
 
@@ -134,12 +130,12 @@
   position: relative;
   width: 100%;
   height: 100%;
-  background: #2a2a3e;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  transition: border-color 0.15s;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .widget-cell.editable {
@@ -148,7 +144,8 @@
     cursor: grabbing;
   }
   .widget-frame:hover {
-    border-color: rgba(124, 92, 255, 0.5);
+    border-color: #1677ff;
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.12);
   }
 }
 
@@ -163,10 +160,11 @@
   transition: opacity 0.15s;
 
   button {
-    color: #b6b6cf;
-    background: rgba(0, 0, 0, 0.25) !important;
+    color: #6b7280;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
     &:hover {
-      color: #ff7a7a;
+      color: #dc2626;
     }
   }
 }
@@ -185,7 +183,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6e6e90;
+  color: #9ca3af;
   opacity: 0;
   transition: opacity 0.15s;
   z-index: 2;
@@ -202,21 +200,24 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #6e6e90;
+  color: #6b7280;
   font-size: 14px;
   gap: 14px;
   padding: 20px;
   text-align: center;
+  background: white;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
 
   span[nz-icon] {
     font-size: 56px;
-    color: #3b3b58;
+    color: #d1d5db;
   }
   p {
     margin: 0;
     max-width: 480px;
     strong {
-      color: #b6b6cf;
+      color: #374151;
     }
   }
   .empty-cta {

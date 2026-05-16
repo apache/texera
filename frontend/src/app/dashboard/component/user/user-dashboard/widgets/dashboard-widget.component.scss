@@ -7,23 +7,25 @@
 .widget {
   width: 100%;
   height: 100%;
-  padding: 18px 20px;
+  padding: 16px 18px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  color: #e6e6f0;
+  color: #1f2937;
 }
 
 .widget-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #b6b6cf;
+  color: #6b7280;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-bottom: 10px;
   flex-shrink: 0;
 }
+
+/* --- Metric ------------------------------------------------------------- */
 
 .metric {
   display: flex;
@@ -37,9 +39,9 @@
     gap: 8px;
     font-size: 12px;
     font-weight: 600;
-    color: #b6b6cf;
+    color: #6b7280;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
   }
   .metric-icon {
     font-size: 16px;
@@ -48,17 +50,19 @@
     line-height: 1;
   }
   .metric-value {
-    font-size: 40px;
+    font-size: 38px;
     font-weight: 700;
     line-height: 1.1;
     margin-top: 8px;
   }
   .metric-caption {
     font-size: 12px;
-    color: #8a8aa0;
+    color: #6b7280;
     margin-top: 6px;
   }
 }
+
+/* --- Charts ------------------------------------------------------------- */
 
 .chart-svg {
   width: 100%;
@@ -67,17 +71,17 @@
 }
 
 .grid-line {
-  stroke: #2e2e44;
+  stroke: #e5e7eb;
   stroke-width: 1;
   stroke-dasharray: 2 3;
 }
 .tick-label {
   font-size: 11px;
-  fill: #8a8aa0;
+  fill: #6b7280;
 }
 .tick-label-strong {
   font-size: 11px;
-  fill: #e6e6f0;
+  fill: #1f2937;
   font-weight: 600;
 }
 
@@ -93,7 +97,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #b6b6cf;
+  color: #4b5563;
 }
 .legend-swatch {
   display: inline-block;
@@ -101,6 +105,8 @@
   height: 12px;
   border-radius: 2px;
 }
+
+/* --- Donut -------------------------------------------------------------- */
 
 .donut-wrap {
   flex: 1;
@@ -116,7 +122,7 @@
 }
 .donut-center {
   font-size: 14px;
-  fill: #e6e6f0;
+  fill: #1f2937;
   font-weight: 600;
 }
 .donut-legend {
@@ -133,22 +139,26 @@
     grid-template-columns: 14px 1fr auto;
     align-items: center;
     gap: 8px;
-    color: #e6e6f0;
+    color: #1f2937;
   }
   .legend-value {
-    color: #b6b6cf;
+    color: #6b7280;
     font-weight: 600;
   }
 }
 
+/* --- Text --------------------------------------------------------------- */
+
 .text-body {
   font-size: 13px;
   line-height: 1.55;
-  color: #d0d0e0;
+  color: #374151;
   white-space: pre-wrap;
   overflow-y: auto;
   flex: 1;
 }
+
+/* --- Table -------------------------------------------------------------- */
 
 .table-wrap {
   flex: 1;
@@ -163,16 +173,17 @@
   td {
     text-align: left;
     padding: 6px 10px;
-    border-bottom: 1px solid #2e2e44;
+    border-bottom: 1px solid #e5e7eb;
   }
   th {
-    color: #b6b6cf;
+    color: #6b7280;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-size: 11px;
+    background: #fafbfc;
   }
   td {
-    color: #e6e6f0;
+    color: #1f2937;
   }
 }

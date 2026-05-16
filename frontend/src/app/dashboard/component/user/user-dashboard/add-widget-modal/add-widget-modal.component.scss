@@ -1,160 +1,112 @@
 .add-widget-modal {
-  .step {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
+.modal-header {
   h3 {
-    margin: 0;
+    margin: 0 0 4px 0;
     font-size: 16px;
     font-weight: 600;
+    color: #111827;
   }
   .hint {
     margin: 0;
     color: #6b7280;
     font-size: 13px;
   }
+}
 
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+/* Quick metric presets — pre-fill the Metric Card and enable it ----------- */
+
+.quick-presets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fafbfc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+
+  .presets-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+.preset-chip {
+  --chip-color: #1677ff;
+  border: 1px solid var(--chip-color);
+  background: white;
+  color: var(--chip-color);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: var(--chip-color);
+    color: white;
+  }
+}
+
+/* Widget rows — checkbox + inline form ----------------------------------- */
+
+.widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.widget-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  transition: border-color 0.15s, background 0.15s;
+
+  &.enabled {
+    border-color: #1677ff;
+    background: #f5f9ff;
   }
 
-  /* Source picker (top-level: workflow vs manual) ---------------------- */
+  .row-header {
+    padding: 10px 14px;
 
-  .source-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  .source-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    padding: 18px 18px;
-    background: #fafafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s, background 0.15s, transform 0.15s;
-
-    &:hover {
-      border-color: #7c5cff;
-      background: #f5f3ff;
-      transform: translateY(-1px);
+    label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      width: 100%;
     }
-    &.primary {
-      background: linear-gradient(135deg, #f5f3ff, #ffffff);
-      border-color: #ddd6fe;
+    .row-icon {
+      font-size: 18px;
+      color: #1677ff;
     }
-    .source-icon {
-      font-size: 24px;
-      color: #7c5cff;
-    }
-    .source-label {
-      font-weight: 600;
-      font-size: 15px;
-    }
-    .source-desc {
-      font-size: 12px;
-      color: #6b7280;
-      line-height: 1.5;
-    }
-  }
-
-  /* Manual widget type picker ----------------------------------------- */
-
-  .type-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .type-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 14px 16px;
-    background: #fafafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s, transform 0.15s, background 0.15s;
-
-    &:hover {
-      border-color: #7c5cff;
-      background: #f5f3ff;
-      transform: translateY(-1px);
-    }
-    .type-icon {
-      font-size: 20px;
-      color: #7c5cff;
-    }
-    .type-label {
+    .row-name {
       font-weight: 600;
       font-size: 14px;
+      color: #111827;
     }
-    .type-desc {
+    .row-sub {
+      color: #6b7280;
       font-size: 12px;
-      color: #6b7280;
-      line-height: 1.4;
+      font-weight: 400;
     }
   }
 
-  /* Workflow widget type picker (compact horizontal cards) ------------ */
-
-  .wf-type-grid {
+  .row-form {
+    padding: 4px 14px 14px 14px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 8px;
-    margin-top: 4px;
-  }
-  .wf-type-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 10px 12px;
-    background: #fafafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    cursor: pointer;
-    text-align: left;
-    font-size: 12px;
-    transition: border-color 0.15s, background 0.15s;
-
-    &:hover {
-      border-color: #7c5cff;
-      background: #f5f3ff;
-    }
-    &.active {
-      border-color: #7c5cff;
-      background: #ede9ff;
-    }
-    span[nz-icon] {
-      font-size: 16px;
-      color: #7c5cff;
-    }
-    .wf-type-name {
-      font-weight: 600;
-      font-size: 13px;
-    }
-    .wf-type-desc {
-      color: #6b7280;
-      line-height: 1.4;
-    }
-  }
-
-  /* Form fields ------------------------------------------------------- */
-
-  .form {
-    display: flex;
-    flex-direction: column;
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
 
     label {
@@ -170,35 +122,60 @@
         padding: 1px 4px;
         border-radius: 3px;
         color: #374151;
+        font-weight: 500;
       }
-      .warn {
-        color: #d97706;
-        font-size: 12px;
+      // Make textarea + long fields span both columns
+      &:has(textarea),
+      &:nth-child(odd):last-child {
+        grid-column: 1 / -1;
       }
     }
     textarea {
       font-family: ui-monospace, "SFMono-Regular", monospace;
       font-size: 12px;
+      line-height: 1.45;
     }
   }
+}
 
-  .snapshot-summary {
-    background: #fafafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 12px;
-    color: #4b5563;
+/* Footer ---------------------------------------------------------------- */
 
-    .warn {
-      color: #d97706;
-    }
-  }
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
 
-  .footer {
+  .footer-status {
+    flex: 1;
+    min-height: 24px;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+  }
+  .added-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    transition: transform 0.25s ease-out;
+
+    &.flash {
+      transform: scale(1.05);
+    }
+
+    span[nz-icon] {
+      font-size: 14px;
+    }
+  }
+  .footer-actions {
+    display: flex;
     gap: 8px;
-    margin-top: 8px;
   }
 }

@@ -1,27 +1,25 @@
 /**
- * Add Widget modal. Two entry paths:
+ * Add Widget modal — multi-select.
  *
- *   1. "From a Workflow" — pull real runtime stats from a workflow's latest
- *      execution. The user picks a workflow, a widget type, then a metric
- *      (and operator for a Metric Card). The widget is built from live stats.
+ * UX: user checks one or more widget templates from a gallery, fills in the
+ * data inline for each, clicks "Add These". Widgets are added immediately to
+ * the dashboard via a callback supplied through NZ_MODAL_DATA, and the modal
+ * stays open so users can compose more in another pass. "Done" closes it.
  *
- *   2. "Manual Entry" — user types/pastes values directly. Useful for text
- *      callouts or when stats aren't a fit.
- *
- * Returned via NzModalRef.close(): { widget: WidgetConfig; source: WidgetSource }
+ * Manual entry only — there's no REST endpoint that returns operator output
+ * data, so we don't pretend. Templates (Accuracy, F1, Model Comparison etc.)
+ * pre-fill plausible defaults so the form feels like quick data entry rather
+ * than a long configuration.
  */
 
-import { Component, OnInit, inject } from "@angular/core";
+import { Component, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { NzModalRef } from "ng-zorro-antd/modal";
+import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
-import { NzSpinComponent } from "ng-zorro-antd/spin";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowRuntimeStatistics } from "../../../../type/workflow-runtime-statistics";
+import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import {
   BarConfig,
   DonutConfig,
@@ -30,27 +28,21 @@ import {
   TableConfig,
   TextConfig,
   WidgetConfig,
-  WidgetSource,
   WidgetType,
-  WIDGET_TYPE_DESCRIPTIONS,
-  WIDGET_TYPE_LABELS,
 } from "../dashboard.types";
-import {
-  buildWidgetFromStats,
-  METRIC_KEYS,
-  METRIC_LABELS,
-  MetricKey,
-  OperatorSummary,
-  WorkflowDataService,
-  WorkflowSummary,
-} from "../workflow-data.service";
 
-export interface AddWidgetResult {
-  widget: WidgetConfig;
-  source: WidgetSource;
+export interface AddWidgetModalData {
+  /** Called every time the user clicks "Add These". The modal stays open. */
+  onAdd: (widgets: WidgetConfig[]) => void;
 }
 
-@UntilDestroy()
+interface WidgetEntry<T> {
+  enabled: boolean;
+  config: T;
+  /** Free-form text for fields that the user enters as a string. */
+  raw?: Record<string, string>;
+}
+
 @Component({
   selector: "texera-add-widget-modal",
   templateUrl: "./add-widget-modal.component.html",
@@ -61,259 +53,201 @@ export interface AddWidgetResult {
     NzButtonComponent,
     NzInputDirective,
     NzIconDirective,
-    NzSelectComponent,
-    NzOptionComponent,
-    NzSpinComponent,
+    NzCheckboxComponent,
   ],
 })
-export class AddWidgetModalComponent implements OnInit {
+export class AddWidgetModalComponent {
   private modalRef = inject(NzModalRef);
+  private data = inject<AddWidgetModalData>(NZ_MODAL_DATA);
 
-  // --- High-level flow state ---------------------------------------------
-  step: "choose-source" | "from-workflow" | "manual-pick" | "manual-configure" = "choose-source";
+  /** Tracks how many widgets the user has added in this modal session. */
+  addedCount = 0;
+  justAddedFlash = false;
 
-  // --- From-Workflow state -----------------------------------------------
-  workflows: WorkflowSummary[] = [];
-  loadingWorkflows = false;
-  selectedWid: number | null = null;
-  operators: OperatorSummary[] = [];
-  stats = new Map<string, WorkflowRuntimeStatistics>();
-  loadingSnapshot = false;
+  metric: WidgetEntry<MetricConfig> = {
+    enabled: false,
+    config: { title: "Accuracy", value: "96.7%", caption: "On held-out test set", color: "#3aa676" },
+  };
+
+  bar: WidgetEntry<BarConfig> = {
+    enabled: false,
+    config: {
+      title: "Model Comparison",
+      categories: ["Logistic Reg.", "Random Forest", "Gradient Boost"],
+      series: [
+        { name: "Accuracy", color: "#3aa676", values: [0.91, 0.94, 0.95] },
+        { name: "F1", color: "#5b8def", values: [0.89, 0.93, 0.94] },
+      ],
+    },
+    raw: {
+      categoriesRaw: "Logistic Reg., Random Forest, Gradient Boost",
+      seriesRaw: "Accuracy | #3aa676 | 0.91, 0.94, 0.95\nF1 | #5b8def | 0.89, 0.93, 0.94",
+    },
+  };
+
+  donut: WidgetEntry<DonutConfig> = {
+    enabled: false,
+    config: {
+      title: "Class Distribution",
+      segments: [
+        { label: "Class A", value: 65, color: "#5b8def" },
+        { label: "Class B", value: 35, color: "#f06292" },
+      ],
+    },
+    raw: {
+      segmentsRaw: "Class A | 65 | #5b8def\nClass B | 35 | #f06292",
+    },
+  };
+
+  hbar: WidgetEntry<HBarConfig> = {
+    enabled: false,
+    config: {
+      title: "Feature Importance",
+      color: "#7c5cff",
+      items: [
+        { label: "Feature 1", value: 0.4 },
+        { label: "Feature 2", value: 0.25 },
+        { label: "Feature 3", value: 0.15 },
+      ],
+    },
+    raw: {
+      itemsRaw: "Feature 1 | 0.40\nFeature 2 | 0.25\nFeature 3 | 0.15",
+    },
+  };
+
+  text: WidgetEntry<TextConfig> = {
+    enabled: false,
+    config: {
+      title: "Key Findings",
+      body:
+        "• Best model: Gradient Boosting (F1=0.94)\n" +
+        "• Top feature: Feature 1 (40% importance)\n" +
+        "• Next step: validate on held-out cohort",
+    },
+  };
+
+  table: WidgetEntry<TableConfig> = {
+    enabled: false,
+    config: {
+      title: "Model Metrics",
+      columns: ["Model", "Accuracy", "Precision", "F1"],
+      rows: [
+        ["Logistic Reg.", 0.91, 0.9, 0.89],
+        ["Random Forest", 0.94, 0.93, 0.93],
+        ["Gradient Boost", 0.95, 0.94, 0.94],
+      ],
+    },
+    raw: {
+      columnsRaw: "Model, Accuracy, Precision, F1",
+      rowsRaw: "Logistic Reg., 0.91, 0.9, 0.89\nRandom Forest, 0.94, 0.93, 0.93\nGradient Boost, 0.95, 0.94, 0.94",
+    },
+  };
 
   /**
-   * Widget types that work with workflow stats. Text is intentionally
-   * excluded — text widgets don't render numbers.
+   * Templates shown in the picker. Each one toggles `enabled` on its entry.
+   * The metric template is parameterized so we can offer several presets
+   * (Accuracy/F1/Precision/Recall) that all create a single Metric Card —
+   * picking one pre-fills `metric.config` then enables it.
    */
-  workflowWidgetTypes: { type: WidgetType; icon: string; label: string; description: string; scope: "single-operator" | "all-operators" }[] = [
-    { type: "metric", icon: "field-number", label: "Metric Card", description: "One operator, one metric — a single big number.", scope: "single-operator" },
-    { type: "bar", icon: "bar-chart", label: "Bar Chart", description: "Compare one metric across every operator.", scope: "all-operators" },
-    { type: "hbar", icon: "menu", label: "Horizontal Bar Chart", description: "Ranked operators by one metric.", scope: "all-operators" },
-    { type: "donut", icon: "pie-chart", label: "Donut Chart", description: "Each operator's share of a metric.", scope: "all-operators" },
-    { type: "table", icon: "table", label: "Stats Table", description: "Every operator × every metric.", scope: "all-operators" },
+  metricPresets = [
+    { key: "accuracy", label: "Accuracy", value: "96.7%", color: "#3aa676" },
+    { key: "f1", label: "F1 Score", value: "0.94", color: "#5b8def" },
+    { key: "precision", label: "Precision", value: "0.93", color: "#7c5cff" },
+    { key: "recall", label: "Recall", value: "0.92", color: "#f0b429" },
   ];
 
-  selectedWfWidgetType: WidgetType | null = null;
-  selectedScope: "single-operator" | "all-operators" = "single-operator";
-  selectedOpId: string | null = null;
-  selectedMetric: MetricKey = "outputTupleCount";
-
-  readonly metricOptions = METRIC_KEYS.map(k => ({ value: k, label: METRIC_LABELS[k] }));
-
-  // --- Manual flow state -------------------------------------------------
-  readonly allWidgetTypes: { type: WidgetType; icon: string; label: string; description: string }[] = [
-    { type: "metric", icon: "field-number", label: WIDGET_TYPE_LABELS.metric, description: WIDGET_TYPE_DESCRIPTIONS.metric },
-    { type: "bar", icon: "bar-chart", label: WIDGET_TYPE_LABELS.bar, description: WIDGET_TYPE_DESCRIPTIONS.bar },
-    { type: "donut", icon: "pie-chart", label: WIDGET_TYPE_LABELS.donut, description: WIDGET_TYPE_DESCRIPTIONS.donut },
-    { type: "hbar", icon: "menu", label: WIDGET_TYPE_LABELS.hbar, description: WIDGET_TYPE_DESCRIPTIONS.hbar },
-    { type: "text", icon: "file-text", label: WIDGET_TYPE_LABELS.text, description: WIDGET_TYPE_DESCRIPTIONS.text },
-    { type: "table", icon: "table", label: WIDGET_TYPE_LABELS.table, description: WIDGET_TYPE_DESCRIPTIONS.table },
-  ];
-
-  manualType: WidgetType | null = null;
-  metric: MetricConfig = { title: "Metric", value: "0", caption: "", color: "#4cc9f0" };
-  bar: BarConfig = {
-    title: "Bar Chart",
-    categories: ["A", "B", "C"],
-    series: [{ name: "Series 1", color: "#4cc9f0", values: [10, 20, 15] }],
-  };
-  donut: DonutConfig = {
-    title: "Donut Chart",
-    segments: [
-      { label: "Group A", value: 60, color: "#4cc9f0" },
-      { label: "Group B", value: 40, color: "#f5587b" },
-    ],
-  };
-  hbar: HBarConfig = {
-    title: "Horizontal Bar",
-    color: "#7c5cff",
-    items: [
-      { label: "Item 1", value: 0.5 },
-      { label: "Item 2", value: 0.3 },
-      { label: "Item 3", value: 0.2 },
-    ],
-  };
-  text: TextConfig = { title: "Notes", body: "" };
-  table: TableConfig = {
-    title: "Table",
-    columns: ["Name", "Score"],
-    rows: [
-      ["Row 1", 0.9],
-      ["Row 2", 0.7],
-    ],
-  };
-  barCategoriesRaw = "A, B, C";
-  barSeriesRaw = "Series 1 | #4cc9f0 | 10, 20, 15";
-  donutSegmentsRaw = "Group A | 60 | #4cc9f0\nGroup B | 40 | #f5587b";
-  hbarItemsRaw = "Item 1 | 0.5\nItem 2 | 0.3\nItem 3 | 0.2";
-  tableColumnsRaw = "Name, Score";
-  tableRowsRaw = "Row 1, 0.9\nRow 2, 0.7";
-
-  constructor(private workflowData: WorkflowDataService) {}
-
-  ngOnInit(): void {
-    this.loadWorkflowsList();
+  get selectedCount(): number {
+    return (
+      Number(this.metric.enabled) +
+      Number(this.bar.enabled) +
+      Number(this.donut.enabled) +
+      Number(this.hbar.enabled) +
+      Number(this.text.enabled) +
+      Number(this.table.enabled)
+    );
   }
 
-  private loadWorkflowsList(): void {
-    this.loadingWorkflows = true;
-    this.workflowData
-      .listWorkflows()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ws => {
-          this.workflows = ws;
-          this.loadingWorkflows = false;
-        },
-        error: () => (this.loadingWorkflows = false),
-      });
+  applyMetricPreset(p: { label: string; value: string; color: string }): void {
+    this.metric.config = {
+      title: p.label,
+      value: p.value,
+      caption: "",
+      color: p.color,
+    };
+    this.metric.enabled = true;
   }
 
-  // --- Navigation --------------------------------------------------------
-
-  goWorkflow(): void {
-    this.step = "from-workflow";
-  }
-
-  goManual(): void {
-    this.step = "manual-pick";
-  }
-
-  back(): void {
-    if (this.step === "manual-configure") this.step = "manual-pick";
-    else if (this.step === "manual-pick" || this.step === "from-workflow") this.step = "choose-source";
+  done(): void {
+    this.modalRef.close({ addedCount: this.addedCount });
   }
 
   cancel(): void {
     this.modalRef.close(null);
   }
 
-  // --- From Workflow -----------------------------------------------------
-
-  onWorkflowChange(wid: number): void {
-    this.selectedWid = wid;
-    this.operators = [];
-    this.stats = new Map();
-    this.selectedOpId = null;
-    if (!wid) return;
-    this.loadingSnapshot = true;
-    this.workflowData
-      .getWorkflowSnapshot(wid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: snap => {
-          this.operators = snap.operators;
-          this.stats = snap.stats;
-          this.loadingSnapshot = false;
+  addSelected(): void {
+    const widgets: WidgetConfig[] = [];
+    if (this.metric.enabled) {
+      widgets.push({ type: "metric", config: { ...this.metric.config } });
+    }
+    if (this.bar.enabled) {
+      widgets.push({
+        type: "bar",
+        config: {
+          ...this.bar.config,
+          categories: parseList(this.bar.raw!["categoriesRaw"]),
+          series: parseBarSeries(this.bar.raw!["seriesRaw"]),
         },
-        error: () => (this.loadingSnapshot = false),
       });
-  }
-
-  pickWfWidgetType(t: WidgetType): void {
-    this.selectedWfWidgetType = t;
-    const def = this.workflowWidgetTypes.find(x => x.type === t);
-    if (def) this.selectedScope = def.scope;
-    if (this.selectedScope === "all-operators") {
-      this.selectedOpId = null;
-    } else if (!this.selectedOpId && this.operators.length > 0) {
-      this.selectedOpId = this.operators[0].operatorID;
     }
-  }
-
-  get currentWorkflow(): WorkflowSummary | undefined {
-    return this.workflows.find(w => w.wid === this.selectedWid);
-  }
-
-  get statsCount(): number {
-    return this.stats.size;
-  }
-
-  get canSubmitWorkflow(): boolean {
-    if (!this.selectedWid || !this.selectedWfWidgetType) return false;
-    if (this.selectedScope === "single-operator" && !this.selectedOpId) return false;
-    return this.operators.length > 0;
-  }
-
-  submitWorkflow(): void {
-    if (!this.canSubmitWorkflow || !this.selectedWid || !this.selectedWfWidgetType) return;
-    const wf = this.currentWorkflow!;
-    const op = this.operators.find(o => o.operatorID === this.selectedOpId);
-    const source: WidgetSource = {
-      kind: "workflow",
-      wid: this.selectedWid,
-      workflowName: wf.name,
-      scope: this.selectedScope,
-      operatorId: this.selectedScope === "single-operator" ? op?.operatorID : undefined,
-      operatorName: this.selectedScope === "single-operator" ? op?.displayName : undefined,
-      metric: this.selectedMetric,
-    };
-    const widget = buildWidgetFromStats(
-      this.selectedWfWidgetType,
-      source,
-      this.operators,
-      this.stats
-    );
-    if (!widget) return;
-    const result: AddWidgetResult = { widget, source };
-    this.modalRef.close(result);
-  }
-
-  // --- Manual ------------------------------------------------------------
-
-  pickManualType(t: WidgetType): void {
-    this.manualType = t;
-    this.step = "manual-configure";
-  }
-
-  submitManual(): void {
-    if (!this.manualType) return;
-    let widget: WidgetConfig;
-    switch (this.manualType) {
-      case "metric":
-        widget = { type: "metric", config: { ...this.metric } };
-        break;
-      case "bar":
-        widget = {
-          type: "bar",
-          config: {
-            ...this.bar,
-            categories: parseList(this.barCategoriesRaw),
-            series: parseBarSeries(this.barSeriesRaw),
-          },
-        };
-        break;
-      case "donut":
-        widget = {
-          type: "donut",
-          config: { ...this.donut, segments: parseDonutSegments(this.donutSegmentsRaw) },
-        };
-        break;
-      case "hbar":
-        widget = {
-          type: "hbar",
-          config: { ...this.hbar, items: parseHBarItems(this.hbarItemsRaw) },
-        };
-        break;
-      case "text":
-        widget = { type: "text", config: { ...this.text } };
-        break;
-      case "table":
-        widget = {
-          type: "table",
-          config: {
-            ...this.table,
-            columns: parseList(this.tableColumnsRaw),
-            rows: parseTableRows(this.tableRowsRaw),
-          },
-        };
-        break;
-      default:
-        return;
+    if (this.donut.enabled) {
+      widgets.push({
+        type: "donut",
+        config: {
+          ...this.donut.config,
+          segments: parseDonutSegments(this.donut.raw!["segmentsRaw"]),
+        },
+      });
     }
-    const result: AddWidgetResult = { widget, source: { kind: "manual" } };
-    this.modalRef.close(result);
+    if (this.hbar.enabled) {
+      widgets.push({
+        type: "hbar",
+        config: {
+          ...this.hbar.config,
+          items: parseHBarItems(this.hbar.raw!["itemsRaw"]),
+        },
+      });
+    }
+    if (this.text.enabled) {
+      widgets.push({ type: "text", config: { ...this.text.config } });
+    }
+    if (this.table.enabled) {
+      widgets.push({
+        type: "table",
+        config: {
+          ...this.table.config,
+          columns: parseList(this.table.raw!["columnsRaw"]),
+          rows: parseTableRows(this.table.raw!["rowsRaw"]),
+        },
+      });
+    }
+    if (widgets.length === 0) return;
+
+    this.data.onAdd(widgets);
+    this.addedCount += widgets.length;
+    this.justAddedFlash = true;
+    setTimeout(() => (this.justAddedFlash = false), 1400);
+    // Uncheck so the user can build a new batch without clearing manually
+    this.metric.enabled = false;
+    this.bar.enabled = false;
+    this.donut.enabled = false;
+    this.hbar.enabled = false;
+    this.text.enabled = false;
+    this.table.enabled = false;
   }
 }
+
+// --- Parsers shared with the configure forms -----------------------------
 
 function parseList(raw: string): string[] {
   return raw
@@ -331,7 +265,7 @@ function parseBarSeries(raw: string) {
       const [name, color, values] = line.split("|").map(s => s.trim());
       return {
         name: name || "Series",
-        color: color || "#4cc9f0",
+        color: color || "#5b8def",
         values: (values || "")
           .split(",")
           .map(v => Number(v.trim()))
@@ -350,7 +284,7 @@ function parseDonutSegments(raw: string) {
       return {
         label: label || "Segment",
         value: Number(value) || 0,
-        color: color || "#4cc9f0",
+        color: color || "#5b8def",
       };
     });
 }

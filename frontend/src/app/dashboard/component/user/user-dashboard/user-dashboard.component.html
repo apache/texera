@@ -44,11 +44,18 @@
   </div>
 
   <div
-    *ngIf="dashboards.length === 0; else cards"
+    *ngIf="dashboards.length === 0 && !showCreateForm; else cards"
     class="empty">
     <span nz-icon nzType="dashboard" class="empty-icon"></span>
     <h3>No dashboards yet</h3>
-    <p>Create one to start building presentation-ready views of your results.</p>
+    <p>Create one to visualize your workflow results.</p>
+    <button
+      nz-button
+      nzType="primary"
+      (click)="openCreate()">
+      <span nz-icon nzType="plus"></span>
+      Create Dashboard
+    </button>
   </div>
 
   <ng-template #cards>
