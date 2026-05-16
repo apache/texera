@@ -329,6 +329,43 @@ export interface FileMetadata {
   vcfChromosomes?: string[];
 }
 
+/**
+ * Above this size, skip the download entirely and show only extension-based
+ * identification + a "how to load" hint. The dominant source of preview lag
+ * is the full-blob download from the dataset service.
+ */
+export const FULL_PREVIEW_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+
+/**
+ * One-line "how to load" or "what is this" message per format.
+ * Used both when content was downloaded (in renderByMimeType) and when the
+ * download was skipped (in showOversizedFileInfo).
+ */
+export const TYPE_LOADING_HINTS: Record<string, string> = {
+  [MIME_TYPES.PARQUET]: "Parquet file. Use the Parquet File Scan operator in Texera to analyze this data.",
+  [MIME_TYPES.ARROW]: "Arrow / Feather file. Use the Arrow File Scan operator in Texera.",
+  [MIME_TYPES.HDF5]: "HDF5 binary container (Keras .h5 or scientific dataset). Load with h5py / rhdf5.",
+  [MIME_TYPES.H5AD]: "AnnData (.h5ad) — single-cell expression matrix. Load with scanpy.read_h5ad().",
+  [MIME_TYPES.H5SEURAT]: "Seurat HDF5 object (.h5seurat). Load with SeuratDisk::LoadH5Seurat() in R.",
+  [MIME_TYPES.LOOM]: "Loom (.loom) single-cell expression. Load with loompy / scanpy in Python.",
+  [MIME_TYPES.RDS]: "R serialized object (.rds) — Seurat / SCE / fitted model. Load with readRDS() in R.",
+  [MIME_TYPES.PICKLE]: "Python pickle — serialized model or dataset. Load with pickle.load() in Python.",
+  [MIME_TYPES.PYTORCH]: "PyTorch checkpoint (.pt/.pth). Load with torch.load() in Python.",
+  [MIME_TYPES.KERAS]: "Keras v3 model (.keras). Load with tf.keras.models.load_model() in Python.",
+  [MIME_TYPES.ONNX]: "ONNX model (.onnx). Load with onnxruntime; inspect at netron.app.",
+  [MIME_TYPES.SAFETENSORS]: "Safetensors file. Load with safetensors.torch.load_file() in Python.",
+  [MIME_TYPES.GGUF]: "GGUF model (llama.cpp / quantized LLM).",
+  [MIME_TYPES.NPY]: "NumPy array (.npy). Load with numpy.load() in Python.",
+  [MIME_TYPES.NPZ]: "NumPy archive (.npz) — ZIP of .npy arrays. Load with numpy.load().",
+  [MIME_TYPES.CSV]: "CSV file. Use the CSV File Scan operator in Texera.",
+  [MIME_TYPES.JSON]: "JSON file. Use the JSONL File Scan operator (or Python UDF for nested objects).",
+  [MIME_TYPES.XLSX]: "Excel spreadsheet (.xlsx). Convert to CSV or use a Python UDF with openpyxl.",
+  [MIME_TYPES.MSEXCEL]: "Excel spreadsheet (.xls). Convert to CSV or use a Python UDF.",
+  [MIME_TYPES.FASTA]: "FASTA sequence file. Parse with Biopython SeqIO.",
+  [MIME_TYPES.FASTQ]: "FASTQ reads file. Parse with Biopython SeqIO.",
+  [MIME_TYPES.VCF]: "VCF variant file. Parse with pyvcf / cyvcf2.",
+};
+
 /** Classify a single cell value into a coarse type label. */
 function inferCellType(value: string): string {
   if (value === "" || value == null) return "null";
@@ -614,9 +651,17 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   reloadFileContent() {
     this.turnOffAllDisplay();
 
-    // Pre-fetch size guard: use extension hint for known types, DEFAULT_MAX_SIZE for unknown.
-    // We no longer reject on extension alone — magic byte detection runs after the fetch.
     const extensionMime = getMimeType(this.filePath);
+
+    // Skip the full download for large files. The dataset service streams the entire blob;
+    // for a 500 MB file we'd wait 30+ seconds just to read its first 16 magic bytes. Above
+    // the threshold, fall back to extension-based identification + a "how to load" hint.
+    if (this.fileSize != null && this.fileSize > FULL_PREVIEW_MAX_BYTES) {
+      this.showOversizedFileInfo(extensionMime);
+      return;
+    }
+
+    // Hard upper bound (defensive): even small types shouldn't load anything past this.
     const preCheckLimit = MIME_TYPE_SIZE_LIMITS_MB[extensionMime] ?? this.DEFAULT_MAX_SIZE;
     if (this.fileSize != null && this.fileSize > preCheckLimit) {
       this.onFileSizeNotLoadable();
@@ -902,8 +947,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     const m = this.fileMetadata;
     if (!m) return [];
     const items: { label: string; value: string }[] = [];
-
-    if (m.fileSize != null) items.push({ label: "Size", value: formatSize(m.fileSize) });
 
     if (m.imageWidth != null && m.imageHeight != null) {
       items.push({ label: "Dimensions", value: `${m.imageWidth} × ${m.imageHeight} px` });
@@ -1543,6 +1586,20 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   onFileTypePreviewUnsupported() {
     this.turnOffAllDisplay();
     this.isFileTypePreviewUnsupported = true;
+  }
+
+  /**
+   * Skip the download for very large files and show only the extension-based type hint.
+   * Avoids the multi-second download + memory cost of fetching a multi-hundred-MB blob
+   * just to render its first frame / table / iframe.
+   */
+  private showOversizedFileInfo(extensionMime: string): void {
+    const hint = TYPE_LOADING_HINTS[extensionMime];
+    const sizeStr = this.fileSize != null ? formatSize(this.fileSize) : "very large";
+    this.detectedTypeMessage = hint
+      ? `${hint}  (Preview skipped — file is ${sizeStr}.)`
+      : `File is ${sizeStr} — full preview skipped to avoid browser lag. Open in a workflow operator to analyze.`;
+    this.cdr.markForCheck();
   }
 
   private loadSafeURL(blob: Blob): void {
