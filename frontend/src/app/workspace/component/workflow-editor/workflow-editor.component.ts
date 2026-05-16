@@ -680,16 +680,21 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    */
   public materializeSuggestion(ghost: Suggestion): void {
     if (ghost.type === "INSERT_FILTER") {
-      this.materializeInsertFilter(ghost);
+      void this.materializeInsertFilter(ghost);
       return;
     }
     if (ghost.type === "BUMP_WORKERS") {
-      this.materializeBumpWorkers(ghost);
+      void this.materializeBumpWorkers(ghost);
       return;
     }
   }
 
-  private materializeInsertFilter(ghost: Extract<Suggestion, { type: "INSERT_FILTER" }>): void {
+  /** Agent timeout used by materialize handlers — short enough to keep UX snappy. */
+  private static readonly AGENT_PROPOSAL_TIMEOUT_MS = 4000;
+
+  private async materializeInsertFilter(
+    ghost: Extract<Suggestion, { type: "INSERT_FILTER" }>
+  ): Promise<void> {
     const upElem = this.paper.getModelById(ghost.upstreamOpId);
     const downElem = this.paper.getModelById(ghost.downstreamOpId);
     if (!upElem || !downElem) {
@@ -703,22 +708,22 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       y: (upBBox.y + upBBox.height / 2 + downBBox.y + downBBox.height / 2) / 2 - 30,
     };
 
-    // Pre-populate the Filter with a starter predicate on the first upstream column,
-    // condition `is not null` (a safe no-op the user will immediately edit). This makes
-    // the property panel look "ready" instead of an empty form. We can't infer the
-    // actual filter values without sample data or AI — that's covered by Phase 3
-    // (agent integration) of the suggestions plan.
-    const firstColumn = this.firstUpstreamColumnName(ghost.upstreamOpId);
+    // Try the agent for a smarter set of predicate rows; fall back to a single
+    // `is not null` row on the first upstream column if the agent isn't available
+    // or returns nothing useful (deferred items from profiler-agent-tool-plan).
+    const predicates = await this.proposeFilterPredicates(ghost);
+
     const newFilterBase = this.workflowUtilService.getNewOperatorPredicate("Filter");
-    const newFilter: OperatorPredicate = firstColumn
-      ? {
-          ...newFilterBase,
-          operatorProperties: {
-            ...newFilterBase.operatorProperties,
-            predicates: [{ attribute: firstColumn, condition: "is not null", value: "" }],
-          },
-        }
-      : newFilterBase;
+    const newFilter: OperatorPredicate =
+      predicates.length > 0
+        ? {
+            ...newFilterBase,
+            operatorProperties: {
+              ...newFilterBase.operatorProperties,
+              predicates,
+            },
+          }
+        : newFilterBase;
 
     const graph = this.workflowActionService.getTexeraGraph();
     const existingLinks = graph
@@ -758,7 +763,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   /**
    * Picks the first column name from the upstream operator's output schema, or
    * `undefined` if the schema isn't available (e.g. workflow hasn't been compiled
-   * yet). Used to seed a sensible default predicate when materializing a Filter ghost.
+   * yet). Used as the rule-based fallback when the agent isn't available.
    */
   private firstUpstreamColumnName(upstreamOpId: string): string | undefined {
     const outputMap = this.workflowCompilingService.getOperatorOutputSchemaMap(upstreamOpId);
@@ -772,17 +777,81 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     return undefined;
   }
 
-  private materializeBumpWorkers(ghost: Extract<Suggestion, { type: "BUMP_WORKERS" }>): void {
+  /**
+   * Collects the upstream operator's output schema as a flat attribute list (first
+   * non-empty port wins). Used to build the request body for the agent's
+   * proposeFilterPredicate endpoint.
+   */
+  private upstreamSchemaForAgent(
+    upstreamOpId: string
+  ): { attributeName: string; attributeType: string }[] {
+    const outputMap = this.workflowCompilingService.getOperatorOutputSchemaMap(upstreamOpId);
+    if (!outputMap) return [];
+    for (const portKey of Object.keys(outputMap)) {
+      const portSchema = outputMap[portKey];
+      if (portSchema && portSchema.length > 0) {
+        return portSchema.map(a => ({ attributeName: a.attributeName, attributeType: a.attributeType }));
+      }
+    }
+    return [];
+  }
+
+  /**
+   * Returns the predicate rows to pre-populate a newly-inserted Filter operator
+   * with. Calls the agent for context-aware predicates and falls back to a single
+   * `is not null` row on the first upstream column if the agent is unavailable,
+   * times out, or returns nothing useful. Returns [] only when the schema isn't
+   * available either (workflow hasn't been compiled yet).
+   */
+  private async proposeFilterPredicates(
+    ghost: Extract<Suggestion, { type: "INSERT_FILTER" }>
+  ): Promise<{ attribute: string; condition: string; value: string }[]> {
+    const upstreamSchema = this.upstreamSchemaForAgent(ghost.upstreamOpId);
+    if (upstreamSchema.length > 0) {
+      const graph = this.workflowActionService.getTexeraGraph();
+      let downstreamType: string | undefined;
+      let downstreamProperties: Record<string, unknown> | undefined;
+      if (graph.hasOperator(ghost.downstreamOpId)) {
+        const down = graph.getOperator(ghost.downstreamOpId);
+        downstreamType = down.operatorType;
+        downstreamProperties = { ...(down.operatorProperties ?? {}) };
+      }
+      const proposal = await this.agentService.tryProposeFilterPredicate(
+        {
+          upstreamOpId: ghost.upstreamOpId,
+          downstreamOpId: ghost.downstreamOpId,
+          upstreamSchema,
+          downstreamType,
+          downstreamProperties,
+        },
+        WorkflowEditorComponent.AGENT_PROPOSAL_TIMEOUT_MS
+      );
+      if (proposal && proposal.predicates.length > 0) return proposal.predicates;
+    }
+    const firstColumn = this.firstUpstreamColumnName(ghost.upstreamOpId);
+    return firstColumn
+      ? [{ attribute: firstColumn, condition: "is not null", value: "" }]
+      : [];
+  }
+
+  private async materializeBumpWorkers(
+    ghost: Extract<Suggestion, { type: "BUMP_WORKERS" }>
+  ): Promise<void> {
     const graph = this.workflowActionService.getTexeraGraph();
     if (!graph.hasOperator(ghost.operatorId)) {
       this.profilerSuggestionsService.dismiss(ghost.id);
       return;
     }
     const op = graph.getOperator(ghost.operatorId);
+
+    // Try the agent for a runtime/idle-ratio-aware worker count; fall back to
+    // ghost.proposedWorkers (the static rule-based default) on any miss.
+    const targetWorkers = await this.proposeWorkerCount(ghost, op);
+
     // Merge: preserve all other properties, override `workers`.
     const newProperties = {
       ...(op.operatorProperties ?? {}),
-      workers: ghost.proposedWorkers,
+      workers: targetWorkers,
     };
     this.workflowActionService.setOperatorProperty(ghost.operatorId, newProperties);
 
@@ -792,6 +861,43 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
     this.profilerSuggestionsService.dismiss(ghost.id);
     this.showRunPrompt(ghost);
+  }
+
+  /**
+   * Returns the worker count to bump to. Reads the latest profiler entry to
+   * give the agent runtime + idle-ratio context, then falls back to the
+   * static rule-based default (`ghost.proposedWorkers`) on any miss.
+   */
+  private async proposeWorkerCount(
+    ghost: Extract<Suggestion, { type: "BUMP_WORKERS" }>,
+    op: OperatorPredicate
+  ): Promise<number> {
+    const currentWorkers = Number((op.operatorProperties as any)?.workers ?? 1) || 1;
+    const profilerEntry = this.profilerService.getState().scores[ghost.operatorId];
+    // Use the same derivation as the profiler snapshot so the agent sees the same
+    // runtime/idle numbers it would see in chat — keeps suggestions consistent.
+    const derived = profilerEntry
+      ? statsToComparable({
+          operatorId: ghost.operatorId,
+          displayName: op.customDisplayName ?? op.operatorType,
+          operatorType: op.operatorType,
+          score: profilerEntry.score,
+          stats: profilerEntry.stats,
+        })
+      : null;
+    const proposal = await this.agentService.tryProposeWorkerCount(
+      {
+        operatorId: ghost.operatorId,
+        operatorType: op.operatorType,
+        currentWorkers,
+        runtimeMs: derived?.runtimeMs ?? null,
+        idleRatio: derived?.idleRatio ?? null,
+        inputRows: derived?.inputRows ?? null,
+        outputRows: derived?.outputRows ?? null,
+      },
+      WorkflowEditorComponent.AGENT_PROPOSAL_TIMEOUT_MS
+    );
+    return proposal?.workers ?? ghost.proposedWorkers;
   }
 
   public dismissSuggestion(ghost: Suggestion, event: MouseEvent): void {

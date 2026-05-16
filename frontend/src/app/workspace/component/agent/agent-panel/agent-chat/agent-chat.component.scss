@@ -314,3 +314,243 @@
     }
   }
 }
+
+// Phase 3: structured-proposal card under agent messages.
+.agent-proposal-card {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid #ffd591;
+  background: #fff7e6;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #262626;
+
+  // Dim the card once the user has acted on it so pending cards stand out.
+  &[data-state="applied"],
+  &[data-state="rejected"],
+  &[data-state="missing-operator"],
+  &[data-state="failed"] {
+    opacity: 0.7;
+  }
+
+  .agent-proposal-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    color: #d46b08;
+
+    .agent-proposal-title {
+      font-weight: 600;
+    }
+
+    .agent-proposal-operator {
+      margin-left: auto;
+      font-family: monospace;
+      font-size: 12px;
+      color: #595959;
+      background: #fafafa;
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid #e8e8e8;
+    }
+  }
+
+  .agent-proposal-changes {
+    margin-bottom: 6px;
+
+    code {
+      display: inline-block;
+      padding: 2px 6px;
+      background: #fafafa;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .agent-proposal-reasoning,
+  .agent-proposal-impact {
+    margin-bottom: 4px;
+    overflow-wrap: anywhere;
+
+    strong {
+      color: #595959;
+      margin-right: 4px;
+    }
+  }
+
+  .agent-proposal-hints {
+    margin: 6px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .agent-proposal-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  // Override the global `[nz-button] { width: 40px }` rule from menu.component
+  // bleeding in — these buttons need to be label-sized.
+  .agent-proposal-btn[nz-button] {
+    width: auto;
+    padding: 0 12px;
+  }
+
+  .agent-proposal-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+
+    &.agent-proposal-status-applied {
+      color: #389e0d;
+    }
+
+    &.agent-proposal-status-rejected {
+      color: #8c8c8c;
+    }
+
+    &.agent-proposal-status-error {
+      color: #cf1322;
+    }
+  }
+}
+
+// Phase 4: multi-step optimization-plan card under agent messages.
+.agent-plan-card {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid #91d5ff;
+  background: #e6f7ff;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #262626;
+
+  .agent-plan-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    color: #096dd9;
+
+    .agent-plan-title {
+      font-weight: 600;
+    }
+
+    .agent-plan-progress {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 500;
+      color: #595959;
+      background: #fafafa;
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid #e8e8e8;
+    }
+  }
+
+  .agent-plan-rationale {
+    margin-bottom: 6px;
+    overflow-wrap: anywhere;
+  }
+
+  .agent-plan-hints {
+    margin: 6px 0 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .agent-plan-steps {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .agent-plan-step {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+
+    &[data-state="applied"],
+    &[data-state="rejected"],
+    &[data-state="missing-operator"],
+    &[data-state="failed"] {
+      opacity: 0.75;
+    }
+
+    .agent-plan-step-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+
+      .agent-plan-step-desc {
+        font-weight: 500;
+        flex: 1;
+        overflow-wrap: anywhere;
+      }
+
+      .agent-plan-step-operator {
+        font-family: monospace;
+        font-size: 11px;
+        color: #595959;
+        background: #fafafa;
+        padding: 1px 6px;
+        border-radius: 3px;
+        border: 1px solid #e8e8e8;
+      }
+    }
+
+    .agent-plan-step-changes {
+      margin-bottom: 4px;
+
+      code {
+        display: inline-block;
+        padding: 2px 6px;
+        background: #fafafa;
+        border: 1px solid #e8e8e8;
+        border-radius: 3px;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    .agent-plan-step-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 12px;
+      color: #595959;
+      margin-bottom: 6px;
+      overflow-wrap: anywhere;
+
+      strong {
+        color: #262626;
+        margin-right: 4px;
+      }
+    }
+
+    .agent-plan-step-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+  }
+
+  .agent-plan-footer {
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+  }
+}

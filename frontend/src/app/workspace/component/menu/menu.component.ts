@@ -78,6 +78,8 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzSliderComponent } from "ng-zorro-antd/slider";
 import { AsyncPipe } from "@angular/common";
 import { ProfilerService, ProfilerView } from "../../service/profiler/profiler.service";
+import { ProfilerHistoryService } from "../../service/profiler/profiler-history.service";
+import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import {
   buildReport,
   formatFilenameTimestamp,
@@ -207,6 +209,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     protected config: GuiConfigService,
     public profilerService: ProfilerService,
     public profilerSuggestionsService: ProfilerSuggestionsService,
+    private profilerHistoryService: ProfilerHistoryService,
     private router: Router
   ) {
     workflowWebsocketService
@@ -440,6 +443,84 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public clearProfilerBaseline(): void {
     this.profilerService.clearBaseline();
+  }
+
+  // ---------------------------------------------------------------------------
+  // P6 — Compare across runs (server-side baseline).
+  // The user picks a past execution from a dropdown; we fetch its persisted
+  // runtime stats, convert to BaselineReport, and hand to ProfilerService —
+  // reusing the exact same delta heatmap + side-panel UI as the upload flow.
+  // ---------------------------------------------------------------------------
+
+  /** Past executions of the current workflow. Populated lazily on popover open. */
+  public profilerHistoryExecutions: WorkflowExecutionsEntry[] = [];
+  public profilerHistoryLoading: boolean = false;
+  public profilerHistorySelectedEid: number | null = null;
+
+  /**
+   * Fetches the list of completed executions for the current workflow. Idempotent:
+   * call from the popover's open-handler so the dropdown is populated when shown.
+   */
+  public loadProfilerHistoryList(): void {
+    if (this.workflowId == null) {
+      this.profilerHistoryExecutions = [];
+      return;
+    }
+    this.profilerHistoryLoading = true;
+    this.profilerHistoryService
+      .listCompletedExecutions(this.workflowId)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: rows => {
+          this.profilerHistoryExecutions = rows;
+          this.profilerHistoryLoading = false;
+        },
+        error: () => {
+          this.profilerHistoryExecutions = [];
+          this.profilerHistoryLoading = false;
+        },
+      });
+  }
+
+  /** Human-readable label for a past execution shown in the dropdown options. */
+  public profilerHistoryLabel(entry: WorkflowExecutionsEntry): string {
+    const name = entry.name && entry.name.trim().length > 0 ? entry.name : `Execution #${entry.eId}`;
+    const when = entry.completionTime
+      ? new Date(entry.completionTime).toLocaleString()
+      : entry.startingTime
+        ? new Date(entry.startingTime).toLocaleString()
+        : "";
+    return when ? `${name} — ${when}` : name;
+  }
+
+  /**
+   * Selects a past execution as the comparison baseline. Fetches the persisted
+   * stats, converts via the pure helper, and hands the result to ProfilerService.
+   */
+  public onProfilerHistorySelected(eid: number | null): void {
+    this.profilerHistorySelectedEid = eid;
+    if (eid == null || this.workflowId == null) return;
+    const execution = this.profilerHistoryExecutions.find(e => e.eId === eid);
+    if (!execution) {
+      this.notificationService.error(`Execution #${eid} is not in the loaded list.`);
+      return;
+    }
+    const workflowName = this.currentWorkflowName ?? `Workflow ${this.workflowId}`;
+    this.profilerHistoryService
+      .loadBaselineForExecution({ workflowId: this.workflowId, execution, workflowName })
+      .pipe(untilDestroyed(this))
+      .subscribe(baseline => {
+        if (!baseline) {
+          this.notificationService.error(
+            "No baseline data available for that run (the engine may not have persisted stats)."
+          );
+          return;
+        }
+        this.profilerService.setBaseline(baseline);
+        this.notificationService.success(
+          `Baseline loaded from ${baseline.header.executionName ?? "run"} (${baseline.operators.length} operators).`
+        );
+      });
   }
 
   private subscribeToComputingUnitSelection(): void {

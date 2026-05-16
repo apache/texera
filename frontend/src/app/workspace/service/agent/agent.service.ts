@@ -41,6 +41,15 @@ import { AuthService } from "../../../common/service/user/auth.service";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import {
+  FilterPredicateRequest,
+  FilterPredicatesProposal,
+  WorkerCountProposal,
+  WorkerCountRequest,
+  parseFilterPredicatesResponse,
+  parseWorkerCountResponse,
+} from "./agent-proposal-requests";
+import { firstValueFrom, timeout } from "rxjs";
 
 /**
  * Agent settings for API (serializable format).
@@ -900,8 +909,18 @@ export class AgentService {
   /**
    * Send a message to an agent via WebSocket.
    * The message is sent through the WebSocket connection for real-time streaming.
+   *
+   * Optionally attaches a `profilerSnapshot` so the agent's read-only profiler tools
+   * (Phase 1 of the agent-tool plan) have current per-operator metrics + hints to
+   * answer questions like "why is my workflow slow?". When omitted, those tools
+   * surface a "no profiler data available" message to the agent.
    */
-  public sendMessage(agentId: string, message: string, messageSource: "chat" | "feedback" = "chat"): void {
+  public sendMessage(
+    agentId: string,
+    message: string,
+    messageSource: "chat" | "feedback" = "chat",
+    profilerSnapshot?: unknown
+  ): void {
     const agent = this.agents.get(agentId);
     if (!agent) {
       this.notificationService.error(`Agent with ID ${agentId} not found`);
@@ -914,11 +933,14 @@ export class AgentService {
       return;
     }
 
-    const wsMessage = {
+    const wsMessage: Record<string, unknown> = {
       type: "message",
       content: message,
       messageSource,
     };
+    if (profilerSnapshot !== undefined) {
+      wsMessage.profilerSnapshot = profilerSnapshot;
+    }
 
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));
@@ -1337,5 +1359,55 @@ export class AgentService {
    */
   public getResultAnnotationsVisible(): boolean {
     return this.resultAnnotationsVisibleSubject.getValue();
+  }
+
+  // -----------------------------------------------------------------------------
+  // On-demand proposal endpoints (deferred items from profiler-agent-tool-plan).
+  //
+  // Both methods are best-effort: if the endpoint isn't reachable, times out,
+  // or returns a malformed shape, they resolve to `undefined` so the caller's
+  // rule-based fallback (firstColumn / fixed 4 workers) keeps the feature
+  // working with or without the agent.
+  // -----------------------------------------------------------------------------
+
+  /**
+   * Ask the agent-service to propose 1-5 useful Filter predicate rows for the
+   * given upstream → downstream link. Returns `undefined` on any failure.
+   */
+  public async tryProposeFilterPredicate(
+    request: FilterPredicateRequest,
+    timeoutMs: number = 15000
+  ): Promise<FilterPredicatesProposal | undefined> {
+    try {
+      const raw = await firstValueFrom(
+        this.http
+          .post<unknown>(`${this.AGENT_API_BASE}/proposals/filter-predicate`, request)
+          .pipe(timeout(timeoutMs))
+      );
+      return parseFilterPredicatesResponse(raw);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Ask the agent-service to propose a parallel worker count for the given
+   * operator based on its current runtime + idle ratio + type. Returns
+   * `undefined` on any failure.
+   */
+  public async tryProposeWorkerCount(
+    request: WorkerCountRequest,
+    timeoutMs: number = 15000
+  ): Promise<WorkerCountProposal | undefined> {
+    try {
+      const raw = await firstValueFrom(
+        this.http
+          .post<unknown>(`${this.AGENT_API_BASE}/proposals/worker-count`, request)
+          .pipe(timeout(timeoutMs))
+      );
+      return parseWorkerCountResponse(raw);
+    } catch {
+      return undefined;
+    }
   }
 }

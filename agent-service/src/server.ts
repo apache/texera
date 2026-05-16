@@ -23,6 +23,10 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
+import {
+  proposeFilterPredicate,
+  proposeWorkerCount,
+} from "./agent/proposals/proposal-generators";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -52,7 +56,7 @@ async function createAgentInstance(
   const config = getBackendConfig();
 
   const openai = createOpenAI({
-    baseURL: `${config.modelsEndpoint}/api`,
+    baseURL: config.modelsEndpoint,
     apiKey: env.LLM_API_KEY,
   });
 
@@ -136,6 +140,142 @@ function getAgent(agentId: string): TexeraAgent {
   }
   return agent;
 }
+
+/**
+ * Stateless one-shot LLM model used by the /proposals/* endpoints. We build it
+ * lazily because the LiteLLM endpoint + key come from env. Each proposal call
+ * picks the requested modelType (a string already registered in the LiteLLM
+ * gateway). No agent state, no ReAct loop — these are just schema-constrained
+ * LLM calls in service of smarter ghost-suggestion materialization.
+ */
+function buildOneShotModel(modelType: string) {
+  const config = getBackendConfig();
+  const openai = createOpenAI({
+    baseURL: config.modelsEndpoint,
+    apiKey: env.LLM_API_KEY,
+  });
+  return openai.chat(modelType);
+}
+
+const DEFAULT_PROPOSAL_MODEL = "claude-haiku-4.5";
+const PROPOSAL_TIMEOUT_MS = 15_000;
+
+async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutHandle: any;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  try {
+    return await Promise.race([p, timeout]);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+const proposalsRouter = new Elysia({ prefix: "/proposals" })
+  .onError(({ error, set }) => {
+    log.warn({ err: error }, "proposal request failed");
+    set.status = 502;
+    return { error: error instanceof Error ? error.message : String(error) };
+  })
+  .post(
+    "/filter-predicate",
+    async ({ body }) => {
+      const {
+        upstreamOpId,
+        downstreamOpId,
+        upstreamSchema,
+        downstreamType,
+        downstreamProperties,
+        upstreamSamples,
+        modelType,
+      } = body as {
+        upstreamOpId: string;
+        downstreamOpId: string;
+        upstreamSchema: { attributeName: string; attributeType: string }[];
+        downstreamType?: string;
+        downstreamProperties?: Record<string, unknown>;
+        upstreamSamples?: Record<string, unknown>[];
+        modelType?: string;
+      };
+      const model = buildOneShotModel(modelType || DEFAULT_PROPOSAL_MODEL);
+      const result = await withTimeout(
+        proposeFilterPredicate(model, {
+          upstreamOpId,
+          downstreamOpId,
+          upstreamSchema,
+          downstreamType,
+          downstreamProperties,
+          upstreamSamples,
+        }),
+        PROPOSAL_TIMEOUT_MS,
+        "proposeFilterPredicate"
+      );
+      return result;
+    },
+    {
+      body: t.Object({
+        upstreamOpId: t.String(),
+        downstreamOpId: t.String(),
+        upstreamSchema: t.Array(t.Object({ attributeName: t.String(), attributeType: t.String() })),
+        downstreamType: t.Optional(t.String()),
+        downstreamProperties: t.Optional(t.Record(t.String(), t.Any())),
+        upstreamSamples: t.Optional(t.Array(t.Record(t.String(), t.Any()))),
+        modelType: t.Optional(t.String()),
+      }),
+    }
+  )
+  .post(
+    "/worker-count",
+    async ({ body }) => {
+      const {
+        operatorId,
+        operatorType,
+        currentWorkers,
+        runtimeMs,
+        idleRatio,
+        inputRows,
+        outputRows,
+        modelType,
+      } = body as {
+        operatorId: string;
+        operatorType: string;
+        currentWorkers: number;
+        runtimeMs?: number | null;
+        idleRatio?: number | null;
+        inputRows?: number | null;
+        outputRows?: number | null;
+        modelType?: string;
+      };
+      const model = buildOneShotModel(modelType || DEFAULT_PROPOSAL_MODEL);
+      const result = await withTimeout(
+        proposeWorkerCount(model, {
+          operatorId,
+          operatorType,
+          currentWorkers,
+          runtimeMs,
+          idleRatio,
+          inputRows,
+          outputRows,
+        }),
+        PROPOSAL_TIMEOUT_MS,
+        "proposeWorkerCount"
+      );
+      return result;
+    },
+    {
+      body: t.Object({
+        operatorId: t.String(),
+        operatorType: t.String(),
+        currentWorkers: t.Number(),
+        runtimeMs: t.Optional(t.Nullable(t.Number())),
+        idleRatio: t.Optional(t.Nullable(t.Number())),
+        inputRows: t.Optional(t.Nullable(t.Number())),
+        outputRows: t.Optional(t.Nullable(t.Number())),
+        modelType: t.Optional(t.String()),
+      }),
+    }
+  );
 
 const agentsRouter = new Elysia({ prefix: "/agents" })
   // Error handler must live on the same Elysia instance whose routes throw, or
@@ -406,6 +546,7 @@ interface WsMessage {
   type: "message" | "stop";
   content?: string;
   messageSource?: "chat" | "feedback";
+  profilerSnapshot?: unknown;
 }
 
 interface OperatorResultSummaryWs {
@@ -484,6 +625,7 @@ export function buildApp() {
           timestamp: new Date().toISOString(),
         }))
         .use(agentsRouter)
+        .use(proposalsRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {
@@ -552,7 +694,14 @@ export function buildApp() {
           broadcastToAgent(agentId, { type: "state", state: "GENERATING" });
 
           try {
-            const result = await agent.sendMessage(msg.content, msg.messageSource);
+            // Pass through optional profilerSnapshot from the frontend so the
+            // agent's read-only profiler tools have current per-operator metrics.
+            // Frontend builds this via `buildProfilerSnapshot` in profiler-snapshot.ts.
+            const result = await agent.sendMessage(
+              msg.content,
+              msg.messageSource,
+              msg.profilerSnapshot
+            );
 
             agent.setStepCallback(null);
 

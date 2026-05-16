@@ -28,8 +28,40 @@ import type { ReActStep } from "../../types/agent";
 import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
 import { createLogger } from "../../logger";
+import {
+  TOOL_NAME_GET_PROFILER_SUMMARY,
+  TOOL_NAME_LIST_HOT_OPERATORS,
+  TOOL_NAME_GET_OPERATOR_METRICS,
+  TOOL_NAME_GET_OPTIMIZATION_HINTS,
+  TOOL_NAME_COMPARE_TO_BASELINE,
+} from "../tools/profiler-tools";
+import {
+  TOOL_NAME_PROPOSE_OPERATOR_CHANGE,
+  TOOL_NAME_PROPOSE_OPTIMIZATION_PLAN,
+} from "../tools/proposal-tools";
 
 const log = createLogger("ContextAssembler");
+
+// Read-only tools whose JSON output IS the answer the model needs to see.
+// Mutating tools (addOperator, modifyOperator, etc.) leave their effects in the
+// regenerated "# Current Dataflow" section, so their result text is redundant
+// and intentionally stripped to keep context compact.
+//
+// proposeOperatorChange is included so that, if the agent makes multiple proposals
+// in a single turn, it can recall the prior proposal's text when generating
+// its summary message. The frontend uses these tool calls (by name) to render
+// Apply/Reject UI — that's an independent consumer of the same channel.
+const TOOLS_REQUIRING_RESULT_IN_CONTEXT = new Set<string>([
+  TOOL_NAME_GET_PROFILER_SUMMARY,
+  TOOL_NAME_LIST_HOT_OPERATORS,
+  TOOL_NAME_GET_OPERATOR_METRICS,
+  TOOL_NAME_GET_OPTIMIZATION_HINTS,
+  TOOL_NAME_COMPARE_TO_BASELINE,
+  TOOL_NAME_PROPOSE_OPERATOR_CHANGE,
+  TOOL_NAME_PROPOSE_OPTIMIZATION_PLAN,
+]);
+
+const TOOL_RESULT_MAX_CHARS = 4000;
 
 export function assembleContext(
   visibleSteps: ReActStep[],
@@ -127,6 +159,14 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
         const tr = step.toolResults?.[i];
         const statusAttr = tr?.isError ? "failed" : "succeeded";
         lines.push(`- ${tc.toolName} (${statusAttr})`);
+        if (tr && TOOLS_REQUIRING_RESULT_IN_CONTEXT.has(tc.toolName)) {
+          const output = typeof tr.output === "string" ? tr.output : JSON.stringify(tr.output);
+          const truncated =
+            output.length > TOOL_RESULT_MAX_CHARS
+              ? output.slice(0, TOOL_RESULT_MAX_CHARS) + "…(truncated)"
+              : output;
+          lines.push(`  Result: ${truncated}`);
+        }
       }
     }
     lines.push("");

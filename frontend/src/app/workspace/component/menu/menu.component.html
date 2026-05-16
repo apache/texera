@@ -601,21 +601,44 @@
                   style="color: rgba(0, 0, 0, 0.45); margin-left: 4px; cursor: help"></i>
               </span>
               <div *ngIf="!profilerState.baseline; else baselineLoadedBlock"
-                   style="display: flex; gap: 6px">
-                <button
-                  nz-button
-                  nzSize="small"
-                  nzType="default"
-                  class="profiler-popover-btn"
-                  nz-tooltip="Upload a profiler JSON report downloaded from a previous run"
-                  (click)="profilerBaselineFileInput.click()"
-                  id="profiler-upload-baseline">
-                  <i
-                    nz-icon
-                    nzType="upload"
-                    nzTheme="outline"></i>
-                  Upload baseline
-                </button>
+                   style="display: flex; flex-direction: column; gap: 6px">
+                <div style="display: flex; gap: 6px">
+                  <button
+                    nz-button
+                    nzSize="small"
+                    nzType="default"
+                    class="profiler-popover-btn"
+                    nz-tooltip="Upload a profiler JSON report downloaded from a previous run"
+                    (click)="profilerBaselineFileInput.click()"
+                    id="profiler-upload-baseline">
+                    <i
+                      nz-icon
+                      nzType="upload"
+                      nzTheme="outline"></i>
+                    Upload baseline
+                  </button>
+                </div>
+                <!-- P6: pick a server-side past run instead of uploading JSON. -->
+                <div style="display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 12px; color: rgba(0,0,0,0.55)">…or pick a past run</span>
+                  <nz-select
+                    nzSize="small"
+                    nzShowSearch
+                    nzAllowClear
+                    [nzLoading]="profilerHistoryLoading"
+                    [nzPlaceHolder]="profilerHistoryLoading ? 'Loading runs…' : (profilerHistoryExecutions.length === 0 ? 'No past runs yet' : 'Select past run')"
+                    [nzDisabled]="profilerHistoryExecutions.length === 0 && !profilerHistoryLoading"
+                    [ngModel]="profilerHistorySelectedEid"
+                    (ngModelChange)="onProfilerHistorySelected($event)"
+                    (nzOpenChange)="$event && loadProfilerHistoryList()"
+                    id="profiler-history-select"
+                    style="width: 220px">
+                    <nz-option
+                      *ngFor="let exec of profilerHistoryExecutions"
+                      [nzValue]="exec.eId"
+                      [nzLabel]="profilerHistoryLabel(exec)"></nz-option>
+                  </nz-select>
+                </div>
               </div>
               <ng-template #baselineLoadedBlock>
                 <div style="display: flex; flex-direction: column; gap: 4px">
@@ -648,6 +671,24 @@
                       Clear
                     </button>
                   </div>
+                  <!-- P6: also lets the user swap to a different past run without clearing first. -->
+                  <nz-select
+                    nzSize="small"
+                    nzShowSearch
+                    nzAllowClear
+                    [nzLoading]="profilerHistoryLoading"
+                    [nzPlaceHolder]="profilerHistoryLoading ? 'Loading runs…' : (profilerHistoryExecutions.length === 0 ? 'No past runs yet' : 'Pick a different past run')"
+                    [nzDisabled]="profilerHistoryExecutions.length === 0 && !profilerHistoryLoading"
+                    [ngModel]="profilerHistorySelectedEid"
+                    (ngModelChange)="onProfilerHistorySelected($event)"
+                    (nzOpenChange)="$event && loadProfilerHistoryList()"
+                    id="profiler-history-select-replace"
+                    style="width: 220px">
+                    <nz-option
+                      *ngFor="let exec of profilerHistoryExecutions"
+                      [nzValue]="exec.eId"
+                      [nzLabel]="profilerHistoryLabel(exec)"></nz-option>
+                  </nz-select>
                 </div>
               </ng-template>
               <input

@@ -43,6 +43,16 @@ export interface ToolContext {
     toolTimeoutMs?: number;
     executionTimeoutMs?: number;
   };
+  /**
+   * Per-message profiler snapshot from the frontend. Populated when the user has
+   * profiling enabled and ProfilerService has scores; undefined otherwise. Read-only
+   * — profiler tools (`createProfilerTools`) inspect this to answer questions like
+   * "why is my workflow slow?". The shape mirrors `ProfilerSnapshot` in the frontend
+   * (see `frontend/src/app/workspace/service/profiler/profiler-snapshot.ts`); kept
+   * `unknown` here so we don't need to share types across project boundaries —
+   * profiler tools parse defensively at the read site.
+   */
+  profilerSnapshot?: unknown;
 }
 
 export const TOOL_NAME_ADD_OPERATOR = "addOperator";

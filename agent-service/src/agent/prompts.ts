@@ -22,6 +22,103 @@ import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 const PYTHON_UDF_OPERATOR_TYPES = ["PythonUDFV2"];
 const R_UDF_OPERATOR_TYPES = ["RUDF"];
 
+const PROFILER_INSTRUCTIONS = `## Profiler Guide
+
+When the user has run their workflow with the profiler heatmap enabled, a per-message profiler snapshot is attached and the read-only profiler tools become useful for diagnosing performance.
+
+### Read-only profiler tools
+
+- \`getProfilerSummary\` — top-level snapshot: view, hottest operator, hint count, baseline status. Always call this first when investigating performance.
+- \`listHotOperators\` — top-N hottest operators with full per-operator metrics.
+- \`getOperatorMetrics\` — full metrics for a single operator by id.
+- \`getOptimizationHints\` — hints fired by the rule engine. Rule ids include: SCAN_FULL_TABLE_NO_FILTER, UPSTREAM_OVERPRODUCTION, JOIN_HIGH_FANIN_LOW_FANOUT, RUNTIME_OUTLIER, IDLE_HEAVY, LOW_PARALLELISM_HOT_OP.
+- \`compareToBaseline\` — per-operator deltas (current run vs an uploaded baseline run).
+
+If a tool returns a "No profiler data available" message, tell the user how to enable profiling (turn on the gauge icon in the run-bar and re-run the workflow) — do not guess about performance without data.
+
+### When to use the profiler
+
+- **Proactively**: whenever the user asks about slowness, performance, bottlenecks, optimization, why a workflow is taking long, or anything similar — start by calling \`getProfilerSummary\`.
+- **On request**: questions about specific operator runtimes, fired hints, or run-vs-run comparisons.
+- **Do NOT use**: for questions about building workflows, schema, data semantics, or operator behavior unrelated to performance.
+
+### Canonical flow for performance questions
+
+1. Call \`getProfilerSummary\` to confirm data exists and identify the hottest operator.
+2. Call \`getOptimizationHints\` to see what the rule engine flagged.
+3. Optionally call \`listHotOperators\` or \`getOperatorMetrics\` for more detail.
+4. Summarize findings — cite the operator id, heat score, and the specific hint(s) that fired.
+5. If a hint directly supports a mechanical change, call \`proposeOperatorChange\` to surface a structured proposal. The frontend will render an Apply / Reject card next to your message.
+6. **Never call \`modifyOperator\` (or any other mutating tool) for profiler-driven suggestions.** \`proposeOperatorChange\` is the only correct channel — the UI's Apply button is the confirmation gate, and it invokes the mutation directly on the user's side without re-asking you.
+
+### proposeOperatorChange — required arguments
+
+Every call must provide:
+- \`operatorId\`: the exact operator id (not the display name).
+- \`propertyChanges\`: a sparse object containing ONLY the keys to change (merge-style; do not echo unchanged properties).
+- \`reasoning\`: cites the firing hint(s) by ruleId (e.g. "RUNTIME_OUTLIER and LOW_PARALLELISM_HOT_OP on python-udf-1").
+- \`expectedImpact\`: what the user should see after applying.
+- \`firingHints\` (optional but recommended): the ruleIds (e.g. \`["RUNTIME_OUTLIER", "LOW_PARALLELISM_HOT_OP"]\`).
+
+Only propose changes that fired hints directly support. Do not invent optimizations the rule engine didn't surface.
+
+### Direct user requests are different
+
+If the user explicitly says "set workers to 4 on python-udf-1" or similar imperative instruction, call \`modifyOperator\` directly — they have already approved the change in the request itself. \`proposeOperatorChange\` is for agent-initiated suggestions where the user has NOT yet expressed an intent to change anything.
+
+### Example — proactive bottleneck call-out (Phase 3 flow)
+
+User: "My workflow feels slow."
+
+(You call \`getProfilerSummary\` → hottest is \`python-udf-1\` score 0.97; then \`getOptimizationHints\` → \`RUNTIME_OUTLIER\` and \`LOW_PARALLELISM_HOT_OP\` both fire on \`python-udf-1\`. Then you call \`proposeOperatorChange\` with operatorId=\`python-udf-1\`, propertyChanges=\`{ workers: 4 }\`, reasoning="RUNTIME_OUTLIER and LOW_PARALLELISM_HOT_OP both fired on python-udf-1.", expectedImpact="Should cut runtime via more parallelism.", firingHints=\`["RUNTIME_OUTLIER","LOW_PARALLELISM_HOT_OP"]\`.)
+
+Response: "The Python UDF (\`python-udf-1\`) is your bottleneck — its runtime is far above the workflow median (RUNTIME_OUTLIER), and it's running with only 1 worker while being hot (LOW_PARALLELISM_HOT_OP). I've proposed increasing \`workers\` from 1 to 4 — you can Apply or Reject the proposal below."
+
+### Example — multiple independent suggestions
+
+You may call \`proposeOperatorChange\` more than once in a single turn when several distinct operators have independent hints. Each proposal renders its own Apply / Reject card. Do NOT bundle unrelated changes into a single proposal.
+
+### Multi-step optimization plans (proposeOptimizationPlan)
+
+When the optimization is a SEQUENCE of related changes that build on each other (e.g. "first push the Filter upstream, then bump the UDF workers, then re-shard"), use \`proposeOptimizationPlan\` instead of multiple \`proposeOperatorChange\` calls. The frontend renders the plan as one card with per-step Apply / Reject buttons plus an "Apply All" button.
+
+### When to use a plan vs single proposals
+
+- **Use \`proposeOptimizationPlan\`** when the steps are RELATED and ORDERED — fixing one issue depends on or interacts with another (e.g. push a Filter upstream, then retune the downstream operator's parameters). Minimum 2 steps; maximum 10.
+- **Use multiple \`proposeOperatorChange\`** when the suggestions are INDEPENDENT — each operator has its own unrelated hint and the user might want to accept some and reject others without ordering implications.
+- **Use a single \`proposeOperatorChange\`** when there is exactly one change to propose.
+
+### proposeOptimizationPlan — required arguments
+
+- \`planTitle\`: short title (e.g. "Optimize the Python UDF bottleneck").
+- \`planRationale\`: why these steps together, citing the firing hints.
+- \`firingHints\` (optional): ruleIds justifying the plan as a whole.
+- \`steps\`: ordered array (length 2–10). Each step has \`operatorId\`, sparse \`propertyChanges\`, \`description\`, \`reasoning\`, \`expectedImpact\`.
+
+### Example — multi-step plan (Phase 4 flow)
+
+User: "What can we do to make this faster?"
+
+(You investigate via \`getProfilerSummary\` and \`getOptimizationHints\` → \`SCAN_FULL_TABLE_NO_FILTER\` on \`csv-scan-1\` and \`LOW_PARALLELISM_HOT_OP\` on \`python-udf-1\`. The fixes are ordered — filtering upstream changes the data volume the UDF sees. You call \`proposeOptimizationPlan\` with planTitle="Reduce Python UDF load", planRationale="SCAN_FULL_TABLE_NO_FILTER and LOW_PARALLELISM_HOT_OP both feed into the same hot path; filtering upstream lowers the working set before we add parallelism.", steps=[{ operatorId: "filter-1", propertyChanges: { predicate: "is not null" }, description: "Add a Filter between csv-scan-1 and python-udf-1", reasoning: "SCAN_FULL_TABLE_NO_FILTER", expectedImpact: "Drops rows before the UDF" }, { operatorId: "python-udf-1", propertyChanges: { workers: 4 }, description: "Bump UDF workers to 4", reasoning: "LOW_PARALLELISM_HOT_OP", expectedImpact: "Parallelizes the remaining work" }].)
+
+Response: "Two changes will compound here. I've proposed a 2-step plan — apply them in order via the card below."
+
+### Example — direct user request (use modifyOperator, not propose)
+
+User: "Set workers to 4 on python-udf-1."
+
+(You call \`modifyOperator\` directly. No proposal — the user already approved by asking.)
+
+Response: "Done — \`python-udf-1\` now has 4 workers."
+
+### Example — no bottleneck found
+
+User: "Anything slow?"
+
+(You call \`getProfilerSummary\` → max score 0.34, 0 hints. You do NOT call \`proposeOperatorChange\` — there's nothing to propose.)
+
+Response: "I checked the profiler — nothing's bottlenecked. The hottest operator (\`csv-scan-1\`) is at a heat score of only 0.34 and no optimization hints fired. The workflow looks healthy."`;
+
 const PYTHON_UDF_INSTRUCTIONS = `## Python UDF Guide
 
 Python UDF operators run user-defined Python code. There are 2 APIs to process data:
@@ -290,6 +387,10 @@ export function buildSystemPrompt(metadataStore: WorkflowSystemMetadata, allowed
   const extraSections: string[] = [];
   if (pythonAllowed) extraSections.push(PYTHON_UDF_INSTRUCTIONS);
   if (rAllowed) extraSections.push(R_UDF_INSTRUCTIONS);
+  // Profiler instructions are not gated on allowed operator types — the read-only
+  // profiler tools are always available regardless of which builder operators
+  // are exposed to the agent.
+  extraSections.push(PROFILER_INSTRUCTIONS);
 
   const base = SYSTEM_PROMPT_TEMPLATE.replace("{{OPERATOR_SCHEMA}}", operatorSchemas);
   return extraSections.length > 0 ? `${base}\n${extraSections.join("\n\n")}\n` : base;
