@@ -899,9 +899,20 @@ export class MacroService {
       macroPortIndex: outputIdxByInnerPort.get(`${l.srcOp}|${l.srcPort}`) as number,
     }));
 
+    // Auto-generate a 1-line description so users don't get an empty
+    // description on the dashboard / palette tooltip. Format:
+    // "Filter → Projection block (2 ops, 1 in/1 out)".
+    const innerOpTypes = selectedOperatorIDs.map(opId => graph.getOperator(opId).operatorType);
+    const description = this.autoDescriptionForBody(
+      innerOpTypes,
+      inputMarkers.length,
+      outputMarkers.length
+    );
+
     return {
       request: {
         name,
+        description,
         content: JSON.stringify(body),
         portSpec,
       },
@@ -910,6 +921,24 @@ export class MacroService {
       inputPortCount: inputMarkers.length,
       outputPortCount: outputMarkers.length,
     };
+  }
+
+  /**
+   * Compose a one-line description for a freshly-created macro based on the
+   * operator-type composition of its body and its external port shape. The
+   * resulting string lands on the macro definition's `description` field and
+   * shows up in the palette tooltip + the dashboard macro browser.
+   */
+  private autoDescriptionForBody(
+    innerOpTypes: readonly string[],
+    inputPortCount: number,
+    outputPortCount: number
+  ): string {
+    if (innerOpTypes.length === 0) return "Empty macro";
+    const head = innerOpTypes.slice(0, 3).join(" → ");
+    const chain = innerOpTypes.length > 3 ? `${head} +${innerOpTypes.length - 3}` : head;
+    const portShape = `${inputPortCount} in / ${outputPortCount} out`;
+    return `${chain} (${innerOpTypes.length} ops, ${portShape})`;
   }
 
   /**
