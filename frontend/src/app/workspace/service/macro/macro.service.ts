@@ -309,6 +309,82 @@ export class MacroService {
     return this.http.post<MacroDetail>(`${AppSettings.getApiEndpoint()}/${MACRO_CREATE_URL}`, req);
   }
 
+  /**
+   * Trigger a browser download of a portable JSON dump of one macro. The file
+   * is everything `createMacro` accepts as input — name, content, portSpec,
+   * paramSpec — so it can be re-imported on a different Texera instance via
+   * `importMacroFromJson`. We deliberately exclude wid and timestamps because
+   * the importer always creates a fresh definition with a new wid.
+   *
+   * The exported `content` is the raw MacroBody JSON string; consumer just
+   * needs to round-trip it through `JSON.parse(JSON.stringify(...))` to stay
+   * Jackson-friendly on re-import.
+   */
+  public exportMacroToFile(wid: number): Observable<void> {
+    return this.getMacro(wid).pipe(
+      map(detail => {
+        const exportPayload = {
+          schemaVersion: 1,
+          name: detail.name,
+          description: detail.description,
+          content: detail.content,
+          portSpec: detail.portSpec,
+          paramSpec: detail.paramSpec,
+          category: detail.category,
+          icon: detail.icon,
+          exportedAt: new Date().toISOString(),
+          exportedFromTexera: window.location.host,
+        };
+        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        // Slugify the macro name so the filename is safe across OSes.
+        const safeName = detail.name.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 60);
+        a.download = `macro-${safeName}-${detail.wid}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      })
+    );
+  }
+
+  /**
+   * Reverse of `exportMacroToFile`: parse an uploaded JSON file and POST it
+   * as a brand-new macro definition. The new definition's wid is fresh —
+   * any cross-references inside the original `content` to its own wid are
+   * left as-is (they'd be self-referential and unused). Returns the created
+   * MacroDetail so the caller can refresh the palette.
+   */
+  public importMacroFromJson(rawJson: string): Observable<MacroDetail> {
+    const parsed = JSON.parse(rawJson) as {
+      schemaVersion?: number;
+      name?: string;
+      description?: string;
+      content?: string;
+      portSpec?: PortSpec;
+      paramSpec?: unknown;
+      category?: string;
+      icon?: string;
+    };
+    if (!parsed.name || !parsed.content || !parsed.portSpec) {
+      throw new Error("Invalid macro JSON: missing name / content / portSpec.");
+    }
+    const req: MacroCreateRequest = {
+      name: `${parsed.name} (imported)`,
+      description: parsed.description ?? "Imported macro",
+      content: parsed.content,
+      portSpec: parsed.portSpec,
+      paramSpec: parsed.paramSpec,
+      category: parsed.category,
+      icon: parsed.icon,
+    };
+    return this.createMacro(req);
+  }
+
   public listMacros(): Observable<MacroSummary[]> {
     return this.http.get<MacroSummary[]>(`${AppSettings.getApiEndpoint()}/${MACRO_LIST_URL}`);
   }

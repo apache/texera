@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
+import { Component, ElementRef, ViewChild } from "@angular/core";
 import Fuse from "fuse.js";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { GroupInfo, OperatorSchema } from "../../../types/operator-schema.interface";
@@ -358,5 +358,64 @@ export class OperatorMenuComponent {
 
   public dismissSuggestions(): void {
     this.suggestions = [];
+  }
+
+  /** Reference to the hidden file input — clicked programmatically by `onTriggerImportMacro`. */
+  @ViewChild("macroImportFile") macroImportFile?: ElementRef<HTMLInputElement>;
+
+  /**
+   * Trigger a browser download of one macro definition. Exposed off the
+   * palette item's small "⤓" affordance. The actual HTTP fetch + Blob
+   * creation lives in `MacroService.exportMacroToFile`.
+   */
+  public onExportMacro(summary: MacroSummary): void {
+    this.macroService.exportMacroToFile(summary.wid).subscribe({
+      next: () => this.message.success(`Exported "${summary.name}".`),
+      error: err => this.message.error(`Export failed: ${err?.message ?? err}`),
+    });
+  }
+
+  /**
+   * Open the OS file picker for macro JSON files. The change handler is
+   * `onImportMacroFile`. Using a hidden file input + button is the standard
+   * dance for getting a click-styled "Upload" affordance.
+   */
+  public onTriggerImportMacro(): void {
+    this.macroImportFile?.nativeElement.click();
+  }
+
+  /**
+   * File picker callback — read the JSON, POST it as a fresh macro
+   * definition, and refresh the "Your Macros" palette so the imported
+   * macro shows up immediately.
+   */
+  public onImportMacroFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result);
+      try {
+        this.macroService.importMacroFromJson(text).subscribe({
+          next: detail => {
+            this.message.success(`Imported macro "${detail.name}" (wid=${detail.wid})`);
+            // Refresh the palette to surface the new macro.
+            this.macroService.listMacros().subscribe({
+              next: (summaries: MacroSummary[]) => {
+                this.macroList = summaries.map(m => this.macroSummaryToSchema(m));
+              },
+            });
+          },
+          error: err => this.message.error(`Import failed: ${err?.message ?? err}`),
+        });
+      } catch (e: any) {
+        this.message.error(`Import failed: ${e?.message ?? e}`);
+      } finally {
+        // Reset so the same file can be re-picked if needed.
+        input.value = "";
+      }
+    };
+    reader.readAsText(file);
   }
 }

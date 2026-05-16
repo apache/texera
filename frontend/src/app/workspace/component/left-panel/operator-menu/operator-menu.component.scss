@@ -115,6 +115,49 @@
     border-radius: 8px;
     white-space: nowrap;
   }
+
+  &__export {
+    background: transparent;
+    border: 0;
+    color: #888;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.1s, color 0.1s;
+
+    &:hover {
+      background: #e8f1ff;
+      color: #1d6fdb;
+    }
+  }
+}
+
+.your-macros-toolbar {
+  margin: 8px 0 4px;
+  display: flex;
+  justify-content: flex-end;
+
+  &__import {
+    background: transparent;
+    border: 1px solid #4a90e2;
+    color: #1d6fdb;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.1s;
+
+    &:hover {
+      background: #f0f7ff;
+    }
+  }
+
+  &__file {
+    display: none;
+  }
 }
 
 // "Suggest Macros (AI)" panel — surfaces heuristic candidates. Sits between

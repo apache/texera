@@ -83,7 +83,22 @@
 
 <!-- "Your Macros" section — user's saved macros. Clicking adds the macro
      instance to the canvas; drag-from-here would require special-casing the
-     drag-drop service, so v1 is click-to-add. -->
+     drag-drop service, so v1 is click-to-add. Each item has a tiny "⤓"
+     export button (downloads JSON portable across instances) and the section
+     header carries an "Import" affordance for the reverse direction. -->
+<div class="your-macros-toolbar" *ngIf="canModify">
+  <button
+    class="your-macros-toolbar__import"
+    title="Import macro definition from a JSON file"
+    (click)="onTriggerImportMacro()">⤒ Import macro</button>
+  <input
+    #macroImportFile
+    type="file"
+    accept=".json,application/json"
+    class="your-macros-toolbar__file"
+    (change)="onImportMacroFile($event)" />
+</div>
+
 <nz-collapse
   *ngIf="macroList.length > 0"
   nzBordered="false"
@@ -98,20 +113,27 @@
         *ngFor="let macroSchema of macroList"
         class="operator-label macro-palette-item"
         [class.disabled]="!canModify"
-        (click)="canModify && onAddMacro(macroSchema)"
         [title]="macroSchema.additionalMetadata.operatorDescription">
-        <span class="macro-palette-item__icon">▦</span>
-        <span class="macro-palette-item__name">{{ macroSchema.additionalMetadata.userFriendlyName }}</span>
+        <span class="macro-palette-item__icon" (click)="canModify && onAddMacro(macroSchema)">▦</span>
+        <span class="macro-palette-item__name" (click)="canModify && onAddMacro(macroSchema)">
+          {{ macroSchema.additionalMetadata.userFriendlyName }}
+        </span>
         <span
           *ngIf="(macroSchema.__macroSummary?.usageCount ?? 0) > 0"
           class="macro-palette-item__usage"
+          (click)="canModify && onAddMacro(macroSchema)"
           [title]="'Used in ' + macroSchema.__macroSummary!.usageCount + ' workflow(s)'">
           {{ macroSchema.__macroSummary!.usageCount }}× used
         </span>
-        <span class="macro-palette-item__ports">
+        <span class="macro-palette-item__ports" (click)="canModify && onAddMacro(macroSchema)">
           {{ macroSchema.additionalMetadata.inputPorts.length }} in /
           {{ macroSchema.additionalMetadata.outputPorts.length }} out
         </span>
+        <button
+          *ngIf="macroSchema.__macroSummary"
+          class="macro-palette-item__export"
+          title="Export macro as JSON"
+          (click)="onExportMacro(macroSchema.__macroSummary); $event.stopPropagation()">⤓</button>
       </div>
     </div>
   </nz-collapse-panel>
