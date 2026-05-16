@@ -200,6 +200,16 @@
     font-size: 14px;
   }
 
+  &__count-badge {
+    margin-left: auto;
+    padding: 1px 8px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+  }
+
   &__panel {
     margin-top: 8px;
     background: #f6f8fc;

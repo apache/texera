@@ -50,6 +50,12 @@
     <span class="suggest-macros__icon">✨</span>
     <span *ngIf="!isSuggesting">Suggest Macros (AI)</span>
     <span *ngIf="isSuggesting">Analyzing workflow…</span>
+    <span
+      *ngIf="!isSuggesting && availableCandidateCount > 0"
+      class="suggest-macros__count-badge"
+      [title]="availableCandidateCount + ' candidate macro(s) detected in your workflow'">
+      {{ availableCandidateCount }}
+    </span>
   </button>
   <div *ngIf="suggestions.length > 0" class="suggest-macros__panel">
     <div class="suggest-macros__header">

@@ -80,6 +80,12 @@ export class OperatorMenuComponent {
   // collapsed.
   public suggestions: MacroSuggestion[] = [];
   public isSuggesting: boolean = false;
+  // Proactive count — how many candidates the heuristic would surface RIGHT
+  // NOW if the user clicked the button. Refreshed whenever the canvas changes
+  // (with a short debounce). Surfaced as a small chip on the Suggest button
+  // so the user sees "4 candidates found" without having to click. This is
+  // the "agent is watching your workflow" feel.
+  public availableCandidateCount: number = 0;
 
   // input value of the search input box
   public searchInputValue: string = "";
@@ -123,6 +129,49 @@ export class OperatorMenuComponent {
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
       .subscribe(canModify => (this.canModify = canModify));
+    // Proactive macro-suggestion watcher: every time the workflow graph
+    // changes (add/delete/relink), debounce 700ms then run the heuristic
+    // suggester silently and update `availableCandidateCount`. The UI badges
+    // the Suggest button so the user discovers patterns without clicking.
+    // 700ms is long enough that mid-drag operator placements don't trigger
+    // a flicker, short enough to feel responsive after a click settles.
+    const refreshSuggestionCount = () => {
+      try {
+        const graph = this.workflowActionService.getTexeraGraph();
+        const list = this.macroSuggestionService.suggestMacros(graph);
+        this.availableCandidateCount = list.length;
+      } catch {
+        this.availableCandidateCount = 0;
+      }
+    };
+    let debounceHandle: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (debounceHandle) clearTimeout(debounceHandle);
+      debounceHandle = setTimeout(refreshSuggestionCount, 700);
+    };
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(scheduleRefresh);
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDeleteStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(scheduleRefresh);
+    this.workflowActionService
+      .getTexeraGraph()
+      .getLinkAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(scheduleRefresh);
+    this.workflowActionService
+      .getTexeraGraph()
+      .getLinkDeleteStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(scheduleRefresh);
+    // Kick off an initial scan once the canvas has settled.
+    setTimeout(refreshSuggestionCount, 1200);
+
     this.operatorMetadataService
       .getOperatorMetadata()
       .pipe(untilDestroyed(this))
