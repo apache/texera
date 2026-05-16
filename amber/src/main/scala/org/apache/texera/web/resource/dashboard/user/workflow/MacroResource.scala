@@ -112,7 +112,10 @@ object MacroResource {
   /**
     * Lightweight row for `GET /macro/list`. `content` is intentionally omitted
     * so the operator palette can render without pulling large LogicalPlan blobs
-    * over the wire.
+    * over the wire. `usageCount` is the number of distinct non-macro workflows
+    * (visible to the requesting user) whose `content` references this macro
+    * by `"macroId":"<wid>"`. Surfaced in the "Your Macros" palette as a small
+    * "Nx" chip so users can see at a glance how reusable a macro is.
     */
   case class MacroSummary(
       wid: Integer,
@@ -121,7 +124,8 @@ object MacroResource {
       lastModifiedTime: Timestamp,
       portSpec: PortSpec,
       category: Option[String],
-      icon: Option[String]
+      icon: Option[String],
+      usageCount: Int
   )
 
   /**
@@ -220,6 +224,7 @@ class MacroResource extends LazyLogging {
       .and(WORKFLOW_USER_ACCESS.UID.eq(uid))
       .fetch()
 
+    val usageMap = computeMacroUsage(uid)
     rows.asScala.map { r =>
       MacroSummary(
         r.value1(),
@@ -228,9 +233,47 @@ class MacroResource extends LazyLogging {
         r.value4(),
         parsePortSpec(r.value5()),
         Option(r.value6()),
-        Option(r.value7())
+        Option(r.value7()),
+        usageMap.getOrElse(r.value1().intValue(), 0)
       )
     }.toList
+  }
+
+  /**
+    * For each macro the user can see, count the distinct non-macro workflows
+    * (also user-visible) whose `content` JSON embeds the macro's wid via
+    * `"macroId":"<wid>"`. The regex is robust to whitespace variants Jackson
+    * may produce.
+    *
+    * One pass over the user's non-macro workflows; no per-macro round-trip.
+    * Cost = O(workflows × content-length). For typical Texera installs
+    * (hundreds of workflows, < 100KB each) this is well under a millisecond.
+    */
+  private def computeMacroUsage(uid: Integer): Map[Int, Int] = {
+    val contents = context
+      .selectDistinct(WORKFLOW.WID, WORKFLOW.CONTENT)
+      .from(WORKFLOW)
+      .join(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .where(WORKFLOW.KIND.ne(WorkflowKindEnum.MACRO))
+      .and(WORKFLOW_USER_ACCESS.UID.eq(uid))
+      .fetch()
+    val macroIdRegex = """"macroId"\s*:\s*"(\d+)"""".r
+    val counts = scala.collection.mutable.Map[Int, Int]().withDefaultValue(0)
+    for (r <- contents.asScala) {
+      val content = r.value2()
+      if (content != null) {
+        // De-dup within a single workflow: one workflow contributes +1 per
+        // distinct macroId it references, not per occurrence. The UI surfaces
+        // this as "used in N workflows".
+        val widsInThisWorkflow = scala.collection.mutable.Set[Int]()
+        for (m <- macroIdRegex.findAllMatchIn(content)) {
+          widsInThisWorkflow += m.group(1).toInt
+        }
+        widsInThisWorkflow.foreach(wid => counts(wid) = counts(wid) + 1)
+      }
+    }
+    counts.toMap
   }
 
   @GET

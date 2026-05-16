@@ -105,6 +105,16 @@
     color: #888;
     white-space: nowrap;
   }
+
+  &__usage {
+    font-size: 10px;
+    font-weight: 600;
+    color: #1d6fdb;
+    background: #e0eaff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
 }
 
 // "Suggest Macros (AI)" panel — surfaces heuristic candidates. Sits between

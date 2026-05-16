@@ -102,6 +102,12 @@
         [title]="macroSchema.additionalMetadata.operatorDescription">
         <span class="macro-palette-item__icon">▦</span>
         <span class="macro-palette-item__name">{{ macroSchema.additionalMetadata.userFriendlyName }}</span>
+        <span
+          *ngIf="(macroSchema.__macroSummary?.usageCount ?? 0) > 0"
+          class="macro-palette-item__usage"
+          [title]="'Used in ' + macroSchema.__macroSummary!.usageCount + ' workflow(s)'">
+          {{ macroSchema.__macroSummary!.usageCount }}× used
+        </span>
         <span class="macro-palette-item__ports">
           {{ macroSchema.additionalMetadata.inputPorts.length }} in /
           {{ macroSchema.additionalMetadata.outputPorts.length }} out

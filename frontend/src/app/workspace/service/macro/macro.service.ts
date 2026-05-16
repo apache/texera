@@ -102,6 +102,11 @@ export interface MacroSummary {
   portSpec: PortSpec;
   category?: string;
   icon?: string;
+  // Number of distinct non-macro workflows that reference this macro. Surfaced
+  // in the "Your Macros" palette as a small reuse-count chip. Optional so
+  // older backend builds (without the usageCount field) still work — frontend
+  // treats `undefined` as "unknown" and hides the chip.
+  usageCount?: number;
 }
 
 // Shape that MacroExpander (backend) reads off `workflow.content`. Matches the
