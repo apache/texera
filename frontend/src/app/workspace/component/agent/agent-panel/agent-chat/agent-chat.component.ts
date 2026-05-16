@@ -60,6 +60,20 @@ import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
+/**
+ * In-memory attachment carried into the next outgoing message.
+ * preview holds the inlineable content (CSV sample, full text for small text
+ * files, etc); empty for unsupported types like PDF.
+ */
+export interface ChatAttachment {
+  name: string;
+  size: number;
+  summary: string;
+  preview: string;
+  fence?: string;
+  note?: string;
+}
+
 @UntilDestroy()
 @Component({
   selector: "texera-agent-chat",
@@ -102,6 +116,12 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   /** Steps on the HEAD path only (for chat rendering) */
   public visibleSteps: ReActStep[] = [];
   public currentMessage = "";
+  /** Files attached to the next outgoing message. Cleared on send. */
+  public attachments: ChatAttachment[] = [];
+  /** File types accepted by the attachment input. */
+  public readonly attachmentAccept = ".csv,.txt,.md,.json,.pdf,.tsv";
+  /** Maximum per-file size to read inline. Larger files are noted but their content is omitted. */
+  private readonly MAX_INLINE_BYTES = 200_000;
   private shouldScrollToBottom = false;
   public isDetailsModalVisible = false;
   public selectedResponse: ReActStep | null = null;
@@ -400,15 +420,121 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   }
 
   public sendMessage(): void {
-    if (!this.currentMessage.trim() || !this.canSendMessage()) {
+    const trimmed = this.currentMessage.trim();
+    if ((!trimmed && this.attachments.length === 0) || !this.canSendMessage()) {
       return;
     }
 
-    const userMessage = this.currentMessage.trim();
+    const userMessage = this.composeOutgoingMessage(trimmed);
     this.currentMessage = "";
+    this.attachments = [];
 
     // Fire-and-forget; responses stream in via the WebSocket subscription.
     this.agentService.sendMessage(this.agentInfo.id, userMessage);
+  }
+
+  private composeOutgoingMessage(userText: string): string {
+    if (this.attachments.length === 0) return userText;
+    const blocks = this.attachments.map(att => this.renderAttachmentBlock(att));
+    const header =
+      "[Attached files — the user has provided the following file context for this turn]";
+    return [header, ...blocks, userText].filter(Boolean).join("\n\n");
+  }
+
+  private renderAttachmentBlock(att: ChatAttachment): string {
+    const headerLine = `### File: ${att.name} (${att.summary})`;
+    if (!att.preview) {
+      return headerLine + "\n(No previewable content available.)";
+    }
+    const fence = att.fence || "";
+    return `${headerLine}\n\`\`\`${fence}\n${att.preview}\n\`\`\``;
+  }
+
+  public onAttachmentSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const files = Array.from(input.files);
+    input.value = "";
+    files.forEach(file => this.ingestAttachment(file));
+  }
+
+  public removeAttachment(index: number): void {
+    this.attachments = this.attachments.filter((_, i) => i !== index);
+  }
+
+  private ingestAttachment(file: File): void {
+    const lower = file.name.toLowerCase();
+    if (lower.endsWith(".pdf")) {
+      this.attachments = [
+        ...this.attachments,
+        {
+          name: file.name,
+          size: file.size,
+          summary: this.formatFileSize(file.size),
+          preview: "",
+          fence: "",
+          note: "PDF text extraction is not supported in chat. Describe the contents in your message.",
+        },
+      ];
+      return;
+    }
+    if (file.size > this.MAX_INLINE_BYTES) {
+      this.attachments = [
+        ...this.attachments,
+        {
+          name: file.name,
+          size: file.size,
+          summary: this.formatFileSize(file.size) + " — too large to inline",
+          preview: "",
+          fence: "",
+          note: "File too large to read inline.",
+        },
+      ];
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? "");
+      const isCsv = lower.endsWith(".csv") || lower.endsWith(".tsv");
+      if (isCsv) {
+        const { preview, summary } = this.summarizeCsv(text, lower.endsWith(".tsv") ? "\t" : ",");
+        this.attachments = [
+          ...this.attachments,
+          { name: file.name, size: file.size, summary, preview, fence: "csv" },
+        ];
+      } else {
+        const fence = lower.endsWith(".json") ? "json" : "";
+        this.attachments = [
+          ...this.attachments,
+          {
+            name: file.name,
+            size: file.size,
+            summary: this.formatFileSize(file.size),
+            preview: text,
+            fence,
+          },
+        ];
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  private summarizeCsv(content: string, delimiter: string): { preview: string; summary: string } {
+    const lines = content.replace(/\r\n/g, "\n").split("\n").filter(line => line.length > 0);
+    if (lines.length === 0) {
+      return { preview: "", summary: "Empty CSV" };
+    }
+    const header = lines[0];
+    const sampleLines = lines.slice(0, 6); // header + 5 rows
+    const cols = header.split(delimiter).length;
+    const summary = `CSV: ${cols} columns × ${Math.max(0, lines.length - 1)} rows (showing 5)`;
+    return { preview: sampleLines.join("\n"), summary };
+  }
+
+  private formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   }
 
   /**

@@ -204,20 +204,99 @@
   }
 }
 
+// Truly hidden file picker — positioned off-screen rather than display:none so
+// it remains focusable/clickable from script. The paperclip button click()s it.
+.hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .input-area {
   display: flex;
   gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid #f0f0f0;
   background: #ffffff;
-  align-items: center;
+  align-items: flex-end;
 
   textarea {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
-  button {
-    align-self: flex-end;
+  > button {
+    flex-shrink: 0;
+  }
+
+  .attach-button {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(0, 0, 0, 0.55);
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      color: #1890ff;
+    }
+
+    i[nz-icon] {
+      font-size: 18px;
+    }
+  }
+}
+
+.attachment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px 0;
+  background: #ffffff;
+
+  .attachment-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    background: #fafafa;
+    max-width: 100%;
+
+    i[nz-icon] {
+      color: #1890ff;
+    }
+
+    .chip-text {
+      display: flex;
+      flex-direction: column;
+      max-width: 220px;
+
+      .chip-name {
+        font-size: 12px;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .chip-summary {
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.45);
+      }
+    }
   }
 }
 

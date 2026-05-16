@@ -98,6 +98,17 @@
             <span>Datasets</span>
           </li>
           <li
+            nz-menu-item
+            nz-tooltip="Manage your custom AI agents"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_AGENT">
+            <span
+              nz-icon
+              nzType="robot"></span>
+            <span>Agents</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.compute_enabled"
             nz-menu-item
             nz-tooltip="Manage computing units"

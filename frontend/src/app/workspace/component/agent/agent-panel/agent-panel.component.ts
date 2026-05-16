@@ -18,25 +18,35 @@
  */
 
 import { Component, HostListener, Input, OnDestroy, OnInit, OnChanges, SimpleChanges } from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { Subscription } from "rxjs";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
-import { NgIf, NgClass, NgFor } from "@angular/common";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
-import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NgIf, NgClass, NgFor, DatePipe } from "@angular/common";
+import { NzButtonComponent, NzButtonModule } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
-import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzIconDirective, NzIconModule } from "ng-zorro-antd/icon";
 import { CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
-import { NzTabsComponent, NzTabBarExtraContentDirective, NzTabComponent, NzTabDirective } from "ng-zorro-antd/tabs";
-import { AgentRegistrationComponent } from "./agent-registration/agent-registration.component";
+import { NzSelectModule } from "ng-zorro-antd/select";
+import { NzTagModule } from "ng-zorro-antd/tag";
+import { NzEmptyModule } from "ng-zorro-antd/empty";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AgentChatComponent } from "./agent-chat/agent-chat.component";
-import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/repeat-dnd.component";
+import { CustomAgentService } from "../../../../dashboard/service/user/custom-agent/custom-agent.service";
+import { CustomAgent } from "../../../../dashboard/type/custom-agent.interface";
+import { Conversation, ConversationService } from "../../../service/agent/conversation.service";
+import { ReActStep } from "../../../service/agent/agent-types";
+
+const DEFAULT_AGENT_KEY = "default";
+const DEFAULT_AGENT_NAME = "Default Agent";
+const DEFAULT_AGENT_ICON = "🤖";
 
 @UntilDestroy()
 @Component({
@@ -45,294 +55,358 @@ import { FormlyRepeatDndComponent } from "../../../../common/formly/repeat-dnd/r
   styleUrls: ["agent-panel.component.scss"],
   imports: [
     NgIf,
-    NzSpaceCompactItemDirective,
+    NgFor,
+    NgClass,
+    DatePipe,
+    FormsModule,
     NzButtonComponent,
+    NzButtonModule,
     NzWaveDirective,
     ɵNzTransitionPatchDirective,
     NzTooltipDirective,
     NzIconDirective,
+    NzIconModule,
     CdkDrag,
-    NzResizableDirective,
-    NzMenuDirective,
-    NgClass,
-    NzMenuItemComponent,
     CdkDragHandle,
-    NzTabsComponent,
-    NzTabBarExtraContentDirective,
-    NzTabComponent,
-    NzTabDirective,
-    AgentRegistrationComponent,
-    NgFor,
-    AgentChatComponent,
+    NzResizableDirective,
     NzResizeHandlesComponent,
-    FormlyRepeatDndComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
+    NzSelectModule,
+    NzTagModule,
+    NzEmptyModule,
+    NzPopconfirmModule,
+    AgentChatComponent,
   ],
 })
 export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   protected readonly window = window;
+  protected readonly DEFAULT_AGENT_KEY = DEFAULT_AGENT_KEY;
   private static readonly MIN_PANEL_WIDTH = 400;
   private static readonly MIN_PANEL_HEIGHT = 450;
 
-  /**
-   * Optional agent ID to activate when the panel loads.
-   * When provided (from agent dashboard), the panel will open
-   * and switch to this agent's tab automatically.
-   */
+  /** Optional backend agent ID to activate when the panel loads (legacy entry point). */
   @Input() agentIdToActivate?: string;
 
-  // Panel dimensions and position
-  width: number = 0; // Start with 0 to show docked button
+  // Panel dimensions / position
+  width: number = 0;
   height = Math.max(AgentPanelComponent.MIN_PANEL_HEIGHT, window.innerHeight * 0.7);
   id = -1;
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
   isDocked = true;
 
-  // Tab management
-  selectedTabIndex: number = 0; // 0 = registration tab, 1+ = agent tabs
-  agents: AgentInfo[] = [];
+  // Two-view state
+  public viewMode: "list" | "chat" = "list";
 
-  // Active agent tracking - only one agent can be connected at a time
-  activeAgentId: string | null = null;
+  /** The agent selected in the dropdown — used as the agent for the NEXT new conversation. */
+  public selectedAgentKey: string = DEFAULT_AGENT_KEY;
+
+  // Data sources
+  public customAgents: CustomAgent[] = [];
+  public conversations: Conversation[] = [];
+  /** Current workflow id; undefined when no workflow is open or workflow is unsaved. */
+  public currentWorkflowId?: number;
+
+  // Active chat state
+  public activeConversation: Conversation | null = null;
+  public activeBackendAgent: AgentInfo | null = null;
+  public isStartingConversation = false;
+
+  // Cached defaults
+  private defaultModelType: string | null = null;
+  private allBackendAgents: AgentInfo[] = [];
+  private persistedStepIds = new Set<string>();
+  private listSubscription?: Subscription;
 
   constructor(
     private agentService: AgentService,
     private workflowActionService: WorkflowActionService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private customAgentService: CustomAgentService,
+    private conversationService: ConversationService
   ) {}
 
   ngOnInit(): void {
     this.loadPanelSettings();
 
-    // Subscribe to agent changes
-    this.agentService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => {
-      this.agentService
-        .getAllAgents()
-        .pipe(untilDestroyed(this))
-        .subscribe(agents => {
-          this.agents = agents;
-          // Try to activate the agent if agentIdToActivate is set
-          this.tryActivateAgentFromInput();
-        });
-    });
-
-    // Load initial agents
-    this.agentService
-      .getAllAgents()
+    this.customAgentService
+      .list$()
       .pipe(untilDestroyed(this))
-      .subscribe(agents => {
-        this.agents = agents;
-        // Try to activate the agent if agentIdToActivate is set
-        this.tryActivateAgentFromInput();
+      .subscribe(agents => (this.customAgents = agents));
+
+    // Seed and track current workflow id; reload conversation list on every change.
+    this.currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
+    this.reloadConversations();
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(meta => {
+        const newWid = meta?.wid;
+        if (newWid === this.currentWorkflowId) return;
+        this.currentWorkflowId = newWid;
+        // Drop any active chat — it belongs to the previous workflow.
+        this.resetActiveChat();
+        this.reloadConversations();
       });
+
+    this.agentService
+      .fetchModelTypes()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: models => {
+          if (models.length > 0 && !this.defaultModelType) {
+            this.defaultModelType = models[0].id;
+          }
+        },
+        error: () => {
+          // surfaced when user attempts to start a conversation
+        },
+      });
+
+    this.agentService.agentChange$.pipe(untilDestroyed(this)).subscribe(() => this.refreshBackendAgents());
+    this.refreshBackendAgents();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["agentIdToActivate"] && this.agentIdToActivate) {
-      this.tryActivateAgentFromInput();
+      this.activateFromBackendAgentId(this.agentIdToActivate);
+      this.agentIdToActivate = undefined;
     }
-  }
-
-  /**
-   * Try to activate the agent specified by agentIdToActivate input.
-   * Opens the panel and switches to the agent's tab.
-   */
-  private tryActivateAgentFromInput(): void {
-    if (!this.agentIdToActivate || this.agents.length === 0) {
-      return;
-    }
-
-    const agentIndex = this.agents.findIndex(agent => agent.id === this.agentIdToActivate);
-    if (agentIndex === -1) {
-      return;
-    }
-
-    // Open the panel if it's closed
-    if (this.width === 0) {
-      this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
-    }
-
-    // Switch to the agent's tab and activate it
-    const agent = this.agents[agentIndex];
-
-    // Deactivate previous agent if any
-    if (this.activeAgentId) {
-      this.agentService.deactivateAgent(this.activeAgentId);
-    }
-
-    // Activate the specified agent
-    this.activeAgentId = agent.id;
-    this.agentService.activateAgent(agent.id);
-    this.selectedTabIndex = agentIndex + 1; // +1 because tab 0 is registration
-
-    // Clear the input so we don't re-activate on every change
-    this.agentIdToActivate = undefined;
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    // Deactivate any active agent before destroying
-    this.deactivateCurrentAgent();
+    this.deactivateCurrentBackendAgent();
     this.savePanelSettings();
   }
 
-  /**
-   * Open the panel from docked state
-   */
+  // ---------- Panel open/close ----------
+
   public openPanel(): void {
     if (this.width === 0) {
-      // Open panel
       this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
     } else {
-      // Close panel (dock it)
       this.width = 0;
       this.isDocked = true;
     }
   }
 
-  /**
-   * Handle agent creation - activates and switches to the new agent
-   */
-  public onAgentCreated(agentId: string): void {
-    // Deactivate previous agent if any
-    if (this.activeAgentId) {
-      this.agentService.deactivateAgent(this.activeAgentId);
+  // ---------- Selector (controls which agent the next new conversation uses) ----------
+
+  public selectedAgentLabel(): string {
+    if (this.selectedAgentKey === DEFAULT_AGENT_KEY) return `${DEFAULT_AGENT_ICON} ${DEFAULT_AGENT_NAME}`;
+    const agent = this.customAgents.find(a => a.id === this.selectedAgentKey);
+    return agent ? `${agent.icon} ${agent.name}` : `${DEFAULT_AGENT_ICON} ${DEFAULT_AGENT_NAME}`;
+  }
+
+  public selectedAgentDescription(): string {
+    if (this.selectedAgentKey === DEFAULT_AGENT_KEY) return "Built-in Texera assistant";
+    return this.customAgents.find(a => a.id === this.selectedAgentKey)?.description ?? "";
+  }
+
+  public selectedCustomAgent(): CustomAgent | undefined {
+    return this.customAgents.find(a => a.id === this.selectedAgentKey);
+  }
+
+  public onSelectAgentKey(key: string): void {
+    if (key === this.selectedAgentKey) return;
+    this.selectedAgentKey = key;
+    // Conversations are scoped by (workflowId, agentId), so switching the
+    // selected agent shows a different list and invalidates the active chat.
+    this.resetActiveChat();
+    this.reloadConversations();
+  }
+
+  private resetActiveChat(): void {
+    this.viewMode = "list";
+    this.activeConversation = null;
+    this.deactivateCurrentBackendAgent();
+  }
+
+  // ---------- Conversation list (view 1) ----------
+
+  private reloadConversations(): void {
+    this.listSubscription?.unsubscribe();
+    if (this.currentWorkflowId === undefined) {
+      this.conversations = [];
+      return;
     }
+    this.listSubscription = this.conversationService
+      .list$(this.currentWorkflowId, this.selectedAgentKey)
+      .pipe(untilDestroyed(this))
+      .subscribe(list => (this.conversations = list));
+  }
 
-    // Set the new agent as active immediately
-    this.activeAgentId = agentId;
-    this.agentService.activateAgent(agentId);
+  public openConversation(conversation: Conversation): void {
+    // Keep the selector in sync with whatever agent owns this conversation,
+    // so the visible list matches the open chat.
+    if (conversation.agentId !== this.selectedAgentKey) {
+      this.selectedAgentKey = conversation.agentId;
+      this.reloadConversations();
+    }
+    this.activeConversation = conversation;
+    this.viewMode = "chat";
+    this.persistedStepIds.clear();
+    this.attachBackendAgent(conversation);
+  }
 
-    // Fetch the latest agent list and switch to the new agent's tab
+  public newConversation(): void {
+    if (this.isStartingConversation) return;
+    if (this.currentWorkflowId === undefined) {
+      this.notificationService.warning("Save the workflow first to start a conversation.");
+      return;
+    }
+    if (!this.defaultModelType) {
+      this.notificationService.error("No LLM models available. Check LiteLLM is running.");
+      return;
+    }
+    this.isStartingConversation = true;
+    const customAgent = this.selectedCustomAgent();
+    const conversation = this.conversationService.create({
+      workflowId: this.currentWorkflowId,
+      agentId: this.selectedAgentKey,
+      agentName: customAgent ? customAgent.name : DEFAULT_AGENT_NAME,
+      agentIcon: customAgent ? customAgent.icon || DEFAULT_AGENT_ICON : DEFAULT_AGENT_ICON,
+    });
+    this.activeConversation = conversation;
+    this.viewMode = "chat";
+    this.persistedStepIds.clear();
+    this.createBackendAgentForConversation(conversation, customAgent);
+  }
+
+  public deleteConversation(conversation: Conversation): void {
+    this.conversationService.delete(conversation.workflowId, conversation.agentId, conversation.id);
+    if (this.activeConversation?.id === conversation.id) {
+      this.activeConversation = null;
+      this.deactivateCurrentBackendAgent();
+      this.viewMode = "list";
+    }
+  }
+
+  public conversationPreview(c: Conversation): string {
+    if (c.messages.length === 0) return "No messages yet";
+    return c.messages[0].content;
+  }
+
+  // ---------- Chat view (view 2) ----------
+
+  public backToList(): void {
+    this.viewMode = "list";
+  }
+
+  private refreshBackendAgents(): void {
     this.agentService
       .getAllAgents()
       .pipe(untilDestroyed(this))
-      .subscribe(agents => {
-        this.agents = agents;
-        const agentIndex = agents.findIndex(agent => agent.id === agentId);
-        if (agentIndex !== -1) {
-          this.selectedTabIndex = agentIndex + 1; // +1 because tab 0 is registration
+      .subscribe(agents => (this.allBackendAgents = agents));
+  }
+
+  private attachBackendAgent(conversation: Conversation): void {
+    const existing = conversation.lastBackendAgentId
+      ? this.allBackendAgents.find(a => a.id === conversation.lastBackendAgentId)
+      : undefined;
+    if (existing) {
+      this.deactivateCurrentBackendAgent();
+      this.activeBackendAgent = existing;
+      this.agentService.activateAgent(existing.id);
+      this.subscribeToStepsForPersistence(existing.id, conversation);
+    } else {
+      const customAgent = this.customAgentService.list().find(a => a.id === conversation.agentId);
+      this.createBackendAgentForConversation(conversation, customAgent);
+    }
+  }
+
+  private createBackendAgentForConversation(conversation: Conversation, customAgent: CustomAgent | undefined): void {
+    // Custom agents carry their own model; the built-in default agent falls
+    // back to whatever LiteLLM offered first via /models.
+    const modelType = customAgent?.model ?? this.defaultModelType;
+    if (!modelType) {
+      this.isStartingConversation = false;
+      return;
+    }
+    if (conversation.workflowId !== this.currentWorkflowId) {
+      // Sanity check: never attach a backend agent to a conversation that
+      // belongs to a different workflow than the one currently open.
+      this.isStartingConversation = false;
+      return;
+    }
+    const customAgentName = customAgent ? `${customAgent.icon} ${customAgent.name}` : undefined;
+
+    this.deactivateCurrentBackendAgent();
+    this.agentService
+      .createAgent(modelType, customAgentName, conversation.workflowId, customAgent)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: agentInfo => {
+          this.activeBackendAgent = agentInfo;
+          this.agentService.activateAgent(agentInfo.id);
+          this.conversationService.setBackendAgentId(
+            conversation.workflowId,
+            conversation.agentId,
+            conversation.id,
+            agentInfo.id
+          );
+          this.activeConversation = { ...conversation, lastBackendAgentId: agentInfo.id };
+          this.subscribeToStepsForPersistence(agentInfo.id, conversation);
+          this.isStartingConversation = false;
+          this.refreshBackendAgents();
+        },
+        error: () => {
+          this.isStartingConversation = false;
+          this.viewMode = "list";
+          this.activeConversation = null;
+        },
+      });
+  }
+
+  private deactivateCurrentBackendAgent(): void {
+    if (this.activeBackendAgent) {
+      this.agentService.deactivateAgent(this.activeBackendAgent.id);
+      this.activeBackendAgent = null;
+    }
+  }
+
+  /**
+   * Subscribe to ReAct steps for the active backend agent and persist them to
+   * the active conversation. Each step is persisted at most once.
+   */
+  private subscribeToStepsForPersistence(backendAgentId: string, conversation: Conversation): void {
+    this.agentService
+      .getReActStepsObservable(backendAgentId)
+      .pipe(untilDestroyed(this))
+      .subscribe((steps: ReActStep[]) => {
+        for (const step of steps) {
+          if (this.persistedStepIds.has(step.id)) continue;
+          if (!step.content) continue;
+          const role = step.role === "user" ? "user" : "agent";
+          const generatedWorkflow = Boolean(step.toolCalls && step.toolCalls.length > 0);
+          this.conversationService.appendMessage(
+            conversation.workflowId,
+            conversation.agentId,
+            conversation.id,
+            role,
+            step.content,
+            generatedWorkflow
+          );
+          this.persistedStepIds.add(step.id);
         }
       });
   }
 
-  /**
-   * Handle tab selection change - validates workflow compatibility before switching
-   */
-  public onTabSelectChange(index: number): void {
-    // Tab 0 is registration - always allow
-    if (index === 0) {
-      this.deactivateCurrentAgent();
-      this.selectedTabIndex = 0;
-      return;
+  private activateFromBackendAgentId(backendAgentId: string): void {
+    if (this.width === 0) {
+      this.width = AgentPanelComponent.MIN_PANEL_WIDTH;
     }
-
-    // Get the agent for this tab (index - 1 because tab 0 is registration)
-    const agentIndex = index - 1;
-    if (agentIndex < 0 || agentIndex >= this.agents.length) {
-      return;
-    }
-
-    const agent = this.agents[agentIndex];
-    const agentWorkflowId = agent.delegate?.workflowId;
-    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
-
-    // If agent has a workflow ID, check if it matches the current workflow
-    if (agentWorkflowId !== undefined && agentWorkflowId !== 0) {
-      if (currentWorkflowId !== agentWorkflowId) {
-        // Block switching - workflow mismatch
-        this.notificationService.warning(
-          `Cannot switch to agent "${agent.name}": It's working on a different workflow. ` +
-            `Open workflow #${agentWorkflowId} to interact with this agent.`
-        );
-        return;
-      }
-    }
-
-    // Workflow matches or agent has no workflow - allow switch
-    this.switchToAgent(agent.id, index);
-  }
-
-  /**
-   * Switch to a specific agent tab
-   */
-  private switchToAgent(agentId: string, tabIndex: number): void {
-    // Skip if already on this agent and tab
-    if (this.activeAgentId === agentId && this.selectedTabIndex === tabIndex) {
-      return;
-    }
-
-    // Deactivate previous agent only if switching to a different agent
-    if (this.activeAgentId !== agentId) {
-      this.deactivateCurrentAgent();
-    }
-
-    // Activate new agent
-    this.activeAgentId = agentId;
-    this.agentService.activateAgent(agentId);
-    this.selectedTabIndex = tabIndex;
-  }
-
-  /**
-   * Deactivate the currently active agent
-   */
-  private deactivateCurrentAgent(): void {
-    if (this.activeAgentId) {
-      this.agentService.deactivateAgent(this.activeAgentId);
-      this.activeAgentId = null;
+    if (this.currentWorkflowId === undefined) return;
+    const found = this.conversationService.findByBackendAgentId(this.currentWorkflowId, backendAgentId);
+    if (found) {
+      this.openConversation(found);
     }
   }
 
-  /**
-   * Check if an agent's workflow matches the current workspace workflow
-   */
-  public canSwitchToAgent(agent: AgentInfo): boolean {
-    const agentWorkflowId = agent.delegate?.workflowId;
-    if (agentWorkflowId === undefined || agentWorkflowId === 0) {
-      return true; // Agent has no workflow - always allow
-    }
-    const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
-    return currentWorkflowId === agentWorkflowId;
-  }
+  // ---------- Panel layout (resize/drag/persist) ----------
 
-  /**
-   * Delete an agent
-   */
-  public deleteAgent(agentId: string, event: Event): void {
-    event.stopPropagation(); // Prevent tab switch
-
-    if (confirm("Are you sure you want to delete this agent?")) {
-      const agentIndex = this.agents.findIndex(agent => agent.id === agentId);
-
-      // Deactivate if this is the active agent
-      if (this.activeAgentId === agentId) {
-        this.deactivateCurrentAgent();
-      }
-
-      // Must subscribe to the observable for it to execute
-      this.agentService
-        .deleteAgent(agentId)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => {
-            // If we're on the deleted agent's tab, switch to registration
-            if (agentIndex !== -1 && this.selectedTabIndex === agentIndex + 1) {
-              this.selectedTabIndex = 0;
-            } else if (this.selectedTabIndex > agentIndex + 1) {
-              // Adjust selected index if we deleted a tab before the current one
-              this.selectedTabIndex--;
-            }
-          },
-          error: (error: unknown) => {
-            console.error("Failed to delete agent:", error);
-          },
-        });
-    }
-  }
-
-  /**
-   * Handle panel resize
-   */
   onResize({ width, height }: NzResizeEvent): void {
     cancelAnimationFrame(this.id);
     this.id = requestAnimationFrame(() => {
@@ -341,23 +415,16 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  /**
-   * Handle drag start
-   */
   handleDragStart(): void {
     this.isDocked = false;
   }
 
-  /**
-   * Load panel settings from localStorage
-   */
   private loadPanelSettings(): void {
     const savedWidth = localStorage.getItem("agent-panel-width");
     const savedHeight = localStorage.getItem("agent-panel-height");
     const savedStyle = localStorage.getItem("agent-panel-style");
     const savedDocked = localStorage.getItem("agent-panel-docked");
 
-    // Only restore width if the panel was not docked
     if (savedDocked === "false" && savedWidth) {
       const parsedWidth = Number(savedWidth);
       if (!isNaN(parsedWidth) && parsedWidth >= AgentPanelComponent.MIN_PANEL_WIDTH) {
@@ -384,9 +451,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  /**
-   * Save panel settings to localStorage
-   */
   private savePanelSettings(): void {
     localStorage.setItem("agent-panel-width", String(this.width));
     localStorage.setItem("agent-panel-height", String(this.height));

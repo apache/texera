@@ -281,7 +281,219 @@ function buildAllowedOperatorSchemas(
   return schemas.length > 0 ? schemas.join("\n\n") : "No operators available.";
 }
 
-export function buildSystemPrompt(metadataStore: WorkflowSystemMetadata, allowedOperatorTypes: string[] = []): string {
+/**
+ * Subset of the Texera custom-agent config that influences the system prompt.
+ * Keep this loose — extra fields from the frontend are ignored.
+ */
+export interface CustomAgentConfig {
+  name?: string;
+  description?: string;
+  icon?: string;
+  domain?: string;
+  methodology?: string;
+  taskType?: string;
+  guardrails?: {
+    requireTrainTestSplit?: boolean;
+    requireEvaluation?: boolean;
+    preventDataLeakage?: boolean;
+    handleMissingValues?: boolean;
+    featureScalingCheck?: boolean;
+  };
+  customRules?: string;
+  preferredOperators?: string[];
+  knowledgeFiles?: Array<{ name: string; mimeType?: string; contentBase64?: string }>;
+  exampleWorkflowIds?: number[];
+  outputPreferences?: {
+    includeVisualization?: boolean;
+    exportToCsv?: boolean;
+    generateSummaryStats?: boolean;
+    includeDataProfiling?: boolean;
+    defaultFormat?: string;
+  };
+}
+
+const DOMAIN_LABELS: Record<string, string> = {
+  biomedical: "Biomedical",
+  nlp: "NLP / Text Analysis",
+  finance: "Finance",
+  social_science: "Social Science",
+  cv: "Computer Vision",
+  general: "General",
+};
+
+const METHODOLOGY_GUIDANCE: Record<string, string> = {
+  crisp_dm:
+    "CRISP-DM: structure the workflow as Business Understanding → Data Understanding → Data Preparation → Modeling → Evaluation → Deployment.",
+  semma: "SEMMA: structure the workflow as Sample → Explore → Modify → Model → Assess.",
+  kdd: "KDD: structure the workflow as Selection → Preprocessing → Transformation → Data Mining → Interpretation/Evaluation.",
+  none: "No specific framework is required.",
+};
+
+const TASK_LABELS: Record<string, string> = {
+  classification: "Classification",
+  regression: "Regression",
+  clustering: "Clustering",
+  eda: "Exploratory Data Analysis",
+  cleaning: "Data Cleaning",
+  custom: "Custom",
+};
+
+const OUTPUT_FORMAT_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
+  csv_export: "CSV Export",
+  report: "Report",
+  none: "No specific output format required",
+};
+
+function decodeBase64Text(b64: string, mimeType?: string): string | undefined {
+  // Only attempt for text-like content; skip binary like PDF.
+  const isTextLike =
+    !mimeType ||
+    mimeType.startsWith("text/") ||
+    mimeType === "application/json" ||
+    mimeType === "application/x-yaml";
+  if (!isTextLike) return undefined;
+  try {
+    const buf = Buffer.from(b64, "base64");
+    return buf.toString("utf-8");
+  } catch {
+    return undefined;
+  }
+}
+
+function buildOperatorCatalog(metadataStore: WorkflowSystemMetadata): string {
+  const entries = Object.entries(metadataStore.getAllOperatorTypes())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([type, desc]) => `- ${type}: ${desc || "(no description)"}`);
+  return entries.join("\n");
+}
+
+export function buildCustomAgentSection(
+  config: CustomAgentConfig,
+  metadataStore?: WorkflowSystemMetadata
+): string {
+  const sections: string[] = ["\n\n# Custom Agent Specialization"];
+
+  sections.push("## Action-First Policy");
+  sections.push(
+    "IMPORTANT: When the user asks you to create a workflow, DO NOT ask clarifying questions. " +
+      "Use reasonable defaults and start building immediately. You can always modify later.\n\n" +
+      "Default assumptions when not specified:\n" +
+      "- Missing values: mean imputation for numeric, mode for categorical\n" +
+      "- Train/test split: 80/20 with random seed 42\n" +
+      "- Evaluation metrics: accuracy, F1, AUC-ROC, confusion matrix\n" +
+      "- Always proceed with action, explain what you chose and why AFTER building."
+  );
+
+  if (metadataStore && metadataStore.getOperatorCount() > 0) {
+    sections.push("## Available Texera Operators (use these instead of Python UDFs when possible)");
+    sections.push(
+      "**ALWAYS prefer built-in Texera operators over Python UDFs.** Only use PythonUDFV2 " +
+        "(or other UDF operators) when no built-in operator exists for the task."
+    );
+    sections.push(buildOperatorCatalog(metadataStore));
+  }
+
+  if (config.name || config.description) {
+    sections.push("## Your Identity");
+    if (config.name) sections.push(`Name: ${config.icon ? config.icon + " " : ""}${config.name}`);
+    if (config.domain && DOMAIN_LABELS[config.domain]) sections.push(`Domain: ${DOMAIN_LABELS[config.domain]}`);
+    if (config.taskType && TASK_LABELS[config.taskType]) sections.push(`Primary Task: ${TASK_LABELS[config.taskType]}`);
+    if (config.description) sections.push(`Specialty: ${config.description}`);
+  }
+
+  if (config.methodology && METHODOLOGY_GUIDANCE[config.methodology]) {
+    sections.push("## Methodology");
+    sections.push(METHODOLOGY_GUIDANCE[config.methodology]);
+  }
+
+  const guardrailLines: string[] = [];
+  if (config.guardrails?.requireTrainTestSplit) {
+    guardrailLines.push("- You MUST include a train/test split operator before any model training operator.");
+  }
+  if (config.guardrails?.requireEvaluation) {
+    guardrailLines.push("- You MUST include an evaluation operator after every model operator.");
+  }
+  if (config.guardrails?.preventDataLeakage) {
+    guardrailLines.push(
+      "- You MUST NOT place feature engineering or fitting operators after the train/test split in a way that leaks test data into training."
+    );
+  }
+  if (config.guardrails?.handleMissingValues) {
+    guardrailLines.push("- You MUST handle missing values explicitly (impute or filter) before modeling.");
+  }
+  if (config.guardrails?.featureScalingCheck) {
+    guardrailLines.push("- You MUST consider feature scaling for distance-based or gradient-based models.");
+  }
+  if (guardrailLines.length > 0) {
+    sections.push("## Guardrails — enforce these strictly");
+    sections.push(guardrailLines.join("\n"));
+  }
+
+  const customRules = (config.customRules || "")
+    .split(/\r?\n/)
+    .map(r => r.trim())
+    .filter(Boolean);
+  if (customRules.length > 0) {
+    sections.push("## Custom Rules — follow these");
+    sections.push(customRules.map((r, i) => `${i + 1}. ${r}`).join("\n"));
+  }
+
+  if (config.preferredOperators && config.preferredOperators.length > 0) {
+    sections.push("## Preferred Operators");
+    sections.push(
+      `When multiple operators could satisfy a step, prefer: ${config.preferredOperators.join(", ")}.`
+    );
+  }
+
+  const outputLines: string[] = [];
+  const out = config.outputPreferences;
+  if (out?.includeVisualization) outputLines.push("- Include visualization operators (scatter plots, bar charts).");
+  if (out?.exportToCsv) outputLines.push("- Export results to CSV at the end of the workflow.");
+  if (out?.generateSummaryStats) outputLines.push("- Generate summary statistics for the data.");
+  if (out?.includeDataProfiling) outputLines.push("- Include a data profiling step early in the workflow.");
+  if (out?.defaultFormat && OUTPUT_FORMAT_LABELS[out.defaultFormat] && out.defaultFormat !== "none") {
+    outputLines.push(`- Target output format: ${OUTPUT_FORMAT_LABELS[out.defaultFormat]}.`);
+  }
+  if (outputLines.length > 0) {
+    sections.push("## Output Preferences");
+    sections.push(outputLines.join("\n"));
+  }
+
+  if (config.knowledgeFiles && config.knowledgeFiles.length > 0) {
+    sections.push("## Knowledge Base");
+    sections.push("The user has provided the following reference files. Treat them as authoritative context.");
+    for (const file of config.knowledgeFiles) {
+      const decoded = file.contentBase64 ? decodeBase64Text(file.contentBase64, file.mimeType) : undefined;
+      if (decoded !== undefined) {
+        const truncated = decoded.length > 4000 ? decoded.slice(0, 4000) + "\n... [truncated]" : decoded;
+        sections.push(`### File: ${file.name}\n\`\`\`\n${truncated}\n\`\`\``);
+      } else {
+        sections.push(`### File: ${file.name}\n(Binary or unreadable content — name available only.)`);
+      }
+    }
+  }
+
+  if (config.exampleWorkflowIds && config.exampleWorkflowIds.length > 0) {
+    sections.push("## Example Workflows");
+    sections.push(
+      `The user has marked workflow ids ${config.exampleWorkflowIds.join(", ")} as templates. ` +
+        "Follow similar operator structures and link patterns when relevant."
+    );
+  }
+
+  sections.push(
+    "## Behavior\nWhen generating workflows, briefly state why each operator was chosen (one short sentence) before adding it via the add_operator tool."
+  );
+
+  return sections.join("\n\n");
+}
+
+export function buildSystemPrompt(
+  metadataStore: WorkflowSystemMetadata,
+  allowedOperatorTypes: string[] = [],
+  customAgent?: CustomAgentConfig
+): string {
   const operatorSchemas = buildAllowedOperatorSchemas(metadataStore, allowedOperatorTypes);
   const allowsAll = allowedOperatorTypes.length === 0;
   const pythonAllowed = allowsAll || allowedOperatorTypes.some(t => PYTHON_UDF_OPERATOR_TYPES.includes(t));
@@ -292,5 +504,9 @@ export function buildSystemPrompt(metadataStore: WorkflowSystemMetadata, allowed
   if (rAllowed) extraSections.push(R_UDF_INSTRUCTIONS);
 
   const base = SYSTEM_PROMPT_TEMPLATE.replace("{{OPERATOR_SCHEMA}}", operatorSchemas);
-  return extraSections.length > 0 ? `${base}\n${extraSections.join("\n\n")}\n` : base;
+  let result = extraSections.length > 0 ? `${base}\n${extraSections.join("\n\n")}\n` : base;
+  if (customAgent) {
+    result += buildCustomAgentSection(customAgent, metadataStore);
+  }
+  return result;
 }

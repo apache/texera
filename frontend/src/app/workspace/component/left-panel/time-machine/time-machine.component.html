@@ -1,0 +1,137 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="time-machine-panel">
+  <div class="tm-header">
+    <span class="tm-title">Time Machine</span>
+    <div class="tm-header-actions">
+      <button
+        nz-button
+        nzSize="small"
+        nzType="primary"
+        (click)="saveSnapshot()"
+        title="Save a checkpoint of the current workflow">Save Snapshot</button>
+      <button
+        nz-button
+        nzSize="small"
+        nzType="text"
+        (click)="refresh()"
+        title="Reload history">⟳</button>
+    </div>
+  </div>
+
+  <div
+    class="tm-error"
+    *ngIf="error">{{ error }}</div>
+
+  <div
+    *ngIf="compareSids.length > 0"
+    class="tm-compare-bar">
+    <span>
+      <ng-container *ngIf="compareSids.length === 1">Pick one more snapshot's <b>Compare</b> button.</ng-container>
+      <ng-container *ngIf="compareSids.length === 2 && !diffResult">Computing diff…</ng-container>
+      <ng-container *ngIf="compareSids.length === 2 && diffResult">Compared v{{diffResult.v1}} ↔ v{{diffResult.v2}}.</ng-container>
+    </span>
+    <button
+      nz-button
+      nzSize="small"
+      nzType="text"
+      (click)="clearCompare()">clear</button>
+  </div>
+
+  <div
+    *ngIf="diffResult"
+    class="tm-diff">
+    <div class="tm-diff-title">Diff v{{diffResult.v1}} → v{{diffResult.v2}}</div>
+    <div class="tm-diff-line tm-add">
+      <span class="tm-diff-label">+ Added:</span>
+      {{ formatOperatorList(diffResult.operatorsAdded) }}
+    </div>
+    <div class="tm-diff-line tm-remove">
+      <span class="tm-diff-label">− Removed:</span>
+      {{ formatOperatorList(diffResult.operatorsRemoved) }}
+    </div>
+    <div class="tm-diff-line tm-modify">
+      <span class="tm-diff-label">~ Modified:</span>
+      {{ formatOperatorList(diffResult.operatorsModified) }}
+    </div>
+    <div
+      *ngIf="diffResult.linksAdded > 0"
+      class="tm-diff-line tm-add">
+      <span class="tm-diff-label">+ Links:</span>
+      {{ diffResult.linksAdded }} new connection{{ diffResult.linksAdded === 1 ? '' : 's' }}
+    </div>
+    <div
+      *ngIf="diffResult.linksRemoved > 0"
+      class="tm-diff-line tm-remove">
+      <span class="tm-diff-label">− Links:</span>
+      {{ diffResult.linksRemoved }} removed connection{{ diffResult.linksRemoved === 1 ? '' : 's' }}
+    </div>
+  </div>
+
+  <div
+    class="tm-timeline"
+    *ngIf="snapshots.length > 0; else emptyState">
+    <div
+      class="tm-entry"
+      *ngFor="let s of snapshots"
+      [ngClass]="{ 'tm-selected': selectedSid === s.sid, 'tm-in-compare': isInCompare(s) }"
+      (click)="selectSnapshot(s)">
+      <div class="tm-entry-dot"></div>
+      <div class="tm-entry-body">
+        <div class="tm-entry-time">{{ s.creationTime | date:'MM/dd HH:mm:ss' }}</div>
+        <div class="tm-entry-summary">{{ s.changeSummary }}</div>
+        <div class="tm-entry-meta">
+          <span
+            class="tm-badge"
+            [ngClass]="{ 'tm-badge-agent': s.source === 'agent', 'tm-badge-user': s.source === 'user' }">
+            {{ sourceLabel(s) }}
+          </span>
+          <span class="tm-badge tm-badge-scope">{{ scopeBadge(s) }}</span>
+          <span
+            *ngIf="compareOrdinal(s) !== null"
+            class="tm-badge tm-badge-compare">#{{ compareOrdinal(s) }}</span>
+          <span class="tm-version">v{{ s.version }}</span>
+        </div>
+        <div class="tm-entry-actions">
+          <button
+            nz-button
+            nzSize="small"
+            nzType="default"
+            (click)="toggleCompare(s, $event)">
+            {{ isInCompare(s) ? 'Uncompare' : 'Compare' }}
+          </button>
+          <button
+            *ngIf="selectedSid === s.sid"
+            nz-button
+            nzSize="small"
+            nzDanger
+            (click)="revertTo(s); $event.stopPropagation()">Revert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #emptyState>
+    <nz-empty
+      *ngIf="!loading"
+      [nzNotFoundContent]="error ? error : 'No snapshots yet. Edit the workflow to start capturing history.'">
+    </nz-empty>
+  </ng-template>
+</div>

@@ -1,0 +1,130 @@
+<div class="agent-editor">
+  <!-- Basic info: icon + name on one row, then description, then model. -->
+  <div class="basic-row">
+    <div class="icon-tile">
+      <input nz-input class="icon-tile-input" maxlength="4" [(ngModel)]="draft.icon" />
+      <span class="icon-tile-badge" nz-icon nzType="edit" nzTheme="outline"></span>
+    </div>
+    <input nz-input class="name-input" [(ngModel)]="draft.name" placeholder="Agent name" />
+  </div>
+  <textarea
+    nz-input
+    class="description-input"
+    rows="2"
+    [(ngModel)]="draft.description"
+    placeholder="What does this agent specialize in?"></textarea>
+  <div class="model-row">
+    <nz-select [(ngModel)]="draft.model" class="full-width">
+      <nz-option *ngFor="let opt of MODELS" [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    </nz-select>
+    <p class="hint">Opus: best for complex workflows. Haiku: fast &amp; simple tasks.</p>
+  </div>
+
+  <nz-divider nzText="Configuration" nzOrientation="left"></nz-divider>
+  <div class="form-row-grid">
+    <div>
+      <label>Domain</label>
+      <nz-select [(ngModel)]="draft.domain" class="full-width">
+        <nz-option *ngFor="let opt of DOMAINS" [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+      </nz-select>
+    </div>
+    <div>
+      <label>Methodology</label>
+      <nz-select [(ngModel)]="draft.methodology" class="full-width">
+        <nz-option *ngFor="let opt of METHODOLOGIES" [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+      </nz-select>
+    </div>
+    <div>
+      <label>Task Type</label>
+      <nz-select [(ngModel)]="draft.taskType" class="full-width">
+        <nz-option *ngFor="let opt of TASK_TYPES" [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+      </nz-select>
+    </div>
+  </div>
+
+  <nz-divider nzText="Guardrails" nzOrientation="left"></nz-divider>
+  <div class="guardrails-grid">
+    <label
+      nz-checkbox
+      class="guardrail-chip"
+      [class.is-checked]="draft.guardrails.requireTrainTestSplit"
+      [(ngModel)]="draft.guardrails.requireTrainTestSplit">
+      Require train/test split
+    </label>
+    <label
+      nz-checkbox
+      class="guardrail-chip"
+      [class.is-checked]="draft.guardrails.requireEvaluation"
+      [(ngModel)]="draft.guardrails.requireEvaluation">
+      Require evaluation metrics
+    </label>
+    <label
+      nz-checkbox
+      class="guardrail-chip"
+      [class.is-checked]="draft.guardrails.preventDataLeakage"
+      [(ngModel)]="draft.guardrails.preventDataLeakage">
+      Prevent data leakage
+    </label>
+    <label
+      nz-checkbox
+      class="guardrail-chip"
+      [class.is-checked]="draft.guardrails.handleMissingValues"
+      [(ngModel)]="draft.guardrails.handleMissingValues">
+      Handle missing values
+    </label>
+    <label
+      nz-checkbox
+      class="guardrail-chip"
+      [class.is-checked]="draft.guardrails.featureScalingCheck"
+      [(ngModel)]="draft.guardrails.featureScalingCheck">
+      Feature scaling check
+    </label>
+  </div>
+
+  <nz-divider nzText="Example Workflows" nzOrientation="left"></nz-divider>
+  <p class="section-hint">Select workflows as templates. Your agent will follow similar patterns.</p>
+  <nz-select
+    nzMode="multiple"
+    class="full-width"
+    [(ngModel)]="draft.exampleWorkflowIds"
+    nzPlaceHolder="Pick from your saved workflows"
+    nzAllowClear>
+    <nz-option *ngFor="let wf of workflowOptions" [nzValue]="wf.value" [nzLabel]="wf.label"></nz-option>
+  </nz-select>
+  <p class="hint" *ngIf="workflowOptions.length === 0">No saved workflows found.</p>
+
+  <nz-divider nzText="Reference Files" nzOrientation="left"></nz-divider>
+  <p class="section-hint">Upload data dictionaries, methodology docs, or paper excerpts.</p>
+  <div
+    class="dropzone"
+    [class.is-dragging]="dragging"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)">
+    <span nz-icon nzType="inbox"></span>
+    <p>
+      Drag &amp; drop files here, or
+      <label class="browse-link">
+        browse
+        <input type="file" multiple [accept]="KNOWLEDGE_ACCEPT" (change)="onFileInput($event)" />
+      </label>
+    </p>
+    <p class="hint">CSV, PDF, TXT, MD, JSON — max 1 MB each</p>
+  </div>
+  <ul class="file-list" *ngIf="draft.knowledgeFiles?.length">
+    <li *ngFor="let file of draft.knowledgeFiles">
+      <span nz-icon nzType="file" class="file-icon"></span>
+      <span class="file-name">{{ file.name }}</span>
+      <span class="file-meta">{{ formatSize(file.size) }}</span>
+      <button nz-button nzType="text" nzSize="small" nzDanger (click)="removeKnowledgeFile(file.id)">
+        <span nz-icon nzType="close"></span>
+      </button>
+    </li>
+  </ul>
+
+  <nz-divider></nz-divider>
+  <div class="footer">
+    <button nz-button (click)="cancel()">Cancel</button>
+    <button nz-button nzType="primary" (click)="save()" [disabled]="!draft.name?.trim()">Save</button>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+<div class="agent-library">
+  <div class="header">
+    <div class="title-block">
+      <h2>My Agents</h2>
+      <p class="subtitle">Specialized AI agents for your Texera workflows.</p>
+    </div>
+    <button nz-button nzType="primary" nzSize="large" (click)="openCreate()">
+      <span nz-icon nzType="plus"></span>
+      Create Agent
+    </button>
+  </div>
+
+  <nz-empty *ngIf="agents.length === 0" nzNotFoundContent="No agents yet. Click 'Create Agent' to build your first one."></nz-empty>
+
+  <div class="cards-grid" *ngIf="agents.length > 0">
+    <nz-card *ngFor="let agent of agents" class="agent-card">
+      <div class="card-head">
+        <span class="icon">{{ agent.icon }}</span>
+        <div class="name-block">
+          <div class="name">{{ agent.name }}</div>
+          <div class="badges">
+            <nz-tag nzColor="blue">{{ domainLabel(agent.domain) }}</nz-tag>
+            <nz-tag *ngIf="agent.methodology !== 'none'" nzColor="purple">{{ methodologyLabel(agent.methodology) }}</nz-tag>
+            <nz-tag *ngIf="agent.isPublic" nzColor="green">Public</nz-tag>
+          </div>
+        </div>
+      </div>
+      <div class="description">{{ agent.description || '—' }}</div>
+      <div class="card-meta">Created {{ agent.createdAt | date:'short' }}</div>
+      <div class="card-actions">
+        <button nz-button nzSize="small" (click)="openEdit(agent)">
+          <span nz-icon nzType="edit"></span> Edit
+        </button>
+        <button nz-button nzSize="small" (click)="duplicate(agent)">
+          <span nz-icon nzType="copy"></span> Duplicate
+        </button>
+        <button nz-button nzSize="small" nzDanger
+          nz-popconfirm
+          nzPopconfirmTitle="Delete this agent?"
+          (nzOnConfirm)="delete(agent)">
+          <span nz-icon nzType="delete"></span> Delete
+        </button>
+      </div>
+    </nz-card>
+  </div>
+</div>

@@ -25,6 +25,7 @@ import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
+import { TimeMachineComponent } from "./time-machine/time-machine.component";
 import { SettingsComponent } from "./settings/settings.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
@@ -96,6 +97,12 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
       title: "Time Travel",
       icon: "clock-circle",
       enabled: false,
+    },
+    {
+      component: TimeMachineComponent,
+      title: "Time Machine",
+      icon: "history",
+      enabled: true,
     },
   ];
 

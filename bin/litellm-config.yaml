@@ -29,6 +29,10 @@ model_list:
     litellm_params:
       model: claude-haiku-4-5-20251001
       api_key: "os.environ/ANTHROPIC_API_KEY"
+  - model_name: claude-opus-4.7
+    litellm_params:
+      model: claude-opus-4-7
+      api_key: "os.environ/ANTHROPIC_API_KEY"
   - model_name: gpt-5-mini
     litellm_params:
       model: gpt-5-mini-2025-08-07

@@ -50,6 +50,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
   WorkflowResource,
+  WorkflowSnapshotResource,
   WorkflowVersionResource
 }
 import org.eclipse.jetty.server.session.SessionHandler
@@ -151,6 +152,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[HubResource])
     environment.jersey.register(classOf[UserResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
+    environment.jersey.register(classOf[WorkflowSnapshotResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[ProjectAccessResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])

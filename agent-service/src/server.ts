@@ -46,7 +46,8 @@ let agentCounter = 0;
 async function createAgentInstance(
   modelType: string,
   customName?: string,
-  delegateConfig?: AgentDelegateConfig
+  delegateConfig?: AgentDelegateConfig,
+  customAgent?: any
 ): Promise<{ agentId: string; agent: TexeraAgent }> {
   const agentId = `agent-${++agentCounter}`;
   const config = getBackendConfig();
@@ -63,6 +64,7 @@ async function createAgentInstance(
     modelType,
     agentId,
     agentName: customName || "Bob",
+    customAgent,
   });
 
   await agent.initialize();
@@ -167,7 +169,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .post(
     "/",
     async ({ body }) => {
-      const { modelType, name, userToken, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
+      const { modelType, name, userToken, workflowId, computingUnitId, settings, customAgent } =
+        body as CreateAgentRequest & { customAgent?: any };
 
       if (!modelType) {
         throw new Error("modelType is required");
@@ -188,7 +191,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         };
       }
 
-      const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig);
+      const { agentId, agent } = await createAgentInstance(modelType, name, delegateConfig, customAgent);
 
       if (settings) {
         log.info(
@@ -234,6 +237,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
+        // Loose schema — frontend may include additional fields; backend treats it as opaque.
+        customAgent: t.Optional(t.Any()),
       }),
     }
   )

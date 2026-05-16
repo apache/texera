@@ -181,8 +181,42 @@
         </div>
       </div>
 
+      <!-- Attachment chips -->
+      <div class="attachment-chips" *ngIf="attachments.length > 0">
+        <div class="attachment-chip" *ngFor="let att of attachments; let i = index">
+          <i nz-icon nzType="paper-clip"></i>
+          <div class="chip-text">
+            <div class="chip-name">{{ att.name }}</div>
+            <div class="chip-summary">{{ att.summary }}</div>
+          </div>
+          <button nz-button nzType="text" nzSize="small" (click)="removeAttachment(i)">
+            <i nz-icon nzType="close"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hidden file input, triggered by the paperclip button below -->
+      <input
+        #fileInput
+        type="file"
+        multiple
+        class="hidden-file-input"
+        [accept]="attachmentAccept"
+        (change)="onAttachmentSelected($event)" />
+
       <!-- Input Area -->
       <div class="input-area">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="default"
+          class="attach-button"
+          [disabled]="!canSendMessage()"
+          (click)="fileInput.click()"
+          nz-tooltip
+          nzTooltipTitle="Attach a file (CSV / TXT / MD / JSON)">
+          <i nz-icon nzType="paper-clip" nzTheme="outline"></i>
+        </button>
         <textarea
           #messageInput
           nz-input
@@ -194,7 +228,7 @@
         <button
           nz-button
           nzType="primary"
-          [disabled]="!currentMessage.trim() || !canSendMessage()"
+          [disabled]="(!currentMessage.trim() && attachments.length === 0) || !canSendMessage()"
           (click)="sendMessage()">
           <i
             nz-icon

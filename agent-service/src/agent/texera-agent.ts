@@ -31,7 +31,7 @@ import {
   OperatorResultSerializationMode,
   INITIAL_STEP_ID,
 } from "../types/agent";
-import { buildSystemPrompt } from "./prompts";
+import { buildSystemPrompt, CustomAgentConfig } from "./prompts";
 import {
   createAddOperatorTool,
   createModifyOperatorTool,
@@ -47,6 +47,10 @@ import {
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
+import {
+  createWorkflowHistoryTool,
+  TOOL_NAME_WORKFLOW_HISTORY,
+} from "./tools/workflow-history-tool";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -60,6 +64,7 @@ export interface TexeraAgentConfig {
   agentId: string;
   agentName?: string;
   systemPrompt?: string;
+  customAgent?: CustomAgentConfig;
 }
 
 export interface AgentMessageResult {
@@ -100,6 +105,7 @@ export class TexeraAgent {
   private model: LanguageModel;
   private systemPrompt: string;
   private settings: AgentSettings;
+  private customAgent?: CustomAgentConfig;
 
   private reActStepsByMessageId: Map<string, ReActStep[]> = new Map();
 
@@ -132,6 +138,7 @@ export class TexeraAgent {
     this.createdAt = new Date();
     this.model = config.model;
     this.systemPrompt = config.systemPrompt || "";
+    this.customAgent = config.customAgent;
     this.log = createLogger("TexeraAgent", { agentId: this.agentId });
 
     this.workflowState = new WorkflowState();
@@ -175,7 +182,7 @@ export class TexeraAgent {
   }
 
   private rebuildSystemPrompt(): void {
-    this.systemPrompt = buildSystemPrompt(this.metadataStore, this.settings.allowedOperatorTypes);
+    this.systemPrompt = buildSystemPrompt(this.metadataStore, this.settings.allowedOperatorTypes, this.customAgent);
     this.settings.systemPrompt = this.systemPrompt;
   }
 
@@ -226,6 +233,16 @@ export class TexeraAgent {
           this.workflowResultState.set(opId, this.head, operatorInfo);
         }
       );
+    }
+
+    if (this.delegateConfig) {
+      tools[TOOL_NAME_WORKFLOW_HISTORY] = createWorkflowHistoryTool(() => {
+        if (!this.delegateConfig) return undefined;
+        return {
+          userToken: this.delegateConfig.userToken,
+          workflowId: this.delegateConfig.workflowId,
+        };
+      });
     }
 
     return tools;

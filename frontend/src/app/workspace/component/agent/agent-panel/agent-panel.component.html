@@ -29,9 +29,7 @@
   nz-tooltip
   nzTooltipPlacement="left"
   nzTooltipTitle="AI Agents">
-  <span
-    nz-icon
-    nzType="robot"></span>
+  <span nz-icon nzType="robot"></span>
 </button>
 
 <div
@@ -49,95 +47,117 @@
   (nzResize)="onResize($event)"
   (cdkDragStarted)="handleDragStart()"
   [cdkDragFreeDragPosition]="dragPosition">
-  <!-- Minimize Button -->
-  <ul
-    id="return-button"
-    nz-menu
-    [ngClass]="{'shadow': !width}"
-    *ngIf="width">
-    <li
-      nz-menu-item
-      (click)="openPanel()">
-      <span
-        nz-icon
-        nzType="minus"></span>
+
+  <ul id="return-button" nz-menu [ngClass]="{'shadow': !width}" *ngIf="width">
+    <li nz-menu-item (click)="openPanel()">
+      <span nz-icon nzType="minus"></span>
     </li>
   </ul>
 
-  <div
-    #content
-    id="content"
-    [hidden]="!width">
-    <h4
-      id="title"
-      cdkDragHandle>
-      AI Agents
-    </h4>
+  <div #content id="content" [hidden]="!width">
+    <h4 id="title" cdkDragHandle>AI Agents</h4>
 
-    <!-- Tabs -->
-    <nz-tabs
-      [nzSelectedIndex]="selectedTabIndex"
-      (nzSelectedIndexChange)="onTabSelectChange($event)"
-      class="agent-tabs"
-      nzType="card">
-      <ng-template nzTabBarExtraContent="end">
-        <div class="tab-bar-extra">
-          <span class="agent-count">{{ agents.length }} agent(s)</span>
-        </div>
-      </ng-template>
+    <!-- VIEW 1: Conversation list (scoped to current workflow) -->
+    <div class="panel-body" *ngIf="viewMode === 'list'">
+      <div class="selector-row">
+        <span class="selector-label">New chats use</span>
+        <nz-select
+          class="selector"
+          [ngModel]="selectedAgentKey"
+          (ngModelChange)="onSelectAgentKey($event)"
+          nzShowSearch
+          nzPlaceHolder="Select an agent">
+          <nz-option [nzValue]="DEFAULT_AGENT_KEY" nzLabel="🤖 Default Agent"></nz-option>
+          <nz-option
+            *ngFor="let a of customAgents"
+            [nzValue]="a.id"
+            [nzLabel]="(a.icon || '🤖') + ' ' + a.name"></nz-option>
+        </nz-select>
+      </div>
+      <div class="selector-description" *ngIf="selectedAgentDescription()">
+        {{ selectedAgentDescription() }}
+      </div>
 
-      <!-- Registration Tab -->
-      <nz-tab
-        nzTitle="+ Agent"
-        [nzForceRender]="true">
-        <ng-template nz-tab>
-          <texera-agent-registration (agentCreated)="onAgentCreated($event)"></texera-agent-registration>
-        </ng-template>
-      </nz-tab>
+      <div class="conversation-list">
+        <nz-empty
+          *ngIf="currentWorkflowId === undefined"
+          nzNotFoundContent="Save the workflow first to start a conversation."></nz-empty>
 
-      <!-- Agent Tabs -->
-      <nz-tab
-        *ngFor="let agent of agents; let i = index"
-        [nzTitle]="agentTabTitle"
-        [nzForceRender]="true"
-        [nzDisabled]="!canSwitchToAgent(agent)">
-        <ng-template
-          #agentTabTitle
-          let-active="active">
-          <div
-            class="agent-tab-title"
-            [class.workflow-mismatch]="!canSwitchToAgent(agent)">
-            <span class="agent-tab-name">{{ agent.name }}</span>
-            <i
-              *ngIf="!canSwitchToAgent(agent)"
-              nz-icon
-              nzType="lock"
-              nzTheme="outline"
-              class="workflow-lock-icon"
-              nz-tooltip
-              nzTooltipTitle="This agent is working on a different workflow"></i>
+        <nz-empty
+          *ngIf="currentWorkflowId !== undefined && conversations.length === 0"
+          nzNotFoundContent="No conversations with this agent yet."></nz-empty>
+
+        <div
+          *ngFor="let c of conversations"
+          class="conversation-item"
+          (click)="openConversation(c)">
+          <div class="conv-head">
+            <span class="conv-agent-badge" nz-tooltip [nzTooltipTitle]="c.agentName">
+              <span class="conv-agent-icon">{{ c.agentIcon || '🤖' }}</span>
+              <span class="conv-agent-name">{{ c.agentName }}</span>
+            </span>
             <button
               nz-button
               nzType="text"
               nzSize="small"
-              class="agent-tab-close"
-              (click)="deleteAgent(agent.id, $event)"
-              nz-tooltip
-              nzTooltipTitle="Close agent">
-              <i
-                nz-icon
-                nzType="close"
-                nzTheme="outline"></i>
+              nzDanger
+              class="conv-delete"
+              nz-popconfirm
+              nzPopconfirmTitle="Delete this conversation?"
+              (nzOnConfirm)="deleteConversation(c)"
+              (click)="$event.stopPropagation()">
+              <span nz-icon nzType="delete"></span>
             </button>
           </div>
-        </ng-template>
-        <ng-template nz-tab>
-          <texera-agent-chat
-            [agentInfo]="agent"
-            [isActive]="activeAgentId === agent.id"></texera-agent-chat>
-        </ng-template>
-      </nz-tab>
-    </nz-tabs>
+          <div class="conv-title">{{ c.title }}</div>
+          <div class="conv-preview">{{ conversationPreview(c) }}</div>
+          <div class="conv-meta">
+            <span class="timestamp">{{ c.updatedAt | date:'short' }}</span>
+            <nz-tag *ngIf="c.workflowGenerated" nzColor="green">Workflow generated</nz-tag>
+          </div>
+        </div>
+      </div>
+
+      <div class="new-conversation-row">
+        <button
+          nz-button
+          nzType="primary"
+          nzBlock
+          [disabled]="isStartingConversation || currentWorkflowId === undefined"
+          (click)="newConversation()">
+          <span nz-icon nzType="plus"></span>
+          New Conversation
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 2: Chat -->
+    <div class="panel-body chat-body" *ngIf="viewMode === 'chat'">
+      <div class="chat-header">
+        <button nz-button nzType="text" nzSize="small" (click)="backToList()">
+          <span nz-icon nzType="arrow-left"></span> Back
+        </button>
+        <div class="chat-title">
+          <div class="chat-agent">
+            <span *ngIf="activeConversation">{{ activeConversation.agentIcon }} {{ activeConversation.agentName }}</span>
+          </div>
+          <div class="chat-subtitle" *ngIf="activeConversation">{{ activeConversation.title }}</div>
+        </div>
+      </div>
+
+      <ng-container *ngIf="activeBackendAgent; else startingTpl">
+        <texera-agent-chat
+          [agentInfo]="activeBackendAgent"
+          [isActive]="true"></texera-agent-chat>
+      </ng-container>
+
+      <ng-template #startingTpl>
+        <div class="starting-state">
+          <span nz-icon nzType="loading"></span>
+          <span>Starting conversation...</span>
+        </div>
+      </ng-template>
+    </div>
 
     <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
   </div>

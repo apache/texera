@@ -45,7 +45,7 @@
 
 #agent-docked-button {
   position: fixed;
-  bottom: 40px; // Position above the mini-map button
+  bottom: 40px;
   right: 10px;
   z-index: 4;
   box-shadow:
@@ -66,8 +66,9 @@
   width: 100%;
   height: 100%;
   padding-top: 32px;
-  display: inline-block;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .shadow {
@@ -85,95 +86,176 @@
   padding: 0 9px;
 }
 
-.agent-tabs {
-  height: calc(100% - 32px); // Account for the title bar
+.panel-body {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-
-  ::ng-deep {
-    .ant-tabs {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .ant-tabs-nav {
-      margin-bottom: 0;
-    }
-
-    .ant-tabs-content-holder {
-      flex: 1;
-      overflow: hidden;
-    }
-
-    .ant-tabs-content {
-      height: 100%;
-    }
-
-    .ant-tabs-tabpane {
-      height: 100%;
-      overflow: hidden;
-      padding: 0;
-    }
-  }
+  flex: 1;
+  min-height: 0;
 }
 
-.agent-tab-title {
+.selector-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
 
-  .agent-tab-name {
+  .selector-label {
+    color: rgba(0, 0, 0, 0.55);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .selector {
     flex: 1;
-  }
-
-  // Visual feedback for agents on different workflows
-  &.workflow-mismatch {
-    opacity: 0.6;
-
-    .agent-tab-name {
-      color: #8c8c8c;
-    }
-  }
-
-  .workflow-lock-icon {
-    color: #faad14;
-    font-size: 12px;
-    margin-left: -4px;
   }
 }
 
-.agent-tab-close {
-  padding: 0 !important;
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px !important;
+.selector-description {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.conversation-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 8px 12px;
+}
+
+.conversation-item {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: #1890ff;
+    box-shadow: 0 1px 4px rgba(24, 144, 255, 0.15);
+  }
+
+  .conv-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .conv-agent-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: #f0f5ff;
+    border: 1px solid #adc6ff;
+    border-radius: 10px;
+    font-size: 11px;
+    color: #2f54eb;
+    max-width: 70%;
+
+    .conv-agent-icon { font-size: 13px; }
+    .conv-agent-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  .conv-title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .conv-delete {
+    flex-shrink: 0;
+    opacity: 0.5;
+    &:hover { opacity: 1; }
+  }
+  .conv-preview {
+    color: rgba(0, 0, 0, 0.55);
+    font-size: 12px;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .conv-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+
+    .timestamp {
+      color: rgba(0, 0, 0, 0.45);
+      font-size: 11px;
+    }
+  }
+}
+
+.new-conversation-row {
+  padding: 10px 12px;
+  border-top: 1px solid #f0f0f0;
+  background: #fff;
+}
+
+.chat-body {
+  position: relative;
+  overflow: hidden;
+
+  texera-agent-chat {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .starting-state {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+
+  .chat-title {
+    flex: 1;
+    overflow: hidden;
+
+    .chat-agent {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chat-subtitle {
+      color: rgba(0, 0, 0, 0.55);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.starting-state {
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.6;
-  margin-left: 4px;
-
-  &:hover {
-    opacity: 1;
-    color: #ff4d4f !important;
-    background: rgba(255, 77, 79, 0.1) !important;
-  }
-
-  i {
-    font-size: 12px;
-  }
-}
-
-.tab-bar-extra {
-  padding-right: 8px;
-}
-
-.agent-count {
-  font-size: 12px;
-  color: #8c8c8c;
-  padding: 4px 8px;
-  background: #f0f0f0;
-  border-radius: 4px;
+  gap: 8px;
+  padding: 24px;
+  color: rgba(0, 0, 0, 0.55);
 }

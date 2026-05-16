@@ -1,0 +1,200 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.time-machine-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.tm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid #eee;
+
+  .tm-title {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .tm-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.tm-error {
+  color: #c33;
+  background: #fff1f0;
+  padding: 4px 6px;
+  border-radius: 3px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.tm-compare-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fffbe6;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.tm-diff {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 4px 0 8px;
+  font-size: 11px;
+
+  .tm-diff-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .tm-diff-line {
+    word-break: break-word;
+    line-height: 1.5;
+  }
+  .tm-diff-label {
+    font-weight: 600;
+    font-family: ui-monospace, Menlo, monospace;
+    margin-right: 4px;
+  }
+  .tm-add { color: #1a7f37; }
+  .tm-remove { color: #cf222e; }
+  .tm-modify { color: #9a6700; }
+}
+
+.tm-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.tm-entry {
+  display: flex;
+  gap: 8px;
+  padding: 6px 4px;
+  position: relative;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s ease-in-out;
+
+  &:hover {
+    background: #f0f7ff;
+  }
+  &.tm-selected {
+    background: #e6f4ff;
+  }
+  &.tm-in-compare {
+    outline: 1px dashed #faad14;
+  }
+
+  // vertical line between dots
+  &:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    bottom: -6px;
+    width: 2px;
+    background: #d9d9d9;
+  }
+}
+
+.tm-entry-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #1677ff;
+  margin-top: 6px;
+  z-index: 1;
+}
+
+.tm-entry-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tm-entry-time {
+  font-size: 10px;
+  color: #888;
+}
+
+.tm-entry-summary {
+  font-size: 12px;
+  margin-top: 1px;
+  word-break: break-word;
+}
+
+.tm-entry-meta {
+  margin-top: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tm-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: #f0f0f0;
+  color: #333;
+  line-height: 1.4;
+
+  &.tm-badge-agent {
+    background: #f9f0ff;
+    color: #722ed1;
+  }
+  &.tm-badge-user {
+    background: #e6fffb;
+    color: #08979c;
+  }
+  &.tm-badge-scope {
+    background: #fff7e6;
+    color: #ad6800;
+  }
+  &.tm-badge-compare {
+    background: #fff1b8;
+    color: #874d00;
+    font-weight: 600;
+  }
+}
+
+.tm-version {
+  font-size: 10px;
+  color: #888;
+  margin-left: auto;
+}
+
+.tm-entry-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 4px;
+}

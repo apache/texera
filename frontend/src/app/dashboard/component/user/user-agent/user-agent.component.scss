@@ -1,0 +1,65 @@
+.agent-library {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+
+    .title-block h2 {
+      margin: 0 0 4px;
+      font-size: 24px;
+    }
+    .subtitle {
+      color: rgba(0,0,0,0.55);
+      margin: 0;
+    }
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+
+  .agent-card {
+    .card-head {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .icon {
+      font-size: 36px;
+      line-height: 1;
+    }
+    .name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .description {
+      color: rgba(0,0,0,0.65);
+      min-height: 40px;
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+    }
+    .card-meta {
+      color: rgba(0,0,0,0.45);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+  }
+}

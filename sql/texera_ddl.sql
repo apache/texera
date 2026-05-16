@@ -55,6 +55,7 @@ DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS user_last_active_time CASCADE;
 DROP TABLE IF EXISTS workflow CASCADE;
 DROP TABLE IF EXISTS workflow_version CASCADE;
+DROP TABLE IF EXISTS workflow_snapshot CASCADE;
 DROP TABLE IF EXISTS project CASCADE;
 DROP TABLE IF EXISTS workflow_of_project CASCADE;
 DROP TABLE IF EXISTS workflow_executions CASCADE;
@@ -162,6 +163,27 @@ CREATE TABLE IF NOT EXISTS workflow_version
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
+
+-- workflow_snapshot (Time Machine: full-snapshot history with rich metadata)
+-- This table is parallel to workflow_version (which stores JSON diffs).
+-- Each row is a full content snapshot tagged with the discrete event that produced it.
+CREATE TABLE IF NOT EXISTS workflow_snapshot
+(
+    sid                 SERIAL PRIMARY KEY,
+    wid                 INT  NOT NULL,
+    uid                 INT,
+    snapshot_version    INT  NOT NULL,
+    content             TEXT NOT NULL,
+    change_type         VARCHAR(64)  NOT NULL,
+    change_summary      TEXT NOT NULL,
+    changed_operators   TEXT NOT NULL DEFAULT '[]',
+    source              VARCHAR(16)  NOT NULL DEFAULT 'user',
+    creation_time       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE,
+    UNIQUE (wid, snapshot_version)
+    );
+CREATE INDEX IF NOT EXISTS idx_workflow_snapshot_wid_time
+    ON workflow_snapshot(wid, creation_time DESC);
 
 -- project
 CREATE TABLE IF NOT EXISTS project

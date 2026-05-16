@@ -689,8 +689,15 @@ export class AgentService {
    * @param modelType - The LLM model type to use
    * @param customName - Optional custom name for the agent
    * @param workflowId - Optional workflow ID for delegate mode
+   * @param customAgent - Optional Texera custom-agent config to specialize the system prompt.
+   *                     Forwarded verbatim to agent-service; ignored if not present.
    */
-  public createAgent(modelType: string, customName?: string, workflowId?: number): Observable<AgentInfo> {
+  public createAgent(
+    modelType: string,
+    customName?: string,
+    workflowId?: number,
+    customAgent?: unknown
+  ): Observable<AgentInfo> {
     return defer(() => {
       const userToken = AuthService.getAccessToken();
 
@@ -698,6 +705,10 @@ export class AgentService {
         modelType,
         name: customName,
       };
+
+      if (customAgent) {
+        body.customAgent = customAgent;
+      }
 
       // Include user token and workflowId for delegate mode if available
       if (userToken) {

@@ -1,0 +1,187 @@
+.agent-editor {
+  display: flex;
+  flex-direction: column;
+
+  label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 4px;
+    .required { color: #f5222d; }
+  }
+
+  .full-width {
+    width: 100%;
+  }
+
+  // ----- Basic info row: 48px icon tile + name input ---------------------
+  .basic-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .icon-tile {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+
+    .icon-tile-input {
+      width: 48px;
+      height: 48px;
+      padding: 0;
+      text-align: center;
+      font-size: 26px;
+      line-height: 48px;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+
+    .icon-tile-badge {
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #1890ff;
+      color: #fff;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      box-shadow: 0 0 0 2px #fff;
+    }
+  }
+
+  .name-input {
+    flex: 1;
+  }
+
+  .description-input {
+    margin-bottom: 8px;
+  }
+
+  .model-row {
+    margin-bottom: 4px;
+  }
+
+  // ----- Configuration: 3-column grid ------------------------------------
+  .form-row-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  // ----- Guardrails: 2-column chip grid ----------------------------------
+  .guardrails-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  // Each chip is an nz-checkbox label styled as a pill. ng-zorro renders the
+  // checkbox glyph inside a `.ant-checkbox` span; this rule colors the
+  // surrounding label, not the glyph.
+  .guardrail-chip {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #f5f5f5;
+    transition: background 0.15s, color 0.15s;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 400;
+
+    &.is-checked {
+      background: #e6f4ff;
+      color: #003a8c;
+    }
+
+    &:hover {
+      background: #ebebeb;
+    }
+
+    &.is-checked:hover {
+      background: #d6ebff;
+    }
+  }
+
+  // ----- Sections ---------------------------------------------------------
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .section-hint {
+    color: rgba(0, 0, 0, 0.55);
+    margin: 0 0 8px;
+    font-size: 13px;
+  }
+
+  .hint {
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+    margin: 4px 0 0;
+  }
+
+  // ----- Reference files (dropzone) --------------------------------------
+  .dropzone {
+    border: 1px dashed #d9d9d9;
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+    background: #fafafa;
+    transition: border-color 0.15s, background 0.15s;
+
+    &.is-dragging {
+      border-color: #1890ff;
+      background: #e6f7ff;
+    }
+
+    span[nz-icon] {
+      font-size: 24px;
+      color: #1890ff;
+    }
+
+    p {
+      margin: 4px 0 0;
+    }
+
+    .browse-link {
+      color: #1890ff;
+      cursor: pointer;
+      text-decoration: underline;
+
+      input[type="file"] {
+        display: none;
+      }
+    }
+  }
+
+  .file-list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid #f0f0f0;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      background: #fff;
+
+      .file-icon { color: rgba(0, 0, 0, 0.45); }
+      .file-name { flex: 1; }
+      .file-meta { color: rgba(0, 0, 0, 0.45); font-size: 12px; }
+    }
+  }
+}
