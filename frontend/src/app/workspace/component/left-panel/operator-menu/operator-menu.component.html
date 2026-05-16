@@ -146,7 +146,9 @@
           class="operator-label macro-palette-item"
           [class.disabled]="!canModify"
           [title]="macroSchema.additionalMetadata.operatorDescription">
-          <span class="macro-palette-item__icon" (click)="canModify && onAddMacro(macroSchema)">▦</span>
+          <span class="macro-palette-item__icon" (click)="canModify && onAddMacro(macroSchema)">
+            {{ iconForCategory(categoryForMacro(macroSchema)) }}
+          </span>
           <span
             class="macro-palette-item__name"
             (click)="canModify && onAddMacro(macroSchema)"

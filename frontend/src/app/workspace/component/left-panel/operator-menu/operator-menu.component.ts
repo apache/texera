@@ -165,6 +165,28 @@ export class OperatorMenuComponent {
     return inner.length > 3 ? `${head} +${inner.length - 3}` : head;
   }
 
+  /**
+   * Return a unicode glyph that matches a macro's auto-inferred category so
+   * the palette renders distinct visual cues per category. The fallback ▦
+   * keeps the layout stable for cases where the category hasn't loaded yet.
+   */
+  public iconForCategory(category: string): string {
+    switch (category) {
+      case "preprocessing":
+        return "🧹";
+      case "transformation":
+        return "🔄";
+      case "aggregation":
+        return "📊";
+      case "visualization":
+        return "📈";
+      case "loading…":
+      case "uncategorized":
+      default:
+        return "▦";
+    }
+  }
+
   private inferCategory(operators: Array<{ operatorType?: string }>): string {
     const inner = operators.filter(
       o => o.operatorType !== "MacroInput" && o.operatorType !== "MacroOutput"
