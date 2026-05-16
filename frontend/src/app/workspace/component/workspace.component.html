@@ -28,10 +28,18 @@
   class="macro-edit-banner">
   <span class="macro-edit-banner__label">Editing Macro</span>
   <span class="macro-edit-banner__name">{{ macroEditName }}</span>
+  <!-- Use a button + click handler instead of routerLink so we can:
+       (a) honor the per-tab drill-down breadcrumb stack (sessionStorage)
+           so nested macros pop back to their DIRECT parent (e.g.
+           /workflow/280/macro/294 → /workflow/280/macro/295), not the root.
+       (b) force a hard reload — SPA navigation between macro view and
+           workflow view leaves stale canvas state in some cases. Hard
+           reload guarantees clean reinit.
+  -->
   <a
     *ngIf="parentWorkflowId"
     class="macro-edit-banner__back"
-    [routerLink]="['/dashboard/user/workflow', parentWorkflowId]"
+    (click)="onBackToParent()"
     title="Return to parent workflow">
     ← Back to parent
   </a>

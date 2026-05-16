@@ -720,6 +720,18 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
                   "macroDrilldownParentContext",
                   JSON.stringify({ parentWid, instanceId: elementID, ts: Date.now() })
                 );
+                // Push the URL we're CURRENTLY on to the drill-down
+                // breadcrumb stack so "← Back to parent" can pop one level
+                // at a time instead of always going to the root workflow.
+                // Nested macros work: drilling /workflow/:wid → /macro/A →
+                // /macro/B leaves the stack [/workflow/:wid, /macro/A] so
+                // back-from-B lands on /macro/A.
+                const stackRaw = sessionStorage.getItem("texera.macroBreadcrumbs") ?? "[]";
+                const stack: string[] = JSON.parse(stackRaw);
+                const currentUrl = window.location.pathname + window.location.search;
+                if (stack[stack.length - 1] !== currentUrl) stack.push(currentUrl);
+                while (stack.length > 16) stack.shift();
+                sessionStorage.setItem("texera.macroBreadcrumbs", JSON.stringify(stack));
               } catch {
                 // sessionStorage can throw in private-mode; that's fine, we
                 // just won't have drill-down live stats on this navigation.

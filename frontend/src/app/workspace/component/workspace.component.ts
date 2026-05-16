@@ -37,7 +37,7 @@ import { OperatorMetadataService } from "../service/operator-metadata/operator-m
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
+import { catchError, debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { forkJoin, of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
@@ -227,11 +227,41 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.workflowActionService.disableWorkflowModification();
     forkJoin({
       operatorMetadata: this.operatorMetadataService.getOperatorMetadata(),
-      workflow: this.workflowPersistService.retrieveWorkflow(wid),
+      // Catch 404/403 from retrieveWorkflow so we can detect "this wid is
+      // actually a macro" (the backend's WorkflowResource explicitly 404s
+      // MACRO-kind rows) and redirect to the macro drill-down editor route
+      // instead of surfacing a confusing "no access" toast. The catch
+      // returns a sentinel `null` workflow that the success handler peeks at.
+      workflow: this.workflowPersistService.retrieveWorkflow(wid).pipe(
+        catchError(() => of(null as unknown as Workflow))
+      ),
     })
       .pipe(untilDestroyed(this))
       .subscribe(
-        ({ workflow }) => {
+        async ({ workflow }) => {
+          if (!workflow) {
+            // Probe whether wid is a macro. If so, redirect to the macro
+            // editor route (use the wid as both parent and macro id; the
+            // route handler tolerates the back-to-parent click going to
+            // the macro's own page, which the user can then click into
+            // the workflows list from).
+            try {
+              const detail = await this.macroService.getMacro(wid).toPromise();
+              if (detail) {
+                window.location.href = `/dashboard/user/workflow/${wid}/macro/${wid}`;
+                return;
+              }
+            } catch {
+              /* not a macro either; fall through to the original error handler */
+            }
+            this.workflowActionService.resetAsNewWorkflow();
+            this.workflowActionService.enableWorkflowModification();
+            this.undoRedoService.clearUndoStack();
+            this.undoRedoService.clearRedoStack();
+            this.message.error("Couldn't load workflow — it may have been deleted or you don't have access.");
+            this.setLoadingState(false);
+            return;
+          }
           if (checkIfWorkflowBroken(workflow)) {
             this.notificationService.error(
               "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
@@ -280,6 +310,61 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.setLoadingState(false);
         }
       );
+  }
+
+  /** sessionStorage key for the per-tab drill-down breadcrumb stack. */
+  private static readonly MACRO_BREADCRUMB_KEY = "texera.macroBreadcrumbs";
+
+  /**
+   * Push the URL we're CURRENTLY at to the breadcrumb stack, then accept the
+   * incoming drill-down. The stack records every step the user took to get
+   * to this nested macro view so "Back to parent" can pop one step at a time
+   * rather than always jumping to the root workflow.
+   *
+   * Stored as a JSON array of URL paths in sessionStorage (per-tab) so the
+   * stack survives the hard-reload navigations we use for drill-down +
+   * back-out (those can't safely share in-memory state with the new view).
+   */
+  private pushDrillDownBreadcrumb(currentUrl: string): void {
+    try {
+      const raw = sessionStorage.getItem(WorkspaceComponent.MACRO_BREADCRUMB_KEY) ?? "[]";
+      const stack: string[] = JSON.parse(raw);
+      // Don't push the same URL twice in a row (refresh case).
+      if (stack[stack.length - 1] !== currentUrl) stack.push(currentUrl);
+      // Cap to a sane size to defend against pathological loops.
+      while (stack.length > 16) stack.shift();
+      sessionStorage.setItem(WorkspaceComponent.MACRO_BREADCRUMB_KEY, JSON.stringify(stack));
+    } catch {
+      /* sessionStorage may be unavailable in some hosts; ignore */
+    }
+  }
+
+  /**
+   * Pop the most recent URL off the breadcrumb stack and return it. Returns
+   * undefined if the stack is empty.
+   */
+  private popDrillDownBreadcrumb(): string | undefined {
+    try {
+      const raw = sessionStorage.getItem(WorkspaceComponent.MACRO_BREADCRUMB_KEY) ?? "[]";
+      const stack: string[] = JSON.parse(raw);
+      const top = stack.pop();
+      sessionStorage.setItem(WorkspaceComponent.MACRO_BREADCRUMB_KEY, JSON.stringify(stack));
+      return top;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * "← Back to parent" click handler. Honors the drill-down breadcrumb stack
+   * so nested macros pop back to their DIRECT parent (not the root) and uses
+   * a hard reload so the parent's canvas is reinitialized cleanly (SPA
+   * navigation between macro view and workflow view has historically left
+   * stale canvas state).
+   */
+  public onBackToParent(): void {
+    const target = this.popDrillDownBreadcrumb() ?? `/dashboard/user/workflow/${this.parentWorkflowId}`;
+    window.location.href = target;
   }
 
   loadMacroWithId(macroId: number): void {
