@@ -416,6 +416,34 @@ export class OperatorMenuComponent {
     this.suggestions = [];
   }
 
+  /**
+   * Hovering a suggestion row should flash that suggestion's operators on
+   * the canvas as a visual preview. We highlight via JointGraphWrapper —
+   * same path that selection uses — so the canvas treatment matches the
+   * "selected" look. On unhover we restore whatever the user had highlighted
+   * before they started hovering (typically: nothing).
+   *
+   * Stash the prior highlight set in `preHoverHighlight` so unhover can
+   * cleanly undo without clobbering other UI state.
+   */
+  private preHoverHighlight: string[] = [];
+  public onSuggestionHover(suggestion: MacroSuggestion): void {
+    const jw = this.workflowActionService.getJointGraphWrapper();
+    this.preHoverHighlight = Array.from(jw.getCurrentHighlightedOperatorIDs());
+    jw.unhighlightOperators(...this.preHoverHighlight);
+    jw.setMultiSelectMode(true);
+    jw.highlightOperators(...suggestion.operatorIds);
+  }
+
+  public onSuggestionUnhover(): void {
+    const jw = this.workflowActionService.getJointGraphWrapper();
+    jw.unhighlightOperators(...jw.getCurrentHighlightedOperatorIDs());
+    if (this.preHoverHighlight.length > 0) {
+      jw.highlightOperators(...this.preHoverHighlight);
+    }
+    this.preHoverHighlight = [];
+  }
+
   /** Reference to the hidden file input — clicked programmatically by `onTriggerImportMacro`. */
   @ViewChild("macroImportFile") macroImportFile?: ElementRef<HTMLInputElement>;
 

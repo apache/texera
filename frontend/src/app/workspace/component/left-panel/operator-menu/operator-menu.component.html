@@ -72,6 +72,8 @@
       class="suggest-macros__item"
       [class.suggest-macros__item--pattern]="suggestion.id.startsWith('pattern-')"
       (click)="onMaterializeSuggestion(suggestion)"
+      (mouseenter)="onSuggestionHover(suggestion)"
+      (mouseleave)="onSuggestionUnhover()"
       [title]="suggestion.rationale">
       <div class="suggest-macros__name">
         <span *ngIf="suggestion.id.startsWith('pattern-')" class="suggest-macros__pattern-tag">⟲ pattern</span>
