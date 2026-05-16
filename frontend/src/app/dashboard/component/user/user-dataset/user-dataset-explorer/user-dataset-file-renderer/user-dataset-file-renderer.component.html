@@ -44,6 +44,26 @@
         nzType="warning"
         nzMessage="Preview of the file type is currently not supported"></nz-alert>
     </div>
+    <div *ngIf="detectedTypeMessage">
+      <nz-alert
+        nzType="info"
+        [nzMessage]="detectedTypeMessage"></nz-alert>
+    </div>
+
+    <div *ngIf="previewTruncated">
+      <nz-alert
+        nzType="warning"
+        nzMessage="Showing first 10 MB only"
+        nzDescription="This file is large; only the first 10 MB is parsed and rendered to avoid running the browser out of memory. Statistics shown reflect the previewed slice, not the whole file."
+        nzShowIcon></nz-alert>
+    </div>
+
+    <div *ngIf="metadataItems.length > 0" class="file-metadata-strip">
+      <span *ngFor="let item of metadataItems" class="metadata-pill">
+        <span class="metadata-label">{{ item.label }}</span>
+        <span class="metadata-value">{{ item.value }}</span>
+      </span>
+    </div>
 
     <nz-table
       *ngIf="displayCSV || displayXlsx"
@@ -51,7 +71,17 @@
       [nzData]="tableContent">
       <thead>
         <tr>
-          <th *ngFor="let column of tableDataHeader">{{ column }}</th>
+          <th *ngFor="let column of tableDataHeader; let i = index">
+            <div class="column-name">{{ column }}</div>
+            <div class="column-meta" *ngIf="fileMetadata?.columnTypes?.[i]">
+              <span class="column-type-tag">{{ fileMetadata?.columnTypes?.[i] }}</span>
+              <span
+                class="column-null-hint"
+                *ngIf="fileMetadata?.nullCounts?.[i] && fileMetadata!.nullCounts![i] > 0">
+                {{ fileMetadata?.nullCounts?.[i] }} null
+              </span>
+            </div>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -79,6 +109,14 @@
         alt="{{filePath}}"
         class="full-size-image" />
     </div>
+
+    <div *ngIf="displayPDF && safeResourceFileURL">
+      <iframe
+        [src]="safeResourceFileURL"
+        style="width: 100%; height: 600px; border: none;">
+      </iframe>
+    </div>
+
     <div *ngIf="displayMarkdown">
       <markdown [data]="textContent"></markdown>
     </div>
