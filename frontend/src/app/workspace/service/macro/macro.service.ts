@@ -19,7 +19,8 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, ReplaySubject, of, shareReplay } from "rxjs";
+import * as dagre from "dagre";
+import { BehaviorSubject, Observable, ReplaySubject, of, shareReplay } from "rxjs";
 import { tap, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../../common/app-setting";
 import { ExecutionMode, Workflow, WorkflowContent } from "../../../common/type/workflow";
@@ -313,6 +314,15 @@ export class MacroService {
   // runtimeMacroMapping is refreshed. Lets the stats consumer look up
   // "all runtime ops under macro X" in O(1).
   private runtimeOpsByMacroInstance = new Map<string, string[]>();
+  // Subscribers (e.g. result-panel drill-down alias, status aggregator) can
+  // re-emit when the runtime macro-mapping is refreshed. Tick is opaque —
+  // consumers just need to know "the mapping changed, re-read it now."
+  private runtimeMacroMappingTick = new BehaviorSubject<number>(0);
+
+  /** Stream that ticks whenever the runtime-mapping cache is refreshed. */
+  public getRuntimeMacroMappingTick(): Observable<number> {
+    return this.runtimeMacroMappingTick.asObservable();
+  }
 
   /**
    * Fetch the macro-instance provenance map for the most-recent compile of
@@ -354,6 +364,11 @@ export class MacroService {
             }
           }
           this.runtimeMacroMappingLoadedFor = wid;
+          // Tick so downstream subscribers (drill-down alias, stats roll-up)
+          // can re-read with the now-populated cache. Required because the
+          // initial render typically happens BEFORE this fetch completes; we
+          // need to nudge them once the data lands.
+          this.runtimeMacroMappingTick.next(this.runtimeMacroMappingTick.value + 1);
           return this.runtimeMacroMapping;
         }),
         catchError(() => {
@@ -544,6 +559,7 @@ export class MacroService {
         inputBindings: MacroPortBinding[];
         outputBindings: MacroPortBinding[];
         nestedMacros: Map<string, string>;
+        innerSinks: string[];
       },
       accumulatedChain: string[],
       isInput: boolean
@@ -633,6 +649,7 @@ export class MacroService {
       inputBindings: MacroPortBinding[];
       outputBindings: MacroPortBinding[];
       nestedMacros: Map<string, string>;
+      innerSinks: string[];
     }>
   >();
   // Latest-known synchronous snapshot — populated by `getBindingsForInstance`
@@ -644,6 +661,7 @@ export class MacroService {
       inputBindings: MacroPortBinding[];
       outputBindings: MacroPortBinding[];
       nestedMacros: Map<string, string>;
+      innerSinks: string[];
     }
   >();
 
@@ -995,12 +1013,18 @@ export class MacroService {
     inputBindings: MacroPortBinding[];
     outputBindings: MacroPortBinding[];
     nestedMacros: Map<string, string>;
+    innerSinks: string[];
   }> {
     const cached = this.bodyBindingsCache.get(macroId);
     if (cached) return cached;
     const widNum = Number(macroId);
     if (!Number.isFinite(widNum)) {
-      const empty = { inputBindings: [], outputBindings: [], nestedMacros: new Map<string, string>() };
+      const empty = {
+        inputBindings: [],
+        outputBindings: [],
+        nestedMacros: new Map<string, string>(),
+        innerSinks: [],
+      };
       this.bodyBindingsSnapshot.set(macroId, empty);
       return of(empty);
     }
@@ -1020,6 +1044,7 @@ export class MacroService {
           inputBindings: [] as MacroPortBinding[],
           outputBindings: [] as MacroPortBinding[],
           nestedMacros: new Map<string, string>(),
+          innerSinks: [] as string[],
         })
       ),
       shareReplay(1)
@@ -1071,6 +1096,7 @@ export class MacroService {
       inputBindings: MacroPortBinding[];
       outputBindings: MacroPortBinding[];
       nestedMacros: Map<string, string>;
+      innerSinks: string[];
     },
     binding: MacroPortBinding,
     isInput: boolean
@@ -1144,16 +1170,35 @@ export class MacroService {
       // stats without holding a reference to WorkflowActionService.
       this.registerMacroInstance(instanceId, macroId);
       this.getBodyBindings(macroId).subscribe({
-        next: () => {
+        next: snapshot => {
           // After the first-level bindings load, ask for the recursive
           // resolved bindings — `getBindingsForInstance` chains through any
           // nested macros automatically. Output port 0 might resolve to a
           // single terminal inner op, OR (in the rare fan-out case) several;
           // for the v1 macro-result alias we still pick the first terminal.
           const resolved = this.getBindingsForInstance(instanceId, macroId);
-          if (!resolved) return;
-          const out0 = resolved.outputBindings.find(b => b.externalPortIndex === 0);
-          if (out0) this.workflowResultService.setMacroResultAlias(instanceId, out0.innerOpId);
+          const out0 = resolved?.outputBindings.find(b => b.externalPortIndex === 0);
+          if (out0) {
+            this.workflowResultService.setMacroResultAlias(instanceId, out0.innerOpId);
+            return;
+          }
+          // Mega-macro fallback: macro has 0 external outputs but its body may
+          // contain sinks (e.g. CSVFileSink, SimpleSink for "View Results").
+          // Engine auto-stores every terminal op's output (see
+          // WorkflowCompiler.expandLogicalPlan), so the sink's result IS
+          // materialized — clicking the macro op directly should reveal it.
+          // We pick the first body sink and resolve it to its runtime UUID via
+          // the macro-mapping cache. If the cache isn't populated yet (no Run
+          // has happened), this is a no-op; the tick-driven re-prefetch in the
+          // editor will re-run after the mapping fetch lands.
+          if (snapshot.innerSinks.length === 0) return;
+          const primarySinkBodyId = snapshot.innerSinks[0];
+          for (const [runtimeUuid, prov] of this.runtimeMacroMapping.entries()) {
+            if (prov.bodyOpId !== primarySinkBodyId) continue;
+            if (prov.macroChain[prov.macroChain.length - 1] !== instanceId) continue;
+            this.workflowResultService.setMacroResultAlias(instanceId, runtimeUuid);
+            return;
+          }
         },
         error: () => undefined,
       });
@@ -1164,12 +1209,13 @@ export class MacroService {
     inputBindings: MacroPortBinding[];
     outputBindings: MacroPortBinding[];
     nestedMacros: Map<string, string>;
+    innerSinks: string[];
   } {
     let body: MacroBody;
     try {
       body = JSON.parse(detail.content) as MacroBody;
     } catch {
-      return { inputBindings: [], outputBindings: [], nestedMacros: new Map() };
+      return { inputBindings: [], outputBindings: [], nestedMacros: new Map(), innerSinks: [] };
     }
     const inputMarkerByPortIndex = new Map<number, string>();
     const outputMarkerByPortIndex = new Map<number, string>();
@@ -1177,6 +1223,12 @@ export class MacroService {
     // macroId we'll need to recursively resolve through. Keyed by the body-
     // relative operatorID since that's how the markers' links reference it.
     const nestedMacros = new Map<string, string>();
+    // Inner sinks (body-relative IDs). Used as fallback result-alias targets
+    // when the macro has 0 output ports: a "mega-macro" whose body contains
+    // sinks but exposes nothing externally still wants its sink output to be
+    // viewable in the result panel by clicking the macro op directly,
+    // instead of forcing the user to drill in.
+    const innerSinks: string[] = [];
     for (const raw of body.operators) {
       const op = raw as {
         operatorID?: string;
@@ -1191,6 +1243,11 @@ export class MacroService {
         outputMarkerByPortIndex.set(op.portIndex, op.operatorID);
       } else if (op.operatorType === "Macro" && typeof op.macroId === "string" && op.macroId.length > 0) {
         nestedMacros.set(op.operatorID, op.macroId);
+      } else if (
+        typeof op.operatorType === "string" &&
+        op.operatorType.toLowerCase().includes("sink")
+      ) {
+        innerSinks.push(op.operatorID);
       }
     }
     const markerIds = new Set([
@@ -1226,7 +1283,7 @@ export class MacroService {
         });
       }
     }
-    return { inputBindings, outputBindings, nestedMacros };
+    return { inputBindings, outputBindings, nestedMacros, innerSinks };
   }
 
   /**
@@ -1492,7 +1549,10 @@ export class MacroService {
     const body = JSON.parse(detail.content) as MacroBody;
 
     const operators = body.operators.map(raw => this.normalizeBodyOperator(raw));
-    const operatorPositions = this.autoLayoutMacroBody(operators);
+    const operatorPositions = this.autoLayoutMacroBody(
+      operators,
+      body.links.map(l => ({ fromOpId: l.fromOpId, toOpId: l.toOpId }))
+    );
     const links = body.links
       .map(ml => this.macroLinkToOperatorLink(ml, operators))
       .filter((l): l is OperatorLink => l !== null);
@@ -1587,33 +1647,65 @@ export class MacroService {
   }
 
   /**
-   * Place MacroInput markers on the left, MacroOutput markers on the right,
-   * and everything else in a middle column. Sufficient for visual
-   * inspection; a proper layout pass is a follow-up.
+   * Auto-layout the macro body using dagre's directed-graph algorithm — the
+   * same engine the main canvas's "Auto-layout" button uses. Edges come from
+   * the body's link list so connected ops sit at logical ranks; MacroInput
+   * markers act as source ranks (left edge) and MacroOutput markers as sink
+   * ranks (right edge). Settings mirror `JointGraphWrapper.autoLayoutJoint`
+   * for consistency between parent canvas and macro-body view.
+   *
+   * Why dagre, not the manual 3-column layout it replaces: the previous
+   * placeholder put every middle op in a vertical stack, which made
+   * non-linear bodies (joins, fan-outs) look like spaghetti. With dagre,
+   * a Filter→Projection→Join body lays out naturally with the join's two
+   * inputs side-by-side.
+   *
+   * We use dagre directly (not `joint.layout.DirectedGraph.layout`) because
+   * at this point the body operators haven't been rendered into JointJS
+   * cells yet — we're computing the positions that will be passed into
+   * `WorkflowContent.operatorPositions` on the first drill-down load.
    */
-  private autoLayoutMacroBody(operators: OperatorPredicate[]): { [id: string]: Point } {
-    const xLeft = 100;
-    const xMiddle = 450;
-    const xRight = 800;
-    const ySpacing = 120;
-    const ySeen = { left: 0, middle: 0, right: 0 };
-    const positions: { [id: string]: Point } = {};
+  private autoLayoutMacroBody(
+    operators: OperatorPredicate[],
+    links: { fromOpId: string; toOpId: string }[]
+  ): { [id: string]: Point } {
+    if (operators.length === 0) return {};
+    // Use dagre's bundled graphlib constructor so the types line up cleanly
+    // with `dagre.layout(g)` below. `@types/graphlib` and `@types/dagre` are
+    // independent packages whose Graph definitions don't unify directly.
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({
+      nodesep: 100,
+      edgesep: 150,
+      ranksep: 80,
+      ranker: "tight-tree",
+      rankdir: "LR",
+    });
+    g.setDefaultEdgeLabel(() => ({}));
+    // Approximate node size — close enough to a typical Texera operator card.
+    // Dagre uses these for collision avoidance + edge routing only; the actual
+    // rendered op size is fixed by the joint shape, so we don't need pixel
+    // accuracy here.
+    const NODE_W = 160;
+    const NODE_H = 60;
     operators.forEach(op => {
-      let column: keyof typeof ySeen;
-      let x: number;
-      if (op.operatorType === "MacroInput") {
-        column = "left";
-        x = xLeft;
-      } else if (op.operatorType === "MacroOutput") {
-        column = "right";
-        x = xRight;
-      } else {
-        column = "middle";
-        x = xMiddle;
+      g.setNode(op.operatorID, { width: NODE_W, height: NODE_H });
+    });
+    links.forEach(l => {
+      // dagre tolerates edges to/from unknown nodes silently, but we filter
+      // anyway — body links can reference markers we haven't normalized into
+      // operators in pathological cases.
+      if (g.hasNode(l.fromOpId) && g.hasNode(l.toOpId)) {
+        g.setEdge(l.fromOpId, l.toOpId);
       }
-      const y = 100 + ySeen[column] * ySpacing;
-      ySeen[column] += 1;
-      positions[op.operatorID] = { x, y };
+    });
+    dagre.layout(g);
+    const positions: { [id: string]: Point } = {};
+    g.nodes().forEach(id => {
+      const node: { x: number; y: number } = g.node(id);
+      // dagre returns the CENTER of the node; joint expects the TOP-LEFT.
+      // Subtract half the width/height.
+      positions[id] = { x: node.x - NODE_W / 2, y: node.y - NODE_H / 2 };
     });
     return positions;
   }

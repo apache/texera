@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { Observable, ReplaySubject } from "rxjs";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { MacroService } from "../macro/macro.service";
@@ -128,9 +128,22 @@ function withMacroAggregates(
   providedIn: "root",
 })
 export class WorkflowStatusService {
-  // status is responsible for passing websocket responses to other components
-  private statusSubject = new Subject<Record<string, OperatorStatistics>>();
+  // status is responsible for passing websocket responses to other components.
+  // ReplaySubject(1) so late subscribers (e.g. the canvas after a route-driven
+  // remount) immediately receive the latest aggregated snapshot instead of
+  // having to wait for the next websocket event — without this the canvas
+  // could render with no op stats until execution kicks off again.
+  private statusSubject = new ReplaySubject<Record<string, OperatorStatistics>>(1);
   private currentStatus: Record<string, OperatorStatistics> = {};
+  // Last-seen raw (pre-aggregation) snapshot. We hold onto this so we can
+  // re-emit through `withMacroAggregates` when the macro mapping cache later
+  // populates — this happens whenever the user lands on a workflow with a
+  // completed run (websocket replays stats first, macro-mapping HTTP arrives
+  // moments later). Without this re-emit, macro ops on canvas would show the
+  // first emission's unaggregated raw entries (so macro ops appear blank
+  // until a brand new stats event arrives, which often never does on a
+  // finished run).
+  private lastRawStatus: Record<string, OperatorStatistics> | undefined;
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -142,7 +155,20 @@ export class WorkflowStatusService {
       if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
+      this.lastRawStatus = event.operatorStatistics;
       this.statusSubject.next(withMacroAggregates(event.operatorStatistics, this.macroService));
+    });
+
+    // Re-aggregate when the runtime macro mapping is (re-)fetched. Required
+    // for the hard-reload-to-parent-canvas flow: the websocket replays stats
+    // BEFORE refreshRuntimeMacroMapping(wid) lands, so the first aggregation
+    // pass has no macros to find. After the mapping fills in, we re-run
+    // aggregation against the cached raw status so canvas macro ops get their
+    // rolled-up entries.
+    this.macroService.getRuntimeMacroMappingTick().subscribe(() => {
+      if (this.lastRawStatus) {
+        this.statusSubject.next(withMacroAggregates(this.lastRawStatus, this.macroService));
+      }
     });
   }
 

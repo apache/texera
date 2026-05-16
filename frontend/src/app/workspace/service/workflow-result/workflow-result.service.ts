@@ -97,21 +97,28 @@ export class WorkflowResultService {
   }
 
   // When the canvas is rendering a macro body (drill-down view), the operators
-  // on the canvas have body-relative IDs (`Filter-uuid`) but engine results
-  // arrive keyed by the post-expansion runtime ID (`${instanceId}--Filter-uuid`).
-  // Set this prefix to make every result lookup transparently target the
-  // runtime ID. Empty string disables the rewrite.
-  private drilldownPrefix: string = "";
+  // on the canvas have body-relative IDs (e.g. `Filter-operator-xyz` from the
+  // macro definition) but engine results arrive keyed by the post-expansion
+  // runtime UUID assigned by MacroExpander. This map (body-op-id → runtime-
+  // UUID) is populated by the workflow-editor when entering a drill-down view;
+  // empty means no drill-down rewrite is active.
+  //
+  // The old prefix-based scheme (`${instanceId}--${bodyOpId}`) no longer works
+  // because MacroExpander switched to fresh deterministic UUIDs (see
+  // backend/MacroExpander.spliceIntoParent for why long prefixed names had to
+  // go). The map is computed via MacroService's runtime-mapping cache.
+  private drilldownAliases: Map<string, string> = new Map();
 
-  public setDrilldownPrefix(prefix: string): void {
-    this.drilldownPrefix = prefix;
+  public setDrilldownAliases(aliases: Map<string, string>): void {
+    this.drilldownAliases = aliases;
   }
 
   private resolveAlias(operatorID: string): string {
     // Drill-down rewrite wins: when viewing a macro body during execution we
-    // want the body-relative op ID lifted to its runtime form. Macro aliases
+    // want the body-relative op ID lifted to its runtime UUID. Macro aliases
     // only fire on the outer canvas, where body-relative IDs aren't present.
-    if (this.drilldownPrefix.length > 0) return `${this.drilldownPrefix}${operatorID}`;
+    const drill = this.drilldownAliases.get(operatorID);
+    if (drill !== undefined) return drill;
     return this.macroResultAliases.get(operatorID) ?? operatorID;
   }
 

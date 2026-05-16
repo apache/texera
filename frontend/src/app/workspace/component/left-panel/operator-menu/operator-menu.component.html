@@ -81,7 +81,16 @@
       </div>
       <div class="suggest-macros__rationale">{{ suggestion.rationale }}</div>
       <div class="suggest-macros__meta">
-        {{ suggestion.operatorIds.length }} ops &middot; score {{ suggestion.score.toFixed(1) }}
+        <span
+          class="suggest-macros__confidence"
+          [class.suggest-macros__confidence--recommended]="suggestion.confidence === 'recommended'"
+          [class.suggest-macros__confidence--strong]="suggestion.confidence === 'strong'"
+          [class.suggest-macros__confidence--good]="suggestion.confidence === 'good'">
+          {{ suggestion.confidence === 'recommended' ? '✓ recommended'
+             : suggestion.confidence === 'strong' ? 'strong fit' : 'good fit' }}
+        </span>
+        <span class="suggest-macros__meta-sep">·</span>
+        <span class="suggest-macros__op-count">{{ suggestion.operatorIds.length }} ops</span>
       </div>
     </div>
   </div>

@@ -154,22 +154,41 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // Eagerly fetch macro body bindings so port-level stat/result remap is
     // ready by the time execution starts. Prefetch on (a) initial load —
     // covers macros that arrive via reloadWorkflow before this subscriber is
-    // wired — and (b) future add events.
+    // wired — (b) future add events, and (c) every time the runtime macro
+    // mapping is (re-)fetched. (c) is required because the bindings
+    // resolution walks runtimeMacroMapping to translate body-relative IDs to
+    // runtime UUIDs; if we prefetched before that cache was populated, the
+    // resulting alias (macro op → runtime UUID for its output 0 producer)
+    // wouldn't have been set — re-prefetching on the tick fills it in.
     const graph = this.workflowActionService.getTexeraGraph();
     this.macroService.prefetchBindingsForOperators(graph.getAllOperators());
     graph
       .getOperatorAddStream()
       .pipe(untilDestroyed(this))
       .subscribe(op => this.macroService.prefetchBindingsForOperators([op]));
+    this.macroService
+      .getRuntimeMacroMappingTick()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.macroService.prefetchBindingsForOperators(graph.getAllOperators()));
 
-    // Keep the result service's drill-down prefix in sync with the URL — when
-    // we're on `?instance=…`, body-relative ID lookups should resolve to the
-    // runtime (`${instanceId}--`) form so live execution results show up
-    // inside the drilled-down view.
-    this.route.queryParamMap.pipe(untilDestroyed(this)).subscribe(qp => {
-      const instance = qp.get("instance");
-      this.workflowResultService.setDrilldownPrefix(instance ? `${instance}--` : "");
-    });
+    // Keep the result service's drill-down alias map in sync with the URL —
+    // when we're on `?instance=…`, body-relative IDs on canvas should resolve
+    // to their post-expansion runtime UUIDs so live execution results show up
+    // inside the drilled-down view. The body-to-runtime map is sourced from
+    // MacroService's runtime-mapping cache. Two emission triggers:
+    //  - URL changes (entering/leaving drill-down)
+    //  - the runtime-mapping cache itself ticks (e.g. after Run completes and
+    //    GET /api/workflow/{wid}/macro-mapping populates the cache async)
+    // combineLatest fires on either, so the alias map is always fresh.
+    combineLatest([this.route.queryParamMap, this.macroService.getRuntimeMacroMappingTick()])
+      .pipe(untilDestroyed(this))
+      .subscribe(([qp]) => {
+        const instance = qp.get("instance");
+        const aliases = instance
+          ? this.macroService.buildBodyOpIdToRuntimeUuidMap(instance)
+          : new Map<string, string>();
+        this.workflowResultService.setDrilldownAliases(aliases);
+      });
   }
 
   /**
@@ -357,14 +376,17 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           .getTexeraGraph()
           .getAllOperators()
           .forEach(op => {
-            // Macro op's stats need port-level remap: each external port of
-            // the macro corresponds to a specific boundary inner-op port, so
-            // looking up `status[macroId]` directly would give us either
-            // nothing (no engine entry for the macro itself) or the aggregated
-            // sum from `withMacroAggregates` (which has empty port metrics).
-            // Synthesize the right per-port view from cached macro bindings.
+            // Macro ops need port-level remap from cached bindings so the
+            // tooltip + port labels show correct external-port stats. This
+            // applies at every level of nesting — parent canvas AND inside
+            // a drill-down view (a nested macro op in the body deserves its
+            // own synthesized port view, just like the outer one does).
+            // Falls back to status[op.operatorID] (the chain-aggregated
+            // entry from withMacroAggregates) if bindings aren't loaded yet
+            // — so the macro op still shows its state + total counts while
+            // the body fetch is in flight.
             const opStatus =
-              op.operatorType === "Macro" && !drilldownInstanceId
+              op.operatorType === "Macro"
                 ? this.synthesizeMacroOpStats(op, status) ?? status[op.operatorID]
                 : lookupStat(op.operatorID);
 

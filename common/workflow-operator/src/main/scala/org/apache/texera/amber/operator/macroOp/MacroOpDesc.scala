@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.macroOp
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalPlan, PortIdentity}
@@ -30,6 +30,13 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 // an embedded body. MacroOpDesc never reaches physical-plan compilation: MacroExpander
 // (in workflow-compiling-service) consumes it as a pre-compile pass and replaces it
 // with the inlined body or, if `fusion` is verified, a single PythonUDFOpDescV2.
+//
+// `ignoreUnknown = true`: the frontend stamps UI-only convenience fields (e.g.
+// `macroSyncedAt` — epoch ms used to detect stale embeds against the live
+// definition) into operatorProperties before persisting. The backend doesn't
+// model those fields here, so Jackson would fail to deserialize the request
+// without this annotation.
+@JsonIgnoreProperties(ignoreUnknown = true)
 class MacroOpDesc extends LogicalOp {
 
   @JsonProperty(value = "macroId", required = true)

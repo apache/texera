@@ -33,6 +33,7 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { MacroService, MacroDetail } from "src/app/workspace/service/macro/macro.service";
 import { MacroFusionService } from "src/app/workspace/service/macro/macro-fusion.service";
+import { MacroSuggestionService } from "src/app/workspace/service/macro/macro-suggestion.service";
 import { JointUIService } from "src/app/workspace/service/joint-ui/joint-ui.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
@@ -62,6 +63,7 @@ export class ContextMenuComponent {
     private notificationService: NotificationService,
     private workflowUtilService: WorkflowUtilService,
     private macroFusionService: MacroFusionService,
+    private macroSuggestionService: MacroSuggestionService,
     private jointUIService: JointUIService
   ) {
     this.registerWorkflowModifiableChangedHandler();
@@ -574,13 +576,12 @@ export class ContextMenuComponent {
   }
 
   /**
-   * Suggest a snake-cased default name for a fresh macro from its selected
-   * operator types. "Filter→Projection" → "filter_projection_block";
-   * a 4+-op chain gets a `_pipeline` suffix. Falls back to undefined if
-   * we can't read the types (caller should default to the timestamp form).
-   *
-   * Mirrors `MacroSuggestionService.suggestedNameForChain` so the names
-   * produced via right-click match the names suggested by the AI panel.
+   * Default name for a fresh macro built from this selection. Delegates to
+   * `MacroSuggestionService.smartNameFromTypes` so right-click create-macro
+   * uses the same domain-aware naming as the AI-suggestions panel (e.g.
+   * "csv_preprocessing" instead of "csvfilescan_filter_projection_block").
+   * Falls back to undefined when the selection's op types can't be read;
+   * the caller defaults to a timestamp-based name in that case.
    */
   private suggestedMacroNameForSelection(selectedIds: readonly string[]): string | undefined {
     if (selectedIds.length === 0) return undefined;
@@ -594,13 +595,7 @@ export class ContextMenuComponent {
       }
     }
     if (types.length === 0) return undefined;
-    const compact = types
-      .slice(0, Math.min(3, types.length))
-      .map(t => t.replace(/OpDesc$|Op$/, ""))
-      .map(t => t.toLowerCase())
-      .map(t => t.replace(/[^a-z0-9]/g, ""));
-    const suffix = types.length >= 4 ? "_pipeline" : types.length >= 3 ? "_block" : "";
-    return compact.join("_") + suffix;
+    return this.macroSuggestionService.smartNameFromTypes(types);
   }
 
   private swapSelectionWithMacroNode(

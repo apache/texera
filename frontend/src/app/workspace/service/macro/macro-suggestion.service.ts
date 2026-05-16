@@ -26,6 +26,12 @@ import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
  * `operatorIds` is the contiguous chain that would become the macro body;
  * `rationale` is a one-line human-readable explanation; `score` ranks it
  * against the other candidates (higher = better).
+ *
+ * `confidence` is the score expressed as a user-facing tier: "recommended"
+ * for the top-scoring repeated patterns the user almost certainly wants to
+ * extract, "strong" for clean linear chains, "good" for everything else.
+ * Rendered as a small chip in the suggestion panel instead of the raw
+ * floating-point score, which read as engineering noise.
  */
 export interface MacroSuggestion {
   id: string;
@@ -33,6 +39,7 @@ export interface MacroSuggestion {
   rationale: string;
   score: number;
   suggestedName: string;
+  confidence: "recommended" | "strong" | "good";
 }
 
 /**
@@ -80,12 +87,14 @@ export class MacroSuggestionService {
     const all: MacroSuggestion[] = [];
     let idx = 0;
     for (const chain of linearChains) {
+      const score = this.scoreChain(chain, ops, inDeg, outDeg);
       all.push({
         id: `linear-${idx++}`,
         operatorIds: chain,
         rationale: this.rationaleForLinearChain(chain, ops),
-        score: this.scoreChain(chain, ops, inDeg, outDeg),
+        score,
         suggestedName: this.suggestedNameForChain(chain, ops),
+        confidence: this.tierFor(score, /* isRepeatedPattern */ false),
       });
     }
     for (const pat of patternSuggestions) {
@@ -102,6 +111,21 @@ export class MacroSuggestionService {
       if (!prev || s.score > prev.score) byKey.set(key, s);
     }
     return [...byKey.values()].sort((a, b) => b.score - a.score).slice(0, 10);
+  }
+
+  /**
+   * Map a numeric score onto the three user-facing tiers shown as confidence
+   * chips. Tiers are tuned to the score distribution of the v1 heuristics:
+   *  - "recommended" — any repeated-pattern match (always a strong signal:
+   *    duplicated logic = refactor opportunity) OR a very long clean chain
+   *  - "strong"      — linear chains of 3+ ops anchored on neither source
+   *    nor sink (the cleanest macro candidates)
+   *  - "good"        — everything else that still cleared the heuristic
+   */
+  private tierFor(score: number, isRepeatedPattern: boolean): "recommended" | "strong" | "good" {
+    if (isRepeatedPattern) return "recommended";
+    if (score >= 4) return "strong";
+    return "good";
   }
 
   private computeDegrees(
@@ -232,14 +256,19 @@ export class MacroSuggestionService {
       // score (so it floats to the top), the rest get a small decay.
       const sigPretty = sig.replace(/→/g, " → ");
       distinct.forEach((win, i) => {
+        const score = distinct.length * win.length * Math.pow(0.95, i);
         suggestions.push({
           id: `pattern-${idx++}`,
           operatorIds: win,
-          rationale: `Recurring pattern: ${sigPretty} appears ${distinct.length}× in this workflow — extract as a shared macro.`,
+          rationale: `Recurring ${sigPretty} pattern (×${distinct.length}). Encapsulating once de-duplicates the rest in place.`,
           // Pattern score: occurrences × length × decay-per-rank. A 2-op
           // pattern appearing 3× scores 6 > a single 4-op chain (≈4).
-          score: distinct.length * win.length * Math.pow(0.95, i),
-          suggestedName: this.suggestedNameForPattern(sig),
+          score,
+          suggestedName: this.suggestedNameForPattern(sig, ops, win),
+          // Repeated patterns are the strongest signal we have for "the user
+          // is duplicating logic" — tier them as `recommended` regardless of
+          // raw score so they stand out from one-off chains.
+          confidence: this.tierFor(score, /* isRepeatedPattern */ true),
         });
       });
     }
@@ -262,13 +291,65 @@ export class MacroSuggestionService {
     return result;
   }
 
-  private suggestedNameForPattern(sig: string): string {
+  private suggestedNameForPattern(
+    sig: string,
+    ops?: readonly OperatorPredicate[],
+    win?: readonly string[]
+  ): string {
+    const lc = sig.toLowerCase();
+    const domain = this.domainAwareName(lc);
+    if (domain) return domain;
+    // Fallback: snake_case the operator types but strip noise like the
+    // `OpDesc` suffix Texera-generated schemas carry. Caps at 40 chars so
+    // the chip in the suggestion panel doesn't wrap.
+    void ops;
+    void win;
     return sig
       .toLowerCase()
       .replace(/→/g, "_")
       .replace(/opdesc$/g, "")
       .replace(/[^a-z0-9_]/g, "")
       .slice(0, 40);
+  }
+
+  /**
+   * Map a pipeline-type signature (lowercased "op1 → op2 → op3") onto a
+   * domain-aware snake_case name a human would actually pick. Keeps the
+   * macro palette readable: "csv_preprocessing" beats "csvfilescan_filter_
+   * projection_block". Returns undefined when no domain pattern matches;
+   * caller falls back to the generic snake-case formatter.
+   *
+   * The patterns intentionally match LOOSELY (substring rather than full
+   * sequence) because Texera ships dozens of related op types (Filter vs
+   * SpecializedFilter vs ConditionFilter) and the user's mental model
+   * groups them all as "filtering."
+   */
+  private domainAwareName(lc: string): string | undefined {
+    const has = (re: RegExp) => re.test(lc);
+    // Order matters: more specific patterns first.
+    if (has(/csv.*scan.*filter.*projection/) || has(/csv.*scan.*projection.*filter/)) {
+      return "csv_preprocessing";
+    }
+    if (has(/json.*scan.*filter/) || has(/json.*scan.*projection/)) return "json_preprocessing";
+    if (has(/scan.*filter.*projection/)) return "data_preprocessing";
+    if (has(/scan.*projection/)) return "data_loading";
+    if (has(/regex.*filter/) || has(/filter.*regex/)) return "text_filtering";
+    if (has(/wordcloud/) || has(/word_count/) || has(/tokeniz/)) return "text_analysis";
+    if (has(/filter.*projection/) || has(/projection.*filter/)) return "data_cleaning";
+    if (has(/hashjoin.*projection/) || has(/cartesian.*projection/) || has(/union.*projection/)) {
+      return "joined_enrichment";
+    }
+    if (has(/aggregate.*projection/) || has(/aggregate.*filter/) || has(/groupby.*projection/)) {
+      return "metric_summary";
+    }
+    if (has(/aggregate/) || has(/groupby/)) return "aggregation_block";
+    if (has(/piechart/) || has(/barchart/) || has(/linechart/) || has(/scatter/)) {
+      return "chart_pipeline";
+    }
+    if (has(/normalizer/) || has(/standardize/) || has(/imputer/)) return "feature_normalization";
+    if (has(/sklearn.*trainer/) || has(/sklearn.*testing/)) return "ml_train_eval";
+    if (has(/pythonudf/) && has(/projection/)) return "udf_pipeline";
+    return undefined;
   }
 
   private scoreChain(
@@ -361,8 +442,25 @@ export class MacroSuggestionService {
 
   private suggestedNameForChain(chain: string[], ops: readonly OperatorPredicate[]): string {
     const types = chain.map(id => ops.find(o => o.operatorID === id)?.operatorType ?? "Op");
-    // Compact 2-3 of the type names into a snake-cased candidate name.
+    return this.nameFromTypes(types);
+  }
+
+  /**
+   * Public helper for callers outside the suggester (e.g. the right-click
+   * "create macro" flow) that want the SAME smart default name the
+   * suggester panel would produce — so manually-created and AI-suggested
+   * macros land in the palette with consistent naming.
+   */
+  public smartNameFromTypes(operatorTypes: readonly string[]): string {
+    return this.nameFromTypes(operatorTypes);
+  }
+
+  private nameFromTypes(types: readonly string[]): string {
+    const sig = types.join("_").toLowerCase();
+    const domain = this.domainAwareName(sig);
+    if (domain) return domain;
+    // Fallback: compact 2-3 of the type names into a snake-cased candidate.
     const condensed = types.slice(0, Math.min(3, types.length)).map(t => t.replace(/OpDesc$|Op$/, ""));
-    return condensed.join("_").toLowerCase() + (chain.length > 3 ? "_block" : "");
+    return condensed.join("_").toLowerCase() + (types.length > 3 ? "_block" : "");
   }
 }
