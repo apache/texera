@@ -26,7 +26,8 @@ export interface WorkflowHubEntry {
   description: string;
   category: WorkflowHubCategory;
   tags: string[];
-  operators: string[]; // operator names that form the DAG chain
+  operators: string[]; // pretty operator labels for the DAG mini-preview
+  sampleOperators?: string[]; // real Texera operator types used when forking a seed entry
   stars: number;
   forks: number;
   views: number;

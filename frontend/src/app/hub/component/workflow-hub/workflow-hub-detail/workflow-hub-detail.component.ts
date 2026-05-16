@@ -24,6 +24,10 @@ import { WorkflowHubEntry } from "../workflow-hub.types";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
+import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { firstValueFrom } from "rxjs";
+import { OperatorPredicate, OperatorLink, Point, CommentBox } from "../../../../workspace/types/workflow-common.interface";
 
 @UntilDestroy()
 @Component({
@@ -43,7 +47,9 @@ export class WorkflowHubDetailComponent implements OnInit {
     private hubService: WorkflowHubService,
     private workflowPersistService: WorkflowPersistService,
     private message: NzMessageService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private operatorMetadataService: OperatorMetadataService,
+    private workflowUtilService: WorkflowUtilService
   ) {}
 
   ngOnInit(): void {
@@ -86,7 +92,7 @@ export class WorkflowHubDetailComponent implements OnInit {
     this.hubService.toggleStar(this.entry.id);
   }
 
-  forkWorkflow(): void {
+  async forkWorkflow(): Promise<void> {
     if (!this.entry || this.forking) return;
     this.forking = true;
     const entry = this.entry;
@@ -110,26 +116,84 @@ export class WorkflowHubDetailComponent implements OnInit {
     };
 
     if (entry.workflowId !== undefined) {
+      // Real published workflow — duplicate via the backend so content/permissions are copied properly.
       this.workflowPersistService.duplicateWorkflow([entry.workflowId]).subscribe({
         next: dupes => onSuccess(dupes?.[0]?.workflow?.wid),
         error: onError,
       });
-    } else {
-      // Seed entry — no backend wid. Create a real workflow with empty content so
-      // the user can open it, see it in their Workflows page, and start editing.
-      this.workflowPersistService.createWorkflow(this.buildEmptyContent(), forkName).subscribe({
+      return;
+    }
+
+    // Seed entry: no backend wid. Build a real WorkflowContent from the entry's
+    // sampleOperators (which are real Texera operator types), then create the
+    // workflow with that content so it isn't blank in the workspace.
+    try {
+      const content = await this.buildContentFromSeed(entry.sampleOperators ?? []);
+      this.workflowPersistService.createWorkflow(content, forkName).subscribe({
         next: created => onSuccess(created?.workflow?.wid),
         error: onError,
       });
+    } catch (err) {
+      onError(err);
     }
   }
 
-  private buildEmptyContent(): WorkflowContent {
+  /** Builds a real WorkflowContent: a horizontal chain of real operators connected by links. */
+  private async buildContentFromSeed(sampleOperatorTypes: string[]): Promise<WorkflowContent> {
+    // Ensure operator metadata is loaded (needed by WorkflowUtilService.getNewOperatorPredicate).
+    await firstValueFrom(this.operatorMetadataService.getOperatorMetadata());
+
+    const knownTypes = new Set(this.workflowUtilService.getOperatorTypeList());
+    const validTypes = sampleOperatorTypes.filter(t => knownTypes.has(t));
+
+    const operators: OperatorPredicate[] = [];
+    const operatorPositions: { [key: string]: Point } = {};
+    const links: OperatorLink[] = [];
+    const commentBoxes: CommentBox[] = [];
+
+    const xStart = 200;
+    const xStep = 220;
+    const y = 240;
+
+    let prev: OperatorPredicate | undefined;
+    validTypes.forEach((opType, i) => {
+      const op = this.workflowUtilService.getNewOperatorPredicate(opType);
+      operators.push(op);
+      operatorPositions[op.operatorID] = { x: xStart + i * xStep, y };
+
+      if (prev && prev.outputPorts.length > 0 && op.inputPorts.length > 0) {
+        links.push({
+          linkID: this.workflowUtilService.getLinkRandomUUID(),
+          source: { operatorID: prev.operatorID, portID: prev.outputPorts[0].portID },
+          target: { operatorID: op.operatorID, portID: op.inputPorts[0].portID },
+        });
+      }
+      prev = op;
+    });
+
+    // Any sample types we couldn't resolve become annotation comment boxes so the user can see
+    // what was intended.
+    const skipped = sampleOperatorTypes.filter(t => !knownTypes.has(t));
+    if (skipped.length > 0) {
+      commentBoxes.push({
+        commentBoxID: this.workflowUtilService.getCommentBoxRandomUUID(),
+        comments: [
+          {
+            content: `Forked from Workflow Hub. Skipped operators (not in this Texera build): ${skipped.join(", ")}`,
+            creationTime: new Date().toISOString(),
+            creatorName: "Workflow Hub",
+            creatorID: 0,
+          },
+        ],
+        commentBoxPosition: { x: xStart, y: y - 120 },
+      });
+    }
+
     return {
-      operators: [],
-      operatorPositions: {},
-      links: [],
-      commentBoxes: [],
+      operators,
+      operatorPositions,
+      links,
+      commentBoxes,
       settings: {
         dataTransferBatchSize: this.config.env?.defaultDataTransferBatchSize ?? 400,
         executionMode: this.config.env?.defaultExecutionMode ?? ExecutionMode.PIPELINED,
