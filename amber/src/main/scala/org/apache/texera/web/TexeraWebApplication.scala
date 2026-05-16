@@ -131,6 +131,7 @@ class TexeraWebApplication
 
     environment.jersey.register(classOf[SystemMetadataResource])
     environment.jersey.register(classOf[SmartFileInferenceResource])
+    environment.jersey.register(classOf[LLMSourceResource])
     // environment.jersey().register(classOf[MockKillWorkerResource])
 
     environment.jersey.register(classOf[HealthCheckResource])

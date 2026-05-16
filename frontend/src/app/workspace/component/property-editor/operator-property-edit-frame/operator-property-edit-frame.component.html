@@ -94,6 +94,90 @@
   Detecting file format...
 </div>
 
+<ng-container *ngIf="currentOperatorSchema?.operatorType === llmFileScanType && !editingTitle">
+  <div
+    *ngIf="llmGenerationSummary as summary; else generateBar"
+    class="llm-source-generate-bar">
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="small"
+      [nzLoading]="llmGenerationLoading"
+      [disabled]="!interactive || !formData?.fileName || llmGenerationLoading"
+      nz-tooltip="Reads a sample of the file, asks the LLM to generate a Python parser tailored to it, and saves the result onto this operator."
+      (click)="triggerLLMGeneration()">
+      <i
+        *ngIf="!llmGenerationLoading"
+        nz-icon
+        nzType="thunderbolt"
+        nzTheme="outline"></i>
+      Regenerate
+    </button>
+    <span
+      class="llm-source-audit"
+      nz-tooltip="Model: {{ summary.llmModel }} · Generated at: {{ summary.generatedAt }}">
+      {{ summary.tables.length }} table(s) detected
+    </span>
+  </div>
+
+  <ng-template #generateBar>
+    <div class="llm-source-generate-bar">
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="small"
+        [nzLoading]="llmGenerationLoading"
+        [disabled]="!interactive || !formData?.fileName || llmGenerationLoading"
+        nz-tooltip="Reads a sample of the file, asks the LLM to generate a Python parser tailored to it, and saves the result onto this operator."
+        (click)="triggerLLMGeneration()">
+        <i
+          *ngIf="!llmGenerationLoading"
+          nz-icon
+          nzType="thunderbolt"
+          nzTheme="outline"></i>
+        Generate parser
+      </button>
+    </div>
+  </ng-template>
+
+  <div
+    *ngIf="llmGenerationSummary as summary"
+    class="llm-source-tables">
+    <div
+      *ngFor="let table of summary.tables; trackBy: trackLLMTable"
+      class="llm-source-table-card">
+      <div class="llm-source-table-header">
+        <strong>{{ table.name }}</strong>
+        <button
+          nz-button
+          nzSize="small"
+          nzType="default"
+          [disabled]="!interactive"
+          nz-tooltip="Adds a Filter (where __table__ matches this table) and a Projection (drops other tables' columns) downstream of this operator."
+          (click)="addFilterProjectionForTable(table)">
+          <i
+            nz-icon
+            nzType="plus"
+            nzTheme="outline"></i>
+          Filter + Projection
+        </button>
+      </div>
+      <div
+        *ngIf="table.description"
+        class="llm-source-table-description">
+        {{ table.description }}
+      </div>
+      <div class="llm-source-table-columns">
+        <span
+          *ngFor="let col of table.columns; trackBy: trackLLMColumn"
+          class="llm-source-column-chip">
+          {{ col.name }}<span class="llm-source-column-type">: {{ col.type }}</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
 <div
   *ngIf="currentOperatorSchema?.operatorType === smartFileScanType && smartFileInferenceSummary && !editingTitle"
   class="smart-file-inference-summary">

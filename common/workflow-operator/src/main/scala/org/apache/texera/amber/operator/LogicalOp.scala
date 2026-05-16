@@ -83,6 +83,7 @@ import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.smart.SmartFileSourceOpDesc
+import org.apache.texera.amber.operator.source.llm.LLMFileSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
@@ -171,6 +172,7 @@ trait StateTransferFunc
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
     new Type(value = classOf[FileListerSourceOpDesc], name = "FileLister"),
     new Type(value = classOf[SmartFileSourceOpDesc], name = "SmartFileScan"),
+    new Type(value = classOf[LLMFileSourceOpDesc], name = "LLMFileScan"),
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     // disabled the ParallelCSVScanSourceOpDesc so that it does not confuse user. it can be re-enabled when doing experiments.
     // new Type(value = classOf[ParallelCSVScanSourceOpDesc], name = "ParallelCSVFileScan"),

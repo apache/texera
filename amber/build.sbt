@@ -197,6 +197,10 @@ libraryDependencies ++= Seq(
 // For ScalaPB 0.11.x:
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
 
+// Used by LLMSourceResource to extract text from PDF samples before prompting the LLM.
+// Without this the LLM only sees raw PDF bytes and produces generic catch-all schemas.
+libraryDependencies += "org.apache.pdfbox" % "pdfbox" % "3.0.3"
+
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
 

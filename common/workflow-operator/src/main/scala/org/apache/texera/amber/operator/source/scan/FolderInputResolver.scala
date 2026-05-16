@@ -19,12 +19,12 @@
 
 package org.apache.texera.amber.operator.source.scan
 
-import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.storage.{DocumentFactory, FileResolver}
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 
 import java.net.{URI, URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import scala.jdk.CollectionConverters._
 import scala.util.Using
 
@@ -40,6 +40,32 @@ object FolderInputResolver {
       case _ =>
         ResolvedFolderInput(List(ResolvedInputFile(uri, uri.toASCIIString)), isFolder = false)
     }
+
+  /**
+   * Return a real local path that Python libraries can open. Local file-system folders are already
+   * usable as-is; dataset-backed folders need to be materialized into a temporary local directory
+   * because they only exist as a set of object-store files behind a virtual Texera path.
+   */
+  def materializeToLocalPath(uri: URI): Path = {
+    if (Option(uri.getScheme).contains("file") && Files.isDirectory(Paths.get(uri))) {
+      return Paths.get(uri)
+    }
+
+    val resolved = resolve(uri)
+    if (!resolved.isFolder) {
+      DocumentFactory.openReadonlyDocument(uri).asFile().toPath
+    } else {
+      val root = Files.createTempDirectory("texera-folder-input-")
+      resolved.files.foreach { file =>
+        val target = root.resolve(file.displayName)
+        Option(target.getParent).foreach(parent => Files.createDirectories(parent))
+        Using.resource(DocumentFactory.openReadonlyDocument(file.uri).asInputStream()) { in =>
+          Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING)
+        }
+      }
+      root
+    }
+  }
 
   private def resolveLocalInput(uri: URI): ResolvedFolderInput = {
     val path = Paths.get(uri)

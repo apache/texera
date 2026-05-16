@@ -66,7 +66,16 @@ import {
   SmartFileInferenceResponse,
   SmartFileInferenceService,
 } from "../../../service/smart-file-inference/smart-file-inference.service";
-import { NgIf } from "@angular/common";
+import {
+  LLM_FILE_SCAN_TYPE,
+  LLMSourceColumn,
+  LLMSourceGenerateResponse,
+  LLMSourceService,
+  LLMSourceTable,
+} from "../../../service/llm-source/llm-source.service";
+import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
+import { Point } from "../../../types/workflow-common.interface";
+import { NgFor, NgIf } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -101,6 +110,7 @@ Quill.register("modules/cursors", QuillCursors);
   styleUrls: ["./operator-property-edit-frame.component.scss"],
   imports: [
     NgIf,
+    NgFor,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
     ɵNzTransitionPatchDirective,
@@ -118,6 +128,7 @@ Quill.register("modules/cursors", QuillCursors);
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
   readonly smartFileScanType = SMART_FILE_SCAN_TYPE;
+  readonly llmFileScanType = LLM_FILE_SCAN_TYPE;
 
   currentOperatorSchema?: OperatorSchema;
 
@@ -175,6 +186,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   public smartFileInferenceSummary?: SmartFileInferenceResponse;
   public smartFileInferenceLoading = false;
 
+  /**
+   * LLM File Source — loading flag. The summary itself is derived on demand from the operator's
+   * persisted properties (see `llmGenerationSummary` getter below) so it survives component
+   * tear-down/recreation that happens when highlight changes.
+   */
+  public llmGenerationLoading = false;
+
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -186,7 +204,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
     private config: GuiConfigService,
-    private smartFileInferenceService: SmartFileInferenceService
+    private smartFileInferenceService: SmartFileInferenceService,
+    private llmSourceService: LLMSourceService,
+    private workflowUtilService: WorkflowUtilService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -261,6 +281,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         ? this.smartFileInferenceByOperator.get(operator.operatorID)
         : undefined;
     this.smartFileInferenceLoading = false;
+    this.llmGenerationLoading = false;
     /**
      * Important: make a deep copy of the initial property data object.
      * Prevent the form directly changes the value in the texera graph without going through workflow action service.
@@ -473,6 +494,198 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     return delimiter;
   }
 
+  /**
+   * Reconstruct the "tables detected" summary from the operator's persisted JSON properties.
+   * We can't keep an in-memory cache because the parent property editor tears down and recreates
+   * this component every time the highlight changes — which happens when our "Filter+Projection"
+   * helper adds new operators and we re-highlight the source.
+   */
+  public get llmGenerationSummary(): LLMSourceGenerateResponse | undefined {
+    if (!this.currentOperatorId) return undefined;
+    if (this.currentOperatorSchema?.operatorType !== LLM_FILE_SCAN_TYPE) return undefined;
+    const op = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+    if (!op) return undefined;
+    const props = op.operatorProperties as Record<string, unknown>;
+    const tables = props["tables"];
+    if (!Array.isArray(tables) || tables.length === 0) return undefined;
+    const reverseColumns = (cols: unknown): LLMSourceColumn[] =>
+      Array.isArray(cols)
+        ? cols.map(c => {
+            const attr = c as Record<string, unknown>;
+            return {
+              name: (attr["attributeName"] as string) ?? (attr["name"] as string) ?? "",
+              type: (attr["attributeType"] as string) ?? (attr["type"] as string) ?? "string",
+            };
+          })
+        : [];
+    return {
+      generatedCode: (props["generatedCode"] as string) ?? "",
+      tables: tables.map(raw => {
+        const t = raw as Record<string, unknown>;
+        return {
+          name: (t["name"] as string) ?? "",
+          description: (t["description"] as string) ?? "",
+          columns: reverseColumns(t["columns"]),
+        };
+      }),
+      unionColumns: reverseColumns(props["unionColumns"]),
+      llmModel: (props["llmModel"] as string) ?? "",
+      sampleHash: (props["sampleHash"] as string) ?? "",
+      generatedAt: (props["generatedAt"] as string) ?? "",
+      warnings: [],
+    };
+  }
+
+  /** ngFor trackBy for the tables list — keeps DOM nodes stable across regenerates. */
+  public trackLLMTable = (_idx: number, table: LLMSourceTable): string => table?.name ?? String(_idx);
+  public trackLLMColumn = (_idx: number, col: LLMSourceColumn): string => col?.name ?? String(_idx);
+
+  /**
+   * Triggered by the "Generate" button in the property panel when an `LLMFileScan` operator is
+   * selected. Sends the current `fileName` + `userHint` to the backend, which samples the file,
+   * asks the LLM for a parser + table schemas, and returns the result. On success we persist the
+   * generated code, schema, and audit metadata onto the operator's properties.
+   */
+  public triggerLLMGeneration(): void {
+    if (!this.currentOperatorId) return;
+    const operatorIdAtRequestTime = this.currentOperatorId;
+    const fileName = this.formData?.["fileName"];
+    if (typeof fileName !== "string" || fileName.length === 0) {
+      this.notificationService.warning("Pick a file first.");
+      return;
+    }
+    const userHint = this.formData?.["userHint"];
+    const llmModel = this.formData?.["llmModel"];
+
+    this.llmGenerationLoading = true;
+    this.llmSourceService
+      .generate({
+        fileName,
+        userHint: typeof userHint === "string" && userHint.length > 0 ? userHint : undefined,
+        llmModel: typeof llmModel === "string" && llmModel.length > 0 ? llmModel : undefined,
+      })
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: response => this.applyLLMGeneration(operatorIdAtRequestTime, response),
+        error: (err: unknown) => {
+          if (this.currentOperatorId === operatorIdAtRequestTime) {
+            this.llmGenerationLoading = false;
+            this.changeDetectorRef.detectChanges();
+          }
+          // eslint-disable-next-line no-console
+          console.error("[LLMSource] generate failed", err);
+          this.notificationService.error(`LLM generation failed: ${this.smartFileInferenceErrorMessage(err)}`);
+        },
+      });
+  }
+
+  private applyLLMGeneration(operatorIdAtRequestTime: string, response: LLMSourceGenerateResponse): void {
+    // Reset the loading flag FIRST so the spinner never gets stuck if anything below throws.
+    if (this.currentOperatorId === operatorIdAtRequestTime) {
+      this.llmGenerationLoading = false;
+    }
+    try {
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorIdAtRequestTime);
+      if (!operator) {
+        // eslint-disable-next-line no-console
+        console.warn("[LLMSource] operator no longer exists when response arrived", operatorIdAtRequestTime);
+        return;
+      }
+      const tables = Array.isArray(response.tables) ? response.tables : [];
+      const unionColumns = Array.isArray(response.unionColumns) ? response.unionColumns : [];
+      const merged: Record<string, unknown> = { ...operator.operatorProperties };
+      merged["generatedCode"] = response.generatedCode ?? "";
+      merged["tables"] = tables.map(t => ({
+        name: t?.name ?? "",
+        description: t?.description ?? "",
+        columns: Array.isArray(t?.columns)
+          ? t.columns.map(c => ({ attributeName: c?.name ?? "", attributeType: c?.type ?? "string" }))
+          : [],
+      }));
+      merged["unionColumns"] = unionColumns.map(c => ({
+        attributeName: c?.name ?? "",
+        attributeType: c?.type ?? "string",
+      }));
+      merged["llmModel"] = response.llmModel ?? "";
+      merged["sampleHash"] = response.sampleHash ?? "";
+      merged["generatedAt"] = response.generatedAt ?? "";
+      this.workflowActionService.setOperatorProperty(operatorIdAtRequestTime, merged);
+      // Force change detection so the getter-backed `llmGenerationSummary` re-evaluates immediately
+      // — without this, in some edge cases the property panel doesn't refresh until the next user action.
+      this.changeDetectorRef.detectChanges();
+      if (response.warnings && response.warnings.length > 0) {
+        this.notificationService.warning(`LLM warnings: ${response.warnings.join("; ")}`);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[LLMSource] applyLLMGeneration failed", err);
+      this.notificationService.error(`Could not apply LLM response: ${(err as Error)?.message ?? err}`);
+    }
+  }
+
+  /**
+   * One-click "split-out this table" helper. Adds a Filter (__table__ == name) + Projection
+   * (drops __table__ and columns belonging to other tables) downstream of the LLM source.
+   * Phase 2 will replace this with true multi-output ports on the source itself.
+   */
+  public addFilterProjectionForTable(table: LLMSourceTable): void {
+    if (!this.currentOperatorId) return;
+    const sourceId = this.currentOperatorId;
+    const sourceOp = this.workflowActionService.getTexeraGraph().getOperator(sourceId);
+    if (!sourceOp) return;
+    const summary = this.llmGenerationSummary;
+    if (!summary) return;
+
+    const sourcePos = this.workflowActionService.getJointGraphWrapper().getElementPosition(sourceId);
+    // Offset each table's chain vertically so subsequent clicks don't stack on top of each other.
+    const tableIndex = summary.tables.findIndex(t => t.name === table.name);
+    const yOffset = (tableIndex >= 0 ? tableIndex : 0) * 120;
+    const filterPos: Point = { x: sourcePos.x + 200, y: sourcePos.y + yOffset };
+    const projectionPos: Point = { x: sourcePos.x + 400, y: sourcePos.y + yOffset };
+
+    const filter = this.workflowUtilService.getNewOperatorPredicate("Filter", `Filter: ${table.name}`);
+    const projection = this.workflowUtilService.getNewOperatorPredicate("Projection", `Project: ${table.name}`);
+
+    // Predicate: __table__ == table.name
+    (filter.operatorProperties as Record<string, unknown>)["predicates"] = [
+      { attribute: "__table__", condition: "=", value: table.name },
+    ];
+
+    // Projection: drop __table__ + any union columns that don't belong to this table.
+    const keepNames = new Set<string>(table.columns.map((c: LLMSourceColumn) => c.name));
+    const toDrop = summary.unionColumns
+      .map((c: LLMSourceColumn) => c.name)
+      .filter(name => name === "__table__" || !keepNames.has(name));
+    (projection.operatorProperties as Record<string, unknown>)["isDrop"] = true;
+    (projection.operatorProperties as Record<string, unknown>)["attributes"] = toDrop.map(name => ({
+      originalAttribute: name,
+      alias: "",
+    }));
+
+    this.workflowActionService.addOperator(filter, filterPos);
+    this.workflowActionService.addOperator(projection, projectionPos);
+    const sourceOutputPort = sourceOp.outputPorts[0];
+    const filterInputPort = filter.inputPorts[0];
+    const filterOutputPort = filter.outputPorts[0];
+    const projectionInputPort = projection.inputPorts[0];
+    this.workflowActionService.addLink({
+      linkID: this.workflowUtilService.getLinkRandomUUID(),
+      source: { operatorID: sourceId, portID: sourceOutputPort.portID },
+      target: { operatorID: filter.operatorID, portID: filterInputPort.portID },
+    });
+    this.workflowActionService.addLink({
+      linkID: this.workflowUtilService.getLinkRandomUUID(),
+      source: { operatorID: filter.operatorID, portID: filterOutputPort.portID },
+      target: { operatorID: projection.operatorID, portID: projectionInputPort.portID },
+    });
+    // Keep the LLM source operator selected so the user can keep clicking "Filter+Projection"
+    // for the other tables without manually re-clicking the source on the canvas.
+    const jointWrapper = this.workflowActionService.getJointGraphWrapper();
+    jointWrapper.unhighlightOperators(...jointWrapper.getCurrentHighlightedOperatorIDs());
+    jointWrapper.highlightOperators(sourceId);
+    this.notificationService.success(`Added Filter + Projection for '${table.name}'.`);
+  }
+
   private smartFileInferenceErrorMessage(err: unknown): string {
     if (typeof err !== "object" || err === null) return "unknown error";
     const maybeError = err as { error?: { message?: unknown }; message?: unknown };
@@ -600,6 +813,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           ...mappedField.props,
           allowFolderSelection:
             this.currentOperatorSchema?.operatorType === this.smartFileScanType ||
+            this.currentOperatorSchema?.operatorType === this.llmFileScanType ||
             this.currentOperatorSchema?.operatorType === "FileScan",
         };
       }

@@ -41,9 +41,10 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
 import org.apache.texera.amber.config.PythonUtils
 
-import java.nio.file.Path
+import java.io.{FileOutputStream, PrintStream}
+import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.{ExecutorService, Executors}
-import scala.sys.process.{BasicIO, Process}
+import scala.sys.process.{Process, ProcessLogger}
 
 object PythonWorkflowWorker {
   def props(workerConfig: WorkerConfig): Props = Props(new PythonWorkflowWorker(workerConfig))
@@ -171,6 +172,16 @@ class PythonWorkflowWorker(
     // Set the Iceberg related arguments based on the catalog type.
     val isPostgres = StorageConfig.icebergCatalogType == "postgres"
     val isRest = StorageConfig.icebergCatalogType == "rest"
+    // Redirect the Python subprocess's stdout/stderr to a per-worker log file so Python-side
+    // exceptions (e.g., from user UDFs or generated LLM parsers) are recoverable. Previously
+    // these went to the JVM's own stdout/stderr, which deploy-daemon.sh redirects to /dev/null,
+    // making any Python crash invisible from disk.
+    val workerLogPath = pythonWorkerLogPath(workerConfig.workerId.name)
+    val workerLog = new PrintStream(new FileOutputStream(workerLogPath.toFile, true), true)
+    val logger = ProcessLogger(
+      line => workerLog.println(line),
+      line => workerLog.println(line)
+    )
     pythonServerProcess = Process(
       Seq(
         PythonUtils.getPythonExecutable,
@@ -194,7 +205,16 @@ class PythonWorkflowWorker(
         StorageConfig.s3Username,
         StorageConfig.s3Password
       )
-    ).run(BasicIO.standard(false))
+    ).run(logger)
+  }
+
+  /** Choose a stable on-disk path for this worker's stdout/stderr capture. */
+  private def pythonWorkerLogPath(workerId: String): Path = {
+    val logsDir = Paths.get("logs", "python-workers")
+    Files.createDirectories(logsDir)
+    // Sanitize worker IDs (they contain '/' separators that would create subdirs).
+    val safe = workerId.replace('/', '_').replace(':', '_')
+    logsDir.resolve(s"$safe.log")
   }
 
   override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ???
