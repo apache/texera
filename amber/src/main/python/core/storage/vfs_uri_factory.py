@@ -34,6 +34,7 @@ class VFSResourceType(str, Enum):
     RESULT = "result"
     RUNTIME_STATISTICS = "runtimeStatistics"
     CONSOLE_MESSAGES = "consoleMessages"
+    STATE = "state"
 
 
 class VFSURIFactory:
@@ -88,12 +89,22 @@ class VFSURIFactory:
         )
 
     @staticmethod
-    def create_result_uri(workflow_id, execution_id, global_port_id) -> str:
-        """Creates a URI pointing to a result storage."""
-        base_uri = (
+    def create_port_base_uri(workflow_id, execution_id, global_port_id) -> str:
+        """Base URI for a port. Result and state URIs derive from it via
+        `result_uri` / `state_uri`.
+        """
+        return (
             f"{VFSURIFactory.VFS_FILE_URI_SCHEME}:///wid/{workflow_id.id}"
             f"/eid/{execution_id.id}/globalportid/"
             f"{serialize_global_port_identity(global_port_id)}"
         )
 
+    @staticmethod
+    def result_uri(base_uri: str) -> str:
+        """The result-resource URI under a port base URI."""
         return f"{base_uri}/{VFSResourceType.RESULT.value}"
+
+    @staticmethod
+    def state_uri(base_uri: str) -> str:
+        """The state-resource URI under a port base URI."""
+        return f"{base_uri}/{VFSResourceType.STATE.value}"

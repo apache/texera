@@ -25,7 +25,7 @@ github:
   homepage: https://texera.apache.org/
   labels:
     - human-ai-collaboration
-    - ai-agents 
+    - ai-agents
     - visual-workflows
     - data-science
     - runtime-debugging
@@ -38,7 +38,7 @@ github:
   protected_tags:
     - "v*.*.*"
 
-  dependabot_alerts:  true
+  dependabot_alerts: true
   dependabot_updates: false
 
   features:
@@ -60,10 +60,10 @@ github:
     del_branch_on_merge: true
 
   enabled_merge_buttons:
-    squash:  true
+    squash: true
     squash_commit_message: PR_TITLE_AND_DESC
-    merge:   false
-    rebase:  false
+    merge: false
+    rebase: false
 
   rulesets:
     - name: Merge Queue
@@ -104,9 +104,21 @@ github:
               - context: Check License Headers
               - context: Validate PR title
 
+    - name: "Default Branch Protection"
+      type: branch
+      branches:
+        includes:
+          - "~DEFAULT_BRANCH"
+          - "release/*"
+          - "rel/*"
+        excludes: []
+      bypass_teams:
+        - root
+      restrict_deletion: true
+      restrict_force_push: true
 notifications:
-  commits:              commits@texera.apache.org
-  issues:               notifications@texera.apache.org
-  pullrequests:         notifications@texera.apache.org
-  discussions:          dev@texera.apache.org
-  jobs:                 commits@texera.apache.org
+  commits: commits@texera.apache.org
+  issues: notifications@texera.apache.org
+  pullrequests: notifications@texera.apache.org
+  discussions: dev@texera.apache.org
+  jobs: commits@texera.apache.org
