@@ -580,8 +580,7 @@ class RegionExecutionCoordinator(
         // subsequent iterations the result/state documents already exist,
         // and `createDocument` (overrideIfExists=true) would clobber them.
         // Skip the create call when the document is already there.
-        val isLoopEndRegion =
-          region.getOperators.exists(_.id.logicalOpId.id.startsWith("LoopEnd-operator-"))
+        val isLoopEndRegion = region.getOperators.exists(_.isLoopEnd)
         if (!isLoopEndRegion || !DocumentFactory.documentExists(resultURI)) {
           DocumentFactory.createDocument(resultURI, schema)
         }

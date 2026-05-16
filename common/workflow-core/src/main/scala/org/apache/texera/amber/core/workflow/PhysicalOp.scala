@@ -198,6 +198,7 @@ case class PhysicalOp(
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
+    isLoopEnd: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None
 ) extends LazyLogging {
@@ -313,6 +314,14 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
+
+  /**
+    * Creates a copy marked as a LoopEnd operator. Used by the region
+    * scheduler to preserve this operator's iceberg output across loop
+    * iterations instead of overwriting it on every region invocation.
+    */
+  def withIsLoopEnd(isLoopEnd: Boolean): PhysicalOp =
+    this.copy(isLoopEnd = isLoopEnd)
 
   /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.
