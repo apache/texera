@@ -79,24 +79,184 @@
     *ngIf="projectDataIsLoaded"
     class="detail-tabs">
     <nz-tab nzTitle="Workflows">
-      <texera-saved-workflow-section
-        [pid]="pid"
-        [accessLevel]="accessLevel"></texera-saved-workflow-section>
+      <div class="workflows-tab">
+        <div class="workflows-toolbar">
+          <button
+            nz-button
+            nzType="primary"
+            (click)="createNewWorkflow()"
+            [disabled]="!canEdit">
+            <i
+              nz-icon
+              nzType="file-add"
+              nzTheme="outline"></i>
+            Create Workflow
+          </button>
+          <button
+            nz-button
+            (click)="openAddWorkflowModal()"
+            [disabled]="!canEdit">
+            <i
+              nz-icon
+              nzType="plus-square"
+              nzTheme="outline"></i>
+            Add Existing Workflow
+          </button>
+        </div>
+
+        <div
+          *ngIf="!workflowsLoading && projectWorkflows.length === 0"
+          class="empty-state">
+          <div class="empty-emoji">📄</div>
+          <h3>No workflows yet</h3>
+          <p>Create a new workflow or add an existing one to this project.</p>
+        </div>
+
+        <ul class="workflow-list">
+          <li
+            *ngFor="let w of projectWorkflows; trackBy: trackWorkflow"
+            class="workflow-card">
+            <a
+              [routerLink]="[DASHBOARD_USER_WORKSPACE, w.workflow.wid]"
+              class="workflow-link">
+              <div class="workflow-icon">
+                <i
+                  nz-icon
+                  nzType="project"
+                  nzTheme="outline"></i>
+              </div>
+              <div class="workflow-body">
+                <div class="workflow-name">{{ w.workflow.name || 'Untitled workflow' }}</div>
+                <div class="workflow-meta">
+                  <span>Updated {{ w.workflow.lastModifiedTime | date: 'yyyy-MM-dd HH:mm' }}</span>
+                  <span class="dot">·</span>
+                  <span>Created {{ w.workflow.creationTime | date: 'yyyy-MM-dd' }}</span>
+                </div>
+              </div>
+            </a>
+            <div
+              class="workflow-actions"
+              (click)="$event.stopPropagation()">
+              <span class="role-badge">{{ w.accessLevel }}</span>
+              <a
+                [routerLink]="[DASHBOARD_USER_WORKSPACE, w.workflow.wid]"
+                nz-button
+                nzType="text"
+                nzSize="small"
+                nz-tooltip="Open workflow"
+                nzTooltipPlacement="bottom">
+                <i
+                  nz-icon
+                  nzType="arrow-right"
+                  nzTheme="outline"></i>
+                Open
+              </a>
+              <button
+                nz-button
+                nzType="text"
+                nzSize="small"
+                nz-tooltip="Remove from project (the workflow itself is not deleted)"
+                nzTooltipPlacement="left"
+                nz-popconfirm
+                nzPopconfirmTitle="Remove this workflow from the project?"
+                [disabled]="!canEdit"
+                (nzOnConfirm)="removeWorkflowFromProject(w.workflow.wid)">
+                <i
+                  nz-icon
+                  nzType="close"
+                  nzTheme="outline"></i>
+              </button>
+            </div>
+          </li>
+        </ul>
+      </div>
     </nz-tab>
 
     <nz-tab nzTitle="Datasets">
-      <div class="coming-soon">
-        <div class="coming-soon-emoji">📊</div>
-        <h3>Datasets coming soon</h3>
-        <p>Connect datasets to this project to keep related data and workflows in one place.</p>
+      <div class="datasets-tab">
+        <div class="datasets-toolbar">
+          <button
+            nz-button
+            nzType="primary"
+            (click)="openAddDatasetModal()"
+            [disabled]="!canEdit">
+            <i
+              nz-icon
+              nzType="plus-square"
+              nzTheme="outline"></i>
+            Add Existing Dataset
+          </button>
+        </div>
+
+        <div
+          *ngIf="datasets.length === 0 && !datasetsLoading"
+          class="empty-state">
+          <div class="empty-emoji">📊</div>
+          <h3>No datasets yet</h3>
+          <p>Add an existing dataset to keep related data with this project's workflows.</p>
+        </div>
+
+        <div class="dataset-grid">
+          <div
+            *ngFor="let d of datasets; trackBy: trackDataset"
+            class="dataset-card">
+            <div class="dataset-card-header">
+              <i
+                nz-icon
+                nzType="database"
+                nzTheme="outline"
+                class="dataset-icon"></i>
+              <div class="dataset-card-title">
+                <div class="dataset-name">{{ d.dataset.name }}</div>
+                <div
+                  *ngIf="d.dataset.description"
+                  class="dataset-desc">
+                  {{ d.dataset.description }}
+                </div>
+              </div>
+              <button
+                nz-button
+                nzType="text"
+                nzSize="small"
+                nz-tooltip="Remove from project (does not delete the dataset)"
+                nzTooltipPlacement="left"
+                nz-popconfirm
+                nzPopconfirmTitle="Remove this dataset from the project?"
+                [disabled]="!canEdit"
+                (nzOnConfirm)="removeDataset(d.dataset.did!)">
+                <i
+                  nz-icon
+                  nzType="close"
+                  nzTheme="outline"></i>
+              </button>
+            </div>
+            <div class="dataset-card-stats">
+              <span>
+                <i
+                  nz-icon
+                  nzType="hdd"
+                  nzTheme="outline"></i>
+                {{ formatBytes(d.size) }}
+              </span>
+              <span class="dot">·</span>
+              <span>
+                <i
+                  nz-icon
+                  nzType="user"
+                  nzTheme="outline"></i>
+                {{ d.ownerEmail }}
+              </span>
+              <span class="dot">·</span>
+              <span>{{ d.dataset.isPublic ? 'Public' : 'Private' }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </nz-tab>
 
     <nz-tab nzTitle="Members">
       <div class="members-tab">
-        <texera-share-access
-          [type]="'project'"
-          [id]="pid!"></texera-share-access>
+        <texera-project-members [pid]="pid"></texera-project-members>
       </div>
     </nz-tab>
   </nz-tabs>

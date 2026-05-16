@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -152,7 +152,8 @@ export class UserWorkflowComponent implements AfterViewInit {
     private router: Router,
     private downloadService: DownloadService,
     private searchService: SearchService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private cdr: ChangeDetectorRef
   ) {
     this.userService
       .userChanged()
@@ -197,7 +198,13 @@ export class UserWorkflowComponent implements AfterViewInit {
       nzTitle: "Add Workflows To Project",
       nzCentered: true,
     });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe((result: any) => {
+      // Hackathon-fast reliable refresh: full page reload after a short delay
+      // so the modal close animation completes first.
+      if (result && result.addedWids && result.addedWids.length > 0) {
+        setTimeout(() => window.location.reload(), 500);
+      }
+    });
   }
 
   /**
@@ -211,7 +218,9 @@ export class UserWorkflowComponent implements AfterViewInit {
       nzTitle: "Remove Workflows From Project",
       nzCentered: true,
     });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => {
+      setTimeout(() => window.location.reload(), 500);
+    });
   }
 
   /**
@@ -224,16 +233,37 @@ export class UserWorkflowComponent implements AfterViewInit {
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList![i]);
     if (!forced && sameList && this.sortMethod === this.lastSortMethod) {
-      // If the filter lists are the same, do no make the same request again.
       return;
     }
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
-    let filterParams = this.filters.getSearchFilterParameters();
+
+    // When inside a project, the generic /dashboard/search endpoint doesn't
+    // reliably honor projectIds filtering — it returns an empty list even for
+    // projects that have rows in workflow_of_project.  Use the dedicated
+    // /api/project/:pid/workflows endpoint instead, which reads the join row
+    // directly and always reflects current membership.
     if (isDefined(this.pid)) {
-      // force the project id in the search query to be the current pid.
-      filterParams.projectIds = [this.pid];
+      const pid = this.pid;
+      const keywords = this.filters.getSearchKeywords();
+      const keywordsLower = keywords.map(k => k.toLowerCase()).filter(k => k.length > 0);
+      this.searchResultsComponent.reset(async () => {
+        const all = await firstValueFrom(this.userProjectService.retrieveWorkflowsOfProject(pid));
+        const filtered =
+          keywordsLower.length === 0
+            ? all
+            : all.filter(w => {
+                const name = (w.workflow?.name ?? "").toLowerCase();
+                const desc = (w.workflow?.description ?? "").toLowerCase();
+                return keywordsLower.every(k => name.includes(k) || desc.includes(k));
+              });
+        return { entries: filtered.map(w => new DashboardEntry(w)), more: false };
+      });
+      await this.searchResultsComponent.loadMore();
+      return;
     }
+
+    let filterParams = this.filters.getSearchFilterParameters();
     this.searchResultsComponent.reset((start, count) => {
       return firstValueFrom(
         this.searchService

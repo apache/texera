@@ -33,6 +33,19 @@
           nzTheme="outline"></i>
         <span>Create Workflow</span>
       </button>
+      <button
+        *ngIf="pid !== undefined"
+        nz-button
+        class="create-btn"
+        (click)="onClickOpenAddWorkflow()"
+        [disabled]="accessLevel === 'READ'"
+        title="Add an existing workflow to this project">
+        <i
+          nz-icon
+          nzType="plus-square"
+          nzTheme="outline"></i>
+        <span>Add Existing Workflow</span>
+      </button>
       <nz-space-compact
         class="utility-button-group"
         ngbDropdown>

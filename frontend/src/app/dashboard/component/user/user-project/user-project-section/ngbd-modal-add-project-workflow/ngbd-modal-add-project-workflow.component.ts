@@ -18,104 +18,138 @@
  */
 
 import { Component, inject, OnInit } from "@angular/core";
-import { forkJoin, Observable } from "rxjs";
+import { forkJoin, Observable, of } from "rxjs";
 import { concatMap } from "rxjs/operators";
 import { WorkflowPersistService } from "../../../../../../common/service/workflow-persist/workflow-persist.service";
 import { DashboardWorkflow } from "../../../../../type/dashboard-workflow.interface";
 import { UserProjectService } from "../../../../../service/user/project/user-project.service";
+import { NotificationService } from "../../../../../../common/service/notification/notification.service";
+import { HttpErrorResponse } from "@angular/common/http";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
-import {
-  NzTheadComponent,
-  NzTrDirective,
-  NzTableCellDirective,
-  NzThMeasureDirective,
-  NzTbodyComponent,
-} from "ng-zorro-antd/table";
-import { NgFor, DatePipe } from "@angular/common";
+import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NgFor, NgIf, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 
 @UntilDestroy()
 @Component({
   selector: "texera-add-project-workflow-modal",
   templateUrl: "./ngbd-modal-add-project-workflow.component.html",
   styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
-  imports: [
-    NzTheadComponent,
-    NzTrDirective,
-    NzTableCellDirective,
-    NzThMeasureDirective,
-    NzTbodyComponent,
-    NgFor,
-    FormsModule,
-    DatePipe,
-  ],
+  imports: [NgFor, NgIf, FormsModule, DatePipe, NzButtonComponent, NzIconDirective],
 })
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   readonly projectId: number = inject(NZ_MODAL_DATA).projectId;
 
-  public unaddedWorkflows: DashboardWorkflow[] = []; // tracks which workflows to display, the ones that have not yet been added to the project
-  public checkedWorkflows: boolean[] = []; // used to implement check boxes
-  private addedWorkflowKeys: Set<number> = new Set<number>(); // tracks which workflows to NOT display,  the workflow IDs of the workflows (if any) already inside the project
-  private addedWorkflows: DashboardWorkflow[] = []; // for passing back to update the frontend cache, stores the new workflow list including newly added workflows
+  public unaddedWorkflows: DashboardWorkflow[] = [];
+  public checked: boolean[] = [];
+  public searchTerm = "";
+  public loading = false;
+
+  private addedWorkflowKeys: Set<number> = new Set<number>();
 
   constructor(
     private workflowPersistService: WorkflowPersistService,
-    private userProjectService: UserProjectService
+    private userProjectService: UserProjectService,
+    private notificationService: NotificationService,
+    private modalRef: NzModalRef
   ) {}
 
   ngOnInit(): void {
-    this.refreshProjectWorkflowEntries();
+    this.refresh();
   }
 
-  public submitForm() {
-    // data structure to track group of updates to make to backend
-    let observables: Observable<Response>[] = [];
+  get filteredIndices(): number[] {
+    const q = this.searchTerm.trim().toLowerCase();
+    if (!q) return this.unaddedWorkflows.map((_, i) => i);
+    return this.unaddedWorkflows
+      .map((w, i) => ({ w, i }))
+      .filter(({ w }) => (w.workflow?.name ?? "").toLowerCase().includes(q))
+      .map(({ i }) => i);
+  }
 
-    // process any selected workflows, updating backend then frontend cache
-    for (let index = 0; index < this.checkedWorkflows.length; ++index) {
-      if (this.checkedWorkflows[index]) {
-        // if workflow is checked
-        observables.push(
-          this.userProjectService.addWorkflowToProject(this.projectId, this.unaddedWorkflows[index].workflow.wid!)
-        );
-        this.addedWorkflows.push(this.unaddedWorkflows[index]); // for updating frontend cache
+  public selectedCount(): number {
+    return this.checked.filter(Boolean).length;
+  }
+
+  public anyChecked(): boolean {
+    return this.checked.some(Boolean);
+  }
+
+  public isAllChecked(): boolean {
+    const indices = this.filteredIndices;
+    return indices.length > 0 && indices.every(i => this.checked[i]);
+  }
+
+  public toggleAll(): void {
+    const fill = !this.isAllChecked();
+    this.filteredIndices.forEach(i => (this.checked[i] = fill));
+  }
+
+  public confirm(): void {
+    const selected: number[] = [];
+    const ops: Observable<Response>[] = [];
+    for (let i = 0; i < this.checked.length; i++) {
+      const wid = this.unaddedWorkflows[i].workflow?.wid;
+      if (this.checked[i] && wid !== undefined) {
+        selected.push(wid);
+        ops.push(this.userProjectService.addWorkflowToProject(this.projectId, wid));
       }
     }
-
-    // pass back data to update local cache after all changes propagated to backend
-    forkJoin(observables).pipe(untilDestroyed(this)).subscribe();
-  }
-
-  public changeAll() {
-    if (this.isAllChecked()) {
-      this.checkedWorkflows.fill(false);
-    } else {
-      this.checkedWorkflows.fill(true);
+    if (ops.length === 0) {
+      this.modalRef.close(null);
+      return;
     }
+    forkJoin(ops)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success(
+            `Added ${selected.length} workflow${selected.length === 1 ? "" : "s"} to project.`
+          );
+          // Pass the wids back so the parent can verify / force-refresh.
+          this.modalRef.close({ addedWids: selected });
+        },
+        error: (e: unknown) => {
+          const msg = e instanceof HttpErrorResponse ? e.error?.message ?? e.message : (e as Error).message;
+          this.notificationService.error(`Failed to add workflows: ${msg ?? e}`);
+          // Close anyway so the parent refreshes and partial adds appear.
+          this.modalRef.close({ addedWids: selected, error: true });
+        },
+      });
   }
 
-  public isAllChecked() {
-    return this.checkedWorkflows.length > 0 && this.checkedWorkflows.every(isChecked => isChecked);
+  public cancel(): void {
+    this.modalRef.close(false);
   }
 
-  private refreshProjectWorkflowEntries(): void {
+  private refresh(): void {
+    this.loading = true;
     this.userProjectService
       .retrieveWorkflowsOfProject(this.projectId)
       .pipe(
-        concatMap((dashboardWorkflowEntries: DashboardWorkflow[]) => {
-          this.addedWorkflows = dashboardWorkflowEntries;
-          dashboardWorkflowEntries.forEach(workflowEntry => this.addedWorkflowKeys.add(workflowEntry.workflow.wid!));
+        concatMap(existing => {
+          existing.forEach(e => {
+            if (e.workflow?.wid !== undefined) this.addedWorkflowKeys.add(e.workflow.wid);
+          });
           return this.workflowPersistService.retrieveWorkflowsBySessionUser();
         }),
         untilDestroyed(this)
       )
-      .subscribe(dashboardWorkflowEntries => {
-        this.unaddedWorkflows = dashboardWorkflowEntries.filter(
-          workflowEntry =>
-            workflowEntry.workflow.wid !== undefined && !this.addedWorkflowKeys.has(workflowEntry.workflow.wid!)
-        );
-        this.checkedWorkflows = new Array(this.unaddedWorkflows.length).fill(false);
+      .subscribe({
+        next: all => {
+          this.unaddedWorkflows = all.filter(
+            w => w.workflow?.wid !== undefined && !this.addedWorkflowKeys.has(w.workflow.wid)
+          );
+          this.checked = new Array(this.unaddedWorkflows.length).fill(false);
+          this.loading = false;
+        },
+        error: () => {
+          this.unaddedWorkflows = [];
+          this.checked = [];
+          this.loading = false;
+        },
       });
   }
 }

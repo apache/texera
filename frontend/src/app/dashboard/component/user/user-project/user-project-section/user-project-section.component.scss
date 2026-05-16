@@ -100,24 +100,216 @@
   padding: 16px 4px 4px;
 }
 
-.coming-soon {
+.workflows-tab {
+  padding: 16px 4px 4px;
+}
+
+.workflows-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.workflow-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workflow-card {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #d9d9d9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.workflow-link {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+
+  &:hover {
+    color: inherit;
+  }
+}
+
+.workflow-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #e6f4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: #1890ff;
+  font-size: 18px;
+}
+
+.workflow-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.workflow-name {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+
+  .dot {
+    color: #bfbfbf;
+  }
+}
+
+.workflow-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  flex: 0 0 auto;
+}
+
+.role-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #f0f5ff;
+  color: #2f54eb;
+  border: 1px solid #adc6ff;
+}
+
+.datasets-tab {
+  padding: 16px 4px 4px;
+}
+
+.datasets-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.dataset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.dataset-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: white;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #d9d9d9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.dataset-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dataset-icon {
+  font-size: 20px;
+  color: #1890ff;
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.dataset-card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dataset-name {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataset-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataset-card-stats {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #595959;
+
+  i {
+    margin-right: 4px;
+  }
+
+  .dot {
+    color: #bfbfbf;
+  }
+}
+
+.empty-state {
   text-align: center;
   padding: 48px 24px;
   color: #595959;
-}
+  border: 1px dashed #e8e8e8;
+  border-radius: 12px;
 
-.coming-soon-emoji {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
+  .empty-emoji {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
 
-.coming-soon h3 {
-  margin: 0 0 8px 0;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
-}
+  h3 {
+    margin: 0 0 8px 0;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.88);
+  }
 
-.coming-soon p {
-  margin: 0;
-  color: #8c8c8c;
+  p {
+    margin: 0;
+    color: #8c8c8c;
+  }
 }

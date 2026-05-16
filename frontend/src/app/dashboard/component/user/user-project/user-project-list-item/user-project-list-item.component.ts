@@ -33,6 +33,7 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { RouterLink } from "@angular/router";
 import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 import { getProjectIcon } from "../project-icon.util";
+import { getProjectDatasetIds } from "../project-dataset.util";
 
 const DEFAULT_BG_COLOR = "808080";
 
@@ -113,6 +114,7 @@ export class UserProjectListItemComponent implements OnInit, OnChanges {
 
   private refreshStats(): void {
     this.icon = getProjectIcon(this.entry.pid);
+    this.datasetCount = getProjectDatasetIds(this.entry.pid).length;
 
     this.userProjectService
       .retrieveWorkflowsOfProject(this.entry.pid)

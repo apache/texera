@@ -1,6 +1,6 @@
-<div class="add-workflow-modal">
+<div class="add-dataset-modal">
   <div
-    *ngIf="unaddedWorkflows.length > 0"
+    *ngIf="unaddedDatasets.length > 0"
     class="search-row">
     <i
       nz-icon
@@ -10,20 +10,20 @@
     <input
       type="search"
       class="search-input"
-      placeholder="Search workflows…"
+      placeholder="Search datasets…"
       [(ngModel)]="searchTerm" />
   </div>
 
   <div
-    *ngIf="!loading && unaddedWorkflows.length === 0"
+    *ngIf="!loading && unaddedDatasets.length === 0"
     class="empty">
-    <div class="empty-emoji">📄</div>
-    <div class="empty-title">No workflows to add</div>
-    <div class="empty-subtitle">All of your workflows are already in this project, or you don't have any yet.</div>
+    <div class="empty-emoji">📊</div>
+    <div class="empty-title">No datasets to add</div>
+    <div class="empty-subtitle">All your accessible datasets are already in this project, or you don't have any yet.</div>
   </div>
 
   <div
-    *ngIf="!loading && unaddedWorkflows.length > 0 && filteredIndices.length === 0"
+    *ngIf="!loading && unaddedDatasets.length > 0 && filteredIndices.length === 0"
     class="empty">
     <div class="empty-emoji">🔍</div>
     <div class="empty-title">No matches</div>
@@ -44,21 +44,34 @@
 
   <ul
     *ngIf="filteredIndices.length > 0"
-    class="workflow-list">
+    class="dataset-list">
     <li
       *ngFor="let i of filteredIndices"
-      class="workflow-row"
+      class="dataset-row"
       [class.selected]="checked[i]">
-      <label class="workflow-label">
+      <label class="dataset-label">
         <input
           type="checkbox"
           [(ngModel)]="checked[i]" />
-        <span class="workflow-main">
-          <span class="workflow-name">{{ unaddedWorkflows[i].workflow.name }}</span>
-          <span class="workflow-meta">
-            <span>Updated {{ unaddedWorkflows[i].workflow.lastModifiedTime | date: 'yyyy-MM-dd HH:mm' }}</span>
+        <span class="dataset-main">
+          <span class="dataset-name">{{ unaddedDatasets[i].dataset.name }}</span>
+          <span
+            *ngIf="unaddedDatasets[i].dataset.description"
+            class="dataset-desc">
+            {{ unaddedDatasets[i].dataset.description }}
+          </span>
+          <span class="dataset-meta">
+            <span>
+              <i
+                nz-icon
+                nzType="hdd"
+                nzTheme="outline"></i>
+              {{ formatSize(unaddedDatasets[i].size) }}
+            </span>
             <span class="dot">·</span>
-            <span>Created {{ unaddedWorkflows[i].workflow.creationTime | date: 'yyyy-MM-dd' }}</span>
+            <span>{{ unaddedDatasets[i].dataset.creationTime | date: 'yyyy-MM-dd' }}</span>
+            <span class="dot">·</span>
+            <span>{{ unaddedDatasets[i].ownerEmail }}</span>
           </span>
         </span>
       </label>
