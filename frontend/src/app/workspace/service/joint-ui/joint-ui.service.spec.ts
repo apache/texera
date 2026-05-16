@@ -327,9 +327,188 @@
 //   });
 // });
 
+import { of } from "rxjs";
+import * as joint from "jointjs";
+import { JointUIService, operatorNameClass } from "./joint-ui.service";
+import { OperatorPredicate } from "../../types/workflow-common.interface";
+
 describe("JointUIService", () => {
   // Pre-existing spec body is commented out. Placeholder keeps Vitest's
   // discovery happy; rewriting the real tests against the new test
   // runner is tracked in #4861.
   it.todo("add unit tests for JointUIService");
+
+  describe("truncateOperatorDisplayName", () => {
+    // Deterministic measurer: 10px per character. With the 200-px budget,
+    // 20 chars fit exactly; longer strings get truncated to a prefix plus "…".
+    const measure = (text: string) => text.length * 10;
+    const budget = JointUIService.MAX_OPERATOR_NAME_PIXELS;
+    const charsThatFit = budget / 10;
+
+    it("returns the name unchanged when it fits within the pixel budget", () => {
+      const name = "a".repeat(charsThatFit);
+      expect(JointUIService.truncateOperatorDisplayName(name, measure)).toBe(name);
+    });
+
+    it("truncates and appends an ellipsis when the name exceeds the budget", () => {
+      const name = "a".repeat(charsThatFit + 10);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
+      expect(result.endsWith("…")).toBe(true);
+      expect(measure(result)).toBeLessThanOrEqual(budget);
+      // Ellipsis takes 10px, leaving 190px for the prefix → 19 chars.
+      expect(result).toBe("a".repeat(charsThatFit - 1) + "…");
+    });
+
+    it("returns an empty string unchanged", () => {
+      expect(JointUIService.truncateOperatorDisplayName("", measure)).toBe("");
+    });
+
+    it("truncates CJK characters at code-point boundaries", () => {
+      // CJK characters are each a single code point (UTF-16 length 1) — the
+      // 10-px measurer treats them like any other char. 19 chars fit in the
+      // 190-px prefix budget once the ellipsis is reserved.
+      const name = "你".repeat(charsThatFit + 5);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
+      expect(result).toBe("你".repeat(charsThatFit - 1) + "…");
+      expect(measure(result)).toBeLessThanOrEqual(budget);
+    });
+
+    it("truncates emoji at grapheme boundaries (no orphan surrogates)", () => {
+      // 🎉 is U+1F389, a single grapheme but a UTF-16 surrogate pair (length 2).
+      // With the 10-px-per-code-unit measurer each 🎉 costs 20 px.
+      const name = "🎉".repeat(20);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
+      // Prefix budget 190 / 20 px per emoji = 9 full emojis kept.
+      expect(result).toBe("🎉".repeat(9) + "…");
+      // Result must be re-iterable as the same set of grapheme clusters —
+      // i.e. no half-surrogate at the boundary.
+      const segments = Array.from(result);
+      expect(segments).toEqual([..."🎉".repeat(9), "…"]);
+    });
+
+    it("keeps a ZWJ grapheme cluster (family emoji) intact when truncating", () => {
+      // 👨‍👩‍👧‍👦 is one grapheme cluster but 11 UTF-16 code units (4 emojis joined
+      // by 3 ZWJ chars). With the 10-px measurer each family costs 110 px,
+      // so the 190-px prefix budget keeps exactly one family.
+      const name = "👨‍👩‍👧‍👦".repeat(5);
+      const result = JointUIService.truncateOperatorDisplayName(name, measure);
+      // Skip the strict assertion if Intl.Segmenter isn't available; the
+      // code-point fallback would split the cluster, which we cannot avoid
+      // without the segmenter.
+      const hasSegmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function";
+      if (hasSegmenter) {
+        expect(result).toBe("👨‍👩‍👧‍👦" + "…");
+      }
+      expect(result.endsWith("…")).toBe(true);
+    });
+
+    it("falls back to code-point iteration when Intl.Segmenter is unavailable", () => {
+      const intlAsAny = Intl as unknown as { Segmenter?: typeof Intl.Segmenter };
+      const original = intlAsAny.Segmenter;
+      delete intlAsAny.Segmenter;
+      try {
+        // Surrogate-pair safety still holds via Array.from.
+        const result = JointUIService.truncateOperatorDisplayName("🎉".repeat(20), measure);
+        expect(result).toBe("🎉".repeat(9) + "…");
+      } finally {
+        intlAsAny.Segmenter = original;
+      }
+    });
+
+    it("uses the default canvas-based measurer when no measurer is injected", () => {
+      // Stub getContext → null so the default measurer routes through the
+      // fallback path (avoids jsdom's "Not implemented" warning spam from
+      // the dozens of measurer calls the binary search makes).
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      (HTMLCanvasElement.prototype as unknown as { getContext: () => null }).getContext = () => null;
+      (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+      try {
+        const result = JointUIService.truncateOperatorDisplayName("a".repeat(100));
+        expect(result.endsWith("…")).toBe(true);
+        expect(result.length).toBeLessThan(100);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+        (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+      }
+    });
+  });
+
+  describe("measureOperatorNameWidth", () => {
+    // Static cache lives on the class; reset it between tests so each one
+    // starts from a clean slate and re-enters getMeasureContext.
+    const resetCache = () => {
+      (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+    };
+    beforeEach(resetCache);
+    afterEach(resetCache);
+
+    it("falls back to a per-char approximation when no canvas 2D context is available", () => {
+      // Stub the prototype to return null explicitly — this mirrors the
+      // production behavior in environments that don't support canvas, and
+      // avoids jsdom's "Not implemented: getContext" warning spam.
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      (HTMLCanvasElement.prototype as unknown as { getContext: () => null }).getContext = () => null;
+      try {
+        expect(JointUIService.measureOperatorNameWidth("")).toBe(0);
+        expect(JointUIService.measureOperatorNameWidth("hello")).toBe("hello".length * 7);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+      }
+    });
+
+    it("uses Canvas measureText when a 2D context is available, and caches it", () => {
+      const measureSpy = vi.fn((s: string) => ({ width: s.length * 12 }));
+      const fakeCtx = { font: "", measureText: measureSpy } as unknown as CanvasRenderingContext2D;
+      const getContextSpy = vi.fn(() => fakeCtx);
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      // Stub only on the prototype; restored in finally.
+      (HTMLCanvasElement.prototype as unknown as { getContext: typeof getContextSpy }).getContext = getContextSpy;
+      try {
+        expect(JointUIService.measureOperatorNameWidth("hello")).toBe(5 * 12);
+        // Second call hits the cached-ctx branch — should not create another canvas.
+        expect(JointUIService.measureOperatorNameWidth("hi")).toBe(2 * 12);
+        expect(getContextSpy).toHaveBeenCalledTimes(1);
+        expect(measureSpy).toHaveBeenCalledTimes(2);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+      }
+    });
+  });
+
+  describe("changeOperatorJointDisplayName", () => {
+    it("writes the truncated caption to the joint model's text attr", () => {
+      // Stub getContext → null so the binary-search inside
+      // truncateOperatorDisplayName routes through the fallback measurer
+      // instead of spamming jsdom's "Not implemented: getContext" warning.
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      (HTMLCanvasElement.prototype as unknown as { getContext: () => null }).getContext = () => null;
+      (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+      try {
+        const attrSpy = vi.fn();
+        const getModelByIdSpy = vi.fn(() => ({ attr: attrSpy }));
+        const jointPaper = { getModelById: getModelByIdSpy } as unknown as joint.dia.Paper;
+        // changeOperatorJointDisplayName is an instance method but uses no
+        // `this` state; pass a minimal metadata stub so the constructor's
+        // subscribe doesn't throw.
+        const metadataStub = { getOperatorMetadata: () => of({ operators: [], groups: [] }) };
+        const service = new JointUIService(metadataStub as never);
+
+        const operator = { operatorID: "op-1" } as OperatorPredicate;
+        // Long enough to force truncation under the 200-px budget.
+        const longName = "abcdefghij".repeat(20);
+        service.changeOperatorJointDisplayName(operator, jointPaper, longName);
+
+        expect(getModelByIdSpy).toHaveBeenCalledWith("op-1");
+        expect(attrSpy).toHaveBeenCalledTimes(1);
+        const [selector, rendered] = attrSpy.mock.calls[0];
+        expect(selector).toBe(`.${operatorNameClass}/text`);
+        expect(typeof rendered).toBe("string");
+        expect((rendered as string).endsWith("…")).toBe(true);
+        expect((rendered as string).length).toBeLessThan(longName.length);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+        (JointUIService as unknown as { measureCtx: CanvasRenderingContext2D | null }).measureCtx = null;
+      }
+    });
+  });
 });
