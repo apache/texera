@@ -479,14 +479,16 @@ export class JointUIService {
   public refreshMacroFusionStyle(
     jointPaper: joint.dia.Paper,
     operatorID: string,
-    isFused: boolean
+    isFused: boolean,
+    estimatedSpeedup?: string
   ): void {
     const model = jointPaper.getModelById(operatorID);
     if (!model) return;
     if (isFused) {
       model.attr("rect.body/stroke", "#d4a017");
       model.attr("rect.body/stroke-dasharray", "none");
-      model.attr(`.${operatorFusionBadgeClass}/text`, "⚡ FUSED");
+      const badgeText = estimatedSpeedup ? `⚡ FUSED · ${estimatedSpeedup}` : "⚡ FUSED";
+      model.attr(`.${operatorFusionBadgeClass}/text`, badgeText);
       model.attr(`.${operatorFusionBadgeClass}/visibility`, "visible");
     } else {
       model.attr("rect.body/stroke", "#1d6fdb");
@@ -748,7 +750,7 @@ export class JointUIService {
     // body at compile time — so visually we want the node to read differently
     // from a normal (still-inlinable) macro. Solid gold stroke + ⚡FUSED badge.
     const fusion = (operator.operatorProperties as Record<string, unknown> | undefined)?.["fusion"] as
-      | { verified?: boolean }
+      | { verified?: boolean; estimatedSpeedup?: string }
       | undefined;
     const isFusedMacro = isMacroInstance && fusion?.verified === true;
     const bodyStroke = isFusedMacro ? "#d4a017" : isMacroInstance ? "#1d6fdb" : isMacroMarker ? "#888888" : "red";
@@ -757,7 +759,14 @@ export class JointUIService {
     // "this node is now a single op, not a composite waiting to be inlined".
     const bodyStrokeDasharray = isMacroInstance && !isFusedMacro ? "6,3" : undefined;
     const bodyRadius = isMacroMarker ? "20px" : "5px";
-    const fusionBadgeText = isFusedMacro ? "⚡ FUSED" : "";
+    // Badge: "⚡ FUSED" alone, OR "⚡ FUSED · 2.5×" when we have a speedup
+    // estimate. The speedup is set by MacroFusionService when the fusion is
+    // first generated and persisted into operatorProperties.fusion.
+    const fusionBadgeText = isFusedMacro
+      ? fusion?.estimatedSpeedup
+        ? `⚡ FUSED · ${fusion.estimatedSpeedup}`
+        : "⚡ FUSED"
+      : "";
     return {
       ".texera-operator-coeditor-editing": {
         text: "",

@@ -30,6 +30,11 @@ export interface MacroFusion {
   verified: boolean;
   sampleSize: number;
   verifiedAt: number;
+  // Human-readable speedup estimate (e.g. "2.5×"). Rendered on the canvas
+  // next to the ⚡ FUSED badge so the user sees the perf claim at a glance.
+  // Optional — older fused instances created before this field existed will
+  // render as just "⚡ FUSED" until re-fused.
+  estimatedSpeedup?: string;
 }
 
 export interface FusionResult {
@@ -93,6 +98,7 @@ export class MacroFusionService {
       verified: result.verified,
       sampleSize: result.sampleSize,
       verifiedAt: Date.now(),
+      estimatedSpeedup: result.estimatedSpeedup,
     };
   }
 

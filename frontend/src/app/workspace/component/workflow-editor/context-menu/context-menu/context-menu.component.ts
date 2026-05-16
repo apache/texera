@@ -528,9 +528,11 @@ export class ContextMenuComponent {
             fusion: this.macroFusionService.toFusionPayload(result),
           };
           this.workflowActionService.setOperatorProperty(opId, newProperties);
-          // Update the visual immediately — solid gold stroke + ⚡FUSED badge.
+          // Update the visual immediately — solid gold stroke + ⚡FUSED badge,
+          // with the speedup metric appended so the perf claim is on-canvas.
           const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
-          if (paper) this.jointUIService.refreshMacroFusionStyle(paper, opId, true);
+          if (paper)
+            this.jointUIService.refreshMacroFusionStyle(paper, opId, true, result.estimatedSpeedup);
           this.notificationService.success(
             `Fused "${macroOp.customDisplayName ?? macroOp.operatorID}" — ${result.rationale}`
           );
