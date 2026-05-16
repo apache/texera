@@ -227,6 +227,13 @@ object IcebergUtil {
     }
   }
 
+  def tableExists(
+      catalog: Catalog,
+      tableNamespace: String,
+      tableName: String
+  ): Boolean =
+    catalog.tableExists(TableIdentifier.of(tableNamespace, tableName))
+
   /**
     * Converts a custom Amber `Schema` to an Iceberg `Schema`.
     * Field names are encoded to preserve LARGE_BINARY type information.

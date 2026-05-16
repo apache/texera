@@ -39,6 +39,16 @@ object DocumentFactory {
   private def sanitizeURIPath(uri: URI): String =
     uri.getPath.stripPrefix("/").replace("/", "_")
 
+  private def resolveNamespace(resourceType: VFSResourceType.Value): String =
+    resourceType match {
+      case RESULT             => StorageConfig.icebergTableResultNamespace
+      case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
+      case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
+      case STATE              => StorageConfig.icebergTableStateNamespace
+      case _ =>
+        throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
+    }
+
   /**
     * Open a document specified by the uri for read purposes only.
     * @param fileUri the uri of the document
@@ -67,15 +77,7 @@ object DocumentFactory {
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
-
-        val namespace = resourceType match {
-          case RESULT             => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
-          case STATE              => StorageConfig.icebergTableStateNamespace
-          case _ =>
-            throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
-        }
+        val namespace = resolveNamespace(resourceType)
 
         val icebergSchema = IcebergUtil.toIcebergSchema(schema)
         IcebergUtil.createTable(
@@ -114,23 +116,12 @@ object DocumentFactory {
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
-
-        val namespace = resourceType match {
-          case RESULT             => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
-          case STATE              => StorageConfig.icebergTableStateNamespace
-          case _ =>
-            throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
-        }
-
-        IcebergUtil
-          .loadTableMetadata(IcebergCatalogInstance.getInstance(), namespace, storageKey)
-          .isDefined
+        val namespace = resolveNamespace(resourceType)
+        IcebergUtil.tableExists(IcebergCatalogInstance.getInstance(), namespace, storageKey)
 
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: $unsupportedScheme for checking the document"
+          s"Unsupported URI scheme: $unsupportedScheme for checking document existence"
         )
     }
   }
@@ -147,15 +138,7 @@ object DocumentFactory {
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
-
-        val namespace = resourceType match {
-          case RESULT             => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
-          case STATE              => StorageConfig.icebergTableStateNamespace
-          case _ =>
-            throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
-        }
+        val namespace = resolveNamespace(resourceType)
 
         val table = IcebergUtil
           .loadTableMetadata(
