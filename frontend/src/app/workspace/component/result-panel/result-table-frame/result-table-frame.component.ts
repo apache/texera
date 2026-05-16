@@ -333,7 +333,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       // modal title
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
-      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex }, // set the index value and page size to the modal for navigation
+      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex, fallbackRow: rowData }, // also pass the row data already rendered in the table so the modal can fall back to it if the paginated lookup is unavailable
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons

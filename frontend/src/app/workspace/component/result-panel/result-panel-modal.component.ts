@@ -48,7 +48,10 @@ export class RowModalComponent implements OnChanges {
   // Index of current displayed row in currentResult
   readonly operatorId: string = inject(NZ_MODAL_DATA).operatorId;
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex;
-  currentDisplayRowData: Record<string, unknown> = {};
+  // Row data already rendered in the table — used as immediate display and as a
+  // fallback if the paginated result service is unavailable or slow.
+  readonly fallbackRow: Record<string, unknown> = inject(NZ_MODAL_DATA).fallbackRow ?? {};
+  currentDisplayRowData: Record<string, unknown> = this.fallbackRow;
 
   constructor(
     public modal: NzModalRef<any, number>,
@@ -59,12 +62,18 @@ export class RowModalComponent implements OnChanges {
   }
 
   ngOnChanges(): void {
+    // Show the in-table row immediately so the modal body is never blank.
+    this.currentDisplayRowData = this.fallbackRow;
+    // Then attempt to fetch the full row from the paginated result service —
+    // if available, overwrite with the canonical (full) tuple.
     this.workflowResultService
       .getPaginatedResultService(this.operatorId)
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(res => {
-        this.currentDisplayRowData = res.tuple;
+        if (res?.tuple && Object.keys(res.tuple).length > 0) {
+          this.currentDisplayRowData = res.tuple;
+        }
       });
   }
 }

@@ -77,6 +77,9 @@ import org.apache.texera.amber.operator.source.apis.twitter.v2.{
 }
 import org.apache.texera.amber.operator.source.dataset.FileListerSourceOpDesc
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
+import org.apache.texera.amber.operator.source.http.{PollingHttpSourceOpDesc, WebSocketSourceOpDesc}
+import org.apache.texera.amber.operator.http.HttpRequestOpDesc
+import org.apache.texera.amber.operator.llm.LLMAgentOpDesc
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
@@ -182,6 +185,10 @@ trait StateTransferFunc
       value = classOf[TwitterSearchSourceOpDesc],
       name = "TwitterSearch"
     ),
+    new Type(value = classOf[PollingHttpSourceOpDesc], name = "PollingHttpSource"),
+    new Type(value = classOf[WebSocketSourceOpDesc], name = "WebSocketSource"),
+    new Type(value = classOf[HttpRequestOpDesc], name = "HttpRequest"),
+    new Type(value = classOf[LLMAgentOpDesc], name = "LLMAgent"),
     new Type(value = classOf[ChoroplethMapOpDesc], name = "ChoroplethMap"),
     new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeriesPlot"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
