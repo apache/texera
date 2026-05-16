@@ -170,6 +170,23 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     }
   }
 
+  it should "resolve CONSOLE_MESSAGES URIs through documentExists" in {
+    val consoleUri = VFSURIFactory.createConsoleMessagesURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      OperatorIdentity(s"fresh-${UUID.randomUUID().toString.replace("-", "")}")
+    )
+    assert(!DocumentFactory.documentExists(consoleUri))
+  }
+
+  it should "resolve RUNTIME_STATISTICS URIs through documentExists" in {
+    val statsUri = VFSURIFactory.createRuntimeStatisticsURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0)
+    )
+    assert(!DocumentFactory.documentExists(statsUri))
+  }
+
   it should "round trip materialized state documents" in {
     val stateUri = VFSURIFactory.stateURI(baseURI)
     DocumentFactory.createDocument(stateUri, State.schema)
