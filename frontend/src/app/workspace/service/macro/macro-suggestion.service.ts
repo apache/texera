@@ -298,12 +298,18 @@ export class MacroSuggestionService {
       return `Two-step pipeline: ${head} → ${tail}. Reusable as a unit.`;
     }
     if (this.looksLikePreprocessing(types)) {
-      return `Looks like a reusable preprocessing block (${chain.length} ops).`;
+      return `${this.preprocessingHint(types)} (${chain.length} ops). Encapsulating this protects downstream consumers from the schema changes.`;
     }
     if (this.looksLikeAggregation(types)) {
-      return `Looks like a reusable aggregation pipeline (${chain.length} ops).`;
+      return `${this.aggregationHint(types)} (${chain.length} ops). Reusing this pipeline keeps your analytics consistent across workflows.`;
     }
-    return `Linear ${chain.length}-step chain — good macro candidate.`;
+    if (this.looksLikeVisualization(types)) {
+      return `${this.visualizationHint(types)} (${chain.length} ops). Once captured, the same chart definition can be reused without recopying ops.`;
+    }
+    if (this.looksLikeJoinAndShape(types)) {
+      return `Join + reshape pipeline (${chain.length} ops). Encapsulating hides the join's key contract behind a single macro port.`;
+    }
+    return `Linear ${chain.length}-step chain — good macro candidate. Extracts the unit and frees the parent canvas of intermediate ops.`;
   }
 
   private looksLikePreprocessing(types: string[]): boolean {
@@ -314,6 +320,43 @@ export class MacroSuggestionService {
   private looksLikeAggregation(types: string[]): boolean {
     const lc = types.join(" ").toLowerCase();
     return /aggregate|group|sum|count|reduce/.test(lc);
+  }
+
+  private looksLikeVisualization(types: string[]): boolean {
+    const lc = types.join(" ").toLowerCase();
+    return /chart|plot|visualizer|wordcloud|piechart|barchart|linechart/.test(lc);
+  }
+
+  private looksLikeJoinAndShape(types: string[]): boolean {
+    const lc = types.join(" ").toLowerCase();
+    return /(hashjoin|cartesian|union).*(projection|filter|map)/.test(lc);
+  }
+
+  /**
+   * Detailed rationale generators — slot in the user's actual op types so
+   * the suggestion reads as concrete advice ("Filter → Projection block")
+   * instead of a generic "preprocessing pipeline" pitch.
+   */
+  private preprocessingHint(types: string[]): string {
+    const lc = types.join(" ").toLowerCase();
+    if (lc.includes("filter") && lc.includes("projection")) return "Filter + project block";
+    if (lc.includes("filter")) return "Row-filter block";
+    if (lc.includes("projection")) return "Column-project block";
+    return "Preprocessing block";
+  }
+
+  private aggregationHint(types: string[]): string {
+    const lc = types.join(" ").toLowerCase();
+    if (lc.includes("aggregate") && lc.includes("projection")) return "Aggregate + project block";
+    if (lc.includes("groupby") || lc.includes("aggregate")) return "Grouping/aggregation block";
+    return "Reduction pipeline";
+  }
+
+  private visualizationHint(types: string[]): string {
+    const lc = types.join(" ").toLowerCase();
+    if (lc.includes("wordcloud")) return "Text-summary visualization";
+    if (lc.includes("piechart") || lc.includes("barchart") || lc.includes("linechart")) return "Categorical chart block";
+    return "Visualization block";
   }
 
   private suggestedNameForChain(chain: string[], ops: readonly OperatorPredicate[]): string {
