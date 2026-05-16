@@ -152,8 +152,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
       ExecutionIdentity(0),
       GlobalPortIdentity(
         PhysicalOpIdentity(
-          logicalOpId =
-            OperatorIdentity(s"fresh-${UUID.randomUUID().toString.replace("-", "")}"),
+          logicalOpId = OperatorIdentity(s"fresh-${UUID.randomUUID().toString.replace("-", "")}"),
           layerName = "main"
         ),
         PortIdentity()
