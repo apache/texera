@@ -135,6 +135,7 @@ export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
+export const operatorFusionBadgeClass = "texera-operator-fusion-badge";
 const operatorWorkerCountClass = "operator-worker-count";
 
 export const linkPathStrokeColor = "#919191";
@@ -152,6 +153,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <image class="${operatorIconClass}"></image>
       <text class="${operatorFriendlyNameClass}"></text>
       <text class="${operatorNameClass}"></text>
+      <text class="${operatorFusionBadgeClass}"></text>
       <text class="${operatorPortMetricsClass}"></text>
       <text class="${operatorWorkerCountClass}"></text>
       <text class="${operatorStateClass}"></text>
@@ -468,6 +470,32 @@ export class JointUIService {
    * @param operatorID
    * @param isOperatorValid
    */
+  /**
+   * Refresh the macro op's stroke + fusion badge to reflect whether its
+   * `operatorProperties.fusion` is verified. Called by the context-menu
+   * fuse action after `setOperatorProperty` so the visual updates without
+   * forcing a full re-render of the JointJS element.
+   */
+  public refreshMacroFusionStyle(
+    jointPaper: joint.dia.Paper,
+    operatorID: string,
+    isFused: boolean
+  ): void {
+    const model = jointPaper.getModelById(operatorID);
+    if (!model) return;
+    if (isFused) {
+      model.attr("rect.body/stroke", "#d4a017");
+      model.attr("rect.body/stroke-dasharray", "none");
+      model.attr(`.${operatorFusionBadgeClass}/text`, "⚡ FUSED");
+      model.attr(`.${operatorFusionBadgeClass}/visibility`, "visible");
+    } else {
+      model.attr("rect.body/stroke", "#1d6fdb");
+      model.attr("rect.body/stroke-dasharray", "6,3");
+      model.attr(`.${operatorFusionBadgeClass}/text`, "");
+      model.attr(`.${operatorFusionBadgeClass}/visibility`, "hidden");
+    }
+  }
+
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
     const model = jointPaper.getModelById(operatorID);
     if (!model) return;
@@ -715,10 +743,21 @@ export class JointUIService {
     //    auto-layout pass — we keep the JointJS element shape but tone it down)
     const isMacroInstance = operator.operatorType === "Macro";
     const isMacroMarker = operator.operatorType === "MacroInput" || operator.operatorType === "MacroOutput";
-    const bodyStroke = isMacroInstance ? "#1d6fdb" : isMacroMarker ? "#888888" : "red";
+    // A macro is "fused" when its operatorProperties.fusion has verified=true.
+    // MacroExpander will substitute a single PythonUDFOpDescV2 for the inlined
+    // body at compile time — so visually we want the node to read differently
+    // from a normal (still-inlinable) macro. Solid gold stroke + ⚡FUSED badge.
+    const fusion = (operator.operatorProperties as Record<string, unknown> | undefined)?.["fusion"] as
+      | { verified?: boolean }
+      | undefined;
+    const isFusedMacro = isMacroInstance && fusion?.verified === true;
+    const bodyStroke = isFusedMacro ? "#d4a017" : isMacroInstance ? "#1d6fdb" : isMacroMarker ? "#888888" : "red";
     const bodyStrokeWidth = isMacroInstance ? "3" : isMacroMarker ? "1" : "2";
-    const bodyStrokeDasharray = isMacroInstance ? "6,3" : undefined;
+    // Fused macros get a solid (non-dashed) border — the visual signal for
+    // "this node is now a single op, not a composite waiting to be inlined".
+    const bodyStrokeDasharray = isMacroInstance && !isFusedMacro ? "6,3" : undefined;
     const bodyRadius = isMacroMarker ? "20px" : "5px";
+    const fusionBadgeText = isFusedMacro ? "⚡ FUSED" : "";
     return {
       ".texera-operator-coeditor-editing": {
         text: "",
@@ -867,6 +906,19 @@ export class JointUIService {
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
+      },
+      [`.${operatorFusionBadgeClass}`]: {
+        text: fusionBadgeText,
+        fill: "#d4a017",
+        "font-size": "10px",
+        "font-weight": "700",
+        "letter-spacing": "0.5px",
+        "ref-x": 0.5,
+        "ref-y": -28,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+        visibility: fusionBadgeText ? "visible" : "hidden",
       },
       [`.${operatorWorkerCountClass}`]: {
         "ref-x": -5,

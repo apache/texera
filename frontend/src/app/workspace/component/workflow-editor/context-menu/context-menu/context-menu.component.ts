@@ -33,6 +33,7 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { MacroService, MacroDetail } from "src/app/workspace/service/macro/macro.service";
 import { MacroFusionService } from "src/app/workspace/service/macro/macro-fusion.service";
+import { JointUIService } from "src/app/workspace/service/joint-ui/joint-ui.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowUtilService } from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
 import { OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
@@ -60,7 +61,8 @@ export class ContextMenuComponent {
     private macroService: MacroService,
     private notificationService: NotificationService,
     private workflowUtilService: WorkflowUtilService,
-    private macroFusionService: MacroFusionService
+    private macroFusionService: MacroFusionService,
+    private jointUIService: JointUIService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -423,6 +425,9 @@ export class ContextMenuComponent {
             fusion: this.macroFusionService.toFusionPayload(result),
           };
           this.workflowActionService.setOperatorProperty(opId, newProperties);
+          // Update the visual immediately — solid gold stroke + ⚡FUSED badge.
+          const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+          if (paper) this.jointUIService.refreshMacroFusionStyle(paper, opId, true);
           this.notificationService.success(
             `Fused "${macroOp.customDisplayName ?? macroOp.operatorID}" — ${result.rationale}`
           );
