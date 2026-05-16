@@ -31,6 +31,14 @@ import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { SnippetCanvasService } from "src/app/workspace/service/snippet/snippet-canvas.service";
+import { WorkflowSnippetService } from "src/app/dashboard/service/user/workflow-snippet/workflow-snippet.service";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { UserService } from "src/app/common/service/user/user.service";
+import {
+  SaveSnippetDialogComponent,
+  SaveSnippetDialogResult,
+} from "../../../save-snippet-dialog/save-snippet-dialog.component";
 
 @UntilDestroy()
 @Component({
@@ -51,7 +59,11 @@ export class ContextMenuComponent {
     protected config: GuiConfigService,
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
-    private validationWorkflowService: ValidationWorkflowService
+    private validationWorkflowService: ValidationWorkflowService,
+    private snippetCanvasService: SnippetCanvasService,
+    private workflowSnippetService: WorkflowSnippetService,
+    private notificationService: NotificationService,
+    private userService: UserService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -155,6 +167,42 @@ export class ContextMenuComponent {
         sourceTriggered: "context-menu",
       },
       nzFooter: null,
+    });
+  }
+
+  public canSaveAsSnippet(): boolean {
+    return this.highlightedOperatorIds.length >= 2 && !this.hasHighlightedLinks();
+  }
+
+  public onSaveAsSnippet(): void {
+    const captured = this.snippetCanvasService.captureFromHighlightedSelection();
+    if (!captured) {
+      this.notificationService.info("Select 2 or more operators to save as a snippet.");
+      return;
+    }
+    const ref = this.modalService.create({
+      nzTitle: "Save as Snippet",
+      nzContent: SaveSnippetDialogComponent,
+      nzData: { operators: captured.operators, links: captured.links },
+      nzFooter: null,
+      nzWidth: 540,
+    });
+    ref.afterClose.subscribe((result: SaveSnippetDialogResult | null | undefined) => {
+      if (!result) return;
+      const author = this.userService.getCurrentUser()?.name ?? "you";
+      this.workflowSnippetService.create({
+        name: result.name,
+        description: result.description,
+        icon: result.icon,
+        category: result.category,
+        operators: captured.operators,
+        links: captured.links,
+        author,
+        isPublic: result.isPublic,
+      });
+      this.notificationService.success(
+        `Snippet "${result.name}" saved (${captured.operators.length} operators, ${captured.links.length} links).`
+      );
     });
   }
 }

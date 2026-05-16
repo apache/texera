@@ -222,6 +222,19 @@ export class AgentService {
   private scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
   public scrollToStep$ = this.scrollToStepSubject.asObservable();
 
+  /**
+   * Subject emitting text to pre-fill into the active chat input — used when
+   * another part of the workspace (e.g. a Quick Step) wants the user to send
+   * a specific message after they activate an agent.
+   */
+  private chatPrefillSubject = new Subject<string>();
+  public chatPrefill$ = this.chatPrefillSubject.asObservable();
+
+  /** Push a prefill text into whichever AgentChat panel is currently mounted. */
+  public prefillChatInput(message: string): void {
+    this.chatPrefillSubject.next(message);
+  }
+
   constructor(
     private http: HttpClient,
     private notificationService: NotificationService,

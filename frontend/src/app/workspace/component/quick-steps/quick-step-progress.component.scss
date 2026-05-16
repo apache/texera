@@ -1,0 +1,107 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.qs-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+  }
+
+  &__icon {
+    font-size: 20px;
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: rgba(0, 0, 0, 0.55);
+    font-size: 12px;
+  }
+
+  &__steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid #f0f0f0;
+    background: #fafafa;
+
+    &--running {
+      background: #e6f4ff;
+      border-color: #91caff;
+    }
+
+    &--completed {
+      background: #f6ffed;
+      border-color: #b7eb8f;
+    }
+
+    &--cancelled,
+    &--skipped {
+      opacity: 0.55;
+    }
+
+    &--failed {
+      background: #fff2f0;
+      border-color: #ffccc7;
+    }
+  }
+
+  &__step-icon {
+    font-size: 16px;
+    line-height: 1;
+    margin-top: 2px;
+  }
+
+  &__step-body {
+    flex: 1;
+  }
+
+  &__step-label {
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  &__step-detail {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.55);
+    margin-top: 2px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}

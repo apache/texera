@@ -597,12 +597,39 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
+        const rawEvent: any = event[1];
+        const eventType = (rawEvent?.type ?? "").toString().toLowerCase();
+        // JointJS emits cell:pointerdown for BOTH left and right clicks, and emits
+        // cell:contextmenu after the right-click. We need to detect right-clicks
+        // on either, since cell:pointerdown fires first and would otherwise
+        // collapse a multi-selection before the contextmenu handler runs.
+        const isRightClick =
+          eventType.includes("contextmenu") ||
+          rawEvent?.button === 2 ||
+          rawEvent?.which === 3 ||
+          (typeof rawEvent?.buttons === "number" && (rawEvent.buttons & 2) === 2);
+        const elementID = event[0].model.id.toString();
+        const highlightedOperatorIDsBefore = this.wrapper.getCurrentHighlightedOperatorIDs();
+        const highlightedCommentBoxIDsBefore = this.wrapper.getCurrentHighlightedCommentBoxIDs();
+
+        // Right-click on a cell that's already part of an existing multi-selection
+        // should preserve the selection so the context menu can act on the group
+        // (e.g. "save as snippet"). Without this, JointJS' pointerdown handler
+        // would collapse the group down to one item before the menu opens.
+        if (
+          isRightClick &&
+          !rawEvent?.shiftKey &&
+          (highlightedOperatorIDsBefore.includes(elementID) ||
+            highlightedCommentBoxIDsBefore.includes(elementID))
+        ) {
+          return;
+        }
+
         // multiselect mode on if holding shift
         this.wrapper.setMultiSelectMode(<boolean>event[1].shiftKey);
 
-        const elementID = event[0].model.id.toString();
-        const highlightedOperatorIDs = this.wrapper.getCurrentHighlightedOperatorIDs();
-        const highlightedCommentBoxIDs = this.wrapper.getCurrentHighlightedCommentBoxIDs();
+        const highlightedOperatorIDs = highlightedOperatorIDsBefore;
+        const highlightedCommentBoxIDs = highlightedCommentBoxIDsBefore;
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
@@ -651,7 +678,25 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // on user mouse clicks on blank area, unhighlight all operators and groups
     merge(fromJointPaperEvent(this.paper, "blank:pointerdown"), fromJointPaperEvent(this.paper, "blank:contextmenu"))
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
+      .subscribe(event => {
+        const rawEvent: any = event[0];
+        const eventType = (rawEvent?.type ?? "").toString().toLowerCase();
+        const isRightClick =
+          eventType.includes("contextmenu") ||
+          rawEvent?.button === 2 ||
+          rawEvent?.which === 3 ||
+          (typeof rawEvent?.buttons === "number" && (rawEvent.buttons & 2) === 2);
+        const isContextMenu = isRightClick;
+        // Preserve an existing multi-selection when the user right-clicks on
+        // blank canvas — the context menu may want to operate on the group
+        // (e.g. "save as snippet"). Plain blank clicks still clear.
+        if (
+          isContextMenu &&
+          (this.wrapper.getCurrentHighlightedOperatorIDs().length >= 2 ||
+            this.wrapper.getCurrentHighlightedCommentBoxIDs().length >= 2)
+        ) {
+          return;
+        }
         this.wrapper.unhighlightElements(this.wrapper.getCurrentHighlights());
       });
   }

@@ -228,6 +228,17 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.cdr.detectChanges();
       });
 
+    // Listen for prefilled messages pushed from Quick Steps or other features.
+    // Only the active agent panel surfaces the prefill so we don't overwrite
+    // a different tab's draft.
+    this.agentService.chatPrefill$.pipe(untilDestroyed(this)).subscribe(message => {
+      if (!this.isActive) return;
+      this.currentMessage = message;
+      this.cdr.detectChanges();
+      // Focus the input so the user can immediately edit or press Enter.
+      setTimeout(() => this.messageInput?.nativeElement?.focus(), 0);
+    });
+
     // Subscribe to agent state changes to manage auto-persist
     // Disable auto-persist when agent is GENERATING, re-enable when AVAILABLE
     this.agentService

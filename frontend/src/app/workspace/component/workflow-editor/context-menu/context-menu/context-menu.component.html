@@ -125,6 +125,16 @@
   </li>
   <li
     nz-menu-item
+    *ngIf="canSaveAsSnippet() && isWorkflowModifiable"
+    (click)="onSaveAsSnippet()">
+    <span
+      nz-icon
+      nzType="save"
+      nzTheme="outline"></span
+    >save as snippet
+  </li>
+  <li
+    nz-menu-item
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
   isWorkflowModifiable"

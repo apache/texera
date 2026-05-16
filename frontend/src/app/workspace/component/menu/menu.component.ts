@@ -74,6 +74,7 @@ import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { QuickStepsDropdownComponent } from "../quick-steps/quick-steps-dropdown.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -122,6 +123,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
     NzTooltipDirective,
     DatePipe,
     NzSpaceCompactComponent,
+    QuickStepsDropdownComponent,
   ],
 })
 export class MenuComponent implements OnInit, OnDestroy {

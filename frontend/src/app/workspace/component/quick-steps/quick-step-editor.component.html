@@ -1,0 +1,97 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="qs-editor">
+  <div class="qs-editor__row">
+    <div class="qs-editor__field qs-editor__field--icon">
+      <label>Icon</label>
+      <nz-select [(ngModel)]="icon">
+        <nz-option *ngFor="let c of iconChoices" [nzValue]="c" [nzLabel]="c"></nz-option>
+      </nz-select>
+    </div>
+    <div class="qs-editor__field qs-editor__field--name">
+      <label>Name <span class="required">*</span></label>
+      <input nz-input [(ngModel)]="name" maxlength="60" placeholder="My Quick Step" />
+    </div>
+  </div>
+
+  <div class="qs-editor__field">
+    <label>Description</label>
+    <textarea nz-input rows="2" maxlength="240" [(ngModel)]="description"></textarea>
+  </div>
+
+  <div class="qs-editor__steps">
+    <div class="qs-editor__steps-header">
+      <strong>Steps</strong>
+      <span class="qs-editor__hint">Add and reorder steps below.</span>
+    </div>
+    <ul *ngIf="steps.length > 0; else noSteps">
+      <li *ngFor="let step of steps; let i = index" class="qs-editor__step-row">
+        <span class="qs-editor__order">{{ i + 1 }}</span>
+        <input nz-input class="qs-editor__step-label" [(ngModel)]="step.label" />
+        <nz-select
+          *ngIf="step.action === 'add_snippet'"
+          [(ngModel)]="step.config!.snippetName"
+          nzPlaceHolder="Pick snippet"
+          class="qs-editor__step-snippet">
+          <nz-option *ngFor="let name of snippetNames" [nzValue]="name" [nzLabel]="name"></nz-option>
+        </nz-select>
+        <input
+          *ngIf="step.action === 'notify'"
+          nz-input
+          class="qs-editor__step-snippet"
+          placeholder="Notification message"
+          [(ngModel)]="step.config!.message" />
+        <button nz-button nzSize="small" [disabled]="i === 0" (click)="moveUp(i)" title="Move up">
+          <span nz-icon nzType="up"></span>
+        </button>
+        <button
+          nz-button
+          nzSize="small"
+          [disabled]="i === steps.length - 1"
+          (click)="moveDown(i)"
+          title="Move down">
+          <span nz-icon nzType="down"></span>
+        </button>
+        <button nz-button nzSize="small" nzDanger (click)="remove(i)" title="Remove">
+          <span nz-icon nzType="delete"></span>
+        </button>
+      </li>
+    </ul>
+    <ng-template #noSteps>
+      <div class="qs-editor__empty">Add at least one step using the buttons below.</div>
+    </ng-template>
+
+    <div class="qs-editor__add-buttons">
+      <button
+        *ngFor="let template of actionTemplates"
+        nz-button
+        nzSize="small"
+        (click)="addStep(template.type)">
+        <span nz-icon nzType="plus"></span>
+        {{ template.label }}
+      </button>
+    </div>
+  </div>
+
+  <div class="qs-editor__actions">
+    <button nz-button (click)="cancel()">Cancel</button>
+    <button nz-button nzType="primary" [disabled]="!canSave()" (click)="save()">Save</button>
+  </div>
+</div>

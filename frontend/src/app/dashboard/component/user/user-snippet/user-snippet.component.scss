@@ -1,0 +1,213 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.user-snippet {
+  padding: 24px;
+  max-width: 1200px;
+
+  &__header {
+    margin-bottom: 16px;
+
+    h2 {
+      margin: 0 0 4px;
+    }
+  }
+
+  &__header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__subtitle {
+    color: rgba(0, 0, 0, 0.55);
+    margin: 0;
+    font-size: 13px;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  &__editor {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  &__editor-card {
+    background: #fff;
+    border-radius: 6px;
+    padding: 20px 24px;
+    width: 480px;
+    max-width: calc(100vw - 32px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    h3 {
+      margin: 0 0 4px;
+    }
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+      font-size: 12px;
+      color: rgba(0, 0, 0, 0.65);
+    }
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 12px;
+  }
+
+  &__editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  &__operator-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #fafafa;
+  }
+
+  &__operator-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  &__operator-index {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  &__operator-name {
+    flex: 1;
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  &__operator-type {
+    font-family: monospace;
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 11px;
+  }
+
+  &__operator-hint {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.45);
+    margin-top: 4px;
+  }
+}
+
+.snippet-card {
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  &__icon {
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  &__heading {
+    flex: 1;
+  }
+
+  &__name {
+    font-weight: 600;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.45);
+  }
+
+  &__desc {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.65);
+    margin: 0 0 8px;
+  }
+
+  &__chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  &__node {
+    background: #f5f5f5;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.65);
+  }
+
+  &__arrow {
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 11px;
+  }
+
+  &__stats {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.45);
+  }
+}
