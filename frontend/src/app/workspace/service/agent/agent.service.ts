@@ -977,39 +977,33 @@ export class AgentService {
           );
         }
 
-        // Slow path: check old-format datasets by fetching version/latest and comparing filename.
-        // Only check datasets whose name suggests they contain this file.
-        const safeBase = safeFileName.replace(/\.[^.]+$/, "").toLowerCase();
-        const candidates = datasets
-          .filter(d => d.dataset.name.toLowerCase().includes(safeBase) || d.dataset.name.startsWith("agent_upload_"))
-          .slice(0, 10); // limit to avoid too many requests
-
-        if (candidates.length === 0) return of(null);
-
-        // For old-format datasets: derive the safeDatasetName from the file and check
-        // if any dataset name ends with that suffix (pattern: agent_upload_{ts}_{safeDatasetName})
-        const safeDatasetName = file.name
+        // Slow path: check old-format datasets by exact suffix match on the dataset name.
+        // Pattern: agent_upload_{timestamp}_{safeDatasetName}
+        const safeDatasetSuffix = file.name
           .toLowerCase()
           .replace(/\s+/g, "_")
           .replace(/\./g, "_")
           .replace(/[^a-z0-9_-]/g, "_");
 
+        // Only check datasets whose name ends with exactly _<safeDatasetSuffix>
+        const candidates = datasets
+          .filter(d => d.dataset.name.endsWith(`_${safeDatasetSuffix}`))
+          .slice(0, 5);
+
+        if (candidates.length === 0) return of(null);
+
         const checks$ = candidates.map(candidate => of(candidate).pipe(
           map(c => {
             const ownerEmail = c.ownerEmail;
             const dsName = c.dataset.name;
-            // Match by dataset name suffix
-            if (dsName === `agent_upload_${dsName.split("_").slice(2).join("_")}` ||
-                dsName.endsWith(`_${safeDatasetName}`) ||
-                dsName.includes(`_${safeDatasetName}`)) {
-              const filePath = `/${ownerEmail}/${dsName}/v1/${safeFileName}`;
-              const uploadedDate = c.dataset.creationTime
-                ? new Date(c.dataset.creationTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                : "previously";
-              // Return without dvid for slow-path matches; the navigate will still work without auto-select
-              return { fileName: safeFileName, filePath, uploadedDate, datasetId: c.dataset.did!, datasetVersionId: undefined };
-            }
-            return null;
+            // Verify it's a properly formatted agent_upload dataset
+            if (!dsName.startsWith("agent_upload_")) return null;
+
+            const filePath = `/${ownerEmail}/${dsName}/v1/${safeFileName}`;
+            const uploadedDate = c.dataset.creationTime
+              ? new Date(c.dataset.creationTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+              : "previously";
+            return { fileName: safeFileName, filePath, uploadedDate, datasetId: c.dataset.did!, datasetVersionId: undefined };
           }),
           catchError(() => of(null))
         ));

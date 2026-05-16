@@ -171,8 +171,38 @@
     a {
       color: #1890ff;
       text-decoration: none;
-      &:hover {
-        text-decoration: underline;
+      &:hover { text-decoration: underline; }
+    }
+
+    // Tables: clean borders + horizontal scroll when too wide
+    table {
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 8px 0;
+      display: block;           // makes the table itself scrollable
+      overflow-x: auto;
+      max-width: 100%;
+      -webkit-overflow-scrolling: touch;
+
+      th, td {
+        border: 1px solid #e8e8e8;
+        padding: 5px 10px;
+        text-align: right;
+        white-space: nowrap;    // keep numbers on one line
+      }
+
+      th:first-child, td:first-child {
+        text-align: left;       // first column (labels) left-aligned
+      }
+
+      th {
+        background: #fafafa;
+        font-weight: 600;
+        color: #262626;
+      }
+
+      tr:nth-child(even) td {
+        background: #fafafa;
       }
     }
   }
