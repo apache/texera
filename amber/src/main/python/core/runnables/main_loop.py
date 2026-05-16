@@ -106,11 +106,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self, executor: LoopEndOperator, controller_interface
     ) -> None:
         controller_interface.jump_to_operator_region(
-            JumpToOperatorRegionRequest(OperatorIdentity(executor.loop_start_id()))
+            JumpToOperatorRegionRequest(OperatorIdentity(executor.state["LoopStartId"]))
         )
         uri = executor.state["LoopStartStateURI"]
-        del executor.state["LoopStartStateURI"]
-        del executor.state["LoopStartId"]
+        # Strip the per-iteration scratch (`table`, `output`) and the
+        # loop metadata (`LoopStartId`, `LoopStartStateURI`) so only the
+        # user-visible loop state is written back to LoopStart's input.
+        for key in ("table", "output", "LoopStartId", "LoopStartStateURI"):
+            executor.state.pop(key, None)
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         writer.put_one(State(executor.state).to_tuple())
         writer.close()
