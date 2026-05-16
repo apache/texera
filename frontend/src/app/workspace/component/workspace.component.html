@@ -36,5 +36,6 @@
 <texera-agent-panel
   *ngIf="copilotEnabled"
   [agentIdToActivate]="agentIdToActivate"></texera-agent-panel>
+<texera-ai-wizard-panel *ngIf="copilotEnabled"></texera-ai-wizard-panel>
 <texera-property-editor></texera-property-editor>
 <ng-template #codeEditor></ng-template>

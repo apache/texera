@@ -1,0 +1,360 @@
+<!-- Docked launcher button -->
+<button
+  id="ai-wizard-docked-button"
+  nz-button
+  nzType="primary"
+  nzShape="circle"
+  nzSize="large"
+  (click)="openOrClosePanel()"
+  *ngIf="!width"
+  nz-tooltip
+  nzTooltipPlacement="left"
+  nzTooltipTitle="AI Wizard">
+  <span nz-icon nzType="experiment"></span>
+</button>
+
+<!-- Floating panel -->
+<div
+  cdkDrag
+  cdkDragBoundary="texera-workspace"
+  id="ai-wizard-container"
+  class="ai-wizard-box"
+  nz-resizable
+  [nzMinWidth]="480"
+  [nzMinHeight]="540"
+  [nzMaxWidth]="window.innerWidth * 0.95"
+  [nzMaxHeight]="window.innerHeight * 0.9"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)"
+  [cdkDragFreeDragPosition]="dragPosition">
+  <ul id="ai-wizard-return-button" nz-menu *ngIf="width">
+    <li nz-menu-item (click)="openOrClosePanel()">
+      <span nz-icon nzType="minus"></span>
+    </li>
+  </ul>
+
+  <div #content id="ai-wizard-content" [hidden]="!width">
+    <h4 id="ai-wizard-title" cdkDragHandle>AI Workflow Wizard</h4>
+
+    <!-- LLM model picker (fetched from /api/models — Texera's LiteLLM proxy) -->
+    <div class="model-picker" *ngIf="availableModels.length > 0">
+      <label for="ai-wizard-model-select">LLM:</label>
+      <select
+        id="ai-wizard-model-select"
+        [ngModel]="state.model"
+        (ngModelChange)="onModelChange($event)">
+        <option *ngFor="let m of availableModels" [value]="m.id">{{ m.name }}</option>
+      </select>
+    </div>
+
+    <!-- Step indicator -->
+    <div class="step-progress">
+      <div *ngFor="let s of [1,2,3,4]" class="progress-step" [class.active]="state.step >= s">
+        <div class="step-circle">{{ s }}</div>
+        <div class="step-label">
+          <ng-container [ngSwitch]="s">
+            <span *ngSwitchCase="1">Analysis Goal</span>
+            <span *ngSwitchCase="2">Data Source</span>
+            <span *ngSwitchCase="3">Framework</span>
+            <span *ngSwitchCase="4">Guardrails</span>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ STEP 1: Analysis Goal ============ -->
+    <div class="wizard-step" *ngIf="state.step === 1">
+      <h3>Step 1: Select Analysis Goal</h3>
+      <p class="step-help">What do you want to accomplish with your data?</p>
+      <div class="options-grid">
+        <div
+          *ngFor="let g of goals"
+          class="option-card"
+          [class.selected]="state.analysisGoal === g"
+          (click)="selectGoal(g)">
+          <h4>{{ g }}</h4>
+          <p>{{ goalDescriptions[g] }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="state.analysisGoal" class="freetext-block">
+        <label>
+          <ng-container *ngIf="state.analysisGoal === 'Custom'">Describe your analysis goal (required):</ng-container>
+          <ng-container *ngIf="state.analysisGoal !== 'Custom'">
+            Additional context for the AI (optional) — domain knowledge, target metric, study population, etc.:
+          </ng-container>
+          <textarea
+            rows="4"
+            [ngModel]="state.customAnalysisGoal ?? ''"
+            (ngModelChange)="onCustomGoalChange($event)"
+            [placeholder]="state.analysisGoal === 'Custom'
+                ? 'e.g., Predict 5-year diabetes complications from baseline labs in the Pima cohort.'
+                : 'e.g., Outcome variable is HbA1c at 12 months; prefer AUROC over accuracy.'"></textarea>
+        </label>
+      </div>
+    </div>
+
+    <!-- ============ STEP 2: Data Source ============ -->
+    <div class="wizard-step" *ngIf="state.step === 2">
+      <h3>Step 2: Select Data Source</h3>
+      <p class="step-help">Where is your data located?</p>
+      <div class="options-grid">
+        <div
+          *ngFor="let ds of dataSources"
+          class="option-card"
+          [class.selected]="state.dataSource === ds"
+          (click)="selectDataSource(ds)">
+          <h4>{{ ds }}</h4>
+        </div>
+      </div>
+
+      <div *ngIf="state.dataSource === 'Existing Dataset'" class="freetext-block">
+        <p>
+          Pick a CSV file from a dataset you've uploaded via the Datasets app. We'll resolve a real backend path
+          (e.g. <code>/&lt;owner&gt;/&lt;dataset&gt;/v1/&lt;file&gt;.csv</code>) that CSVFileScan can open.
+        </p>
+        <button nz-button nzType="primary" (click)="openExistingDatasetPicker()">
+          {{ state.existingDatasetPath ? 'Change file…' : 'Pick a dataset file…' }}
+        </button>
+        <div *ngIf="state.existingDatasetPath" class="file-info">
+          Selected: <code>{{ state.existingDatasetPath }}</code>
+        </div>
+        <small class="hint">
+          Don't see your dataset? Upload it in the Texera Datasets app first, then come back and click the
+          picker again — it lists every dataset you have access to.
+        </small>
+      </div>
+
+      <div *ngIf="state.dataSource === 'dkNET Dataset'" class="freetext-block">
+        <p>Pick a curated biomedical dataset. The workflow will reference it via CSVFileScan.</p>
+        <div class="options-grid">
+          <div
+            *ngFor="let ds of dknetDatasets"
+            class="option-card"
+            [class.selected]="state.dknetDataset?.id === ds.id"
+            (click)="selectDknetDataset(ds)">
+            <h4>{{ ds.name }}</h4>
+            <p>{{ ds.description }}</p>
+            <small>Schema: {{ ds.schema }}</small>
+          </div>
+        </div>
+        <div *ngIf="state.dknetDataset" class="callout-info">
+          <strong>Resolved path:</strong> <code>{{ state.dknetDataset.fileName }}</code>
+          <br />
+          If you don't have this dataset loaded in Texera, you'll see "schema is not available" after Apply.
+          Fix: upload the CSV via Datasets UI, then edit the CSVFileScan operator's <code>fileName</code> in the
+          right-hand Property Editor.
+        </div>
+      </div>
+
+      <!-- Data Profile display (design-doc §4.2 — show the LLM-facing schema to the user too) -->
+      <div *ngIf="state.dataProfile" class="data-profile-card">
+        <strong>Detected schema ({{ state.dataProfile.rowCount }} rows):</strong>
+        <table class="profile-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Null %</th>
+              <th>Unique</th>
+              <th>Sample</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of state.dataProfile.columns">
+              <td><code>{{ c.name }}</code></td>
+              <td>{{ c.dtype }}</td>
+              <td>{{ (c.nullRate * 100).toFixed(1) }}%</td>
+              <td>{{ c.uniqueCount }}</td>
+              <td><code class="sample">{{ c.sampleValues.slice(0, 3).join(', ') }}</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ STEP 3: Framework ============ -->
+    <div class="wizard-step" *ngIf="state.step === 3">
+      <h3>Step 3: Select Scientific Framework</h3>
+      <p class="step-help">Choose a methodology to structure your workflow.</p>
+      <div class="options-grid">
+        <div
+          *ngFor="let f of frameworks"
+          class="option-card"
+          [class.selected]="state.framework === f"
+          (click)="selectFramework(f)">
+          <h4>{{ f }}</h4>
+          <p>{{ frameworkDescriptions[f] }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="state.framework" class="freetext-block">
+        <label>
+          <ng-container *ngIf="state.framework === 'Custom'">Define your methodology (markdown supported):</ng-container>
+          <ng-container *ngIf="state.framework !== 'Custom'">
+            {{ state.framework }} template — edit to add domain knowledge:
+          </ng-container>
+          <textarea
+            class="framework-textarea"
+            rows="12"
+            [ngModel]="state.frameworkPrompt ?? ''"
+            (ngModelChange)="onFrameworkPromptChange($event)"
+            placeholder="Add domain-specific phases, constraints, or guidance..."></textarea>
+        </label>
+        <button
+          *ngIf="state.framework !== 'Custom'"
+          nz-button
+          nzSize="small"
+          (click)="resetFrameworkTemplate()">
+          Reset to default template
+        </button>
+        <small class="hint">
+          This text is sent verbatim to the workflow generator as <em>soft</em> guidance. Add domain knowledge here.
+        </small>
+        <div class="callout-warn">
+          <strong>Methodology ≠ Guardrails.</strong>
+          The white-box guardrails configured in Step 4 (mandatory train/test split, no data leakage, mandatory
+          evaluation, no synthetic data) are enforced by the validator <em>independently</em> of the text above.
+          Use this box to add domain knowledge — not to relax safety rules.
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ STEP 4: Guardrails ============ -->
+    <div class="wizard-step" *ngIf="state.step === 4">
+      <h3>Step 4: Guardrails</h3>
+      <p class="step-help">These best practices will be enforced on the generated workflow.</p>
+      <div class="guardrails-list">
+        <label *ngFor="let g of state.guardrails" class="guardrail-row">
+          <input type="checkbox" [checked]="g.enabled" (change)="toggleGuardrail(g.id)" />
+          <div>
+            <strong>{{ g.name }}</strong>
+            <p>{{ g.description }}</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step actions -->
+    <div class="wizard-actions">
+      <button *ngIf="state.step > 1" nz-button (click)="prevStep()">‹ Previous</button>
+      <button *ngIf="state.step < 4" nz-button nzType="primary" [disabled]="!canProceed()" (click)="nextStep()">
+        Next ›
+      </button>
+      <button *ngIf="state.step === 4" nz-button nzType="primary" [disabled]="!canGenerate()" (click)="onGenerate()">
+        {{ isGenerating ? 'Generating…' : '✨ Generate Workflow' }}
+      </button>
+    </div>
+
+    <div *ngIf="generationError" class="error-banner">{{ generationError }}</div>
+
+    <!-- ============ RESULT PANEL (review + approve before Apply) ============ -->
+    <div *ngIf="generatedWorkflow" class="result-panel">
+      <h3>Review &amp; Approve Workflow</h3>
+
+      <div *ngIf="hasMissingRequired()" class="error-banner">
+        Warning: some required properties are unset — Texera will likely report "invalid workflow" after Apply.
+        Fix the (unset) values below or regenerate.
+      </div>
+
+      <!-- Per-operator review (Stage B, design-doc §3.1 AI 提议, 用户决定) -->
+      <details open class="review-block" *ngFor="let op of generatedWorkflow.operators; let i = index; trackBy: trackOperatorId">
+        <summary>
+          <code>{{ op.operatorID }}</code>
+          <span class="op-type">[{{ op.operatorType }}]</span>
+          <span *ngIf="missingRequiredPaths(op).length > 0" class="op-warn-badge">
+            {{ missingRequiredPaths(op).length }} missing
+          </span>
+        </summary>
+        <div class="why-row" *ngIf="whyExplanations[op.operatorID]">
+          <strong>Why:</strong> {{ whyExplanations[op.operatorID] }}
+        </div>
+        <div *ngIf="missingRequiredPaths(op).length > 0" class="missing-paths">
+          <strong>Needs your input — required fields still unset:</strong>
+          <ul>
+            <li *ngFor="let mp of missingRequiredPaths(op)"><code>{{ mp }}</code></li>
+          </ul>
+          <small>
+            Edit the JSON value below (or click the operator on the canvas after Apply and use the Property
+            Editor). Nested objects/arrays accept inline JSON, e.g.
+            <code>[{{ '{' }}"attribute":"Glucose","aggFunction":"average","result attribute":"avg_glucose"{{ '}' }}]</code>.
+          </small>
+        </div>
+        <table class="prop-table">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Value (editable — JSON for objects/arrays)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of propertyEntries(op); trackBy: trackPropertyKey" [class.required-row]="p.required">
+              <td>
+                <code>{{ p.key }}</code>
+                <span *ngIf="p.required" class="req-badge">required</span>
+              </td>
+              <td>
+                <input
+                  type="text"
+                  [ngModel]="formatPropValue(p.value)"
+                  (ngModelChange)="updateOperatorProperty(i, p.key, $event)"
+                  [ngModelOptions]="{ standalone: true }" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </details>
+
+      <div class="result-actions">
+        <button
+          nz-button
+          nzType="primary"
+          (click)="approveAndApply()"
+          [disabled]="hasMissingRequired()">
+          {{ reviewApproved ? '✓ Approved — Apply again' : '✓ Approve all & Apply to canvas' }}
+        </button>
+        <button nz-button (click)="downloadJson()">Download JSON</button>
+      </div>
+      <small *ngIf="reviewApproved" class="hint">Workflow applied to canvas. Edit any field above to re-arm review.</small>
+
+      <!-- Attempts log -->
+      <details class="attempts-block" *ngIf="attempts.length">
+        <summary>Validator attempts ({{ attempts.length }})</summary>
+        <ul>
+          <li *ngFor="let a of attempts">
+            Attempt {{ a.attempt }}: {{ a.errorCount }} errors
+            <ul *ngIf="a.errors.length">
+              <li *ngFor="let e of a.errors"><code>{{ e }}</code></li>
+            </ul>
+          </li>
+        </ul>
+      </details>
+
+      <!-- NL edit -->
+      <div class="nl-edit">
+        <label>
+          Refine with natural language (design-doc §5 P0 chat):
+          <textarea
+            rows="3"
+            [ngModel]="nlInstruction"
+            (ngModelChange)="nlInstruction = $event"
+            placeholder="e.g., Switch logistic regression to XGBoost and add 5-fold cross-validation."></textarea>
+        </label>
+        <button nz-button nzType="primary" [disabled]="isModifying || !nlInstruction.trim()" (click)="onNlEdit()">
+          {{ isModifying ? 'Applying…' : 'Apply edit' }}
+        </button>
+        <div *ngIf="modificationError" class="error-banner">{{ modificationError }}</div>
+      </div>
+
+      <details class="edit-history-block" *ngIf="editHistory.length">
+        <summary>Edit history ({{ editHistory.length }})</summary>
+        <ol>
+          <li *ngFor="let e of editHistory">{{ e }}</li>
+        </ol>
+      </details>
+    </div>
+  </div>
+
+  <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
+</div>
