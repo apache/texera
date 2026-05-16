@@ -335,15 +335,23 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(status => {
-        // If the user drilled into a macro body via
-        // `/workflow/:id/macro/:macroId?instance=...`, the canvas operators
-        // have *body-relative* IDs (e.g. `Filter-uuid`) but the engine emits
-        // stats keyed by `${instanceId}--${bodyOpId}` for the parent run.
-        // Build a stat lookup that prefixes body-relative IDs with the macro
-        // instance prefix so drill-down view sees live execution stats.
-        const macroInstancePrefix = this.getDrilldownInstancePrefix();
-        const lookupStat = (operatorId: string): OperatorStatistics | undefined =>
-          macroInstancePrefix ? status[`${macroInstancePrefix}${operatorId}`] : status[operatorId];
+        // Drill-down lookup: when the user is in `/workflow/:id/macro/:macroId?instance=...`,
+        // the canvas IDs are body-relative (from the macro definition) but the
+        // engine emits stats keyed by runtime UUIDs (assigned by MacroExpander).
+        // Use the macro-mapping side-table to translate body-relative IDs to
+        // runtime UUIDs: pick the runtime entry whose macroChain CONTAINS this
+        // macro instance AND whose bodyOpId matches the canvas op id.
+        const drilldownInstanceId = this.getDrilldownInstanceId();
+        const bodyToRuntime = drilldownInstanceId
+          ? this.macroService.buildBodyOpIdToRuntimeUuidMap(drilldownInstanceId)
+          : undefined;
+        const lookupStat = (operatorId: string): OperatorStatistics | undefined => {
+          if (bodyToRuntime) {
+            const runtimeUuid = bodyToRuntime.get(operatorId);
+            return runtimeUuid ? status[runtimeUuid] : undefined;
+          }
+          return status[operatorId];
+        };
 
         this.workflowActionService
           .getTexeraGraph()
@@ -356,7 +364,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             // sum from `withMacroAggregates` (which has empty port metrics).
             // Synthesize the right per-port view from cached macro bindings.
             const opStatus =
-              op.operatorType === "Macro" && !macroInstancePrefix
+              op.operatorType === "Macro" && !drilldownInstanceId
                 ? this.synthesizeMacroOpStats(op, status) ?? status[op.operatorID]
                 : lookupStat(op.operatorID);
 
@@ -403,15 +411,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * If the current view is a macro drill-down (URL carries `?instance=...`
-   * alongside `/macro/:macroId`), return the prefix to apply when looking up
-   * inner-op stats — engine reports them as `${instanceId}--${bodyOpId}`.
-   * Returns `""` (no prefix) when not in drill-down mode.
+   * alongside `/macro/:macroId`), return the parent-canvas macro instance id
+   * so we can look up its inner ops in the macro-mapping side-table.
+   * Returns `undefined` when not in drill-down mode.
    */
-  private getDrilldownInstancePrefix(): string {
+  private getDrilldownInstanceId(): string | undefined {
     const instanceId = this.route.snapshot.queryParamMap.get("instance");
     const macroId = this.route.snapshot.paramMap.get("macroId");
-    if (!macroId || !instanceId) return "";
-    return `${instanceId}--`;
+    if (!macroId || !instanceId) return undefined;
+    return instanceId;
   }
 
   /**

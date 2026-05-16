@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.controller.Workflow
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
-import org.apache.texera.workflow.macroOp.{MacroExpander, MacroRegistry}
+import org.apache.texera.workflow.macroOp.{MacroExpander, MacroMappingCache, MacroRegistry}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -150,6 +150,16 @@ class WorkflowCompiler(
     // logical-plan-level abstraction; after this pass the rest of the pipeline
     // never sees a MacroOpDesc / MacroInputOp / MacroOutputOp.
     val logicalPlan: LogicalPlan = MacroExpander.expand(rawLogicalPlan, macroRegistry)
+    // Drain the macro-instance-provenance side-table populated by MacroExpander
+    // and stash it in MacroMappingCache keyed by (wid, eid). The frontend
+    // fetches this via GET /api/workflow/{wid}/macro-mapping?eid=... to roll
+    // inner-op stats up to the macro op on the canvas (and to render stats
+    // inside drill-down body views).
+    val macroMapping = MacroExpander.takeMacroInstanceMapping()
+    MacroMappingCache.put(context.workflowId, context.executionId, macroMapping)
+    println(
+      s"[MacroMappingCache] put wid=${context.workflowId.id} eid=${context.executionId.id} size=${macroMapping.size}"
+    )
     // Debug: dump the post-expansion logical plan to a file so we can diff
     // it against a manually-flattened equivalent and confirm MacroExpander
     // produces a structurally identical plan. Keyed by workflow id so we

@@ -428,6 +428,47 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
+    * Return the macro-instance-provenance mapping captured by MacroExpander
+    * during the most recent compile of this workflow. The mapping is keyed by
+    * runtime op IDs (the fresh UUIDs the expander assigned to inner ops) and
+    * each entry holds:
+    *   - `macroChain`: ordered list of macro instance IDs from outermost
+    *     (parent canvas) to innermost (immediate enclosing macro)
+    *   - `bodyOpId`: the original definition-time op ID inside the innermost
+    *     macro's body, used to render stats at the right canvas position when
+    *     the user drills into a macro
+    *
+    * The frontend reads this to (1) aggregate inner-op stats up to the macro
+    * op on the canvas and (2) display per-op stats in the macro drill-down
+    * view. Empty map if no compile has happened yet — the caller should poll
+    * shortly after starting execution.
+    */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{wid}/macro-mapping")
+  def getMacroMapping(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): java.util.Map[String, java.util.Map[String, Any]] = {
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+    val mapping = org.apache.texera.workflow.macroOp.MacroMappingCache
+      .getLatestForWorkflow(
+        org.apache.texera.amber.core.virtualidentity.WorkflowIdentity(wid.longValue())
+      )
+    val result = new java.util.HashMap[String, java.util.Map[String, Any]]()
+    mapping.foreach {
+      case (runtimeOpId, prov) =>
+        val entry = new java.util.HashMap[String, Any]()
+        entry.put("macroChain", java.util.Arrays.asList(prov.macroChain: _*))
+        entry.put("bodyOpId", prov.bodyOpId)
+        result.put(runtimeOpId, entry)
+    }
+    result
+  }
+
+  /**
     * This method persists the workflow into database
     *
     * @param workflow , a workflow

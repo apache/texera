@@ -213,6 +213,35 @@ export class ExecuteWorkflowService {
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+    // Schedule a refresh of the runtime macro-mapping after the backend has
+    // had a chance to run MacroExpander. We retry a few times with backoff
+    // because compile finishes asynchronously — the mapping appears in the
+    // cache only AFTER MacroExpander.expand returns server-side.
+    this.scheduleMacroMappingRefresh();
+  }
+
+  /**
+   * After Run is clicked, poll `/api/workflow/{wid}/macro-mapping` a few times
+   * with backoff so the macro-instance provenance map is in the frontend
+   * cache by the time stats events start arriving. Empty mappings are
+   * tolerated — the frontend just won't aggregate stats up to macro ops on
+   * canvases without macros.
+   */
+  private scheduleMacroMappingRefresh(): void {
+    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+    if (!wid) return;
+    const tryRefresh = (attempt: number) => {
+      this.macroService.refreshRuntimeMacroMapping(wid).subscribe({
+        next: mapping => {
+          if (mapping.size > 0 || attempt >= 4) return; // got it, or give up
+          setTimeout(() => tryRefresh(attempt + 1), 500 * (attempt + 1));
+        },
+        error: () => {
+          if (attempt < 4) setTimeout(() => tryRefresh(attempt + 1), 500 * (attempt + 1));
+        },
+      });
+    };
+    setTimeout(() => tryRefresh(0), 300);
   }
 
   public executeWorkflow(executionName: string, targetOperatorId?: string): void {

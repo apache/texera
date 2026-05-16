@@ -138,13 +138,19 @@ object MacroExpander {
         deepClone(op)
     }
 
-    // Assign fresh UUIDs to each inner op. The expanded LogicalPlan must be
-    // structurally identical to a hand-flattened workflow — see the matching
-    // amber MacroExpander for full rationale (Iceberg materialization /
-    // partition routing diverge with long prefixed op IDs).
+    // Assign DETERMINISTIC UUIDs to each inner op via nameUUIDFromBytes
+    // keyed on (macroInstanceId, originalBodyOpId). Must match the amber
+    // MacroExpander byte-for-byte — Texera compiles this workflow twice
+    // (once here for frontend validation, once in amber for actual
+    // execution); the engine emits stats keyed by the second compile's IDs,
+    // and `MacroMappingCache` records them. If the IDs differed across
+    // compilers, the frontend's stats-roll-up to the macro op would fail
+    // because the cached mapping wouldn't match the actual runtime IDs.
     val idRewrite: Map[OperatorIdentity, OperatorIdentity] = innerOps.map { op =>
       val originalId = op.operatorIdentifier
-      val freshId = s"${op.getClass.getSimpleName}-operator-${java.util.UUID.randomUUID()}"
+      val seed = s"${m.operatorIdentifier.id}|${originalId.id}"
+      val derivedUuid = java.util.UUID.nameUUIDFromBytes(seed.getBytes("UTF-8"))
+      val freshId = s"${op.getClass.getSimpleName}-operator-$derivedUuid"
       op.setOperatorId(freshId)
       originalId -> op.operatorIdentifier
     }.toMap

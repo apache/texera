@@ -298,6 +298,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.setLoadingState(false);
           this.registerAutoPersistWorkflow();
           this.triggerCenter();
+          // Restore the runtime-macro-mapping from disk so that if a prior
+          // run's stats arrive (e.g. user is reconnecting to a still-running
+          // execution) the macro op on canvas can aggregate them correctly.
+          // No-op if the workflow has never been run with macros.
+          this.macroService.refreshRuntimeMacroMapping(wid).subscribe({
+            error: () => undefined,
+          });
         },
         () => {
           this.workflowActionService.resetAsNewWorkflow();
@@ -380,6 +387,18 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.macroEditMode = true;
           this.macroEditName = detail.name;
           this.parentWorkflowId = this.route.snapshot.params.id ?? "";
+          // Eagerly populate the runtime macro-mapping cache from the parent
+          // workflow's most recent compile (read from MacroMappingCache on
+          // disk). Drill-down ops use body-relative IDs and the stats handler
+          // looks them up via this mapping — without the refresh, stats are
+          // empty on drill-down because the in-memory cache was wiped by the
+          // hard-reload navigation into this view.
+          const parentWidForMapping = Number(this.parentWorkflowId);
+          if (Number.isFinite(parentWidForMapping)) {
+            this.macroService.refreshRuntimeMacroMapping(parentWidForMapping).subscribe({
+              error: () => undefined,
+            });
+          }
           // Override the workflow metadata's wid to the parent's wid (not the
           // macro definition's). This is what `ComputingUnitSelectionComponent`
           // reads when deciding which workflow id to open the execution

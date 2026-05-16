@@ -47,20 +47,38 @@ import org.apache.texera.workflow.{LogicalLink, LogicalPlan}
 object MacroExpander {
 
   /**
-    * Side-table from `runtimeInnerOpId → outermost macro instance OperatorIdentity`.
-    * Populated by `spliceIntoParent` and read by callers (e.g. the compiler /
-    * execution stats publisher) to roll inner-op stats back up to the macro op
-    * for the UI. Empty after `expand` returns when the plan had no macros.
+    * Provenance of one freshly-named inner op in the expanded plan.
     *
-    * Threading model: not thread-safe; each compile call should drain it via
-    * `takeMacroInstanceMapping()` before another compile starts. Tests should
-    * call `resetMacroInstanceMapping()` between cases.
+    * @param macroChain ordered list of macro instance IDs from outermost
+    *                   (parent canvas) to innermost (immediate enclosing
+    *                   macro). e.g. for an op deep inside nested macro 294
+    *                   which itself sits inside macro 295: List("295_inst",
+    *                   "294_inst_in_295_body").
+    * @param bodyOpId   the original definition-time op ID this runtime op
+    *                   was cloned from. Lets the drill-down view map runtime
+    *                   stats back to definition-time positions when rendering
+    *                   the macro body.
+    */
+  case class MacroProvenance(macroChain: List[String], bodyOpId: String)
+
+  /**
+    * Side-table from `runtime fresh-UUID → MacroProvenance`. Populated by
+    * `spliceIntoParent` (handles nested macros: when an outer splice re-clones
+    * an op that an inner splice already touched, the outer splice prepends its
+    * macro instance to the existing chain and drops the stale inner UUID).
+    *
+    * The frontend reads this via `/api/workflow/{wid}/macro-mapping?eid=...`
+    * to aggregate inner-op stats up to the macro op on the canvas, and to
+    * route stats to body-level positions inside the drill-down editor.
+    *
+    * Threading model: not thread-safe; each compile call should drain via
+    * `takeMacroInstanceMapping()` immediately after `expand` returns.
     */
   private val currentMacroInstanceMapping =
-    scala.collection.mutable.Map[OperatorIdentity, OperatorIdentity]()
+    scala.collection.mutable.Map[String, MacroProvenance]()
 
   /** Snapshot + clear the current mapping. The caller takes ownership. */
-  def takeMacroInstanceMapping(): Map[OperatorIdentity, OperatorIdentity] = {
+  def takeMacroInstanceMapping(): Map[String, MacroProvenance] = {
     val snapshot = currentMacroInstanceMapping.toMap
     currentMacroInstanceMapping.clear()
     snapshot
@@ -169,30 +187,53 @@ object MacroExpander {
     // engine behavior (Iceberg materialization table naming, partition routing
     // based on op-ID hashes, region scheduling) silently diverges.
     //
+    // CRITICAL: the UUIDs MUST be DETERMINISTIC across compiles. Texera has
+    // two WorkflowCompiler implementations (one in workflow-compiling-service
+    // for frontend validation, one in amber for actual execution). Both run
+    // MacroExpander on the SAME workflow content. If we used
+    // `UUID.randomUUID()` the two compilers would generate different IDs for
+    // the same op; the frontend would cache one set (whichever wrote to
+    // MacroMappingCache last) but the engine would emit stats keyed by the
+    // OTHER set, so stat aggregation up to the macro op would silently fail.
+    //
+    // Solution: derive the UUID from `nameUUIDFromBytes(macroInstanceId | body
+    // op id)`. For nested macros, the inner splice's freshId already encodes
+    // the inner chain, so the outer splice's seed transitively captures the
+    // whole chain. Same workflow → same UUIDs across compilers.
+    //
     // The previous "${macroInstanceId}--${innerOpId}" prefix scheme was
     // convenient for stats aggregation but produced 170+ char op IDs, which
     // caused observable Iceberg commit thrash on HashJoin's internal build
     // port — execution that runs fine on a hand-flattened plan hangs on the
-    // macro-wrapped equivalent.
-    //
-    // Fresh UUIDs also handle the multi-instance case cleanly: instantiating
-    // the same macro twice in a workflow no longer collides on inner op IDs.
-    // Stats roll-up to the macro op is preserved via the side-table returned
-    // alongside the rewritten plan (see `expand` -> `MacroExpansionResult`).
+    // macro-wrapped equivalent. Deterministic UUIDs are short.
     val idRewrite: Map[OperatorIdentity, OperatorIdentity] = innerOps.map { op =>
       val originalId = op.operatorIdentifier
-      val freshId = s"${op.getClass.getSimpleName}-operator-${java.util.UUID.randomUUID()}"
+      val seed = s"${m.operatorIdentifier.id}|${originalId.id}"
+      val derivedUuid = java.util.UUID.nameUUIDFromBytes(seed.getBytes("UTF-8"))
+      val freshId = s"${op.getClass.getSimpleName}-operator-$derivedUuid"
       op.setOperatorId(freshId)
       originalId -> op.operatorIdentifier
     }.toMap
 
-    // Side-table: record which freshly-assigned inner ops belong to this
-    // macro instance. The orchestrator above us collects these maps across
-    // every spliceIntoParent call and exposes the full mapping via
-    // `WorkflowContext` / execution stats so the frontend can aggregate
-    // inner-op stats back to the macro op without parsing op-ID prefixes.
-    idRewrite.values.foreach { rewrittenInnerOpId =>
-      currentMacroInstanceMapping += (rewrittenInnerOpId -> mId)
+    // Update the provenance side-table. Two cases per renamed op:
+    //   1. originalId IS already a fresh UUID from a prior (inner) splice:
+    //      Take the inner provenance, prepend THIS macro instance to its
+    //      chain, and move the entry to the new outer UUID.
+    //   2. originalId is the macro body's definition-time op ID:
+    //      Create a fresh provenance with chain=[mId] and bodyOpId=originalId.
+    // Drops the stale inner-UUID entry so the side-table only references
+    // op IDs that exist in the final expanded plan.
+    idRewrite.foreach {
+      case (originalId, newId) =>
+        currentMacroInstanceMapping.get(originalId.id) match {
+          case Some(existing) =>
+            currentMacroInstanceMapping(newId.id) =
+              MacroProvenance(mId.id :: existing.macroChain, existing.bodyOpId)
+            if (newId.id != originalId.id) currentMacroInstanceMapping.remove(originalId.id)
+          case None =>
+            currentMacroInstanceMapping(newId.id) =
+              MacroProvenance(List(mId.id), originalId.id)
+        }
     }
 
     def rewriteInnerId(id: OperatorIdentity): OperatorIdentity =

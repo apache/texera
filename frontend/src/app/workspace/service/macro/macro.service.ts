@@ -36,10 +36,16 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { v4 as uuid } from "uuid";
 
 // Per-instance runtime mapping from the macro's external ports back to the
-// boundary inner-op port that actually carries the data. After MacroExpander
-// inlines the body into the parent plan, inner-op IDs gain a "${macroInstanceId}--"
-// prefix, so each entry is already keyed by the *runtime* inner-op ID — ready
-// for direct lookup against `OperatorStatisticsUpdateEvent.operatorStatistics`.
+// boundary inner-op port that actually carries the data. The `innerOpId` is
+// the engine's runtime op id post macro expansion — ready to look up against
+// `OperatorStatisticsUpdateEvent.operatorStatistics`.
+//
+// Resolution: `MacroService.getRuntimeMacroMapping(wid)` fetches
+// `/api/workflow/{wid}/macro-mapping` populated by the backend MacroExpander
+// (Map<runtime_uuid, { macroChain, bodyOpId }>). For each MacroInput marker
+// in the macro definition body, we find the corresponding runtime UUID by
+// matching `macroChain[0] === macroInstanceId` and `bodyOpId === inner-op-id-
+// connected-to-the-marker`.
 export interface MacroPortBinding {
   externalPortIndex: number;
   innerOpId: string; // post-expansion / runtime ID, ready to look up against engine stats
@@ -49,6 +55,19 @@ export interface MacroPortBinding {
 export interface MacroBindings {
   inputBindings: MacroPortBinding[];
   outputBindings: MacroPortBinding[];
+}
+
+/**
+ * Mirrors `MacroExpander.MacroProvenance` from the backend (Scala). For each
+ * runtime op id present in the engine's execution stats, the chain records the
+ * macro instance ids it sits under (outermost → innermost) and the original
+ * definition-time op id inside the innermost macro body. Used to (a) roll
+ * inner-op stats up to the macro op on the canvas and (b) attach stats to
+ * body-level positions when drilling into a macro.
+ */
+export interface MacroProvenanceEntry {
+  macroChain: string[];
+  bodyOpId: string;
 }
 
 export const MACRO_BASE_URL = "macro";
@@ -282,6 +301,157 @@ export class MacroService {
         })
       );
     });
+  }
+
+  // Runtime macro-provenance map. Fetched once per (workflowId, execution)
+  // from `/api/workflow/{wid}/macro-mapping`. Indexed by runtime op id.
+  // Empty until the user clicks Run AND the compile finishes server-side.
+  private runtimeMacroMapping = new Map<string, MacroProvenanceEntry>();
+  private runtimeMacroMappingLoadedFor: number | undefined = undefined;
+  // Inverse index: macroChain[0] (the canvas-level macro instance id) → list
+  // of runtime op ids belonging to that instance. Rebuilt whenever
+  // runtimeMacroMapping is refreshed. Lets the stats consumer look up
+  // "all runtime ops under macro X" in O(1).
+  private runtimeOpsByMacroInstance = new Map<string, string[]>();
+
+  /**
+   * Fetch the macro-instance provenance map for the most-recent compile of
+   * the given workflow. The backend populates this map during MacroExpander
+   * (see `MacroMappingCache`) and exposes it via this REST endpoint.
+   *
+   * Cached per workflow id; call `refreshRuntimeMacroMapping(wid)` to force
+   * a refresh after Run is clicked or after a workflow content change.
+   */
+  public getRuntimeMacroMapping(wid: number): Observable<Map<string, MacroProvenanceEntry>> {
+    if (this.runtimeMacroMappingLoadedFor === wid && this.runtimeMacroMapping.size > 0) {
+      return of(this.runtimeMacroMapping);
+    }
+    return this.refreshRuntimeMacroMapping(wid);
+  }
+
+  /**
+   * Force a refresh of the runtime macro-mapping. Called by the execute path
+   * immediately after the user clicks Run so the cache reflects the latest
+   * compile output.
+   */
+  public refreshRuntimeMacroMapping(wid: number): Observable<Map<string, MacroProvenanceEntry>> {
+    return this.http
+      .get<Record<string, MacroProvenanceEntry>>(
+        `${AppSettings.getApiEndpoint()}/workflow/${wid}/macro-mapping`
+      )
+      .pipe(
+        map(raw => {
+          this.runtimeMacroMapping.clear();
+          this.runtimeOpsByMacroInstance.clear();
+          for (const [runtimeOpId, entry] of Object.entries(raw)) {
+            this.runtimeMacroMapping.set(runtimeOpId, entry);
+            const outerInstance = entry.macroChain?.[0];
+            if (outerInstance) {
+              if (!this.runtimeOpsByMacroInstance.has(outerInstance)) {
+                this.runtimeOpsByMacroInstance.set(outerInstance, []);
+              }
+              this.runtimeOpsByMacroInstance.get(outerInstance)!.push(runtimeOpId);
+            }
+          }
+          this.runtimeMacroMappingLoadedFor = wid;
+          return this.runtimeMacroMapping;
+        }),
+        catchError(() => {
+          // No mapping yet (e.g. user hasn't clicked Run, or workflow has no
+          // macros). Return the (empty) cache and don't poison future calls.
+          this.runtimeMacroMappingLoadedFor = undefined;
+          return of(this.runtimeMacroMapping);
+        })
+      );
+  }
+
+  /** Synchronous lookup: which macro instance owns this runtime op id? */
+  public macroInstanceForRuntimeOp(runtimeOpId: string): string | undefined {
+    return this.runtimeMacroMapping.get(runtimeOpId)?.macroChain[0];
+  }
+
+  /** Synchronous lookup: which body op id did this runtime op come from? */
+  public bodyOpIdForRuntimeOp(runtimeOpId: string): string | undefined {
+    return this.runtimeMacroMapping.get(runtimeOpId)?.bodyOpId;
+  }
+
+  /** All runtime op ids belonging to the given canvas-level macro instance. */
+  public runtimeOpsForMacroInstance(macroInstanceId: string): string[] {
+    return this.runtimeOpsByMacroInstance.get(macroInstanceId) ?? [];
+  }
+
+  /**
+   * Build a body-op-id → runtime-uuid lookup for the macro DEFINITION whose
+   * canvas instance is `macroInstanceId`. Used by the drill-down view: the
+   * canvas ops there carry body-relative IDs (from the macro definition),
+   * but engine stats are keyed by runtime UUIDs. This map lets the view
+   * translate `body-op-id → runtime UUID → status[runtime UUID]`.
+   *
+   * For nested macros: we pick the runtime UUID whose macroChain INCLUDES
+   * this instance (anywhere in the chain) AND whose bodyOpId matches. That
+   * way drilling into the OUTERMOST macro of a nested chain shows the
+   * outer body's macro ops (themselves still macros in the drill-down
+   * view) — clicking those drills further; their inner ops get their own
+   * map via the same call with a different instance id.
+   */
+  public buildBodyOpIdToRuntimeUuidMap(macroInstanceId: string): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const [runtimeUuid, prov] of this.runtimeMacroMapping.entries()) {
+      if (!prov.macroChain.includes(macroInstanceId)) continue;
+      // Only record if this entry's INNERMOST chain element matches the
+      // requested instance — otherwise a runtime UUID for a deeper-nested
+      // op would shadow a same-bodyOpId body-level op at this level.
+      if (prov.macroChain[prov.macroChain.length - 1] !== macroInstanceId) continue;
+      map.set(prov.bodyOpId, runtimeUuid);
+    }
+    return map;
+  }
+
+  /**
+   * Resolve macro port bindings for a specific macro instance using the
+   * runtime mapping. Walks the macro definition's body to find each
+   * MacroInput / MacroOutput marker's connected inner op + port, then looks
+   * up that inner op's runtime UUID via the macro-mapping.
+   *
+   * Replaces the old prefix-based `getBindingsForInstance` — the prefix
+   * scheme broke when `MacroExpander` switched to fresh UUIDs.
+   */
+  public resolveBindingsViaRuntimeMapping(
+    macroInstanceId: string,
+    macroId: string
+  ): MacroBindings | undefined {
+    const snapshot = this.bodyBindingsSnapshot.get(macroId);
+    if (!snapshot) {
+      this.getBodyBindings(macroId).subscribe({ error: () => undefined });
+      return undefined;
+    }
+    // Index runtime ops belonging to this macro instance by bodyOpId.
+    const runtimeOpsForInstance = this.runtimeOpsByMacroInstance.get(macroInstanceId) ?? [];
+    const byBodyOpId = new Map<string, string>();
+    for (const runtimeOpId of runtimeOpsForInstance) {
+      const bodyOpId = this.runtimeMacroMapping.get(runtimeOpId)?.bodyOpId;
+      if (bodyOpId) byBodyOpId.set(bodyOpId, runtimeOpId);
+    }
+    const resolveOne = (b: MacroPortBinding): MacroPortBinding | undefined => {
+      const runtimeOpId = byBodyOpId.get(b.innerOpId);
+      if (!runtimeOpId) return undefined;
+      return {
+        externalPortIndex: b.externalPortIndex,
+        innerOpId: runtimeOpId,
+        innerPortIndex: b.innerPortIndex,
+      };
+    };
+    const inputBindings: MacroPortBinding[] = [];
+    for (const b of snapshot.inputBindings) {
+      const resolved = resolveOne(b);
+      if (resolved) inputBindings.push(resolved);
+    }
+    const outputBindings: MacroPortBinding[] = [];
+    for (const b of snapshot.outputBindings) {
+      const resolved = resolveOne(b);
+      if (resolved) outputBindings.push(resolved);
+    }
+    return { inputBindings, outputBindings };
   }
 
   // Cached per-definition body bindings, keyed by `${macroId}` (the macro
@@ -712,21 +882,10 @@ export class MacroService {
    * to make sure the snapshot is populated by the time execution starts.
    */
   public getBindingsForInstance(macroInstanceId: string, macroId: string): MacroBindings | undefined {
-    const snapshot = this.bodyBindingsSnapshot.get(macroId);
-    if (!snapshot) {
-      // kick off fetch so future calls hit the snapshot
-      this.getBodyBindings(macroId).subscribe({ error: () => undefined });
-      return undefined;
-    }
-    const inputBindings: MacroPortBinding[] = [];
-    for (const b of snapshot.inputBindings) {
-      inputBindings.push(...this.resolveBinding(macroInstanceId, snapshot, b, /* isInput */ true));
-    }
-    const outputBindings: MacroPortBinding[] = [];
-    for (const b of snapshot.outputBindings) {
-      outputBindings.push(...this.resolveBinding(macroInstanceId, snapshot, b, /* isInput */ false));
-    }
-    return { inputBindings, outputBindings };
+    // Delegate to the runtime-mapping-based resolver. The old prefix-based
+    // approach broke when MacroExpander switched to fresh UUIDs for inner
+    // op IDs (see backend MacroExpander.spliceIntoParent).
+    return this.resolveBindingsViaRuntimeMapping(macroInstanceId, macroId);
   }
 
   /**

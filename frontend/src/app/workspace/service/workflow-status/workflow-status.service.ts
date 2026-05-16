@@ -21,15 +21,15 @@ import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { MacroService } from "../macro/macro.service";
 
-// Macro inner-op IDs carry a "${macroInstanceId}--..." prefix after MacroExpander
-// runs on the backend. The engine reports stats keyed by those expanded IDs, but
-// the outer canvas only has the macro instance itself — so we synthesize one
-// aggregated entry per macro under the visible instance ID so the macro node can
-// show a state and tuple counts during execution. The original prefixed entries
-// stay in the map for the drill-down view (it maps "${instance}--${innerId}"
-// back to "${innerId}" when displaying the body).
-const MACRO_INNER_SEPARATOR = "--";
+// Macro inner-op IDs are fresh UUIDs (assigned by MacroExpander on the backend)
+// — no longer derivable from the macro instance via prefix concat. The
+// `MacroService.macroInstanceForRuntimeOp(runtimeOpId)` synchronous lookup
+// consults the `/api/workflow/{wid}/macro-mapping` cache to find the
+// instance any given runtime op belongs to. This function rolls inner-op
+// stats up to the visible macro node so the canvas can show aggregated
+// state / row counts during execution.
 
 // State-priority for combining inner-op states into a single macro state.
 // Worst-case wins (any failure surfaces; running beats ready; ready beats
@@ -66,24 +66,24 @@ function combineStates(states: OperatorState[]): OperatorState {
  *  - numWorkers: sum across inner ops
  */
 function withMacroAggregates(
-  raw: Record<string, OperatorStatistics>
+  raw: Record<string, OperatorStatistics>,
+  macroService: MacroService
 ): Record<string, OperatorStatistics> {
   const byMacro = new Map<string, OperatorStatistics[]>();
-  for (const [opId, stats] of Object.entries(raw)) {
-    const sep = opId.indexOf(MACRO_INNER_SEPARATOR);
-    if (sep < 0) continue;
-    const macroId = opId.substring(0, sep);
-    const list = byMacro.get(macroId) ?? [];
+  for (const [runtimeOpId, stats] of Object.entries(raw)) {
+    const macroInstanceId = macroService.macroInstanceForRuntimeOp(runtimeOpId);
+    if (!macroInstanceId) continue;
+    const list = byMacro.get(macroInstanceId) ?? [];
     list.push(stats);
-    byMacro.set(macroId, list);
+    byMacro.set(macroInstanceId, list);
   }
   if (byMacro.size === 0) return raw;
   const out: Record<string, OperatorStatistics> = { ...raw };
-  for (const [macroId, innerStats] of byMacro.entries()) {
+  for (const [macroInstanceId, innerStats] of byMacro.entries()) {
     // Don't overwrite a real entry that the engine sent for this ID (defensive
     // — engine should never emit both, but if it does the real one wins).
-    if (out[macroId] !== undefined) continue;
-    out[macroId] = {
+    if (out[macroInstanceId] !== undefined) continue;
+    out[macroInstanceId] = {
       operatorState: combineStates(innerStats.map(s => s.operatorState)),
       aggregatedInputRowCount: innerStats.reduce((sum, s) => sum + s.aggregatedInputRowCount, 0),
       inputPortMetrics: {},
@@ -103,14 +103,17 @@ export class WorkflowStatusService {
   private statusSubject = new Subject<Record<string, OperatorStatistics>>();
   private currentStatus: Record<string, OperatorStatistics> = {};
 
-  constructor(private workflowWebsocketService: WorkflowWebsocketService) {
+  constructor(
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private macroService: MacroService
+  ) {
     this.getStatusUpdateStream().subscribe(event => (this.currentStatus = event));
 
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
       if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
-      this.statusSubject.next(withMacroAggregates(event.operatorStatistics));
+      this.statusSubject.next(withMacroAggregates(event.operatorStatistics, this.macroService));
     });
   }
 
