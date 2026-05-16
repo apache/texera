@@ -193,6 +193,25 @@ async def run_python(req: PythonRequest) -> PythonResponse:
     ).strip()
     full = preamble + "\n" + req.code
 
+    # Pre-flight syntax check. Surfacing a SyntaxError here means the caller
+    # (an LLM-built MachineUDF) gets a tight, actionable error instead of
+    # having to spin up a subprocess just to see the same message. We compile
+    # against `req.code` so reported line numbers match the user's script.
+    try:
+        compile(req.code, "<machine-udf-script>", "exec")
+    except SyntaxError as e:
+        hint = (
+            "Hint: this is almost always a RAW NEWLINE inside a single- or "
+            "double-quoted string (including f-strings). Use triple-quoted "
+            'strings or explicit \\n escapes.'
+        )
+        return PythonResponse(
+            exit_code=2,
+            stdout="",
+            stderr=f"SyntaxError in MachineUDF script: {e.msg} (line {e.lineno}, offset {e.offset}).\n{hint}",
+            result=None,
+        )
+
     with tempfile.NamedTemporaryFile(
         prefix="mm-", suffix=".py", delete=False, mode="w", encoding="utf-8"
     ) as f:

@@ -152,7 +152,23 @@ With \`outputColumns: [{"name":"model","type":"STRING"}, {"name":"r2","type":"DO
 6. **If two consecutive turns produce no progress, switch strategy or stop and ask the user.** Don't burn steps repeating yourself.
 7. **NEVER fabricate the \`machineUrl\` for \`MachineUDF\`.** The only valid source is the \`machine.url\` field in the result of a \`runOnMachine\` call (or the Machines tab row). Do **not** invent \`http://ali:5555\`, \`http://<machine-name>:5555\`, \`http://<hostname>:5555\`, etc., just because the machine's display name happens to be \`ali\`. If the value returned was \`http://localhost:5555\`, the correct \`machineUrl\` is \`http://localhost:5555\` — full stop. A 5xx / connection error from \`MachineUDF\` at runtime is a **script bug** or **upstream data shape problem**, not a URL problem; investigate the script's stderr/exit_code before touching \`machineUrl\`.
 8. **Workflow already succeeded? Don't re-run it.** If a workflow execution returned \`status: COMPLETED\` with result rows, you are done. Report the result to the user and stop. Do NOT modify the operators, change properties, or re-execute "to be sure".
-9. **Python script strings: ALWAYS use triple-quoted strings for multi-line content.** Never embed a raw newline inside a single-quoted (\`'...'\`) or double-quoted (\`"..."\`) string — that's a \`SyntaxError: unterminated string literal\`. For multi-line content (markdown reports, multi-line messages, etc.) use \`"""..."""\` and put real newlines inside, OR build the string by concatenating lines with explicit \`"\\n"\` escapes. When in doubt, use \`Path.write_text(f"""\\n...multiple lines...\\n""")\` — that pattern never breaks.
+9. **Python script strings: ALWAYS use triple-quoted strings for multi-line content.** The rule applies EQUALLY to plain strings AND f-strings — \`f"..."\` has the same line-ending restriction as \`"..."\`. Never embed a raw newline inside any of \`'...'\`, \`"..."\`, \`f'...'\`, \`f"..."\` — that's a \`SyntaxError: unterminated f-string literal\` / \`unterminated string literal\` and the whole script fails to even load.
+   - **WRONG** (this is the recurring bug that keeps killing the regression demo):
+     \`\`\`python
+     report_text += f"| {r['model']} | {r['r2']:.4f} | \`{r['plot']}\` |
+     "
+     \`\`\`
+   - **RIGHT** — pick one of:
+     \`\`\`python
+     # (a) escape the newline inside the f-string
+     report_text += f"| {r['model']} | {r['r2']:.4f} | \`{r['plot']}\` |\\n"
+     # (b) build the line and append the newline separately
+     report_text += f"| {r['model']} | {r['r2']:.4f} | \`{r['plot']}\` |" + "\\n"
+     # (c) use a triple-quoted f-string (raw newlines OK inside f""" ... """)
+     report_text += f"""| {r['model']} | {r['r2']:.4f} | \`{r['plot']}\` |
+     """
+     \`\`\`
+   When in doubt, just write the whole multi-line block once with \`Path.write_text(f"""...lines...""")\` — that pattern never breaks.
 10. **\`batchMode: true\` is MANDATORY for any MachineUDF that does whole-table work.** This includes: training ML models, computing aggregate metrics, generating plots from the full dataset, writing summary reports. \`batchMode\` defaults to \`false\` (per-tuple) — if you forget to set it, the script runs ONCE PER ROW with \`tuple_in\` as a single dict, your \`pd.DataFrame(tuple_in)\` will silently produce a malformed frame, \`train_test_split\` fails, and the workflow either stalls or emits nonsense. Sanity check: if your script does \`pd.DataFrame(tuple_in)\`, \`train_test_split\`, \`model.fit\`, or any aggregate/global compute → \`batchMode\` MUST be \`true\`. Only set \`batchMode: false\` when the script genuinely processes one row at a time (e.g. "write each row as a JSONL file").
 
 ### How to reference any dataset file in \`CSVFileScan\`/\`TableFileScan\`
