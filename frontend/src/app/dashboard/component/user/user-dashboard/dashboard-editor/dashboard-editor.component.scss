@@ -142,10 +142,13 @@
   &:active {
     cursor: grabbing;
   }
-  .widget-frame:hover {
-    border-color: #1677ff;
-    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.12);
-  }
+  /* No always-on blue border on hover — too noisy. The cell only
+   * highlights while it's being moved or resized. */
+}
+
+.widget-cell.dragging .widget-frame {
+  border-color: #1677ff;
+  box-shadow: 0 4px 16px rgba(22, 119, 255, 0.22);
 }
 
 .source-badge {
@@ -202,24 +205,48 @@
   opacity: 1;
 }
 
+/* Always-visible diagonal grip in the bottom-right of every widget when
+ * in Edit mode. Three short stripes drawn as pseudo-elements — no icon
+ * font needed. */
 .resize-handle {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
+  bottom: 0;
+  right: 0;
   width: 18px;
   height: 18px;
   cursor: nwse-resize;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9ca3af;
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 2;
-  font-size: 12px;
+  z-index: 3;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    background: #9ca3af;
+    border-radius: 1px;
+    transform: rotate(-45deg);
+    transform-origin: right center;
+    transition: background 0.12s;
+  }
+  &::before {
+    width: 10px;
+    height: 2px;
+    bottom: 4px;
+  }
+  &::after {
+    width: 5px;
+    height: 2px;
+    bottom: 9px;
+  }
+
+  &:hover::before,
+  &:hover::after {
+    background: #1677ff;
+  }
 }
-.widget-cell.editable:hover .resize-handle {
-  opacity: 1;
+.widget-cell.dragging .resize-handle::before,
+.widget-cell.dragging .resize-handle::after {
+  background: #1677ff;
 }
 
 .empty-grid {

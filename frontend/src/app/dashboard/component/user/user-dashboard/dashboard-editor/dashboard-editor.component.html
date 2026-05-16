@@ -67,6 +67,7 @@
       *ngFor="let w of dashboard.widgets; trackBy: trackByWidgetId"
       class="widget-cell"
       [class.editable]="mode === 'edit'"
+      [class.dragging]="isWidgetActive(w.id)"
       [ngStyle]="widgetStyle(w)"
       (mousedown)="startMove($event, w)">
       <div class="widget-frame">
@@ -95,9 +96,8 @@
         <div
           *ngIf="mode === 'edit'"
           class="resize-handle"
-          (mousedown)="startResize($event, w)">
-          <span nz-icon nzType="border-bottom-right" nzTheme="outline"></span>
-        </div>
+          title="Drag to resize"
+          (mousedown)="startResize($event, w)"></div>
       </div>
     </div>
 

@@ -20,8 +20,8 @@ import { DashboardWidgetComponent } from "../widgets/dashboard-widget.component"
 import { AddWidgetModalComponent, AddWidgetModalData } from "../add-widget-modal/add-widget-modal.component";
 import { DASHBOARD_USER_DASHBOARD } from "../../../../../app-routing.constant";
 
-const MIN_WIDTH = 160;
-const MIN_HEIGHT = 120;
+const MIN_WIDTH = 200;
+const MIN_HEIGHT = 150;
 
 type DragMode =
   | {
@@ -219,6 +219,13 @@ export class DashboardEditorComponent implements OnInit, OnDestroy {
 
   trackByWidgetId(_index: number, w: DashboardWidget): string {
     return w.id;
+  }
+
+  /** True while the user is actively dragging or resizing this widget.
+   *  Used by the template to apply a "selected" outline only during
+   *  interaction. */
+  isWidgetActive(widgetId: string): boolean {
+    return this.drag?.widgetId === widgetId;
   }
 
   /** Memoize styles keyed on widget id + layout signature so [ngStyle]
