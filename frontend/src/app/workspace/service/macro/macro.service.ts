@@ -370,6 +370,18 @@ export class MacroService {
     return this.runtimeMacroMapping.get(runtimeOpId)?.macroChain[0];
   }
 
+  /**
+   * Full macro chain (outermost → innermost) for a runtime op id, or
+   * `undefined` if it isn't inside a macro. Used by the stats aggregator
+   * to roll up to EVERY macro level the op belongs to — so a runtime op
+   * deep inside a nested macro contributes to both the outer macro's
+   * aggregate (visible on the parent canvas) AND each inner macro's
+   * aggregate (visible inside the outer's drill-down view).
+   */
+  public macroChainForRuntimeOp(runtimeOpId: string): string[] | undefined {
+    return this.runtimeMacroMapping.get(runtimeOpId)?.macroChain;
+  }
+
   /** Synchronous lookup: which body op id did this runtime op come from? */
   public bodyOpIdForRuntimeOp(runtimeOpId: string): string | undefined {
     return this.runtimeMacroMapping.get(runtimeOpId)?.bodyOpId;

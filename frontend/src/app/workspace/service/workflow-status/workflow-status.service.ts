@@ -69,19 +69,26 @@ function withMacroAggregates(
   raw: Record<string, OperatorStatistics>,
   macroService: MacroService
 ): Record<string, OperatorStatistics> {
+  // Each runtime op contributes to the aggregate of EVERY macro instance in
+  // its chain (outermost → innermost). A runtime op with chain
+  // [outer, inner] gets summed into BOTH `outer`'s aggregate AND `inner`'s
+  // aggregate — so the nested macro op visible inside the outer's drill-down
+  // view shows its own stats, in addition to the outer macro on the parent
+  // canvas.
   const byMacro = new Map<string, OperatorStatistics[]>();
   for (const [runtimeOpId, stats] of Object.entries(raw)) {
-    const macroInstanceId = macroService.macroInstanceForRuntimeOp(runtimeOpId);
-    if (!macroInstanceId) continue;
-    const list = byMacro.get(macroInstanceId) ?? [];
-    list.push(stats);
-    byMacro.set(macroInstanceId, list);
+    const chain = macroService.macroChainForRuntimeOp(runtimeOpId);
+    if (!chain || chain.length === 0) continue;
+    for (const macroInstanceId of chain) {
+      const list = byMacro.get(macroInstanceId) ?? [];
+      list.push(stats);
+      byMacro.set(macroInstanceId, list);
+    }
   }
   if (byMacro.size === 0) return raw;
   const out: Record<string, OperatorStatistics> = { ...raw };
   for (const [macroInstanceId, innerStats] of byMacro.entries()) {
-    // Don't overwrite a real entry that the engine sent for this ID (defensive
-    // — engine should never emit both, but if it does the real one wins).
+    // Don't overwrite a real entry that the engine sent for this ID.
     if (out[macroInstanceId] !== undefined) continue;
     out[macroInstanceId] = {
       operatorState: combineStates(innerStats.map(s => s.operatorState)),
