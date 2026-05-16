@@ -76,6 +76,50 @@
   overflow: auto;
 }
 
+.diff-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 12px;
+
+  .diff-chip {
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    border: 1px solid;
+    line-height: 1.4;
+  }
+  .diff-chip-identical {
+    color: #1a6e3a;
+    border-color: #9ed2a3;
+    background: #dff5e0;
+  }
+  .diff-chip-output {
+    color: #6e5400;
+    border-color: #e0c66a;
+    background: #fff4ce;
+  }
+  .diff-chip-props {
+    color: #5b3000;
+    border-color: #e0a36a;
+    background: #ffe6cf;
+  }
+  .diff-chip-only {
+    color: #7a1f1f;
+    border-color: #e7a3a3;
+    background: #fde2e2;
+  }
+  .diff-help {
+    margin-left: 8px;
+    color: #777;
+    font-size: 11px;
+    font-style: italic;
+  }
+}
+
 .dag-stack {
   display: flex;
   flex-direction: column;

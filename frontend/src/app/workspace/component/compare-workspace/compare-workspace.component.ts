@@ -29,7 +29,7 @@ import {
   WorkflowExecutionsService,
 } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { CompareDagComponent, OperatorStatus } from "./compare-dag/compare-dag.component";
+import { CompareDagComponent, OperatorDiffStatus } from "./compare-dag/compare-dag.component";
 
 /**
  * One row's worth of side-by-side data. `kind` controls the visual treatment:
@@ -75,9 +75,13 @@ export class CompareWorkspaceComponent implements OnInit {
   // accept `any` here and let the DAG component handle either shape.
   contentA: any = null;
   contentB: any = null;
-  // operatorId → worst status across all of that operator's ports (red > yellow > green).
-  // Single map shared by both DAGs so the colors agree on each side.
-  statusMap: ReadonlyMap<string, OperatorStatus> = new Map();
+  // operatorId → combined diff status (presence + properties + output). Single map
+  // shared by both DAGs so the labels and colors agree on each side. Onlyin-A status
+  // visibly renders only on side A's DAG (and vice versa) since that operator isn't
+  // present in the other side's content.
+  diffStatusMap: ReadonlyMap<string, OperatorDiffStatus> = new Map();
+  // Counts for the header summary chip.
+  diffCounts = { identical: 0, propsDiffer: 0, outputDiffer: 0, onlyInA: 0, onlyInB: 0 };
 
   selected: OperatorPortCompareResult | null = null;
   // When set, the user clicked an operator that isn't in summary.operators — meaning
@@ -111,7 +115,6 @@ export class CompareWorkspaceComponent implements OnInit {
       .subscribe({
         next: summary => {
           this.summary = summary;
-          this.statusMap = this.buildStatusMap(summary);
           this.loadWorkflowContents(summary);
           this.loading = false;
           const firstShared = summary.operators.find(o => o.status === "shared") ?? summary.operators[0];
@@ -126,27 +129,6 @@ export class CompareWorkspaceComponent implements OnInit {
       });
   }
 
-  /**
-   * Reduce the per-port compare results into a single status per operator. We want one
-   * color per DAG node, so an operator with any red port stays red; a yellow-or-better
-   * mix falls back to yellow; otherwise green.
-   */
-  private buildStatusMap(summary: WorkflowExecutionCompareSummary): ReadonlyMap<string, OperatorStatus> {
-    const result = new Map<string, OperatorStatus>();
-    const rank: Record<OperatorStatus, number> = { green: 0, gray: 1, yellow: 2, red: 3 };
-    for (const entry of summary.operators) {
-      const portStatus: OperatorStatus =
-        entry.status === "onlyInA" || entry.status === "onlyInB" || !entry.schemaMatches
-          ? "red"
-          : entry.rowCountA !== entry.rowCountB
-            ? "yellow"
-            : "green";
-      const existing = result.get(entry.operatorId) ?? "green";
-      result.set(entry.operatorId, rank[portStatus] >= rank[existing] ? portStatus : existing);
-    }
-    return result;
-  }
-
   private loadWorkflowContents(summary: WorkflowExecutionCompareSummary): void {
     this.contentA = null;
     this.contentB = null;
@@ -154,14 +136,94 @@ export class CompareWorkspaceComponent implements OnInit {
       this.workflowVersionService
         .retrieveWorkflowByVersion(summary.wid, summary.vidA)
         .pipe(untilDestroyed(this))
-        .subscribe(wf => (this.contentA = wf?.content ?? null));
+        .subscribe(wf => {
+          this.contentA = wf?.content ?? null;
+          this.recomputeDiffStatus();
+        });
     }
     if (summary.vidB > 0) {
       this.workflowVersionService
         .retrieveWorkflowByVersion(summary.wid, summary.vidB)
         .pipe(untilDestroyed(this))
-        .subscribe(wf => (this.contentB = wf?.content ?? null));
+        .subscribe(wf => {
+          this.contentB = wf?.content ?? null;
+          this.recomputeDiffStatus();
+        });
     }
+  }
+
+  /**
+   * Walk both side's operator sets and compute a per-operator diff status that combines
+   *   - presence: operator missing on the other side → `onlyInA` / `onlyInB`
+   *   - properties: same id on both sides but `operatorProperties` JSON differs → `propsDiffer`
+   *   - output: ports' row counts or schemas differ → `outputDiffer`
+   *   - otherwise → `identical`
+   * Pure presence/property checks come from the workflow content; output checks fall
+   * back to the per-port summary that the compare endpoint returned.
+   */
+  private recomputeDiffStatus(): void {
+    if (!this.summary || !this.contentA || !this.contentB) return;
+    const opsA = new Map<string, any>();
+    const opsB = new Map<string, any>();
+    for (const op of this.parseOperators(this.contentA)) opsA.set(op.operatorID, op);
+    for (const op of this.parseOperators(this.contentB)) opsB.set(op.operatorID, op);
+
+    // Build a quick lookup: operatorId → true when at least one of its ports has a
+    // row-count or schema mismatch. Cheaper than re-scanning summary inside the loop.
+    const opIdsWithOutputDiff = new Set<string>();
+    for (const entry of this.summary.operators) {
+      const portDiffers =
+        entry.status === "onlyInA" ||
+        entry.status === "onlyInB" ||
+        !entry.schemaMatches ||
+        entry.rowCountA !== entry.rowCountB;
+      if (portDiffers) opIdsWithOutputDiff.add(entry.operatorId);
+    }
+
+    const result = new Map<string, OperatorDiffStatus>();
+    const counts = { identical: 0, propsDiffer: 0, outputDiffer: 0, onlyInA: 0, onlyInB: 0 };
+    const allIds = new Set<string>([...opsA.keys(), ...opsB.keys()]);
+    for (const id of allIds) {
+      const a = opsA.get(id);
+      const b = opsB.get(id);
+      let status: OperatorDiffStatus;
+      if (a && !b) {
+        status = "onlyInA";
+      } else if (!a && b) {
+        status = "onlyInB";
+      } else if (this.opPropertiesEqual(a, b)) {
+        status = opIdsWithOutputDiff.has(id) ? "outputDiffer" : "identical";
+      } else {
+        status = "propsDiffer";
+      }
+      result.set(id, status);
+      counts[status]++;
+    }
+    this.diffStatusMap = result;
+    this.diffCounts = counts;
+  }
+
+  /**
+   * Pull the operators array out of a parsed-or-string workflow content. WorkflowVersion
+   * service usually parses it, but some legacy paths hand back a string; tolerate both.
+   */
+  private parseOperators(content: any): ReadonlyArray<{ operatorID: string; operatorProperties?: any }> {
+    let parsed: any = content;
+    if (typeof content === "string") {
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(parsed?.operators) ? parsed.operators : [];
+  }
+
+  private opPropertiesEqual(a: any, b: any): boolean {
+    // Deep-equal operatorProperties via JSON-string canonicalization. Field order matters
+    // here; if that becomes a real issue we'd switch to a stable stringify, but Texera's
+    // current persistence keeps key order consistent.
+    return JSON.stringify(a?.operatorProperties ?? {}) === JSON.stringify(b?.operatorProperties ?? {});
   }
 
   /** Click handler from either DAG canvas. Resolves to the first port of the operator. */

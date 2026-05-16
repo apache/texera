@@ -15,18 +15,41 @@
   <div *ngIf="loadError" class="status status-error">{{ loadError }}</div>
 
   <div *ngIf="summary && !loading" class="body">
+    <section class="diff-summary" *ngIf="diffStatusMap.size > 0">
+      <span class="diff-chip diff-chip-identical" *ngIf="diffCounts.identical">
+        {{ diffCounts.identical }} match{{ diffCounts.identical === 1 ? "" : "es" }}
+      </span>
+      <span class="diff-chip diff-chip-output" *ngIf="diffCounts.outputDiffer">
+        {{ diffCounts.outputDiffer }} output differ{{ diffCounts.outputDiffer === 1 ? "s" : "" }}
+      </span>
+      <span class="diff-chip diff-chip-props" *ngIf="diffCounts.propsDiffer">
+        {{ diffCounts.propsDiffer }} props differ
+      </span>
+      <span class="diff-chip diff-chip-only" *ngIf="diffCounts.onlyInA">
+        {{ diffCounts.onlyInA }} only in A
+      </span>
+      <span class="diff-chip diff-chip-only" *ngIf="diffCounts.onlyInB">
+        {{ diffCounts.onlyInB }} only in B
+      </span>
+      <span class="diff-help">
+        Click an operator in either DAG to highlight it on both sides.
+      </span>
+    </section>
+
     <section class="dag-stack">
       <texera-compare-dag
         [label]="'Execution A (#' + eidA + ')'"
         [content]="contentA"
-        [statusMap]="statusMap"
+        [diffStatusMap]="diffStatusMap"
+        [side]="'A'"
         [selectedOperatorId]="selected?.operatorId ?? null"
         (operatorSelected)="onDagOperatorClicked($event)">
       </texera-compare-dag>
       <texera-compare-dag
         [label]="'Execution B (#' + eidB + ')'"
         [content]="contentB"
-        [statusMap]="statusMap"
+        [diffStatusMap]="diffStatusMap"
+        [side]="'B'"
         [selectedOperatorId]="selected?.operatorId ?? null"
         (operatorSelected)="onDagOperatorClicked($event)">
       </texera-compare-dag>
