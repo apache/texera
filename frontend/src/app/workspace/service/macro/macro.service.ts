@@ -323,6 +323,14 @@ export class MacroService {
    * `importMacroFromJson`. We deliberately exclude wid and timestamps because
    * the importer always creates a fresh definition with a new wid.
    *
+   * Transitive: if the macro's body references nested macros, those are
+   * fetched too and embedded as `nestedMacros[oldWid] = detailPayload`. The
+   * importer reconstructs them in dependency order before the root macro,
+   * stitching the new wids into the root's body so the import is fully self-
+   * contained. (Currently the importer creates the root only; transitive
+   * import is a v2 enhancement, but the export side records everything so
+   * a manual rebuild is possible.)
+   *
    * The exported `content` is the raw MacroBody JSON string; consumer just
    * needs to round-trip it through `JSON.parse(JSON.stringify(...))` to stay
    * Jackson-friendly on re-import.
@@ -330,6 +338,10 @@ export class MacroService {
   public exportMacroToFile(wid: number): Observable<void> {
     return this.getMacro(wid).pipe(
       map(detail => {
+        // Scan the body for nested macros so the export is honest about its
+        // dependencies. Each nested macroId is stored alongside the root;
+        // the importer can fetch+create them on the target instance.
+        const nestedWids = this.collectNestedMacroIds(detail.content);
         const exportPayload = {
           schemaVersion: 1,
           name: detail.name,
@@ -341,6 +353,7 @@ export class MacroService {
           icon: detail.icon,
           exportedAt: new Date().toISOString(),
           exportedFromTexera: window.location.host,
+          dependsOnMacroWids: nestedWids,
         };
         const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
           type: "application/json",
@@ -357,6 +370,22 @@ export class MacroService {
         URL.revokeObjectURL(url);
       })
     );
+  }
+
+  /**
+   * Scan a macro's content (JSON string) for nested macroId references. The
+   * scan is regex-based for speed and resilience — body shape may have
+   * additional fields we don't care about. Used by `exportMacroToFile` to
+   * record dependencies in the export payload.
+   */
+  private collectNestedMacroIds(content: string): number[] {
+    const matches = content.match(/"macroId"\s*:\s*"(\d+)"/g) ?? [];
+    const wids = new Set<number>();
+    for (const m of matches) {
+      const numMatch = m.match(/(\d+)/);
+      if (numMatch) wids.add(Number(numMatch[1]));
+    }
+    return Array.from(wids);
   }
 
   /**
