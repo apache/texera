@@ -95,17 +95,44 @@
         </div>
 
         <div class="card-actions">
-          <a [href]="d.url" target="_blank" rel="noopener" class="card-source-link">
-            <span nz-icon nzType="link"></span>
-            View on {{ sourceLabel[d.source] }}
+          <a
+            class="card-action card-action-download"
+            [href]="downloadHref(d)"
+            target="_blank"
+            rel="noopener"
+            nz-tooltip
+            nzTooltipTitle="Open the source page or direct download in a new tab">
+            <span nz-icon nzType="download"></span>
+            <span>Download</span>
           </a>
           <button
+            class="card-action card-action-import"
             nz-button
             nzType="primary"
             nzSize="small"
-            (click)="import(d)">
-            <span nz-icon nzType="cloud-download"></span>
-            Import
+            [disabled]="importStatus(d) === 'importing' || importStatus(d) === 'imported'"
+            (click)="import(d)"
+            nz-tooltip
+            [nzTooltipTitle]="
+              importStatus(d) === 'imported'
+                ? 'Already in your Texera datasets'
+                : importStatus(d) === 'failed'
+                  ? 'Last import failed — click to retry'
+                  : 'Import this dataset into your Texera datasets'">
+            <ng-container [ngSwitch]="importStatus(d)">
+              <ng-container *ngSwitchCase="'importing'">
+                <span nz-icon nzType="loading"></span>
+                <span>Importing…</span>
+              </ng-container>
+              <ng-container *ngSwitchCase="'imported'">
+                <span nz-icon nzType="check"></span>
+                <span>Imported</span>
+              </ng-container>
+              <ng-container *ngSwitchDefault>
+                <span nz-icon nzType="cloud-upload"></span>
+                <span>Import</span>
+              </ng-container>
+            </ng-container>
           </button>
         </div>
       </nz-card>

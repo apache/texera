@@ -120,20 +120,40 @@ export class DatasetBankComponent implements OnInit {
     return String(n);
   }
 
+  /**
+   * Per-card import state. "idle" → not yet imported; "importing" → in flight;
+   * "imported" → success (button stays disabled); "failed" → error (button is
+   * clickable again to retry).
+   */
+  importState: Record<string, "idle" | "importing" | "imported" | "failed"> = {};
+
+  /** Resolved URL for the Download anchor — prefers direct file link, falls back to source. */
+  downloadHref(d: BankDataset): string {
+    return d.downloadUrl || d.url || "#";
+  }
+
+  importStatus(d: BankDataset): "idle" | "importing" | "imported" | "failed" {
+    return this.importState[d.id] ?? "idle";
+  }
+
   import(d: BankDataset): void {
-    // P5 stretch: hook this to the dataset-creation API. For now, surface a
-    // toast pointing at the source URL so the user can grab the file manually
-    // until the backend wiring lands.
-    if (d.downloadUrl) {
-      window.open(d.downloadUrl, "_blank", "noopener");
-      this.notificationService.success(`Opening download for "${d.name}"`);
-      return;
-    }
-    if (d.url) {
-      window.open(d.url, "_blank", "noopener");
-      this.notificationService.info(`Opened "${d.name}" on ${this.sourceLabel[d.source]} — download manually, then upload via Datasets.`);
-      return;
-    }
-    this.notificationService.warning(`No source link available for "${d.name}"`);
+    const status = this.importStatus(d);
+    if (status === "importing" || status === "imported") return;
+
+    this.importState[d.id] = "importing";
+    this.bank
+      .importToTexera(d)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: ({ datasetName }) => {
+          this.importState[d.id] = "imported";
+          this.notificationService.success(`Imported "${datasetName}" to your datasets.`);
+        },
+        error: err => {
+          this.importState[d.id] = "failed";
+          const msg = err?.message ?? String(err);
+          this.notificationService.error(`Import failed: ${msg}`);
+        },
+      });
   }
 }

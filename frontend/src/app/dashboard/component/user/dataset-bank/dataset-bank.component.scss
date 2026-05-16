@@ -190,24 +190,49 @@
 }
 
 .card-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid #f0f0f0;
 }
 
-.card-source-link {
-  font-size: 12px;
-  color: #1677ff;
+.card-action {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.card-action-download {
+  background: white;
+  color: #1677ff;
+  border: 1px solid #1677ff;
+  text-decoration: none;
 
   &:hover {
-    text-decoration: underline;
+    background: #f0f7ff;
+    color: #0958d9;
+    border-color: #0958d9;
+  }
+}
+
+.card-action-import {
+  // Inherits nz-button's primary styling for the enabled state; we only need to
+  // make sure the grid cell uses the full width.
+  width: 100%;
+
+  &[disabled] {
+    cursor: not-allowed;
   }
 }
 
