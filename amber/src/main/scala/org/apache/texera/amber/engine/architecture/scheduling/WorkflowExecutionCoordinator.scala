@@ -67,7 +67,14 @@ class WorkflowExecutionCoordinator(
       regionExecutionCoordinators.values.filter(!_.isCompleted).toSeq
 
     // Trigger sync for each unfinished region.
-    unfinishedRegionCoordinators.foreach(_.syncStatusAndTransitionRegionExecutionPhase())
+    // IMPORTANT: capture the sync futures so any exception thrown during phase
+    // transition (e.g. "Schema is missing" in createOutputPortStorageObjects)
+    // propagates out as a Future.exception. Previously `.foreach(...)` swallowed
+    // the returned Future, which meant phase-transition failures were
+    // discarded and the region appeared to hang silently instead of failing
+    // with a FatalError visible in the client UI.
+    val syncFutures =
+      unfinishedRegionCoordinators.map(_.syncStatusAndTransitionRegionExecutionPhase())
 
     // Wait only for region termination futures (kill path), then re-run coordination.
     val terminationFutures = unfinishedRegionCoordinators.flatMap(_.getTerminationFutureOpt)
@@ -80,7 +87,12 @@ class WorkflowExecutionCoordinator(
 
     if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
       // Some regions are still not completed yet. Cannot start the new regions.
-      return Future.Unit
+      // But before returning success, wait on the syncFutures so any
+      // transition-phase failure (e.g. "Schema is missing") makes it out
+      // of this method as a Future.exception — PortCompletedHandler's
+      // .onFailure handler will then turn it into a FatalError on the
+      // client. Without this, the failure was being swallowed in foreach.
+      return Future.collect(syncFutures).unit
     }
 
     // All existing regions are completed. Start the next region (if any).

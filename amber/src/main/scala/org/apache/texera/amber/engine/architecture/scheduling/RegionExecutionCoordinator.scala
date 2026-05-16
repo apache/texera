@@ -573,7 +573,14 @@ class RegionExecutionCoordinator(
         val schemaOptional =
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
         val schema =
-          schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+          schemaOptional.getOrElse(
+            throw new IllegalStateException(
+              s"Schema is missing for output port: opId=${outputPortId.opId.logicalOpId.id} " +
+                s"layer=${outputPortId.opId.layerName} " +
+                s"portId=${outputPortId.portId} " +
+                s"isInternal=${outputPortId.portId.internal}"
+            )
+          )
         DocumentFactory.createDocument(storageUriToAdd, schema)
         if (!isRestart) {
           WorkflowExecutionsResource.insertOperatorPortResultUri(
