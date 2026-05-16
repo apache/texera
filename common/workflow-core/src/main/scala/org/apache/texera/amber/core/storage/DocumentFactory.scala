@@ -108,8 +108,6 @@ object DocumentFactory {
     *
     * Returns true iff the underlying storage already has an entry for this
     * URI (e.g., an iceberg table at the resolved namespace + storage key).
-    * Useful for "create only if absent" flows that would otherwise have to
-    * call `openDocument` inside a try/catch to test existence.
     */
   def documentExists(uri: URI): Boolean = {
     uri.getScheme match {
