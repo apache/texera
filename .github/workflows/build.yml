@@ -633,6 +633,43 @@ jobs:
           flags: python
           fail_ci_if_error: false
 
+  python-state-materialization-mac:
+    # Diagnostic leg: cross-region state materialization is reported to
+    # fail on macOS while working on Windows / Linux. The main `python`
+    # job above runs only on ubuntu-latest because it depends on a
+    # postgres service container (service containers don't work on
+    # macOS runners). The state-materialization integration tests use
+    # an in-process sqlite-backed SqlCatalog instead, so we can run
+    # them on macOS without postgres infra. If they fail here but pass
+    # in the main `python` job, we've reproduced the macOS-specific
+    # regression in CI.
+    if: ${{ inputs.run_python }}
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          fetch-depth: 0
+      - name: Prepare backport workspace
+        if: ${{ inputs.backport_target_branch != '' }}
+        run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install uv
+          if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+      - name: Run state-materialization integration tests
+        run: |
+          cd amber && pytest -sv \
+            src/test/python/core/architecture/packaging/test_state_materialization_e2e.py \
+            src/test/python/core/runnables/test_main_loop.py::TestMainLoop::test_process_start_channel_persists_produce_state_on_start_output
+
   agent-service:
     if: ${{ inputs.run_agent_service }}
     name: ${{ format('agent-service{0} ({1})', inputs.job_name_suffix, matrix.os) }}

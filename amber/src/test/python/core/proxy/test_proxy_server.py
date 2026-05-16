@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import threading
+from unittest.mock import patch
+
 import pytest
 from pyarrow.flight import Action
 
@@ -66,3 +69,19 @@ class TestProxyServer:
             assert next(
                 server.do_action(None, Action(name, b""))
             ).body.to_pybytes() == str(result).encode("utf-8")
+
+    def test_shutdown_action_yields_reply_before_starting_shutdown(self, server):
+        shutdown_started = threading.Event()
+        with patch.object(
+            server, "graceful_shutdown", side_effect=shutdown_started.set
+        ) as mock_shutdown:
+            results = server.do_action(None, Action("shutdown", b""))
+
+            first = next(results)
+            assert first.body.to_pybytes() == b"Bye bye!"
+            assert not mock_shutdown.called
+
+            with pytest.raises(StopIteration):
+                next(results)
+            assert shutdown_started.wait(timeout=5)
+            mock_shutdown.assert_called_once()
