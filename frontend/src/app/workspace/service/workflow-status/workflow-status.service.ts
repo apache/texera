@@ -69,12 +69,10 @@ function withMacroAggregates(
   raw: Record<string, OperatorStatistics>,
   macroService: MacroService
 ): Record<string, OperatorStatistics> {
-  // Each runtime op contributes to the aggregate of EVERY macro instance in
-  // its chain (outermost → innermost). A runtime op with chain
-  // [outer, inner] gets summed into BOTH `outer`'s aggregate AND `inner`'s
-  // aggregate — so the nested macro op visible inside the outer's drill-down
-  // view shows its own stats, in addition to the outer macro on the parent
-  // canvas.
+  // Each runtime op contributes to the worker-count + state-of-the-macro
+  // aggregate of EVERY macro instance in its chain (outermost → innermost).
+  // But ROW COUNTS are derived from the macro's boundary port bindings,
+  // NOT the sum of all inner ops (which would double-count internal traffic).
   const byMacro = new Map<string, OperatorStatistics[]>();
   for (const [runtimeOpId, stats] of Object.entries(raw)) {
     const chain = macroService.macroChainForRuntimeOp(runtimeOpId);
@@ -88,15 +86,39 @@ function withMacroAggregates(
   if (byMacro.size === 0) return raw;
   const out: Record<string, OperatorStatistics> = { ...raw };
   for (const [macroInstanceId, innerStats] of byMacro.entries()) {
-    // Don't overwrite a real entry that the engine sent for this ID.
     if (out[macroInstanceId] !== undefined) continue;
+    // State + worker count: roll-up across all inner ops in the chain.
+    const operatorState = combineStates(innerStats.map(s => s.operatorState));
+    const numWorkers = innerStats.reduce((sum, s) => sum + (s.numWorkers ?? 0), 0);
+
+    // Row counts + port metrics: use the macro's boundary bindings (same
+    // source of truth the canvas display uses). If bindings aren't loaded
+    // yet, fall back to the sum-of-all-inner-ops (wrong, but better than 0).
+    // We don't have the macroId here directly — it's in the parent op's
+    // operatorProperties, accessible via the macroService cache. For the
+    // OUTERMOST macro instance the macroService has runtimeOps cached, so we
+    // approximate via that: synthesize using the chain[0] instance.
+    let aggregatedInputRowCount = 0;
+    let aggregatedOutputRowCount = 0;
+    let inputPortMetrics: Record<string, number> = {};
+    let outputPortMetrics: Record<string, number> = {};
+    const macroIdForInstance = macroService.macroDefIdForInstance(macroInstanceId);
+    if (macroIdForInstance) {
+      const synth = macroService.synthesizeMacroOpStats(macroInstanceId, macroIdForInstance, raw);
+      if (synth) {
+        aggregatedInputRowCount = synth.aggregatedInputRowCount;
+        aggregatedOutputRowCount = synth.aggregatedOutputRowCount;
+        inputPortMetrics = synth.inputPortMetrics;
+        outputPortMetrics = synth.outputPortMetrics;
+      }
+    }
     out[macroInstanceId] = {
-      operatorState: combineStates(innerStats.map(s => s.operatorState)),
-      aggregatedInputRowCount: innerStats.reduce((sum, s) => sum + s.aggregatedInputRowCount, 0),
-      inputPortMetrics: {},
-      aggregatedOutputRowCount: innerStats.reduce((sum, s) => sum + s.aggregatedOutputRowCount, 0),
-      outputPortMetrics: {},
-      numWorkers: innerStats.reduce((sum, s) => sum + (s.numWorkers ?? 0), 0),
+      operatorState,
+      aggregatedInputRowCount,
+      inputPortMetrics,
+      aggregatedOutputRowCount,
+      outputPortMetrics,
+      numWorkers,
     };
   }
   return out;

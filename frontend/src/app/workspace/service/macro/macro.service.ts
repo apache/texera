@@ -393,6 +393,100 @@ export class MacroService {
   }
 
   /**
+   * Synthesize macro-op port-level + aggregated stats from its boundary
+   * bindings. The macro's external input port i shows the row count on the
+   * specific inner port that `MacroInput(i)` feeds (recursively, through any
+   * nested macros). Same for output. Aggregated totals are the SUM of the
+   * macro's external port counts — NOT the sum of every inner op's
+   * row count (which double-counts internal traffic).
+   *
+   * Returns null if bindings aren't loaded yet. Caller can fall back to a
+   * state-only entry while waiting.
+   *
+   * Lives on MacroService (rather than workflow-editor) so both the canvas
+   * statistics renderer AND the WorkflowStatusService aggregator can use
+   * the same source of truth.
+   */
+  public synthesizeMacroOpStats(
+    macroInstanceId: string,
+    macroId: string,
+    rawStatusByRuntimeOpId: Record<string, { inputPortMetrics?: Record<string, number>; outputPortMetrics?: Record<string, number> }>
+  ): {
+    inputPortMetrics: Record<string, number>;
+    outputPortMetrics: Record<string, number>;
+    aggregatedInputRowCount: number;
+    aggregatedOutputRowCount: number;
+  } | null {
+    const bindings = this.getBindingsForInstance(macroInstanceId, macroId);
+    if (!bindings) return null;
+    const inputPortMetrics: Record<string, number> = {};
+    const outputPortMetrics: Record<string, number> = {};
+    for (const b of bindings.inputBindings) {
+      const innerStats = rawStatusByRuntimeOpId[b.innerOpId];
+      if (!innerStats) continue;
+      const cnt = innerStats.inputPortMetrics?.[String(b.innerPortIndex)] ?? 0;
+      const key = String(b.externalPortIndex);
+      inputPortMetrics[key] = (inputPortMetrics[key] ?? 0) + cnt;
+    }
+    for (const b of bindings.outputBindings) {
+      const innerStats = rawStatusByRuntimeOpId[b.innerOpId];
+      if (!innerStats) continue;
+      const cnt = innerStats.outputPortMetrics?.[String(b.innerPortIndex)] ?? 0;
+      outputPortMetrics[String(b.externalPortIndex)] = cnt;
+    }
+    return {
+      inputPortMetrics,
+      outputPortMetrics,
+      aggregatedInputRowCount: Object.values(inputPortMetrics).reduce((a, b) => a + b, 0),
+      aggregatedOutputRowCount: Object.values(outputPortMetrics).reduce((a, b) => a + b, 0),
+    };
+  }
+
+  /**
+   * For a macro instance whose body op id is also its instance id (this is
+   * the case for nested macros visible inside a parent's drill-down view),
+   * return its `macroId` (the wid of the macro definition) by walking the
+   * outer macro definition's body. Returns undefined if not found in
+   * cache.
+   *
+   * Why: in drill-down view of outer macro O, a nested macro N appears as a
+   * canvas op with body-relative id (which is also its instance id). To
+   * compute N's external port stats we need its macroId so we can look up
+   * its body bindings.
+   */
+  public macroIdForBodyOpId(parentMacroId: string, bodyOpId: string): string | undefined {
+    return this.bodyBindingsSnapshot.get(parentMacroId)?.nestedMacros.get(bodyOpId);
+  }
+
+  // Track (macroInstanceId → macroId) so other services (e.g. WorkflowStatus
+  // for aggregation) can look up the macro definition wid by instance id
+  // without grabbing a reference to WorkflowActionService. Populated by
+  // `registerMacroInstance(...)` whenever the workflow editor / palette adds
+  // a Macro op to the graph.
+  private macroDefByInstance = new Map<string, string>();
+
+  /** Record that `macroInstanceId` (a canvas op id) instantiates macro `macroId`. */
+  public registerMacroInstance(macroInstanceId: string, macroId: string): void {
+    if (macroId) this.macroDefByInstance.set(macroInstanceId, macroId);
+  }
+
+  /** Lookup macro definition wid for a given instance id. */
+  public macroDefIdForInstance(macroInstanceId: string): string | undefined {
+    const direct = this.macroDefByInstance.get(macroInstanceId);
+    if (direct) return direct;
+    // Fallback: scan body bindings — `macroInstanceId` might be a nested
+    // macro's body-relative id inside some parent body that's in the
+    // bindings cache.
+    for (const [parentMacroId, snapshot] of this.bodyBindingsSnapshot.entries()) {
+      const nested = snapshot.nestedMacros.get(macroInstanceId);
+      if (nested) return nested;
+      // (parentMacroId left unused; pattern is `(_, snapshot)` essentially)
+      void parentMacroId;
+    }
+    return undefined;
+  }
+
+  /**
    * Build a body-op-id → runtime-uuid lookup for the macro DEFINITION whose
    * canvas instance is `macroInstanceId`. Used by the drill-down view: the
    * canvas ops there carry body-relative IDs (from the macro definition),
@@ -421,12 +515,15 @@ export class MacroService {
 
   /**
    * Resolve macro port bindings for a specific macro instance using the
-   * runtime mapping. Walks the macro definition's body to find each
-   * MacroInput / MacroOutput marker's connected inner op + port, then looks
-   * up that inner op's runtime UUID via the macro-mapping.
+   * runtime mapping. For each MacroInput/Output marker, walks the macro
+   * body (recursing through any nested macros) until it hits a terminal
+   * non-macro inner op, then looks up that op's runtime UUID via the
+   * macro-mapping side-table.
    *
-   * Replaces the old prefix-based `getBindingsForInstance` — the prefix
-   * scheme broke when `MacroExpander` switched to fresh UUIDs.
+   * The recursion is essential: a top-level macro's input port may be
+   * connected to a nested macro's input port, whose body connects it to
+   * yet another op, etc. We need the FINAL terminal runtime op so its
+   * port-level stats can drive the outer macro's external port display.
    */
   public resolveBindingsViaRuntimeMapping(
     macroInstanceId: string,
@@ -437,31 +534,76 @@ export class MacroService {
       this.getBodyBindings(macroId).subscribe({ error: () => undefined });
       return undefined;
     }
-    // Index runtime ops belonging to this macro instance by bodyOpId.
-    const runtimeOpsForInstance = this.runtimeOpsByMacroInstance.get(macroInstanceId) ?? [];
-    const byBodyOpId = new Map<string, string>();
-    for (const runtimeOpId of runtimeOpsForInstance) {
-      const bodyOpId = this.runtimeMacroMapping.get(runtimeOpId)?.bodyOpId;
-      if (bodyOpId) byBodyOpId.set(bodyOpId, runtimeOpId);
-    }
-    const resolveOne = (b: MacroPortBinding): MacroPortBinding | undefined => {
-      const runtimeOpId = byBodyOpId.get(b.innerOpId);
-      if (!runtimeOpId) return undefined;
-      return {
-        externalPortIndex: b.externalPortIndex,
-        innerOpId: runtimeOpId,
-        innerPortIndex: b.innerPortIndex,
-      };
+    // Resolve one body-level binding to one or more terminal runtime bindings.
+    // `accumulatedChain` accumulates the macro-instance chain we've descended
+    // through, used to disambiguate which runtime op matches when a body op
+    // id is reused across macro definitions.
+    const resolveOne = (
+      b: MacroPortBinding,
+      definition: {
+        inputBindings: MacroPortBinding[];
+        outputBindings: MacroPortBinding[];
+        nestedMacros: Map<string, string>;
+      },
+      accumulatedChain: string[],
+      isInput: boolean
+    ): MacroPortBinding[] => {
+      const nestedMacroId = definition.nestedMacros.get(b.innerOpId);
+      if (!nestedMacroId) {
+        // Terminal: find the runtime op whose chain matches accumulatedChain
+        // (the chain of macro instances we descended through) and whose
+        // bodyOpId matches this binding's innerOpId.
+        const candidates: string[] = [];
+        for (const [runtimeOpId, prov] of this.runtimeMacroMapping.entries()) {
+          if (prov.bodyOpId !== b.innerOpId) continue;
+          if (prov.macroChain.length !== accumulatedChain.length) continue;
+          if (prov.macroChain.every((c, i) => c === accumulatedChain[i])) {
+            candidates.push(runtimeOpId);
+          }
+        }
+        return candidates.map(runtimeOpId => ({
+          externalPortIndex: b.externalPortIndex,
+          innerOpId: runtimeOpId,
+          innerPortIndex: b.innerPortIndex,
+        }));
+      }
+      // Nested macro: drill into its body and continue down to the next
+      // boundary in/out the binding's innerPortIndex maps to.
+      const nestedSnapshot = this.bodyBindingsSnapshot.get(nestedMacroId);
+      if (!nestedSnapshot) {
+        // Snapshot not loaded yet — kick off and bail (caller will re-resolve
+        // on the next stats tick).
+        this.getBodyBindings(nestedMacroId).subscribe({ error: () => undefined });
+        return [];
+      }
+      // The nested macro op's BODY definition id (b.innerOpId) is also its
+      // canvas-level instance id in the outer body. That's the macroChain
+      // element we add as we descend.
+      const nextChain = [...accumulatedChain, b.innerOpId];
+      const nestedSideBindings = isInput
+        ? nestedSnapshot.inputBindings
+        : nestedSnapshot.outputBindings;
+      const matched = nestedSideBindings.filter(nb => nb.externalPortIndex === b.innerPortIndex);
+      const resolved: MacroPortBinding[] = [];
+      for (const nb of matched) {
+        const carriedOver: MacroPortBinding = {
+          externalPortIndex: b.externalPortIndex, // preserve outer's external port index
+          innerOpId: nb.innerOpId,
+          innerPortIndex: nb.innerPortIndex,
+        };
+        resolved.push(...resolveOne(carriedOver, nestedSnapshot, nextChain, isInput));
+      }
+      return resolved;
     };
+
+    const startChain = [macroInstanceId];
     const inputBindings: MacroPortBinding[] = [];
     for (const b of snapshot.inputBindings) {
-      const resolved = resolveOne(b);
-      if (resolved) inputBindings.push(resolved);
+      inputBindings.push(...resolveOne(b, snapshot, startChain, /* isInput */ true));
     }
     const outputBindings: MacroPortBinding[] = [];
     for (const b of snapshot.outputBindings) {
-      const resolved = resolveOne(b);
-      if (resolved) outputBindings.push(resolved);
+      outputBindings.push(...resolveOne(b, snapshot, startChain, /* isInput */ false));
     }
     return { inputBindings, outputBindings };
   }
@@ -986,6 +1128,10 @@ export class MacroService {
       const macroId = op.operatorProperties?.["macroId"];
       if (typeof macroId !== "string" || macroId.length === 0) continue;
       const instanceId = op.operatorID;
+      // Remember (instanceId → macroId) so cross-service lookups (e.g.
+      // WorkflowStatusService.withMacroAggregates) can synthesize macro
+      // stats without holding a reference to WorkflowActionService.
+      this.registerMacroInstance(instanceId, macroId);
       this.getBodyBindings(macroId).subscribe({
         next: () => {
           // After the first-level bindings load, ask for the recursive
