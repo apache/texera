@@ -104,40 +104,6 @@ object DocumentFactory {
   }
 
   /**
-    * Check whether a document exists at the given URI without opening it.
-    *
-    * Returns true iff the underlying storage already has an entry for this
-    * URI (e.g., an iceberg table at the resolved namespace + storage key).
-    * Useful for "create only if absent" flows that would otherwise have to
-    * call `openDocument` inside a try/catch to test existence.
-    */
-  def documentExists(uri: URI): Boolean = {
-    uri.getScheme match {
-      case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, resourceType) = decodeURI(uri)
-        val storageKey = sanitizeURIPath(uri)
-
-        val namespace = resourceType match {
-          case RESULT             => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
-          case STATE              => StorageConfig.icebergTableStateNamespace
-          case _ =>
-            throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
-        }
-
-        IcebergUtil
-          .loadTableMetadata(IcebergCatalogInstance.getInstance(), namespace, storageKey)
-          .isDefined
-
-      case unsupportedScheme =>
-        throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: $unsupportedScheme for checking the document"
-        )
-    }
-  }
-
-  /**
     * Open a document specified by the uri.
     * If the document is storing structural data, the schema will also be returned
     * @param uri the uri of the document
