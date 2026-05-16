@@ -181,7 +181,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   isProfileableDataSource(): boolean {
     const t = this.currentOperatorSchema?.operatorType ?? "";
-    return /CSV|FileScan|Scan|JSON|Parquet/i.test(t);
+    const match = /CSV|FileScan|Scan|JSON|Parquet|Text|File/i.test(t);
+    // diagnostic: surface the operatorType so it's easy to widen the rule if needed.
+    if (t) {
+      // eslint-disable-next-line no-console
+      console.debug("[data-profiling] operatorType=%o profileable=%o", t, match);
+    }
+    return match;
   }
 
   openDataProfiling(): void {
