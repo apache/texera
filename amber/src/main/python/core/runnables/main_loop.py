@@ -98,24 +98,30 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_state["LoopStartId"] = self.context.worker_id.split("-", 1)[1].rsplit(
             "-main-0", 1
         )[0]
+        # The URI lives on the upstream operator's output port (which
+        # LoopStart's first materialization reader is reading from).
+        reader_runnables = (
+            self.context.input_manager.get_input_port_mat_reader_threads()
+        )
         output_state["LoopStartStateURI"] = VFSURIFactory.state_uri(
-            self.context.input_manager.get_input_port_base_uri()
+            next(iter(reader_runnables.values()))[0].uri
         )
 
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, controller_interface
     ) -> None:
+        state = executor.state
         controller_interface.jump_to_operator_region(
-            JumpToOperatorRegionRequest(OperatorIdentity(executor.state["LoopStartId"]))
+            JumpToOperatorRegionRequest(OperatorIdentity(state["LoopStartId"]))
         )
-        uri = executor.state["LoopStartStateURI"]
+        uri = state["LoopStartStateURI"]
         # Strip the per-iteration scratch (`table`, `output`) and the
         # loop metadata (`LoopStartId`, `LoopStartStateURI`) so only the
         # user-visible loop state is written back to LoopStart's input.
         for key in ("table", "output", "LoopStartId", "LoopStartStateURI"):
-            executor.state.pop(key, None)
+            state.pop(key, None)
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
-        writer.put_one(State(executor.state).to_tuple())
+        writer.put_one(State(state).to_tuple())
         writer.close()
 
     def complete(self) -> None:

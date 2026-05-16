@@ -39,26 +39,18 @@ class LoopEndOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    val pythonCode =
-      try {
-        generatePythonCode()
-      } catch {
-        case ex: Throwable =>
-          s"#EXCEPTION DURING CODE GENERATION: ${ex.getMessage}"
-      }
+  ): PhysicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithCode(pythonCode, "python")
+        OpExecWithCode(generatePythonCode(), "python")
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withSuggestedWorkerNum(1)
       .withParallelizable(false)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

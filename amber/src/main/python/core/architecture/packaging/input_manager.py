@@ -173,11 +173,3 @@ class InputManager:
             yield Tuple(
                 {name: field_accessor for name in table.column_names}, schema=schema
             )
-
-    def get_input_port_base_uri(self):
-        """Return the port base URI of the first materialization reader.
-
-        Use `VFSURIFactory.result_uri(...)` / `state_uri(...)` on the
-        returned value to get the actual result / state document URI.
-        """
-        return next(iter(self._input_port_mat_reader_runnables.values()))[0].uri
