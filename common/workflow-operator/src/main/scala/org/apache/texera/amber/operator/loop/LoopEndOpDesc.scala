@@ -79,7 +79,7 @@ class LoopEndOpDesc extends LogicalOp {
        |      return None
        |
        |    @overrides
-       |    def condition(self) -> None:
+       |    def condition(self) -> bool:
        |      exec("output = $condition", {}, self.state)
        |      return self.state["output"]
        |""".stripMargin
