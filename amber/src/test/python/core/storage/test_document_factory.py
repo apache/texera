@@ -132,3 +132,41 @@ class TestOpenDocumentNamespaceRouting:
 
         with pytest.raises(ValueError, match="No storage is found"):
             DocumentFactory.open_document(VFS_URI)
+
+
+@patch("core.storage.document_factory.IcebergCatalogInstance")
+@patch("core.storage.document_factory.VFSURIFactory")
+class TestDocumentExists:
+    def test_returns_true_when_table_exists(self, mock_vfs, mock_icb):
+        mock_vfs.VFS_FILE_URI_SCHEME = "vfs"
+        mock_vfs.decode_uri.side_effect = _decode_returning(VFSResourceType.RESULT)
+        catalog = MagicMock()
+        catalog.table_exists.return_value = True
+        mock_icb.get_instance.return_value = catalog
+
+        assert DocumentFactory.document_exists(VFS_URI) is True
+        identifier = catalog.table_exists.call_args.args[0]
+        assert identifier.startswith(f"{StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE}.")
+
+    def test_returns_false_when_table_missing(self, mock_vfs, mock_icb):
+        mock_vfs.VFS_FILE_URI_SCHEME = "vfs"
+        mock_vfs.decode_uri.side_effect = _decode_returning(VFSResourceType.RESULT)
+        catalog = MagicMock()
+        catalog.table_exists.return_value = False
+        mock_icb.get_instance.return_value = catalog
+
+        assert DocumentFactory.document_exists(VFS_URI) is False
+
+    def test_unsupported_resource_type_raises_value_error(self, mock_vfs, _icb):
+        mock_vfs.VFS_FILE_URI_SCHEME = "vfs"
+        mock_vfs.decode_uri.side_effect = _decode_returning(
+            VFSResourceType.CONSOLE_MESSAGES
+        )
+
+        with pytest.raises(ValueError, match="not supported"):
+            DocumentFactory.document_exists(VFS_URI)
+
+
+def test_document_exists_rejects_non_vfs_scheme():
+    with pytest.raises(NotImplementedError, match="Unsupported URI scheme"):
+        DocumentFactory.document_exists("file:///tmp/x")

@@ -144,6 +144,30 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     }
   }
 
+  it should "report documentExists=true for a created URI and false for a fresh one" in {
+    assert(DocumentFactory.documentExists(uri))
+
+    val freshBase = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId = OperatorIdentity(s"fresh-${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      )
+    )
+    val freshUri = VFSURIFactory.resultURI(freshBase)
+    assert(!DocumentFactory.documentExists(freshUri))
+  }
+
+  it should "throw UnsupportedOperationException for documentExists on an unsupported scheme" in {
+    intercept[UnsupportedOperationException] {
+      DocumentFactory.documentExists(new URI("file:///tmp/anything"))
+    }
+  }
+
   it should "round trip materialized state documents" in {
     val stateUri = VFSURIFactory.stateURI(baseURI)
     DocumentFactory.createDocument(stateUri, State.schema)
