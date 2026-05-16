@@ -96,6 +96,10 @@
                   <span class="data-name">Output rows</span>
                   <span class="data-val">{{ $any(dp.point).rows.length }} × {{ $any(dp.point).columns.length }}</span>
                 </ng-container>
+                <ng-container *ngIf="dp.point.kind === 'html'">
+                  <span class="data-name">{{ $any(dp.point).columnName === 'html-content' ? 'HTML Chart' : $any(dp.point).columnName }}</span>
+                  <span class="data-val data-val-secondary">Plotly / HTML viz</span>
+                </ng-container>
               </button>
             </div>
           </section>

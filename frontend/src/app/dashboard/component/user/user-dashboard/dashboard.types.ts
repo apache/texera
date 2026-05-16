@@ -2,7 +2,7 @@
  * Type definitions for the Dashboard Visualizer feature.
  */
 
-export type WidgetType = "metric" | "bar" | "donut" | "hbar" | "text" | "table";
+export type WidgetType = "metric" | "bar" | "donut" | "hbar" | "text" | "table" | "html";
 
 export interface MetricConfig {
   title: string;
@@ -61,13 +61,21 @@ export interface TableConfig {
   rows: (string | number)[][];
 }
 
+export interface HtmlConfig {
+  title: string;
+  /** Raw HTML — usually a self-contained Plotly document from a visualization
+   *  operator. Rendered into a sandboxed iframe via srcdoc. */
+  htmlContent: string;
+}
+
 export type WidgetConfig =
   | { type: "metric"; config: MetricConfig }
   | { type: "bar"; config: BarConfig }
   | { type: "donut"; config: DonutConfig }
   | { type: "hbar"; config: HBarConfig }
   | { type: "text"; config: TextConfig }
-  | { type: "table"; config: TableConfig };
+  | { type: "table"; config: TableConfig }
+  | { type: "html"; config: HtmlConfig };
 
 export interface WidgetLayout {
   x: number;
@@ -115,6 +123,7 @@ export const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
   hbar: "Horizontal Bar",
   text: "Text / Notes",
   table: "Table",
+  html: "HTML Chart",
 };
 
 export const WIDGET_TYPE_DESCRIPTIONS: Record<WidgetType, string> = {
@@ -124,4 +133,5 @@ export const WIDGET_TYPE_DESCRIPTIONS: Record<WidgetType, string> = {
   hbar: "Ranked horizontal bars — great for feature importance.",
   text: "Free-form notes, key findings, or callouts.",
   table: "A data table for detailed comparisons.",
+  html: "Renders an HTML/Plotly chart from a visualization operator.",
 };

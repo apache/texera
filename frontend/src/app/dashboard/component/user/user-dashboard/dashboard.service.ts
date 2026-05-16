@@ -131,6 +131,7 @@ export class DashboardService {
       hbar: { w: 6, h: 4 },
       text: { w: 4, h: 3 },
       table: { w: 8, h: 4 },
+      html: { w: 6, h: 5 },
     };
     const size = sizes[type];
     let maxBottom = 0;

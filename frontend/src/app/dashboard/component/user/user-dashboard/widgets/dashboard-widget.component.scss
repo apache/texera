@@ -158,6 +158,16 @@
   flex: 1;
 }
 
+/* --- HTML / Plotly ------------------------------------------------------ */
+
+.html-iframe {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: none;
+  background: white;
+}
+
 /* --- Table -------------------------------------------------------------- */
 
 .table-wrap {

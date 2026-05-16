@@ -61,6 +61,13 @@ type WorkflowDataPoint =
       opName: string;
       columns: string[];
       rows: (string | number | null)[][];
+    }
+  | {
+      kind: "html";
+      opId: string;
+      opName: string;
+      columnName: string;
+      html: string;
     };
 
 @UntilDestroy()
@@ -212,17 +219,40 @@ export class AddWidgetModalComponent implements OnInit {
         }
       }
       if (ob.snapshot && ob.snapshot.rows.length > 0) {
-        out.push({
-          key: `rows|${ob.operator.operatorID}`,
-          section: "results",
-          point: {
-            kind: "rows",
-            opId: ob.operator.operatorID,
-            opName: ob.operator.displayName,
-            columns: ob.snapshot.columns,
-            rows: ob.snapshot.rows,
-          },
-        });
+        // First: hunt for HTML/Plotly cells (visualization operators) and
+        // surface them as their own data points. They render via iframe.
+        const htmlCells = findHtmlCells(ob.snapshot.columns, ob.snapshot.rows);
+        for (const cell of htmlCells) {
+          out.push({
+            key: `html|${ob.operator.operatorID}|${cell.column}`,
+            section: "results",
+            point: {
+              kind: "html",
+              opId: ob.operator.operatorID,
+              opName: ob.operator.displayName,
+              columnName: cell.column,
+              html: cell.html,
+            },
+          });
+        }
+        // Then: expose the rows themselves for Table widgets (unless every
+        // cell on the table is an HTML payload — that would be redundant).
+        const hasNonHtmlContent =
+          htmlCells.length === 0 ||
+          ob.snapshot.columns.some(c => !isLikelyHtmlColumn(c, ob.snapshot!.rows));
+        if (hasNonHtmlContent) {
+          out.push({
+            key: `rows|${ob.operator.operatorID}`,
+            section: "results",
+            point: {
+              kind: "rows",
+              opId: ob.operator.operatorID,
+              opName: ob.operator.displayName,
+              columns: ob.snapshot.columns,
+              rows: ob.snapshot.rows,
+            },
+          });
+        }
       }
     }
 
@@ -262,13 +292,17 @@ export class AddWidgetModalComponent implements OnInit {
   }
 
   /** Default widget type for a data point — used so the user doesn't have to
-   *  click a separate widget-type picker. Metric/stat → Metric Card; rows → Table. */
+   *  click a separate widget-type picker. */
   defaultWidgetType(point: WorkflowDataPoint): WidgetType {
-    return point.kind === "rows" ? "table" : "metric";
+    if (point.kind === "rows") return "table";
+    if (point.kind === "html") return "html";
+    return "metric";
   }
 
   defaultWidgetIcon(point: WorkflowDataPoint): string {
-    return point.kind === "rows" ? "table" : "field-number";
+    if (point.kind === "rows") return "table";
+    if (point.kind === "html") return "fund";
+    return "field-number";
   }
 
   toggleSelection(key: string): void {
@@ -402,10 +436,68 @@ export class AddWidgetModalComponent implements OnInit {
 function dataPointLabel(p: WorkflowDataPoint): string {
   if (p.kind === "metric") return p.name;
   if (p.kind === "stat") return p.name;
+  if (p.kind === "html") return "Chart";
   return "Output rows";
 }
 
+/**
+ * Detect whether a string value looks like an HTML document we should
+ * render in an iframe. Used to spot Plotly output from visualization
+ * operators. Cheap heuristic — false positives are fine since the user
+ * still has to click to add the widget.
+ */
+function looksLikeHtml(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 20) return false;
+  const head = value.trim().slice(0, 256).toLowerCase();
+  if (
+    head.startsWith("<!doctype") ||
+    head.startsWith("<html") ||
+    head.startsWith("<script") ||
+    head.startsWith("<svg")
+  ) {
+    return true;
+  }
+  // Embedded scripts or full-page Plotly fragments without doctype
+  if (head.includes("<script") && value.toLowerCase().includes("</script>")) return true;
+  if (head.includes("plotly") && head.includes("<div")) return true;
+  return false;
+}
+
+function isLikelyHtmlColumn(column: string, rows: ReadonlyArray<ReadonlyArray<string | number | null>>): boolean {
+  if (column.toLowerCase() === "html-content") return true;
+  const idx = -1; // not used — we look at any column whose values are HTML-ish
+  return false;
+}
+
+function findHtmlCells(
+  columns: string[],
+  rows: (string | number | null)[][]
+): Array<{ column: string; html: string }> {
+  const out: Array<{ column: string; html: string }> = [];
+  // Look at the last row first — Texera's visualization operators emit a
+  // single accumulating row that we always want the latest version of.
+  const lastRow = rows[rows.length - 1];
+  if (!lastRow) return out;
+  for (let i = 0; i < columns.length; i++) {
+    const value = lastRow[i];
+    if (looksLikeHtml(value)) {
+      out.push({ column: columns[i], html: value });
+    }
+  }
+  return out;
+}
+
 function buildWidgetFromPoint(type: WidgetType, p: WorkflowDataPoint): WidgetConfig | undefined {
+  if (p.kind === "html") {
+    return {
+      type: "html",
+      config: {
+        title: `${p.opName} · ${p.columnName === "html-content" ? "Chart" : p.columnName}`,
+        htmlContent: p.html,
+      },
+    };
+  }
   if (p.kind === "metric") {
     const v = typeof p.value === "number" ? formatScalar(p.value) : String(p.value);
     return {

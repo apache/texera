@@ -5,10 +5,12 @@
 
 import { Component, Input } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import {
   BarConfig,
   DonutConfig,
   HBarConfig,
+  HtmlConfig,
   MetricConfig,
   TableConfig,
   TextConfig,
@@ -33,6 +35,8 @@ interface DonutSlice {
 export class DashboardWidgetComponent {
   @Input() widget!: WidgetConfig;
 
+  constructor(private sanitizer: DomSanitizer) {}
+
   get metric(): MetricConfig {
     return this.widget.config as MetricConfig;
   }
@@ -50,6 +54,18 @@ export class DashboardWidgetComponent {
   }
   get table(): TableConfig {
     return this.widget.config as TableConfig;
+  }
+  get html(): HtmlConfig {
+    return this.widget.config as HtmlConfig;
+  }
+
+  /**
+   * The iframe's srcdoc bypasses Angular sanitization so inline Plotly
+   * scripts in the HTML actually execute. This mirrors what Texera's
+   * VisualizationFrameContentComponent does for the same kind of payload.
+   */
+  get safeHtmlContent(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.html.htmlContent ?? "");
   }
 
   // --- Bar chart helpers ---------------------------------------------------

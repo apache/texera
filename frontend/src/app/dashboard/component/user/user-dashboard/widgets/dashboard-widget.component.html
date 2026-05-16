@@ -139,6 +139,16 @@
     <div class="text-body">{{ text.body }}</div>
   </ng-container>
 
+  <!-- HTML / Plotly chart -->
+  <ng-container *ngSwitchCase="'html'">
+    <div class="widget-title" *ngIf="html.title">{{ html.title }}</div>
+    <iframe
+      class="html-iframe"
+      [srcdoc]="safeHtmlContent"
+      sandbox="allow-scripts"
+      referrerpolicy="no-referrer"></iframe>
+  </ng-container>
+
   <!-- Table -->
   <ng-container *ngSwitchCase="'table'">
     <div class="widget-title">{{ table.title }}</div>
