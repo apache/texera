@@ -19,97 +19,27 @@
 
 @import "../../../dashboard.component.scss";
 
-:host {
-  display: block;
-}
-
-.project-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  background: white;
-  border: 1px solid #f0f0f0;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  text-decoration: none;
-  color: inherit;
-  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
-
-  &:hover {
-    border-color: #d9d9d9;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
-    text-decoration: none;
-    color: inherit;
-  }
-}
-
-.project-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  color: white;
-  flex: 0 0 auto;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
-}
-
-.project-body {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .project-name {
-  font-weight: 600;
-  font-size: 16px;
-  color: rgba(0, 0, 0, 0.85);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  text-align: center;
 }
 
-.project-description {
-  font-size: 13px;
-  color: #8c8c8c;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.project-avatar-container {
+  text-align: center;
 }
 
-.project-stats {
-  font-size: 12px;
-  color: #595959;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+.edit-name-icon:hover,
+.edit-description-icon:hover {
+  color: skyblue;
 }
 
-.stat-sep {
-  color: #bfbfbf;
+.description-container {
+  border: 1px solid gainsboro;
+  border-radius: 10px;
+  padding: 2.5%;
 }
 
-.project-meta {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.updated-label {
-  font-size: 12px;
-  color: #8c8c8c;
-  white-space: nowrap;
-}
-
-.project-actions {
-  display: flex;
-  align-items: center;
+.character-count {
+  text-align: right;
 }

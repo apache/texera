@@ -55,7 +55,6 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
-import { getProjectIcon } from "../../user-project/project-icon.util";
 
 @UntilDestroy()
 @Component({
@@ -219,17 +218,8 @@ export class UserWorkflowListItemComponent {
     }
   }
 
-  public isLightColor(color: string | null): boolean {
-    if (!color) return false;
+  public isLightColor(color: string): boolean {
     return UserProjectService.isLightColor(color);
-  }
-
-  public projectBgColor(color: string | null): string {
-    return color ? `#${color}` : "#8c8c8c";
-  }
-
-  public projectIcon(pid: number): string {
-    return getProjectIcon(pid);
   }
 
   /**

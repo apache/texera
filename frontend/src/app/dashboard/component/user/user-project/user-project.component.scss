@@ -19,71 +19,7 @@
 
 @import "../../section-style";
 
-.user-project-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.header-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0 0 4px 0;
-  color: rgba(0, 0, 0, 0.88);
-}
-
-.page-subtitle {
-  margin: 0;
-  color: #8c8c8c;
-  font-size: 14px;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.project-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 64px 24px;
-  background: white;
-  border: 1px dashed #e8e8e8;
-  border-radius: 12px;
-  color: #595959;
-}
-
-.empty-emoji {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.empty-state h3 {
-  margin: 0 0 8px 0;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
-}
-
-.empty-state p {
-  margin: 0 0 16px 0;
-  color: #8c8c8c;
+button {
+  border-radius: 5px;
+  border: none;
 }

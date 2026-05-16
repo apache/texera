@@ -17,87 +17,71 @@
  under the License.
 -->
 
-<div class="project-detail-page">
-  <a
-    [routerLink]="DASHBOARD_USER_PROJECT"
-    class="back-link">
-    <i
-      nz-icon
-      nzType="left"
-      nzTheme="outline"></i>
-    Back to Projects
-  </a>
-
-  <header
-    class="detail-header"
-    *ngIf="projectDataIsLoaded">
+<div class="user-project-container">
+  <nz-card>
+    <h2 class="project-title">Project : {{name}}</h2>
     <div
-      class="project-icon"
-      [ngStyle]="{ 'background-color': '#' + bgColorHex }">
-      {{ icon }}
+      *ngIf="description && description.trim()"
+      class="description-container">
+      <markdown [data]="description"></markdown>
     </div>
-    <div class="header-text">
-      <h1 class="detail-title">{{ name }}</h1>
-      <div
-        *ngIf="description && description.trim()"
-        class="detail-description">
-        <markdown [data]="description"></markdown>
-      </div>
+    <nz-card-meta nzDescription="Created: {{creationTime | date: 'yyyy-MM-dd HH:mm'}}"></nz-card-meta>
+
+    <div
+      *ngIf="color !== null"
+      [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
+      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}"
+      id="left-div">
+      color
     </div>
-    <div class="header-actions">
-      <button
-        nz-button
-        (click)="openEditDialog()"
-        [disabled]="!canEdit"
-        nz-tooltip="Edit project"
-        nzTooltipPlacement="bottom">
-        <i
-          nz-icon
-          nzTheme="outline"
-          nzType="edit"></i>
-        Edit
-      </button>
-      <button
-        nz-button
-        nzDanger
-        nz-popconfirm
-        nzPopconfirmTitle="Delete this project? Workflows inside will not be deleted."
-        (nzOnConfirm)="confirmDelete()"
-        [disabled]="!canEdit"
-        nz-tooltip="Delete project"
-        nzTooltipPlacement="bottom">
-        <i
-          nz-icon
-          nzTheme="outline"
-          nzType="delete"></i>
-        Delete
-      </button>
+    <div
+      (click)="removeProjectColor()"
+      *ngIf="color !== null"
+      [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
+      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}"
+      id="right-div"
+      nz-tooltip="Remove project color"
+      nzTooltipPlacement="bottom">
+      x
     </div>
-  </header>
 
-  <nz-tabs
-    *ngIf="projectDataIsLoaded"
-    class="detail-tabs">
-    <nz-tab nzTitle="Workflows">
-      <texera-saved-workflow-section
-        [pid]="pid"
-        [accessLevel]="accessLevel"></texera-saved-workflow-section>
-    </nz-tab>
-
-    <nz-tab nzTitle="Datasets">
-      <div class="coming-soon">
-        <div class="coming-soon-emoji">📊</div>
-        <h3>Datasets coming soon</h3>
-        <p>Connect datasets to this project to keep related data and workflows in one place.</p>
+    <button
+      (colorPickerSelect)="updateProjectColor(inputColor)"
+      [(colorPicker)]="inputColor"
+      [(cpToggle)]="colorPickerIsSelected"
+      [cpExtraTemplate]="colorMenuTemplate"
+      [cpOKButtonClass]="'btn btn-primary btn-xs'"
+      title="Save"
+      [cpOKButtonText]="'Save'"
+      [cpOKButton]="false"
+      [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
+      [cpSaveClickOutside]="false"
+      nz-button>
+      <i
+        nz-icon
+        nz-tooltip="Set project color"
+        nzTheme="outline"
+        nzTooltipPlacement="bottom"
+        nzType="format-painter"></i>
+    </button>
+    <ng-template #colorMenuTemplate>
+      <div style="display: flex; padding: 0 16px 16px; justify-content: space-between">
+        <button
+          (click)="removeProjectColor()"
+          [disabled]="color === null"
+          class="btn btn-outline-danger btn-xs">
+          Delete
+        </button>
+        <button
+          (click)="updateProjectColor(inputColor)"
+          class="btn btn-primary btn-xs">
+          Save
+        </button>
       </div>
-    </nz-tab>
+    </ng-template>
+  </nz-card>
 
-    <nz-tab nzTitle="Members">
-      <div class="members-tab">
-        <texera-share-access
-          [type]="'project'"
-          [id]="pid!"></texera-share-access>
-      </div>
-    </nz-tab>
-  </nz-tabs>
+  <texera-saved-workflow-section
+    [pid]="pid"
+    [accessLevel]="accessLevel"></texera-saved-workflow-section>
 </div>

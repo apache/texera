@@ -17,14 +17,13 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Optional, Output } from "@angular/core";
+import { Component, EventEmitter, inject, OnDestroy, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormControl, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { Privilege, ShareAccess } from "../../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
 import { GmailService } from "../../../../common/service/gmail/gmail.service";
-import { Inject } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
@@ -75,12 +74,11 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
   ],
 })
 export class ShareAccessComponent implements OnInit, OnDestroy {
-  // When opened inline (not as a modal), nzModalData / modalRef are absent
-  // and the parent passes `type` and `id` via @Input() instead.
-  @Input() type: string;
-  @Input() id: number;
-  readonly allOwners: string[];
-  readonly inWorkspace: boolean;
+  readonly nzModalData = inject(NZ_MODAL_DATA);
+  readonly type: string = this.nzModalData.type;
+  readonly id: number = this.nzModalData.id;
+  readonly allOwners: string[] = this.nzModalData.allOwners;
+  readonly inWorkspace: boolean = this.nzModalData.inWorkspace;
   public validateForm: FormGroup;
   public accessList: ReadonlyArray<ShareAccess> = [];
   public owner: string = "";
@@ -103,18 +101,13 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     private workflowPersistService: WorkflowPersistService,
     private datasetService: DatasetService,
     private workflowActionService: WorkflowActionService,
-    @Optional() private modalRef: NzModalRef | null,
-    @Optional() @Inject(NZ_MODAL_DATA) private nzModalData: any
+    private modalRef: NzModalRef
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
       accessLevel: ["WRITE"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
-    this.type = this.nzModalData?.type ?? "";
-    this.id = this.nzModalData?.id ?? 0;
-    this.allOwners = this.nzModalData?.allOwners ?? [];
-    this.inWorkspace = this.nzModalData?.inWorkspace ?? false;
   }
 
   get hasWriteAccess(): boolean {
@@ -278,7 +271,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
         next: () => {
           if (userToRemove == this.userService.getCurrentUser()?.email) {
             this.shouldRefresh = true;
-            this.modalRef?.close({ userRevokedOwnAccess: true });
+            this.modalRef.close({ userRevokedOwnAccess: true });
           }
           this.ngOnInit();
         },
