@@ -239,7 +239,7 @@
   border: 1px dashed #d1d5db;
   border-radius: 8px;
 
-  span[nz-icon] {
+  .empty-grid-icon {
     font-size: 56px;
     color: #d1d5db;
   }
@@ -252,5 +252,16 @@
   }
   .empty-cta {
     margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1;
+
+    /* Keep the icon and text on the same baseline; ng-zorro wraps the icon
+     * in a <span nz-icon> with default block-ish display when alone. */
+    > span[nz-icon] {
+      font-size: 16px;
+      line-height: 1;
+    }
   }
 }

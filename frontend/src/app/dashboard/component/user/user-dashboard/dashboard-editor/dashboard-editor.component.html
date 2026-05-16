@@ -104,16 +104,20 @@
     <div
       *ngIf="dashboard.widgets.length === 0"
       class="empty-grid">
-      <span nz-icon nzType="dashboard"></span>
-      <p>No widgets yet. Click <strong>+ Add Widget</strong> to pull results from your workflows or enter data manually.</p>
+      <span nz-icon nzType="dashboard" class="empty-grid-icon"></span>
+      <p *ngIf="mode === 'edit'">
+        No widgets yet. Click <strong>+ Add Widget</strong> to pull results from your workflows or enter data manually.
+      </p>
+      <p *ngIf="mode === 'view'">No widgets yet.</p>
       <button
+        *ngIf="mode === 'edit'"
         nz-button
         nzType="primary"
         nzSize="large"
         class="empty-cta"
         (click)="openAddWidget()">
         <span nz-icon nzType="plus"></span>
-        Add Widget
+        <span>Add Widget</span>
       </button>
     </div>
   </div>
