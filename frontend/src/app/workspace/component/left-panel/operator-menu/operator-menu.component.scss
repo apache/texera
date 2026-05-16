@@ -165,6 +165,20 @@
   }
 }
 
+.macro-category {
+  margin: 4px 0 6px;
+
+  &__header {
+    font-size: 10px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 6px 0 3px;
+    padding: 0 4px;
+  }
+}
+
 .your-macros-filter {
   width: 100%;
   padding: 4px 8px;
