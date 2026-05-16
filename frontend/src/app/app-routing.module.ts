@@ -37,6 +37,8 @@ import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gma
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { UserAgentComponent } from "./dashboard/component/user/user-agent/user-agent.component";
+import { UserOperatorComponent } from "./dashboard/component/user/user-operator/user-operator.component";
+import { UserOperatorEditorComponent } from "./dashboard/component/user/user-operator/user-operator-editor.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_ABOUT, DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
@@ -143,6 +145,18 @@ routes.push({
         {
           path: "agent",
           component: UserAgentComponent,
+        },
+        {
+          path: "operators",
+          component: UserOperatorComponent,
+        },
+        {
+          path: "operators/new",
+          component: UserOperatorEditorComponent,
+        },
+        {
+          path: "operators/edit/:id",
+          component: UserOperatorEditorComponent,
         },
         {
           path: "discussion",

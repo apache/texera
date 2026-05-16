@@ -40,6 +40,26 @@
 
 <div id="spacer"></div>
 
+<nz-collapse
+  *ngIf="hasCustomOperators()"
+  nzBordered="false"
+  nzExpandIconPosition="end">
+  <nz-collapse-panel
+    *ngFor="let groupName of customGroupNames"
+    [nzHeader]="groupName"
+    [nzActive]="true"
+    class="operator-group custom-operator-group"
+    [attr.data-depth]="0">
+    <div class="indent">
+      <div
+        *ngFor="let customOp of customOperatorGroups.get(groupName)"
+        class="operator-label">
+        <texera-custom-operator-label [operator]="customOp"></texera-custom-operator-label>
+      </div>
+    </div>
+  </nz-collapse-panel>
+</nz-collapse>
+
 <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames, depth: 0 }"></ng-container>
 
 <ng-template

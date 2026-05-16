@@ -1,0 +1,292 @@
+<div class="operator-editor">
+  <div class="editor-toolbar">
+    <div class="left">
+      <button
+        nz-button
+        nzType="default"
+        (click)="cancel()">
+        <span
+          nz-icon
+          nzType="arrow-left"></span>
+        Back
+      </button>
+      <h2>{{ editing ? 'Edit Operator' : 'Create Operator' }}</h2>
+    </div>
+    <div class="right">
+      <button
+        *ngIf="editing"
+        nz-button
+        nzDanger
+        nz-popconfirm
+        nzPopconfirmTitle="Delete this operator? This cannot be undone."
+        (nzOnConfirm)="confirmDelete()">
+        <span
+          nz-icon
+          nzType="delete"></span>
+        Delete
+      </button>
+      <button
+        nz-button
+        (click)="cancel()">
+        Cancel
+      </button>
+      <button
+        nz-button
+        nzType="primary"
+        (click)="save()">
+        <span
+          nz-icon
+          nzType="save"></span>
+        Save
+      </button>
+    </div>
+  </div>
+
+  <div class="editor-body">
+    <div class="config-pane">
+      <h3>Basics</h3>
+      <div class="field">
+        <label>Name *</label>
+        <input
+          nz-input
+          [(ngModel)]="draft.name"
+          placeholder="BMI Calculator" />
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea
+          nz-input
+          rows="2"
+          [(ngModel)]="draft.description"
+          placeholder="What does this operator do?"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Icon</label>
+          <div class="emoji-picker">
+            <button
+              *ngFor="let e of emojiChoices"
+              type="button"
+              class="emoji-btn"
+              [class.selected]="draft.icon === e"
+              (click)="draft.icon = e">
+              {{ e }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <nz-select
+          [(ngModel)]="draft.category"
+          nzAllowClear="false"
+          nzShowSearch
+          nzAllowCreate="true"
+          [nzPlaceHolder]="defaultCategory">
+          <nz-option
+            *ngFor="let c of knownCategories"
+            [nzValue]="c"
+            [nzLabel]="c"></nz-option>
+        </nz-select>
+      </div>
+      <div class="field">
+        <label
+          nz-checkbox
+          [(ngModel)]="draft.isPublic"
+          >Make public (community operators)</label
+        >
+      </div>
+
+      <nz-divider></nz-divider>
+
+      <div class="section-head">
+        <h3>Input ports</h3>
+        <button
+          nz-button
+          nzSize="small"
+          (click)="addInputPort()">
+          <span
+            nz-icon
+            nzType="plus"></span>
+          Add
+        </button>
+      </div>
+      <div
+        *ngFor="let port of draft.inputPorts; let i = index"
+        class="port-row">
+        <input
+          nz-input
+          [(ngModel)]="port.name"
+          placeholder="port name" />
+        <input
+          nz-input
+          [(ngModel)]="port.type"
+          placeholder="type (e.g. table)" />
+        <button
+          nz-button
+          nzSize="small"
+          nzDanger
+          (click)="removeInputPort(i)">
+          <span
+            nz-icon
+            nzType="close"></span>
+        </button>
+      </div>
+      <div
+        class="muted"
+        *ngIf="draft.inputPorts.length === 0">
+        No input ports (source operator).
+      </div>
+
+      <div class="section-head">
+        <h3>Output ports</h3>
+        <button
+          nz-button
+          nzSize="small"
+          (click)="addOutputPort()">
+          <span
+            nz-icon
+            nzType="plus"></span>
+          Add
+        </button>
+      </div>
+      <div
+        *ngFor="let port of draft.outputPorts; let i = index"
+        class="port-row">
+        <input
+          nz-input
+          [(ngModel)]="port.name"
+          placeholder="port name" />
+        <input
+          nz-input
+          [(ngModel)]="port.type"
+          placeholder="type (e.g. table)" />
+        <button
+          nz-button
+          nzSize="small"
+          nzDanger
+          (click)="removeOutputPort(i)">
+          <span
+            nz-icon
+            nzType="close"></span>
+        </button>
+      </div>
+      <div
+        class="muted"
+        *ngIf="draft.outputPorts.length === 0">
+        No output ports (sink operator).
+      </div>
+
+      <nz-divider></nz-divider>
+
+      <div class="section-head">
+        <h3>Configurable properties</h3>
+        <button
+          nz-button
+          nzSize="small"
+          (click)="addProperty()">
+          <span
+            nz-icon
+            nzType="plus"></span>
+          Add
+        </button>
+      </div>
+      <p class="muted small">Accessible inside your code via <code>self.args['property_name']</code>.</p>
+      <div
+        *ngFor="let prop of draft.properties; let i = index"
+        class="property-card">
+        <div class="property-grid">
+          <input
+            nz-input
+            [(ngModel)]="prop.name"
+            placeholder="property name" />
+          <nz-select
+            [ngModel]="prop.type"
+            (ngModelChange)="onPropertyTypeChange(prop, $event)"
+            class="prop-type">
+            <nz-option
+              *ngFor="let opt of propertyTypeOptions"
+              [nzValue]="opt.value"
+              [nzLabel]="opt.label"></nz-option>
+          </nz-select>
+          <button
+            nz-button
+            nzSize="small"
+            nzDanger
+            (click)="removeProperty(i)">
+            <span
+              nz-icon
+              nzType="close"></span>
+          </button>
+        </div>
+        <input
+          *ngIf="prop.type === 'string'"
+          nz-input
+          [ngModel]="prop.default"
+          (ngModelChange)="prop.default = $event"
+          placeholder="default value" />
+        <nz-input-number
+          *ngIf="prop.type === 'number'"
+          [ngModel]="prop.default"
+          (ngModelChange)="prop.default = $event"
+          [nzPlaceHolder]="'default value'"></nz-input-number>
+        <label
+          *ngIf="prop.type === 'boolean'"
+          nz-checkbox
+          [(ngModel)]="prop.default">
+          Default true
+        </label>
+        <ng-container *ngIf="prop.type === 'select'">
+          <input
+            nz-input
+            [ngModel]="propertyOptionsAsString(prop)"
+            (ngModelChange)="setPropertyOptions(prop, $event)"
+            placeholder="comma-separated options, e.g. small, medium, large" />
+          <nz-select
+            [ngModel]="prop.default"
+            (ngModelChange)="prop.default = $event"
+            nzPlaceHolder="default option">
+            <nz-option
+              *ngFor="let opt of prop.options"
+              [nzValue]="opt"
+              [nzLabel]="opt"></nz-option>
+          </nz-select>
+        </ng-container>
+        <input
+          nz-input
+          [(ngModel)]="prop.description"
+          placeholder="description (shown as tooltip)" />
+      </div>
+    </div>
+
+    <div class="code-pane">
+      <div class="code-header">
+        <h3>
+          Python code
+          <span class="lang-badge">UDF · python</span>
+        </h3>
+        <div class="code-actions">
+          <button
+            nz-button
+            nzSize="small"
+            (click)="testRun()">
+            <span
+              nz-icon
+              nzType="experiment"></span>
+            Test Run
+          </button>
+        </div>
+      </div>
+      <div
+        #editor
+        class="monaco-host"></div>
+      <div
+        *ngIf="testStatus !== 'idle' && testOutput"
+        class="test-output"
+        [class.ok]="testStatus === 'ok'"
+        [class.err]="testStatus === 'error'">
+        <pre>{{ testOutput }}</pre>
+      </div>
+    </div>
+  </div>
+</div>

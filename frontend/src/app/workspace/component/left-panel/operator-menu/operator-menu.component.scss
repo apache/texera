@@ -56,3 +56,8 @@
 #spacer {
   margin-top: 32px;
 }
+
+.custom-operator-group ::ng-deep .ant-collapse-header {
+  color: #1890ff;
+  font-weight: 600;
+}

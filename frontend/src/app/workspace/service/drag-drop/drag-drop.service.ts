@@ -57,6 +57,23 @@ export class DragDropService {
     this.handleOperatorRecommendationOnDrag();
   }
 
+  /**
+   * Like {@link dragStarted} but uses a caller-supplied predicate instead of
+   * building one from an operator type. Used to drag custom operators that
+   * wrap a Python UDF with pre-filled code/ports.
+   */
+  public dragStartedCustom(predicate: OperatorPredicate): void {
+    this.op = predicate;
+    const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale().sx ?? 1;
+    new joint.dia.Paper({
+      el: document.getElementById("flyingOP")!,
+      width: JointUIService.DEFAULT_OPERATOR_WIDTH * scale,
+      height: JointUIService.DEFAULT_OPERATOR_HEIGHT * scale,
+      model: new joint.dia.Graph().addCell(this.jointUIService.getJointOperatorElement(this.op, { x: 0, y: 0 })),
+    }).scale(scale);
+    this.handleOperatorRecommendationOnDrag();
+  }
+
   public dragDropped(dropPoint: Point): void {
     const coordinates = this.workflowActionService
       .getJointGraphWrapper()

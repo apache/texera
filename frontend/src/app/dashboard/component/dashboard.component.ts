@@ -41,6 +41,7 @@ import {
   DASHBOARD_USER_QUOTA,
   DASHBOARD_USER_WORKFLOW,
   DASHBOARD_USER_AGENT,
+  DASHBOARD_USER_OPERATOR,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -113,6 +114,7 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
   protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
   protected readonly DASHBOARD_USER_AGENT = DASHBOARD_USER_AGENT;
+  protected readonly DASHBOARD_USER_OPERATOR = DASHBOARD_USER_OPERATOR;
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
   protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
   protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
