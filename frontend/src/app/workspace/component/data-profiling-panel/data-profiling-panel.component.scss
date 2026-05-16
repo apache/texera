@@ -1,0 +1,382 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: block;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.profiling-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+
+  .header-icon {
+    font-size: 20px;
+  }
+  .header-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .source-name {
+    font-weight: 500;
+    color: #595959;
+  }
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8c8c8c;
+  padding: 24px 0;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: #262626;
+
+  .muted-count {
+    font-weight: 400;
+    color: #8c8c8c;
+    margin-left: 6px;
+    font-size: 12px;
+  }
+}
+
+/* Quality Score */
+.quality-score-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  .score-card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #595959;
+    margin-bottom: 8px;
+  }
+
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .score-bar-wrap {
+    flex: 1;
+  }
+  .score-bar-track {
+    width: 100%;
+    height: 14px;
+    background: #f0f0f0;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    transition: width 400ms ease, background 200ms ease;
+    border-radius: 7px;
+  }
+  .score-number {
+    font-size: 22px;
+    font-weight: 700;
+    min-width: 96px;
+    text-align: right;
+  }
+  .score-denom {
+    font-size: 13px;
+    color: #8c8c8c;
+    font-weight: 400;
+  }
+
+  .score-band {
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  .sub-scores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin-top: 10px;
+
+    .sub-score {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #f5f5f5;
+      color: #595959;
+
+      &.good {
+        background: #f6ffed;
+        color: #389e0d;
+      }
+      &.bad {
+        background: #fff7e6;
+        color: #d46b08;
+      }
+    }
+  }
+}
+
+/* Suggestions */
+.suggestions-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 14px 16px;
+
+  .suggestion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .suggestion-item {
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .suggestion-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #262626;
+  }
+  .severity-dot,
+  .suggestion-icon {
+    font-size: 14px;
+  }
+
+  .suggestion-reason {
+    color: #595959;
+    font-size: 12px;
+    margin: 4px 0 8px 0;
+  }
+
+  .suggestion-action button {
+    margin-right: 6px;
+  }
+}
+
+/* Role summary */
+.role-summary-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 14px 16px;
+
+  .role-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .role-summary-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .role-chip {
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .role-cols {
+    color: #595959;
+    font-size: 12px;
+    word-break: break-word;
+  }
+}
+
+/* Overview */
+.overview-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 14px 16px;
+
+  .overview-stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 8px;
+
+    .stat-label {
+      font-size: 11px;
+      color: #8c8c8c;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #262626;
+    }
+  }
+
+  .profile-tabs {
+    margin-top: 8px;
+  }
+
+  .columns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+
+  .column-card {
+    border: 1px solid #f0f0f0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: #fafafa;
+  }
+
+  .column-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .col-name {
+      font-weight: 600;
+      color: #262626;
+    }
+    .col-dtype {
+      color: #8c8c8c;
+      font-size: 12px;
+    }
+    .role-badge {
+      color: #fff;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+    .drop-link {
+      font-size: 11px;
+      color: #cf1322;
+      cursor: pointer;
+      text-decoration: underline;
+
+      &:hover {
+        color: #a8071a;
+      }
+    }
+  }
+
+  .col-stats {
+    font-size: 12px;
+    color: #595959;
+    margin-top: 4px;
+  }
+
+  .histogram {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 40px;
+    margin-top: 6px;
+  }
+  .histogram-bar {
+    flex: 1;
+    background: #1890ff;
+    min-height: 1px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .col-warn {
+    font-size: 12px;
+    color: #d46b08;
+    margin-top: 4px;
+  }
+  .col-suggestion {
+    font-size: 12px;
+    color: #096dd9;
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  .missing-bars,
+  .corr-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .missing-row,
+  .corr-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .missing-name,
+  .corr-pair {
+    flex: 0 0 160px;
+    font-size: 12px;
+    color: #595959;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .missing-track,
+  .corr-track {
+    flex: 1;
+    height: 10px;
+    background: #f0f0f0;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .missing-fill,
+  .corr-fill {
+    height: 100%;
+  }
+  .missing-pct,
+  .corr-val {
+    flex: 0 0 56px;
+    font-size: 12px;
+    color: #595959;
+    text-align: right;
+  }
+}

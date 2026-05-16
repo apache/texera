@@ -1,0 +1,298 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="profiling-panel">
+  <div class="panel-header">
+    <span class="header-icon">📊</span>
+    <h3 class="header-title">Data Profile: <span class="source-name">{{ profile?.source || source }}</span></h3>
+  </div>
+
+  <div
+    *ngIf="loading"
+    class="loading-state">
+    <span
+      nz-icon
+      nzType="loading"
+      nzTheme="outline"></span>
+    Profiling…
+  </div>
+
+  <ng-container *ngIf="!loading && profile && score">
+    <!-- Feature 1: Quality Score -->
+    <section class="quality-score-card">
+      <div class="score-card-title">Data Quality Score</div>
+      <div class="score-row">
+        <div class="score-bar-wrap">
+          <div class="score-bar-track">
+            <div
+              class="score-bar-fill"
+              [style.width.%]="score.total"
+              [style.background]="scoreColor()"></div>
+          </div>
+        </div>
+        <div
+          class="score-number"
+          [style.color]="scoreColor()">
+          {{ score.total }} <span class="score-denom">/ 100</span>
+        </div>
+      </div>
+      <div
+        class="score-band"
+        [style.color]="scoreColor()">
+        {{ scoreLabel() }}
+      </div>
+      <div class="sub-scores">
+        <span
+          class="sub-score"
+          [class.bad]="score.completenessPercent < 90"
+          [class.good]="score.completenessPercent >= 90">
+          {{ score.completenessPercent >= 90 ? '✅' : '⚠️' }} Completeness: {{ score.completenessPercent }}%
+        </span>
+        <span
+          class="sub-score"
+          [class.bad]="score.duplicatePercent > 0"
+          [class.good]="score.duplicatePercent === 0">
+          {{ score.duplicatePercent === 0 ? '✅' : '⚠️' }}
+          {{ score.duplicatePercent === 0 ? 'No duplicates' : score.duplicatePercent + '% duplicates' }}
+        </span>
+        <span
+          class="sub-score"
+          [class.bad]="score.outlierPercent > 2"
+          [class.good]="score.outlierPercent <= 2">
+          {{ score.outlierPercent > 2 ? '⚠️' : '✅' }} Outliers: {{ score.outlierPercent }}%
+        </span>
+        <span
+          class="sub-score bad"
+          *ngIf="score.constantColumns > 0">
+          ⚠️ {{ score.constantColumns }} constant column{{ score.constantColumns > 1 ? 's' : '' }}
+        </span>
+        <span
+          class="sub-score bad"
+          *ngIf="score.highCardinalityColumns > 0">
+          ⚠️ {{ score.highCardinalityColumns }} high-cardinality
+        </span>
+        <span
+          class="sub-score bad"
+          *ngIf="score.imbalancedColumns > 0">
+          ⚠️ {{ score.imbalancedColumns }} imbalanced
+        </span>
+      </div>
+    </section>
+
+    <!-- Feature 2: Cleaning Suggestions -->
+    <section
+      class="suggestions-card"
+      *ngIf="suggestions.length > 0">
+      <div class="card-title">
+        🧹 Suggested Cleaning Actions
+        <span class="muted-count">({{ suggestions.length }} issue{{ suggestions.length > 1 ? 's' : '' }} found)</span>
+      </div>
+      <div class="suggestion-list">
+        <div
+          *ngFor="let s of suggestions"
+          class="suggestion-item"
+          [style.background]="severityBg(s.severity)"
+          [style.borderColor]="severityBorder(s.severity)">
+          <div class="suggestion-head">
+            <span class="severity-dot">{{ severityDot(s.severity) }}</span>
+            <span class="suggestion-icon">{{ s.icon }}</span>
+            <span class="suggestion-title">{{ s.title }}</span>
+          </div>
+          <div class="suggestion-reason">{{ s.reason }}</div>
+          <div class="suggestion-action">
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="small"
+              (click)="addToWorkflow(s)">
+              {{ s.action === 'review_outliers' ? 'Copy hint' : 'Add to Workflow' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Role summary -->
+    <section
+      class="role-summary-card"
+      *ngIf="roleSummary.length > 0">
+      <div class="card-title">Column Roles <span class="muted-count">(auto-detected)</span></div>
+      <div class="role-summary-list">
+        <div
+          *ngFor="let r of roleSummary"
+          class="role-summary-line">
+          <span
+            class="role-chip"
+            [style.background]="r.color">
+            {{ r.icon }} {{ r.columns.length }} {{ r.label.toLowerCase() }}{{ r.columns.length > 1 ? 's' : '' }}
+          </span>
+          <span class="role-cols">{{ r.columns.join(', ') }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Overview tabs -->
+    <section class="overview-card">
+      <div class="card-title">Overview</div>
+      <div class="overview-stats">
+        <div class="stat">
+          <div class="stat-label">Rows</div>
+          <div class="stat-value">{{ profile.rowCount.toLocaleString() }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Columns</div>
+          <div class="stat-value">{{ profile.columns.length }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Duplicates</div>
+          <div class="stat-value">{{ profile.duplicateRows }}</div>
+        </div>
+      </div>
+
+      <nz-tabs
+        class="profile-tabs"
+        [nzSize]="'small'">
+        <nz-tab nzTitle="Columns">
+          <div class="columns-list">
+            <div
+              *ngFor="let col of profile.columns"
+              class="column-card">
+              <div class="column-head">
+                <span class="col-name">{{ col.name }}</span>
+                <span class="col-dtype">({{ col.dtype }})</span>
+                <span
+                  class="role-badge"
+                  [style.background]="roleBadgeOf(col).color"
+                  *ngIf="roleFor(col) as role">
+                  {{ roleBadgeOf(col).icon }} {{ roleBadgeOf(col).label }}
+                </span>
+                <ng-container *ngIf="roleFor(col) as dropRole">
+                  <a
+                    *ngIf="isDropRole(dropRole.role)"
+                    class="drop-link"
+                    (click)="addToWorkflow({
+                      severity: 'warning',
+                      icon: '🗑️',
+                      title: 'Drop column ' + col.name,
+                      reason: dropRole.suggestion,
+                      action: 'drop_column',
+                      column: col.name
+                    })">
+                    [drop]
+                  </a>
+                </ng-container>
+              </div>
+
+              <!-- numeric stats -->
+              <div
+                class="col-stats"
+                *ngIf="col.dtype === 'numeric'">
+                mean: {{ formatNumber(col.mean) }} · median: {{ formatNumber(col.median) }} · std:
+                {{ formatNumber(col.std) }} · range: {{ formatNumber(col.min) }}–{{ formatNumber(col.max) }}
+              </div>
+              <div
+                class="histogram"
+                *ngIf="col.dtype === 'numeric' && col.histogram">
+                <div
+                  *ngFor="let b of histogramBars(col)"
+                  class="histogram-bar"
+                  [style.height.%]="b.height"></div>
+              </div>
+
+              <!-- categorical stats -->
+              <div
+                class="col-stats"
+                *ngIf="col.dtype === 'categorical'">
+                {{ col.unique }} unique
+                <span *ngIf="col.topValues && col.topValues.length > 0">
+                  · top:
+                  <span *ngFor="let tv of col.topValues; let last = last">
+                    {{ tv.value }} ({{ tv.count }}){{ !last ? ', ' : '' }}
+                  </span>
+                </span>
+              </div>
+
+              <!-- datetime -->
+              <div
+                class="col-stats"
+                *ngIf="col.dtype === 'datetime'">
+                {{ col.unique }} distinct timestamps
+              </div>
+
+              <!-- missing/imbalance warnings -->
+              <div
+                class="col-warn"
+                *ngIf="col.missingPercent > 0">
+                ⚠️ {{ col.missingPercent.toFixed(1) }}% missing ({{ col.missing }} rows)
+              </div>
+              <div
+                class="col-warn"
+                *ngIf="isImbalanced(col)">
+                ⚠️ Class imbalance: {{ topValueShare(col) }}% one value
+              </div>
+
+              <!-- role suggestion -->
+              <div
+                class="col-suggestion"
+                *ngIf="roleFor(col) as role">
+                {{ role.suggestion }}
+              </div>
+            </div>
+          </div>
+        </nz-tab>
+
+        <nz-tab nzTitle="Missing">
+          <div class="missing-bars">
+            <div
+              *ngFor="let col of profile.columns"
+              class="missing-row">
+              <span class="missing-name">{{ col.name }}</span>
+              <div class="missing-track">
+                <div
+                  class="missing-fill"
+                  [style.width.%]="col.missingPercent"
+                  [style.background]="col.missingPercent > 50 ? '#f5222d' : col.missingPercent > 5 ? '#faad14' : '#52c41a'"></div>
+              </div>
+              <span class="missing-pct">{{ col.missingPercent.toFixed(1) }}%</span>
+            </div>
+          </div>
+        </nz-tab>
+
+        <nz-tab
+          nzTitle="Correlations"
+          *ngIf="profile.correlations && profile.correlations.length > 0">
+          <div class="corr-list">
+            <div
+              *ngFor="let c of profile.correlations"
+              class="corr-row">
+              <span class="corr-pair">{{ c.a }} ↔ {{ c.b }}</span>
+              <div class="corr-track">
+                <div
+                  class="corr-fill"
+                  [style.width.%]="(c.r > 0 ? c.r : -c.r) * 100"
+                  [style.background]="c.r > 0 ? '#1890ff' : '#fa541c'"></div>
+              </div>
+              <span class="corr-val">{{ c.r.toFixed(2) }}</span>
+            </div>
+          </div>
+        </nz-tab>
+      </nz-tabs>
+    </section>
+  </ng-container>
+</div>
