@@ -297,16 +297,60 @@ export class OperatorMenuComponent {
    * highlighted+selected the operators and asked the user to right-click;
    * doing it inline removes one step from the demo and reads more like an
    * agent action.
+   *
+   * When the suggestion is a *recurring pattern* (id starts with "pattern-"),
+   * we also offer to swap the other occurrences of the same pattern with
+   * fresh instances of the same macro — the "agent did the refactor for me"
+   * demo moment. The peer occurrences are detected on-the-fly by re-running
+   * the suggester and matching on `suggestedName` (the pattern signature is
+   * the same across all occurrences).
    */
   public onMaterializeSuggestion(suggestion: MacroSuggestion): void {
     const proposedName = suggestion.suggestedName || `macro-${Date.now()}`;
     const name = window.prompt("Macro name", proposedName);
     if (!name) return;
+    const isPattern = suggestion.id.startsWith("pattern-");
+    // Capture sibling occurrences BEFORE we mutate the canvas. We need IDs
+    // that won't have been swapped out from under us, which is exactly the
+    // current snapshot of `this.suggestions`.
+    const peerOccurrences = isPattern
+      ? this.suggestions.filter(
+          s =>
+            s.id.startsWith("pattern-") &&
+            s.suggestedName === suggestion.suggestedName &&
+            s.operatorIds.join("|") !== suggestion.operatorIds.join("|")
+        )
+      : [];
     this.macroService.createMacroFromSelection(this.workflowActionService, suggestion.operatorIds, name).subscribe({
       next: detail => {
         this.message.success(`Created macro "${detail.name}" (wid=${detail.wid})`);
-        // Clear the suggestions panel — the candidate is now materialized.
         this.suggestions = [];
+        if (peerOccurrences.length === 0) return;
+        // Batch-swap remaining occurrences. Each may fail independently (e.g.
+        // shape didn't match after all); count successes vs. skips for the
+        // toast.
+        let swapped = 0;
+        let skipped = 0;
+        for (const peer of peerOccurrences) {
+          const ok = this.macroService.swapSelectionWithExistingMacro(
+            this.workflowActionService,
+            detail,
+            peer.operatorIds
+          );
+          if (ok) swapped++;
+          else skipped++;
+        }
+        if (swapped > 0) {
+          this.message.success(
+            `Refactored ${swapped} additional occurrence${swapped === 1 ? "" : "s"} ` +
+              `to use "${detail.name}"` +
+              (skipped > 0 ? ` (${skipped} skipped — shape didn't match)` : "")
+          );
+        } else if (skipped > 0) {
+          this.message.warning(
+            `Could not auto-refactor the other ${skipped} occurrence(s); shapes didn't match the macro's ports.`
+          );
+        }
       },
       error: err => this.message.error(`Failed to create macro: ${err?.message ?? err}`),
     });

@@ -189,6 +189,16 @@
     &:hover {
       background: #f0f7ff;
     }
+
+    // Recurring-pattern suggestions get a warmer accent so they pop visually —
+    // they're the "agent caught duplicate work" moment that demos well.
+    &--pattern {
+      border-color: #d4a017;
+      background: #fffaf0;
+      &:hover {
+        background: #fff5dc;
+      }
+    }
   }
 
   &__name {
@@ -196,6 +206,19 @@
     font-size: 13px;
     color: #1d6fdb;
     margin-bottom: 2px;
+  }
+
+  &__pattern-tag {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #fff;
+    background: #d4a017;
+    border-radius: 8px;
+    vertical-align: 1px;
   }
 
   &__rationale {

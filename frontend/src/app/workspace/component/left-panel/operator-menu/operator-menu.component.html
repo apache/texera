@@ -64,9 +64,13 @@
     <div
       *ngFor="let suggestion of suggestions"
       class="suggest-macros__item"
+      [class.suggest-macros__item--pattern]="suggestion.id.startsWith('pattern-')"
       (click)="onMaterializeSuggestion(suggestion)"
       [title]="suggestion.rationale">
-      <div class="suggest-macros__name">{{ suggestion.suggestedName }}</div>
+      <div class="suggest-macros__name">
+        <span *ngIf="suggestion.id.startsWith('pattern-')" class="suggest-macros__pattern-tag">⟲ pattern</span>
+        {{ suggestion.suggestedName }}
+      </div>
       <div class="suggest-macros__rationale">{{ suggestion.rationale }}</div>
       <div class="suggest-macros__meta">
         {{ suggestion.operatorIds.length }} ops &middot; score {{ suggestion.score.toFixed(1) }}

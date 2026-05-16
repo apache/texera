@@ -155,6 +155,37 @@ export class MacroService {
   }
 
   /**
+   * Reuse an existing macro definition for another sub-DAG on the canvas.
+   * Used by the pattern-batch materialize flow: after the FIRST occurrence
+   * has been encapsulated (creating the macro), each subsequent occurrence
+   * is swapped with a FRESH instance pointing at the same `detail.wid`.
+   *
+   * Validates that the candidate selection has the same boundary port count
+   * as the macro definition. The pattern-detector ensures the operator-type
+   * signature matches, which (for linear patterns) implies the same boundary
+   * structure — but we still defensively check the counts before swapping.
+   * Returns true on success, false if shapes don't match.
+   */
+  public swapSelectionWithExistingMacro(
+    workflowActionService: WorkflowActionService,
+    detail: MacroDetail,
+    selectedOpIDs: readonly string[]
+  ): boolean {
+    // Build a *throwaway* macro definition request from the selection just to
+    // get the boundary metadata (incomingEdges, outgoingEdges, port counts).
+    // The request payload is discarded — we're not POSTing it.
+    const built = this.buildMacroFromSelection(workflowActionService, selectedOpIDs, "_throwaway_");
+    if (
+      built.inputPortCount !== detail.portSpec.inputs.length ||
+      built.outputPortCount !== detail.portSpec.outputs.length
+    ) {
+      return false;
+    }
+    this.swapSelectionWithMacroNode(workflowActionService, detail, selectedOpIDs, built);
+    return true;
+  }
+
+  /**
    * Replace the selected operators on the canvas with a single Macro op
    * pointing at the just-created definition. Extracted from
    * `ContextMenuComponent.swapSelectionWithMacroNode` so it can be

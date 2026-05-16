@@ -74,7 +74,7 @@ export class MacroSuggestionService {
     const outDeg = this.computeDegrees(ops, links, "source");
 
     const linearChains = this.findLinearChains(ops, links, inDeg, outDeg);
-    const patternSuggestions = this.findRepeatedPatterns(linearChains);
+    const patternSuggestions = this.findRepeatedPatterns(linearChains, ops);
 
     // Merge: pattern suggestions get a multiplier; linear chains stand alone.
     const all: MacroSuggestion[] = [];
@@ -91,15 +91,17 @@ export class MacroSuggestionService {
     for (const pat of patternSuggestions) {
       all.push(pat);
     }
-    // Deduplicate by chain identity (sometimes a chain shows up twice).
-    const seen = new Set<string>();
-    const deduped = all.filter(s => {
+    // Deduplicate by chain identity (sometimes a chain shows up twice). When
+    // both a linear-chain and a pattern suggestion share the same operator
+    // set, prefer the higher-scoring one — which after the pattern boost is
+    // usually the pattern one with the "recurring" rationale.
+    const byKey = new Map<string, MacroSuggestion>();
+    for (const s of all) {
       const key = s.operatorIds.join("|");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    return deduped.sort((a, b) => b.score - a.score).slice(0, 10);
+      const prev = byKey.get(key);
+      if (!prev || s.score > prev.score) byKey.set(key, s);
+    }
+    return [...byKey.values()].sort((a, b) => b.score - a.score).slice(0, 10);
   }
 
   private computeDegrees(
@@ -192,11 +194,81 @@ export class MacroSuggestionService {
    * Recurring `(operatorType, operatorType, …)` sequences across the
    * workflow. Multiple instances of the same shape strongly suggest the
    * user is duplicating logic they'd want to share via a macro.
+   *
+   * Strategy: slide every 2- and 3-window over each linear chain, key on the
+   * tuple of operator types, and group by key. For each key with ≥2
+   * occurrences, surface ONE suggestion per occurrence so the user can pick
+   * which instance to materialize first (the others can be done after via
+   * the same operator-type chain — or, future work, "materialize all").
+   *
+   * The score boost makes recurring shorter patterns out-rank a single
+   * longer chain — usually what the user wants for refactoring duplication.
    */
-  private findRepeatedPatterns(chains: string[][]): MacroSuggestion[] {
-    return []; // v1: skip. The pure linear-chain heuristic already gives demo material.
-    // Implementation sketch for v2: group chains by operatorType sequence,
-    // surface groups with size > 1 as a single "Recurring pattern" suggestion.
+  private findRepeatedPatterns(chains: string[][], ops: readonly OperatorPredicate[]): MacroSuggestion[] {
+    if (chains.length === 0) return [];
+    const opType = (id: string) => ops.find(o => o.operatorID === id)?.operatorType ?? "?";
+    // Map signature → list of windows; each window is a contiguous slice of a chain.
+    const windows = new Map<string, string[][]>();
+    for (const chain of chains) {
+      for (const winLen of [2, 3]) {
+        if (chain.length < winLen) continue;
+        for (let i = 0; i + winLen <= chain.length; i++) {
+          const slice = chain.slice(i, i + winLen);
+          const sig = slice.map(opType).join("→");
+          if (!windows.has(sig)) windows.set(sig, []);
+          windows.get(sig)!.push(slice);
+        }
+      }
+    }
+    const suggestions: MacroSuggestion[] = [];
+    let idx = 0;
+    for (const [sig, occurrences] of windows.entries()) {
+      // Need ≥2 distinct occurrences. "Distinct" = no shared op IDs between
+      // windows — overlapping windows in a 3-step chain don't count as
+      // duplication (they're the same logic, just viewed differently).
+      const distinct = this.distinctWindows(occurrences);
+      if (distinct.length < 2) continue;
+      // One suggestion per distinct occurrence. The first one wins the higher
+      // score (so it floats to the top), the rest get a small decay.
+      const sigPretty = sig.replace(/→/g, " → ");
+      distinct.forEach((win, i) => {
+        suggestions.push({
+          id: `pattern-${idx++}`,
+          operatorIds: win,
+          rationale: `Recurring pattern: ${sigPretty} appears ${distinct.length}× in this workflow — extract as a shared macro.`,
+          // Pattern score: occurrences × length × decay-per-rank. A 2-op
+          // pattern appearing 3× scores 6 > a single 4-op chain (≈4).
+          score: distinct.length * win.length * Math.pow(0.95, i),
+          suggestedName: this.suggestedNameForPattern(sig),
+        });
+      });
+    }
+    return suggestions;
+  }
+
+  /**
+   * Drop overlapping windows: if two occurrences share any operator ID, they
+   * count as the same physical instance. Walks in input order so the earliest
+   * (typically the upstream-most) occurrence wins.
+   */
+  private distinctWindows(occurrences: string[][]): string[][] {
+    const result: string[][] = [];
+    const claimed = new Set<string>();
+    for (const win of occurrences) {
+      if (win.some(id => claimed.has(id))) continue;
+      result.push(win);
+      win.forEach(id => claimed.add(id));
+    }
+    return result;
+  }
+
+  private suggestedNameForPattern(sig: string): string {
+    return sig
+      .toLowerCase()
+      .replace(/→/g, "_")
+      .replace(/opdesc$/g, "")
+      .replace(/[^a-z0-9_]/g, "")
+      .slice(0, 40);
   }
 
   private scoreChain(
