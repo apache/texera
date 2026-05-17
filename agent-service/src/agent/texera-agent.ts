@@ -53,6 +53,7 @@ import {
 } from "./tools/workflow-history-tool";
 import { createSearchDatasetsTool, TOOL_NAME_SEARCH_DATASETS } from "./tools/dataset-search-tool";
 import { fetchUserDatasetSummaries, type UserDatasetSummary } from "../api/user-datasets-api";
+import { createFetchApiDataTool, TOOL_NAME_FETCH_API_DATA } from "./tools/data-source-tools";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -268,6 +269,16 @@ export class TexeraAgent {
         };
       });
     }
+
+    tools[TOOL_NAME_FETCH_API_DATA] = createFetchApiDataTool(() => this.delegateConfig?.userToken);
+
+    this.log.info(
+      {
+        toolNames: Object.keys(tools),
+        hasDelegate: !!this.delegateConfig,
+      },
+      "tools registered for agent"
+    );
 
     return tools;
   }
@@ -577,12 +588,23 @@ export class TexeraAgent {
       // Pass only the current user turn; prepareStep rebuilds full context each step
       // (historical interactions + DAG + this message).
       const currentUserMessage: ModelMessage[] = [{ role: "user", content: userMessage }];
+      this.log.info(
+        {
+          toolNames: Object.keys(this.tools),
+          modelType: this.modelType,
+          messagePreview: userMessage.substring(0, 120),
+        },
+        "sendMessage starting — tools available to the model"
+      );
+      // No `temperature` here: many reasoning models (o1/o3/etc.) reject the parameter
+      // entirely and the SDK logs a noisy warning for every step. Leave it unset so the
+      // provider picks the model's default; non-reasoning models default to ~1.0 which
+      // is fine for our short-turn tool-calling workflow.
       const result = await generateText({
         model: this.model,
         system: this.systemPrompt,
         messages: currentUserMessage,
         tools: this.tools,
-        temperature: 0.2,
         stopWhen: stepCountIs(this.settings.maxSteps),
         prepareStep: async ({ stepNumber, messages: currentMessages }) => {
           let compilationResult: WorkflowCompilationResponse | null = null;

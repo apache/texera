@@ -22,3 +22,4 @@ export * from "./workflow-crud-tools";
 export * from "./workflow-execution-tools";
 export * from "./workflow-history-tool";
 export * from "./dataset-search-tool";
+export * from "./data-source-tools";

@@ -128,12 +128,15 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
       size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
     } catch {
       case e: io.lakefs.clients.sdk.ApiException =>
-        // Treat all LakeFS ApiException as mismatch (repository not found, being deleted, or any fatal error)
-        logger.error(
-          s"LakeFS ApiException for dataset repository '${dataset.getRepositoryName}': ${e.getMessage}",
+        // LakeFS can transiently fail to report a repo's size for newly created datasets
+        // (commit not yet visible, repo metadata still propagating, etc.). Previously we
+        // dropped the entry entirely, which made just-imported datasets disappear from the
+        // dashboard. Fall back to size=0 and still return the entry so the user can see it.
+        logger.warn(
+          s"LakeFS ApiException for dataset repository '${dataset.getRepositoryName}': ${e.getMessage}. Returning entry with size=0.",
           e
         )
-        return null
+        size = 0L
     }
 
     val dd = DashboardDataset(

@@ -28,6 +28,7 @@ import { DatasetImportError, importDataset, type ImportRequest } from "./api/dat
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
+import { dataSourceRouter } from "./data-source/data-source-router";
 
 const log = createLogger("Server");
 const wsLog = createLogger("WS");
@@ -558,6 +559,7 @@ export function buildApp() {
         }))
         .use(agentsRouter)
         .use(datasetBankRouter)
+        .use(dataSourceRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {
