@@ -40,6 +40,7 @@ import { NgIf } from "@angular/common";
 import { CustomOperatorLabelComponent } from "./custom-operator-label/custom-operator-label.component";
 import { CustomOperator } from "../../../../dashboard/type/custom-operator.interface";
 import { CustomOperatorService } from "../../../../dashboard/service/user/custom-operator/custom-operator.service";
+import { SnippetsSectionComponent } from "../snippets-section/snippets-section.component";
 
 @UntilDestroy()
 @Component({
@@ -60,6 +61,7 @@ import { CustomOperatorService } from "../../../../dashboard/service/user/custom
     NzCollapsePanelComponent,
     NgIf,
     CustomOperatorLabelComponent,
+    SnippetsSectionComponent,
   ],
 })
 export class OperatorMenuComponent {

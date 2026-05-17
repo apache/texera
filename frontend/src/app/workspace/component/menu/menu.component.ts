@@ -77,6 +77,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { CollaborationService } from "../../service/collaboration/collaboration.service";
 import { map, startWith } from "rxjs/operators";
 import { Observable } from "rxjs";
+import { QuickStepsDropdownComponent } from "../quick-steps/quick-steps-dropdown.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -126,6 +127,7 @@ import { Observable } from "rxjs";
     DatePipe,
     NzSpaceCompactComponent,
     AsyncPipe,
+    QuickStepsDropdownComponent,
   ],
 })
 export class MenuComponent implements OnInit, OnDestroy {

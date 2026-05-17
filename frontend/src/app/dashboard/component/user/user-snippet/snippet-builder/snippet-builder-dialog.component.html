@@ -1,0 +1,143 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="builder">
+  <div class="builder__meta">
+    <div class="builder__field">
+      <label>Name <span class="required">*</span></label>
+      <input nz-input [(ngModel)]="name" maxlength="60" placeholder="My Snippet" />
+    </div>
+    <div class="builder__row">
+      <div class="builder__field builder__field--icon">
+        <label>Icon</label>
+        <nz-select [(ngModel)]="icon">
+          <nz-option *ngFor="let c of iconChoices" [nzValue]="c" [nzLabel]="c"></nz-option>
+        </nz-select>
+      </div>
+      <div class="builder__field">
+        <label>Category</label>
+        <input nz-input [(ngModel)]="category" />
+      </div>
+    </div>
+    <div class="builder__field">
+      <label>Description</label>
+      <textarea nz-input rows="2" maxlength="240" [(ngModel)]="description"></textarea>
+    </div>
+    <label nz-checkbox [(ngModel)]="isPublic">Share with team (public)</label>
+  </div>
+
+  <div class="builder__panes">
+    <section class="builder__catalog">
+      <header class="builder__pane-header">
+        <strong>Operator catalog</strong>
+        <input
+          nz-input
+          class="builder__filter"
+          placeholder="Search operators…"
+          [(ngModel)]="filterText" />
+      </header>
+      <div class="builder__catalog-body">
+        <ng-container *ngIf="categories.length > 0; else loadingCatalog">
+          <nz-collapse nzBordered="false" nzExpandIconPosition="end">
+            <ng-container *ngFor="let category of categories">
+              <nz-collapse-panel
+                *ngIf="hasVisibleOperators(category.operators)"
+                [nzHeader]="category.groupName"
+                [nzActive]="!!filterText.trim()">
+                <div class="builder__op-list">
+                  <button
+                    *ngFor="let op of filteredOperators(category.operators)"
+                    nz-button
+                    nzSize="small"
+                    class="builder__op-chip"
+                    [title]="op.operatorType"
+                    (click)="add(op)">
+                    <span nz-icon nzType="plus"></span>
+                    {{ op.additionalMetadata.userFriendlyName }}
+                  </button>
+                </div>
+              </nz-collapse-panel>
+            </ng-container>
+          </nz-collapse>
+        </ng-container>
+        <ng-template #loadingCatalog>
+          <div class="builder__loading">Loading operator catalog…</div>
+        </ng-template>
+      </div>
+    </section>
+
+    <section class="builder__chain">
+      <header class="builder__pane-header">
+        <strong>Snippet chain</strong>
+        <span class="builder__hint">{{ autoLinksDescription }}</span>
+      </header>
+      <div class="builder__chain-body">
+        <nz-empty
+          *ngIf="picked.length === 0"
+          nzNotFoundContent="Click an operator from the catalog to add it."></nz-empty>
+        <ng-container *ngFor="let p of picked; let i = index; let last = last">
+          <div class="builder__chain-node">
+            <span class="builder__chain-index">{{ i + 1 }}</span>
+            <div class="builder__chain-text">
+              <input
+                nz-input
+                nzSize="small"
+                [(ngModel)]="p.customDisplayName" />
+              <div class="builder__chain-type">{{ p.schema.operatorType }}</div>
+            </div>
+            <div class="builder__chain-buttons">
+              <button
+                nz-button
+                nzSize="small"
+                [disabled]="i === 0"
+                (click)="moveUp(i)"
+                title="Move up">
+                <span nz-icon nzType="up"></span>
+              </button>
+              <button
+                nz-button
+                nzSize="small"
+                [disabled]="last"
+                (click)="moveDown(i)"
+                title="Move down">
+                <span nz-icon nzType="down"></span>
+              </button>
+              <button
+                nz-button
+                nzSize="small"
+                nzDanger
+                (click)="remove(i)"
+                title="Remove">
+                <span nz-icon nzType="delete"></span>
+              </button>
+            </div>
+          </div>
+          <div *ngIf="!last" class="builder__chain-arrow">↓</div>
+        </ng-container>
+      </div>
+    </section>
+  </div>
+
+  <footer class="builder__footer">
+    <button nz-button (click)="cancel()">Cancel</button>
+    <button nz-button nzType="primary" [disabled]="!canSave()" (click)="save()">
+      Save snippet
+    </button>
+  </footer>
+</div>

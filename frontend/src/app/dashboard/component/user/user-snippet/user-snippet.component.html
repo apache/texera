@@ -1,0 +1,87 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="user-snippet">
+  <div class="user-snippet__header">
+    <div class="user-snippet__header-row">
+      <h2>Snippets</h2>
+      <button nz-button nzType="primary" (click)="openCreate()">
+        <span nz-icon nzType="plus"></span>
+        Create Snippet
+      </button>
+    </div>
+    <p class="user-snippet__subtitle">
+      Reusable operator groups. Save 2+ selected operators from any workflow canvas
+      (<em>right-click → Save as Snippet</em>) or build one here from the operator catalog.
+    </p>
+  </div>
+
+  <ng-container *ngIf="snippets.length > 0; else emptyState">
+    <div class="user-snippet__grid">
+      <nz-card
+        *ngFor="let snippet of snippets"
+        class="snippet-card"
+        [nzActions]="[editAction, deleteAction]">
+        <div class="snippet-card__head">
+          <span class="snippet-card__icon">{{ snippet.icon || "📦" }}</span>
+          <div class="snippet-card__heading">
+            <div class="snippet-card__name">{{ snippet.name }}</div>
+            <div class="snippet-card__meta">
+              <nz-tag *ngIf="snippet.seeded" nzColor="blue">Built-in</nz-tag>
+              <nz-tag *ngIf="snippet.isPublic" nzColor="green">Public</nz-tag>
+              <span>{{ snippet.category }}</span>
+            </div>
+          </div>
+        </div>
+        <p class="snippet-card__desc" *ngIf="snippet.description">{{ snippet.description }}</p>
+        <div class="snippet-card__chain">
+          <ng-container *ngFor="let label of previewLabels(snippet); let last = last">
+            <span class="snippet-card__node">{{ label }}</span>
+            <span *ngIf="!last" class="snippet-card__arrow">→</span>
+          </ng-container>
+        </div>
+        <div class="snippet-card__stats">
+          {{ snippet.operators.length }} operator(s) · {{ snippet.links.length }} link(s)
+        </div>
+
+        <ng-template #editAction>
+          <span (click)="openEdit(snippet)" nz-tooltip nzTooltipTitle="Edit">
+            <span nz-icon nzType="edit"></span>
+          </span>
+        </ng-template>
+        <ng-template #deleteAction>
+          <span
+            nz-popconfirm
+            nzPopconfirmTitle="Delete this snippet?"
+            (nzOnConfirm)="delete(snippet)"
+            nz-tooltip
+            nzTooltipTitle="Delete">
+            <span nz-icon nzType="delete"></span>
+          </span>
+        </ng-template>
+      </nz-card>
+    </div>
+  </ng-container>
+
+  <ng-template #emptyState>
+    <nz-empty
+      nzNotFoundContent="No snippets yet. Select operators on the canvas and right-click to save one."></nz-empty>
+  </ng-template>
+
+</div>

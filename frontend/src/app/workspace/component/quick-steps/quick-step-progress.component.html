@@ -1,0 +1,57 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="qs-progress" *ngIf="state">
+  <div class="qs-progress__title">
+    <span class="qs-progress__icon">{{ state.quickStep.icon || "⚡" }}</span>
+    <span>
+      <span *ngIf="isRunning">Running: </span>
+      <span *ngIf="!isRunning && state.cancelled">Cancelled: </span>
+      <span *ngIf="isDone && !state.cancelled">Done: </span>
+      <strong>{{ state.quickStep.name }}</strong>
+    </span>
+  </div>
+  <p class="qs-progress__subtitle" *ngIf="state.quickStep.description">
+    {{ state.quickStep.description }}
+  </p>
+
+  <ol class="qs-progress__steps">
+    <li
+      *ngFor="let step of state.steps; let i = index"
+      [ngClass]="classFor(step.status)">
+      <span class="qs-progress__step-icon">
+        <span
+          nz-icon
+          [nzType]="iconFor(step.status)"
+          [nzTheme]="themeFor(step.status)"></span>
+      </span>
+      <div class="qs-progress__step-body">
+        <div class="qs-progress__step-label">
+          Step {{ i + 1 }}/{{ state.steps.length }}: {{ step.action.label }}
+        </div>
+        <div class="qs-progress__step-detail" *ngIf="step.detail">{{ step.detail }}</div>
+      </div>
+    </li>
+  </ol>
+
+  <div class="qs-progress__actions">
+    <button nz-button *ngIf="isRunning" nzDanger (click)="cancel()">Cancel</button>
+    <button nz-button *ngIf="!isRunning" nzType="primary" (click)="close()">Close</button>
+  </div>
+</div>

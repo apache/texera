@@ -130,6 +130,17 @@
             <span>My Operators</span>
           </li>
           <li
+            nz-menu-item
+            nz-tooltip="Reusable operator snippets"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_SNIPPET">
+            <span
+              nz-icon
+              nzType="appstore"></span>
+            <span>Snippets</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.compute_enabled"
             nz-menu-item
             nz-tooltip="Manage computing units"

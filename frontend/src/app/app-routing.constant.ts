@@ -41,6 +41,7 @@ export const DASHBOARD_USER_DATASET_BANK = `${DASHBOARD_USER}/dataset-bank`;
 export const DASHBOARD_USER_COMPUTING_UNIT = `${DASHBOARD_USER}/compute`;
 export const DASHBOARD_USER_QUOTA = `${DASHBOARD_USER}/quota`;
 export const DASHBOARD_USER_AGENT = `${DASHBOARD_USER}/agent`;
+export const DASHBOARD_USER_SNIPPET = `${DASHBOARD_USER}/snippet`;
 export const DASHBOARD_USER_DISCUSSION = `${DASHBOARD_USER}/discussion`;
 export const DASHBOARD_USER_OPERATOR = `${DASHBOARD_USER}/operators`;
 export const DASHBOARD_USER_OPERATOR_CREATE = `${DASHBOARD_USER_OPERATOR}/new`;
