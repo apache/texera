@@ -25,11 +25,41 @@ import {
   parseCsvPreview,
   type FetchedData,
 } from "./format-utils";
+import { listSqliteTables, exportSqliteTableAsCsv } from "./sqlite-utils";
 
 const log = createLogger("DataSource");
 
 const FETCH_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 100 * 1024 * 1024; // 100 MB safety cap
+
+/**
+ * In-memory cache of uploaded SQLite files. Two-step flow:
+ *  1. POST /sqlite-tables uploads the bytes once and returns a fileHandle + table list
+ *  2. POST /sqlite-export references the handle to export a table without re-uploading
+ *
+ * Entries auto-expire to prevent leaking memory if the user navigates away.
+ */
+interface SqliteCacheEntry {
+  bytes: Uint8Array;
+  filename: string;
+  createdAt: number;
+}
+const SQLITE_CACHE_TTL_MS = 30 * 60 * 1000;
+const SQLITE_MAX_BYTES = 500 * 1024 * 1024;
+const sqliteCache = new Map<string, SqliteCacheEntry>();
+
+function pruneSqliteCache(): void {
+  const now = Date.now();
+  for (const [handle, entry] of sqliteCache) {
+    if (now - entry.createdAt > SQLITE_CACHE_TTL_MS) {
+      sqliteCache.delete(handle);
+    }
+  }
+}
+
+function generateHandle(): string {
+  return `sqlite-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function suggestFilename(url: string, contentType: string): string {
   let pathSegment = "data";
@@ -157,6 +187,80 @@ export const dataSourceRouter = new Elysia({ prefix: "/data-source" })
         method: t.Optional(t.Union([t.Literal("GET"), t.Literal("POST")])),
         headers: t.Optional(t.Record(t.String(), t.String())),
         format: t.Optional(t.Union([t.Literal("json"), t.Literal("csv"), t.Literal("auto")])),
+      }),
+    }
+  )
+
+  /**
+   * Accept an uploaded .sqlite/.db file and return its table list. The bytes
+   * are cached server-side under a fileHandle so /sqlite-export can read them
+   * without forcing the browser to re-upload.
+   */
+  .post(
+    "/sqlite-tables",
+    async ({ body, set }) => {
+      pruneSqliteCache();
+      const form = body as { file: File };
+      const file = form.file;
+      if (!file) {
+        set.status = 400;
+        return { error: "file is required" };
+      }
+      if (file.size > SQLITE_MAX_BYTES) {
+        set.status = 413;
+        return { error: `SQLite file too large (${file.size} bytes, limit ${SQLITE_MAX_BYTES})` };
+      }
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      log.info({ filename: file.name, size: bytes.byteLength }, "received sqlite upload");
+
+      const tables = await listSqliteTables(bytes);
+      const handle = generateHandle();
+      sqliteCache.set(handle, { bytes, filename: file.name, createdAt: Date.now() });
+
+      return {
+        fileHandle: handle,
+        filename: file.name,
+        tables,
+      };
+    },
+    {
+      body: t.Object({
+        file: t.File(),
+      }),
+    }
+  )
+
+  /**
+   * Export a single table from a previously uploaded SQLite file (by fileHandle) as CSV.
+   */
+  .post(
+    "/sqlite-export",
+    async ({ body, set }) => {
+      pruneSqliteCache();
+      const { fileHandle, tableName, limit } = body as {
+        fileHandle: string;
+        tableName: string;
+        limit?: number;
+      };
+
+      const entry = sqliteCache.get(fileHandle);
+      if (!entry) {
+        set.status = 404;
+        return { error: "Unknown or expired fileHandle. Please re-upload the SQLite file." };
+      }
+
+      log.info({ fileHandle, tableName, limit }, "exporting sqlite table");
+
+      const exported = await exportSqliteTableAsCsv(entry.bytes, tableName, limit ?? 100_000);
+      return exported;
+    },
+    {
+      body: t.Object({
+        fileHandle: t.String({ minLength: 1 }),
+        tableName: t.String({ minLength: 1 }),
+        limit: t.Optional(t.Number()),
       }),
     }
   );

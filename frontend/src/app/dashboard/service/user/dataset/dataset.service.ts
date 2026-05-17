@@ -560,8 +560,7 @@ export class DatasetService {
 
   /**
    * Calls the agent-service data-source proxy to fetch a remote URL server-side
-   * (avoids browser CORS) and convert the response to CSV. Returns the CSV text
-   * plus metadata that the caller can use to upload it as a dataset.
+   * (bypasses browser CORS) and convert the response to CSV.
    */
   public fetchUrlAsCsv(url: string): Observable<{
     filename: string;
@@ -579,5 +578,36 @@ export class DatasetService {
       preview: any[];
       format: "json" | "csv";
     }>(`/api/data-source/fetch-url`, { url });
+  }
+
+  /**
+   * Upload a .sqlite file to the agent-service and list its tables. The response
+   * includes a `fileHandle` token that {@link exportSqliteTable} uses to read a
+   * specific table from the cached upload without re-sending the bytes.
+   */
+  public listSqliteTables(file: File): Observable<{
+    fileHandle: string;
+    tables: { name: string; rowCount: number; columns: string[] }[];
+  }> {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    return this.http.post<{
+      fileHandle: string;
+      tables: { name: string; rowCount: number; columns: string[] }[];
+    }>(`/api/data-source/sqlite-tables`, form);
+  }
+
+  /**
+   * Export a single table from a previously-uploaded SQLite file (identified by
+   * the `fileHandle` from {@link listSqliteTables}) as CSV.
+   */
+  public exportSqliteTable(
+    fileHandle: string,
+    tableName: string
+  ): Observable<{ csv: string; rows: number; columns: string[] }> {
+    return this.http.post<{ csv: string; rows: number; columns: string[] }>(`/api/data-source/sqlite-export`, {
+      fileHandle,
+      tableName,
+    });
   }
 }
