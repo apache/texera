@@ -29,6 +29,7 @@ import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
 import { dataSourceRouter } from "./data-source/data-source-router";
+import { publishedRouter } from "./api/published-workflow-api";
 
 const log = createLogger("Server");
 const wsLog = createLogger("WS");
@@ -560,6 +561,7 @@ export function buildApp() {
         .use(agentsRouter)
         .use(datasetBankRouter)
         .use(dataSourceRouter)
+        .use(publishedRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {

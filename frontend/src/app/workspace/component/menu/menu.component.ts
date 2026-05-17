@@ -78,6 +78,10 @@ import { CollaborationService } from "../../service/collaboration/collaboration.
 import { map, startWith } from "rxjs/operators";
 import { Observable } from "rxjs";
 import { QuickStepsDropdownComponent } from "../quick-steps/quick-steps-dropdown.component";
+import {
+  PublishApiDialogComponent,
+  PublishApiDialogData,
+} from "../publish-api-dialog/publish-api-dialog.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -337,6 +341,24 @@ export class MenuComponent implements OnInit, OnDestroy {
     paperModel.getElements().forEach((el: any) => {
       el.attr(".operator-status/ref-x", -10);
       el.attr(".operator-status/ref-y", refY);
+    });
+  }
+
+  public onClickPublishAsApi(): void {
+    if (!this.workflowId) {
+      this.notificationService.error("Save the workflow before publishing.");
+      return;
+    }
+    this.modalService.create<PublishApiDialogComponent, PublishApiDialogData>({
+      nzContent: PublishApiDialogComponent,
+      nzData: {
+        workflowId: this.workflowId,
+        workflowName: this.currentWorkflowName || DEFAULT_WORKFLOW_NAME,
+      },
+      nzFooter: null,
+      nzTitle: "🌐 Publish as API",
+      nzCentered: true,
+      nzWidth: "640px",
     });
   }
 

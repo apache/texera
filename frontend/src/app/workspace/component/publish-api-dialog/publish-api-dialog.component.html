@@ -1,0 +1,136 @@
+<div class="publish-api-dialog">
+  <nz-spin
+    [nzSpinning]="isPublishing"
+    nzTip="Publishing...">
+    <ng-container *ngIf="!published; else publishedView">
+      <p class="intro">
+        Publish this workflow as a read-only HTTP API. The endpoint returns the
+        last cached execution results — clients receive the same rows the
+        dashboard sees, without triggering a new run.
+      </p>
+      <nz-alert
+        *ngIf="errorMessage"
+        nzType="error"
+        [nzMessage]="errorMessage"
+        nzShowIcon
+        class="error-alert"></nz-alert>
+      <div class="action-row">
+        <button
+          nz-button
+          nzType="primary"
+          (click)="publish()"
+          [disabled]="isPublishing">
+          🌐 Publish as API
+        </button>
+        <button
+          nz-button
+          nzType="default"
+          (click)="close()">
+          Cancel
+        </button>
+      </div>
+    </ng-container>
+
+    <ng-template #publishedView>
+      <div class="published-info">
+        <nz-alert
+          nzType="success"
+          [nzMessage]="'Published — ' + published!.operatorCount + ' operator(s)'"
+          [nzDescription]="'Cached at ' + (published!.createdAt | date: 'medium')"
+          nzShowIcon
+          class="status-alert"></nz-alert>
+
+        <div class="field-group">
+          <label>Endpoint URL</label>
+          <div class="value-row">
+            <input
+              nz-input
+              readonly
+              [value]="published!.endpoint" />
+            <button
+              nz-button
+              nzType="default"
+              (click)="copy(published!.endpoint, 'Endpoint')"
+              title="Copy endpoint">
+              <i
+                nz-icon
+                nzType="copy"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>API Key</label>
+          <div class="value-row">
+            <input
+              nz-input
+              readonly
+              [value]="maskedApiKey" />
+            <button
+              nz-button
+              nzType="default"
+              (click)="showApiKey = !showApiKey"
+              [title]="showApiKey ? 'Hide key' : 'Show key'">
+              <i
+                nz-icon
+                [nzType]="showApiKey ? 'eye-invisible' : 'eye'"></i>
+            </button>
+            <button
+              nz-button
+              nzType="default"
+              (click)="copy(published!.apiKey, 'API key')"
+              title="Copy API key">
+              <i
+                nz-icon
+                nzType="copy"></i>
+            </button>
+          </div>
+          <small class="hint">Send this in the <code>X-API-Key</code> request header.</small>
+        </div>
+
+        <div class="field-group">
+          <label>Sample curl</label>
+          <div class="curl-row">
+            <pre class="curl-block">{{ curlCommand }}</pre>
+            <button
+              nz-button
+              nzType="default"
+              (click)="copy(curlCommand, 'curl command')"
+              title="Copy curl">
+              <i
+                nz-icon
+                nzType="copy"></i>
+            </button>
+          </div>
+        </div>
+
+        <nz-alert
+          *ngIf="errorMessage"
+          nzType="error"
+          [nzMessage]="errorMessage"
+          nzShowIcon
+          class="error-alert"></nz-alert>
+
+        <div class="action-row">
+          <button
+            nz-button
+            nzType="default"
+            (click)="republish()"
+            [disabled]="isPublishing"
+            title="Re-upload the current cached results to the server">
+            <i
+              nz-icon
+              nzType="reload"></i>
+            Refresh cached results
+          </button>
+          <button
+            nz-button
+            nzType="primary"
+            (click)="close()">
+            Done
+          </button>
+        </div>
+      </div>
+    </ng-template>
+  </nz-spin>
+</div>

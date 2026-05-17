@@ -394,6 +394,15 @@
           Share
         </button>
         <button
+          nz-button
+          id="publish-api-button"
+          [disabled]="!workflowId"
+          (click)="onClickPublishAsApi()"
+          nz-tooltip="Expose this workflow's cached results as an HTTP API"
+          nzTooltipPlacement="bottom">
+          🌐 Publish as API
+        </button>
+        <button
           (click)="handleKill()"
           [disabled]="
         executionState === ExecutionState.Uninitialized ||
