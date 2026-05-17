@@ -88,6 +88,18 @@
   <p>{{ operatorDescription }}</p>
 </div>
 
+<button
+  *ngIf="!editingTitle && isProfileableDataSource()"
+  (click)="openDataProfiling()"
+  nz-button
+  nzType="default"
+  nzSize="small"
+  nz-tooltip="Open the Data Profiling Panel for this source"
+  nzTooltipPlacement="bottom"
+  class="profile-data-button">
+  📊 Profile Data
+</button>
+
 <div
   id="customName"
   [hidden]="!editingTitle"

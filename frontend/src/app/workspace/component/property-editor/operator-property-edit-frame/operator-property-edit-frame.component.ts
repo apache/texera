@@ -70,6 +70,8 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzFormDirective } from "ng-zorro-antd/form";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { DataProfilingModalComponent } from "../../data-profiling-panel/data-profiling-modal.component";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -173,8 +175,44 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private workflowStatusSerivce: WorkflowStatusService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private modalService: NzModalService
   ) {}
+
+  isProfileableDataSource(): boolean {
+    const t = this.currentOperatorSchema?.operatorType ?? "";
+    const match = /CSV|FileScan|Scan|JSON|Parquet|Text|File/i.test(t);
+    // diagnostic: surface the operatorType so it's easy to widen the rule if needed.
+    if (t) {
+      // eslint-disable-next-line no-console
+      console.debug("[data-profiling] operatorType=%o profileable=%o", t, match);
+    }
+    return match;
+  }
+
+  openDataProfiling(): void {
+    const fileHint = this.inferProfilingSource();
+    this.modalService.create({
+      nzTitle: undefined,
+      nzContent: DataProfilingModalComponent,
+      nzData: { source: fileHint },
+      nzWidth: 760,
+      nzFooter: null,
+      nzMaskClosable: true,
+      nzBodyStyle: { padding: "0" },
+    });
+  }
+
+  private inferProfilingSource(): string {
+    if (!this.currentOperatorId) return "diabetes.csv";
+    const op = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+    const props = (op?.operatorProperties ?? {}) as Record<string, unknown>;
+    for (const key of ["fileName", "filePath", "file_path", "path"]) {
+      const v = props[key];
+      if (typeof v === "string" && v.length > 0) return v;
+    }
+    return "diabetes.csv";
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
