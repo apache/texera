@@ -145,7 +145,7 @@ export class DatasetBankService {
   }
 
   /**
-   * Calls the agent-service `POST /api/dataset-bank/import-from-url` proxy,
+   * Calls the agent-service `POST /api/databank/import-from-url` proxy,
    * which fetches the file server-side (no browser CORS) and runs the full
    * `createDataset → multipart-upload → createDatasetVersion` pipeline.
    *
