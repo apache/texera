@@ -1,0 +1,19 @@
+<div cdkDropList>
+  <div
+    cdkDrag
+    (cdkDragStarted)="dragStarted()"
+    (cdkDragDropped)="dragDropped($event.dropPoint)"
+    [ngClass]="{'disable-drag-drop': !draggable}"
+    class="custom-operator-label"
+    title="{{ operator?.description || operator?.name }}">
+    <span class="icon">{{ operator?.icon }}</span>
+    <span class="text">{{ operator?.name }}</span>
+    <span
+      *ngIf="operator?.isPublic"
+      class="public-dot"
+      title="Public"></span>
+    <div
+      *cdkDragPreview
+      id="flyingOP"></div>
+  </div>
+</div>

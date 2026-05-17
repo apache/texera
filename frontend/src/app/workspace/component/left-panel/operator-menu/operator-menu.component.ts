@@ -36,6 +36,10 @@ import { FormsModule } from "@angular/forms";
 import { NgFor, NgTemplateOutlet } from "@angular/common";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { NgIf } from "@angular/common";
+import { CustomOperatorLabelComponent } from "./custom-operator-label/custom-operator-label.component";
+import { CustomOperator } from "../../../../dashboard/type/custom-operator.interface";
+import { CustomOperatorService } from "../../../../dashboard/service/user/custom-operator/custom-operator.service";
 
 @UntilDestroy()
 @Component({
@@ -54,11 +58,14 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
     NgTemplateOutlet,
     NzCollapseComponent,
     NzCollapsePanelComponent,
+    NgIf,
+    CustomOperatorLabelComponent,
   ],
 })
 export class OperatorMenuComponent {
   public opList = new Map<string, Array<OperatorSchema>>();
   public groupNames: ReadonlyArray<GroupInfo> = [];
+  public customOperatorGroups = new Map<string, CustomOperator[]>();
 
   // input value of the search input box
   public searchInputValue: string = "";
@@ -81,8 +88,22 @@ export class OperatorMenuComponent {
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private dragDropService: DragDropService
+    private dragDropService: DragDropService,
+    private customOperatorService: CustomOperatorService
   ) {
+    this.customOperatorService
+      .list$()
+      .pipe(untilDestroyed(this))
+      .subscribe(ops => {
+        const groups = new Map<string, CustomOperator[]>();
+        for (const op of ops) {
+          const list = groups.get(op.category) ?? [];
+          list.push(op);
+          groups.set(op.category, list);
+        }
+        groups.forEach(list => list.sort((a, b) => a.name.localeCompare(b.name)));
+        this.customOperatorGroups = groups;
+      });
     // clear the search box if an operator is dropped from operator search box
     this.dragDropService.operatorDropStream.pipe(untilDestroyed(this)).subscribe(() => {
       this.searchInputValue = "";
@@ -113,6 +134,14 @@ export class OperatorMenuComponent {
         });
         this.fuse.setCollection(ops);
       });
+  }
+
+  public get customGroupNames(): string[] {
+    return Array.from(this.customOperatorGroups.keys()).sort();
+  }
+
+  public hasCustomOperators(): boolean {
+    return this.customOperatorGroups.size > 0;
   }
 
   /**

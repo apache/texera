@@ -119,6 +119,17 @@
             <span>Agents</span>
           </li>
           <li
+            nz-menu-item
+            nz-tooltip="Reusable Python operators you've created"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_OPERATOR">
+            <span
+              nz-icon
+              nzType="appstore-add"></span>
+            <span>My Operators</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.compute_enabled"
             nz-menu-item
             nz-tooltip="Manage computing units"

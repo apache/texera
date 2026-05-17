@@ -1,0 +1,74 @@
+<div class="operator-library">
+  <div class="header">
+    <div class="title-block">
+      <h2>My Operators</h2>
+      <p class="subtitle">Reusable Python operators saved to your account. Drag them onto any workflow.</p>
+    </div>
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="large"
+      [routerLink]="DASHBOARD_USER_OPERATOR_CREATE">
+      <span
+        nz-icon
+        nzType="plus"></span>
+      Create Operator
+    </button>
+  </div>
+
+  <nz-empty
+    *ngIf="operators.length === 0"
+    nzNotFoundContent="No custom operators yet. Click 'Create Operator' to build your first one."></nz-empty>
+
+  <div
+    class="cards-grid"
+    *ngIf="operators.length > 0">
+    <nz-card
+      *ngFor="let op of operators"
+      class="operator-card"
+      (click)="openEdit(op)">
+      <div class="card-head">
+        <span class="icon">{{ op.icon }}</span>
+        <div class="name-block">
+          <div class="name">{{ op.name || '(untitled)' }}</div>
+          <div class="badges">
+            <nz-tag nzColor="blue">{{ op.category }}</nz-tag>
+            <nz-tag nzColor="geekblue">{{ op.inputPorts.length }} in / {{ op.outputPorts.length }} out</nz-tag>
+            <nz-tag
+              *ngIf="op.isPublic"
+              nzColor="green"
+              >Public</nz-tag
+            >
+          </div>
+        </div>
+      </div>
+      <div class="description">{{ op.description || '—' }}</div>
+      <div class="card-meta">Updated {{ op.updatedAt | date:'short' }}</div>
+      <div
+        class="card-actions"
+        (click)="$event.stopPropagation()">
+        <button
+          nz-button
+          nzSize="small"
+          (click)="openEdit(op)">
+          <span
+            nz-icon
+            nzType="edit"></span>
+          Edit
+        </button>
+        <button
+          nz-button
+          nzSize="small"
+          nzDanger
+          nz-popconfirm
+          nzPopconfirmTitle="Delete this operator?"
+          (nzOnConfirm)="delete(op)">
+          <span
+            nz-icon
+            nzType="delete"></span>
+          Delete
+        </button>
+      </div>
+    </nz-card>
+  </div>
+</div>

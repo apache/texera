@@ -38,6 +38,8 @@ import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { DatasetBankComponent } from "./dashboard/component/user/dataset-bank/dataset-bank.component";
 import { UserAgentComponent } from "./dashboard/component/user/user-agent/user-agent.component";
+import { UserOperatorComponent } from "./dashboard/component/user/user-operator/user-operator.component";
+import { UserOperatorEditorComponent } from "./dashboard/component/user/user-operator/user-operator-editor.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowHubListComponent } from "./hub/component/workflow-hub/workflow-hub-list/workflow-hub-list.component";
 import { WorkflowHubDetailComponent } from "./hub/component/workflow-hub/workflow-hub-detail/workflow-hub-detail.component";
@@ -164,6 +166,18 @@ routes.push({
         {
           path: "agent",
           component: UserAgentComponent,
+        },
+        {
+          path: "operators",
+          component: UserOperatorComponent,
+        },
+        {
+          path: "operators/new",
+          component: UserOperatorEditorComponent,
+        },
+        {
+          path: "operators/edit/:id",
+          component: UserOperatorEditorComponent,
         },
         {
           path: "discussion",

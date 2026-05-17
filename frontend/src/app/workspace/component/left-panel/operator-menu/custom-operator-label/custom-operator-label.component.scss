@@ -1,0 +1,42 @@
+.disable-drag-drop {
+  color: grey;
+}
+
+.custom-operator-label {
+  white-space: nowrap;
+  height: 32px;
+  line-height: 30px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0);
+  transition:
+    border-color 0.3s,
+    background-color 0.3s;
+  overflow: hidden;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    border-color: rgba(64, 169, 255, 1);
+    background-color: #f0f9ff;
+  }
+
+  .icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .public-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #52c41a;
+  }
+}
