@@ -381,6 +381,15 @@
           nzType="ellipsis"></i>
       </button>
 
+      <button
+        nz-button
+        id="publish-api-button"
+        [disabled]="!workflowId"
+        (click)="onClickPublishAsApi()"
+        title="Publish as API">
+        🌐
+      </button>
+
       <nz-space-compact id="execution-buttons">
         <texera-computing-unit-selection id="texera-compute-unit-selection"> </texera-computing-unit-selection>
         <button
@@ -392,15 +401,6 @@
             nzType="share-alt"
             nzTheme="outline"></span>
           Share
-        </button>
-        <button
-          nz-button
-          id="publish-api-button"
-          [disabled]="!workflowId"
-          (click)="onClickPublishAsApi()"
-          nz-tooltip="Expose this workflow's cached results as an HTTP API"
-          nzTooltipPlacement="bottom">
-          🌐 Publish as API
         </button>
         <button
           (click)="handleKill()"

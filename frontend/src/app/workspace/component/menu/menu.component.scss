@@ -102,6 +102,14 @@ nz-button-group {
   font-weight: 400;
 }
 
+#publish-api-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
 i {
   display: inline-flex;
   align-content: center;
