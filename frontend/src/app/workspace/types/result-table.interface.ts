@@ -52,6 +52,10 @@ export interface TableColumn
     columnDef: string;
     header: string;
     getCell: TableCellMethod;
+    /** Optional nz-table header width (e.g. wider defaults for long-text columns like insight). */
+    nzThWidth?: string;
+    /** When false, cell text is not truncated with ellipsis (nzEllipsis off). */
+    useEllipsis?: boolean;
   }> {}
 
 export const PAGINATION_INFO_STORAGE_KEY = "result-panel-pagination-info";

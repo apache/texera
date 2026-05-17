@@ -24,6 +24,12 @@
       <span></span><span></span><span></span>
     </span>
   </div>
+  @if (progress.agentStep().index != null) {
+    <p class="genesis-build-modal__current-step">
+      <span class="genesis-build-modal__step-badge">Step {{ progress.agentStep().index }}</span>
+      <span class="genesis-build-modal__step-text">{{ progress.agentStep().line }}</span>
+    </p>
+  }
   <p class="genesis-build-modal__intro">
     The Texera agent is composing your workflow — usually 20–30 seconds. Steps appear below as they finish.
   </p>

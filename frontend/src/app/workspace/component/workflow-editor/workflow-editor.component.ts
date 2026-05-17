@@ -48,6 +48,8 @@ import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
+import { GenesisOrchestratorService } from "../../../dashboard/service/user/genesis/genesis-orchestrator.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -112,7 +114,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   public showEmptyHint = false;
   public isFileDragging = false;
 
-  // Cached agent result summaries for port label display
+  public get isCanvasEmpty(): boolean {
+    return this.showEmptyHint;
+  }
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -132,7 +136,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
     private config: GuiConfigService,
-    private agentService: AgentService
+    private agentService: AgentService,
+    private genesisOrchestrator: GenesisOrchestratorService,
+    private message: NzMessageService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -265,6 +271,41 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     fromEvent<DragEvent>(this.editorWrapper, "drop")
       .pipe(untilDestroyed(this))
       .subscribe(() => setDragging(false));
+  }
+
+  public onGenesisCanvasDragOver(ev: DragEvent): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+
+  public onGenesisCanvasDrop(ev: DragEvent): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.isFileDragging = false;
+    this.changeDetectorRef.detectChanges();
+
+    if (this.workflowActionService.getTexeraGraph().getAllOperators().length > 0) {
+      return;
+    }
+    const file = ev.dataTransfer?.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      this.message.warning("Please drop a CSV file.");
+      return;
+    }
+    const meta = this.workflowActionService.getWorkflowMetadata();
+    const wid = meta?.wid;
+    if (meta?.readonly) {
+      this.message.warning("This workflow is read-only.");
+      return;
+    }
+    if (!wid || wid <= 0) {
+      this.message.error("Workflow is not loaded yet. Try again in a moment.");
+      return;
+    }
+    void this.genesisOrchestrator.runIntoCurrentWorkflow(file, wid);
   }
 
   ngOnDestroy(): void {

@@ -45,7 +45,6 @@ import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { GenesisDiscoverPopoverService } from "../genesis/genesis-discover-fab.component";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -153,8 +152,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     private router: Router,
     private downloadService: DownloadService,
     private searchService: SearchService,
-    private config: GuiConfigService,
-    private genesisDiscoverPopover: GenesisDiscoverPopoverService
+    private config: GuiConfigService
   ) {
     this.userService
       .userChanged()
@@ -599,7 +597,4 @@ export class UserWorkflowComponent implements AfterViewInit {
     void this.search(true);
   }
 
-  public onClickGenesisLearnMore(): void {
-    this.genesisDiscoverPopover.open();
-  }
 }

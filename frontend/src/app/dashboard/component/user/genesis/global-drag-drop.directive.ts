@@ -29,6 +29,8 @@ import { GenesisOrchestratorService } from "../../../service/user/genesis/genesi
 })
 export class GlobalDragDropDirective implements OnDestroy {
   private overlayEl: HTMLElement | null = null;
+  /** Element receiving `.genesis-active-dropzone` (workflow list container). */
+  private dropHostEl: HTMLElement | null = null;
 
   private readonly captureOpts: AddEventListenerOptions = { capture: true };
 
@@ -41,15 +43,26 @@ export class GlobalDragDropDirective implements OnDestroy {
     return Array.from(list as Iterable<string>).includes("Files");
   }
 
-  private readonly onDragOver = (ev: Event): void => {
+  private readonly onDragEnter = (ev: Event): void => {
     const e = ev as DragEvent;
-    console.log("[Genesis] dragover fired, url=", this.router.url);
-    if (!this.isGenesisRoute()) {
+    if (!this.isGenesisWorkflowListRoute()) {
       return;
     }
     const dt = e.dataTransfer;
     if (!dt || !GlobalDragDropDirective.dataTransferHasFiles(dt)) {
-      console.log("[Genesis] dragover ignored (no file payload in dataTransfer.types)");
+      return;
+    }
+    e.preventDefault();
+    this.highlightWorkflowList();
+  };
+
+  private readonly onDragOver = (ev: Event): void => {
+    const e = ev as DragEvent;
+    if (!this.isGenesisWorkflowListRoute()) {
+      return;
+    }
+    const dt = e.dataTransfer;
+    if (!dt || !GlobalDragDropDirective.dataTransferHasFiles(dt)) {
       return;
     }
     e.preventDefault();
@@ -59,15 +72,13 @@ export class GlobalDragDropDirective implements OnDestroy {
 
   private readonly onDrop = (ev: Event): void => {
     const e = ev as DragEvent;
-    console.log("[Genesis] drop fired");
-    if (!this.isGenesisRoute()) {
+    if (!this.isGenesisWorkflowListRoute()) {
       return;
     }
     this.hideDropOverlay();
     e.preventDefault();
     const file = e.dataTransfer?.files?.[0];
     if (!file) {
-      console.log("[Genesis] drop: no file in dataTransfer.files");
       return;
     }
     const name = file.name.toLowerCase();
@@ -76,16 +87,6 @@ export class GlobalDragDropDirective implements OnDestroy {
       return;
     }
     void this.genesisOrchestrator.run(file);
-  };
-
-  private readonly onWindowDragLeave = (ev: Event): void => {
-    const e = ev as DragEvent;
-    if (!this.isGenesisRoute() || !this.overlayEl) {
-      return;
-    }
-    if (e.clientX === 0 && e.clientY === 0) {
-      this.hideDropOverlay();
-    }
   };
 
   private readonly onWindowDragEnd = (): void => {
@@ -99,45 +100,56 @@ export class GlobalDragDropDirective implements OnDestroy {
     private renderer: Renderer2,
     @Inject(DOCUMENT) private document: Document
   ) {
-    console.log("[Genesis] Directive instantiated, url=", this.router.url);
-
+    this.document.addEventListener("dragenter", this.onDragEnter, this.captureOpts);
     this.document.addEventListener("dragover", this.onDragOver, this.captureOpts);
     this.document.addEventListener("drop", this.onDrop, this.captureOpts);
-    window.addEventListener("dragleave", this.onWindowDragLeave, this.captureOpts);
     window.addEventListener("dragend", this.onWindowDragEnd, this.captureOpts);
   }
 
   ngOnDestroy(): void {
+    this.document.removeEventListener("dragenter", this.onDragEnter, this.captureOpts);
     this.document.removeEventListener("dragover", this.onDragOver, this.captureOpts);
     this.document.removeEventListener("drop", this.onDrop, this.captureOpts);
-    window.removeEventListener("dragleave", this.onWindowDragLeave, this.captureOpts);
     window.removeEventListener("dragend", this.onWindowDragEnd, this.captureOpts);
     this.hideDropOverlay();
   }
 
-  private isGenesisRoute(): boolean {
+  /**
+   * CSV Genesis drop target: workflow **list** page only (`/dashboard/user/workflow`),
+   * not the editor (`/dashboard/user/workflow/:id`).
+   */
+  private isGenesisWorkflowListRoute(): boolean {
     const raw = this.router.url.split("?")[0];
     let path = raw === "" ? "/" : raw;
     if (path.length > 1) {
       path = path.replace(/\/+$/, "");
     }
-    if (path === "") {
-      path = "/";
-    }
+    return path === "/dashboard/user/workflow";
+  }
 
-    let result: boolean;
-    if (path === "/") {
-      result = true;
-    } else if (path === "/dashboard" || path.startsWith("/dashboard/home")) {
-      result = true;
-    } else {
-      result = /^\/dashboard\/user\/workflow(\/\d+)?$/.test(path);
+  private highlightWorkflowList(): void {
+    const el = this.document.querySelector(".genesis-workflow-drop-host") as HTMLElement | null;
+    if (!el || this.dropHostEl === el) {
+      if (el && !this.dropHostEl) {
+        this.dropHostEl = el;
+        this.renderer.addClass(this.dropHostEl, "genesis-active-dropzone");
+      }
+      return;
     }
-    console.log("[Genesis] isGenesisRoute check:", path, "→", result);
-    return result;
+    this.clearListHighlight();
+    this.dropHostEl = el;
+    this.renderer.addClass(this.dropHostEl, "genesis-active-dropzone");
+  }
+
+  private clearListHighlight(): void {
+    if (this.dropHostEl) {
+      this.renderer.removeClass(this.dropHostEl, "genesis-active-dropzone");
+      this.dropHostEl = null;
+    }
   }
 
   private showDropOverlay(): void {
+    this.highlightWorkflowList();
     if (this.overlayEl) {
       return;
     }
@@ -145,7 +157,7 @@ export class GlobalDragDropDirective implements OnDestroy {
     this.renderer.addClass(el, "texera-genesis-drop-overlay");
     const inner = this.renderer.createElement("div");
     this.renderer.addClass(inner, "texera-genesis-drop-overlay__inner");
-    const text = this.renderer.createText("🧬 Drop CSV to analyze");
+    const text = this.renderer.createText("Drop your CSV here to start AI analysis");
     this.renderer.appendChild(inner, text);
     this.renderer.appendChild(el, inner);
     this.renderer.appendChild(this.document.body, el);
@@ -153,6 +165,7 @@ export class GlobalDragDropDirective implements OnDestroy {
   }
 
   private hideDropOverlay(): void {
+    this.clearListHighlight();
     if (this.overlayEl) {
       this.renderer.removeChild(this.document.body, this.overlayEl);
       this.overlayEl = null;

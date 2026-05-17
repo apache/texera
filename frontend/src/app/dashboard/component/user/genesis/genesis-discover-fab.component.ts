@@ -292,18 +292,15 @@ export class GenesisDiscoverFabComponent implements OnInit {
     }, 3000);
   }
 
+  /**
+   * Onboarding FAB + toast: **workflow list** only, never on `/dashboard/user/workflow/:id` (editor).
+   */
   private isGenesisRoute(rawUrl: string): boolean {
     const raw = (rawUrl || "/").split("?")[0];
     let path = raw === "" ? "/" : raw;
     if (path.length > 1) {
       path = path.replace(/\/+$/, "");
     }
-    if (path === "/") {
-      return true;
-    }
-    if (path === "/dashboard" || path.startsWith("/dashboard/home")) {
-      return true;
-    }
-    return /^\/dashboard\/user\/workflow(\/\d+)?$/.test(path);
+    return path === "/dashboard/user/workflow";
   }
 }

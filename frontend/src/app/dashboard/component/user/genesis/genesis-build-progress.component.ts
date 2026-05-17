@@ -17,26 +17,27 @@
  * under the License.
  */
 
-import { Injectable, signal } from "@angular/core";
+import { Component, Input } from "@angular/core";
+import { GenesisStepItem, GenesisStepsPanelComponent } from "./genesis-steps-panel.component";
 
-@Injectable({
-  providedIn: "root",
+/** Genesis workflow build: step list overlay (matches genesis-card loading UX). */
+@Component({
+  selector: "texera-genesis-build-progress",
+  standalone: true,
+  imports: [GenesisStepsPanelComponent],
+  template: `
+    <div class="genesis-build-progress-shell">
+      <texera-genesis-steps-panel [steps]="steps"></texera-genesis-steps-panel>
+    </div>
+  `,
+  styles: [
+    `
+      .genesis-build-progress-shell {
+        padding: 8px 0;
+      }
+    `,
+  ],
 })
-export class GenesisBuildProgressService {
-  readonly lines = signal<string[]>([]);
-  /** Latest agent step index + human-readable line (from WebSocket "step" messages). */
-  readonly agentStep = signal<{ index: number | null; line: string }>({ index: null, line: "" });
-
-  public clear(): void {
-    this.lines.set([]);
-    this.agentStep.set({ index: null, line: "" });
-  }
-
-  public addLine(text: string): void {
-    this.lines.update(lines => [...lines, text]);
-  }
-
-  public setAgentStep(index: number | null, line: string): void {
-    this.agentStep.set({ index, line });
-  }
+export class GenesisBuildProgressComponent {
+  @Input() steps: GenesisStepItem[] = [];
 }

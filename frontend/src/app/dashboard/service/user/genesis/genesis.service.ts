@@ -42,8 +42,16 @@ export interface Suggestion {
   description: string;
   estimated_runtime_seconds: number;
   analysis_type?: string;
+  goal_for_agent?: string;
+  /** Workflow builder task (from LLM classifier). */
+  task_type?: string;
+  /** Optional Sklearn operator hint, e.g. SklearnLogisticRegression. */
+  algorithm?: string | null;
+  /** Feature columns for Projection; empty means all non-target columns. */
+  feature_cols?: string[];
   /** Per-card prediction target; may be absent for clustering flows. */
   target_column?: string | null;
+  error?: boolean;
 }
 
 export interface AnalyzeResponse {
@@ -59,6 +67,12 @@ export interface AnalyzeResponse {
   file_path?: string;
   dataset_id?: number;
   dataset_name?: string;
+  llm_error?: boolean;
+}
+
+export interface GenesisBuildResponse {
+  wid: number;
+  workflow_name: string;
 }
 
 export type GenesisInstantiateMode = "template" | "agent";
@@ -115,7 +129,20 @@ const MOCK_ANALYZE_RESPONSE: AnalyzeResponse = {
       description: "Train a classifier to predict diabetes onset",
       estimated_runtime_seconds: 15,
       analysis_type: "classification",
+      task_type: "classification",
       target_column: "Outcome",
+      algorithm: "SklearnLogisticRegression",
+      feature_cols: [
+        "Pregnancies",
+        "Glucose",
+        "BloodPressure",
+        "SkinThickness",
+        "Insulin",
+        "BMI",
+        "DiabetesPedigreeFunction",
+        "Age",
+      ],
+      goal_for_agent: "Classification with SklearnLogisticRegression and SklearnPrediction; target Outcome.",
     },
     {
       id: "diabetes_risk_factors",
@@ -123,7 +150,20 @@ const MOCK_ANALYZE_RESPONSE: AnalyzeResponse = {
       description: "Find the attributes that drive diabetes risk",
       estimated_runtime_seconds: 10,
       analysis_type: "classification",
+      task_type: "exploration",
       target_column: "Outcome",
+      algorithm: "SklearnRandomForest",
+      feature_cols: [
+        "Pregnancies",
+        "Glucose",
+        "BloodPressure",
+        "SkinThickness",
+        "Insulin",
+        "BMI",
+        "DiabetesPedigreeFunction",
+        "Age",
+      ],
+      goal_for_agent: "RandomForest feature importance with BarChart; target Outcome.",
     },
     {
       id: "diabetes_clustering",
@@ -131,7 +171,9 @@ const MOCK_ANALYZE_RESPONSE: AnalyzeResponse = {
       description: "Group patients by similar feature profiles",
       estimated_runtime_seconds: 12,
       analysis_type: "clustering",
+      task_type: "exploration",
       target_column: null,
+      goal_for_agent: "KMeans clustering via PythonUDFV2 on numeric features; Scatterplot.",
     },
   ],
 };
@@ -165,12 +207,36 @@ export class GenesisService {
     return this.http.post<AnalyzeResponse>("/api/genesis/analyze", req);
   }
 
+  public build(params: {
+    uploadId: string;
+    cardIndex: number;
+    jwt: string;
+    freeText?: string;
+    wid?: number;
+  }): Observable<GenesisBuildResponse> {
+    if (USE_MOCK) {
+      return of({ wid: 1, workflow_name: "[Genesis] Mock workflow" }).pipe(delay(400));
+    }
+    return this.http.post<GenesisBuildResponse>("/api/genesis/build", {
+      upload_id: params.uploadId,
+      card_index: params.cardIndex,
+      free_text: params.freeText?.trim() ? params.freeText.trim() : null,
+      wid: params.wid ?? null,
+      jwt_token: params.jwt,
+    });
+  }
+
   public instantiate(
     suggestionId: string,
     datasetId: number,
     filePath: string,
     targetCol: string,
-    options?: { mode?: GenesisInstantiateMode; columns?: string[]; uploadId?: string }
+    options?: {
+      mode?: GenesisInstantiateMode;
+      columns?: string[];
+      uploadId?: string;
+      customGoal?: string;
+    }
   ): Observable<InstantiateResponse> {
     if (USE_MOCK) {
       return of(MOCK_INSTANTIATE_RESPONSE).pipe(delay(300));
@@ -185,6 +251,9 @@ export class GenesisService {
     };
     if (options?.uploadId) {
       body.upload_id = options.uploadId;
+    }
+    if (options?.customGoal?.trim()) {
+      body.custom_goal = options.customGoal.trim();
     }
     return this.http.post<InstantiateResponse>("/api/genesis/instantiate", body);
   }

@@ -53,6 +53,7 @@ import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
+import { AiInsightPanelComponent } from "./ai-insight-panel/ai-insight-panel.component";
 import { ResultPanelComponent } from "./result-panel/result-panel.component";
 import { WorkflowEditorComponent } from "./workflow-editor/workflow-editor.component";
 import { MenuComponent } from "./menu/menu.component";
@@ -75,6 +76,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
   ],
   imports: [
     NzSpinComponent,
+    AiInsightPanelComponent,
     ResultPanelComponent,
     WorkflowEditorComponent,
     MenuComponent,

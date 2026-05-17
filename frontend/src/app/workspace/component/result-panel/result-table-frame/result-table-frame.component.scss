@@ -99,6 +99,23 @@ th.header-size {
   white-space: nowrap;
 }
 
+/* Genesis / PythonUDF insight text: wide column + full paragraph (fixed table layout) */
+.result-table__th--insight {
+  min-width: 720px !important;
+}
+
+.table-cell--insight-wide {
+  min-width: 720px;
+  max-width: min(960px, 92vw);
+}
+
+.table-cell--insight-wide .cell-content {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+}
+
 .download-button {
   position: absolute;
   right: 4px;

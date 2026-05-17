@@ -18,29 +18,72 @@
  */
 
 import { CommonModule } from "@angular/common";
-import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output } from "@angular/core";
+import {
+  Component,
+  ChangeDetectorRef,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  Output,
+  SimpleChanges,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
 import { AnalyzeResponse, UploadResponse } from "../../../service/user/genesis/genesis.service";
+import { GenesisStepItem, GenesisStepsPanelComponent } from "./genesis-steps-panel.component";
 
 export type GenesisCardChoice =
   | { kind: "suggestion"; suggestionId: string }
+  | { kind: "custom"; text: string }
   | { kind: "skip" }
   | { kind: "cancel" };
 
 @Component({
   selector: "texera-genesis-card",
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, GenesisStepsPanelComponent],
   templateUrl: "./genesis-card.component.html",
   styleUrls: ["./genesis-card.component.scss"],
 })
-export class GenesisCardComponent implements OnInit, OnDestroy {
-  @Input({ required: true }) data!: { upload: UploadResponse; analyze: AnalyzeResponse };
+export class GenesisCardComponent implements OnInit, OnDestroy, OnChanges {
+  /**
+   * When null, only the optional thinking banner is shown (upload/analyze in flight).
+   * When set, the full pick UI is rendered.
+   */
+  @Input() data: { upload: UploadResponse; analyze: AnalyzeResponse } | null = null;
+  /** Upload/analyze phased steps (Linear-style checklist). Empty when idle. */
+  @Input() analysisSteps: GenesisStepItem[] = [];
+
   @Output() choice = new EventEmitter<GenesisCardChoice>();
 
   /** Fade-out before emit. */
   visible = true;
 
-  constructor(private host: ElementRef<HTMLElement>) {}
+  customGoalText = "";
+
+  /** Staggered visibility for suggestion cards ( indices true = visible ). */
+  cardVisible: boolean[] = [];
+
+  private staggerTimers: number[] = [];
+
+  get headerTitle(): string {
+    if (!this.data) {
+      return "";
+    }
+    const raw = (
+      this.data.analyze?.dataset_summary ||
+      this.data.analyze?.detected_scenario ||
+      "Dataset"
+    ).trim();
+    return raw || "Dataset";
+  }
+
+  constructor(
+    private host: ElementRef<HTMLElement>,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.host.nativeElement.focus();
@@ -49,9 +92,50 @@ export class GenesisCardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener("keydown", this.onKeyDown);
+    this.clearStaggerTimers();
   }
 
-  private readonly onKeyDown = (ev: KeyboardEvent) => {
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes["data"]) {
+      return;
+    }
+    this.clearStaggerTimers();
+    if (!this.data) {
+      this.cardVisible = [];
+      return;
+    }
+    const n = this.suggestions.length;
+    this.cardVisible = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) {
+      const tid = window.setTimeout(() => {
+        this.cardVisible[i] = true;
+        this.cdr.detectChanges();
+      }, 100 * i);
+      this.staggerTimers.push(tid);
+    }
+  }
+
+  private clearStaggerTimers(): void {
+    for (const t of this.staggerTimers) {
+      window.clearTimeout(t);
+    }
+    this.staggerTimers = [];
+  }
+
+  private readonly onKeyDown = (ev: KeyboardEvent): void => {
+    if (!this.data) {
+      return;
+    }
+    const target = ev.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === "TEXTAREA" ||
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
     const key = ev.key.toLowerCase();
     if (key === "a") {
       this.pickIndex(0);
@@ -59,33 +143,81 @@ export class GenesisCardComponent implements OnInit, OnDestroy {
       this.pickIndex(1);
     } else if (key === "c") {
       this.pickIndex(2);
+    } else if (key === "d") {
+      this.pickIndex(3);
     }
   };
 
   get displayRowCount(): number {
-    const a = this.data?.analyze;
-    const u = this.data?.upload;
-    return (
-      a?.row_count ??
-      u?.row_count ??
-      u?.sample_rows?.length ??
-      0
-    );
+    if (!this.data) {
+      return 0;
+    }
+    const a = this.data.analyze;
+    const u = this.data.upload;
+    return a?.row_count ?? u?.row_count ?? u?.sample_rows?.length ?? 0;
   }
 
   get suggestions() {
-    return (this.data?.analyze.suggestions ?? []).slice(0, 3);
+    if (!this.data) {
+      return [];
+    }
+    return (this.data.analyze.suggestions ?? []).slice(0, 4);
+  }
+
+  get analyzeError(): boolean {
+    return !!this.data?.analyze?.llm_error;
+  }
+
+  isChoiceDisabled(s: { error?: boolean }): boolean {
+    return !!s?.error;
+  }
+
+  cardStaggerClass(i: number): string {
+    if (i < 0 || i >= this.cardVisible.length) {
+      return "";
+    }
+    return this.cardVisible[i] ? "genesis-card__choice--stagger-visible" : "";
   }
 
   pickIndex(index: number): void {
+    if (!this.data) {
+      return;
+    }
     const s = this.suggestions[index];
-    if (!s) {
+    if (!s || this.isChoiceDisabled(s)) {
       return;
     }
     this.finish({ kind: "suggestion", suggestionId: s.id });
   }
 
+  onCustomBuild(): void {
+    if (!this.data) {
+      return;
+    }
+    const text = this.customGoalText.trim();
+    if (!text) {
+      return;
+    }
+    this.finish({ kind: "custom", text });
+  }
+
+  /** Cmd+Enter / Ctrl+Enter submits; plain Enter stays a newline in the textarea. */
+  onCustomGoalKeydown(ev: KeyboardEvent): void {
+    if (ev.key !== "Enter") {
+      return;
+    }
+    if (!ev.ctrlKey && !ev.metaKey) {
+      return;
+    }
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.onCustomBuild();
+  }
+
   onSkip(): void {
+    if (!this.data) {
+      return;
+    }
     this.finish({ kind: "skip" });
   }
 

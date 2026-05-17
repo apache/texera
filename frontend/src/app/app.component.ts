@@ -33,11 +33,8 @@ import { UntilDestroy } from "@ngneat/until-destroy";
       <p>Please ensure the ConfigService is running and accessible.</p>
       <button (click)="retry()">Retry</button>
     </div>
-    <div
-      *ngIf="configLoaded"
-      texeraGlobalGenesisDragDrop>
+    <div *ngIf="configLoaded">
       <router-outlet></router-outlet>
-      <texera-genesis-discover-fab></texera-genesis-discover-fab>
     </div>
   `,
   standalone: false,

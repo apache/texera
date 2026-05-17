@@ -190,8 +190,6 @@ import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
 import { RegistrationRequestModalComponent } from "./common/service/user/registration-request-modal/registration-request-modal.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
 import { UserComputingUnitListItemComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit-list-item/user-computing-unit-list-item.component";
-import { GlobalDragDropDirective } from "./dashboard/component/user/genesis/global-drag-drop.directive";
-import { GenesisDiscoverFabComponent } from "./dashboard/component/user/genesis/genesis-discover-fab.component";
 
 registerLocaleData(en);
 
@@ -360,8 +358,6 @@ registerLocaleData(en);
     MarkdownDescriptionComponent,
     UserComputingUnitComponent,
     UserComputingUnitListItemComponent,
-    GlobalDragDropDirective,
-    GenesisDiscoverFabComponent,
   ],
   providers: [
     provideNzI18n(en_US),

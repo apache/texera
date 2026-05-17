@@ -1,0 +1,192 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: block;
+  position: fixed;
+  left: 16px;
+  bottom: 44px;
+  z-index: 5;
+  max-width: min(720px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.ai-insight {
+  pointer-events: auto;
+}
+
+.ai-insight__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.ai-insight__toolbar-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ai-insight__toolbar-hint {
+  font-weight: 400;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.ai-insight__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-insight__icon-btn {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  font-size: 16px;
+
+  &:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #111827;
+  }
+}
+
+.ai-insight__card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 720px;
+  margin: 0 auto;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 8px 28px rgba(15, 23, 42, 0.1);
+  border: 1px solid #e5e7eb;
+  box-sizing: border-box;
+}
+
+.ai-insight__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ai-insight__herotitles {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-insight__title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 650;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.ai-insight__subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.ai-insight__sparkle {
+  flex-shrink: 0;
+  font-size: 1.4rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.ai-insight__section {
+  margin-bottom: 24px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.ai-insight__section-header {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  letter-spacing: 0.05em;
+}
+
+.ai-insight__section-body {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #111827;
+}
+
+.ai-insight__list {
+  margin: 0;
+  padding-left: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #111827;
+  list-style: none;
+}
+
+.ai-insight__list li {
+  margin-bottom: 6px;
+  padding-left: 1em;
+  position: relative;
+
+  &::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: #374151;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.ai-insight__placeholder {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #6b7280;
+  text-align: center;
+  padding: 12px 8px;
+}

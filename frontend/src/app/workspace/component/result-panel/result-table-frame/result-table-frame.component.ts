@@ -439,11 +439,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param columns
    */
   generateColumns(columns: { columnKey: any; columnText: string }[]): TableColumn[] {
-    return columns.map((col, index) => ({
-      columnDef: col.columnKey,
-      header: col.columnText,
-      getCell: (row: IndexableObject) => row[col.columnKey].toString(),
-    }));
+    return columns.map(col => {
+      const key = String(col.columnKey);
+      const isInsight = key.toLowerCase() === "insight";
+      return {
+        columnDef: key,
+        header: col.columnText,
+        getCell: (row: IndexableObject) => row[col.columnKey].toString(),
+        nzThWidth: isInsight ? "800px" : undefined,
+        useEllipsis: !isInsight,
+      };
+    });
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
