@@ -20,7 +20,7 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { BehaviorSubject, Observable, combineLatest, forkJoin, of, throwError } from "rxjs";
-import { catchError, map, timeout } from "rxjs/operators";
+import { catchError, debounceTime, distinctUntilChanged, map, switchMap, timeout } from "rxjs/operators";
 import { SEED_DATASETS } from "./dataset-bank.seed";
 import { BankCategory, BankDataset, BankDatasetSource } from "./dataset-bank.types";
 
@@ -36,6 +36,7 @@ const FETCH_TIMEOUT_MS = 6000;
 @Injectable({ providedIn: "root" })
 export class DatasetBankService {
   private readonly _datasets$ = new BehaviorSubject<BankDataset[]>(SEED_DATASETS);
+  private readonly _pubmedResults$ = new BehaviorSubject<BankDataset[]>([]);
   private readonly _searchQuery$ = new BehaviorSubject<string>("");
   private readonly _category$ = new BehaviorSubject<BankCategory | "all">("all");
   private readonly _isLoading$ = new BehaviorSubject<boolean>(false);
@@ -46,18 +47,29 @@ export class DatasetBankService {
   readonly isLoading$: Observable<boolean> = this._isLoading$.asObservable();
 
   /**
-   * Combined view: filtered + searched datasets. The component subscribes to this.
+   * Combined view: filtered + searched datasets (including live PubMed results).
+   * The component subscribes to this. PubMed papers come from `_pubmedResults$`,
+   * which the constructor keeps populated by debouncing the search query and
+   * hitting NCBI E-utilities (eSearch + eFetch).
    */
   readonly filteredDatasets$: Observable<BankDataset[]> = combineLatest([
     this._datasets$,
+    this._pubmedResults$,
     this._searchQuery$,
     this._category$,
   ]).pipe(
-    map(([datasets, query, category]) => {
+    map(([datasets, pubmed, query, category]) => {
       const q = query.trim().toLowerCase();
-      return datasets.filter(d => {
+      // PubMed results are already a query-specific list; only include them
+      // when the user is actively searching — otherwise the seed list would be
+      // polluted with results from an old query.
+      const combined = q ? [...pubmed, ...datasets] : datasets;
+      return combined.filter(d => {
         if (category !== "all" && !d.categories.includes(category)) return false;
         if (!q) return true;
+        // PubMed papers are always relevant to the current query (we fetched
+        // them with it), so accept them unconditionally.
+        if (d.source === "pubmed") return true;
         const haystack = (
           d.name +
           " " +
@@ -79,6 +91,21 @@ export class DatasetBankService {
     if (cached) {
       this._datasets$.next(this.mergeWithSeed(cached.datasets));
     }
+
+    // Live PubMed search on debounced query changes. Failures (network, CORS,
+    // empty query) clear results silently so the seed list stays clean.
+    this._searchQuery$
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged(),
+        switchMap(q => {
+          const trimmed = q.trim();
+          if (trimmed.length < 3) return of([] as BankDataset[]);
+          return this.searchPubmed(trimmed);
+        }),
+        catchError(() => of([] as BankDataset[]))
+      )
+      .subscribe(results => this._pubmedResults$.next(results));
   }
 
   setSearchQuery(q: string): void {
@@ -120,19 +147,51 @@ export class DatasetBankService {
   /**
    * Calls the agent-service `POST /api/dataset-bank/import-from-url` proxy,
    * which fetches the file server-side (no browser CORS) and runs the full
-   * `createDataset → multipart-upload → createDatasetVersion` pipeline. The
-   * frontend just needs the bearer token (added by the HttpClient interceptor)
-   * and the source URL + display name.
+   * `createDataset → multipart-upload → createDatasetVersion` pipeline.
+   *
+   * The body discriminator (sourceType) tells the proxy where the data comes from:
+   *   - "url"    → fetch d.downloadUrl || d.url verbatim (UCI/Kaggle/dkNET)
+   *   - "pubmed" → fetch NCBI eFetch for d.externalId, build a 1-row paper CSV
+   *   - "who"    → fetch GHO indicator d.externalId, build a (country,year,value) CSV
    */
   importToTexera(d: BankDataset): Observable<{ did: number; datasetName: string }> {
-    const fetchUrl = d.downloadUrl || d.url;
-    if (!fetchUrl) {
-      return throwError(() => new Error("No source URL is available for this dataset."));
+    let body: Record<string, unknown>;
+    if (d.source === "pubmed") {
+      if (!d.externalId) {
+        return throwError(() => new Error("PubMed paper is missing its PMID."));
+      }
+      body = {
+        sourceType: "pubmed",
+        pubmedId: d.externalId,
+        name: d.name,
+        description: d.description ?? "",
+      };
+    } else if (d.source === "who") {
+      if (!d.externalId) {
+        return throwError(() => new Error("WHO indicator entry is missing its indicator code."));
+      }
+      body = {
+        sourceType: "who",
+        whoIndicator: d.externalId,
+        name: d.name,
+        description: d.description ?? "",
+      };
+    } else {
+      const fetchUrl = d.downloadUrl || d.url;
+      if (!fetchUrl) {
+        return throwError(() => new Error("No source URL is available for this dataset."));
+      }
+      body = {
+        sourceType: "url",
+        url: fetchUrl,
+        name: d.name,
+        description: d.description ?? "",
+      };
     }
     return this.http
       .post<{ did: number; datasetName: string; fileName: string; fileSize: number }>(
         "/api/dataset-bank/import-from-url",
-        { url: fetchUrl, name: d.name, description: d.description ?? "" }
+        body
       )
       .pipe(
         map(resp => ({ did: resp.did, datasetName: resp.datasetName })),
@@ -141,6 +200,88 @@ export class DatasetBankService {
           return throwError(() => new Error(message));
         })
       );
+  }
+
+  /**
+   * Live PubMed search: NCBI eSearch returns up to 20 PMIDs for the query,
+   * eFetch returns paper details as XML which we parse client-side via
+   * DOMParser. Each paper becomes a BankDataset card; clicking Import sends
+   * the PMID to the backend proxy, which re-fetches and builds the CSV.
+   *
+   * NCBI E-utilities send `Access-Control-Allow-Origin: *`, so this fetch works
+   * directly from the browser. Failures (rate limiting, network, parse error)
+   * return [] so the seed list stays usable.
+   */
+  searchPubmed(query: string, maxResults: number = 10): Observable<BankDataset[]> {
+    const esearchUrl =
+      `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi` +
+      `?db=pubmed&retmode=json&retmax=${maxResults}&term=${encodeURIComponent(query)}`;
+    return this.http.get<unknown>(esearchUrl).pipe(
+      timeout(FETCH_TIMEOUT_MS),
+      switchMap(body => {
+        const r = (body ?? {}) as Record<string, any>;
+        const ids: string[] = Array.isArray(r?.esearchresult?.idlist) ? r.esearchresult.idlist : [];
+        if (ids.length === 0) return of([] as BankDataset[]);
+        const efetchUrl =
+          `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi` +
+          `?db=pubmed&retmode=xml&id=${ids.join(",")}`;
+        return this.http
+          .get(efetchUrl, { responseType: "text" })
+          .pipe(map(xml => this.parsePubmedXml(xml, ids)));
+      }),
+      catchError(() => of([] as BankDataset[]))
+    );
+  }
+
+  private parsePubmedXml(xml: string, requestedIds: string[]): BankDataset[] {
+    let doc: Document;
+    try {
+      doc = new DOMParser().parseFromString(xml, "text/xml");
+    } catch {
+      return [];
+    }
+    if (doc.getElementsByTagName("parsererror").length > 0) return [];
+    const articles = Array.from(doc.getElementsByTagName("PubmedArticle"));
+    const out: BankDataset[] = [];
+    for (let i = 0; i < articles.length; i++) {
+      const a = articles[i];
+      const pmid =
+        a.getElementsByTagName("PMID")[0]?.textContent?.trim() ?? requestedIds[i] ?? String(i);
+      const title = a.getElementsByTagName("ArticleTitle")[0]?.textContent?.trim() ?? "(untitled)";
+      const abstractParts = Array.from(a.getElementsByTagName("AbstractText"))
+        .map(n => n.textContent?.trim() ?? "")
+        .filter(Boolean);
+      const abstract = abstractParts.join(" ");
+      const journal = a.getElementsByTagName("Journal")[0]?.getElementsByTagName("Title")[0]?.textContent?.trim() ?? "";
+      const year =
+        a.getElementsByTagName("PubDate")[0]?.getElementsByTagName("Year")[0]?.textContent?.trim() ?? "";
+      const authorNodes = Array.from(a.getElementsByTagName("Author")).slice(0, 6);
+      const authors = authorNodes
+        .map(an => {
+          const last = an.getElementsByTagName("LastName")[0]?.textContent?.trim() ?? "";
+          const initials = an.getElementsByTagName("Initials")[0]?.textContent?.trim() ?? "";
+          return (last + (initials ? " " + initials : "")).trim();
+        })
+        .filter(Boolean);
+      const tags: string[] = [];
+      if (year) tags.push(year);
+      if (journal) tags.push(journal.length > 30 ? journal.slice(0, 30) + "…" : journal);
+      out.push({
+        id: `live-pubmed-${pmid}`,
+        name: title,
+        source: "pubmed",
+        externalId: pmid,
+        description: abstract || (authors.length > 0 ? `Authors: ${authors.join(", ")}` : "No abstract available."),
+        url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+        format: "csv",
+        rows: 1,
+        columns: 5,
+        sizeLabel: "~2 KB",
+        tags,
+        categories: ["biomedical", "nlp"],
+      });
+    }
+    return out;
   }
 
   // ---------- internals ----------

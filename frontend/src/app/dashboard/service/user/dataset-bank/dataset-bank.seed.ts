@@ -403,4 +403,74 @@ export const SEED_DATASETS: BankDataset[] = [
     tags: ["vision", "detection", "segmentation"],
     categories: ["cv"],
   },
+
+  // ---------- WHO Global Health Observatory indicators ----------
+  // Import fetches https://ghoapi.azureedge.net/api/<externalId> and emits a
+  // (country, year, sex, value) CSV. The catalog link is the indicator's GHO
+  // data portal entry.
+  {
+    id: "seed-who-life-expectancy",
+    name: "Life Expectancy at Birth (Years)",
+    source: "who",
+    externalId: "WHOSIS_000001",
+    description:
+      "WHO GHO indicator: life expectancy at birth, by country and year. Stratified by sex when available. Useful for cross-country health comparisons.",
+    url: "https://www.who.int/data/gho/indicator-metadata-registry/imr-details/65",
+    format: "csv",
+    sizeLabel: "~200 KB",
+    tags: ["public_health", "demographics", "country"],
+    categories: ["public_health", "biomedical", "tabular"],
+  },
+  {
+    id: "seed-who-hiv-prevalence",
+    name: "HIV Prevalence among Adults (15–49)",
+    source: "who",
+    externalId: "HIV_0000000001",
+    description:
+      "WHO GHO indicator: estimated HIV prevalence in adults aged 15–49 by country and year. Source of WHO global HIV epidemiology dashboards.",
+    url: "https://www.who.int/data/gho/data/indicators/indicator-details/GHO/prevalence-of-hiv-among-adults-aged-15-to-49-(-)",
+    format: "csv",
+    sizeLabel: "~150 KB",
+    tags: ["hiv", "public_health", "country"],
+    categories: ["public_health", "biomedical"],
+  },
+  {
+    id: "seed-who-tuberculosis-incidence",
+    name: "Tuberculosis Incidence (per 100k)",
+    source: "who",
+    externalId: "MDG_0000000020",
+    description:
+      "WHO GHO indicator: estimated TB incidence rate (new and relapse cases per 100,000 population per year) by country.",
+    url: "https://www.who.int/data/gho/data/indicators/indicator-details/GHO/incidence-of-tuberculosis-(per-100-000-population-per-year)",
+    format: "csv",
+    sizeLabel: "~250 KB",
+    tags: ["tuberculosis", "public_health", "country"],
+    categories: ["public_health", "biomedical", "time_series"],
+  },
+  {
+    id: "seed-who-malaria-deaths",
+    name: "Malaria Estimated Deaths",
+    source: "who",
+    externalId: "MALARIA_EST_DEATHS",
+    description:
+      "WHO GHO indicator: estimated number of malaria deaths by country and year. Drives the World Malaria Report tables.",
+    url: "https://www.who.int/data/gho/data/indicators/indicator-details/GHO/estimated-number-of-malaria-deaths",
+    format: "csv",
+    sizeLabel: "~120 KB",
+    tags: ["malaria", "public_health", "country"],
+    categories: ["public_health", "biomedical"],
+  },
+  {
+    id: "seed-who-child-mortality",
+    name: "Under-Five Mortality Rate (per 1,000 live births)",
+    source: "who",
+    externalId: "MDG_0000000007",
+    description:
+      "WHO GHO indicator: probability of dying between birth and age 5 per 1,000 live births, by country, year, and sex.",
+    url: "https://www.who.int/data/gho/data/indicators/indicator-details/GHO/under-five-mortality-rate-(probability-of-dying-by-age-5-per-1000-live-births)",
+    format: "csv",
+    sizeLabel: "~250 KB",
+    tags: ["mortality", "public_health", "country", "children"],
+    categories: ["public_health", "biomedical", "time_series"],
+  },
 ];

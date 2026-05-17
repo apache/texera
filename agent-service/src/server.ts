@@ -24,7 +24,7 @@ import { TexeraAgent } from "./agent/texera-agent";
 import { getBackendConfig } from "./api/backend-api";
 import { extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
-import { DatasetImportError, importDatasetFromUrl } from "./api/dataset-import-api";
+import { DatasetImportError, importDataset, type ImportRequest } from "./api/dataset-import-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
@@ -505,18 +505,44 @@ const datasetBankRouter = new Elysia({ prefix: "/dataset-bank" })
         set.status = 401;
         return { error: "Invalid or expired token" };
       }
-      const result = await importDatasetFromUrl(token, {
-        url: body.url,
-        name: body.name,
-        description: body.description,
-      });
-      return result;
+      // Discriminate on sourceType. Default to "url" when omitted so older
+      // clients that send only { url, name, description } still work.
+      const sourceType = (body as any).sourceType ?? "url";
+      let req: ImportRequest;
+      if (sourceType === "pubmed") {
+        const pubmedId = (body as any).pubmedId;
+        if (typeof pubmedId !== "string" || pubmedId.length === 0) {
+          set.status = 400;
+          return { error: "pubmedId is required for sourceType=pubmed" };
+        }
+        req = { sourceType, pubmedId, name: body.name, description: body.description };
+      } else if (sourceType === "who") {
+        const whoIndicator = (body as any).whoIndicator;
+        if (typeof whoIndicator !== "string" || whoIndicator.length === 0) {
+          set.status = 400;
+          return { error: "whoIndicator is required for sourceType=who" };
+        }
+        req = { sourceType, whoIndicator, name: body.name, description: body.description };
+      } else {
+        const url = (body as any).url;
+        if (typeof url !== "string" || url.length === 0) {
+          set.status = 400;
+          return { error: "url is required for sourceType=url" };
+        }
+        req = { sourceType: "url", url, name: body.name, description: body.description };
+      }
+      return await importDataset(token, req);
     },
     {
+      // Loose validation — we discriminate on sourceType inside the handler so
+      // each branch can require its own fields. Common required fields here.
       body: t.Object({
-        url: t.String({ minLength: 1 }),
         name: t.String({ minLength: 1 }),
         description: t.Optional(t.String()),
+        sourceType: t.Optional(t.Union([t.Literal("url"), t.Literal("pubmed"), t.Literal("who")])),
+        url: t.Optional(t.String()),
+        pubmedId: t.Optional(t.String()),
+        whoIndicator: t.Optional(t.String()),
       }),
     }
   );

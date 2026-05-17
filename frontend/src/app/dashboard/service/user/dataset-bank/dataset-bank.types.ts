@@ -17,7 +17,7 @@
  * under the License.
  */
 
-export type BankDatasetSource = "dknet" | "uci" | "kaggle";
+export type BankDatasetSource = "dknet" | "uci" | "kaggle" | "pubmed" | "who";
 
 export type BankCategory =
   | "biomedical"
@@ -26,7 +26,8 @@ export type BankCategory =
   | "finance"
   | "social_science"
   | "time_series"
-  | "tabular";
+  | "tabular"
+  | "public_health";
 
 export interface BankDataset {
   id: string;
@@ -43,6 +44,14 @@ export interface BankDataset {
   sizeLabel?: string;
   tags: string[];
   categories: BankCategory[];
+  /**
+   * Source-specific opaque identifier used by the backend import proxy to fetch
+   * the canonical data on demand (rather than scraping `url`). Examples:
+   *   - PubMed: PMID (e.g. "37398152")
+   *   - WHO:    GHO indicator code (e.g. "WHOSIS_000001")
+   * For UCI/Kaggle/dkNET entries the proxy uses `downloadUrl || url` and ignores this.
+   */
+  externalId?: string;
 }
 
 export const BANK_CATEGORY_LABELS: Record<BankCategory, string> = {
@@ -53,6 +62,7 @@ export const BANK_CATEGORY_LABELS: Record<BankCategory, string> = {
   social_science: "Social Science",
   time_series: "Time Series",
   tabular: "Tabular",
+  public_health: "Public Health",
 };
 
 export const BANK_CATEGORY_ORDER: BankCategory[] = [
@@ -63,12 +73,15 @@ export const BANK_CATEGORY_ORDER: BankCategory[] = [
   "social_science",
   "time_series",
   "tabular",
+  "public_health",
 ];
 
 export const BANK_SOURCE_LABELS: Record<BankDatasetSource, string> = {
   dknet: "dkNET",
   uci: "UCI",
   kaggle: "Kaggle",
+  pubmed: "PubMed",
+  who: "WHO",
 };
 
 export const BANK_SOURCE_COLORS: Record<BankDatasetSource, string> = {
@@ -76,4 +89,6 @@ export const BANK_SOURCE_COLORS: Record<BankDatasetSource, string> = {
   dknet: "purple",
   uci: "blue",
   kaggle: "cyan",
+  pubmed: "green",
+  who: "geekblue",
 };

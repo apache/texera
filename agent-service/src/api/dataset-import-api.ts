@@ -26,13 +26,12 @@ const log = createLogger("dataset-import");
 const PART_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 const FETCH_TIMEOUT_MS = 60_000;
 
-export interface ImportFromUrlRequest {
-  url: string;
-  name: string;
-  description?: string;
-}
+export type ImportRequest =
+  | { sourceType: "url"; url: string; name: string; description?: string }
+  | { sourceType: "pubmed"; pubmedId: string; name: string; description?: string }
+  | { sourceType: "who"; whoIndicator: string; name: string; description?: string };
 
-export interface ImportFromUrlResult {
+export interface ImportResult {
   did: number;
   datasetName: string;
   fileName: string;
@@ -58,7 +57,7 @@ function sanitizeDatasetName(name: string): string {
   return cleaned || "imported-dataset";
 }
 
-function guessFilename(name: string, sourceUrl: string): string {
+function guessFilenameFromUrl(name: string, sourceUrl: string): string {
   try {
     const u = new URL(sourceUrl);
     const last = u.pathname.split("/").filter(Boolean).pop();
@@ -69,7 +68,7 @@ function guessFilename(name: string, sourceUrl: string): string {
   return `${sanitizeDatasetName(name)}.csv`;
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<ArrayBuffer> {
+async function fetchUrlBytes(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<ArrayBuffer> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -83,53 +82,175 @@ async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Prom
   }
 }
 
-/**
- * Server-side dataset import. The frontend can't fetch arbitrary catalog URLs
- * because of CORS; this proxy runs in agent-service (Bun/Node) and has no such
- * restriction, then drives the existing dashboard dataset endpoints with the
- * caller's bearer token forwarded verbatim.
- *
- * Pipeline mirrors the browser flow in DatasetService.multipartUpload:
- *   1. createDataset                              -> did
- *   2. multipart-upload?type=init                 -> missingParts[]
- *   3. multipart-upload/part?partNumber=N         (per chunk)
- *   4. multipart-upload?type=finish               -> committed
- *   5. {did}/version/create  body "v1"            -> published
- */
-export async function importDatasetFromUrl(
+async function fetchUrlJson<T = unknown>(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<T> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    if (!resp.ok) {
+      throw new DatasetImportError(`Source responded ${resp.status} ${resp.statusText}`, 502);
+    }
+    return (await resp.json()) as T;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchUrlText(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<string> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { method: "GET", signal: controller.signal, redirect: "follow" });
+    if (!resp.ok) {
+      throw new DatasetImportError(`Source responded ${resp.status} ${resp.statusText}`, 502);
+    }
+    return await resp.text();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const s = String(value);
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function toCsv(headers: string[], rows: unknown[][]): Uint8Array {
+  const lines = [headers.join(",")];
+  for (const row of rows) {
+    lines.push(row.map(csvEscape).join(","));
+  }
+  return new TextEncoder().encode(lines.join("\n") + "\n");
+}
+
+// ---------- PubMed: eFetch a single PMID, parse 5 fields, emit 1-row CSV ----------
+
+function stripTags(s: string): string {
+  return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+function extractAllMatches(xml: string, tag: string): string[] {
+  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "g");
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    out.push(stripTags(m[1]));
+  }
+  return out;
+}
+
+function extractFirst(xml: string, tag: string): string {
+  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`);
+  const m = re.exec(xml);
+  return m ? stripTags(m[1]) : "";
+}
+
+async function buildPubmedCsv(pmid: string): Promise<{ bytes: Uint8Array; fileName: string }> {
+  if (!/^\d+$/.test(pmid)) {
+    throw new DatasetImportError(`Invalid PubMed PMID: ${pmid}`, 400);
+  }
+  const xml = await fetchUrlText(
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&retmode=xml&id=${pmid}`
+  );
+  // Extract just the <PubmedArticle> block we care about — pmid is unique so
+  // exactly one article should be returned.
+  const articleMatch = /<PubmedArticle\b[\s\S]*?<\/PubmedArticle>/.exec(xml);
+  if (!articleMatch) {
+    throw new DatasetImportError(`PubMed returned no article for PMID ${pmid}.`, 502);
+  }
+  const article = articleMatch[0];
+  const title = extractFirst(article, "ArticleTitle");
+  const abstractParts = extractAllMatches(article, "AbstractText");
+  const abstract = abstractParts.join(" ");
+  const journal = extractFirst(article, "Title"); // Journal/Title is the journal name
+  const year = extractFirst(article, "Year");
+  const authorBlocks = article.match(/<Author\b[^>]*>[\s\S]*?<\/Author>/g) ?? [];
+  const authors = authorBlocks
+    .map(block => {
+      const last = extractFirst(block, "LastName");
+      const initials = extractFirst(block, "Initials");
+      return (last + (initials ? " " + initials : "")).trim();
+    })
+    .filter(Boolean)
+    .slice(0, 12)
+    .join("; ");
+  const headers = ["pmid", "title", "abstract", "authors", "journal", "year"];
+  const bytes = toCsv(headers, [[pmid, title, abstract, authors, journal, year]]);
+  const fileName = `pubmed-${pmid}.csv`;
+  return { bytes, fileName };
+}
+
+// ---------- WHO: GHO indicator JSON → (Country, Year, Sex, Value) CSV ----------
+
+interface GhoRow {
+  SpatialDim?: string;
+  TimeDim?: number | string;
+  Dim1?: string;
+  NumericValue?: number | null;
+  Value?: string | null;
+}
+interface GhoResponse {
+  value?: GhoRow[];
+}
+
+async function buildWhoCsv(indicator: string): Promise<{ bytes: Uint8Array; fileName: string }> {
+  if (!/^[A-Z0-9_]+$/i.test(indicator)) {
+    throw new DatasetImportError(`Invalid WHO indicator code: ${indicator}`, 400);
+  }
+  const json = await fetchUrlJson<GhoResponse>(`https://ghoapi.azureedge.net/api/${indicator}`);
+  const items = json?.value ?? [];
+  if (items.length === 0) {
+    throw new DatasetImportError(`WHO indicator ${indicator} returned no rows.`, 502);
+  }
+  const rows = items.map(r => [
+    r.SpatialDim ?? "",
+    r.TimeDim ?? "",
+    r.Dim1 ?? "",
+    r.NumericValue !== undefined && r.NumericValue !== null ? r.NumericValue : "",
+    r.Value ?? "",
+  ]);
+  const bytes = toCsv(["country", "year", "sex", "numeric_value", "value"], rows);
+  return { bytes, fileName: `who-${indicator}.csv` };
+}
+
+// ---------- Shared upload pipeline ----------
+
+async function uploadToTexera(
   token: string,
-  req: ImportFromUrlRequest
-): Promise<ImportFromUrlResult> {
-  // Dataset endpoints (create / multipart-upload / version/create) are served
-  // by file-service (port 9092), not amber/dashboard.
+  bytes: Uint8Array,
+  fileName: string,
+  datasetName: string,
+  description: string
+): Promise<ImportResult> {
   const base = getBackendConfig().fileServiceEndpoint;
   const user = extractUserFromToken(token);
   if (!user.email) {
     throw new DatasetImportError("Token does not include the user's email.", 401);
   }
-  const datasetName = sanitizeDatasetName(req.name);
-  const fileName = guessFilename(req.name, req.url);
-
-  // 0. Fetch the source file.
-  const buffer = await fetchWithTimeout(req.url);
-  const file = new Uint8Array(buffer);
-  if (file.byteLength === 0) {
+  if (bytes.byteLength === 0) {
     throw new DatasetImportError("Source returned an empty file.", 502);
   }
 
   const authHeaders = createAuthHeaders(token);
-  // JSON requests use the auth headers as-is (already include Content-Type: application/json);
-  // raw chunk uploads override Content-Type below.
 
-  // 1. Create the dataset.
+  // 1. createDataset
   const createUrl = `${base}/api/dataset/create`;
-  log.info({ url: createUrl, datasetName, fileBytes: file.byteLength }, "creating dataset");
+  log.info({ url: createUrl, datasetName, fileBytes: bytes.byteLength }, "creating dataset");
   const createResp = await fetch(createUrl, {
     method: "POST",
     headers: authHeaders,
     body: JSON.stringify({
       datasetName,
-      datasetDescription: req.description ?? "",
+      datasetDescription: description,
       isDatasetPublic: false,
       isDatasetDownloadable: true,
     }),
@@ -139,38 +260,36 @@ export async function importDatasetFromUrl(
     log.error({ url: createUrl, status: createResp.status, body: text }, "createDataset failed");
     throw new DatasetImportError(`createDataset failed: ${createResp.status} ${text}`, createResp.status);
   }
-  const created = (await createResp.json()) as { dataset?: { did?: number; name?: string } };
+  const created = (await createResp.json()) as { dataset?: { did?: number } };
   const did = created.dataset?.did;
   if (did === undefined || did === null) {
     throw new DatasetImportError("createDataset returned no dataset id.", 502);
   }
 
-  // 2. Init multipart upload.
+  // 2. init multipart upload
   const initUrl =
     `${base}/api/dataset/multipart-upload` +
     `?type=init` +
     `&ownerEmail=${encodeURIComponent(user.email)}` +
     `&datasetName=${encodeURIComponent(datasetName)}` +
     `&filePath=${encodeURIComponent(encodeURIComponent(fileName))}` +
-    `&fileSizeBytes=${file.byteLength}` +
+    `&fileSizeBytes=${bytes.byteLength}` +
     `&partSizeBytes=${PART_SIZE_BYTES}` +
     `&restart=false`;
   log.info({ url: initUrl, did }, "multipart-upload init");
   const initResp = await fetch(initUrl, { method: "POST", headers: authHeaders, body: "{}" });
   if (!initResp.ok) {
     const text = await initResp.text();
-    log.error({ url: initUrl, status: initResp.status, body: text }, "multipart-upload init failed");
+    log.error({ url: initUrl, status: initResp.status, body: text }, "init failed");
     throw new DatasetImportError(`multipart-upload init failed: ${initResp.status} ${text}`, initResp.status);
   }
   const init = (await initResp.json()) as { missingParts: number[]; completedPartsCount: number };
-  const missing = init.missingParts ?? [];
 
-  // 3. Upload each missing part.
-  for (const partNumber of missing) {
+  // 3. upload each missing part
+  for (const partNumber of init.missingParts ?? []) {
     const start = (partNumber - 1) * PART_SIZE_BYTES;
-    const end = Math.min(start + PART_SIZE_BYTES, file.byteLength);
-    const chunk = file.subarray(start, end);
-
+    const end = Math.min(start + PART_SIZE_BYTES, bytes.byteLength);
+    const chunk = bytes.subarray(start, end);
     const partUrl =
       `${base}/api/dataset/multipart-upload/part` +
       `?ownerEmail=${encodeURIComponent(user.email)}` +
@@ -179,10 +298,7 @@ export async function importDatasetFromUrl(
       `&partNumber=${partNumber}`;
     const partResp = await fetch(partUrl, {
       method: "POST",
-      headers: {
-        Authorization: authHeaders.Authorization,
-        "Content-Type": "application/octet-stream",
-      },
+      headers: { Authorization: authHeaders.Authorization, "Content-Type": "application/octet-stream" },
       body: chunk,
     });
     if (!partResp.ok) {
@@ -195,7 +311,7 @@ export async function importDatasetFromUrl(
     }
   }
 
-  // 4. Finish multipart upload.
+  // 4. finish
   const finishUrl =
     `${base}/api/dataset/multipart-upload` +
     `?type=finish` +
@@ -210,7 +326,7 @@ export async function importDatasetFromUrl(
     throw new DatasetImportError(`multipart-upload finish failed: ${finishResp.status} ${text}`, finishResp.status);
   }
 
-  // 5. Publish v1.
+  // 5. publish v1
   const versionUrl = `${base}/api/dataset/${did}/version/create`;
   log.info({ url: versionUrl, did }, "creating version v1");
   const versionResp = await fetch(versionUrl, {
@@ -224,6 +340,45 @@ export async function importDatasetFromUrl(
     throw new DatasetImportError(`createDatasetVersion failed: ${versionResp.status} ${text}`, versionResp.status);
   }
 
-  log.info({ did, datasetName, fileBytes: file.byteLength }, "dataset import succeeded");
-  return { did, datasetName, fileName, fileSize: file.byteLength };
+  log.info({ did, datasetName, fileBytes: bytes.byteLength }, "dataset import succeeded");
+  return { did, datasetName, fileName, fileSize: bytes.byteLength };
+}
+
+/**
+ * Server-side dataset import for the Dataset Bank page. The frontend can't
+ * fetch arbitrary catalog URLs (CORS), so we do it here and drive the
+ * existing dashboard upload pipeline with the caller's bearer token.
+ *
+ * Source-specific behavior:
+ *   - "url":    download the URL verbatim (UCI / Kaggle / dkNET direct files)
+ *   - "pubmed": fetch NCBI eFetch for pubmedId, emit a 1-row CSV with
+ *               (pmid, title, abstract, authors, journal, year)
+ *   - "who":    fetch GHO indicator JSON, emit a (country, year, sex,
+ *               numeric_value, value) CSV across all returned rows
+ */
+export async function importDataset(token: string, req: ImportRequest): Promise<ImportResult> {
+  const datasetName = sanitizeDatasetName(req.name);
+  const description = req.description ?? "";
+
+  let bytes: Uint8Array;
+  let fileName: string;
+
+  if (req.sourceType === "url") {
+    log.info({ sourceType: req.sourceType, url: req.url }, "fetching source");
+    const buf = await fetchUrlBytes(req.url);
+    bytes = new Uint8Array(buf);
+    fileName = guessFilenameFromUrl(req.name, req.url);
+  } else if (req.sourceType === "pubmed") {
+    log.info({ sourceType: req.sourceType, pubmedId: req.pubmedId }, "fetching pubmed");
+    const built = await buildPubmedCsv(req.pubmedId);
+    bytes = built.bytes;
+    fileName = built.fileName;
+  } else {
+    log.info({ sourceType: req.sourceType, whoIndicator: req.whoIndicator }, "fetching WHO");
+    const built = await buildWhoCsv(req.whoIndicator);
+    bytes = built.bytes;
+    fileName = built.fileName;
+  }
+
+  return uploadToTexera(token, bytes, fileName, datasetName, description);
 }
