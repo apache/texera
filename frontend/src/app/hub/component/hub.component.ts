@@ -21,6 +21,7 @@ import { Component, Input } from "@angular/core";
 import {
   DASHBOARD_HOME,
   DASHBOARD_HUB_DATASET_RESULT,
+  DASHBOARD_HUB_WORKFLOW_HUB,
   DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
@@ -44,6 +45,7 @@ export class HubComponent {
   protected readonly DASHBOARD_HOME = DASHBOARD_HOME;
   protected readonly DASHBOARD_HUB_WORKFLOW_RESULT = DASHBOARD_HUB_WORKFLOW_RESULT;
   protected readonly DASHBOARD_HUB_DATASET_RESULT = DASHBOARD_HUB_DATASET_RESULT;
+  protected readonly DASHBOARD_HUB_WORKFLOW_HUB = DASHBOARD_HUB_WORKFLOW_HUB;
 
   constructor(protected config: GuiConfigService) {}
 }

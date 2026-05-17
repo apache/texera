@@ -1,0 +1,81 @@
+<div class="publish-dialog">
+  <form nz-form nzLayout="vertical">
+    <nz-form-item>
+      <nz-form-label>Select a workflow to publish</nz-form-label>
+      <nz-select
+        [(ngModel)]="selectedWid"
+        name="selectedWid"
+        [nzLoading]="loading"
+        nzPlaceHolder="Choose one of your workflows (optional)"
+        (ngModelChange)="onWorkflowChange()"
+        nzAllowClear>
+        <nz-option
+          *ngFor="let w of myWorkflows"
+          [nzValue]="w.workflow.wid"
+          [nzLabel]="w.workflow.name"></nz-option>
+      </nz-select>
+      <div class="publish-dialog__hint">
+        Don't have one selected? You can still create a hub listing with custom metadata.
+      </div>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label nzRequired>Title</nz-form-label>
+      <input
+        nz-input
+        [(ngModel)]="title"
+        name="title"
+        placeholder="e.g. Diabetes Prediction (CRISP-DM)" />
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label nzRequired>Description</nz-form-label>
+      <textarea
+        nz-input
+        [(ngModel)]="description"
+        name="description"
+        rows="3"
+        placeholder="What does this workflow do? What dataset and approach?"></textarea>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label>Category</nz-form-label>
+      <nz-select [(ngModel)]="category" name="category">
+        <nz-option
+          *ngFor="let c of categories"
+          [nzValue]="c.key"
+          [nzLabel]="c.label"></nz-option>
+      </nz-select>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label>Tags</nz-form-label>
+      <input
+        nz-input
+        [(ngModel)]="tagsRaw"
+        name="tags"
+        placeholder="comma-separated, e.g. healthcare, classification" />
+    </nz-form-item>
+
+    <div class="publish-dialog__preview" *ngIf="title && description">
+      <div class="publish-dialog__preview-label">Listing preview</div>
+      <div class="publish-dialog__preview-card">
+        <div class="publish-dialog__preview-title">{{ title }}</div>
+        <div class="publish-dialog__preview-desc">{{ description }}</div>
+      </div>
+    </div>
+
+    <div class="publish-dialog__footer">
+      <button nz-button type="button" (click)="cancel()">Cancel</button>
+      <button
+        nz-button
+        nzType="primary"
+        type="button"
+        [disabled]="!canPublish()"
+        [nzLoading]="publishing"
+        (click)="publish()">
+        Publish
+      </button>
+    </div>
+  </form>
+</div>

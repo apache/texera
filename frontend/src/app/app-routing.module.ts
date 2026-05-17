@@ -39,6 +39,8 @@ import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/us
 import { DatasetBankComponent } from "./dashboard/component/user/dataset-bank/dataset-bank.component";
 import { UserAgentComponent } from "./dashboard/component/user/user-agent/user-agent.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
+import { WorkflowHubListComponent } from "./hub/component/workflow-hub/workflow-hub-list/workflow-hub-list.component";
+import { WorkflowHubDetailComponent } from "./hub/component/workflow-hub/workflow-hub-detail/workflow-hub-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_ABOUT, DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
@@ -96,6 +98,20 @@ routes.push({
             {
               path: "result/detail/:did",
               component: DatasetDetailComponent,
+            },
+          ],
+        },
+        {
+          path: "workflow-hub",
+          children: [
+            {
+              path: "",
+              pathMatch: "full",
+              component: WorkflowHubListComponent,
+            },
+            {
+              path: "detail/:id",
+              component: WorkflowHubDetailComponent,
             },
           ],
         },
