@@ -20,6 +20,7 @@
 import { Component } from "@angular/core";
 import { GuiConfigService } from "./common/service/gui-config.service";
 import { UntilDestroy } from "@ngneat/until-destroy";
+import { DashboardResultCacheService } from "./dashboard/component/user/user-dashboard/dashboard-result-cache.service";
 
 @UntilDestroy()
 @Component({
@@ -40,7 +41,12 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 export class AppComponent {
   configLoaded = false;
 
-  constructor(private config: GuiConfigService) {
+  constructor(
+    private config: GuiConfigService,
+    // Eagerly instantiated so the dashboard's result cache starts listening
+    // to WorkflowResultService from app load.
+    _resultCache: DashboardResultCacheService
+  ) {
     // determine whether configuration was successfully loaded by APP_INITIALIZER
     try {
       // accessing env will throw if not loaded

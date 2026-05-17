@@ -44,6 +44,7 @@ import {
   DASHBOARD_USER_AGENT,
   DASHBOARD_USER_OPERATOR,
   DASHBOARD_USER_SNIPPET,
+  DASHBOARD_USER_DASHBOARD,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -119,6 +120,7 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_USER_AGENT = DASHBOARD_USER_AGENT;
   protected readonly DASHBOARD_USER_OPERATOR = DASHBOARD_USER_OPERATOR;
   protected readonly DASHBOARD_USER_SNIPPET = DASHBOARD_USER_SNIPPET;
+  protected readonly DASHBOARD_USER_DASHBOARD = DASHBOARD_USER_DASHBOARD;
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
   protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
   protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;

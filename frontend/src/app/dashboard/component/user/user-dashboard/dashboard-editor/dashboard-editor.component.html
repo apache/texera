@@ -1,0 +1,124 @@
+<div class="dashboard-editor" [class.view-mode]="mode === 'view'">
+  <div class="topbar">
+    <div class="left">
+      <button
+        nz-button
+        nzType="text"
+        class="back-btn"
+        nz-tooltip="Back to dashboards"
+        (click)="backToList()">
+        <span nz-icon nzType="arrow-left"></span>
+      </button>
+      <ng-container *ngIf="dashboard">
+        <input
+          *ngIf="editingName; else nameDisplay"
+          class="name-input"
+          nz-input
+          [(ngModel)]="nameDraft"
+          (blur)="saveName()"
+          (keydown.enter)="saveName()" />
+        <ng-template #nameDisplay>
+          <h1 class="name" (click)="mode === 'edit' && startEditName()">
+            {{ dashboard.name }}
+            <span *ngIf="mode === 'edit'" nz-icon nzType="edit" class="name-edit-icon"></span>
+          </h1>
+        </ng-template>
+      </ng-container>
+    </div>
+    <div class="right">
+      <div class="mode-toggle">
+        <button
+          [class.active]="mode === 'view'"
+          (click)="mode = 'view'">
+          <span nz-icon nzType="eye"></span>
+          View
+        </button>
+        <button
+          [class.active]="mode === 'edit'"
+          (click)="mode = 'edit'">
+          <span nz-icon nzType="edit"></span>
+          Edit
+        </button>
+      </div>
+      <button
+        *ngIf="mode === 'edit'"
+        nz-button
+        nzType="primary"
+        class="add-btn"
+        (click)="openAddWidget()">
+        <span nz-icon nzType="plus"></span>
+        Add Widget
+      </button>
+    </div>
+  </div>
+
+  <p
+    *ngIf="dashboard?.description"
+    class="description">
+    {{ dashboard?.description }}
+  </p>
+
+  <div
+    #grid
+    class="grid"
+    [style.height.px]="gridHeight()"
+    *ngIf="dashboard">
+    <div
+      *ngFor="let w of dashboard.widgets; trackBy: trackByWidgetId"
+      class="widget-cell"
+      [class.editable]="mode === 'edit'"
+      [class.dragging]="isWidgetActive(w.id)"
+      [ngStyle]="widgetStyle(w)"
+      (mousedown)="startMove($event, w)">
+      <div class="widget-frame">
+        <texera-dashboard-widget [widget]="w.widget"></texera-dashboard-widget>
+        <div
+          *ngIf="w.source?.kind === 'workflow'"
+          class="source-badge"
+          [title]="'From workflow: ' + $any(w.source).workflowName">
+          <span nz-icon nzType="link"></span>
+          From {{ $any(w.source).workflowName }}
+        </div>
+        <div *ngIf="mode === 'edit'" class="widget-controls">
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            nz-popconfirm
+            nzPopconfirmTitle="Delete this widget?"
+            nzPopconfirmPlacement="left"
+            (nzOnConfirm)="removeWidget(w.id)"
+            (click)="$event.stopPropagation()"
+            (mousedown)="$event.stopPropagation()">
+            <span nz-icon nzType="close"></span>
+          </button>
+        </div>
+        <div
+          *ngIf="mode === 'edit'"
+          class="resize-handle"
+          title="Drag to resize"
+          (mousedown)="startResize($event, w)"></div>
+      </div>
+    </div>
+
+    <div
+      *ngIf="dashboard.widgets.length === 0"
+      class="empty-grid">
+      <span nz-icon nzType="dashboard" class="empty-grid-icon"></span>
+      <p *ngIf="mode === 'edit'">
+        No widgets yet. Click <strong>+ Add Widget</strong> to pull results from your workflows or enter data manually.
+      </p>
+      <p *ngIf="mode === 'view'">No widgets yet.</p>
+      <button
+        *ngIf="mode === 'edit'"
+        nz-button
+        nzType="primary"
+        nzSize="large"
+        class="empty-cta"
+        (click)="openAddWidget()">
+        <span nz-icon nzType="plus"></span>
+        <span>Add Widget</span>
+      </button>
+    </div>
+  </div>
+</div>

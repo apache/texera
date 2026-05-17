@@ -1,0 +1,293 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  background: #f5f6f8;
+  color: #1f2937;
+}
+
+:host-context(body.dashboard-dragging) {
+  user-select: none;
+  cursor: grabbing !important;
+}
+
+.dashboard-editor {
+  min-height: 100vh;
+  padding: 24px 32px 80px;
+  background: #f5f6f8;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 12px;
+
+  .left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+  .right {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .back-btn {
+    color: #4b5563;
+    &:hover {
+      color: #111827;
+    }
+  }
+}
+
+.name {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+}
+.view-mode .name {
+  cursor: default;
+}
+.name-edit-icon {
+  font-size: 13px;
+  color: #9ca3af;
+  cursor: pointer;
+}
+.dashboard-editor:not(.view-mode) .name {
+  cursor: pointer;
+  &:hover .name-edit-icon {
+    color: #4b5563;
+  }
+}
+.name-input {
+  font-size: 20px;
+  font-weight: 600;
+  max-width: 480px;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+
+  button {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    padding: 5px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      color: #111827;
+    }
+    &.active {
+      background: #1677ff;
+      color: white;
+    }
+  }
+}
+
+.description {
+  margin: 0 0 18px 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.grid {
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+}
+
+.widget-cell {
+  position: absolute;
+  /* No CSS transitions on position/size — dragging needs to follow the
+   * mouse in real-time, and an iframe that resizes via transition would
+   * cause Plotly to redraw on every frame. */
+}
+
+.widget-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.widget-cell.editable {
+  cursor: grab;
+  &:active {
+    cursor: grabbing;
+  }
+  /* No always-on blue border on hover — too noisy. The cell only
+   * highlights while it's being moved or resized. */
+}
+
+.widget-cell.dragging .widget-frame {
+  border-color: #1677ff;
+  box-shadow: 0 4px 16px rgba(22, 119, 255, 0.22);
+}
+
+.source-badge {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  background: rgba(22, 119, 255, 0.08);
+  color: #1677ff;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 500;
+  pointer-events: none;
+  max-width: calc(100% - 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  span[nz-icon] {
+    font-size: 11px;
+  }
+}
+
+/* When edit-mode controls are visible (top-right), shift the badge over */
+.widget-cell.editable:hover .source-badge {
+  right: 44px;
+}
+
+.widget-controls {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+
+  button {
+    color: #6b7280;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    &:hover {
+      color: #dc2626;
+    }
+  }
+}
+
+.widget-cell.editable:hover .widget-controls {
+  opacity: 1;
+}
+
+/* Always-visible diagonal grip in the bottom-right of every widget when
+ * in Edit mode. Three short stripes drawn as pseudo-elements — no icon
+ * font needed. */
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  z-index: 3;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    background: #9ca3af;
+    border-radius: 1px;
+    transform: rotate(-45deg);
+    transform-origin: right center;
+    transition: background 0.12s;
+  }
+  &::before {
+    width: 10px;
+    height: 2px;
+    bottom: 4px;
+  }
+  &::after {
+    width: 5px;
+    height: 2px;
+    bottom: 9px;
+  }
+
+  &:hover::before,
+  &:hover::after {
+    background: #1677ff;
+  }
+}
+.widget-cell.dragging .resize-handle::before,
+.widget-cell.dragging .resize-handle::after {
+  background: #1677ff;
+}
+
+.empty-grid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 14px;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
+  background: white;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+
+  .empty-grid-icon {
+    font-size: 56px;
+    color: #d1d5db;
+  }
+  p {
+    margin: 0;
+    max-width: 480px;
+    strong {
+      color: #374151;
+    }
+  }
+  .empty-cta {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1;
+
+    /* Keep the icon and text on the same baseline; ng-zorro wraps the icon
+     * in a <span nz-icon> with default block-ish display when alone. */
+    > span[nz-icon] {
+      font-size: 16px;
+      line-height: 1;
+    }
+  }
+}

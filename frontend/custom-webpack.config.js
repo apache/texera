@@ -18,6 +18,17 @@
  */
 
 const { LicenseWebpackPlugin } = require("license-webpack-plugin");
+const fs = require("fs");
+const path = require("path");
+
+function resolveAndReal(p) {
+  const abs = path.resolve(__dirname, p);
+  try {
+    return [abs, fs.realpathSync(abs)];
+  } catch (e) {
+    return [abs];
+  }
+}
 
 module.exports = {
   module: {
@@ -26,8 +37,8 @@ module.exports = {
         test: /\.css$/,
         use: ["style-loader", "css-loader"],
         include: [
-          require("path").resolve(__dirname, "node_modules/monaco-editor"),
-          require("path").resolve(__dirname, "node_modules/monaco-breakpoints")
+          ...resolveAndReal("node_modules/monaco-editor"),
+          ...resolveAndReal("node_modules/monaco-breakpoints"),
         ],
       },
     ],

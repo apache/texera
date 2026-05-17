@@ -1,0 +1,247 @@
+<div class="add-widget-modal">
+  <header class="modal-header">
+    <h3>Add Widget</h3>
+  </header>
+
+  <nz-tabs
+    nzType="line"
+    [nzAnimated]="false"
+    class="modal-tabs"
+    [(nzSelectedIndex)]="activeTab">
+    <!-- ========== Tab 1: From Workflow ========== -->
+    <nz-tab nzTitle="From Workflow">
+      <div class="tab-pane">
+        <!-- Step 1: pick workflow -->
+        <label class="field">
+          <span class="field-label">Workflow</span>
+          <nz-spin [nzSpinning]="loadingWorkflows" [nzSize]="'small'">
+            <nz-select
+              class="wf-select"
+              nzPlaceHolder="Pick a workflow"
+              [ngModel]="selectedWid"
+              (ngModelChange)="onWorkflowChange($event)"
+              nzShowSearch>
+              <nz-option
+                *ngFor="let w of workflows"
+                [nzValue]="w.wid"
+                [nzLabel]="w.name"></nz-option>
+            </nz-select>
+          </nz-spin>
+        </label>
+
+        <!-- Loading bundle -->
+        <nz-spin
+          *ngIf="loadingBundle"
+          [nzSpinning]="true"
+          class="bundle-spinner">
+          <div class="bundle-spinner-fill"></div>
+        </nz-spin>
+
+        <!-- Bundle loaded, but workflow has no operators or no execution -->
+        <ng-container *ngIf="bundle && !loadingBundle">
+          <div
+            *ngIf="bundle.operators.length === 0"
+            class="bundle-warn">
+            <span nz-icon nzType="info-circle"></span>
+            This workflow has no operators yet.
+          </div>
+
+          <div
+            *ngIf="bundle.operators.length > 0 && !bundle.hasRunStats && !bundle.hasSavedResults"
+            class="bundle-warn">
+            <span nz-icon nzType="info-circle"></span>
+            No execution data yet. Open the workflow and run it, then come back to add widgets.
+          </div>
+
+          <!-- Results — actual data (top, prominent) -->
+          <section *ngIf="resultPoints.length > 0" class="data-section primary">
+            <header class="section-header">
+              <span class="section-icon-wrap"><span nz-icon nzType="bulb"></span></span>
+              <div class="section-titles">
+                <h4>Results</h4>
+                <p
+                  *ngIf="bundle.snapshotCapturedAt"
+                  class="section-sub">
+                  Captured {{ bundle.snapshotCapturedAt | date:'short' }}
+                </p>
+                <p
+                  *ngIf="!bundle.snapshotCapturedAt"
+                  class="section-sub">
+                  Real data from the latest run
+                </p>
+              </div>
+            </header>
+            <div class="data-grid">
+              <button
+                type="button"
+                *ngFor="let dp of resultPoints; trackBy: trackByKey"
+                class="data-card primary"
+                [class.selected]="isSelected(dp.key)"
+                (click)="toggleSelection(dp.key)">
+                <span
+                  nz-icon
+                  class="card-type-icon"
+                  [nzType]="defaultWidgetIcon(dp.point)"></span>
+                <span
+                  *ngIf="isSelected(dp.key)"
+                  nz-icon
+                  nzType="check"
+                  class="card-check"></span>
+                <span class="data-op">{{ $any(dp.point).opName }}</span>
+                <ng-container *ngIf="dp.point.kind === 'metric'">
+                  <span class="data-name">{{ $any(dp.point).name }}</span>
+                  <span class="data-val">{{ $any(dp.point).value }}</span>
+                </ng-container>
+                <ng-container *ngIf="dp.point.kind === 'rows'">
+                  <span class="data-name">Output rows</span>
+                  <span class="data-val">{{ $any(dp.point).rows.length }} × {{ $any(dp.point).columns.length }}</span>
+                </ng-container>
+                <ng-container *ngIf="dp.point.kind === 'html'">
+                  <span class="data-name">{{ $any(dp.point).columnName === 'html-content' ? 'HTML Chart' : $any(dp.point).columnName }}</span>
+                  <span class="data-val data-val-secondary">Plotly / HTML viz</span>
+                </ng-container>
+              </button>
+            </div>
+          </section>
+
+          <!-- Runtime stats — secondary, collapsed by default -->
+          <section *ngIf="statPoints.length > 0" class="data-section">
+            <button
+              type="button"
+              class="section-header collapsible"
+              (click)="toggleStatsExpanded()">
+              <span class="section-icon-wrap muted"><span nz-icon nzType="thunderbolt"></span></span>
+              <div class="section-titles">
+                <h4>Runtime stats <span class="count-pill">{{ statPoints.length }}</span></h4>
+                <p class="section-sub">Processing time, input rows, output sizes</p>
+              </div>
+              <span
+                nz-icon
+                class="chevron"
+                [class.expanded]="statsExpanded"
+                nzType="down"></span>
+            </button>
+            <div *ngIf="statsExpanded" class="data-grid">
+              <button
+                type="button"
+                *ngFor="let dp of statPoints; trackBy: trackByKey"
+                class="data-card"
+                [class.selected]="isSelected(dp.key)"
+                (click)="toggleSelection(dp.key)">
+                <span
+                  *ngIf="isSelected(dp.key)"
+                  nz-icon
+                  nzType="check"
+                  class="card-check"></span>
+                <span class="data-op">{{ $any(dp.point).opName }}</span>
+                <span class="data-name">{{ $any(dp.point).name }}</span>
+                <span class="data-val">{{ $any(dp.point).valueLabel }}</span>
+              </button>
+            </div>
+          </section>
+        </ng-container>
+
+        <nz-empty
+          *ngIf="!selectedWid && !loadingWorkflows && workflows.length === 0"
+          [nzNotFoundContent]="'No workflows yet — create one first.'"></nz-empty>
+      </div>
+    </nz-tab>
+
+    <!-- ========== Tab 2: Manual ========== -->
+    <nz-tab nzTitle="Manual Input">
+      <div class="tab-pane">
+        <label class="field">
+          <span class="field-label">Widget type</span>
+          <div class="widget-type-grid">
+            <button
+              *ngFor="let t of manualTypes"
+              class="widget-type-card"
+              [class.selected]="manualType === t.type"
+              (click)="pickManualType(t.type)">
+              <span nz-icon [nzType]="t.icon"></span>
+              <span>{{ t.label }}</span>
+            </button>
+          </div>
+        </label>
+
+        <div *ngIf="manualType === 'metric'" class="form-grid">
+          <label>Title<input nz-input [(ngModel)]="metric.title" /></label>
+          <label>Value<input nz-input [(ngModel)]="metric.value" /></label>
+          <label>Subtitle<input nz-input [(ngModel)]="metric.caption" /></label>
+          <label>Color<input nz-input [(ngModel)]="metric.color" /></label>
+        </div>
+
+        <div *ngIf="manualType === 'bar'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="bar.title" /></label>
+          <label class="full">Categories (comma-separated)
+            <input nz-input [(ngModel)]="barCategoriesRaw" />
+          </label>
+          <label class="full">Series — one per line: <code>name | color | v1, v2, v3</code>
+            <textarea nz-input rows="3" [(ngModel)]="barSeriesRaw"></textarea>
+          </label>
+        </div>
+
+        <div *ngIf="manualType === 'donut'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="donut.title" /></label>
+          <label class="full">Segments — one per line: <code>label | value | color</code>
+            <textarea nz-input rows="3" [(ngModel)]="donutSegmentsRaw"></textarea>
+          </label>
+        </div>
+
+        <div *ngIf="manualType === 'table'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="table.title" /></label>
+          <label class="full">Columns (comma-separated)
+            <input nz-input [(ngModel)]="tableColumnsRaw" />
+          </label>
+          <label class="full">Rows — one per line, cells comma-separated
+            <textarea nz-input rows="4" [(ngModel)]="tableRowsRaw"></textarea>
+          </label>
+        </div>
+
+        <div *ngIf="manualType === 'text'" class="form-grid">
+          <label class="full">Title<input nz-input [(ngModel)]="text.title" /></label>
+          <label class="full">Content
+            <textarea
+              nz-input
+              rows="5"
+              [(ngModel)]="text.body"
+              placeholder="Free-form notes — newlines preserved."></textarea>
+          </label>
+        </div>
+      </div>
+    </nz-tab>
+  </nz-tabs>
+
+  <footer class="modal-footer">
+    <div class="footer-status">
+      <span *ngIf="addedCount > 0" class="added-count" [class.flash]="justAddedFlash">
+        <span nz-icon nzType="check-circle"></span>
+        Added {{ addedCount }} widget{{ addedCount === 1 ? '' : 's' }}
+      </span>
+    </div>
+    <div class="footer-actions">
+      <button nz-button (click)="cancel()">Cancel</button>
+      <button nz-button (click)="done()">Done</button>
+      <button
+        *ngIf="activeTab === 0"
+        nz-button
+        nzType="primary"
+        [disabled]="!canAddFromWorkflow"
+        (click)="addFromWorkflow()">
+        <span nz-icon nzType="plus"></span>
+        <ng-container *ngIf="selectedCount > 0">
+          Add {{ selectedCount }} Widget{{ selectedCount === 1 ? '' : 's' }}
+        </ng-container>
+        <ng-container *ngIf="selectedCount === 0">Add Widget</ng-container>
+      </button>
+      <button
+        *ngIf="activeTab === 1"
+        nz-button
+        nzType="primary"
+        (click)="addManual()">
+        <span nz-icon nzType="plus"></span>
+        Add Widget
+      </button>
+    </div>
+  </footer>
+</div>

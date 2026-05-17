@@ -41,6 +41,8 @@ import { UserAgentComponent } from "./dashboard/component/user/user-agent/user-a
 import { UserOperatorComponent } from "./dashboard/component/user/user-operator/user-operator.component";
 import { UserOperatorEditorComponent } from "./dashboard/component/user/user-operator/user-operator-editor.component";
 import { UserSnippetComponent } from "./dashboard/component/user/user-snippet/user-snippet.component";
+import { UserDashboardComponent } from "./dashboard/component/user/user-dashboard/user-dashboard.component";
+import { DashboardEditorComponent } from "./dashboard/component/user/user-dashboard/dashboard-editor/dashboard-editor.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowHubListComponent } from "./hub/component/workflow-hub/workflow-hub-list/workflow-hub-list.component";
 import { WorkflowHubDetailComponent } from "./hub/component/workflow-hub/workflow-hub-detail/workflow-hub-detail.component";
@@ -187,6 +189,14 @@ routes.push({
         {
           path: "discussion",
           component: FlarumComponent,
+        },
+        {
+          path: "dashboards",
+          component: UserDashboardComponent,
+        },
+        {
+          path: "dashboards/:id/edit",
+          component: DashboardEditorComponent,
         },
       ],
     },

@@ -1,0 +1,361 @@
+.add-widget-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-header {
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+  }
+}
+
+.modal-tabs {
+  ::ng-deep .ant-tabs-nav {
+    margin: 0 0 10px 0;
+  }
+}
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 240px;
+  max-height: 56vh;
+  overflow-y: auto;
+  padding: 4px 2px 8px 2px;
+}
+
+/* Generic form bits ----------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* The workflow dropdown should stretch to the full modal width so long
+ * workflow names aren't truncated to 12 characters. */
+.wf-select {
+  width: 100%;
+  display: block;
+
+  ::ng-deep .ant-select {
+    width: 100%;
+  }
+  ::ng-deep .ant-select-selection-item {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Tab 1: Workflow data ------------------------------------------------- */
+
+.bundle-spinner {
+  display: block;
+  padding: 12px 0;
+}
+.bundle-spinner-fill {
+  min-height: 24px;
+}
+
+.bundle-warn {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  span[nz-icon] {
+    color: #ea580c;
+  }
+}
+
+.data-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &.primary {
+    background: #f5f9ff;
+    border: 1px solid #d6e4ff;
+    border-radius: 8px;
+    padding: 12px;
+  }
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+
+  &.collapsible {
+    cursor: pointer;
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+
+    &:hover {
+      background: #f0f2f5;
+    }
+  }
+}
+.section-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #1677ff;
+  color: white;
+  flex-shrink: 0;
+
+  &.muted {
+    background: #9ca3af;
+  }
+  span[nz-icon] {
+    font-size: 16px;
+  }
+}
+.section-titles {
+  flex: 1;
+  min-width: 0;
+
+  h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-sub {
+    margin: 2px 0 0 0;
+    font-size: 12px;
+    color: #6b7280;
+  }
+}
+.count-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.chevron {
+  transition: transform 0.18s ease;
+  color: #9ca3af;
+  font-size: 12px;
+
+  &.expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.data-card {
+  position: relative;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 12px;
+  padding-right: 28px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: #1677ff;
+    background: #f5f9ff;
+  }
+  &.selected {
+    border-color: #1677ff;
+    background: #eef5ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18);
+  }
+
+  .card-type-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #9ca3af;
+    font-size: 13px;
+  }
+  &.selected .card-type-icon {
+    color: #1677ff;
+  }
+  .card-check {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    background: #1677ff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  &.selected .card-type-icon {
+    display: none;
+  }
+
+  .data-op {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+  }
+  .data-name {
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+  }
+  .data-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.widget-type-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.widget-type-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: #1677ff;
+    background: #f5f9ff;
+  }
+  &.selected {
+    border-color: #1677ff;
+    background: #eef5ff;
+    color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18);
+  }
+  span[nz-icon] {
+    color: #1677ff;
+    font-size: 15px;
+  }
+}
+
+/* Tab 2: Manual form --------------------------------------------------- */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #6b7280;
+
+    &.full {
+      grid-column: 1 / -1;
+    }
+    code {
+      font-size: 11px;
+      background: #f3f4f6;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #374151;
+      font-weight: 500;
+    }
+  }
+  textarea {
+    font-family: ui-monospace, "SFMono-Regular", monospace;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
+/* Footer --------------------------------------------------------------- */
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+
+  .footer-status {
+    flex: 1;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+  }
+  .added-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    transition: transform 0.25s ease-out;
+
+    &.flash {
+      transform: scale(1.05);
+    }
+  }
+  .footer-actions {
+    display: flex;
+    gap: 8px;
+  }
+}
