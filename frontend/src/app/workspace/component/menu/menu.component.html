@@ -391,11 +391,6 @@
         </button>
         <button
           (click)="onClickRunHandler()"
-          nz-popover
-          nzPopoverTitle="Execution Settings"
-          [nzPopoverTrigger]="'hover'"
-          [nzPopoverContent]="executionSettings"
-          nzPopoverPlacement="bottom"
           [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || selectedComputingUnit?.accessPrivilege !== Privilege.WRITE"
           id="run-button"
           nz-button
@@ -417,22 +412,6 @@
             nz-icon
             nzType="database"></i>
         </button>
-        <ng-template #executionSettings>
-          <div style="display: flex; flex-direction: column; gap: 10px">
-            <input
-              [(ngModel)]="currentExecutionName"
-              placeholder="Untitled Execution"
-              [disabled]="!isWorkflowModifiable" />
-            <div style="display: flex; align-items: center; gap: 10px">
-              <span>Email Notification</span>
-              <nz-switch
-                [(ngModel)]="this.config.env.workflowEmailNotificationEnabled"
-                nzCheckedChildren="On"
-                nzUnCheckedChildren="Off">
-              </nz-switch>
-            </div>
-          </div>
-        </ng-template>
         <div style="margin-left: 5px">
           <nz-badge
             nz-tooltip=""
