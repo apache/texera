@@ -480,7 +480,7 @@ function broadcastToAgent(agentId: string, message: WsOutgoingMessage): void {
   }
 }
 
-const datasetBankRouter = new Elysia({ prefix: "/dataset-bank" })
+const datasetBankRouter = new Elysia({ prefix: "/databank" })
   .onError(({ error, set }) => {
     log.error({ err: error }, "dataset-bank request error");
     if (error instanceof DatasetImportError) {

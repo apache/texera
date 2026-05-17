@@ -190,7 +190,7 @@ export class DatasetBankService {
     }
     return this.http
       .post<{ did: number; datasetName: string; fileName: string; fileSize: number }>(
-        "/api/dataset-bank/import-from-url",
+        "/api/databank/import-from-url",
         body
       )
       .pipe(
