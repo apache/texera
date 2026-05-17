@@ -23,7 +23,29 @@
   <h4>Empty result set</h4>
   <p>Tip: enable the eye icon on the operator and execute the workflow to view its results.</p>
 </div>
+
 <div
+  *ngIf="showsInsightCard"
+  class="result-insight-card">
+  <section
+    *ngFor="let s of insightSections"
+    class="result-insight-card__section">
+    <h3 class="result-insight-card__header">{{ s.label }}</h3>
+    <ul
+      *ngIf="s.bullets?.length"
+      class="result-insight-card__list">
+      <li *ngFor="let b of s.bullets">{{ b }}</li>
+    </ul>
+    <p
+      *ngIf="!s.bullets?.length"
+      class="result-insight-card__body">
+      {{ s.text }}
+    </p>
+  </section>
+</div>
+
+<div
+  *ngIf="!showsInsightCard"
   [hidden]="!currentColumns"
   class="result-table">
   <div

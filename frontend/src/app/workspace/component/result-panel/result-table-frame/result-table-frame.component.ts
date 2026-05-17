@@ -30,6 +30,7 @@ import {
   NzCellEllipsisDirective,
 } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { PYTHON_UDF_V2_OP_TYPE } from "../../../service/workflow-graph/model/workflow-graph";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
@@ -47,6 +48,16 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { debounceTime } from "rxjs/operators";
+
+export interface ResultInsightSectionView {
+  label: string;
+  text?: string;
+  bullets?: string[];
+}
+
+const INSIGHT_NAME_MARKERS = ["insight", "summary"];
+const INSIGHT_COLUMN_ORDER = ["top_predictors", "top_associations", "interpretation", "next_steps"] as const;
 
 /**
  * The Component will display the result in an excel table format,
@@ -109,6 +120,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   widthPercent: string = "";
   isOperatorFinished: boolean = false;
 
+  /** Card layout for Genesis/PythonUDF insight rows (one row, many text columns). */
+  insightSections: ResultInsightSectionView[] = [];
+
   constructor(
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
@@ -134,6 +148,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.prevTableStats = this.tableStats;
       }
     }
+    this.rebuildInsightSections();
   }
 
   ngOnInit(): void {
@@ -204,6 +219,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       if (paginatedResultService) {
       }
     }
+
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(debounceTime(100), untilDestroyed(this))
+      .subscribe(() => {
+        this.rebuildInsightSections();
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   checkKeys(
@@ -409,6 +432,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       return;
     }
     if (resultData.length < 1) {
+      this.isLoadingResult = false;
+      this.currentResult = [];
+      this.currentColumns = undefined;
+      this.insightSections = [];
+      this.changeDetectorRef.detectChanges();
       return;
     }
 
@@ -431,6 +459,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);
     this.totalNumTuples = totalRowCount;
+    this.rebuildInsightSections();
   }
 
   /**
@@ -488,5 +517,112 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     this.columnSearch = input.value;
     this.currentColumnOffset = 0;
     this.changePaginatedResultData();
+  }
+
+  get showsInsightCard(): boolean {
+    return this.isInsightUdfOperator() && this.currentResult.length > 0;
+  }
+
+  private isInsightUdfOperator(): boolean {
+    if (!this.operatorId) {
+      return false;
+    }
+    try {
+      const op = this.workflowActionService.getTexeraGraph().getOperator(this.operatorId);
+      if (op.isDisabled) {
+        return false;
+      }
+      if (op.operatorType !== PYTHON_UDF_V2_OP_TYPE) {
+        return false;
+      }
+      const n = (op.customDisplayName ?? "").toLowerCase();
+      return INSIGHT_NAME_MARKERS.some(m => n.includes(m));
+    } catch {
+      return false;
+    }
+  }
+
+  private rebuildInsightSections(): void {
+    if (!this.isInsightUdfOperator() || this.currentResult.length < 1) {
+      this.insightSections = [];
+      return;
+    }
+    this.insightSections = this.buildInsightSectionsFromRow(this.currentResult[0]);
+  }
+
+  private buildInsightSectionsFromRow(row: IndexableObject): ResultInsightSectionView[] {
+    const keys = this.sortInsightColumnKeys(Object.keys(row).filter(k => k !== "_id"));
+    const sections: ResultInsightSectionView[] = [];
+    for (const key of keys) {
+      const raw = row[key];
+      const text = this.insightCellToString(raw);
+      if (text === null) {
+        continue;
+      }
+      const label = this.formatInsightColumnLabel(key);
+      const bullets = this.maybeInsightPredictorBullets(key, text);
+      sections.push(
+        bullets ? { label, bullets } : { label, text }
+      );
+    }
+    return sections;
+  }
+
+  private sortInsightColumnKeys(keys: string[]): string[] {
+    const ordered: string[] = [];
+    const add = (k: string) => {
+      if (keys.includes(k) && !ordered.includes(k)) {
+        ordered.push(k);
+      }
+    };
+    add("summary");
+    for (const k of INSIGHT_COLUMN_ORDER) {
+      add(k);
+    }
+    const rest = keys
+      .filter(k => k !== "summary" && k !== "caveat" && !ordered.includes(k))
+      .sort((a, b) => a.localeCompare(b));
+    ordered.push(...rest);
+    add("caveat");
+    return ordered;
+  }
+
+  private formatInsightColumnLabel(key: string): string {
+    return key.replace(/_/g, " ").toUpperCase();
+  }
+
+  private insightCellToString(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === "string") {
+      const t = value.trim();
+      return t === "" ? null : t;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  }
+
+  private maybeInsightPredictorBullets(key: string, text: string): string[] | undefined {
+    if (key !== "top_predictors" && key !== "top_associations") {
+      return undefined;
+    }
+    if (!text.includes(",")) {
+      return undefined;
+    }
+    const parts = text
+      .split(",")
+      .map(p => p.trim())
+      .filter(Boolean);
+    return parts.length > 1 ? parts : undefined;
   }
 }
