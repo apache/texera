@@ -44,6 +44,14 @@
       border-bottom-left-radius: 2px;
       color: inherit;
       text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+
+      .project-label-icon {
+        font-size: 14px;
+        line-height: 1;
+      }
     }
 
     .project-label-remove {

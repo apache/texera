@@ -1,0 +1,89 @@
+<div class="members">
+  <div class="invite-row">
+    <input
+      type="email"
+      class="invite-input"
+      placeholder="Invite by email"
+      [(ngModel)]="inviteEmail"
+      (keyup.enter)="invite()"
+      [disabled]="!hasWriteAccess" />
+    <select
+      class="invite-level"
+      [(ngModel)]="inviteAccessLevel"
+      [disabled]="!hasWriteAccess">
+      <option value="WRITE">Editor</option>
+      <option value="READ">Viewer</option>
+    </select>
+    <button
+      nz-button
+      nzType="primary"
+      type="button"
+      [disabled]="!inviteEmail.trim() || !hasWriteAccess"
+      (click)="invite()">
+      <i
+        nz-icon
+        nzType="user-add"
+        nzTheme="outline"></i>
+      Invite
+    </button>
+  </div>
+
+  <ul class="member-list">
+    <li
+      *ngFor="let m of members; trackBy: trackMember"
+      class="member-card">
+      <div
+        class="member-avatar"
+        [style.background-color]="m.color">
+        {{ m.initial }}
+      </div>
+      <div class="member-info">
+        <div class="member-name">
+          {{ m.name }}
+          <span
+            *ngIf="m.isYou"
+            class="you-tag">
+            You
+          </span>
+        </div>
+        <div
+          class="member-email"
+          *ngIf="m.name !== m.email">
+          {{ m.email }}
+        </div>
+      </div>
+      <div class="member-actions">
+        <span
+          *ngIf="m.isOwner"
+          class="role-badge owner">
+          Owner
+        </span>
+        <select
+          *ngIf="!m.isOwner"
+          class="role-select"
+          [value]="m.privilege"
+          [disabled]="!hasWriteAccess"
+          (change)="changeRole(m, $any($event.target).value)">
+          <option value="WRITE">Editor</option>
+          <option value="READ">Viewer</option>
+        </select>
+        <button
+          *ngIf="!m.isOwner"
+          nz-button
+          nzType="text"
+          nzSize="small"
+          nz-tooltip="Remove from project"
+          nzTooltipPlacement="left"
+          nz-popconfirm
+          [nzPopconfirmTitle]="m.isYou ? 'Leave this project?' : 'Remove ' + m.email + '?'"
+          (nzOnConfirm)="remove(m)"
+          [disabled]="!hasWriteAccess && !m.isYou">
+          <i
+            nz-icon
+            nzType="close"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+    </li>
+  </ul>
+</div>

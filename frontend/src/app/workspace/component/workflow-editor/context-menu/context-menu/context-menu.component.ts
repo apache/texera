@@ -27,6 +27,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import { CollaborationService } from "../../../../service/collaboration/collaboration.service";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -51,7 +52,8 @@ export class ContextMenuComponent {
     protected config: GuiConfigService,
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
-    private validationWorkflowService: ValidationWorkflowService
+    private validationWorkflowService: ValidationWorkflowService,
+    private collaborationService: CollaborationService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -156,5 +158,10 @@ export class ContextMenuComponent {
       },
       nzFooter: null,
     });
+  }
+
+  public onAddComment(): void {
+    if (this.highlightedOperatorIds.length !== 1) return;
+    this.collaborationService.startNewThreadForOperator(this.highlightedOperatorIds[0]);
   }
 }

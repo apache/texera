@@ -17,126 +17,299 @@
  * under the License.
  */
 
-.user-project-container {
+.project-detail-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 16px;
 }
 
-/* project info */
-.description-container {
-  padding: 2.5%;
-}
-
-/* for workflow items */
-
-/* .saved-workflow-container {
-    display: grid;
-    grid-template-rows: 120px calc((100% - 120px));
-} */
-
-.ant-btn-icon-only {
-  margin-right: 10px;
-}
-
-.subsection-grid-container {
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
-}
-
-.workflow-list-container {
-  grid-row-start: 2;
-  grid-row-end: 3;
-  overflow: auto;
-}
-
-.workflow-list-item {
-  margin-bottom: 1.5%;
-  height: 70px;
-  padding: 5px 0 5px 0;
-}
-
-.time-space {
-  margin-left: 3%;
-}
-
-.workflow-name {
-  font-size: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  text-align: center;
-}
-
-.workflow-dashboard-entry {
-  display: flex;
+.back-link {
+  display: inline-flex;
   align-items: center;
-}
+  gap: 4px;
+  color: #595959;
+  text-decoration: none;
+  font-size: 13px;
+  width: fit-content;
 
-.workflow-dashboard-entry > i {
-  position: relative;
-  font-size: 17px;
-  margin-bottom: 6px;
-}
-
-.workflow-name:hover {
-  cursor: pointer;
-}
-
-.workflow-time {
-  font-size: 12px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  color: gray;
-}
-
-button {
-  border-radius: 5px;
-  border: none;
-}
-
-.color-tag {
-  display: inline-block;
-  cursor: pointer;
-}
-
-#left-div {
-  padding: 1.5px 7px;
-  border-top-left-radius: 2px;
-  border-bottom-left-radius: 2px;
-}
-
-#right-div {
-  padding: 1.5px 7px;
-  border-top-right-radius: 2px;
-  border-bottom-right-radius: 2px;
-  margin-right: 10px;
-}
-
-.light-color {
-  border: 1px solid gainsboro;
-}
-
-.light-color:hover {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.4) 0 0);
-}
-
-.dark-color:hover {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.345) 0 0);
-}
-
-// temporarily here for the file section, TODO : will be removed once file service PR approved
-.file-project-label-container {
-  width: 40%;
-  display: flex;
-  flex-direction: row-reverse;
-  overflow-x: auto;
-
-  .file-project-label {
-    display: inline;
-    white-space: nowrap;
+  &:hover {
+    color: #1890ff;
   }
 }
 
-texera-saved-workflow-section {
-  flex: 1;
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+}
+
+.project-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: white;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.header-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.detail-title {
+  margin: 0 0 4px 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.detail-description {
+  color: #595959;
+  font-size: 14px;
+  ::ng-deep p {
+    margin: 0;
+  }
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.detail-tabs {
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 4px 16px 12px;
+}
+
+.members-tab {
+  padding: 16px 4px 4px;
+}
+
+.workflows-tab {
+  padding: 16px 4px 4px;
+}
+
+.workflows-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.workflow-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workflow-card {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #d9d9d9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.workflow-link {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+
+  &:hover {
+    color: inherit;
+  }
+}
+
+.workflow-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #e6f4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: #1890ff;
+  font-size: 18px;
+}
+
+.workflow-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.workflow-name {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+
+  .dot {
+    color: #bfbfbf;
+  }
+}
+
+.workflow-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  flex: 0 0 auto;
+}
+
+.role-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #f0f5ff;
+  color: #2f54eb;
+  border: 1px solid #adc6ff;
+}
+
+.datasets-tab {
+  padding: 16px 4px 4px;
+}
+
+.datasets-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.dataset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.dataset-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: white;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #d9d9d9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.dataset-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dataset-icon {
+  font-size: 20px;
+  color: #1890ff;
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.dataset-card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dataset-name {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataset-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataset-card-stats {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #595959;
+
+  i {
+    margin-right: 4px;
+  }
+
+  .dot {
+    color: #bfbfbf;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #595959;
+  border: 1px dashed #e8e8e8;
+  border-radius: 12px;
+
+  .empty-emoji {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  h3 {
+    margin: 0 0 8px 0;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.88);
+  }
+
+  p {
+    margin: 0;
+    color: #8c8c8c;
+  }
 }

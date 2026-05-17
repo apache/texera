@@ -1,0 +1,298 @@
+<div
+  class="collab-panel"
+  [class.open]="open$ | async">
+  <header class="collab-header">
+    <div class="collab-tabs">
+      <button
+        class="collab-tab"
+        [ngClass]="{ active: (activeTab$ | async) === 'chat' }"
+        (click)="selectTab('chat')"
+        type="button">
+        <i
+          nz-icon
+          nzType="message"
+          nzTheme="outline"></i>
+        Chat
+        <nz-tag
+          *ngIf="(chatMessages$ | async)?.length as count"
+          class="tab-count">
+          {{ count }}
+        </nz-tag>
+      </button>
+      <button
+        class="collab-tab"
+        [ngClass]="{ active: (activeTab$ | async) === 'comments' }"
+        (click)="selectTab('comments')"
+        type="button">
+        <i
+          nz-icon
+          nzType="comment"
+          nzTheme="outline"></i>
+        Comments
+      </button>
+      <button
+        class="collab-tab"
+        [ngClass]="{ active: (activeTab$ | async) === 'online' }"
+        (click)="selectTab('online')"
+        type="button">
+        <i
+          nz-icon
+          nzType="team"
+          nzTheme="outline"></i>
+        Online
+        <nz-tag
+          *ngIf="(online$ | async)?.length as count"
+          class="tab-count">
+          {{ count }}
+        </nz-tag>
+      </button>
+    </div>
+    <button
+      class="collab-close"
+      (click)="close()"
+      nz-button
+      nzType="text"
+      nzSize="small"
+      title="Close">
+      <i
+        nz-icon
+        nzType="close"
+        nzTheme="outline"></i>
+    </button>
+  </header>
+
+  <section
+    class="tab-body"
+    [ngSwitch]="activeTab$ | async">
+
+    <!-- ─────── Chat tab ─────── -->
+    <ng-container *ngSwitchCase="'chat'">
+      <div
+        class="chat-scroll"
+        #chatScroll>
+        <ng-container *ngIf="(chatMessages$ | async) as messages">
+          <div
+            *ngIf="messages.length === 0"
+            class="empty-state">
+            <div class="empty-emoji">💬</div>
+            <div class="empty-title">No messages yet</div>
+            <div class="empty-subtitle">Say hi to your collaborators.</div>
+          </div>
+          <div
+            *ngFor="let msg of messages; trackBy: trackMessage"
+            class="chat-message"
+            [ngClass]="{ system: msg.kind === 'system' }">
+            <div
+              class="chat-avatar"
+              [style.background-color]="msg.color">
+              {{ initial(msg.userName) }}
+            </div>
+            <div class="chat-bubble">
+              <div class="chat-meta">
+                <span class="chat-name">{{ msg.userName }}</span>
+                <span class="chat-time">{{ msg.timestamp | date: 'shortTime' }}</span>
+              </div>
+              <div class="chat-content">{{ msg.content }}</div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+      <div class="chat-composer">
+        <textarea
+          [(ngModel)]="chatDraft"
+          (keydown)="onChatKeydown($event)"
+          rows="2"
+          placeholder="Message your team. Enter to send, Shift+Enter for newline."></textarea>
+        <button
+          nz-button
+          nzType="primary"
+          [disabled]="!chatDraft.trim()"
+          (click)="sendChat()"
+          title="Send">
+          <i
+            nz-icon
+            nzType="send"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- ─────── Comments tab ─────── -->
+    <ng-container *ngSwitchCase="'comments'">
+      <div class="comments-toolbar">
+        <label class="resolved-toggle">
+          <input
+            type="checkbox"
+            [(ngModel)]="showResolved" />
+          Show resolved threads
+        </label>
+      </div>
+      <div class="comments-scroll">
+        <ng-container *ngIf="(comments$ | async) as model">
+          <div
+            *ngIf="model.byOperator.length === 0"
+            class="empty-state">
+            <div class="empty-emoji">💭</div>
+            <div class="empty-title">No comments yet</div>
+            <div class="empty-subtitle">
+              Right-click an operator → "Add comment" to start a thread.
+            </div>
+          </div>
+          <div
+            *ngFor="let group of model.byOperator; trackBy: trackOperatorGroup"
+            class="operator-group">
+            <button
+              class="operator-header"
+              (click)="goToOperator(group.operatorId)"
+              type="button"
+              nz-tooltip="Jump to operator"
+              nzTooltipPlacement="left">
+              <i
+                nz-icon
+                nzType="aim"
+                nzTheme="outline"></i>
+              {{ group.operatorName }}
+            </button>
+
+            <div
+              *ngIf="(draftOperatorId$ | async) === group.operatorId"
+              class="new-thread-composer">
+              <textarea
+                rows="2"
+                placeholder="Start a new comment thread on this operator…"
+                [(ngModel)]="newThreadDraft"
+                (keydown)="onNewThreadKeydown($event, group.operatorId)"
+                autofocus></textarea>
+              <div class="composer-actions">
+                <button
+                  nz-button
+                  nzSize="small"
+                  type="button"
+                  (click)="cancelNewThread()">
+                  Cancel
+                </button>
+                <button
+                  nz-button
+                  nzType="primary"
+                  nzSize="small"
+                  type="button"
+                  [disabled]="!newThreadDraft.trim()"
+                  (click)="submitNewThread(group.operatorId)">
+                  Comment
+                </button>
+              </div>
+            </div>
+
+            <div
+              *ngFor="let thread of group.threads; trackBy: trackThread"
+              class="comment-thread"
+              [ngClass]="{ resolved: thread.resolved, hidden: thread.resolved && !showResolved }">
+              <div class="comment-root">
+                <div
+                  class="comment-avatar"
+                  [style.background-color]="thread.root.color">
+                  {{ initial(thread.root.userName) }}
+                </div>
+                <div class="comment-body">
+                  <div class="comment-meta">
+                    <span class="comment-name">{{ thread.root.userName }}</span>
+                    <span class="comment-time">{{ thread.root.timestamp | date: 'short' }}</span>
+                    <button
+                      class="resolve-toggle"
+                      (click)="toggleResolve(thread)"
+                      type="button">
+                      <i
+                        nz-icon
+                        nzTheme="outline"
+                        [nzType]="thread.resolved ? 'undo' : 'check'"></i>
+                      {{ thread.resolved ? 'Reopen' : 'Resolve' }}
+                    </button>
+                  </div>
+                  <div class="comment-content">{{ thread.root.content }}</div>
+                </div>
+              </div>
+
+              <div
+                *ngFor="let reply of thread.replies; trackBy: trackReply"
+                class="comment-reply">
+                <div
+                  class="comment-avatar small"
+                  [style.background-color]="reply.color">
+                  {{ initial(reply.userName) }}
+                </div>
+                <div class="comment-body">
+                  <div class="comment-meta">
+                    <span class="comment-name">{{ reply.userName }}</span>
+                    <span class="comment-time">{{ reply.timestamp | date: 'short' }}</span>
+                  </div>
+                  <div class="comment-content">{{ reply.content }}</div>
+                </div>
+              </div>
+
+              <div
+                *ngIf="!thread.resolved"
+                class="reply-composer">
+                <input
+                  type="text"
+                  placeholder="Reply…"
+                  [(ngModel)]="replyDraftByThread[thread.root.id]"
+                  (keydown)="onReplyKeydown($event, thread)" />
+                <button
+                  nz-button
+                  nzType="text"
+                  nzSize="small"
+                  [disabled]="!(replyDraftByThread[thread.root.id] || '').trim()"
+                  (click)="submitReply(thread)">
+                  <i
+                    nz-icon
+                    nzType="enter"
+                    nzTheme="outline"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </ng-container>
+
+    <!-- ─────── Online tab ─────── -->
+    <ng-container *ngSwitchCase="'online'">
+      <div class="online-scroll">
+        <ng-container *ngIf="(online$ | async) as users">
+          <div
+            *ngIf="users.length === 0"
+            class="empty-state">
+            <div class="empty-emoji">👥</div>
+            <div class="empty-title">No one else here yet</div>
+            <div class="empty-subtitle">When teammates open this workflow they'll show up here.</div>
+          </div>
+          <div
+            *ngFor="let user of users; trackBy: trackUser"
+            class="online-row"
+            [ngClass]="{ idle: user.isIdle, self: user.isLocal }">
+            <div
+              class="online-avatar"
+              [style.background-color]="user.color">
+              {{ initial(user.name) }}
+              <span
+                class="status-dot"
+                [ngClass]="{ idle: user.isIdle, active: !user.isIdle }"></span>
+            </div>
+            <div class="online-meta">
+              <div class="online-name">
+                {{ user.name }}
+                <span
+                  *ngIf="user.isLocal"
+                  class="you-tag">
+                  You
+                </span>
+              </div>
+              <div class="online-desc">{{ onlineDescription(user) }}</div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </ng-container>
+
+  </section>
+</div>

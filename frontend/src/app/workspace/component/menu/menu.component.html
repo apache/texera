@@ -79,6 +79,26 @@
         <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
 
+      <nz-badge
+        [nzCount]="(unresolvedCommentCount$ | async) ?? 0"
+        [nzOverflowCount]="9"
+        class="collab-toggle-badge">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          class="collab-toggle-btn"
+          (click)="collaborationService.togglePanel()"
+          nz-tooltip="Team chat, comments, and online users"
+          nzTooltipPlacement="bottom"
+          title="Collaboration">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="team"></i>
+        </button>
+      </nz-badge>
+
       <texera-user-icon></texera-user-icon>
     </div>
     <div id="button-groups">
