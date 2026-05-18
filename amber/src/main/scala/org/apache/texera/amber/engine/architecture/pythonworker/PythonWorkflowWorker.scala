@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 
 import org.apache.pekko.actor.Props
 import com.twitter.util.Promise
-import org.apache.texera.amber.config.{StorageConfig, UdfConfig}
+import org.apache.texera.amber.config.{PythonUtils, StorageConfig, UdfConfig}
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
@@ -65,7 +65,6 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val pythonENVPath: String = UdfConfig.pythonPath.trim
   val RENVPath: String = UdfConfig.rPath.trim
 
   // Python process
@@ -166,9 +165,7 @@ class PythonWorkflowWorker(
   }
 
   private def choosePythonBin(): String = {
-    val fallback =
-      if (pythonENVPath.trim.isEmpty || pythonENVPath.trim == "Default") "python3"
-      else pythonENVPath
+    val fallback = PythonUtils.getPythonExecutable
 
     val cuidOpt = workerConfig.cuid
       .orElse(sys.env.get("TEXERA_CUID").flatMap(s => scala.util.Try(s.toInt).toOption))
