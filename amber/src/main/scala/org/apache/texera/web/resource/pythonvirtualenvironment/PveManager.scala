@@ -49,6 +49,10 @@ object PveManager {
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
+  // pveName is attacker-controllable via imported / shared workflow JSON and via direct API calls,
+  // so reject anything that could escape VenvRoot before we resolve a filesystem path with it.
+  private val SafePveName = "^[A-Za-z0-9._-]+$".r
+
   private def cuidDir(cuid: Int, pveName: String): Path = {
     VenvRoot.resolve(cuid.toString).resolve(pveName)
   }
@@ -60,8 +64,11 @@ object PveManager {
     pveDir(cuid, pveName).resolve("bin").resolve("python")
 
   def getPythonBin(cuid: Int, pveName: String): Option[Path] = {
-    val path = pythonBinPath(cuid, pveName)
-    if (Files.exists(path) && Files.isExecutable(path)) Some(path) else None
+    if (!SafePveName.pattern.matcher(pveName).matches()) return None
+    val resolved = pythonBinPath(cuid, pveName).toAbsolutePath.normalize()
+    val root = VenvRoot.toAbsolutePath.normalize()
+    if (!resolved.startsWith(root)) return None
+    if (Files.exists(resolved) && Files.isExecutable(resolved)) Some(resolved) else None
   }
 
   private def pipEnv: Map[String, String] =
