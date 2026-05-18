@@ -59,6 +59,11 @@ object PveManager {
   private def pythonBinPath(cuid: Int, pveName: String): Path =
     pveDir(cuid, pveName).resolve("bin").resolve("python")
 
+  def getPythonBin(cuid: Int, pveName: String): Option[Path] = {
+    val path = pythonBinPath(cuid, pveName)
+    if (Files.exists(path) && Files.isExecutable(path)) Some(path) else None
+  }
+
   private def pipEnv: Map[String, String] =
     Map(
       "PYTHONUNBUFFERED" -> "1",

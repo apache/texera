@@ -40,7 +40,8 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInM
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.{CheckpointState, Utils}
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Path
+import org.apache.texera.web.resource.pythonvirtualenvironment.PveManager
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.sys.process.{BasicIO, Process}
 
@@ -166,27 +167,13 @@ class PythonWorkflowWorker(
 
   private def choosePythonBin(): String = {
     val fallback = PythonUtils.getPythonExecutable
-
     val pveName = workerConfig.pveName.trim
 
-    if (workerConfig.cuid.isEmpty || pveName.isEmpty) {
-      return fallback
-    }
-
-    val candidate = Paths.get(
-      "/tmp/texera-pve/venvs",
-      workerConfig.cuid.get.toString,
-      pveName,
-      "pve",
-      "bin",
-      "python"
-    )
-
-    if (Files.exists(candidate) && Files.isExecutable(candidate)) {
-      candidate.toString
-    } else {
-      fallback
-    }
+    workerConfig.cuid
+      .filter(_ => pveName.nonEmpty)
+      .flatMap(cuid => PveManager.getPythonBin(cuid, pveName))
+      .map(_.toString)
+      .getOrElse(fallback)
   }
 
   private def startPythonProcess(): Unit = {
