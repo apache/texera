@@ -72,12 +72,17 @@ class PythonUDFOpDescV2 extends LogicalOp {
   @JsonPropertyDescription("Keep the original input columns?")
   var retainInputColumns: Boolean = Boolean.box(false)
 
-  @JsonProperty(defaultValue = "Default")
+  @JsonProperty(required = true, defaultValue = "true")
+  @JsonSchemaTitle("Default Python Environment")
+  @JsonPropertyDescription("Use Default Python Environment\"")
+  var defaultEnv: Boolean = Boolean.box(true)
+
+  @JsonProperty()
   @JsonSchemaTitle("Virtual Environment")
   @JsonPropertyDescription(
     "Python Environment you would like this UDF to be executed within"
   )
-  var envName: String = "Default"
+  var envName: String = ""
 
   @JsonProperty
   @JsonSchemaTitle("Extra output column(s)")
@@ -147,7 +152,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
-      .withPveName(envName.trim)
+      .withPveName(if (defaultEnv) "" else envName.trim)
   }
 
   override def operatorInfo: OperatorInfo = {

@@ -49,12 +49,17 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
   @JsonPropertyDescription("Specify how many parallel workers to launch")
   var workers: Int = 1
 
-  @JsonProperty(defaultValue = "Default")
+  @JsonProperty(required = true, defaultValue = "true")
+  @JsonSchemaTitle("Default Python Environment")
+  @JsonPropertyDescription("Use Default Python Environment\"")
+  var defaultEnv: Boolean = Boolean.box(true)
+
+  @JsonProperty()
   @JsonSchemaTitle("Virtual Environment")
   @JsonPropertyDescription(
     "Python Environment you would like this UDF to be executed within"
   )
-  var envName: String = "Default"
+  var envName: String = ""
 
   @JsonProperty()
   @JsonSchemaTitle("Columns")
@@ -75,7 +80,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
       .withLocationPreference(Option.empty)
-      .withPveName(envName.trim)
+      .withPveName(if (defaultEnv) "" else envName.trim)
 
     if (workers > 1) {
       physicalOp
