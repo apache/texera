@@ -167,17 +167,15 @@ class PythonWorkflowWorker(
   private def choosePythonBin(): String = {
     val fallback = PythonUtils.getPythonExecutable
 
-    val cuidOpt = workerConfig.cuid
-      .orElse(sys.env.get("TEXERA_CUID").flatMap(s => scala.util.Try(s.toInt).toOption))
     val pveName = workerConfig.pveName.trim
 
-    if (cuidOpt.isEmpty || pveName.isEmpty) {
+    if (workerConfig.cuid.isEmpty || pveName.isEmpty) {
       return fallback
     }
 
     val candidate = Paths.get(
       "/tmp/texera-pve/venvs",
-      cuidOpt.get.toString,
+      workerConfig.cuid.get.toString,
       pveName,
       "pve",
       "bin",
