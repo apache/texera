@@ -186,12 +186,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const patchedSchema = cloneDeep(schema);
 
     if (patchedSchema.properties && typeof patchedSchema.properties !== "boolean") {
-      if (!patchedSchema.properties["envName"]) {
-        patchedSchema.properties["envName"] = { type: "string" };
-      }
-
       const envProperty = patchedSchema.properties["envName"] as CustomJSONSchema7;
-
       envProperty.enum = environments;
     }
 
@@ -310,6 +305,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             this.hideEnvNameWhenDefaultEnvChecked();
           },
           error: (err: unknown) => {
+            console.error("Failed to load Python virtual environments:", err);
+            this.notificationService.error(
+              `Could not load Python virtual environments: ${err instanceof Error ? err.message : String(err)}`
+            );
             const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, []);
             this.setFormlyFormBinding(patchedSchema);
             this.hideEnvNameWhenDefaultEnvChecked();
