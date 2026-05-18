@@ -73,7 +73,7 @@ import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { of } from "rxjs";
-import { switchMap, take } from "rxjs/operators";
+import { map, switchMap, take } from "rxjs/operators";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -186,20 +186,25 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const patchedSchema = cloneDeep(schema);
 
     if (patchedSchema.properties && typeof patchedSchema.properties !== "boolean") {
-      const envOptions = ["Default", ...environments.filter(e => e !== "Default")];
-
       if (!patchedSchema.properties["envName"]) {
         patchedSchema.properties["envName"] = { type: "string" };
       }
 
       const envProperty = patchedSchema.properties["envName"] as CustomJSONSchema7;
 
-      envProperty.enum = envOptions;
-
-      envProperty.default = "Default";
+      envProperty.enum = environments;
     }
 
     return patchedSchema;
+  }
+
+  // Existing toggleHidden helper hides a field when the controller is *falsy*; here we need the
+  // opposite (hide envName when defaultEnv is *truthy*), so set the expression directly.
+  private hideEnvNameWhenDefaultEnvChecked(): void {
+    const envField = this.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
+    if (envField) {
+      envField.expressions = { hide: "!!field.parent.model.defaultEnv" };
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -275,16 +280,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
      */
     this.formData = cloneDeep(operator.operatorProperties);
 
-    // Pre-fill the PVE selection to "Default" for freshly-dropped Python UDF operators.
-    // AJV's useDefaults pass below runs against the unpatched schema, so relying on the
-    // patched-schema default isn't enough; do it directly on formData here. Existing
-    // operators that already have an envName keep their value.
     const isPythonUdf =
       this.currentOperatorSchema.operatorType === "PythonUDFV2" ||
       this.currentOperatorSchema.operatorType === "DualInputPortsPythonUDFV2" ||
       this.currentOperatorSchema.operatorType === "PythonUDFSourceV2";
-    if (isPythonUdf && !this.formData.envName) {
-      this.formData.envName = "Default";
+    if (isPythonUdf && this.formData.defaultEnv === undefined) {
+      this.formData.defaultEnv = true;
     }
 
     const baseSchema = cloneDeep(this.currentOperatorSchema.jsonSchema);
@@ -296,7 +297,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           take(1),
           switchMap(unit => {
             const cuid = unit?.computingUnit?.cuid;
-            return cuid !== undefined ? this.workflowPveService.getPveNames(cuid) : of<string[]>([]);
+            return cuid !== undefined
+              ? this.workflowPveService.fetchPVEs(cuid).pipe(map(pves => pves.map(p => p.pveName)))
+              : of<string[]>([]);
           }),
           untilDestroyed(this)
         )
@@ -304,10 +307,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           next: (environments: string[]) => {
             const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, environments);
             this.setFormlyFormBinding(patchedSchema);
+            this.hideEnvNameWhenDefaultEnvChecked();
           },
           error: (err: unknown) => {
             const patchedSchema = this.patchPythonUdfEnvironmentSchema(baseSchema, []);
             this.setFormlyFormBinding(patchedSchema);
+            this.hideEnvNameWhenDefaultEnvChecked();
           },
         });
     } else {
