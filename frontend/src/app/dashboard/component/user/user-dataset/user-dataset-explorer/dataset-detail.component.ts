@@ -121,7 +121,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
   public datasetIsPublic: boolean = false;
-  public coverImageUrl: string = DEFAULT_COVER_IMAGE;
+  public coverImageUrl: string = "";
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
@@ -345,7 +345,7 @@ export class DatasetDetailComponent implements OnInit {
           this.ownerEmail = dashboardDataset.ownerEmail;
           this.isOwner = dashboardDataset.isOwner;
           this.coverImageUrl = dataset.coverImage
-            ? `${AppSettings.getApiEndpoint()}/dataset/${this.did}/cover`
+            ? `${AppSettings.getApiEndpoint()}/dataset/${this.did}/cover?v=${encodeURIComponent(dataset.coverImage)}`
             : DEFAULT_COVER_IMAGE;
           if (typeof dataset.creationTime === "number") {
             const date = new Date(dataset.creationTime);
@@ -782,12 +782,14 @@ export class DatasetDetailComponent implements OnInit {
       return;
     }
 
+    const newCoverPath = `${this.selectedVersion.name}/${filePath}`;
     this.datasetService
-      .updateDatasetCoverImage(this.did, `${this.selectedVersion.name}/${filePath}`)
+      .updateDatasetCoverImage(this.did, newCoverPath)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.notificationService.success("Cover image set successfully. Please refresh the page to see the update.");
+          this.coverImageUrl = `${AppSettings.getApiEndpoint()}/dataset/${this.did}/cover?v=${encodeURIComponent(newCoverPath)}`;
+          this.notificationService.success("Cover image updated.");
         },
         error: (err: unknown) => {
           this.notificationService.error(
