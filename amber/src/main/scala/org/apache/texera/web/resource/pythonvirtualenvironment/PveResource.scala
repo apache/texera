@@ -114,13 +114,4 @@ class PveResource {
     }
   }
 
-  // --------------------------------------------------
-  // Get list of existing environments for a CU
-  // --------------------------------------------------
-  @GET
-  @Path("/environments")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getPveNames(@QueryParam("cuid") cuid: Int): java.util.List[String] = {
-    PveManager.getPveNames(cuid).asJava
-  }
 }

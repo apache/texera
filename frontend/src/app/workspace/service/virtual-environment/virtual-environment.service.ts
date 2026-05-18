@@ -93,9 +93,4 @@ export class WorkflowPveService {
       tokenParam
     );
   }
-
-  getPveNames(cuid: number): Observable<string[]> {
-    const params = this.buildBaseParams().set("cuid", cuid.toString());
-    return this.http.get<string[]>("/pve/environments", { params });
-  }
 }
