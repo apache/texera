@@ -129,11 +129,16 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public codeDebuggerComponent!: Type<any> | null;
   public editorToPass!: MonacoEditor;
 
+  // Operator-type → editor language. The R types are kept on the frontend
+  // even though Texera's R UDF backend now ships as a separate plugin —
+  // when that plugin is installed, the workflow may still surface `RUDF` /
+  // `RUDFSource` operators and the editor needs to open them in R mode.
   private static readonly PYTHON_OPERATOR_TYPES: ReadonlySet<string> = new Set([
     "PythonUDFV2",
     "PythonUDFSourceV2",
     "DualInputPortsPythonUDFV2",
   ]);
+  private static readonly R_OPERATOR_TYPES: ReadonlySet<string> = new Set(["RUDFSource", "RUDF"]);
 
   constructor(
     private sanitizer: DomSanitizer,
@@ -145,7 +150,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
-    this.language = CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType) ? "python" : "java";
+    if (CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType)) {
+      this.language = "python";
+    } else if (CodeEditorComponent.R_OPERATOR_TYPES.has(operatorType)) {
+      this.language = "r";
+    } else {
+      this.language = "java";
+    }
     this.languageTitle = `${this.language[0].toUpperCase()}${this.language.slice(1)} UDF`;
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.title = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).customDisplayName;
@@ -293,7 +304,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * @private
    */
   private initializeMonacoEditor() {
-    const fileSuffix = this.language === "java" ? ".java" : ".py";
+    const fileSuffix = this.language === "java" ? ".java" : this.language === "r" ? ".r" : ".py";
     const editorAppConfig: EditorAppConfig = {
       codeResources: {
         modified: {
@@ -383,7 +394,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private initializeDiffEditor(): void {
-    const fileSuffix = this.language === "java" ? ".java" : ".py";
+    const fileSuffix = this.language === "java" ? ".java" : this.language === "r" ? ".r" : ".py";
     const latestVersionOperator = this.workflowActionService
       .getTempWorkflow()
       ?.content.operators?.find(({ operatorID }) => operatorID === this.currentOperatorId);

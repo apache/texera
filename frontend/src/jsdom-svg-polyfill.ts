@@ -17,22 +17,20 @@
  * under the License.
  */
 
-// Test-environment polyfills + setup hooks for jsdom + the Angular
-// `@angular/build:unit-test` builder. Pulled in via `setupFiles` in
-// `angular.json`. Each block below patches one specific gap that surfaces
-// when the codingame monaco-vscode-* v25 stack or jointjs runs under jsdom.
+// Test-env polyfills loaded via `setupFiles` in `angular.json`. Most of
+// the gaps below were introduced by the monaco-languageclient v10 upgrade,
+// which pulls in `@codingame/monaco-vscode-*` v25 — that stack calls into
+// browser APIs jsdom doesn't ship (Constructable Stylesheets, `CSS.escape`,
+// `matchMedia`, `requestIdleCallback`, …). jointjs's SVG geometry stubs
+// are the only block that predates the upgrade.
 
-// Node ESM loader hook so every transitive `.css` import resolves to an empty
-// module. The unit-test builder pre-bundles spec files with `externalPackages:
-// true`, so imports like `monaco-languageclient` reach Node's native ESM
-// loader instead of Vite's transform pipeline — without the hook, every spec
-// that transitively loads the codingame v25 stack crashes with
-// `Unknown file extension ".css"`. Inline as a `data:` URL so we don't carry
-// a sidecar `.mjs`. Vitest re-evaluates this setup file once per spec file,
-// so we gate the registration with a `globalThis` flag — `module.register`
-// chains every call, and we don't want N hooks doing identical work for N
-// specs. Must run before any spec body imports the affected packages;
-// `module.register` needs Node 20.6+ (project pins Node ≥ 24).
+// CSS-import shim: the unit-test builder pre-bundles specs with
+// `externalPackages: true`, so transitive `.css` imports from the codingame
+// stack reach Node's native ESM loader and crash with
+// `Unknown file extension ".css"`. Register a hook that resolves any `.css`
+// specifier to a `CSSStyleSheet`-shaped no-op module. Source is inlined as
+// a `data:` URL (no `.mjs` sidecar). Gated by a `globalThis` flag because
+// `setupFiles` re-runs per spec file and `module.register` chains.
 import { register as registerLoader } from "node:module";
 
 const CSS_HOOK_FLAG = Symbol.for("texera.cssLoaderHookRegistered");

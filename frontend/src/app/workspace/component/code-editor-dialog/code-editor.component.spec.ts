@@ -31,10 +31,10 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 import { of } from "rxjs";
 
 // Operator types that the constructor's language-detection branch must map
-// to a specific language. The three V2 Python types -> `python`; everything
-// else (including the legacy `RUDF*` types) -> `java`, since R UDF editor
-// support was retired in this branch. Local to this spec so we don't
-// perturb the shared mock-workflow-data fixtures.
+// to a specific language. `RUDFSource` / `RUDF` -> `r`; the three V2 Python
+// types -> `python`; everything else -> `java`. Local to this spec so we
+// don't perturb the shared mock-workflow-data fixtures.
+const R_OPERATOR_TYPES = ["RUDFSource", "RUDF"];
 const PYTHON_OPERATOR_TYPES = ["PythonUDFV2", "PythonUDFSourceV2", "DualInputPortsPythonUDFV2"];
 
 // Augment `mockOperatorMetaData` with synthetic schemas for the V2 operator
@@ -52,6 +52,7 @@ const synthesizeSchema = (operatorType: string): OperatorSchema => ({ ...baseSch
 const augmentedSchemas: OperatorSchema[] = [
   ...mockOperatorMetaData.operators,
   ...PYTHON_OPERATOR_TYPES.map(synthesizeSchema),
+  ...R_OPERATOR_TYPES.map(synthesizeSchema),
   synthesizeSchema("SomeUnknownType"),
 ];
 class AugmentedStubMetadataService extends StubOperatorMetadataService {
@@ -116,11 +117,19 @@ describe("CodeEditorComponent", () => {
     expect(fixture.componentInstance.currentOperatorId).toBe(mockJavaUDFPredicate.operatorID);
   });
 
-  // Language detection — the constructor maps the three V2-era Python
-  // operator types to `python`, and anything else (including the legacy
-  // `RUDF*` types that this branch retired) to `java`. The exact branch
-  // lives in the constructor; the public `language` field is what the
-  // rest of the editor (LSP wiring, file-suffix selection) keys off.
+  // Language detection — the constructor maps `RUDFSource` / `RUDF` to `r`,
+  // the three V2-era Python operator types to `python`, and anything else
+  // to `java`. The exact branch lives in the constructor; the public
+  // `language` field is what the rest of the editor (LSP wiring, file-
+  // suffix selection) keys off.
+
+  R_OPERATOR_TYPES.forEach((operatorType, index) => {
+    it(`picks language="r" for operatorType=${operatorType}`, () => {
+      const fixture = makeFixture(buildPredicate(`r-${index}`, operatorType));
+      expect(fixture.componentInstance.language).toBe("r");
+      expect(fixture.componentInstance.languageTitle).toBe("R UDF");
+    });
+  });
 
   PYTHON_OPERATOR_TYPES.forEach((operatorType, index) => {
     it(`picks language="python" for operatorType=${operatorType}`, () => {
