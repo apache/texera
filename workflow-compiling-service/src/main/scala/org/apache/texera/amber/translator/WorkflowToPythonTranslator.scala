@@ -30,18 +30,14 @@ import scala.jdk.CollectionConverters._
 class WorkflowToPythonTranslator extends LazyLogging {
 
   def translate(logicalPlan: LogicalPlan): String = {
-    val incoming = mutable.Map[String, ArrayBuffer[String]]()
     val outgoing = mutable.Map[String, ArrayBuffer[String]]()
 
     logicalPlan.operators.foreach { op =>
-      val id = op.operatorIdentifier.id
-      incoming(id) = ArrayBuffer.empty
-      outgoing(id) = ArrayBuffer.empty
+      outgoing(op.operatorIdentifier.id) = ArrayBuffer.empty
     }
 
     logicalPlan.links.foreach { link =>
       outgoing(link.fromOpId.id) += link.toOpId.id
-      incoming(link.toOpId.id) += link.fromOpId.id
     }
 
     val outputVar = mutable.Map[String, String]()
@@ -61,7 +57,18 @@ class WorkflowToPythonTranslator extends LazyLogging {
       val opId = opIdentity.id
       val op = logicalPlan.getOperator(opIdentity)
       val displayName = op.operatorInfo.userFriendlyName
-      val inVars = incoming(opId).map(outputVar).toList
+
+      // Resolve upstream inputs in the consuming operator's input-port order
+      // (link.toPortId), NOT the order links happen to appear in the plan's
+      // link list. This makes in1df/in2df/... deterministic and correct for
+      // multi-input operators (joins, set ops) where port 0 vs port 1 carries
+      // semantics (e.g. build vs probe side). Ties on the same toPortId keep
+      // link order — relevant for variadic single-port operators like Union.
+      val inVars = logicalPlan
+        .getUpstreamLinks(opIdentity)
+        .sortBy(link => (link.toPortId.id, link.toPortId.internal))
+        .map(link => outputVar(link.fromOpId.id))
+
       val outVar = s"df$varCounter"
       varCounter += 1
       outputVar(opId) = outVar
