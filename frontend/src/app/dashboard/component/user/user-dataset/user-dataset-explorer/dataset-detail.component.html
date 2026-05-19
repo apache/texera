@@ -19,99 +19,111 @@
 
 <div *ngIf="!isMaximized">
   <nz-card>
-    <h2>Dataset: {{datasetName}}</h2>
-    <nz-card-meta
-      style="padding-top: 5px"
-      [nzDescription]="descriptionTemplate">
-      <ng-template #descriptionTemplate>
-        Created at:
-        <span
-          nz-tooltip
-          [nzTooltipTitle]="datasetCreationTimeTooltip">
-          {{datasetCreationTime}}
-        </span>
-      </ng-template>
-    </nz-card-meta>
+    <div class="dataset-header">
+      <div class="dataset-header-meta">
+        <h2>Dataset: {{datasetName}}</h2>
+        <nz-card-meta
+          style="padding-top: 5px"
+          [nzDescription]="descriptionTemplate">
+          <ng-template #descriptionTemplate>
+            Created at:
+            <span
+              nz-tooltip
+              [nzTooltipTitle]="datasetCreationTimeTooltip">
+              {{datasetCreationTime}}
+            </span>
+          </ng-template>
+        </nz-card-meta>
 
-    <div class="status-tag-row">
-      <nz-tag
-        class="status-tag"
-        [ngClass]="{ 'tag-public': datasetIsPublic }">
-        <i
-          nz-icon
-          [nzType]="datasetIsPublic ? 'global' : 'lock'"
-          nzTheme="outline"></i>
-        {{ datasetIsPublic ? "Public" : "Private" }}
-      </nz-tag>
+        <div class="status-tag-row">
+          <nz-tag
+            class="status-tag"
+            [ngClass]="{ 'tag-public': datasetIsPublic }">
+            <i
+              nz-icon
+              [nzType]="datasetIsPublic ? 'global' : 'lock'"
+              nzTheme="outline"></i>
+            {{ datasetIsPublic ? "Public" : "Private" }}
+          </nz-tag>
 
-      <nz-tag
-        class="status-tag"
-        [ngClass]="{ 'tag-downloadable': datasetIsDownloadable }">
-        <i
-          nz-icon
-          [nzType]="datasetIsDownloadable ? 'download' : 'stop'"
-          nzTheme="outline"></i>
-        {{ datasetIsDownloadable ? "Downloadable" : "Download restricted" }}
-      </nz-tag>
+          <nz-tag
+            class="status-tag"
+            [ngClass]="{ 'tag-downloadable': datasetIsDownloadable }">
+            <i
+              nz-icon
+              [nzType]="datasetIsDownloadable ? 'download' : 'stop'"
+              nzTheme="outline"></i>
+            {{ datasetIsDownloadable ? "Downloadable" : "Download restricted" }}
+          </nz-tag>
 
-      <nz-tag class="status-tag">
-        <i
-          nz-icon
-          nzType="eye"
-          nzTheme="outline"></i>
-        {{ formatCount(viewCount) }}
-      </nz-tag>
+          <nz-tag class="status-tag">
+            <i
+              nz-icon
+              nzType="eye"
+              nzTheme="outline"></i>
+            {{ formatCount(viewCount) }}
+          </nz-tag>
 
-      <nz-tag
-        class="status-tag like-tag"
-        [ngClass]="{ liked: isLiked, disabled: !isLogin }"
-        (click)="isLogin && toggleLike()">
-        <i
-          nz-icon
-          nzType="like"
-          nzTheme="outline"></i>
-        {{ formatCount(likeCount) }}
-      </nz-tag>
+          <nz-tag
+            class="status-tag like-tag"
+            [ngClass]="{ liked: isLiked, disabled: !isLogin }"
+            (click)="isLogin && toggleLike()">
+            <i
+              nz-icon
+              nzType="like"
+              nzTheme="outline"></i>
+            {{ formatCount(likeCount) }}
+          </nz-tag>
 
-      <button
-        *ngIf="userHasWriteAccess()"
-        nz-button
-        nzType="text"
-        class="tag-settings-btn"
-        nz-popover
-        nzPopoverTrigger="click"
-        nzPopoverPlacement="bottomRight"
-        [nzPopoverContent]="tagSettingsPopover"
-        nz-tooltip
-        nzTooltipTitle="Settings">
-        <i
-          nz-icon
-          nzType="setting"
-          nzTheme="outline"></i>
-      </button>
+          <button
+            *ngIf="userHasWriteAccess()"
+            nz-button
+            nzType="text"
+            class="tag-settings-btn"
+            nz-popover
+            nzPopoverTrigger="click"
+            nzPopoverPlacement="bottomRight"
+            [nzPopoverContent]="tagSettingsPopover"
+            nz-tooltip
+            nzTooltipTitle="Settings">
+            <i
+              nz-icon
+              nzType="setting"
+              nzTheme="outline"></i>
+          </button>
 
-      <ng-template #tagSettingsPopover>
-        <div>
-          <div class="tag-settings-title">Quick Settings</div>
-          <div class="tag-settings-row">
-            <span>Visibility:</span>
-            <nz-switch
-              [ngModel]="datasetIsPublic"
-              (ngModelChange)="onPublicStatusChange($event)"
-              [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
-              nzCheckedChildren="public"
-              nzUnCheckedChildren="private"></nz-switch>
-          </div>
-          <div class="tag-settings-row">
-            <span>Downloadable:</span>
-            <nz-switch
-              [ngModel]="datasetIsDownloadable"
-              (ngModelChange)="onDownloadableStatusChange($event)"
-              [nzDisabled]="!isOwner"
-              nzCheckedChildren="allowed"
-              nzUnCheckedChildren="blocked"></nz-switch>
-          </div>
+          <ng-template #tagSettingsPopover>
+            <div>
+              <div class="tag-settings-title">Quick Settings</div>
+              <div class="tag-settings-row">
+                <span>Visibility:</span>
+                <nz-switch
+                  [ngModel]="datasetIsPublic"
+                  (ngModelChange)="onPublicStatusChange($event)"
+                  [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+                  nzCheckedChildren="public"
+                  nzUnCheckedChildren="private"></nz-switch>
+              </div>
+              <div class="tag-settings-row">
+                <span>Downloadable:</span>
+                <nz-switch
+                  [ngModel]="datasetIsDownloadable"
+                  (ngModelChange)="onDownloadableStatusChange($event)"
+                  [nzDisabled]="!isOwner"
+                  nzCheckedChildren="allowed"
+                  nzUnCheckedChildren="blocked"></nz-switch>
+              </div>
+            </div>
+          </ng-template>
         </div>
+      </div>
+      <img
+        *ngIf="coverImageUrl; else coverPlaceholder"
+        class="dataset-cover-image"
+        [src]="coverImageUrl"
+        alt="Dataset cover" />
+      <ng-template #coverPlaceholder>
+        <div class="dataset-cover-image"></div>
       </ng-template>
     </div>
 
