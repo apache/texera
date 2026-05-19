@@ -72,7 +72,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
 
   @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Default Python Environment")
-  @JsonPropertyDescription("Use Default Python Environment\"")
+  @JsonPropertyDescription("Use Default Python Environment")
   var defaultEnv: Boolean = Boolean.box(true)
 
   @JsonProperty()
