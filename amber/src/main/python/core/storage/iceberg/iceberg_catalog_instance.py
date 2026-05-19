@@ -60,10 +60,6 @@ class IcebergCatalogInstance:
                     "texera_iceberg",
                     StorageConfig.ICEBERG_REST_CATALOG_WAREHOUSE_NAME,
                     StorageConfig.ICEBERG_REST_CATALOG_URI,
-                    StorageConfig.S3_ENDPOINT,
-                    StorageConfig.S3_REGION,
-                    StorageConfig.S3_AUTH_USERNAME,
-                    StorageConfig.S3_AUTH_PASSWORD,
                 )
             else:
                 raise ValueError(f"Unsupported catalog type: {catalog_type}")

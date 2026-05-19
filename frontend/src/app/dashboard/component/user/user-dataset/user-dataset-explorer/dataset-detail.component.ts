@@ -67,10 +67,12 @@ import { FilesUploaderComponent } from "../../files-uploader/files-uploader.comp
 import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { AppSettings } from "../../../../../common/app-setting";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
 export const ABORT_RETRY_BACKOFF_BASE_MS = 100;
+const DEFAULT_COVER_IMAGE = "assets/card_background.jpg";
 
 @UntilDestroy()
 @Component({
@@ -119,6 +121,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetCreationTime: string = "";
   public datasetCreationTimeTooltip: string = "";
   public datasetIsPublic: boolean = false;
+  public coverImageUrl: string = "";
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
   public ownerEmail: string = "";
@@ -341,6 +344,9 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetIsDownloadable = dataset.isDownloadable;
           this.ownerEmail = dashboardDataset.ownerEmail;
           this.isOwner = dashboardDataset.isOwner;
+          this.coverImageUrl = dataset.coverImage
+            ? `${AppSettings.getApiEndpoint()}/dataset/${this.did}/cover?v=${encodeURIComponent(dataset.coverImage)}`
+            : DEFAULT_COVER_IMAGE;
           if (typeof dataset.creationTime === "number") {
             const date = new Date(dataset.creationTime);
             this.datasetCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
@@ -776,12 +782,14 @@ export class DatasetDetailComponent implements OnInit {
       return;
     }
 
+    const newCoverPath = `${this.selectedVersion.name}/${filePath}`;
     this.datasetService
-      .updateDatasetCoverImage(this.did, `${this.selectedVersion.name}/${filePath}`)
+      .updateDatasetCoverImage(this.did, newCoverPath)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.notificationService.success("Cover image set successfully");
+          this.coverImageUrl = `${AppSettings.getApiEndpoint()}/dataset/${this.did}/cover?v=${encodeURIComponent(newCoverPath)}`;
+          this.notificationService.success("Cover image updated.");
         },
         error: (err: unknown) => {
           this.notificationService.error(
