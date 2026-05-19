@@ -61,7 +61,7 @@ class GoogleDriveAuthResource {
   final private lazy val clientSecret = UserSystemConfig.googleClientSecret
   final private lazy val redirectUri = UserSystemConfig.appDomain
     .map(domain => s"https://$domain/api/auth/google/drive/callback")
-    .getOrElse("http://localhost:8080/api/auth/google/drive/callback")
+    .getOrElse("http://localhost:4200/api/auth/google/drive/callback")
 
   @GET
   @Path("/token")
@@ -95,6 +95,7 @@ class GoogleDriveAuthResource {
 
   @GET
   @Path("/callback")
+  @Produces(Array(MediaType.TEXT_HTML,MediaType.APPLICATION_JSON))
   def getCallback(
                    @QueryParam("code") @DefaultValue("") code: String,
                    @QueryParam("state") @DefaultValue("") state: String
@@ -123,10 +124,15 @@ class GoogleDriveAuthResource {
       user.setGoogleDriveRefreshToken(response.getRefreshToken)
       userDao.update(user)
 
-      Response.ok(response.getAccessToken).build()
+      val html =
+        """<html><body><script>
+          |window.opener.postMessage('gdrive-connected', window.location.origin);
+          |window.close();
+          |</script></body></html>""".stripMargin
+      Response.ok(html).build()
     } catch {
-      case _: TokenResponseException =>
-        Response.status(Response.Status.BAD_GATEWAY).build()
+      case e: TokenResponseException =>
+        Response.status(Response.Status.BAD_GATEWAY).entity(e.getDetails).build()
       case _: Exception =>
         Response.status(Response.Status.INTERNAL_SERVER_ERROR).build()
     }
