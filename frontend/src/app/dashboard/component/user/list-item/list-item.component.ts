@@ -406,7 +406,7 @@ export class ListItemComponent implements OnChanges {
         wid: wid ?? 0,
       },
       nzFooter: null,
-      nzStyle: { width: "60%" },
+      nzWidth: "max(900px, 60vw)",
       nzBodyStyle: { maxHeight: "70vh", overflow: "auto" },
     });
 
