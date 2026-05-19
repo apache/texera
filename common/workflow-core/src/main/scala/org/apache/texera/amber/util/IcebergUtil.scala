@@ -108,19 +108,12 @@ object IcebergUtil {
   ): RESTCatalog = {
     val catalog = new RESTCatalog()
 
-    // Build base properties map
-    var properties = Map(
+    // S3 settings (endpoint, region, credentials) are supplied by the REST
+    // catalog server at runtime.
+    val properties = Map(
       "warehouse" -> warehouse,
-      CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri
-    )
-
-    properties = properties ++ Map(
-      CatalogProperties.FILE_IO_IMPL -> classOf[S3FileIO].getName,
-      "s3.endpoint" -> StorageConfig.s3Endpoint,
-      "s3.access-key-id" -> StorageConfig.s3Username,
-      "s3.secret-access-key" -> StorageConfig.s3Password,
-      "s3.region" -> StorageConfig.s3Region,
-      "s3.path-style-access" -> "true"
+      CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri,
+      CatalogProperties.FILE_IO_IMPL -> classOf[S3FileIO].getName
     )
 
     catalog.initialize(catalogName, properties.asJava)

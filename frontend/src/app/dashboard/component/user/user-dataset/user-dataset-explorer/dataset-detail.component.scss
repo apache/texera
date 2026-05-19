@@ -316,3 +316,20 @@ nz-select {
   align-items: center;
   gap: 4px;
 }
+
+.dataset-header {
+  display: flex;
+  gap: 24px;
+}
+
+.dataset-header-meta {
+  flex: 1;
+}
+
+.dataset-cover-image {
+  width: 280px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-right: 80px;
+}
