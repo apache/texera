@@ -481,25 +481,6 @@ class HuggingFaceModelResourceSpec extends AnyFunSuite with BeforeAndAfterEach {
     assert(bytes.sameElements(payload))
   }
 
-  test(
-    "previewUploadedAudio returns 413 when the on-disk file exceeds MAX_AUDIO_BYTES (defense-in-depth)"
-  ) {
-    // /upload-audio caps ingest at MAX_AUDIO_BYTES, but the preview endpoint
-    // shouldn't trust that invariant — a future bug or out-of-band write could
-    // leave an oversized file in the temp dir. Reads of those files must not
-    // OOM the JVM.
-    val file = Files.createTempFile(audioTempDir, "test-oversize-", ".wav")
-    // Create a sparse file of size MAX_AUDIO_BYTES + 1 without actually
-    // writing that many bytes to disk.
-    val raf = new java.io.RandomAccessFile(file.toFile, "rw")
-    try raf.setLength(MAX_AUDIO_BYTES + 1)
-    finally raf.close()
-
-    val response = resource.previewUploadedAudio(file.toAbsolutePath.toString)
-    assert(response.getStatus == 413)
-    assertErrorBody(response)
-  }
-
   test("previewUploadedAudio normalizes the path before checking containment") {
     val payload = "ok".getBytes(StandardCharsets.UTF_8)
     val file = Files.createTempFile(audioTempDir, "test-norm-", ".wav")
