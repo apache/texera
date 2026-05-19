@@ -1,0 +1,204 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.amber.translator
+
+import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlan}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.texera.amber.operator.filter.{
+  ComparisonType,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+/**
+  * Tests for [[WorkflowToPythonTranslator]].
+  *
+  * Two groups:
+  *   1. Characterization tests pinning the CURRENT emitted code for the four
+  *      operators that already implement `generateStandaloneCode` (Sort,
+  *      SpecializedFilter, BarChart, CSVScan). These exist so future operator
+  *      work can't silently change translator/operator output. They assert on
+  *      substrings, not the whole script, so unrelated additions don't break
+  *      them — tighten an assertion only when that operator's contract changes.
+  *   2. A regression test for multi-input port ordering (joins / set ops):
+  *      `in1df`..`inNdf` must map to upstreams by the consuming operator's
+  *      input-port index (`link.toPortId`), NOT the order links appear in the
+  *      plan's link list.
+  *
+  * Harness: build a `LogicalPlan` directly from operator descriptors + links
+  * (no JSON / HTTP round-trip) and run the translator in-process. Use the
+  * `op` / `link` / `translate` helpers below for new operator tests; for a
+  * multi-input operator follow `multi-input` example and the batch template.
+  */
+class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
+
+  private def translate(ops: List[LogicalOp], links: List[LogicalLink]): String =
+    new WorkflowToPythonTranslator().translate(LogicalPlan(ops, links))
+
+  /** A single-port link from `from`'s output port 0 to `to`'s input port 0. */
+  private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
+    LogicalLink(from.operatorIdentifier, PortIdentity(0), to.operatorIdentifier, PortIdentity(0))
+
+  /** A link onto an explicit input port of a multi-input consumer. */
+  private def linkToPort(from: LogicalOp, to: LogicalOp, toPort: Int): LogicalLink =
+    LogicalLink(
+      from.operatorIdentifier,
+      PortIdentity(0),
+      to.operatorIdentifier,
+      PortIdentity(toPort)
+    )
+
+  private def csvSource(fileUri: String): CSVScanSourceOpDesc = {
+    val csv = new CSVScanSourceOpDesc()
+    csv.fileName = Some(fileUri)
+    csv.customDelimiter = Some(",")
+    csv.hasHeader = true
+    csv
+  }
+
+  private def sortBy(column: String, ascending: Boolean): SortOpDesc = {
+    val sort = new SortOpDesc()
+    val criteria = new SortCriteriaUnit()
+    criteria.attributeName = column
+    criteria.sortPreference = if (ascending) SortPreference.ASC else SortPreference.DESC
+    sort.attributes = List(criteria)
+    sort
+  }
+
+  // Returns the `dfN` variable the translator assigned to the CSV source that
+  // reads the given basename, so multi-input assertions don't depend on the
+  // topological numbering of the two sources.
+  private def varReading(script: String, basename: String): String = {
+    val pattern = ("""(df\d+) = pd\.read_csv\(filepath_or_buffer="""" + basename + """"""").r
+    pattern.findFirstMatchIn(script).map(_.group(1)).getOrElse {
+      fail(s"""no read_csv assignment for "$basename" in:\n$script""")
+    }
+  }
+
+  behavior of "WorkflowToPythonTranslator"
+
+  it should "emit shared imports once at the top" in {
+    val script = translate(List(csvSource("file:/tmp/data.csv")), Nil)
+    script should startWith("import pandas as pd")
+    script should include("import plotly.express as px")
+  }
+
+  // --- Characterization: CSVScanSourceOpDesc (source) ---
+  it should "translate CSVScanSourceOpDesc into a pd.read_csv assignment" in {
+    val csv = csvSource("file:/tmp/data.csv")
+    val script = translate(List(csv), Nil)
+
+    script should include("""df1 = pd.read_csv(filepath_or_buffer="data.csv"""")
+    script should include("sep=\",\"")
+    script should include("header=0")
+    // Single DataFrame-producing leaf -> translator prints a preview.
+    script should include("print(df1.head())")
+  }
+
+  // --- Characterization: SortOpDesc (transform, single input) ---
+  it should "translate SortOpDesc and substitute in1df/out1df with real vars" in {
+    val csv = csvSource("file:/tmp/data.csv")
+    val sort = sortBy("age", ascending = true)
+    val script = translate(List(csv, sort), List(link(csv, sort)))
+
+    script should include("""df2 = df1.sort_values(by=["age"], ascending=[True])""")
+    script should not include "in1df"
+    script should not include "out1df"
+  }
+
+  // --- Characterization: SpecializedFilterOpDesc (filter) ---
+  it should "translate SpecializedFilterOpDesc with a numeric predicate" in {
+    val csv = csvSource("file:/tmp/data.csv")
+    val filter = new SpecializedFilterOpDesc()
+    filter.predicates = List(new FilterPredicate("age", ComparisonType.GREATER_THAN, "18"))
+    val script = translate(List(csv, filter), List(link(csv, filter)))
+
+    script should include("""df2 = df1[(df1["age"] > 18)].reset_index(drop=True)""")
+  }
+
+  it should "translate an empty-predicate SpecializedFilterOpDesc as a copy" in {
+    val csv = csvSource("file:/tmp/data.csv")
+    val filter = new SpecializedFilterOpDesc()
+    filter.predicates = List.empty
+    val script = translate(List(csv, filter), List(link(csv, filter)))
+
+    script should include("df2 = df1.copy()")
+  }
+
+  // --- Characterization: BarChartOpDesc (visualization, no DataFrame out) ---
+  it should "translate BarChartOpDesc and not print a preview for it" in {
+    val csv = csvSource("file:/tmp/data.csv")
+    val bar = new BarChartOpDesc()
+    bar.value = "sales"
+    bar.fields = "region"
+    val script = translate(List(csv, bar), List(link(csv, bar)))
+
+    script should include("""df1 = df1.dropna(subset=["sales", "region"])""")
+    script should include("""fig.write_html("output.html")""")
+    // producesDataFrame == false -> no trailing head() preview for the chart.
+    script should not include "print(df2.head())"
+  }
+
+  // --- Regression: multi-input port ordering ---
+  it should "map in1df/in2df to upstreams by input-port index, not link order" in {
+    val csvPort0 = csvSource("file:/tmp/left.csv")
+    val csvPort1 = csvSource("file:/tmp/right.csv")
+    val join = new TwoInputStub("out1df = merge(in1df, in2df)")
+
+    // Deliberately list the port-1 link BEFORE the port-0 link. The old
+    // implementation used link-list order and would (wrongly) map
+    // in1df -> right.csv. Correct behavior: in1df -> port 0 (left.csv).
+    val links = List(
+      linkToPort(csvPort1, join, toPort = 1),
+      linkToPort(csvPort0, join, toPort = 0)
+    )
+    val script = translate(List(csvPort1, csvPort0, join), links)
+
+    val leftVar = varReading(script, "left.csv") // wired to input port 0
+    val rightVar = varReading(script, "right.csv") // wired to input port 1
+    script should include(s"= merge($leftVar, $rightVar)")
+  }
+}
+
+/**
+  * Minimal two-input `StandaloneCodeGenerator` used only to exercise the
+  * translator's multi-input port-ordering. `getPhysicalOp` defaults to `???`
+  * in `LogicalOp` and the translator never calls it, so only `operatorInfo`
+  * and `generateStandaloneCode` need defining.
+  */
+private class TwoInputStub(code: String) extends LogicalOp with StandaloneCodeGenerator {
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "Two Input Stub",
+      "test-only multi-input operator",
+      OperatorGroupConstants.SORT_GROUP,
+      inputPorts = List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))),
+      outputPorts = List(OutputPort())
+    )
+
+  override def generateStandaloneCode(): String = code
+}
