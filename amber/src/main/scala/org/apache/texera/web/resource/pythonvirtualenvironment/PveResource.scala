@@ -64,7 +64,7 @@ class PveResource {
   def fetchPVEs(@QueryParam("cuid") cuid: java.lang.Integer): Response = {
     if (cuid == null) {
       return Response
-        .status(Response.Status.BAD_REQUEST)
+        .status(Response.Status.BAD_REQUEST) // safeguard against cuid = 0
         .entity("cuid query parameter is required")
         .build()
     }

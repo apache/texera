@@ -165,6 +165,8 @@ class PythonWorkflowWorker(
     clientThreadExecutor.submit(pythonProxyClient)
   }
 
+  // Returns the Python executable path for the selected PVE,
+  // or falls back to the default Python binary.
   private def choosePythonBin(): String = {
     val fallback = PythonUtils.getPythonExecutable
     val pveName = workerConfig.pveName.trim

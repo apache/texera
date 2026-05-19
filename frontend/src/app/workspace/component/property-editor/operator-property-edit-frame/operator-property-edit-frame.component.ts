@@ -193,8 +193,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     return patchedSchema;
   }
 
-  // Existing toggleHidden helper hides a field when the controller is *falsy*; here we need the
-  // opposite (hide envName when defaultEnv is *truthy*), so set the expression directly.
   private hideEnvNameWhenDefaultEnvChecked(): void {
     const envField = this.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
     if (envField) {

@@ -49,8 +49,6 @@ object PveManager {
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
-  // pveName is attacker-controllable via imported / shared workflow JSON and via direct API calls,
-  // so reject anything that could escape VenvRoot before we resolve a filesystem path with it.
   private val SafePveName = "^[A-Za-z0-9._-]+$".r
 
   private def cuidDir(cuid: Int, pveName: String): Path = {
@@ -63,6 +61,10 @@ object PveManager {
   private def pythonBinPath(cuid: Int, pveName: String): Path =
     pveDir(cuid, pveName).resolve("bin").resolve("python")
 
+  /*
+   * Validates the PVE name and returns the Python binary path if it exists,
+   * is executable, and resolves within the allowed virtual environment root.
+   */
   def getPythonBin(cuid: Int, pveName: String): Option[Path] = {
     if (!SafePveName.pattern.matcher(pveName).matches()) return None
     val resolved = pythonBinPath(cuid, pveName).toAbsolutePath.normalize()
