@@ -22,6 +22,7 @@ package org.apache.texera.amber.util
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil.toIcebergSchema
 import org.apache.iceberg.data.GenericRecord
+import org.apache.iceberg.exceptions.RESTException
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -297,5 +298,14 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(record.getField("large_binary_2__texera_large_binary_ptr") == null)
 
     assert(IcebergUtil.fromRecord(record, schema) == tuple)
+  }
+
+  it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {
+    // Property Map is built before any network call. With or without
+    // Lakekeeper reachable, .initialize surfaces a RESTException — the
+    // failure is on the server side, not from Map composition.
+    intercept[RESTException] {
+      IcebergUtil.createRestCatalog("test", "non-existent-warehouse")
+    }
   }
 }

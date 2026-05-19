@@ -44,6 +44,20 @@ class DocumentFactory:
     ICEBERG = "iceberg"
 
     @staticmethod
+    def _resolve_namespace(resource_type: VFSResourceType) -> str:
+        # Only RESULT and STATE are mapped here: the Python runtime writes those
+        # tables. CONSOLE_MESSAGES and RUNTIME_STATISTICS are produced exclusively
+        # from the Scala side (see DocumentFactory.scala), so they are intentionally
+        # absent from this mapping and fall through to the unsupported branch.
+        match resource_type:
+            case VFSResourceType.RESULT:
+                return StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE
+            case VFSResourceType.STATE:
+                return StorageConfig.ICEBERG_TABLE_STATE_NAMESPACE
+            case _:
+                raise ValueError(f"Resource type {resource_type} is not supported")
+
+    @staticmethod
     def sanitize_uri_path(uri):
         """
         Matches the same implementation in our Scala codebase.
@@ -60,66 +74,87 @@ class DocumentFactory:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
             _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(resource_type)
+            storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
+            # Convert Amber Schema to Iceberg Schema with LARGE_BINARY
+            # field name encoding
+            iceberg_schema = amber_schema_to_iceberg_schema(schema)
 
-            if resource_type in {VFSResourceType.RESULT}:
-                storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
+            create_table(
+                IcebergCatalogInstance.get_instance(),
+                namespace,
+                storage_key,
+                iceberg_schema,
+                override_if_exists=True,
+            )
 
-                # Convert Amber Schema to Iceberg Schema with LARGE_BINARY
-                # field name encoding
-                iceberg_schema = amber_schema_to_iceberg_schema(schema)
+            return IcebergDocument[Tuple](
+                namespace,
+                storage_key,
+                iceberg_schema,
+                amber_tuples_to_arrow_table,
+                arrow_table_to_amber_tuples,
+            )
 
-                create_table(
-                    IcebergCatalogInstance.get_instance(),
-                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
-                    storage_key,
-                    iceberg_schema,
-                    override_if_exists=True,
-                )
-
-                return IcebergDocument[Tuple](
-                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
-                    storage_key,
-                    iceberg_schema,
-                    amber_tuples_to_arrow_table,
-                    arrow_table_to_amber_tuples,
-                )
-            else:
-                raise ValueError(f"Resource type {resource_type} is not supported")
         else:
             raise NotImplementedError(
                 f"Unsupported URI scheme: {parsed_uri.scheme} for creating the document"
             )
 
     @staticmethod
+    def document_exists(uri: str) -> bool:
+        """
+        Check whether a document exists at the given URI without opening it.
+
+        Returns True iff the underlying storage already has an entry for this
+        URI (e.g., an iceberg table at the resolved namespace + storage key).
+
+        Raises:
+            NotImplementedError: if the URI scheme is not ``vfs``.
+            ValueError: if the resolved resource type has no iceberg namespace
+                mapping (see ``_resolve_namespace``).
+        """
+        parsed_uri = urlparse(uri)
+        if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
+            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(resource_type)
+            storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
+            return IcebergCatalogInstance.get_instance().table_exists(
+                f"{namespace}.{storage_key}"
+            )
+
+        raise NotImplementedError(
+            f"Unsupported URI scheme: {parsed_uri.scheme} for checking document existence"
+        )
+
+    @staticmethod
     def open_document(uri: str) -> typing.Tuple[VirtualDocument, Optional[Schema]]:
         parsed_uri = urlparse(uri)
-        if parsed_uri.scheme == "vfs":
+        if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
             _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            namespace = DocumentFactory._resolve_namespace(resource_type)
+            storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
-            if resource_type in {VFSResourceType.RESULT}:
-                storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
+            table = load_table_metadata(
+                IcebergCatalogInstance.get_instance(),
+                namespace,
+                storage_key,
+            )
 
-                table = load_table_metadata(
-                    IcebergCatalogInstance.get_instance(),
-                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
-                    storage_key,
-                )
+            if table is None:
+                raise ValueError("No storage is found for the given URI")
 
-                if table is None:
-                    raise ValueError("No storage is found for the given URI")
+            amber_schema = Schema(table.schema().as_arrow())
 
-                amber_schema = Schema(table.schema().as_arrow())
+            document = IcebergDocument(
+                namespace,
+                storage_key,
+                table.schema(),
+                amber_tuples_to_arrow_table,
+                arrow_table_to_amber_tuples,
+            )
+            return document, amber_schema
 
-                document = IcebergDocument(
-                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
-                    storage_key,
-                    table.schema(),
-                    amber_tuples_to_arrow_table,
-                    arrow_table_to_amber_tuples,
-                )
-                return document, amber_schema
-            else:
-                raise ValueError(f"Resource type {resource_type} is not supported")
         else:
             raise NotImplementedError(
                 f"Unsupported URI scheme: {parsed_uri.scheme} for opening the document"
