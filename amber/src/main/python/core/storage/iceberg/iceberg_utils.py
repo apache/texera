@@ -157,23 +157,15 @@ def create_rest_catalog(
     catalog_name: str,
     warehouse_name: str,
     rest_uri: str,
-    s3_endpoint: str,
-    s3_region: str,
-    s3_username: str,
-    s3_password: str,
 ) -> Catalog:
     """
     Creates a REST catalog instance by connecting to a REST endpoint.
-    - Configures the catalog to interact with a REST endpoint.
     - The warehouse_name parameter specifies the warehouse identifier.
-    - Configures S3FileIO for MinIO/S3 storage backend.
+    - S3 settings (endpoint, region, credentials) are supplied by the REST
+      catalog server at runtime.
     :param catalog_name: the name of the catalog.
     :param warehouse_name: the warehouse identifier.
     :param rest_uri: the URI of the REST catalog endpoint.
-    :param s3_endpoint: the S3 endpoint URL.
-    :param s3_region: the S3 region.
-    :param s3_username: the S3 access key ID.
-    :param s3_password: the S3 secret access key.
     :return: a Catalog instance (REST catalog).
     """
     return load_catalog(
@@ -182,11 +174,6 @@ def create_rest_catalog(
             "type": "rest",
             "uri": rest_uri,
             "warehouse": warehouse_name,
-            "s3.endpoint": s3_endpoint,
-            "s3.access-key-id": s3_username,
-            "s3.secret-access-key": s3_password,
-            "s3.region": s3_region,
-            "s3.path-style-access": "true",
         },
     )
 
