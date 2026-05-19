@@ -42,7 +42,11 @@ describe("AdminSettingsComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("renders the MiB unit on the Dataset size inputs", () => {
-    expect(fixture.nativeElement.textContent).toContain("MiB");
+  it("renders MiB unit beside both size-based inputs", () => {
+    const units = fixture.nativeElement.querySelectorAll(".input-with-unit .unit");
+    expect(units.length).toBe(2);
+    units.forEach((el: HTMLElement) => {
+      expect(el.textContent?.trim()).toBe("MiB");
+    });
   });
 });
