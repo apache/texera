@@ -398,6 +398,7 @@ function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
 
   const hasRowIndex = jsonResult.length > 0 && "__row_index__" in jsonResult[0];
   const headers = getVisibleResultHeaders(jsonResult[0]);
+  if (headers.length === 0) return "";
   // Leading tab aligns headers with the index column (pandas __repr__ style).
   const headerLine = "\t" + headers.join("\t");
 
