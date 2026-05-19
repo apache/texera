@@ -197,6 +197,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     const envField = this.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
     if (envField) {
       envField.expressions = {
+        ...envField.expressions,
         hide: "!!field.parent.model.defaultEnv",
         "props.required": "!field.parent.model.defaultEnv",
       };
