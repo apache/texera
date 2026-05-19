@@ -196,7 +196,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   private hideEnvNameWhenDefaultEnvChecked(): void {
     const envField = this.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
     if (envField) {
-      envField.expressions = { hide: "!!field.parent.model.defaultEnv" };
+      envField.expressions = {
+        hide: "!!field.parent.model.defaultEnv",
+        "props.required": "!field.parent.model.defaultEnv",
+      };
     }
   }
 
