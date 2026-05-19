@@ -94,6 +94,18 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
+
+    val pveName =
+      if (defaultEnv) ""
+      else {
+        val trimmed = envName.trim
+        if (trimmed.isEmpty)
+          throw new RuntimeException(
+            "Virtual Environment name is required when not using the default Python environment."
+          )
+        trimmed
+      }
+
     val physicalOp = if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -141,7 +153,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )
-      .withPveName(if (defaultEnv) "" else envName.trim)
+      .withPveName(pveName)
   }
 
   override def operatorInfo: OperatorInfo =

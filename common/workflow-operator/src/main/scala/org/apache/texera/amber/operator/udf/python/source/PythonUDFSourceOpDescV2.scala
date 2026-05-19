@@ -71,6 +71,18 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     require(workers >= 1, "Need at least 1 worker.")
+
+    val pveName =
+      if (defaultEnv) ""
+      else {
+        val trimmed = envName.trim
+        if (trimmed.isEmpty)
+          throw new RuntimeException(
+            "Virtual Environment name is required when not using the default Python environment."
+          )
+        trimmed
+      }
+
     val physicalOp = PhysicalOp
       .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecWithCode(code, "python"))
       .withInputPorts(operatorInfo.inputPorts)
@@ -80,7 +92,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
       .withLocationPreference(Option.empty)
-      .withPveName(if (defaultEnv) "" else envName.trim)
+      .withPveName(pveName)
 
     if (workers > 1) {
       physicalOp

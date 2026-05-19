@@ -145,6 +145,17 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .withParallelizable(false)
     }
 
+    val pveName =
+      if (defaultEnv) ""
+      else {
+        val trimmed = envName.trim
+        if (trimmed.isEmpty)
+          throw new RuntimeException(
+            "Virtual Environment name is required when not using the default Python environment."
+          )
+        trimmed
+      }
+
     physicalOp
       .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
@@ -152,7 +163,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
-      .withPveName(if (defaultEnv) "" else envName.trim)
+      .withPveName(pveName)
   }
 
   override def operatorInfo: OperatorInfo = {
