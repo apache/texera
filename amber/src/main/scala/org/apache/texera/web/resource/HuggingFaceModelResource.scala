@@ -21,25 +21,34 @@ package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.google.common.cache.{Cache, CacheBuilder}
 import kong.unirest.Unirest
+import org.slf4j.{Logger, LoggerFactory}
 
+import java.io.InputStream
+import java.net.URI
+import java.nio.file.{Files, Path => NioPath, Paths}
+import java.util.concurrent.{Callable, ForkJoinPool, TimeUnit}
+import java.util.stream.Collectors
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import java.nio.file.{Files, Path => NioPath, Paths}
-import java.util.concurrent.ConcurrentHashMap
-import java.util.stream.Collectors
 import scala.jdk.CollectionConverters._
 
 /**
-  * REST resource that proxies the Hugging Face Hub API to list
-  * models for the HuggingFace operator.
+  * REST resource that proxies the Hugging Face Hub API for the HuggingFace operator.
   *
-  * Browse mode:  GET /api/huggingface/models?task=text-generation
-  *   Fetches ALL models for the task from HF Hub (paginated internally),
-  *   caches the full list server-side, and returns it.
+  *   - GET  /api/huggingface/models?task=…[&search=…]   browse or search HF models
+  *   - GET  /api/huggingface/tasks                       list HF pipeline tags with hosted inference
+  *   - POST /api/huggingface/upload-audio?filename=…     stream-upload an audio file
+  *   - GET  /api/huggingface/audio-preview?path=…        stream back an uploaded audio file
+  *   - GET  /api/huggingface/media-proxy?url=…           proxy an allowlisted remote media URL
   *
-  * Search mode:  GET /api/huggingface/models?task=text-generation&search=bert
-  *   Forwards the search query to HF Hub API (searches all models).
+  * Token sourcing: the user supplies their own HF token via the `X-HF-Token`
+  * request header (forwarded by the frontend from the operator's property
+  * panel). If the header is absent, requests go to HF Hub anonymously —
+  * HF serves public model/task lists at public rate limits without auth.
+  * The browse cache is bypassed whenever a user token is supplied, so one
+  * user's private-model visibility never leaks into another user's response.
   */
 @Path("/huggingface")
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -51,51 +60,58 @@ class HuggingFaceModelResource {
   @Path("/models")
   def listModels(
       @QueryParam("task") @DefaultValue("text-generation") task: String,
-      @QueryParam("search") search: String
+      @QueryParam("search") search: String,
+      @HeaderParam("X-HF-Token") userToken: String
   ): Response = {
     try {
-      val hfToken = Option(System.getenv("HF_TOKEN")).getOrElse("")
+      val hfToken = sanitizeToken(userToken)
+      val isUserToken = hfToken.nonEmpty
 
       // ── Search mode: forward query to HF Hub, return results directly ──
       if (search != null && search.trim.nonEmpty) {
         return fetchSearchResults(task, search.trim, hfToken)
       }
 
-      // ── Browse mode: return ALL models for this task (cached) ──
-      val cached = modelCache.get(task)
-      if (cached != null) {
-        return Response.ok(cached).build()
+      // ── Browse mode: return ALL models for this task ──
+      // Only cache anonymous results, so a user with private-model visibility
+      // can't have their token-scoped list served to a different user.
+      if (!isUserToken) {
+        val cached = modelCache.getIfPresent(task)
+        if (cached != null) {
+          return Response.ok(cached).build()
+        }
       }
 
-      // Not cached — fetch all pages from HF Hub API
-      val allModels = fetchAllModelsForTask(task, hfToken)
-      val json = objectMapper.writeValueAsString(allModels)
-      modelCache.put(task, json)
+      val pageResult = fetchAllModelsForTask(task, hfToken)
+      val json = objectMapper.writeValueAsString(pageResult.models)
+      if (!isUserToken) modelCache.put(task, json)
 
-      Response.ok(json).build()
-
+      val builder = Response.ok(json)
+      if (pageResult.truncated) builder.header(TRUNCATED_HEADER, "true")
+      builder.build()
     } catch {
       case e: Exception =>
-        Response
-          .status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(s"""{"error":"Failed to fetch models: ${e.getMessage}"}""")
-          .build()
+        logger.error(s"Failed to fetch HF models for task '$task'", e)
+        errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to fetch models.")
     }
   }
 
+  /**
+    * Streams an audio file from the request body to a temp file under
+    * `${java.io.tmpdir}/texera-hf-audio`. Enforces an extension allowlist
+    * and a max payload size (rejected with 413 once exceeded). Old files
+    * in the temp dir are best-effort cleaned on each upload.
+    */
   @POST
   @Path("/upload-audio")
   @Consumes(Array(MediaType.WILDCARD))
   def uploadAudioReference(
       @QueryParam("filename") filename: String,
-      bytes: Array[Byte]
+      stream: InputStream
   ): Response = {
     try {
-      if (bytes == null || bytes.isEmpty) {
-        return Response
-          .status(Response.Status.BAD_REQUEST)
-          .entity("""{"error":"Audio payload is empty."}""")
-          .build()
+      if (stream == null) {
+        return errorResponse(Response.Status.BAD_REQUEST, "Audio payload is required.")
       }
 
       val safeFileName = Option(filename)
@@ -105,13 +121,50 @@ class HuggingFaceModelResource {
         .getOrElse("audio.bin")
       val extension = {
         val idx = safeFileName.lastIndexOf('.')
-        if (idx >= 0 && idx < safeFileName.length - 1) safeFileName.substring(idx) else ".bin"
+        if (idx >= 0 && idx < safeFileName.length - 1)
+          safeFileName.substring(idx).toLowerCase
+        else ""
+      }
+      if (!ALLOWED_AUDIO_EXTENSIONS.contains(extension)) {
+        return errorResponse(
+          Response.Status.BAD_REQUEST,
+          "Unsupported audio file extension."
+        )
       }
 
-      val tempDir = Paths.get(System.getProperty("java.io.tmpdir"), "texera-hf-audio")
+      val tempDir = audioTempDir
       Files.createDirectories(tempDir)
+      sweepOldAudioFiles(tempDir)
+
       val tempFile: NioPath = Files.createTempFile(tempDir, "hf-audio-", extension)
-      Files.write(tempFile, bytes)
+      tempFile.toFile.deleteOnExit()
+
+      val out = Files.newOutputStream(tempFile)
+      var totalBytes = 0L
+      try {
+        val buf = new Array[Byte](8 * 1024)
+        var read = stream.read(buf)
+        while (read != -1) {
+          totalBytes += read
+          if (totalBytes > MAX_AUDIO_BYTES) {
+            out.close()
+            Files.deleteIfExists(tempFile)
+            return errorResponse(
+              Response.Status.REQUEST_ENTITY_TOO_LARGE,
+              "Audio payload exceeds the size limit."
+            )
+          }
+          out.write(buf, 0, read)
+          read = stream.read(buf)
+        }
+      } finally {
+        out.close()
+      }
+
+      if (totalBytes == 0L) {
+        Files.deleteIfExists(tempFile)
+        return errorResponse(Response.Status.BAD_REQUEST, "Audio payload is empty.")
+      }
 
       val json = objectMapper.writeValueAsString(
         Map(
@@ -122,10 +175,8 @@ class HuggingFaceModelResource {
       Response.ok(json).build()
     } catch {
       case e: Exception =>
-        Response
-          .status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(s"""{"error":"Failed to upload audio: ${e.getMessage}"}""")
-          .build()
+        logger.error("Failed to upload audio", e)
+        errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to upload audio.")
     }
   }
 
@@ -135,28 +186,19 @@ class HuggingFaceModelResource {
     try {
       val trimmedPath = Option(path).map(_.trim).getOrElse("")
       if (trimmedPath.isEmpty) {
-        return Response
-          .status(Response.Status.BAD_REQUEST)
-          .entity("""{"error":"Audio path is required."}""")
-          .build()
+        return errorResponse(Response.Status.BAD_REQUEST, "Audio path is required.")
       }
 
-      val tempDir = Paths
-        .get(System.getProperty("java.io.tmpdir"), "texera-hf-audio")
-        .toAbsolutePath
-        .normalize()
+      val tempDir = audioTempDir.toAbsolutePath.normalize()
       val requestedPath = Paths.get(trimmedPath).toAbsolutePath.normalize()
       if (!requestedPath.startsWith(tempDir)) {
-        return Response
-          .status(Response.Status.FORBIDDEN)
-          .entity("""{"error":"Audio path is outside the allowed preview directory."}""")
-          .build()
+        return errorResponse(
+          Response.Status.FORBIDDEN,
+          "Audio path is outside the allowed preview directory."
+        )
       }
       if (!Files.exists(requestedPath) || !Files.isRegularFile(requestedPath)) {
-        return Response
-          .status(Response.Status.NOT_FOUND)
-          .entity("""{"error":"Uploaded audio file was not found."}""")
-          .build()
+        return errorResponse(Response.Status.NOT_FOUND, "Uploaded audio file was not found.")
       }
 
       val contentType = Option(Files.probeContentType(requestedPath))
@@ -165,44 +207,49 @@ class HuggingFaceModelResource {
       Response.ok(Files.readAllBytes(requestedPath), contentType).build()
     } catch {
       case e: Exception =>
-        Response
-          .status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(s"""{"error":"Failed to read uploaded audio: ${e.getMessage}"}""")
-          .build()
+        logger.error("Failed to read uploaded audio", e)
+        errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to read uploaded audio.")
     }
   }
 
+  /**
+    * Proxies a remote media URL to bypass browser CORS for HF inference responses.
+    * Only http(s) URLs whose host is in ALLOWED_MEDIA_HOST_SUFFIXES are accepted,
+    * blocking SSRF probes against internal services.
+    */
   @GET
   @Path("/media-proxy")
   def proxyRemoteMedia(@QueryParam("url") url: String): Response = {
     try {
       val trimmedUrl = Option(url).map(_.trim).getOrElse("")
       if (trimmedUrl.isEmpty) {
-        return Response
-          .status(Response.Status.BAD_REQUEST)
-          .entity("""{"error":"Media URL is required."}""")
-          .build()
+        return errorResponse(Response.Status.BAD_REQUEST, "Media URL is required.")
       }
       if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
-        return Response
-          .status(Response.Status.BAD_REQUEST)
-          .entity("""{"error":"Only http(s) media URLs are supported."}""")
-          .build()
+        return errorResponse(
+          Response.Status.BAD_REQUEST,
+          "Only http(s) media URLs are supported."
+        )
+      }
+
+      val parsed =
+        try { new URI(trimmedUrl) }
+        catch { case _: Exception => null }
+      if (parsed == null || parsed.getHost == null || !isAllowedMediaHost(parsed.getHost)) {
+        return errorResponse(Response.Status.FORBIDDEN, "Media URL host is not allowed.")
       }
 
       val upstreamResponse = Unirest
         .get(trimmedUrl)
-        .connectTimeout(10000)
-        .socketTimeout(120000)
+        .connectTimeout(CONNECT_TIMEOUT_MS)
+        .socketTimeout(SOCKET_TIMEOUT_LONG_MS)
         .asBytes()
 
       if (upstreamResponse.getStatus != 200) {
-        return Response
-          .status(upstreamResponse.getStatus)
-          .entity(
-            s"""{"error":"Failed to fetch remote media: ${upstreamResponse.getStatusText}"}"""
-          )
-          .build()
+        logger.warn(
+          s"Upstream media fetch returned ${upstreamResponse.getStatus}: ${upstreamResponse.getStatusText}"
+        )
+        return errorResponse(upstreamResponse.getStatus, "Failed to fetch remote media.")
       }
 
       val contentType = Option(upstreamResponse.getHeaders.getFirst("Content-Type"))
@@ -211,10 +258,8 @@ class HuggingFaceModelResource {
       Response.ok(upstreamResponse.getBody, contentType).build()
     } catch {
       case e: Exception =>
-        Response
-          .status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(s"""{"error":"Failed to proxy remote media: ${e.getMessage}"}""")
-          .build()
+        logger.error("Failed to proxy remote media", e)
+        errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to proxy remote media.")
     }
   }
 
@@ -225,10 +270,12 @@ class HuggingFaceModelResource {
       .queryString("pipeline_tag", task)
       .queryString("sort", "downloads")
       .queryString("direction", "-1")
-      .queryString("limit", "100")
+      .queryString("limit", SEARCH_LIMIT.toString)
       .queryString("filter", task)
       .queryString("inference", "warm")
       .queryString("search", query)
+      .connectTimeout(CONNECT_TIMEOUT_MS)
+      .socketTimeout(SOCKET_TIMEOUT_MS)
 
     if (hfToken.nonEmpty) {
       request = request.header("Authorization", s"Bearer $hfToken")
@@ -237,38 +284,40 @@ class HuggingFaceModelResource {
     val hfResponse = request.asString()
 
     if (hfResponse.getStatus != 200) {
-      return Response
-        .status(hfResponse.getStatus)
-        .entity(s"""{"error":"Hugging Face API error: ${hfResponse.getStatusText}"}""")
-        .build()
+      logger.warn(
+        s"HF search returned ${hfResponse.getStatus}: ${hfResponse.getStatusText}"
+      )
+      return errorResponse(hfResponse.getStatus, "Hugging Face API error.")
     }
 
     val rawModels = objectMapper.readValue(hfResponse.getBody, listOfMapsType)
     val out = buildSimplifiedList(rawModels)
-    Response.ok(objectMapper.writeValueAsString(out)).build()
+    val truncated = rawModels.size() >= SEARCH_LIMIT
+    val builder = Response.ok(objectMapper.writeValueAsString(out))
+    if (truncated) builder.header(TRUNCATED_HEADER, "true")
+    builder.build()
   }
 
-  /**
-    * Fetch pipeline task tags from the Hugging Face Hub API.
-    * GET /api/huggingface/tasks
-    *
-    * Returns a JSON array of objects: [{ "tag": "text-generation", "label": "Text Generation" }, ...]
-    * The result is cached server-side for the lifetime of the process.
-    */
+  /** GET /api/huggingface/tasks — list HF pipeline tags that have models with hosted inference. */
   @GET
   @Path("/tasks")
-  def listTasks(): Response = {
+  def listTasks(@HeaderParam("X-HF-Token") userToken: String): Response = {
     try {
-      val cached = taskCache.get("all")
-      if (cached != null) {
-        return Response.ok(cached).build()
+      val hfToken = sanitizeToken(userToken)
+      val isUserToken = hfToken.nonEmpty
+
+      // Only cache anonymous results — see comment in listModels.
+      if (!isUserToken) {
+        val cached = taskCache.getIfPresent(TASKS_CACHE_KEY)
+        if (cached != null) {
+          return Response.ok(cached).build()
+        }
       }
 
-      val hfToken = Option(System.getenv("HF_TOKEN")).getOrElse("")
       var request = Unirest
         .get("https://huggingface.co/api/tasks")
-        .connectTimeout(10000)
-        .socketTimeout(15000)
+        .connectTimeout(CONNECT_TIMEOUT_MS)
+        .socketTimeout(SOCKET_TIMEOUT_MS)
 
       if (hfToken.nonEmpty) {
         request = request.header("Authorization", s"Bearer $hfToken")
@@ -277,14 +326,13 @@ class HuggingFaceModelResource {
       val hfResponse = request.asString()
 
       if (hfResponse.getStatus != 200) {
-        return Response
-          .status(hfResponse.getStatus)
-          .entity(s"""{"error":"Hugging Face API error: ${hfResponse.getStatusText}"}""")
-          .build()
+        logger.warn(
+          s"HF tasks endpoint returned ${hfResponse.getStatus}: ${hfResponse.getStatusText}"
+        )
+        return errorResponse(hfResponse.getStatus, "Hugging Face API error.")
       }
 
-      // /api/tasks returns a JSON object: { "<pipeline_tag>": { "label": "...", ... }, ... }
-      // Using readTree so no entry is dropped regardless of its value type (null, array, etc.)
+      // /api/tasks returns { "<pipeline_tag>": { "label": "...", ... }, ... }
       val root: JsonNode = objectMapper.readTree(hfResponse.getBody)
       val taskList = new java.util.ArrayList[java.util.Map[String, Object]]()
       val iter = root.fields()
@@ -301,39 +349,43 @@ class HuggingFaceModelResource {
         taskList.add(taskEntry)
       }
 
-      // Filter out tasks that have no models available with hosted inference
-      val availableTasks = taskList
-        .parallelStream()
-        .filter(task => hasModelsForTask(task.get("tag").toString, hfToken))
-        .collect(Collectors.toList())
+      // Bounded fan-out: scope the parallelStream to our own ForkJoinPool
+      // (size = TASK_FETCH_PARALLELISM) instead of the global common pool.
+      val availableTasks =
+        taskCheckPool
+          .submit(new Callable[java.util.List[java.util.Map[String, Object]]] {
+            override def call(): java.util.List[java.util.Map[String, Object]] = {
+              taskList
+                .parallelStream()
+                .filter(t => hasModelsForTask(t.get("tag").toString, hfToken))
+                .collect(Collectors.toList())
+            }
+          })
+          .get()
 
       val json = objectMapper.writeValueAsString(availableTasks)
-      taskCache.put("all", json)
+      if (!isUserToken) taskCache.put(TASKS_CACHE_KEY, json)
       Response.ok(json).build()
-
     } catch {
       case e: Exception =>
-        Response
-          .status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(s"""{"error":"Failed to fetch tasks: ${e.getMessage}"}""")
-          .build()
+        logger.error("Failed to fetch HF tasks", e)
+        errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to fetch tasks.")
     }
   }
 
   /**
-    * Fetch ALL models for a given task by paginating through the HF Hub API.
-    * HF Hub uses a Link header with rel="next" for pagination.
-    * We fetch pages of 1000 models at a time, up to MAX_PAGES pages.
+    * Fetch all models for a given task by paginating the HF Hub Link header.
+    * Stops at MAX_PAGES pages; sets `truncated = true` if pagination stopped
+    * early (either by hitting MAX_PAGES or an upstream error mid-pagination).
     */
   private def fetchAllModelsForTask(
       task: String,
       hfToken: String
-  ): java.util.List[java.util.Map[String, Object]] = {
+  ): PageResult = {
     val allResults = new java.util.ArrayList[java.util.Map[String, Object]]()
     var nextUrl: String = null
     var pageCount = 0
 
-    // First request — inference=warm limits to models with hosted Inference API
     var request = Unirest
       .get("https://huggingface.co/api/models")
       .queryString("pipeline_tag", task)
@@ -342,8 +394,8 @@ class HuggingFaceModelResource {
       .queryString("limit", PAGE_SIZE.toString)
       .queryString("filter", task)
       .queryString("inference", "warm")
-      .connectTimeout(10000)
-      .socketTimeout(30000)
+      .connectTimeout(CONNECT_TIMEOUT_MS)
+      .socketTimeout(SOCKET_TIMEOUT_MS)
 
     if (hfToken.nonEmpty) {
       request = request.header("Authorization", s"Bearer $hfToken")
@@ -353,7 +405,7 @@ class HuggingFaceModelResource {
 
     if (hfResponse.getStatus != 200) {
       throw new RuntimeException(
-        s"HF API returned ${hfResponse.getStatus}: ${hfResponse.getStatusText}"
+        s"HF API returned ${hfResponse.getStatus} for task '$task'"
       )
     }
 
@@ -361,15 +413,13 @@ class HuggingFaceModelResource {
     allResults.addAll(buildSimplifiedList(rawModels))
     pageCount += 1
 
-    // Extract next page URL from Link header
     nextUrl = extractNextLink(hfResponse.getHeaders.getFirst("Link"))
 
-    // Fetch remaining pages until exhausted
-    while (nextUrl != null) {
+    while (nextUrl != null && pageCount < MAX_PAGES) {
       var nextRequest = Unirest
         .get(nextUrl)
-        .connectTimeout(10000)
-        .socketTimeout(30000)
+        .connectTimeout(CONNECT_TIMEOUT_MS)
+        .socketTimeout(SOCKET_TIMEOUT_MS)
       if (hfToken.nonEmpty) {
         nextRequest = nextRequest.header("Authorization", s"Bearer $hfToken")
       }
@@ -377,8 +427,10 @@ class HuggingFaceModelResource {
       hfResponse = nextRequest.asString()
 
       if (hfResponse.getStatus != 200) {
-        // Stop paginating on error, return what we have so far
-        return allResults
+        logger.warn(
+          s"HF pagination stopped early at page $pageCount for task '$task' with status ${hfResponse.getStatus}"
+        )
+        return PageResult(allResults, truncated = true)
       }
 
       rawModels = objectMapper.readValue(hfResponse.getBody, listOfMapsType)
@@ -388,7 +440,12 @@ class HuggingFaceModelResource {
       nextUrl = extractNextLink(hfResponse.getHeaders.getFirst("Link"))
     }
 
-    allResults
+    val truncated = nextUrl != null && pageCount >= MAX_PAGES
+    if (truncated) {
+      logger.warn(s"HF pagination stopped at MAX_PAGES=$MAX_PAGES for task '$task'")
+    }
+
+    PageResult(allResults, truncated)
   }
 
   /**
@@ -414,7 +471,7 @@ class HuggingFaceModelResource {
 
   /**
     * Returns true if at least one model exists for the given task with hosted inference.
-    * Uses a limit=1 query to avoid fetching unnecessary data.
+    * Logs 429/503 explicitly so callers can spot HF rate-limit pressure.
     */
   private def hasModelsForTask(task: String, hfToken: String): Boolean = {
     try {
@@ -424,20 +481,31 @@ class HuggingFaceModelResource {
         .queryString("filter", task)
         .queryString("limit", "1")
         .queryString("inference", "warm")
-        .connectTimeout(5000)
-        .socketTimeout(10000)
+        .connectTimeout(CONNECT_TIMEOUT_SHORT_MS)
+        .socketTimeout(SOCKET_TIMEOUT_SHORT_MS)
 
       if (hfToken.nonEmpty) {
         request = request.header("Authorization", s"Bearer $hfToken")
       }
 
       val response = request.asString()
-      if (response.getStatus != 200) return false
-
-      val models = objectMapper.readValue(response.getBody, listOfMapsType)
-      !models.isEmpty
+      response.getStatus match {
+        case 200 =>
+          val models = objectMapper.readValue(response.getBody, listOfMapsType)
+          !models.isEmpty
+        case 429 | 503 =>
+          logger.warn(
+            s"HF rate-limit/unavailable (status ${response.getStatus}) when checking task '$task'"
+          )
+          false
+        case other =>
+          logger.debug(s"HF returned status $other when checking task '$task'")
+          false
+      }
     } catch {
-      case _: Exception => false
+      case e: Exception =>
+        logger.debug(s"hasModelsForTask failed for '$task': ${e.getMessage}")
+        false
     }
   }
 
@@ -474,18 +542,116 @@ class HuggingFaceModelResource {
 }
 
 object HuggingFaceModelResource {
+  private val logger: Logger = LoggerFactory.getLogger(classOf[HuggingFaceModelResource])
+
   private val objectMapper: ObjectMapper = new ObjectMapper()
 
   private val listOfMapsType =
     new TypeReference[java.util.List[java.util.Map[String, Object]]]() {}
 
-  /** Server-side cache: task → JSON string of all models. Thread-safe. */
-  private val modelCache = new ConcurrentHashMap[String, String]()
+  // ── Network timeouts (ms) ──
+  private val CONNECT_TIMEOUT_MS = 10000
+  private val SOCKET_TIMEOUT_MS = 30000
+  private val CONNECT_TIMEOUT_SHORT_MS = 5000
+  private val SOCKET_TIMEOUT_SHORT_MS = 10000
+  private val SOCKET_TIMEOUT_LONG_MS = 120000
 
-  /** Server-side cache: "all" → JSON string of all pipeline tags. Thread-safe. */
-  private val taskCache = new ConcurrentHashMap[String, String]()
+  // ── Pagination ──
+  private val PAGE_SIZE = 1000
+  private val MAX_PAGES = 50
+  private val SEARCH_LIMIT = 100
 
-  private def inferAudioContentType(path: NioPath): String = {
+  /** Response header set when a list response was truncated (server-side limit hit). */
+  private[resource] val TRUNCATED_HEADER = "X-Texera-Truncated"
+
+  // ── Caches: bounded with TTL ──
+  private val MODEL_CACHE_MAX_SIZE = 100L
+  private val MODEL_CACHE_TTL_MINUTES = 60L
+  private val TASK_CACHE_MAX_SIZE = 8L
+  private val TASK_CACHE_TTL_MINUTES = 60L
+
+  private[resource] val modelCache: Cache[String, String] = CacheBuilder
+    .newBuilder()
+    .maximumSize(MODEL_CACHE_MAX_SIZE)
+    .expireAfterWrite(MODEL_CACHE_TTL_MINUTES, TimeUnit.MINUTES)
+    .build()
+
+  private[resource] val taskCache: Cache[String, String] = CacheBuilder
+    .newBuilder()
+    .maximumSize(TASK_CACHE_MAX_SIZE)
+    .expireAfterWrite(TASK_CACHE_TTL_MINUTES, TimeUnit.MINUTES)
+    .build()
+
+  private[resource] val TASKS_CACHE_KEY = "all"
+
+  // ── /tasks fan-out throttle: bounded ForkJoinPool instead of the global common pool ──
+  private val TASK_FETCH_PARALLELISM = 4
+  private val taskCheckPool = new ForkJoinPool(TASK_FETCH_PARALLELISM)
+
+  // ── /upload-audio constraints ──
+  private[resource] val MAX_AUDIO_BYTES: Long = 25L * 1024L * 1024L // 25 MiB
+  private[resource] val ALLOWED_AUDIO_EXTENSIONS: Set[String] =
+    Set(".wav", ".mp3", ".mpeg", ".flac", ".ogg", ".oga", ".webm", ".opus", ".amr", ".m4a", ".aac")
+  private[resource] val AUDIO_TEMP_TTL_MS: Long = 60L * 60L * 1000L // 1 hour
+
+  // ── /media-proxy allowlist (SSRF protection) ──
+  // Add new hosts here when integrating with a new HF inference provider.
+  private val ALLOWED_MEDIA_HOST_SUFFIXES: Set[String] = Set(
+    "huggingface.co",
+    "fal.media",
+    "replicate.delivery",
+    "replicate.com"
+  )
+
+  private[resource] def audioTempDir: NioPath =
+    Paths.get(System.getProperty("java.io.tmpdir"), "texera-hf-audio")
+
+  /** Delete audio temp files older than AUDIO_TEMP_TTL_MS. Best-effort. */
+  private[resource] def sweepOldAudioFiles(tempDir: NioPath): Unit = {
+    val cutoff = System.currentTimeMillis() - AUDIO_TEMP_TTL_MS
+    try {
+      val stream = Files.list(tempDir)
+      try {
+        stream.forEach { p =>
+          try {
+            if (Files.isRegularFile(p) && Files.getLastModifiedTime(p).toMillis < cutoff) {
+              Files.deleteIfExists(p)
+            }
+          } catch {
+            case _: Exception => // skip files we can't stat/delete
+          }
+        }
+      } finally {
+        stream.close()
+      }
+    } catch {
+      case e: Exception =>
+        logger.debug(s"Audio temp dir sweep failed: ${e.getMessage}")
+    }
+  }
+
+  /** Allow exact host or subdomain of any entry in ALLOWED_MEDIA_HOST_SUFFIXES. */
+  private[resource] def isAllowedMediaHost(host: String): Boolean = {
+    if (host == null || host.isEmpty) return false
+    val lower = host.toLowerCase
+    ALLOWED_MEDIA_HOST_SUFFIXES.exists(suffix => lower == suffix || lower.endsWith("." + suffix))
+  }
+
+  /** Trim and null-coalesce the X-HF-Token header value; empty means anonymous. */
+  private[resource] def sanitizeToken(headerValue: String): String =
+    Option(headerValue).map(_.trim).filter(_.nonEmpty).getOrElse("")
+
+  /** Build a JSON error body using Jackson so the message is properly escaped. */
+  private[resource] def errorJson(message: String): String =
+    objectMapper.writeValueAsString(Map("error" -> message).asJava)
+
+  private def errorResponse(status: Response.Status, message: String): Response =
+    Response.status(status).entity(errorJson(message)).build()
+
+  private def errorResponse(statusCode: Int, message: String): Response =
+    Response.status(statusCode).entity(errorJson(message)).build()
+
+  private[resource] def inferAudioContentType(path: NioPath): String = {
     val fileName = Option(path.getFileName).map(_.toString.toLowerCase).getOrElse("")
     if (fileName.endsWith(".mp3") || fileName.endsWith(".mpeg")) "audio/mpeg"
     else if (fileName.endsWith(".wav")) "audio/wav"
@@ -498,7 +664,9 @@ object HuggingFaceModelResource {
     else "application/octet-stream"
   }
 
-  /** Number of models to fetch per HF API page. */
-  private val PAGE_SIZE = 1000
-
+  /** Result of a paginated fetch — `truncated` is true if pagination stopped early. */
+  private case class PageResult(
+      models: java.util.List[java.util.Map[String, Object]],
+      truncated: Boolean
+  )
 }
