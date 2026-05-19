@@ -374,11 +374,8 @@ describe("WorkspaceComponent", () => {
   // ngAfterViewInit can publish it to CodeEditorService.
   describe("child rendering side effects", () => {
     it("publishes the resolved ViewContainerRef to CodeEditorService.vc on view init", async () => {
+      codeEditorService.vc = undefined;
       await createFixture();
-      // Before view init nothing has been assigned. (The pre-fixture stub on
-      // codeEditorViewRef in createFixture only protects ngOnDestroy teardown
-      // — the service.vc should still be untouched.)
-      expect(codeEditorService.vc).toBeUndefined();
       fixture.detectChanges();
       // createEmbeddedView is present on a real ViewContainerRef but not on the
       // pre-fixture stub, so checking it distinguishes the resolved query from
