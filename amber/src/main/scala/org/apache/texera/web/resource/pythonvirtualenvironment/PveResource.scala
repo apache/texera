@@ -36,12 +36,10 @@ class PveResource {
   @GET
   @Path("/system")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getSystemPackages: util.Map[String, util.List[String]] = {
+  def getSystemPackages(
+      @QueryParam("isLocal") isLocal: Boolean
+  ): util.Map[String, util.List[String]] = {
     try {
-
-      // TODO: Support Kubernetes environment handling
-      val isLocal = true
-
       val systemPkgs =
         PveManager.getSystemPackages(isLocal).toList.asJava
 
