@@ -43,6 +43,14 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
+  // PVE REST + websocket endpoints, all per-computing-unit. The REST route
+  // appears as bare /pve/... to ext-authz (the gateway's URLRewrite to /api/pve
+  // runs after ext_authz), while websocket traffic comes in as /wsapi/pve/...
+  private val pveRoute: Regex = """.*/(?:api/|wsapi/)?pve(?:/.*)?""".r
+
+  // Path patterns whose cuid lives in the URL path rather than the query string.
+  private val pvePvesCuidPath: Regex = """.*/pve/pves/([0-9]+).*""".r
+  private val pvePackagesCuidPath: Regex = """.*/pve/([0-9]+)/[^/]+/packages/.+""".r
 
   /**
     * Authorize the request based on the path and headers.
@@ -60,7 +68,8 @@ object AccessControlResource extends LazyLogging {
     logger.info(s"Authorizing request for path: $path")
 
     path match {
-      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() =>
+      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
+          pveRoute() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
@@ -95,7 +104,15 @@ object AccessControlResource extends LazyLogging {
       qToken.orElse(hToken).orElse(bToken).getOrElse("")
     }
     logger.info(s"token extracted from request $token")
-    val cuid = queryParams.getOrElse("cuid", "")
+    // Some PVE endpoints carry the cuid in the URL path (e.g. DELETE /pve/pves/{cuid}) instead of
+    // the query string, so fall back to extracting it from the path when missing from the query.
+    val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
+      uriInfo.getPath match {
+        case pvePvesCuidPath(c)     => c
+        case pvePackagesCuidPath(c) => c
+        case _                      => ""
+      }
+    }
     val cuidInt =
       try {
         cuid.toInt
