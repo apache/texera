@@ -61,9 +61,15 @@ class PveResource {
   @GET
   @Path("/pves")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def fetchPVEs(@QueryParam("cuid") cuid: Int): util.List[util.Map[String, Object]] = {
+  def fetchPVEs(@QueryParam("cuid") cuid: java.lang.Integer): Response = {
+    if (cuid == null) {
+      return Response
+        .status(Response.Status.BAD_REQUEST) // safeguard against cuid = 0
+        .entity("cuid query parameter is required")
+        .build()
+    }
     try {
-      PveManager
+      val pves = PveManager
         .getEnvironments(cuid)
         .map { pve =>
           Map(
@@ -72,7 +78,7 @@ class PveResource {
           ).asJava
         }
         .asJava
-
+      Response.ok(pves).build()
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -113,4 +119,5 @@ class PveResource {
       Response.ok(messages.asJava).build()
     }
   }
+
 }

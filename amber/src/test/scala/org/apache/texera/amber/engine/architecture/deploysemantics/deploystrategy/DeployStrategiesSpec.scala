@@ -42,17 +42,17 @@ class DeployStrategiesSpec extends AnyFlatSpec with Matchers {
     strategy.next() shouldBe nodeC
   }
 
-  it should "raise IndexOutOfBoundsException once the array is exhausted" in {
+  it should "raise NoSuchElementException once the array is exhausted" in {
     val strategy = OneOnEach()
     strategy.initialize(Array(nodeA))
     strategy.next() shouldBe nodeA
-    assertThrows[IndexOutOfBoundsException](strategy.next())
+    assertThrows[NoSuchElementException](strategy.next())
   }
 
-  it should "raise IndexOutOfBoundsException immediately when initialized with an empty array" in {
+  it should "raise NoSuchElementException immediately when initialized with an empty array" in {
     val strategy = OneOnEach()
     strategy.initialize(Array.empty[Address])
-    assertThrows[IndexOutOfBoundsException](strategy.next())
+    assertThrows[NoSuchElementException](strategy.next())
   }
 
   it should "reset its iteration cursor on re-initialization" in {
@@ -62,7 +62,7 @@ class DeployStrategiesSpec extends AnyFlatSpec with Matchers {
     strategy.next() shouldBe nodeB
     strategy.initialize(Array(nodeC))
     strategy.next() shouldBe nodeC
-    assertThrows[IndexOutOfBoundsException](strategy.next())
+    assertThrows[NoSuchElementException](strategy.next())
   }
 
   "OneOnEach.apply" should "produce a fresh, independent instance" in {
@@ -89,16 +89,10 @@ class DeployStrategiesSpec extends AnyFlatSpec with Matchers {
     for (_ <- 1 to 5) strategy.next() shouldBe nodeA
   }
 
-  it should "raise ArithmeticException on next() with an empty array (current behavior)" in {
-    // Pin: RoundRobinDeployment.next does `index = (index + 1) % length`,
-    // which divides by zero when length == 0 and crashes with
-    // ArithmeticException before any address is returned. Other strategies
-    // raise IndexOutOfBoundsException for the same situation, so this is a
-    // contract divergence — pinning the current behavior so a future fix
-    // that aligns the empty-array error type will need to update this spec.
+  it should "raise NoSuchElementException on next() with an empty array" in {
     val strategy = RoundRobinDeployment()
     strategy.initialize(Array.empty[Address])
-    assertThrows[ArithmeticException](strategy.next())
+    assertThrows[NoSuchElementException](strategy.next())
   }
 
   "RoundRobinDeployment.apply" should "produce a fresh, independent instance" in {
@@ -125,15 +119,10 @@ class DeployStrategiesSpec extends AnyFlatSpec with Matchers {
     for (_ <- 1 to 5) strategy.next() shouldBe nodeA
   }
 
-  it should "raise IllegalArgumentException on next() with an empty array (current behavior)" in {
-    // Pin: RandomDeployment.next() calls Random.nextInt(0), which throws
-    // IllegalArgumentException with bound must be positive. Same root issue
-    // as the empty-array case for RoundRobinDeployment: each strategy reports
-    // the empty-array fault with a different exception type. Pinning this
-    // separately so a unification fix shows up here.
+  it should "raise NoSuchElementException on next() with an empty array" in {
     val strategy = RandomDeployment()
     strategy.initialize(Array.empty[Address])
-    assertThrows[IllegalArgumentException](strategy.next())
+    assertThrows[NoSuchElementException](strategy.next())
   }
 
   "RandomDeployment.apply" should "produce a fresh, independent instance" in {
