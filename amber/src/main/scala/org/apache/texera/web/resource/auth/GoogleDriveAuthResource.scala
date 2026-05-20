@@ -19,6 +19,7 @@
 package org.apache.texera.web.resource.auth
 
 import io.dropwizard.auth.Auth
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.auth.{JwtParser, SessionUser}
 import org.apache.texera.web.model.http.response.DriveTokenIssueResponse
 import org.apache.texera.web.resource.auth.GoogleDriveAuthResource._
@@ -56,7 +57,7 @@ object GoogleDriveAuthResource {
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
-class GoogleDriveAuthResource {
+class GoogleDriveAuthResource extends LazyLogging {
   final private lazy val clientId = UserSystemConfig.googleClientId
   final private lazy val clientSecret = UserSystemConfig.googleClientSecret
   final private lazy val redirectUri = UserSystemConfig.appDomain
@@ -66,7 +67,7 @@ class GoogleDriveAuthResource {
   @GET
   @Path("/token")
   def getDriveAccessToken(@Auth sessionUser: SessionUser): Response = {
-    val user = sessionUser.getUser
+    val user = userDao.fetchOneByUid(sessionUser.getUid)
     val refreshToken = user.getGoogleDriveRefreshToken
     if (refreshToken == null) {
       return Response.ok(DriveTokenIssueResponse(STATUS_NO_REFRESH_TOKEN, None)).build()
@@ -86,9 +87,11 @@ class GoogleDriveAuthResource {
         if (e.getDetails != null && e.getDetails.getError == STATUS_INVALID_GRANT) {
           Response.ok(DriveTokenIssueResponse(STATUS_INVALID_GRANT, None)).build()
         } else {
+          logger.error("Failed to refresh access token", e)
           Response.status(Response.Status.INTERNAL_SERVER_ERROR).build()
         }
-      case _: Exception =>
+      case e: Exception =>
+        logger.error("Unexpected error refreshing access token", e)
         Response.status(Response.Status.INTERNAL_SERVER_ERROR).build()
     }
   }
@@ -106,7 +109,7 @@ class GoogleDriveAuthResource {
     try {
       val sessionUserOpt = JwtParser.parseToken(state)
       if (!sessionUserOpt.isPresent) {
-        return Response.status(Response.Status.UNAUTHORIZED).build()
+        return Response.status(Response.Status.UNAUTHORIZED).entity("User is not authenticated").build()
       }
 
       val userId = sessionUserOpt.get().getUid
@@ -132,8 +135,10 @@ class GoogleDriveAuthResource {
       Response.ok(html).build()
     } catch {
       case e: TokenResponseException =>
-        Response.status(Response.Status.BAD_GATEWAY).entity(e.getDetails).build()
-      case _: Exception =>
+        logger.error("Google token exchange failed in callback", e)
+        Response.status(Response.Status.BAD_GATEWAY).build()
+      case e: Exception =>
+        logger.error("Unexpected error in OAuth callback", e)
         Response.status(Response.Status.INTERNAL_SERVER_ERROR).build()
     }
   }
