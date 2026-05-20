@@ -49,6 +49,8 @@ object PveManager {
 
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
 
+  private val SafePveName = "^[A-Za-z0-9._-]+$".r
+
   private def cuidDir(cuid: Int, pveName: String): Path = {
     VenvRoot.resolve(cuid.toString).resolve(pveName)
   }
@@ -58,6 +60,18 @@ object PveManager {
 
   private def pythonBinPath(cuid: Int, pveName: String): Path =
     pveDir(cuid, pveName).resolve("bin").resolve("python")
+
+  /*
+   * Validates the PVE name and returns the Python binary path if it exists,
+   * is executable, and resolves within the allowed virtual environment root.
+   */
+  def getPythonBin(cuid: Int, pveName: String): Option[Path] = {
+    if (!SafePveName.pattern.matcher(pveName).matches()) return None
+    val resolved = pythonBinPath(cuid, pveName).toAbsolutePath.normalize()
+    val root = VenvRoot.toAbsolutePath.normalize()
+    if (!resolved.startsWith(root)) return None
+    if (Files.exists(resolved) && Files.isExecutable(resolved)) Some(resolved) else None
+  }
 
   private def pipEnv: Map[String, String] =
     Map(
@@ -434,4 +448,5 @@ object PveManager {
         List(s"[PVE][ERR] Failed to delete package for cuid=$cuid: ${e.getMessage}")
     }
   }
+
 }
