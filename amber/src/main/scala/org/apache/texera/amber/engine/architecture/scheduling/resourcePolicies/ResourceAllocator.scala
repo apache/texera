@@ -39,7 +39,8 @@ trait ResourceAllocator {
 class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
     executionClusterInfo: ExecutionClusterInfo,
-    workflowSettings: WorkflowSettings
+    workflowSettings: WorkflowSettings,
+    cuid: Option[Int] = None
 ) extends ResourceAllocator {
 
   // a map of a physical link to the partition info of the upstream/downstream of this link
@@ -68,7 +69,7 @@ class DefaultResourceAllocator(
   ): (ResourceConfig, Double) = {
 
     val opToOperatorConfigMapping = region.getOperators
-      .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
+      .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp, cuid)))
       .toMap
 
     operatorConfigs ++= opToOperatorConfigMapping
