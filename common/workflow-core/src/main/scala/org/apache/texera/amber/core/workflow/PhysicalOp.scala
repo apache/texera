@@ -199,7 +199,9 @@ case class PhysicalOp(
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
     // hint for number of workers
-    suggestedWorkerNum: Option[Int] = None
+    suggestedWorkerNum: Option[Int] = None,
+    // name of the PVE to execute within
+    pveName: String = ""
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking
@@ -358,6 +360,10 @@ case class PhysicalOp(
     */
   def withPropagateSchema(func: SchemaPropagationFunc): PhysicalOp = {
     this.copy(propagateSchema = func)
+  }
+
+  def withPveName(name: String): PhysicalOp = {
+    this.copy(pveName = name)
   }
 
   /**
