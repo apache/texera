@@ -23,6 +23,7 @@ import {
   EventEmitter,
   Input,
   OnChanges,
+  OnInit,
   Output,
   SimpleChanges,
   ViewChild,
@@ -38,6 +39,7 @@ import {
   WorkflowPersistService,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { firstValueFrom } from "rxjs";
+import { switchMap } from "rxjs/operators";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
@@ -64,6 +66,9 @@ import { FormsModule } from "@angular/forms";
 import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { DriveService } from "../../../service/user/google-drive/drive.service";
 
 @UntilDestroy()
 @Component({
@@ -85,9 +90,13 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
     UserAvatarComponent,
     NzWaveDirective,
     NzPopconfirmDirective,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
   ],
 })
-export class ListItemComponent implements OnChanges {
+export class ListItemComponent implements OnChanges, OnInit {
   private owners: number[] = [];
   public originalName: string = "";
   public originalDescription: string | undefined = undefined;
@@ -109,6 +118,7 @@ export class ListItemComponent implements OnChanges {
   @Input() editable = false;
   private _entry?: DashboardEntry;
   hovering: boolean = false;
+  isDriveConnected = false;
 
   @Input()
   get entry(): DashboardEntry {
@@ -135,8 +145,24 @@ export class ListItemComponent implements OnChanges {
     private hubService: HubService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private driveService: DriveService
   ) {}
+
+  ngOnInit(): void {
+    this.driveService
+      .getToken()
+      .pipe(untilDestroyed(this))
+      .subscribe(res => {
+        this.isDriveConnected = res.status === "ok";
+      });
+    this.driveService
+      .onConnected()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isDriveConnected = true;
+      });
+  }
 
   initializeEntry() {
     if (this.entry.type === "workflow") {
@@ -255,6 +281,34 @@ export class ListItemComponent implements OnChanges {
       this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
     }
   };
+
+  public onClickDriveAction(): void {
+    if (!this.isDriveConnected) {
+      this.driveService.connect();
+      return;
+    }
+    if (!this.entry.id) return;
+    if (this.entry.type === "workflow") {
+      this.workflowPersistService
+        .retrieveWorkflow(this.entry.id)
+        .pipe(
+          switchMap(({ content }) => {
+            const blob = new Blob([JSON.stringify(content, null, 2)], { type: "application/json" });
+            return this.driveService.exportToDrive(blob, `${this.entry.name}.json`);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe();
+    } else if (this.entry.type === "dataset") {
+      this.datasetService
+        .retrieveDatasetVersionZip(this.entry.id)
+        .pipe(
+          switchMap(blob => this.driveService.exportToDrive(blob, `${this.entry.name}.zip`)),
+          untilDestroyed(this)
+        )
+        .subscribe();
+    }
+  }
 
   onEditName(): void {
     this.originalName = this.entry.name;

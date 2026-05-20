@@ -39,6 +39,7 @@ import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/us
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_ABOUT, DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
+import { GoogleDriveConnectComponent } from "./dashboard/component/user/google-drive-connect/google-drive-connect.component";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { GuiConfigService } from "./common/service/gui-config.service";
@@ -142,6 +143,10 @@ routes.push({
         {
           path: "discussion",
           component: FlarumComponent,
+        },
+        {
+          path: "google-drive",
+          component: GoogleDriveConnectComponent,
         },
       ],
     },

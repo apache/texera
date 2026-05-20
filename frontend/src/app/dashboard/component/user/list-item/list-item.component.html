@@ -217,12 +217,18 @@
       nz-button
       nzType="text"
       *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
-      title="Download"
-      (click)="onClickDownload()">
-      <i
-        nz-icon
-        nzType="cloud-download"></i>
+      nz-dropdown
+      [nzDropdownMenu]="exportMenu">
+      <i nz-icon nzType="cloud-download"></i>
     </button>
+    <nz-dropdown-menu #exportMenu="nzDropdownMenu">
+      <ul nz-menu>
+        <li nz-menu-item (click)="onClickDownload()">Download</li>
+        <li nz-menu-item (click)="onClickDriveAction()">
+          {{ isDriveConnected ? 'Export to Drive' : 'Connect to Drive' }}
+        </li>
+      </ul>
+    </nz-dropdown-menu>
     <button
       nz-button
       nzType="text"
