@@ -76,6 +76,7 @@ COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirem
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
+    python3-venv \
     libpq-dev \
     && apt-get clean
 
