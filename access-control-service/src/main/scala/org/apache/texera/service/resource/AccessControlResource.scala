@@ -43,11 +43,7 @@ object AccessControlResource extends LazyLogging {
   private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
-  // PVE REST + websocket endpoints, all per-computing-unit. The REST route
-  // appears as bare /pve/... to ext-authz (the gateway's URLRewrite to /api/pve
-  // runs after ext_authz), while websocket traffic comes in as /wsapi/pve/...
   private val pveRoute: Regex = """.*/(?:api/|wsapi/)?pve(?:/.*)?""".r
-
   // Path patterns whose cuid lives in the URL path rather than the query string.
   private val pvePvesCuidPath: Regex = """.*/pve/pves/([0-9]+).*""".r
   private val pvePackagesCuidPath: Regex = """.*/pve/([0-9]+)/[^/]+/packages/.+""".r
