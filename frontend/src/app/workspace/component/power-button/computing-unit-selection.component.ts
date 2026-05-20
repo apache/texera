@@ -802,7 +802,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           }));
 
           this.workflowPveService
-            .getSystemPackages(isLocal)
+            .getSystemPackages(cuId, isLocal)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: installedResp => {
