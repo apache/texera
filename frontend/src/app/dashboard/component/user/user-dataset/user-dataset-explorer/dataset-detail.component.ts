@@ -68,6 +68,9 @@ import { NzProgressComponent } from "ng-zorro-antd/progress";
 import { UserDatasetStagedObjectsListComponent } from "./user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { AppSettings } from "../../../../../common/app-setting";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { DriveService } from "../../../../service/user/google-drive/drive.service";
 
 export const THROTTLE_TIME_MS = 1000;
 export const ABORT_RETRY_MAX_ATTEMPTS = 10;
@@ -112,6 +115,10 @@ const DEFAULT_COVER_IMAGE = "assets/card_background.jpg";
     NzProgressComponent,
     UserDatasetStagedObjectsListComponent,
     NzInputDirective,
+    NzDropdownDirective,
+    NzDropdownMenuComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -147,6 +154,9 @@ export class DatasetDetailComponent implements OnInit {
   public currentUid: number | undefined;
   public viewCount: number = 0;
   public displayPreciseViewCount = false;
+  public isDriveConnected = false;
+  public fileExportMenuVisible = false;
+  public versionExportMenuVisible = false;
 
   userHasPendingChanges: boolean = false;
   pendingChangesCount: number = 0;
@@ -184,7 +194,8 @@ export class DatasetDetailComponent implements OnInit {
     private downloadService: DownloadService,
     private userService: UserService,
     private hubService: HubService,
-    private adminSettingsService: AdminSettingsService
+    private adminSettingsService: AdminSettingsService,
+    private driveService: DriveService
   ) {
     this.userService
       .userChanged()
@@ -251,6 +262,20 @@ export class DatasetDetailComponent implements OnInit {
       });
 
     this.loadUploadSettings();
+
+    this.driveService
+      .getToken()
+      .pipe(untilDestroyed(this))
+      .subscribe(res => {
+        this.isDriveConnected = res.status === "ok";
+      });
+    this.driveService
+      .onConnected()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isDriveConnected = true;
+        this.notificationService.success("Google Drive connected");
+      });
   }
 
   public onClickOpenVersionCreator() {
@@ -275,6 +300,40 @@ export class DatasetDetailComponent implements OnInit {
           },
         });
     }
+  }
+
+  public onClickDriveExportVersion(): void {
+    if (!this.isDriveConnected) {
+      this.driveService.connect();
+      return;
+    }
+    if (!this.did || !this.selectedVersion?.dvid) return;
+    this.datasetService
+      .retrieveDatasetVersionZip(this.did, this.selectedVersion.dvid)
+      .pipe(
+        switchMap(blob =>
+          this.driveService.exportToDrive(blob, `${this.datasetName}-${this.selectedVersion!.name}.zip`)
+        ),
+        untilDestroyed(this)
+      )
+      .subscribe({ next: () => this.notificationService.success("Exported to Google Drive") });
+  }
+
+  public onClickDriveExportFile(): void {
+    if (!this.isDriveConnected) {
+      this.driveService.connect();
+      return;
+    }
+    if (!this.currentDisplayedFileName) return;
+    const shouldUsePublicEndpoint = this.datasetIsPublic && !this.isOwner;
+    const fileName = this.currentDisplayedFileName.split("/").pop() || "download";
+    this.datasetService
+      .retrieveDatasetVersionSingleFile(this.currentDisplayedFileName, !shouldUsePublicEndpoint)
+      .pipe(
+        switchMap(blob => this.driveService.exportToDrive(blob, fileName)),
+        untilDestroyed(this)
+      )
+      .subscribe({ next: () => this.notificationService.success("Exported to Google Drive") });
   }
 
   public onClickDownloadVersionAsZip() {
