@@ -162,6 +162,7 @@ export class ListItemComponent implements OnChanges, OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.isDriveConnected = true;
+        this.notificationService.success("Google Drive connected");
       });
   }
 
@@ -299,7 +300,7 @@ export class ListItemComponent implements OnChanges, OnInit {
           }),
           untilDestroyed(this)
         )
-        .subscribe();
+        .subscribe({ next: () => this.notificationService.success("Exported to Google Drive") });
     } else if (this.entry.type === "dataset") {
       this.datasetService
         .retrieveDatasetVersionZip(this.entry.id)
@@ -307,7 +308,7 @@ export class ListItemComponent implements OnChanges, OnInit {
           switchMap(blob => this.driveService.exportToDrive(blob, `${this.entry.name}.zip`)),
           untilDestroyed(this)
         )
-        .subscribe();
+        .subscribe({ next: () => this.notificationService.success("Exported to Google Drive") });
     }
   }
 
