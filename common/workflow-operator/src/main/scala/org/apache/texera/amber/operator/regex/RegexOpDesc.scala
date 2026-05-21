@@ -24,12 +24,13 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class RegexOpDesc extends FilterOpDesc {
+class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to search regex on")
@@ -72,4 +73,20 @@ class RegexOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = {
+    // JVM uses Java Pattern.matcher(v).find — partial match. pandas str.contains
+    // is also partial by default. Java-only regex syntax (\Q\E, possessive
+    // quantifiers, etc.) may behave differently in Python's re engine.
+    val pyLiteral = toPyDoubleQuotedLiteral(Option(regex).getOrElse(""))
+    val caseArg = if (caseInsensitive) "False" else "True"
+    s"""out1df = in1df[in1df["$attribute"].astype(str).str.contains($pyLiteral, regex=True, case=$caseArg, na=False)].reset_index(drop=True)"""
+  }
+
+  // Escape a raw string for embedding in a Python double-quoted literal:
+  // backslash -> \\, double-quote -> \". Backslashes already meaningful in
+  // the regex (like \b, \d) get preserved correctly because they are doubled
+  // in the Python source, then collapsed back to a single \ by the parser.
+  private def toPyDoubleQuotedLiteral(s: String): String =
+    "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
