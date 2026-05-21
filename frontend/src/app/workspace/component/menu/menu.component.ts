@@ -137,6 +137,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isExportDeactivate: boolean = false;
   public showRegion: boolean = false;
   public isDriveConnected = false;
+  public driveNeedsReauth = false;
   public exportMenuVisible = false;
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
@@ -260,6 +261,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(res => {
         this.isDriveConnected = res.status === "ok";
+        this.driveNeedsReauth = res.status === "invalid_grant";
       });
     this.driveService
       .onConnected()
@@ -672,7 +674,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public onClickDriveExportWorkflow(): void {
     if (!this.isDriveConnected) {
-      this.driveService.connect();
+      this.driveService.connect(this.driveNeedsReauth);
       return;
     }
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();

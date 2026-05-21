@@ -26,16 +26,14 @@ import org.apache.texera.web.resource.auth.GoogleDriveAuthResource._
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.config.UserSystemConfig
-import org.apache.texera.auth.JwtAuth.{jwtClaims, TOKEN_EXPIRE_TIME_IN_MINUTES}
+import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.auth.JwtAuth
-import com.google.api.client.googleapis.auth.oauth2.{GoogleRefreshTokenRequest,
-  GoogleAuthorizationCodeTokenRequest,
-  GoogleTokenResponse,
-  GoogleAuthorizationCodeRequestUrl}
+import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeRequestUrl, GoogleAuthorizationCodeTokenRequest, GoogleRefreshTokenRequest, GoogleTokenResponse}
 import com.google.api.client.auth.oauth2.TokenResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
@@ -66,6 +64,7 @@ class GoogleDriveAuthResource extends LazyLogging {
 
   @GET
   @Path("/token")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getDriveAccessToken(@Auth sessionUser: SessionUser): Response = {
     val user = userDao.fetchOneByUid(sessionUser.getUid)
     val refreshToken = user.getGoogleDriveRefreshToken
@@ -145,6 +144,7 @@ class GoogleDriveAuthResource extends LazyLogging {
 
   @GET
   @Path("/connect")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def getOAuth(
                 @Auth sessionUser: SessionUser,
                 @QueryParam("reauth") @DefaultValue("false") reauth: Boolean

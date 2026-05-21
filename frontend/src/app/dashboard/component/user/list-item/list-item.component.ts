@@ -119,6 +119,7 @@ export class ListItemComponent implements OnChanges, OnInit {
   private _entry?: DashboardEntry;
   hovering: boolean = false;
   isDriveConnected = false;
+  driveNeedsReauth = false;
   exportMenuVisible = false;
 
   @Input()
@@ -156,6 +157,7 @@ export class ListItemComponent implements OnChanges, OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(res => {
         this.isDriveConnected = res.status === "ok";
+        this.driveNeedsReauth = res.status === "invalid_grant";
       });
     this.driveService
       .onConnected()
@@ -286,7 +288,7 @@ export class ListItemComponent implements OnChanges, OnInit {
 
   public onClickDriveAction(): void {
     if (!this.isDriveConnected) {
-      this.driveService.connect();
+      this.driveService.connect(this.driveNeedsReauth);
       return;
     }
     if (!this.entry.id) return;

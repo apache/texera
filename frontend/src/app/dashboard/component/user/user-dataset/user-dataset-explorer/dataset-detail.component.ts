@@ -155,6 +155,7 @@ export class DatasetDetailComponent implements OnInit {
   public viewCount: number = 0;
   public displayPreciseViewCount = false;
   public isDriveConnected = false;
+  public driveNeedsReauth = false;
   public fileExportMenuVisible = false;
   public versionExportMenuVisible = false;
 
@@ -268,6 +269,7 @@ export class DatasetDetailComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(res => {
         this.isDriveConnected = res.status === "ok";
+        this.driveNeedsReauth = res.status === "invalid_grant";
       });
     this.driveService
       .onConnected()
@@ -304,7 +306,7 @@ export class DatasetDetailComponent implements OnInit {
 
   public onClickDriveExportVersion(): void {
     if (!this.isDriveConnected) {
-      this.driveService.connect();
+      this.driveService.connect(this.driveNeedsReauth);
       return;
     }
     if (!this.did || !this.selectedVersion?.dvid) return;
@@ -321,7 +323,7 @@ export class DatasetDetailComponent implements OnInit {
 
   public onClickDriveExportFile(): void {
     if (!this.isDriveConnected) {
-      this.driveService.connect();
+      this.driveService.connect(this.driveNeedsReauth);
       return;
     }
     if (!this.currentDisplayedFileName) return;
