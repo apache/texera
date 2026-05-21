@@ -152,7 +152,7 @@ describe("DriveService", () => {
       tick();
 
       let errorMessage = "";
-      result$.subscribe({ error: (e: Error) => (errorMessage = e.message) });
+      result$.subscribe({ error: (e: unknown) => (errorMessage = (e as Error).message) });
       tick();
 
       expect(errorMessage).toBe("Not connected to Google Drive");
