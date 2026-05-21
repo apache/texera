@@ -22,7 +22,8 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
-import { BehaviorSubject, of, throwError } from "rxjs";
+import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { DriveService } from "../../../dashboard/service/user/google-drive/drive.service";
 
 import { MenuComponent } from "./menu.component";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -62,8 +63,23 @@ describe("MenuComponent", () => {
   let notificationService: NotificationService;
   let location: Location;
   let validationStream$: BehaviorSubject<ValidationOutput>;
+  let driveServiceMock: { getToken: ReturnType<typeof vi.fn>; onConnected: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn>; exportToDrive: ReturnType<typeof vi.fn> };
+  let driveConnected$: Subject<void>;
 
   beforeEach(async () => {
+    driveConnected$ = new Subject<void>();
+    driveServiceMock = {
+      getToken: vi.fn().mockReturnValue(of({ status: "ok", accessToken: "token" })),
+      onConnected: vi.fn().mockReturnValue(driveConnected$.asObservable()),
+      connect: vi.fn(),
+      exportToDrive: vi.fn().mockReturnValue(of(undefined)),
+    };
+
+    TestBed.overrideComponent(MenuComponent, {
+      set: { template: "" },
+    });
+
+
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -80,6 +96,7 @@ describe("MenuComponent", () => {
           },
         },
         { provide: UserService, useClass: StubUserService },
+        { provide: DriveService, useValue: driveServiceMock },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -525,5 +542,55 @@ describe("MenuComponent", () => {
     const config = createSpy.mock.calls[0][0] as ModalOptions;
     expect(config.nzTitle).toBe("Export All Operators Result");
     expect(config.nzData).toEqual(expect.objectContaining({ workflowName: "report-wf", sourceTriggered: "menu" }));
+  });
+
+  describe("Drive integration", () => {
+    it("should set isDriveConnected = true when token status is ok", () => {
+      expect(component.isDriveConnected).toBe(true);
+    });
+
+    it("should set isDriveConnected = false when token status is not ok", async () => {
+      driveServiceMock.getToken.mockReturnValue(of({ status: "error", accessToken: "" }));
+      fixture = TestBed.createComponent(MenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      expect(component.isDriveConnected).toBe(false);
+    });
+
+    it("should set isDriveConnected = true and show toast when onConnected fires", () => {
+      driveServiceMock.getToken.mockReturnValue(of({ status: "error", accessToken: "" }));
+      fixture = TestBed.createComponent(MenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      expect(component.isDriveConnected).toBe(false);
+
+      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+      driveConnected$.next();
+
+      expect(component.isDriveConnected).toBe(true);
+      expect(successSpy).toHaveBeenCalledWith("Google Drive connected");
+    });
+
+    it("should call connect() when not connected and onClickDriveExportWorkflow is called", () => {
+      component.isDriveConnected = false;
+
+      component.onClickDriveExportWorkflow();
+
+      expect(driveServiceMock.connect).toHaveBeenCalled();
+      expect(driveServiceMock.exportToDrive).not.toHaveBeenCalled();
+    });
+
+    it("should export workflow to Drive and show success toast when connected", () => {
+      const fakeContent = { operators: [], links: [], commentBoxes: [], settings: {} } as unknown as WorkflowContent;
+      vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue(fakeContent);
+      const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+      component.isDriveConnected = true;
+      component.currentWorkflowName = "my-workflow";
+
+      component.onClickDriveExportWorkflow();
+
+      expect(driveServiceMock.exportToDrive).toHaveBeenCalledWith(expect.any(Blob), "my-workflow.json");
+      expect(successSpy).toHaveBeenCalledWith("Exported to Google Drive");
+    });
   });
 });
