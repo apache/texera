@@ -29,12 +29,13 @@ import org.apache.texera.amber.core.workflow.{
   PhysicalOp,
   SchemaPropagationFunc
 }
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.flatmap.FlatMapOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class UnnestStringOpDesc extends FlatMapOpDesc {
+class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")
   @JsonPropertyDescription("string that separates the data")
   var delimiter: String = _
@@ -83,5 +84,21 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )
+  }
+
+  override def generateStandaloneCode(): String = {
+    if (resultAttribute == null || resultAttribute.trim.isEmpty) {
+      throw new RuntimeException("Result attribute cannot be empty")
+    }
+    // The JVM op uses Scala's `delimiter.r.split(...)`, so delimiter is a regex.
+    // Escape backslashes and quotes to embed safely in a Python string literal.
+    val delim = Option(delimiter)
+      .getOrElse("")
+      .replace("\\", "\\\\")
+      .replace("\"", "\\\"")
+    s"""out1df = in1df.copy()
+       |out1df["$resultAttribute"] = out1df["$attribute"].astype(str).str.split("$delim", regex=True)
+       |out1df = out1df.explode("$resultAttribute", ignore_index=True)
+       |out1df = out1df[(out1df["$resultAttribute"].notna()) & (out1df["$resultAttribute"] != "")].reset_index(drop=True)""".stripMargin
   }
 }
