@@ -22,7 +22,8 @@
   class="list-item-card"
   [class.selected]="entry.checked"
   [class.has-button-group]="isPrivateSearch"
-  [class.editing-description]="editingDescription">
+  [class.editing-description]="editingDescription"
+  [class.export-menu-open]="exportMenuVisible">
   <div
     (mouseenter)="hovering = true"
     (mouseleave)="hovering = false"
@@ -218,6 +219,8 @@
       nzType="text"
       *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
       nz-dropdown
+      [(nzVisible)]="exportMenuVisible"
+      nzOverlayClassName="export-dropdown-menu"
       [nzDropdownMenu]="exportMenu">
       <i nz-icon nzType="cloud-download"></i>
     </button>

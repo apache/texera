@@ -119,6 +119,7 @@ export class ListItemComponent implements OnChanges, OnInit {
   private _entry?: DashboardEntry;
   hovering: boolean = false;
   isDriveConnected = false;
+  exportMenuVisible = false;
 
   @Input()
   get entry(): DashboardEntry {
