@@ -87,7 +87,11 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       val expr = unit.resultType match {
         case AttributeType.STRING => s"""out1df["$col"].astype(str)"""
         case AttributeType.INTEGER | AttributeType.LONG =>
-          s"""pd.to_numeric(out1df["$col"], errors="coerce").astype("Int64")"""
+          // Match JVM AttributeTypeUtils.parseInteger, which casts Double via
+          // `.toInt` (truncate toward zero). pandas .astype("Int64") on a float
+          // with non-integer values raises TypeError, so truncate explicitly
+          // via int() while preserving NaN as pd.NA.
+          s"""pd.to_numeric(out1df["$col"], errors="coerce").apply(lambda x: pd.NA if pd.isna(x) else int(x)).astype("Int64")"""
         case AttributeType.DOUBLE =>
           s"""pd.to_numeric(out1df["$col"], errors="coerce").astype("float64")"""
         case AttributeType.BOOLEAN   => s"""out1df["$col"].astype(bool)"""
