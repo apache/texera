@@ -26,11 +26,12 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import org.apache.texera.amber.core.workflow._
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.map.MapOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class ProjectionOpDesc extends MapOpDesc {
+class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Drop Option")
@@ -97,5 +98,31 @@ class ProjectionOpDesc extends MapOpDesc {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+  }
+
+  override def generateStandaloneCode(): String = {
+    val units = Option(attributes).getOrElse(List.empty)
+    // JVM validates non-empty at runtime via Preconditions; emit passthrough
+    // as best-effort so the standalone script still runs.
+    if (units.isEmpty) return "out1df = in1df.copy()"
+
+    if (isDrop) {
+      // Drop mode ignores aliases (matches ProjectionOpExec).
+      val cols = units.map(u => s""""${u.getOriginalAttribute}"""").mkString("[", ", ", "]")
+      s"out1df = in1df.drop(columns=$cols)"
+    } else {
+      val originals = units.map(u => s""""${u.getOriginalAttribute}"""").mkString("[", ", ", "]")
+      // AttributeUnit.getAlias returns originalAttribute when alias is blank,
+      // so an explicit rename is only needed when they differ.
+      val renames = units
+        .filter(u => u.getAlias != u.getOriginalAttribute)
+        .map(u => s""""${u.getOriginalAttribute}": "${u.getAlias}"""")
+      if (renames.isEmpty) {
+        s"out1df = in1df[$originals].copy()"
+      } else {
+        val renameMap = renames.mkString("{", ", ", "}")
+        s"out1df = in1df[$originals].rename(columns=$renameMap)"
+      }
+    }
   }
 }
