@@ -24,11 +24,11 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SleepOpDesc extends LogicalOp {
+class SleepOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Sleep Time (seconds)")
@@ -63,4 +63,10 @@ class SleepOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
+  override def generateStandaloneCode(): String = {
+    // JVM op sleeps between each tuple; pandas operates in batch, not row-by-row,
+    // so per-row sleep has no equivalent. Translate as a passthrough.
+    "out1df = in1df"
+  }
 }
